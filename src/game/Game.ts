@@ -19,47 +19,39 @@ export type HudSnapshot = {
   prompt: string | null;
 };
 
+const VIEW_SIZE = 18;
+
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.OrthographicCamera;
   private loop = new GameLoop();
-  private terrain: IslandTerrain;
-  private props: Props;
   private player: Player;
+  private collect: CollectSystem;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
-  private collect: CollectSystem;
   private onHud: (snap: HudSnapshot) => void;
   private hudTimer = 0;
+  private resizeObserver: ResizeObserver;
+  private container: HTMLElement;
 
   constructor(container: HTMLElement, onHud: (snap: HudSnapshot) => void) {
+    this.container = container;
     this.onHud = onHud;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.resize();
     container.appendChild(this.renderer.domElement);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(container);
 
-    // 正交相机从斜上方观察,2.5D 视角
-    const aspect = container.clientWidth / container.clientHeight;
-    const viewSize = 18;
-    this.camera = new THREE.OrthographicCamera(
-      -viewSize * aspect,
-      viewSize * aspect,
-      viewSize,
-      -viewSize,
-      -100,
-      200
-    );
-    this.camera.position.set(20, 24, 20);
-    this.camera.lookAt(0, 0, 0);
+    // 正交相机从斜上方观察,2.5D 视角,随角色移动
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
 
     this.scene.background = new THREE.Color('#a8d8ea');
-    const hemi = new THREE.HemisphereLight('#cfe8ff', '#8a7a5a', 0.9);
-    this.scene.add(hemi);
+    this.scene.add(new THREE.HemisphereLight('#cfe8ff', '#8a7a5a', 0.9));
     const sun = new THREE.DirectionalLight('#fff3d6', 1.6);
     sun.position.set(25, 35, 15);
     sun.castShadow = true;
@@ -67,20 +59,20 @@ export class Game {
     sun.shadow.camera.right = 45;
     sun.shadow.camera.top = 45;
     sun.shadow.camera.bottom = -45;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     this.scene.add(sun);
 
-    this.terrain = new IslandTerrain();
-    this.scene.add(this.terrain.mesh);
+    const terrain = new IslandTerrain();
+    this.scene.add(terrain.mesh);
     this.scene.add(new Ocean().mesh);
-    this.props = new Props(this.scene, this.terrain);
+    const props = new Props(this.scene, terrain);
 
-    this.player = new Player(this.terrain);
+    this.player = new Player(terrain);
     this.scene.add(this.player.group);
 
     this.collect = new CollectSystem(
       this.player,
-      this.props.list,
+      props.list,
       this.inventory,
       this.survival
     );
@@ -90,10 +82,47 @@ export class Game {
         this.player.update(delta, elapsed);
         this.survival.update(delta);
         this.collect.update();
+        this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
         this.pushHud(delta);
       },
     });
+  }
+
+  private resize(): void {
+    const w = this.container.clientWidth || 1;
+    const h = this.container.clientHeight || 1;
+    this.renderer?.setSize(w, h);
+    this.renderer?.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    if (this.camera) {
+      const aspect = w / h;
+      this.camera.left = -VIEW_SIZE * aspect;
+      this.camera.right = VIEW_SIZE * aspect;
+      this.camera.top = VIEW_SIZE;
+      this.camera.bottom = -VIEW_SIZE;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /** 相机以固定偏移跟随角色 */
+  private updateCamera(delta: number): void {
+    const target = this.player.group.position;
+    const desiredX = target.x + 20;
+    const desiredY = target.y + 24;
+    const desiredZ = target.z + 20;
+    const k = 1 - Math.pow(0.001, delta);
+    this.camera.position.x += (desiredX - this.camera.position.x) * k;
+    this.camera.position.y += (desiredY - this.camera.position.y) * k;
+    this.camera.position.z += (desiredZ - this.camera.position.z) * k;
+    this.camera.lookAt(target.x, target.y, target.z);
+  }
+
+  setJoystick(x: number, z: number): void {
+    this.player.input.setJoystick(x, z);
+  }
+
+  action(): void {
+    this.collect.tryCollect();
   }
 
   start(): void {
@@ -102,6 +131,7 @@ export class Game {
 
   dispose(): void {
     this.loop.stop();
+    this.resizeObserver.disconnect();
     this.player.dispose();
     this.collect.dispose();
     this.renderer.dispose();
@@ -117,10 +147,10 @@ export class Game {
       ? null
       : nearby
         ? nearby.kind === 'tree'
-          ? '按 E 砍树'
+          ? '砍树'
           : nearby.kind === 'rock'
-            ? '按 E 采石'
-            : '按 E 采浆果(食用)'
+            ? '采石'
+            : '采浆果'
         : null;
     this.onHud({
       ...this.survival.state,

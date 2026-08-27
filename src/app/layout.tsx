@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -6,10 +6,17 @@ export const metadata: Metadata = {
   description: '2.5D 荒岛求生游戏',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body style={{ margin: 0, overflow: 'hidden' }}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

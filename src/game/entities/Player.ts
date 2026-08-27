@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import { MoveInput } from '../core/MoveInput';
 import { IslandTerrain } from '../world/IslandTerrain';
 
 const MOVE_SPEED = 5;
@@ -15,9 +16,10 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 /** 程序拼装的低多边形小人 + 运行时走路动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
+  readonly input = new MoveInput();
   private terrain: IslandTerrain;
   private limbs: { mesh: THREE.Mesh; phase: number }[] = [];
-  private keys = new Set<string>();
+  private moveVec = new THREE.Vector2();
   private moving = false;
 
   constructor(terrain: IslandTerrain) {
@@ -53,34 +55,22 @@ export class Player implements Updatable {
       { mesh: legR, phase: 0 },
     ];
 
-    window.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('keyup', this.onKeyUp);
-
     this.group.position.set(0, terrain.getHeight(0, 0), 0);
   }
 
-  private onKeyDown = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
-  private onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
-
   update(delta: number, elapsed: number): void {
-    let dx = 0;
-    let dz = 0;
-    if (this.keys.has('w') || this.keys.has('arrowup')) dz -= 1;
-    if (this.keys.has('s') || this.keys.has('arrowdown')) dz += 1;
-    if (this.keys.has('a') || this.keys.has('arrowleft')) dx -= 1;
-    if (this.keys.has('d') || this.keys.has('arrowright')) dx += 1;
-
-    this.moving = dx !== 0 || dz !== 0;
+    this.input.getVector(this.moveVec);
+    this.moving = this.moveVec.lengthSq() > 0.001;
     if (this.moving) {
-      const len = Math.hypot(dx, dz);
+      const len = this.moveVec.length();
       const p = this.group.position;
-      p.x += (dx / len) * MOVE_SPEED * delta;
-      p.z += (dz / len) * MOVE_SPEED * delta;
+      p.x += (this.moveVec.x / len) * MOVE_SPEED * delta;
+      p.z += (this.moveVec.y / len) * MOVE_SPEED * delta;
       const half = this.terrain.size / 2 - 1;
       p.x = THREE.MathUtils.clamp(p.x, -half, half);
       p.z = THREE.MathUtils.clamp(p.z, -half, half);
       p.y = this.terrain.getHeight(p.x, p.z);
-      this.group.rotation.y = Math.atan2(dx, dz);
+      this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
     }
 
     // 运行时走路动画:四肢绕根关节摆动
@@ -91,7 +81,6 @@ export class Player implements Updatable {
   }
 
   dispose(): void {
-    window.removeEventListener('keydown', this.onKeyDown);
-    window.removeEventListener('keyup', this.onKeyUp);
+    this.input.dispose();
   }
 }
