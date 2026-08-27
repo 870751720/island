@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (if package.json exists)
+        if: hashFiles('package.json') != ''
+        run: |
+          npm ci || npm install
+          npm run build --if-present
+
+      - name: Prepare publish directory
+        run: |
+          if [ -f package.json ] && [ -d dist ]; then
+            cp -r dist _site
+          elif [ -f package.json ] && [ -d build ]; then
+            cp -r build _site
+          elif [ -f package.json ] && [ -d out ]; then
+            cp -r out _site
+          else
+            mkdir -p _site
+            cp -r *.html *.md *.css *.js assets images 2>/dev/null || true
+          fi
+          # 保证 Pages 有入口页
+          if [ ! -f _site/index.html ]; then
+            printf '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Island</title></head><body><h1>Island</h1><p>暂无构建产物,后续将部署游戏页面。</p></body></html>' > _site/index.html
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
