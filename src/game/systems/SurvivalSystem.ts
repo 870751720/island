@@ -13,6 +13,8 @@ const STARVE_DAMAGE = 2;
 
 export class SurvivalSystem implements Updatable {
   readonly state: SurvivalState;
+  /** 夜晚等环境因素对消耗速率的全局倍率 */
+  drainMultiplier = 1;
 
   constructor() {
     this.state = { hunger: 100, thirst: 100, health: 100, dead: false };
@@ -21,8 +23,8 @@ export class SurvivalSystem implements Updatable {
   update(delta: number): void {
     const s = this.state;
     if (s.dead) return;
-    s.hunger = Math.max(0, s.hunger - HUNGER_RATE * delta);
-    s.thirst = Math.max(0, s.thirst - THIRST_RATE * delta);
+    s.hunger = Math.max(0, s.hunger - HUNGER_RATE * this.drainMultiplier * delta);
+    s.thirst = Math.max(0, s.thirst - THIRST_RATE * this.drainMultiplier * delta);
     if (s.hunger <= 0 || s.thirst <= 0) {
       s.health = Math.max(0, s.health - STARVE_DAMAGE * delta);
       if (s.health <= 0) s.dead = true;

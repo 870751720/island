@@ -15,6 +15,8 @@ const INITIAL_HUD: HudSnapshot = {
   stone: 0,
   berry: 0,
   prompt: null,
+  clock: '12:00',
+  isNight: false,
 };
 
 export function GameCanvas() {

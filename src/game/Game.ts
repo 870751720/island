@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
+import { DayNightSystem } from './systems/DayNightSystem';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -17,6 +18,8 @@ export type HudSnapshot = {
   stone: number;
   berry: number;
   prompt: string | null;
+  clock: string;
+  isNight: boolean;
 };
 
 const VIEW_SIZE = 18;
@@ -30,6 +33,7 @@ export class Game {
   private collect: CollectSystem;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
+  private dayNight: DayNightSystem;
   private onHud: (snap: HudSnapshot) => void;
   private hudTimer = 0;
   private resizeObserver: ResizeObserver;
@@ -51,7 +55,8 @@ export class Game {
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
 
     this.scene.background = new THREE.Color('#a8d8ea');
-    this.scene.add(new THREE.HemisphereLight('#cfe8ff', '#8a7a5a', 0.9));
+    const hemi = new THREE.HemisphereLight('#cfe8ff', '#8a7a5a', 0.9);
+    this.scene.add(hemi);
     const sun = new THREE.DirectionalLight('#fff3d6', 1.6);
     sun.position.set(25, 35, 15);
     sun.castShadow = true;
@@ -77,9 +82,13 @@ export class Game {
       this.survival
     );
 
+    this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+
     this.loop.add({
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
+        this.dayNight.update(delta);
+        this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
         this.collect.update();
         this.updateCamera(delta);
@@ -158,6 +167,8 @@ export class Game {
       stone: this.inventory.state.stone,
       berry: this.inventory.state.berry,
       prompt,
+      clock: this.dayNight.state.clock,
+      isNight: this.dayNight.isNight,
     });
   }
 }
