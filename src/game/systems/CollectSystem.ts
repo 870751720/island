@@ -1,6 +1,5 @@
 import type { Player } from '../entities/Player';
-import * as THREE from 'three';
-import type { Prop } from '../world/Props';
+import type { Prop, Props } from '../world/Props';
 import { Inventory } from './Inventory';
 import type { Tools } from './Crafting';
 
@@ -12,7 +11,7 @@ export class CollectSystem {
 
   constructor(
     private player: Player,
-    private props: Prop[],
+    private props: Props,
     private inventory: Inventory,
     private tools: Tools
   ) {
@@ -23,8 +22,8 @@ export class CollectSystem {
   update(): void {
     this.nearby = null;
     const p = this.player.group.position;
-    for (const prop of this.props) {
-      if (prop.harvested) continue;
+    for (const prop of this.props.list) {
+      if (!prop.ready) continue;
       if (prop.position.distanceTo(p) < COLLECT_RANGE) {
         this.nearby = prop;
         break;
@@ -32,7 +31,7 @@ export class CollectSystem {
     }
   }
 
-  getNearby(): Prop | null {
+  getNearby() {
     return this.nearby;
   }
 
@@ -49,29 +48,22 @@ export class CollectSystem {
   tryCollect(): void {
     const prop = this.nearby;
     if (!prop || !this.canCollect()) return;
-    prop.harvested = true;
+    this.props.harvest(prop);
     switch (prop.kind) {
       case 'tree':
-        // 斧子砍树,一次多获木材;砍掉树冠只留树桩
         this.inventory.add('wood', 3);
-        prop.group.children
-          .filter((c) => c instanceof THREE.Mesh)
-          .slice(1)
-          .forEach((c) => (c.visible = false));
         break;
       case 'rock':
         this.inventory.add('stone', 2);
-        prop.group.visible = false;
         break;
       case 'gravel':
         this.inventory.add('gravel', 2);
-        prop.group.visible = false;
         break;
       case 'berry':
         this.inventory.add('berry', 1);
-        // 灌木丛偶尔能捡到小树枝
-        if (Math.random() < 0.4) this.inventory.add('wood', 1);
-        prop.group.children.forEach((c) => (c.visible = false));
+        break;
+      case 'shrub':
+        this.inventory.add('wood', 1);
         break;
     }
     this.nearby = null;

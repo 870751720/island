@@ -1,13 +1,24 @@
 import * as THREE from 'three';
+import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from './IslandTerrain';
 
-export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry';
+export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub';
+
+/** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
+const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
+  tree: { regrow: 0 },
+  rock: { regrow: 0 },
+  gravel: { regrow: 0 },
+  berry: { regrow: 60 },
+  shrub: { regrow: 90 },
+};
 
 export type Prop = {
   kind: PropKind;
   group: THREE.Group;
   position: THREE.Vector3;
-  harvested: boolean;
+  ready: boolean;
+  regrowLeft: number;
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -71,30 +82,47 @@ function makeGravel(): THREE.Group {
   return g;
 }
 
-function makeBerryBush(): THREE.Group {
-  const g = new THREE.Group();
-  const bush = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.35, 0),
-    clayMaterial('#5d8a3a')
-  );
-  bush.position.y = 0.28;
-  bush.castShadow = true;
-  g.add(bush);
+function makeBushBody(color: string): { group: THREE.Group; body: THREE.Mesh } {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), clayMaterial(color));
+  body.position.y = 0.28;
+  body.castShadow = true;
+  group.add(body);
+  return { group, body };
+}
+
+function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
+  const { group } = makeBushBody('#5d8a3a');
   const berryMat = clayMaterial('#c0392b');
+  const berries: THREE.Mesh[] = [];
   for (let i = 0; i < 4; i++) {
-    const berry = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.07, 0),
-      berryMat
-    );
+    const berry = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), berryMat);
     const a = (i / 4) * Math.PI * 2;
     berry.position.set(Math.cos(a) * 0.28, 0.38, Math.sin(a) * 0.28);
-    g.add(berry);
+    berries.push(berry);
+    group.add(berry);
+  }
+  return { group, berries };
+}
+
+function makeShrub(): THREE.Group {
+  // 灌木丛:多团叶子,产出树枝
+  const g = new THREE.Group();
+  const mat = clayMaterial('#6b8f4e');
+  for (let i = 0; i < 3; i++) {
+    const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), mat);
+    const a = (i / 3) * Math.PI * 2;
+    blob.position.set(Math.cos(a) * 0.18, 0.2 + (i % 2) * 0.1, Math.sin(a) * 0.18);
+    blob.castShadow = true;
+    g.add(blob);
   }
   return g;
 }
 
-export class Props {
+/** 岛上散布的资源点,管理采集后的外观变化与再生 */
+export class Props implements Updatable {
   readonly list: Prop[] = [];
+  private berries = new Map<Prop, THREE.Mesh[]>();
 
   constructor(
     scene: THREE.Scene,
@@ -114,23 +142,80 @@ export class Props {
           if (y > 0.3) break;
         }
         if (y <= 0.3) continue;
-        const group =
-          kind === 'tree'
-            ? makeTree()
-            : kind === 'rock'
-              ? makeRock()
-              : kind === 'gravel'
-                ? makeGravel()
-                : makeBerryBush();
+        let berries: THREE.Mesh[] | null = null;
+        let group: THREE.Group;
+        if (kind === 'tree') group = makeTree();
+        else if (kind === 'rock') group = makeRock();
+        else if (kind === 'gravel') group = makeGravel();
+        else if (kind === 'shrub') group = makeShrub();
+        else {
+          const made = makeBerryBush();
+          group = made.group;
+          berries = made.berries;
+        }
         group.position.set(x, y - 0.05, z);
         group.rotation.y = rng() * Math.PI * 2;
         scene.add(group);
-        this.list.push({ kind, group, position: group.position.clone(), harvested: false });
+        const prop: Prop = {
+          kind,
+          group,
+          position: group.position.clone(),
+          ready: true,
+          regrowLeft: 0,
+        };
+        this.list.push(prop);
+        if (berries) this.berries.set(prop, berries);
       }
     };
     spawn('tree', 26);
     spawn('rock', 8);
     spawn('gravel', 14);
     spawn('berry', 8);
+    spawn('shrub', 12);
+  }
+
+  /** 采集后的外观变化,并按配置安排再生 */
+  harvest(prop: Prop): void {
+    prop.ready = false;
+    const { regrow } = PROP_CONFIG[prop.kind];
+    if (regrow > 0) {
+      prop.regrowLeft = regrow;
+    }
+    switch (prop.kind) {
+      case 'tree':
+        // 砍掉树冠只留树桩
+        prop.group.children
+          .filter((c) => c instanceof THREE.Mesh)
+          .slice(1)
+          .forEach((c) => (c.visible = false));
+        break;
+      case 'rock':
+      case 'gravel':
+        prop.group.visible = false;
+        break;
+      case 'berry':
+        // 浆果丛保留,只藏起果子
+        for (const berry of this.berries.get(prop) ?? []) berry.visible = false;
+        break;
+      case 'shrub':
+        // 灌木丛被割,缩到很小的桩
+        prop.group.scale.setScalar(0.35);
+        break;
+    }
+  }
+
+  update(delta: number): void {
+    for (const prop of this.list) {
+      if (prop.ready || prop.regrowLeft <= 0) continue;
+      prop.regrowLeft -= delta;
+      if (prop.regrowLeft > 0) continue;
+      prop.ready = true;
+      prop.regrowLeft = 0;
+      if (prop.kind === 'berry') {
+        for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
+      } else if (prop.kind === 'shrub') {
+        prop.group.scale.setScalar(1);
+      }
+    }
   }
 }

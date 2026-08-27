@@ -36,6 +36,7 @@ export class Game {
   private loop = new GameLoop();
   private player: Player;
   private collect: CollectSystem;
+  private props: Props;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
@@ -76,14 +77,14 @@ export class Game {
     const terrain = new IslandTerrain();
     this.scene.add(terrain.mesh);
     this.scene.add(new Ocean().mesh);
-    const props = new Props(this.scene, terrain);
+    this.props = new Props(this.scene, terrain);
 
     this.player = new Player(terrain);
     this.scene.add(this.player.group);
 
     this.collect = new CollectSystem(
       this.player,
-      props.list,
+      this.props,
       this.inventory,
       this.tools
     );
@@ -94,6 +95,7 @@ export class Game {
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
         this.dayNight.update(delta);
+        this.props.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
         this.collect.update();
@@ -186,7 +188,9 @@ export class Game {
               : '需要镐子'
             : nearby.kind === 'gravel'
               ? '捡碎石'
-              : '采浆果';
+              : nearby.kind === 'shrub'
+                ? '捡树枝'
+                : '采浆果';
     }
     this.onHud({
       ...this.survival.state,
