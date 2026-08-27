@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Game, type HudSnapshot } from '@/game/Game';
 import { Hud } from './Hud';
+import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ActionButton } from './ActionButton';
 
@@ -23,6 +24,7 @@ export function GameCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
+  const [backpackOpen, setBackpackOpen] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -42,6 +44,12 @@ export function GameCanvas() {
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       <Hud hud={hud} />
+      <Backpack
+        open={backpackOpen}
+        onToggle={() => setBackpackOpen((v) => !v)}
+        items={hud}
+        onEatBerry={() => gameRef.current?.eatBerry()}
+      />
       {!hud.dead && (
         <>
           <VirtualJoystick

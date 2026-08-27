@@ -35,8 +35,7 @@ export function Hud({ hud }: { hud: HudSnapshot }) {
         <StatBar label="生命" value={hud.health} color="#e74c3c" />
         <StatBar label="饥饿" value={hud.hunger} color="#e67e22" />
         <StatBar label="口渴" value={hud.thirst} color="#3498db" />
-        <div style={{ marginTop: 2, display: 'flex', justifyContent: 'space-between' }}>
-          <span>🪵 {hud.wood} · 🪨 {hud.stone} · 🍒 {hud.berry}</span>
+        <div style={{ marginTop: 2, display: 'flex', justifyContent: 'flex-end' }}>
           <span>{hud.isNight ? '🌙' : '☀️'} {hud.clock}</span>
         </div>
       </div>

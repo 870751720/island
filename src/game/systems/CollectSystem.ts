@@ -2,19 +2,17 @@ import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import type { Prop } from '../world/Props';
 import { Inventory } from './Inventory';
-import { SurvivalSystem } from './SurvivalSystem';
 
 const COLLECT_RANGE = 1.6;
 
-/** 靠近资源点采集;浆果直接食用恢复生存数值 */
+/** 靠近资源点采集,产物进入背包 */
 export class CollectSystem {
   private nearby: Prop | null = null;
 
   constructor(
     private player: Player,
     private props: Prop[],
-    private inventory: Inventory,
-    private survival: SurvivalSystem
+    private inventory: Inventory
   ) {
     // E 键作为桌面端补充操作
     window.addEventListener('keydown', this.onKeyDown);
@@ -53,7 +51,6 @@ export class CollectSystem {
       prop.group.visible = false;
     } else {
       this.inventory.add('berry');
-      this.survival.eatBerry();
       prop.group.children.forEach((c) => (c.visible = false));
     }
     this.nearby = null;

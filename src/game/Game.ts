@@ -75,12 +75,7 @@ export class Game {
     this.player = new Player(terrain);
     this.scene.add(this.player.group);
 
-    this.collect = new CollectSystem(
-      this.player,
-      props.list,
-      this.inventory,
-      this.survival
-    );
+    this.collect = new CollectSystem(this.player, props.list, this.inventory);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
 
@@ -132,6 +127,13 @@ export class Game {
 
   action(): void {
     this.collect.tryCollect();
+  }
+
+  /** 从背包食用浆果,返回是否成功 */
+  eatBerry(): boolean {
+    if (!this.inventory.remove('berry')) return false;
+    this.survival.eatBerry();
+    return true;
   }
 
   start(): void {
