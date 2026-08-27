@@ -25,6 +25,7 @@ const INITIAL_HUD: HudSnapshot = {
 
 export function GameCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
@@ -32,7 +33,20 @@ export function GameCanvas() {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const game = new Game(container, setHud);
+    const game = new Game(
+      container,
+      setHud,
+      // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染
+      (label, x, y) => {
+        const el = labelRef.current;
+        if (!el) return;
+        el.style.display = label ? 'block' : 'none';
+        if (label) {
+          el.textContent = label;
+          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+        }
+      }
+    );
     gameRef.current = game;
     game.start();
     return () => {
@@ -57,12 +71,27 @@ export function GameCanvas() {
       {!hud.dead && (
         <>
           <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
-          <ToolButton
-            tool={hud.tool}
-            onCycle={() => gameRef.current?.cycleTool()}
-          />
+          <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
         </>
       )}
+      <div
+        ref={labelRef}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          display: 'none',
+          padding: '4px 14px',
+          background: 'rgba(0,0,0,0.55)',
+          color: '#fff',
+          borderRadius: 20,
+          fontFamily: 'sans-serif',
+          fontSize: 14,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      />
     </div>
   );
 }

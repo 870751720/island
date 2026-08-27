@@ -45,13 +45,19 @@ export class Game {
   private dayNight: DayNightSystem;
   private indicator: PlayerIndicator;
   private onHud: (snap: HudSnapshot) => void;
+  private onLabel: (label: string | null, x: number, y: number) => void;
   private hudTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
 
-  constructor(container: HTMLElement, onHud: (snap: HudSnapshot) => void) {
+  constructor(
+    container: HTMLElement,
+    onHud: (snap: HudSnapshot) => void,
+    onLabel: (label: string | null, x: number, y: number) => void
+  ) {
     this.container = container;
     this.onHud = onHud;
+    this.onLabel = onLabel;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.enabled = true;
@@ -205,7 +211,7 @@ export class Game {
     });
   }
 
-  /** 玩家头顶的作业提示与进度圆环 */
+  /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
   private updateIndicator(): void {
     const nearby = this.collect.getNearby();
     let label: string | null = null;
@@ -230,6 +236,16 @@ export class Game {
     }
     const p = this.player.group.position;
     this.indicator.group.position.set(p.x, p.y + 2.1, p.z);
-    this.indicator.set(label, progress);
+    this.indicator.setProgress(progress);
+
+    // 头顶文字投影为屏幕坐标
+    const head = new THREE.Vector3(p.x, p.y + 2.75, p.z).project(this.camera);
+    const w = this.renderer.domElement.clientWidth;
+    const h = this.renderer.domElement.clientHeight;
+    this.onLabel(
+      label,
+      Math.round(((head.x + 1) / 2) * w),
+      Math.round(((1 - head.y) / 2) * h)
+    );
   }
 }
