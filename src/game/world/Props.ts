@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { IslandTerrain } from './IslandTerrain';
 
-export type PropKind = 'tree' | 'rock' | 'berry';
+export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry';
 
 export type Prop = {
   kind: PropKind;
@@ -45,13 +45,29 @@ function makeTree(): THREE.Group {
 function makeRock(): THREE.Group {
   const g = new THREE.Group();
   const rock = new THREE.Mesh(
-    new THREE.DodecahedronGeometry(0.4, 0),
-    clayMaterial('#9a9a9a')
+    new THREE.DodecahedronGeometry(0.55, 0),
+    clayMaterial('#8a8a8a')
   );
-  rock.scale.set(1, 0.7, 0.85);
-  rock.position.y = 0.22;
+  rock.scale.set(1, 0.85, 0.9);
+  rock.position.y = 0.4;
   rock.castShadow = true;
   g.add(rock);
+  return g;
+}
+
+function makeGravel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial('#b5b0a8');
+  for (let i = 0; i < 4; i++) {
+    const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.13, 0), mat);
+    pebble.position.set(
+      Math.cos((i / 4) * Math.PI * 2) * 0.25,
+      0.1,
+      Math.sin((i / 4) * Math.PI * 2) * 0.25
+    );
+    pebble.castShadow = true;
+    g.add(pebble);
+  }
   return g;
 }
 
@@ -98,7 +114,14 @@ export class Props {
           if (y > 0.3) break;
         }
         if (y <= 0.3) continue;
-        const group = kind === 'tree' ? makeTree() : kind === 'rock' ? makeRock() : makeBerryBush();
+        const group =
+          kind === 'tree'
+            ? makeTree()
+            : kind === 'rock'
+              ? makeRock()
+              : kind === 'gravel'
+                ? makeGravel()
+                : makeBerryBush();
         group.position.set(x, y - 0.05, z);
         group.rotation.y = rng() * Math.PI * 2;
         scene.add(group);
@@ -106,7 +129,8 @@ export class Props {
       }
     };
     spawn('tree', 26);
-    spawn('rock', 10);
+    spawn('rock', 8);
+    spawn('gravel', 14);
     spawn('berry', 8);
   }
 }

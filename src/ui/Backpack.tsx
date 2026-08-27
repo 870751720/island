@@ -1,21 +1,58 @@
 'use client';
 
 import type { HudSnapshot } from '@/game/Game';
+import { RECIPES, type Recipe } from '@/game/systems/Crafting';
 
 type Props = {
   open: boolean;
   onToggle: () => void;
   items: HudSnapshot;
   onEatBerry: () => void;
+  onCraft: (id: 'axe' | 'pickaxe') => void;
 };
 
-const ENTRIES: { kind: 'wood' | 'stone' | 'berry'; icon: string; name: string }[] = [
+const RESOURCES: { kind: 'wood' | 'gravel' | 'stone' | 'berry'; icon: string; name: string }[] = [
   { kind: 'wood', icon: '🪵', name: '木材' },
-  { kind: 'stone', icon: '🪨', name: '石块' },
+  { kind: 'gravel', icon: '🪨', name: '碎石' },
+  { kind: 'stone', icon: '🪨', name: '石头' },
   { kind: 'berry', icon: '🍒', name: '浆果' },
 ];
 
-export function Backpack({ open, onToggle, items, onEatBerry }: Props) {
+function rowStyle(): React.CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 0',
+    borderBottom: '1px solid rgba(0,0,0,0.08)',
+  };
+}
+
+function actionButton(disabled: boolean, label: string, onPress: () => void): React.ReactNode {
+  return (
+    <button
+      disabled={disabled}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onPress();
+      }}
+      style={{
+        padding: '6px 14px',
+        borderRadius: 8,
+        border: 'none',
+        background: disabled ? '#bbb' : '#4caf50',
+        color: '#fff',
+        fontSize: 14,
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function Backpack({ open, onToggle, items, onEatBerry, onCraft }: Props) {
   return (
     <>
       <button
@@ -45,7 +82,9 @@ export function Backpack({ open, onToggle, items, onEatBerry }: Props) {
             position: 'absolute',
             top: 'max(66px, calc(env(safe-area-inset-top) + 56px))',
             right: 'max(10px, env(safe-area-inset-right))',
-            width: 'min(78vw, 260px)',
+            width: 'min(78vw, 280px)',
+            maxHeight: '70vh',
+            overflowY: 'auto',
             padding: '12px 14px',
             background: 'rgba(255,255,255,0.92)',
             borderRadius: 12,
@@ -56,43 +95,39 @@ export function Backpack({ open, onToggle, items, onEatBerry }: Props) {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: 8 }}>背包</div>
-          {ENTRIES.map(({ kind, icon, name }) => (
-            <div
-              key={kind}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 0',
-                borderBottom: '1px solid rgba(0,0,0,0.08)',
-              }}
-            >
+          {RESOURCES.map(({ kind, icon, name }) => (
+            <div key={kind} style={rowStyle()}>
               <span style={{ fontSize: 20 }}>{icon}</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span>× {items[kind]}</span>
-              {kind === 'berry' && (
-                <button
-                  disabled={items.berry <= 0}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    onEatBerry();
-                  }}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: items.berry > 0 ? '#4caf50' : '#bbb',
-                    color: '#fff',
-                    fontSize: 14,
-                    touchAction: 'none',
-                    userSelect: 'none',
-                  }}
-                >
-                  吃
-                </button>
-              )}
+              {kind === 'berry' &&
+                actionButton(items.berry <= 0, '吃', onEatBerry)}
             </div>
           ))}
+          <div style={{ fontWeight: 700, margin: '10px 0 4px' }}>合成</div>
+          {RECIPES.map((recipe: Recipe) => {
+            const owned = items[recipe.id];
+            return (
+              <div key={recipe.id} style={rowStyle()}>
+                <span style={{ fontSize: 20 }}>{recipe.icon}</span>
+                <span style={{ flex: 1 }}>{recipe.name}</span>
+                {owned ? (
+                  <span style={{ color: '#4caf50', fontWeight: 700 }}>已拥有</span>
+                ) : (
+                  actionButton(
+                    !Object.entries(recipe.cost).every(
+                      ([k, n]) =>
+                        (items[k as 'wood' | 'gravel'] as number) >= (n ?? 0)
+                    ),
+                    Object.entries(recipe.cost)
+                      .map(([k, n]) => `${n}${k === 'wood' ? '木' : '碎'} `)
+                      .join(''),
+                    () => onCraft(recipe.id)
+                  )
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </>

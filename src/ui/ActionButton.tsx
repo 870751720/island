@@ -1,18 +1,21 @@
 'use client';
 
-/** 右下角动作按钮,靠近资源点时出现并显示动作名 */
+/** 右下角动作按钮,靠近资源点时出现;工具不满足时置灰提示 */
 export function ActionButton({
   label,
+  enabled,
   onPress,
 }: {
   label: string;
+  enabled: boolean;
   onPress: () => void;
 }) {
   return (
     <button
+      disabled={!enabled}
       onPointerDown={(e) => {
         e.preventDefault();
-        onPress();
+        if (enabled) onPress();
       }}
       style={{
         position: 'absolute',
@@ -22,7 +25,7 @@ export function ActionButton({
         height: 84,
         borderRadius: '50%',
         border: 'none',
-        background: 'rgba(76, 175, 80, 0.85)',
+        background: enabled ? 'rgba(76, 175, 80, 0.85)' : 'rgba(120, 120, 120, 0.75)',
         color: '#fff',
         fontFamily: 'sans-serif',
         fontSize: 17,

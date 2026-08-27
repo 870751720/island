@@ -1,9 +1,9 @@
-export type ResourceKind = 'wood' | 'stone' | 'berry';
+export type ResourceKind = 'wood' | 'gravel' | 'stone' | 'berry';
 
 export type InventoryState = Record<ResourceKind, number>;
 
 export class Inventory {
-  readonly state: InventoryState = { wood: 0, stone: 0, berry: 0 };
+  readonly state: InventoryState = { wood: 0, gravel: 0, stone: 0, berry: 0 };
 
   add(kind: ResourceKind, n = 1): void {
     this.state[kind] += n;

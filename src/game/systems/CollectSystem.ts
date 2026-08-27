@@ -1,18 +1,20 @@
-import * as THREE from 'three';
 import type { Player } from '../entities/Player';
+import * as THREE from 'three';
 import type { Prop } from '../world/Props';
 import { Inventory } from './Inventory';
+import type { Tools } from './Crafting';
 
 const COLLECT_RANGE = 1.6;
 
-/** 靠近资源点采集,产物进入背包 */
+/** 靠近资源点采集:树需斧子、大石块需镐子,产物进入背包 */
 export class CollectSystem {
   private nearby: Prop | null = null;
 
   constructor(
     private player: Player,
     private props: Prop[],
-    private inventory: Inventory
+    private inventory: Inventory,
+    private tools: Tools
   ) {
     // E 键作为桌面端补充操作
     window.addEventListener('keydown', this.onKeyDown);
@@ -34,24 +36,43 @@ export class CollectSystem {
     return this.nearby;
   }
 
+  /** 当前是否满足附近资源点的工具要求 */
+  canCollect(): boolean {
+    const prop = this.nearby;
+    if (!prop) return false;
+    if (prop.kind === 'tree') return this.tools.axe;
+    if (prop.kind === 'rock') return this.tools.pickaxe;
+    return true;
+  }
+
   /** 供触屏动作按钮与键盘共用 */
   tryCollect(): void {
-    if (!this.nearby) return;
     const prop = this.nearby;
+    if (!prop || !this.canCollect()) return;
     prop.harvested = true;
-    if (prop.kind === 'tree') {
-      this.inventory.add('wood');
-      // 砍掉树冠只留树桩
-      prop.group.children
-        .filter((c) => c instanceof THREE.Mesh)
-        .slice(1)
-        .forEach((c) => (c.visible = false));
-    } else if (prop.kind === 'rock') {
-      this.inventory.add('stone');
-      prop.group.visible = false;
-    } else {
-      this.inventory.add('berry');
-      prop.group.children.forEach((c) => (c.visible = false));
+    switch (prop.kind) {
+      case 'tree':
+        // 斧子砍树,一次多获木材;砍掉树冠只留树桩
+        this.inventory.add('wood', 3);
+        prop.group.children
+          .filter((c) => c instanceof THREE.Mesh)
+          .slice(1)
+          .forEach((c) => (c.visible = false));
+        break;
+      case 'rock':
+        this.inventory.add('stone', 2);
+        prop.group.visible = false;
+        break;
+      case 'gravel':
+        this.inventory.add('gravel', 2);
+        prop.group.visible = false;
+        break;
+      case 'berry':
+        this.inventory.add('berry', 1);
+        // 灌木丛偶尔能捡到小树枝
+        if (Math.random() < 0.4) this.inventory.add('wood', 1);
+        prop.group.children.forEach((c) => (c.visible = false));
+        break;
     }
     this.nearby = null;
   }

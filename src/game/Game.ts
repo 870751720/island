@@ -3,6 +3,7 @@ import { GameLoop } from './core/GameLoop';
 import { Player } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
+import { RECIPES, craft, type Tools } from './systems/Crafting';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -15,9 +16,13 @@ export type HudSnapshot = {
   health: number;
   dead: boolean;
   wood: number;
+  gravel: number;
   stone: number;
   berry: number;
+  axe: boolean;
+  pickaxe: boolean;
   prompt: string | null;
+  canAct: boolean;
   clock: string;
   isNight: boolean;
 };
@@ -33,6 +38,7 @@ export class Game {
   private collect: CollectSystem;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
+  private tools: Tools = { axe: false, pickaxe: false };
   private dayNight: DayNightSystem;
   private onHud: (snap: HudSnapshot) => void;
   private hudTimer = 0;
@@ -75,7 +81,12 @@ export class Game {
     this.player = new Player(terrain);
     this.scene.add(this.player.group);
 
-    this.collect = new CollectSystem(this.player, props.list, this.inventory);
+    this.collect = new CollectSystem(
+      this.player,
+      props.list,
+      this.inventory,
+      this.tools
+    );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
 
@@ -136,6 +147,12 @@ export class Game {
     return true;
   }
 
+  /** 合成工具,返回是否成功 */
+  craftTool(id: keyof Tools): boolean {
+    const recipe = RECIPES.find((r) => r.id === id);
+    return recipe ? craft(recipe, this.inventory, this.tools) : false;
+  }
+
   start(): void {
     this.loop.start();
   }
@@ -154,21 +171,33 @@ export class Game {
     if (this.hudTimer < 0.25) return;
     this.hudTimer = 0;
     const nearby = this.collect.getNearby();
-    const prompt = this.survival.state.dead
-      ? null
-      : nearby
-        ? nearby.kind === 'tree'
-          ? '砍树'
+    let prompt: string | null = null;
+    let canAct = false;
+    if (!this.survival.state.dead && nearby) {
+      canAct = this.collect.canCollect();
+      prompt =
+        nearby.kind === 'tree'
+          ? canAct
+            ? '砍树'
+            : '需要斧子'
           : nearby.kind === 'rock'
-            ? '采石'
-            : '采浆果'
-        : null;
+            ? canAct
+              ? '采石'
+              : '需要镐子'
+            : nearby.kind === 'gravel'
+              ? '捡碎石'
+              : '采浆果';
+    }
     this.onHud({
       ...this.survival.state,
       wood: this.inventory.state.wood,
+      gravel: this.inventory.state.gravel,
       stone: this.inventory.state.stone,
       berry: this.inventory.state.berry,
+      axe: this.tools.axe,
+      pickaxe: this.tools.pickaxe,
       prompt,
+      canAct,
       clock: this.dayNight.state.clock,
       isNight: this.dayNight.isNight,
     });

@@ -13,9 +13,13 @@ const INITIAL_HUD: HudSnapshot = {
   health: 100,
   dead: false,
   wood: 0,
+  gravel: 0,
   stone: 0,
   berry: 0,
+  axe: false,
+  pickaxe: false,
   prompt: null,
+  canAct: false,
   clock: '12:00',
   isNight: false,
 };
@@ -49,6 +53,7 @@ export function GameCanvas() {
         onToggle={() => setBackpackOpen((v) => !v)}
         items={hud}
         onEatBerry={() => gameRef.current?.eatBerry()}
+        onCraft={(id) => gameRef.current?.craftTool(id)}
       />
       {!hud.dead && (
         <>
@@ -58,6 +63,7 @@ export function GameCanvas() {
           {hud.prompt && (
             <ActionButton
               label={hud.prompt}
+              enabled={hud.canAct}
               onPress={() => gameRef.current?.action()}
             />
           )}
