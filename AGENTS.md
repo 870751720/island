@@ -33,7 +33,7 @@
 ## Git 约定
 
 - 主分支为 `main`。改完代码后:提交 → push 到 `origin main`,这会自动触发 GitHub Actions 部署到 GitHub Pages。
-- push 后应使用 gh CLI(`GH_TOKEN` 取自 `githubtoken.txt`)执行 `gh run watch` 等待部署完成,然后把 Pages 链接(https://870751720.github.io/island/)报告给用户。
+- push 后需等待 CI/CD 部署完成再向用户报告:优先用 gh CLI(`GH_TOKEN` 取自 `githubtoken.txt`)执行 `gh run watch`;若本机未安装 gh,则用 GitHub API 轮询 `actions/runs` 直到 `status=completed`,再确认 `conclusion=success` 且 https://870751720.github.io/island/ 可访问,最后把该链接连同本次变更摘要一起给用户。
 - 提交信息使用简洁的中文或英文祈使句均可。
 
 ## GitHub 凭证约定
