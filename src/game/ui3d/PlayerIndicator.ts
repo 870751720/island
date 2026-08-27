@@ -14,26 +14,33 @@ export class PlayerIndicator {
     this.camera = camera;
     this.group.position.y = 2.1;
 
-    this.group.add(
-      new THREE.Mesh(
-        new THREE.RingGeometry(RING_INNER, RING_OUTER, 32),
-        new THREE.MeshBasicMaterial({
-          color: '#000000',
-          transparent: true,
-          opacity: 0.35,
-          side: THREE.DoubleSide,
-        })
-      )
+    const bg = new THREE.Mesh(
+      new THREE.RingGeometry(RING_INNER, RING_OUTER, 48),
+      new THREE.MeshBasicMaterial({
+        color: '#000000',
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthTest: false,
+        depthWrite: false,
+      })
     );
+    bg.renderOrder = 998;
+    this.group.add(bg);
     this.progressRing = new THREE.Mesh(
-      new THREE.RingGeometry(RING_INNER, RING_OUTER, 32, 1, -Math.PI / 2, 0.01),
+      new THREE.RingGeometry(RING_INNER, RING_OUTER, 48, 1, -Math.PI / 2, 0.01),
       new THREE.MeshBasicMaterial({
         color: '#ffd54f',
         transparent: true,
         opacity: 0.95,
         side: THREE.DoubleSide,
+        depthTest: false,
+        depthWrite: false,
       })
     );
+    // 沿朝向相机的法向抬高一丁点,避免与底环共面 z-fighting
+    this.progressRing.position.z = 0.01;
+    this.progressRing.renderOrder = 999;
     this.group.add(this.progressRing);
 
     this.setProgress(null);
@@ -54,7 +61,7 @@ export class PlayerIndicator {
     this.progressRing.geometry = new THREE.RingGeometry(
       RING_INNER,
       RING_OUTER,
-      32,
+      64,
       1,
       -Math.PI / 2,
       Math.max(p, 0.01) * Math.PI * 2
