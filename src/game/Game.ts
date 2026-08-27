@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
-import { Player } from './entities/Player';
+import { Player, type HandTool } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { RECIPES, craft, type Tools } from './systems/Crafting';
 import { Particles } from './fx/Particles';
+import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -22,9 +23,7 @@ export type HudSnapshot = {
   berry: number;
   axe: boolean;
   pickaxe: boolean;
-  prompt: string | null;
-  canAct: boolean;
-  harvestProgress: number | null;
+  tool: HandTool;
   clock: string;
   isNight: boolean;
 };
@@ -44,6 +43,7 @@ export class Game {
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
   private dayNight: DayNightSystem;
+  private indicator: PlayerIndicator;
   private onHud: (snap: HudSnapshot) => void;
   private hudTimer = 0;
   private resizeObserver: ResizeObserver;
@@ -85,6 +85,10 @@ export class Game {
 
     this.player = new Player(terrain);
     this.scene.add(this.player.group);
+    this.indicator = new PlayerIndicator(this.camera, this.scene);
+
+    // Q 键作为桌面端补充的工具切换
+    window.addEventListener('keydown', this.onKeyDown);
 
     this.collect = new CollectSystem(
       this.player,
@@ -105,6 +109,7 @@ export class Game {
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
         this.collect.update(delta);
+        this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
         this.pushHud(delta);
@@ -140,8 +145,20 @@ export class Game {
     this.camera.lookAt(target.x, target.y, target.z);
   }
 
+  private onKeyDown = (e: KeyboardEvent) => {
+    if (e.key.toLowerCase() === 'q') this.cycleTool();
+  };
+
   setJoystick(x: number, z: number): void {
     this.player.input.setJoystick(x, z);
+  }
+
+  /** 循环切换手持工具:空手 → 斧子 → 镐子(仅已拥有的) */
+  cycleTool(): void {
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe'];
+    const owned: HandTool[] = order.filter((t) => t === 'hand' || this.tools[t]);
+    const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
+    this.player.setTool(next);
   }
 
   /** 从背包食用浆果,返回是否成功 */
@@ -164,6 +181,7 @@ export class Game {
   dispose(): void {
     this.loop.stop();
     this.resizeObserver.disconnect();
+    window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -173,12 +191,28 @@ export class Game {
     this.hudTimer += delta;
     if (this.hudTimer < 0.25) return;
     this.hudTimer = 0;
+    this.onHud({
+      ...this.survival.state,
+      wood: this.inventory.state.wood,
+      gravel: this.inventory.state.gravel,
+      stone: this.inventory.state.stone,
+      berry: this.inventory.state.berry,
+      axe: this.tools.axe,
+      pickaxe: this.tools.pickaxe,
+      tool: this.player.currentTool,
+      clock: this.dayNight.state.clock,
+      isNight: this.dayNight.isNight,
+    });
+  }
+
+  /** 玩家头顶的作业提示与进度圆环 */
+  private updateIndicator(): void {
     const nearby = this.collect.getNearby();
-    let prompt: string | null = null;
-    let canAct = false;
+    let label: string | null = null;
+    let progress: number | null = null;
     if (!this.survival.state.dead && nearby) {
-      canAct = this.collect.canCollect();
-      prompt =
+      const canAct = this.collect.canCollect();
+      label =
         nearby.kind === 'tree'
           ? canAct
             ? '砍树'
@@ -192,20 +226,10 @@ export class Game {
               : nearby.kind === 'shrub'
                 ? '捡树枝'
                 : '采浆果';
+      if (canAct) progress = this.collect.getHarvestInfo()?.progress ?? null;
     }
-    this.onHud({
-      ...this.survival.state,
-      wood: this.inventory.state.wood,
-      gravel: this.inventory.state.gravel,
-      stone: this.inventory.state.stone,
-      berry: this.inventory.state.berry,
-      axe: this.tools.axe,
-      pickaxe: this.tools.pickaxe,
-      prompt,
-      canAct,
-      harvestProgress: canAct ? (this.collect.getHarvestInfo()?.progress ?? null) : null,
-      clock: this.dayNight.state.clock,
-      isNight: this.dayNight.isNight,
-    });
+    const p = this.player.group.position;
+    this.indicator.group.position.set(p.x, p.y + 2.1, p.z);
+    this.indicator.set(label, progress);
   }
 }

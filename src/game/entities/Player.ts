@@ -16,6 +16,43 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 /** 作业动画类型:砍树/凿石/拾取 */
 export type ActionType = 'chop' | 'mine' | 'pick';
 
+/** 手持工具:空手/斧子/镐子 */
+export type HandTool = 'hand' | 'axe' | 'pickaxe';
+
+function makeAxeModel(): THREE.Group {
+  // 斧柄 + 斧刃,握在右手
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
+    clayMaterial('#8a6239')
+  );
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.16), clayMaterial('#9a9a9a'));
+  blade.position.set(0, 0.26, 0.1);
+  g.add(handle, blade);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
+function makePickaxeModel(): THREE.Group {
+  // 镐柄 + 弧形镐尖
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
+    clayMaterial('#8a6239')
+  );
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.5), clayMaterial('#8a8a8a'));
+  head.position.y = 0.27;
+  const tipL = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 4), clayMaterial('#8a8a8a'));
+  tipL.rotation.z = Math.PI / 2;
+  tipL.position.set(0, 0.27, -0.3);
+  const tipR = tipL.clone();
+  tipR.rotation.z = -Math.PI / 2;
+  tipR.position.z = 0.3;
+  g.add(handle, head, tipL, tipR);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
@@ -26,6 +63,8 @@ export class Player implements Updatable {
   private moveVec = new THREE.Vector2();
   private moving = false;
   private action: ActionType | null = null;
+  private handTool: HandTool = 'hand';
+  private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
 
   constructor(terrain: IslandTerrain) {
     this.terrain = terrain;
@@ -61,11 +100,33 @@ export class Player implements Updatable {
     ];
     this.arms = [armL, armR];
 
+    // 工具握在右手(armR)末端
+    const axe = makeAxeModel();
+    const pickaxe = makePickaxeModel();
+    axe.position.set(0, -0.3, 0.05);
+    pickaxe.position.set(0, -0.3, 0.05);
+    axe.visible = false;
+    pickaxe.visible = false;
+    armR.add(axe, pickaxe);
+    this.toolModels = { axe, pickaxe };
+
     this.group.position.set(0, terrain.getHeight(0, 0), 0);
   }
 
   get isMoving(): boolean {
     return this.moving;
+  }
+
+  get currentTool(): HandTool {
+    return this.handTool;
+  }
+
+  /** 切换手持工具(仅视觉,不影响采集资格) */
+  setTool(tool: HandTool): void {
+    this.handTool = tool;
+    for (const [name, model] of Object.entries(this.toolModels)) {
+      model!.visible = name === tool;
+    }
   }
 
   setAction(action: ActionType | null): void {
