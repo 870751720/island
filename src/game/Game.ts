@@ -4,6 +4,7 @@ import { Player } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { RECIPES, craft, type Tools } from './systems/Crafting';
+import { Particles } from './fx/Particles';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -23,6 +24,7 @@ export type HudSnapshot = {
   pickaxe: boolean;
   prompt: string | null;
   canAct: boolean;
+  harvestProgress: number | null;
   clock: string;
   isNight: boolean;
 };
@@ -37,6 +39,7 @@ export class Game {
   private player: Player;
   private collect: CollectSystem;
   private props: Props;
+  private fx: Particles;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
@@ -78,6 +81,7 @@ export class Game {
     this.scene.add(terrain.mesh);
     this.scene.add(new Ocean().mesh);
     this.props = new Props(this.scene, terrain);
+    this.fx = new Particles(this.scene);
 
     this.player = new Player(terrain);
     this.scene.add(this.player.group);
@@ -86,7 +90,8 @@ export class Game {
       this.player,
       this.props,
       this.inventory,
-      this.tools
+      this.tools,
+      this.fx
     );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
@@ -96,9 +101,10 @@ export class Game {
         this.player.update(delta, elapsed);
         this.dayNight.update(delta);
         this.props.update(delta);
+        this.fx.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
-        this.collect.update();
+        this.collect.update(delta);
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
         this.pushHud(delta);
@@ -138,10 +144,6 @@ export class Game {
     this.player.input.setJoystick(x, z);
   }
 
-  action(): void {
-    this.collect.tryCollect();
-  }
-
   /** 从背包食用浆果,返回是否成功 */
   eatBerry(): boolean {
     if (!this.inventory.remove('berry')) return false;
@@ -163,7 +165,6 @@ export class Game {
     this.loop.stop();
     this.resizeObserver.disconnect();
     this.player.dispose();
-    this.collect.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -202,6 +203,7 @@ export class Game {
       pickaxe: this.tools.pickaxe,
       prompt,
       canAct,
+      harvestProgress: canAct ? (this.collect.getHarvestInfo()?.progress ?? null) : null,
       clock: this.dayNight.state.clock,
       isNight: this.dayNight.isNight,
     });

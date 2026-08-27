@@ -13,14 +13,19 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-/** 程序拼装的低多边形小人 + 运行时走路动画 */
+/** 作业动画类型:砍树/凿石/拾取 */
+export type ActionType = 'chop' | 'mine' | 'pick';
+
+/** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
   readonly input = new MoveInput();
   private terrain: IslandTerrain;
   private limbs: { mesh: THREE.Mesh; phase: number }[] = [];
+  private arms: THREE.Mesh[] = [];
   private moveVec = new THREE.Vector2();
   private moving = false;
+  private action: ActionType | null = null;
 
   constructor(terrain: IslandTerrain) {
     this.terrain = terrain;
@@ -54,8 +59,17 @@ export class Player implements Updatable {
       { mesh: legL, phase: Math.PI },
       { mesh: legR, phase: 0 },
     ];
+    this.arms = [armL, armR];
 
     this.group.position.set(0, terrain.getHeight(0, 0), 0);
+  }
+
+  get isMoving(): boolean {
+    return this.moving;
+  }
+
+  setAction(action: ActionType | null): void {
+    this.action = action;
   }
 
   update(delta: number, elapsed: number): void {
@@ -73,10 +87,40 @@ export class Player implements Updatable {
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
     }
 
-    // 运行时走路动画:四肢绕根关节摆动
-    const swing = this.moving ? 0.7 : 0;
-    for (const limb of this.limbs) {
-      limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+    if (this.action && !this.moving) {
+      this.animateAction(elapsed);
+    } else {
+      this.group.rotation.x = 0;
+      // 运行时走路动画:四肢绕根关节摆动
+      const swing = this.moving ? 0.7 : 0;
+      for (const limb of this.limbs) {
+        limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+      }
+    }
+  }
+
+  /** 作业动画:砍树双臂抡、凿石单臂凿、拾取弯腰快速扒 */
+  private animateAction(elapsed: number): void {
+    const t = elapsed * 8;
+    switch (this.action) {
+      case 'chop': {
+        // 双臂同步高举下劈
+        const angle = Math.sin(t) * 1.4 - 1.8;
+        for (const arm of this.arms) arm.rotation.x = angle;
+        break;
+      }
+      case 'mine': {
+        // 右臂高频短促凿击
+        this.arms[1].rotation.x = Math.sin(t * 1.5) * 0.9 - 0.6;
+        this.arms[0].rotation.x = -0.3;
+        break;
+      }
+      case 'pick': {
+        // 身体前倾小幅上下扒动
+        this.group.rotation.x = Math.sin(t * 2) * 0.08;
+        for (const arm of this.arms) arm.rotation.x = -1.2 + Math.sin(t * 2) * 0.4;
+        break;
+      }
     }
   }
 
