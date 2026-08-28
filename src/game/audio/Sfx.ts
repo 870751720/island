@@ -53,21 +53,18 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.1, peak: v * 0.8 }, 'highpass', 2200);
         break;
       case 'pick':
-        // 沙沙声:高频段里一串随机分布的极短「嚓」颗粒,密集微爆裂才是草叶质感
-        for (let i = 0; i < 14; i++) {
-          const t0 = t + Math.random() * 0.32;
-          const f = 1800 + Math.random() * 2400;
+        // 沙沙声 =「shhh」轻扫气声 + 叶片折断的脆嚓颗粒,干爽中高频,不带低频闷响
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.09, decay: 0.2, peak: v * 0.55 }, 'bandpass', detune(900), 2600);
+        for (let i = 0; i < 10; i++) {
           noiseBurst(
             this.ctx,
             this.dest,
-            t0,
-            { attack: 0.001, decay: 0.015 + Math.random() * 0.03, peak: v * (0.5 + Math.random() * 0.5) },
+            t + 0.05 + Math.random() * 0.22,
+            { attack: 0.001, decay: 0.012 + Math.random() * 0.025, peak: v * (0.4 + Math.random() * 0.5) },
             'bandpass',
-            f
+            2000 + Math.random() * 3000
           );
         }
-        // 底层一点轻柔的「拢草」身量,避免只剩高频碎点
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.02, decay: 0.28, peak: v * 0.35 }, 'lowpass', 1200, 500);
         break;
       case 'knock':
         tone(this.ctx, this.dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
