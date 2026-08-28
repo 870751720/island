@@ -14,9 +14,12 @@ const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边判定:站在海平面以上不高的滩地上即可下竿 */
 const BEACH_BAND = 0.55;
 /** 从脚下向水面方向探测浮漂落点的最远距离 */
-const CAST_RANGE = 3.2;
-/** 找到水后浮漂再往水中央多探一段,避免落在边缘 */
-const CAST_INSET = 0.7;
+const CAST_RANGE = 4.2;
+/** 水洼落点:洼中心 0.5 米半径内随机 */
+const POND_SPREAD = 0.5;
+/** 海边落点:玩家向海方向 3~4 米外随机 */
+const SEA_CAST_MIN = 3;
+const SEA_CAST_MAX = 4;
 
 export type FishingState = 'casting' | 'waiting' | 'bite' | 'catching';
 
@@ -115,7 +118,7 @@ export class FishingSystem {
     this.scene.add(this.bobber);
     // 钓线:细圆柱,每帧从竿梢拉到浮漂
     this.line = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.014, 1, 4),
+      new THREE.CylinderGeometry(0.05, 0.05, 1, 4),
       new THREE.MeshBasicMaterial({ color: '#f5f2e8' })
     );
     this.scene.add(this.line);
@@ -260,39 +263,41 @@ export class FishingSystem {
     this.line.quaternion.setFromUnitVectors(this.up, dir.normalize());
   }
 
-  /** 从玩家脚下朝水面探测浮漂落点:优先朝最近水洼,海边则朝岛外 */
+  /** 浮漂落点:水洼取洼中心 0.5 米内随机,海边向海方向 3~4 米外随机 */
   private findBobberTarget(): THREE.Vector3 | null {
     const p = this.player.group.position;
-    const dir = this.scratch;
-    const nearest = this.terrain.waterAreas.reduce<typeof this.terrain.waterAreas[number] | null>(
+    const nearest = this.terrain.waterAreas.reduce<(typeof this.terrain.waterAreas)[number] | null>(
       (best, w) => {
         const d = Math.hypot(p.x - w.x, p.z - w.z);
         return !best || d < Math.hypot(p.x - best.x, p.z - best.z) ? w : best;
       },
       null
     );
+
+    // 水洼:落点散布在洼中心附近,保证在水中央
     if (nearest && Math.hypot(p.x - nearest.x, p.z - nearest.z) < nearest.radius + 3) {
-      dir.set(nearest.x - p.x, 0, nearest.z - p.z);
-    } else {
-      dir.set(p.x, 0, p.z);
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * POND_SPREAD;
+      const x = nearest.x + Math.cos(a) * r;
+      const z = nearest.z + Math.sin(a) * r;
+      return new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z);
     }
+
+    // 海边:朝岛外方向抛 3~4 米,落不进水则逐段探测兜底
+    const dir = this.scratch.set(p.x, 0, p.z);
     if (dir.lengthSq() < 0.001) dir.set(1, 0, 0);
     dir.normalize();
-
-    for (let d = 0.6; d <= CAST_RANGE; d += 0.2) {
-      const x = p.x + dir.x * d;
-      const z = p.z + dir.z * d;
-      const ground = this.terrain.getHeight(x, z);
-      const water = this.terrain.getWaterLevel(x, z);
-      if (ground < water) {
-        // 落点再往水中央多探一段,别贴着岸线
-        const inset = Math.min(d + CAST_INSET, CAST_RANGE);
-        const ix = p.x + dir.x * inset;
-        const iz = p.z + dir.z * inset;
-        if (this.terrain.getHeight(ix, iz) < this.terrain.getWaterLevel(ix, iz)) {
-          return new THREE.Vector3(ix, this.terrain.getWaterLevel(ix, iz), iz);
-        }
-        return new THREE.Vector3(x, water, z);
+    const d = SEA_CAST_MIN + Math.random() * (SEA_CAST_MAX - SEA_CAST_MIN);
+    const x = p.x + dir.x * d;
+    const z = p.z + dir.z * d;
+    if (this.terrain.getHeight(x, z) < this.terrain.getWaterLevel(x, z)) {
+      return new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z);
+    }
+    for (let t = 1; t <= CAST_RANGE; t += 0.2) {
+      const fx = p.x + dir.x * t;
+      const fz = p.z + dir.z * t;
+      if (this.terrain.getHeight(fx, fz) < this.terrain.getWaterLevel(fx, fz)) {
+        return new THREE.Vector3(fx, this.terrain.getWaterLevel(fx, fz), fz);
       }
     }
     return null;
