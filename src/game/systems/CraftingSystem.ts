@@ -49,6 +49,8 @@ export class CraftingSystem {
     if (this.timer >= CRAFT_TIME) {
       this.recipe = null;
       craft(recipe, this.inventory, this.tools);
+      // 制作完成直接拿在手上
+      this.player.setTool(recipe.id);
       const p = this.player.group.position.clone();
       p.y += 0.8;
       this.fx.burst(p, recipe.id === 'axe' ? '#7a4f21' : '#8d99a6', 14);

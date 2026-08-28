@@ -59,6 +59,7 @@ export class Game {
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number) => void;
   private hudTimer = 0;
+  private autoEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
 
@@ -142,6 +143,7 @@ export class Game {
         this.survival.update(delta);
         this.collect.update(delta);
         this.crafting.update(delta);
+        this.updateAutoEquip(delta);
         this.water.update(delta, this.collect.isWorking);
         this.updateIndicator();
         this.updateCamera(delta);
@@ -199,6 +201,37 @@ export class Game {
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.tools[t]);
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
+  }
+
+  /** 空手站在需要工具的资源点旁不动 3 秒且已拥有该工具时,自动切换到手上 */
+  private updateAutoEquip(delta: number): void {
+    const nearby = this.collect.getNearby();
+    let need: HandTool | null = null;
+    if (
+      nearby &&
+      !this.player.isMoving &&
+      !this.crafting.isWorking &&
+      !this.survival.state.dead
+    ) {
+      if (nearby.kind === 'tree' && this.tools.axe && this.player.currentTool !== 'axe') {
+        need = 'axe';
+      } else if (
+        nearby.kind === 'rock' &&
+        this.tools.pickaxe &&
+        this.player.currentTool !== 'pickaxe'
+      ) {
+        need = 'pickaxe';
+      }
+    }
+    if (!need) {
+      this.autoEquipTimer = 0;
+      return;
+    }
+    this.autoEquipTimer += delta;
+    if (this.autoEquipTimer >= 3) {
+      this.autoEquipTimer = 0;
+      this.player.setTool(need);
+    }
   }
 
   /** 从背包食用浆果,返回是否成功 */
@@ -273,16 +306,22 @@ export class Game {
       label = '喝水';
       progress = this.water.getProgress();
     } else if (nearby) {
+      const switching = this.autoEquipTimer > 0;
       label =
         nearby.kind === 'tree'
-          ? this.tools.axe
-            ? '需要手持斧子'
-            : '需要斧子'
+          ? switching
+            ? '切换斧子…'
+            : this.tools.axe
+              ? '需要手持斧子'
+              : '需要斧子'
           : nearby.kind === 'rock'
-            ? this.tools.pickaxe
-              ? '需要手持镐子'
-              : '需要镐子'
+            ? switching
+              ? '切换镐子…'
+              : this.tools.pickaxe
+                ? '需要手持镐子'
+                : '需要镐子'
             : null;
+      if (switching) progress = this.autoEquipTimer / 3;
     }
     const p = this.player.group.position;
     this.indicator.group.position.copy(p);
