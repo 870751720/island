@@ -94,6 +94,8 @@ function makeButterflyModel(color: string): ButterflyModel {
     group.add(pivot);
     wings.push(pivot);
   }
+  // 整体缩小:蝴蝶应是岛上最小的生物之一
+  group.scale.setScalar(0.6);
   return { group, wings };
 }
 
@@ -214,9 +216,10 @@ export class Butterflies implements Updatable {
     // 身体纵轴(+z)朝运动方向:rotation.y = θ 时局部 +z 指向 (sinθ, 0, cosθ)
     g.rotation.y = bf.heading;
 
-    // 扑翼:两侧 pivot 镜像(scale.x=-1),同角绕 z 轴旋转即为对称对拍;惊飞后频率更高
-    const flap = bf.fleeTime > 0 ? 26 : 14;
-    const angle = Math.abs(Math.sin(elapsed * flap + bf.phase)) * 1.1 + 0.15;
+    // 扑翼:两侧 pivot 镜像(scale.x=-1),同角绕 z 轴旋转即为对称对拍;
+    // 低频小幅慢拍更像蝴蝶,大幅快拍会显得整只在左右摇晃
+    const flap = bf.fleeTime > 0 ? 12 : 5;
+    const angle = Math.abs(Math.sin(elapsed * flap + bf.phase)) * 0.7 + 0.1;
     for (const wing of bf.model.wings) wing.rotation.z = angle;
   }
 
