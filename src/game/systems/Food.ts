@@ -15,4 +15,5 @@ export type Food = {
 /** 进食顺序:越靠前越先被吃(「背包里最前面的食物」) */
 export const FOODS: Food[] = [
   { kind: 'berry', name: '浆果', icon: '🍒', action: 'eat_berry', fxColor: '#c0392b', hunger: 12, thirst: 4 },
+  { kind: 'fish', name: '生鱼', icon: '🐟', action: 'eat_fish', fxColor: '#5fa8d3', hunger: 25, thirst: 0 },
 ];

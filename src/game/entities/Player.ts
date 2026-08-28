@@ -30,6 +30,7 @@ export type ActionType =
   | 'drink'
   | 'craft'
   | 'eat_berry'
+  | 'eat_fish'
   | 'cast'
   | 'fish';
 
@@ -323,6 +324,13 @@ export class Player implements Updatable {
         this.group.rotation.x = 0.05 + Math.sin(t * 3) * 0.04;
         this.arms[1].rotation.x = -2.0 + Math.sin(t * 1.5) * 0.15;
         this.arms[0].rotation.x = -0.3;
+        break;
+      }
+      case 'eat_fish': {
+        // 双手捧着鱼大口啃食,身体前倾随咀嚼起伏
+        this.group.rotation.x = 0.12 + Math.sin(t * 3) * 0.05;
+        this.arms[0].rotation.x = -1.9 + Math.sin(t * 1.5) * 0.2;
+        this.arms[1].rotation.x = -1.7 - Math.sin(t * 1.5) * 0.2;
         break;
       }
     }

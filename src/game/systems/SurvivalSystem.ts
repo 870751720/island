@@ -10,8 +10,8 @@ export type SurvivalState = {
 
 import type { Food } from './Food';
 
-const HUNGER_RATE = 0.8; // 每秒下降
-const THIRST_RATE = 1.2;
+const HUNGER_RATE = 0.8 / 3; // 每秒下降(原 0.8,放缓 3 倍)
+const THIRST_RATE = 1.2 / 3; // 原速率放缓 3 倍
 const THIRST_PER_ROUND = 40;
 const STARVE_DAMAGE = 2;
 const STAMINA_SWIM_RATE = 4; // 游泳每秒消耗

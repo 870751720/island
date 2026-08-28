@@ -49,6 +49,6 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fish',
     name: '鱼',
     icon: '🐟',
-    description: '在海边或水洼边钓上来的鱼,新鲜有营养,烤着吃最好。',
+    description: '在海边或水洼边钓上来的鱼,新鲜有营养,可以直接生吃恢复饥饿。',
   },
 };

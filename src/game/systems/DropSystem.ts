@@ -4,34 +4,24 @@ import type { ResourceKind, Inventory } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import { DROP_COLORS, makeDropModel } from './DropModels';
 
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
 const BOB_HEIGHT = 0.15; // 悬浮上下浮动幅度
 const SPIN_SPEED = 1.6; // 旋转速度(弧度/秒)
 
-/** 各道具的掉落物外观:低面数八面体 + 对应颜色(手机小屏上要足够显眼) */
-const DROP_STYLE: Record<ResourceKind, { color: string; scale: number }> = {
-  wood: { color: '#8b5a2b', scale: 1.2 },
-  gravel: { color: '#b5b0a8', scale: 1 },
-  stone: { color: '#9a9a9a', scale: 1.3 },
-  berry: { color: '#c0392b', scale: 0.9 },
-  fiber: { color: '#a4c46a', scale: 0.9 },
-  rope: { color: '#d9c27a', scale: 0.9 },
-  fish: { color: '#5fa8d3', scale: 1 },
-};
-
 export type DropInfo = { kind: ResourceKind; count: number };
 
 type Drop = {
   kind: ResourceKind;
   count: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
   age: number;
   baseY: number;
 };
 
-/** 地面掉落物:丢弃的道具以八面体落在玩家附近,旋转悬浮;靠近后出现「捡回」卡片,点击才拾回背包 */
+/** 地面掉落物:丢弃的道具以各自专属造型落在玩家附近,旋转悬浮;靠近后出现「捡回」卡片,点击才拾回背包 */
 export class DropSystem {
   private drops: Drop[] = [];
   private scratch = new THREE.Vector3();
@@ -47,15 +37,7 @@ export class DropSystem {
 
   /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下) */
   drop(kind: ResourceKind, count: number): void {
-    const style = DROP_STYLE[kind];
-    const geometry = new THREE.OctahedronGeometry(0.42 * style.scale);
-    const material = new THREE.MeshStandardMaterial({
-      color: style.color,
-      flatShading: true,
-      roughness: 0.9,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
+    const mesh = makeDropModel(kind);
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
     const p = this.player.group.position;
@@ -100,7 +82,7 @@ export class DropSystem {
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (this.inventory.add(drop.kind, drop.count) < drop.count) return false;
       this.audio.play('pickup');
-      this.fx.burst(drop.mesh.position, DROP_STYLE[drop.kind].color, 8);
+      this.fx.burst(drop.mesh.position, DROP_COLORS[drop.kind], 8);
       this.remove(i);
       return true;
     }
@@ -110,8 +92,12 @@ export class DropSystem {
   private remove(index: number): void {
     const drop = this.drops[index];
     this.scene.remove(drop.mesh);
-    drop.mesh.geometry.dispose();
-    (drop.mesh.material as THREE.Material).dispose();
+    drop.mesh.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.geometry.dispose();
+        (obj.material as THREE.Material).dispose();
+      }
+    });
     this.drops.splice(index, 1);
   }
 
