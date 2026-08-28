@@ -6,6 +6,7 @@ import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
+import { CraftPrompt } from './CraftPrompt';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -72,6 +73,7 @@ export function GameCanvas() {
         <>
           <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
           <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
+          <CraftPrompt hud={hud} onCraft={(id) => gameRef.current?.craftTool(id)} />
         </>
       )}
       <div

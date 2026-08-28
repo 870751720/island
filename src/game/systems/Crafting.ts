@@ -17,10 +17,15 @@ export const RECIPES: Recipe[] = [
   { id: 'pickaxe', name: '镐子', icon: '⛏️', cost: { wood: 2, gravel: 3 } },
 ];
 
-export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
-  return Object.entries(recipe.cost).every(
-    ([kind, n]) => inventory.state[kind as ResourceKind] >= (n ?? 0)
+/** 按资源数量表判断材料是否足够(背包与 HUD 快照均可传入) */
+export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKind, number>>): boolean {
+  return Object.entries(cost).every(
+    ([kind, n]) => (counts[kind as ResourceKind] ?? 0) >= (n ?? 0)
   );
+}
+
+export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
+  return hasCost(recipe.cost, inventory.state);
 }
 
 export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boolean {

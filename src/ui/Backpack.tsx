@@ -1,7 +1,7 @@
 'use client';
 
 import type { HudSnapshot } from '@/game/Game';
-import { RECIPES, type Recipe } from '@/game/systems/Crafting';
+import { RECIPES, hasCost, type Recipe } from '@/game/systems/Crafting';
 
 type Props = {
   open: boolean;
@@ -115,10 +115,7 @@ export function Backpack({ open, onToggle, items, onEatBerry, onCraft }: Props) 
                   <span style={{ color: '#4caf50', fontWeight: 700 }}>已拥有</span>
                 ) : (
                   actionButton(
-                    !Object.entries(recipe.cost).every(
-                      ([k, n]) =>
-                        (items[k as 'wood' | 'gravel'] as number) >= (n ?? 0)
-                    ),
+                    !hasCost(recipe.cost, items),
                     Object.entries(recipe.cost)
                       .map(([k, n]) => `${n}${k === 'wood' ? '木' : '碎'} `)
                       .join(''),
