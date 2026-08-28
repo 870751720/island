@@ -318,13 +318,17 @@ export class Birds implements Updatable {
           break;
       }
 
-      if (bird.state !== 'walk') {
-        // 飞行兜底:无论转向、滑降还是惊飞,绝不钻到地表或水面以下
+      if (bird.state === 'fly' || bird.state === 'flee') {
+        // 巡航/惊飞兜底:绝不钻到地表或水面以下
         const minY =
           Math.max(
             this.terrain.getHeight(bird.pos.x, bird.pos.z),
             this.terrain.getWaterLevel(bird.pos.x, bird.pos.z)
           ) + 0.5;
+        bird.pos.y = Math.max(bird.pos.y, minY);
+      } else if (bird.state === 'land') {
+        // 降落只避水面:若也按地表+0.5 钳制,会把鸟永远顶在落点上方,落不了地
+        const minY = this.terrain.getWaterLevel(bird.pos.x, bird.pos.z) + 0.3;
         bird.pos.y = Math.max(bird.pos.y, minY);
       }
 
