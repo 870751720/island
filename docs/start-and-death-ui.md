@@ -10,8 +10,10 @@
 ## 设计方案
 - `src/ui/StartScreen.tsx`:开始界面组件。渐变天空 + 太阳光晕 + 漂移云朵 + 海面与漂浮小岛的纯 CSS 动画背景,中央面板含标题、副标题、开始按钮与操作提示;按钮可点击区域 ≥ 56px,适配手机竖屏。
 - `src/ui/DeathScreen.tsx`:死亡弹窗组件。半透明遮罩淡入,骷髅图标、失败文案与「确认」按钮。
-- `src/ui/GameCanvas.tsx`:新增 `playing` 状态管理游戏生命周期。`playing=true` 时在 effect 中创建 `Game` 并启动,变为 false 或卸载时 `dispose` 销毁;确认死亡时重置 `playing`、`hud`、背包状态,回到开始界面。
+- `src/ui/GameplayUI.tsx`:游戏进行中的完整 UI 模块,持有 `Game` 实例生命周期(挂载创建启动、卸载销毁),内含 HUD、背包、摇杆、工具按钮、采集/进食提示、头顶标签与死亡弹窗;死亡确认通过 `onExit` 通知外层退出。
+- `src/ui/GameCanvas.tsx`:仅做阶段路由——开始界面与 `GameplayUI` 按需互斥挂载,开始界面下不存在任何游戏操作 UI。
 - `src/ui/Hud.tsx`:移除旧的死亡提示文字,死亡 UI 统一由 `DeathScreen` 承担。
 
 ## 迭代记录
 - 2026-08-28:初版,新增开始界面、死亡弹窗与游戏生命周期管理。
+- 2026-08-28:修复开始界面下操作按钮仍渲染的问题;将游戏进行中 UI 抽为 `GameplayUI` 模块,`GameCanvas` 只负责阶段路由,组件按阶段互斥挂载。

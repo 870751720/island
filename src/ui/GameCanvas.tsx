@@ -1,119 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Game, type HudSnapshot } from '@/game/Game';
-import { Hud } from './Hud';
-import { Backpack } from './Backpack';
-import { VirtualJoystick } from './VirtualJoystick';
-import { ToolButton } from './ToolButton';
-import { CraftPrompt } from './CraftPrompt';
-import { EatPrompt } from './EatPrompt';
+import { useState } from 'react';
 import { StartScreen } from './StartScreen';
-import { DeathScreen } from './DeathScreen';
+import { GameplayUI } from './GameplayUI';
 
-const INITIAL_HUD: HudSnapshot = {
-  hunger: 100,
-  thirst: 100,
-  health: 100,
-  dead: false,
-  wood: 0,
-  gravel: 0,
-  stone: 0,
-  berry: 0,
-  axe: false,
-  pickaxe: false,
-  tool: 'hand' as const,
-  craftId: null,
-  craftProgress: 0,
-  eatName: null,
-  eatProgress: 0,
-  clock: '12:00',
-  isNight: false,
-  weather: 'sunny' as const,
-  weatherLabel: '☀️ 晴',
-};
-
+/** 阶段路由:开始界面与游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<Game | null>(null);
-  const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
-  const [backpackOpen, setBackpackOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
 
-  useEffect(() => {
-    if (!playing) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const game = new Game(
-      container,
-      setHud,
-      // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染
-      (label, x, y) => {
-        const el = labelRef.current;
-        if (!el) return;
-        el.style.display = label ? 'block' : 'none';
-        if (label) {
-          el.textContent = label;
-          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-        }
-      }
-    );
-    gameRef.current = game;
-    game.start();
-    return () => {
-      game.dispose();
-      gameRef.current = null;
-    };
-  }, [playing]);
-
-  const handleConfirmDeath = () => {
-    setPlaying(false);
-    setBackpackOpen(false);
-    setHud(INITIAL_HUD);
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
-    >
-      <Hud hud={hud} />
-      <Backpack
-        open={backpackOpen}
-        onToggle={() => setBackpackOpen((v) => !v)}
-        items={hud}
-        onEatFood={() => gameRef.current?.eatFood()}
-        onCraft={(id) => gameRef.current?.craftTool(id)}
-      />
-      {!playing && <StartScreen onStart={() => setPlaying(true)} />}
-      {playing && hud.dead && <DeathScreen onConfirm={handleConfirmDeath} />}
-      {!hud.dead && (
-        <>
-          <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
-          <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
-          <CraftPrompt hud={hud} onCraft={(id) => gameRef.current?.craftTool(id)} />
-          <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
-        </>
-      )}
-      <div
-        ref={labelRef}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          display: 'none',
-          padding: '4px 14px',
-          background: 'rgba(0,0,0,0.55)',
-          color: '#fff',
-          borderRadius: 20,
-          fontFamily: 'sans-serif',
-          fontSize: 14,
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
-          userSelect: 'none',
-        }}
-      />
-    </div>
+  return playing ? (
+    <GameplayUI onExit={() => setPlaying(false)} />
+  ) : (
+    <StartScreen onStart={() => setPlaying(true)} />
   );
 }
