@@ -111,12 +111,12 @@ export class CollectSystem {
       return;
     }
 
-    this.swingTimer += delta;
     // 每次挥动开始就给声音反馈(采集是沙沙声、砍/凿是命中感),不等命中结算
     if (this.swingTimer === 0) {
       const config = HARVEST_CONFIG[kindOf(this.nearby!)];
       this.audio.play(config.action === 'chop' ? 'chop' : config.action === 'mine' ? 'mine' : 'pick');
     }
+    this.swingTimer += delta;
     if (this.swingTimer < SWING_TIME) return;
     this.swingTimer = 0;
     this.hit(this.nearby!);
