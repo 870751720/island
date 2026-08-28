@@ -3,7 +3,7 @@ import type { Updatable } from '../core/GameLoop';
 import type { Props } from '../world/Props';
 import type { IslandTerrain } from '../world/IslandTerrain';
 
-/** 玩家靠到这个距离内,鸟会被惊飞 */
+/** 玩家靠到这个距离内,落地踱步中的鸟会被惊飞(飞行中不怕人) */
 const FLEE_RANGE = 5;
 /** 惊飞后飞远多久恢复巡航 */
 const FLEE_TIME = 2.8;
@@ -118,7 +118,7 @@ type Bird = {
   phase: number;
 };
 
-/** 海鸥般的小鸟:多数时间在玩家周围盘旋巡航,偶尔落到浆果丛旁、水洼边或空地上踱步啄食,玩家靠近即惊飞 */
+/** 海鸥般的小鸟:多数时间在玩家周围盘旋巡航,偶尔落到浆果丛旁、水洼边或空地上踱步啄食;落地时被玩家靠近会惊飞,飞行中不怕人 */
 export class Birds implements Updatable {
   readonly group = new THREE.Group();
   private birds: Bird[] = [];
@@ -130,7 +130,7 @@ export class Birds implements Updatable {
     private player: { group: THREE.Group },
     rng: () => number = Math.random
   ) {
-    const count = 5;
+    const count = 3;
     for (let i = 0; i < count; i++) {
       const model = makeBirdModel(BODY_COLORS[Math.floor(rng() * BODY_COLORS.length)]);
       const p = this.player.group.position;
@@ -221,7 +221,7 @@ export class Birds implements Updatable {
       bird.stateTime += delta;
       const dist = Math.hypot(p.x - bird.pos.x, p.z - bird.pos.z);
 
-      if (bird.state !== 'flee' && dist < FLEE_RANGE) {
+      if (bird.state === 'walk' && dist < FLEE_RANGE) {
         // 被惊起:背离玩家方向直线飞升
         bird.fleeHeading = Math.atan2(bird.pos.z - p.z, bird.pos.x - p.x);
         bird.state = 'flee';
@@ -249,6 +249,8 @@ export class Birds implements Updatable {
           const desiredY = this.terrain.getHeight(bird.pos.x, bird.pos.z) + bird.alt;
           bird.pos.y += THREE.MathUtils.clamp(desiredY - bird.pos.y, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
           bird.pos.y += Math.sin(elapsed * 2 + bird.phase) * 0.006;
+          // 跨过海面/水洼上空时不贴水:高度不低于水面加安全余量
+          bird.pos.y = Math.max(bird.pos.y, this.terrain.getWaterLevel(bird.pos.x, bird.pos.z) + 0.6);
           if (Math.hypot(bird.target.x - bird.pos.x, bird.target.z - bird.pos.z) < 1.5) {
             if (Math.random() < 0.35) {
               bird.state = 'land';
@@ -264,6 +266,8 @@ export class Birds implements Updatable {
           // 朝落点滑降
           const drop = bird.target.y + 0.12 - bird.pos.y;
           bird.pos.y += THREE.MathUtils.clamp(drop, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
+          // 途中掠过水面时保持在水面上方
+          bird.pos.y = Math.max(bird.pos.y, this.terrain.getWaterLevel(bird.pos.x, bird.pos.z) + 0.6);
           if (bird.pos.distanceTo(bird.target) < 0.35) {
             bird.pos.copy(bird.target);
             bird.state = 'walk';
@@ -282,13 +286,16 @@ export class Birds implements Updatable {
           }
           if (!bird.stepTarget) {
             if (bird.stateTime > 1 + Math.random() * 2) {
-              // 在落脚点周围踱一小步
+              // 在落脚点周围踱一小步(避开水面)
               const a = Math.random() * Math.PI * 2;
               const d = 0.4 + Math.random() * 0.9;
               const x = bird.target.x + Math.cos(a) * d;
               const z = bird.target.z + Math.sin(a) * d;
-              bird.stepTarget = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-              bird.stateTime = 0;
+              const step = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
+              if (!this.terrain.isInWater(step)) {
+                bird.stepTarget = step;
+                bird.stateTime = 0;
+              }
             }
           } else if (this.flyToward(bird, bird.stepTarget, WALK_SPEED, delta)) {
             bird.pos.y = bird.stepTarget.y;
