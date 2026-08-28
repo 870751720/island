@@ -61,7 +61,9 @@ export class CollectSystem {
     private player: Player,
     private props: Props,
     private inventory: Inventory,
-    private fx: Particles
+    private fx: Particles,
+    /** 其他占用双手的行为(如合成中),为真时采集让位 */
+    private isBusy: () => boolean = () => false
   ) {}
 
   update(delta: number): void {
@@ -80,7 +82,8 @@ export class CollectSystem {
     }
     this.nearby ??= fallback;
 
-    const working = !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving;
+    const working =
+      !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
     this.player.setAction(working ? HARVEST_CONFIG[this.nearby!.kind].action : null);
     if (!working) {
       this.swingTimer = 0;

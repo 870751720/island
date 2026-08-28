@@ -20,7 +20,7 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 }
 
 /** 作业动画类型:砍树/凿石/拾取/喝水 */
-export type ActionType = 'chop' | 'mine' | 'pick' | 'drink';
+export type ActionType = 'chop' | 'mine' | 'pick' | 'drink' | 'craft';
 
 /** 手持工具:空手/斧子/镐子 */
 export type HandTool = 'hand' | 'axe' | 'pickaxe';
@@ -244,6 +244,14 @@ export class Player implements Updatable {
         // 双手捧到嘴边,身体微微后仰
         this.group.rotation.x = -0.05;
         for (const arm of this.arms) arm.rotation.x = -2.2 + Math.sin(t) * 0.1;
+        break;
+      }
+      case 'craft': {
+        // 微弯腰,双臂交替上下敲打
+        this.group.rotation.x = 0.12;
+        const s = Math.sin(t * 1.5);
+        this.arms[1].rotation.x = s * 1.1 - 1.1;
+        this.arms[0].rotation.x = -s * 0.6 - 0.5;
         break;
       }
     }

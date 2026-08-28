@@ -19,7 +19,9 @@ const INITIAL_HUD: HudSnapshot = {
   berry: 0,
   axe: false,
   pickaxe: false,
-  tool: 'hand',
+  tool: 'hand' as const,
+  craftId: null,
+  craftProgress: 0,
   clock: '12:00',
   isNight: false,
 };

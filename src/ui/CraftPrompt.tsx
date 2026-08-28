@@ -5,6 +5,7 @@ import { RECIPES, hasCost, type Recipe } from '@/game/systems/Crafting';
 
 /** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片 */
 export function CraftPrompt({ hud, onCraft }: { hud: HudSnapshot; onCraft: (id: Recipe['id']) => void }) {
+  if (hud.craftId !== null) return null;
   const craftable = RECIPES.filter((r) => !hud[r.id] && hasCost(r.cost, hud));
   if (craftable.length === 0) return null;
   return (
