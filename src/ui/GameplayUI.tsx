@@ -12,6 +12,7 @@ import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
+import { MumbleBubble, type MumbleBubbleState } from './MumbleBubble';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -59,6 +60,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
+  const [mumble, setMumble] = useState<MumbleBubbleState>(null);
+  const mumbleSeq = useRef(0);
 
   // 离开工作台范围自动收起制作面板
   useEffect(() => {
@@ -80,7 +83,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           el.textContent = label;
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
-      }
+      },
+      (text) => setMumble({ text, seq: ++mumbleSeq.current })
     );
     gameRef.current = game;
     game.start();
@@ -145,6 +149,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         </>
       )}
       {hud.dead && <DeathScreen onConfirm={onExit} />}
+      <MumbleBubble mumble={mumble} />
       <div
         ref={labelRef}
         style={{

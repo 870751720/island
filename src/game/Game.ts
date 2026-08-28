@@ -16,6 +16,7 @@ import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import { BowSystem } from './systems/BowSystem';
+import { MumbleSystem } from './systems/MumbleSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
 import { WaterFx } from './fx/WaterFx';
@@ -110,6 +111,7 @@ export class Game {
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number) => void;
+  private mumbles: MumbleSystem;
   private hudTimer = 0;
   private autoEquipTimer = 0;
   private lastDead = false;
@@ -119,11 +121,13 @@ export class Game {
   constructor(
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
-    onLabel: (label: string | null, x: number, y: number) => void
+    onLabel: (label: string | null, x: number, y: number) => void,
+    onMumble: (text: string) => void
   ) {
     this.container = container;
     this.onHud = onHud;
     this.onLabel = onLabel;
+    this.mumbles = new MumbleSystem((_trigger, text) => onMumble(text));
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.enabled = true;
@@ -289,6 +293,20 @@ export class Game {
         );
         this.drops.update(delta, elapsed);
         this.updateAutoEquip(delta);
+        this.mumbles.update(delta, {
+          elapsed,
+          dead: this.survival.state.dead,
+          hunger: this.survival.state.hunger,
+          thirst: this.survival.state.thirst,
+          health: this.survival.state.health,
+          phase: this.dayNight.state.phase,
+          rainIntensity: this.weather.rainIntensity,
+          freeSlots: this.inventory.freeSlots,
+          wood: this.inventory.count('wood'),
+          stone: this.inventory.count('stone'),
+          tools: this.tools,
+          collecting: this.collect.isWorking,
+        });
         this.water.update(
           delta,
           this.collect.isWorking ||

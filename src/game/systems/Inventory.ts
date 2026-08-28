@@ -73,6 +73,11 @@ export class Inventory {
     return true;
   }
 
+  /** 剩余空格数 */
+  get freeSlots(): number {
+    return this.slots.filter((slot) => slot === null).length;
+  }
+
   /** 当前格子快照(供 HUD/背包 UI 渲染) */
   snapshot(): InventorySlot[] {
     return this.slots.map((slot) => (slot ? { ...slot } : null));
