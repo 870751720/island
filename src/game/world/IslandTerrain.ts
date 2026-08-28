@@ -160,11 +160,10 @@ export class IslandTerrain {
     );
   }
 
-  /** 玩家是否站在水里(脚低于水面且在水洼范围内) */
+  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,后续游泳复用) */
   isInWater(pos: THREE.Vector3): boolean {
     return this.waterAreas.some(
-      (w) =>
-        Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius && pos.y < w.waterY
+      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius
     );
   }
 
