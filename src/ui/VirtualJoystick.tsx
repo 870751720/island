@@ -6,20 +6,22 @@ const SIZE = 120;
 const KNOB = 52;
 const MAX_OFFSET = (SIZE - KNOB) / 2;
 
-/** 左下角虚拟摇杆,Pointer Events 触控拖动,输出归一化移动向量 */
+/**
+ * 浮动虚拟摇杆:左半屏任意位置按下即在触点生成摇杆,抬起后消失。
+ * Pointer Events 触控拖动,输出归一化移动向量。
+ */
 export function VirtualJoystick({
   onChange,
 }: {
   onChange: (x: number, z: number) => void;
 }) {
-  const baseRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const [center, setCenter] = useState<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  const update = (clientX: number, clientY: number) => {
-    const rect = baseRef.current!.getBoundingClientRect();
-    let dx = clientX - (rect.left + rect.width / 2);
-    let dy = clientY - (rect.top + rect.height / 2);
+  const update = (cx: number, cy: number, px: number, py: number) => {
+    let dx = px - cx;
+    let dy = py - cy;
     const dist = Math.hypot(dx, dy);
     if (dist > MAX_OFFSET) {
       dx = (dx / dist) * MAX_OFFSET;
@@ -31,48 +33,67 @@ export function VirtualJoystick({
 
   const reset = () => {
     pointerIdRef.current = null;
+    setCenter(null);
     setOffset({ x: 0, y: 0 });
     onChange(0, 0);
   };
 
   return (
     <div
-      ref={baseRef}
       onPointerDown={(e) => {
+        if (pointerIdRef.current !== null) return;
         pointerIdRef.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);
-        update(e.clientX, e.clientY);
+        setCenter({ x: e.clientX, y: e.clientY });
+        update(e.clientX, e.clientY, e.clientX, e.clientY);
       }}
       onPointerMove={(e) => {
-        if (pointerIdRef.current === e.pointerId) update(e.clientX, e.clientY);
+        if (pointerIdRef.current !== e.pointerId || !center) return;
+        update(center.x, center.y, e.clientX, e.clientY);
       }}
       onPointerUp={reset}
       onPointerCancel={reset}
       style={{
         position: 'absolute',
-        left: 16,
-        bottom: 24,
-        width: SIZE,
-        height: SIZE,
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.18)',
-        border: '2px solid rgba(255,255,255,0.45)',
+        left: 0,
+        top: 0,
+        width: '50%',
+        height: '100%',
         touchAction: 'none',
         userSelect: 'none',
       }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          width: KNOB,
-          height: KNOB,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.65)',
-          transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
-        }}
-      />
+      {center && (
+        <div
+          style={{
+            position: 'fixed',
+            left: center.x,
+            top: center.y,
+            width: SIZE,
+            height: SIZE,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.18)',
+            border: '2px solid rgba(255,255,255,0.45)',
+            transform: 'translate(-50%, -50%)',
+            animation: 'joystick-fade-in 150ms ease-out',
+            pointerEvents: 'none',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: KNOB,
+              height: KNOB,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.65)',
+              transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+            }}
+          />
+        </div>
+      )}
+      <style>{`@keyframes joystick-fade-in { from { opacity: 0 } to { opacity: 1 } }`}</style>
     </div>
   );
 }
