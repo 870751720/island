@@ -45,9 +45,10 @@ export class Sfx {
 
     switch (name) {
       case 'chop':
-        // 斧刃入木:沉闷的「咚·笃」——低频冲量为骨,木体低共振短音为肉,无高频脆响
-        tone(this.ctx, this.dest, detune(150), t, { attack: 0.005, decay: 0.15, peak: v }, 'sine', 70);
-        tone(this.ctx, this.dest, detune(480), t + 0.005, { attack: 0.004, decay: 0.09, peak: v * 0.6 }, 'sine', 280);
+        // 斧刃入木:又短又密的低频闷击,两层贴近的低音叠加避免单薄发空
+        tone(this.ctx, this.dest, detune(130), t, { attack: 0.003, decay: 0.1, peak: v }, 'sine', 65);
+        tone(this.ctx, this.dest, detune(200), t, { attack: 0.003, decay: 0.08, peak: v * 0.8 }, 'triangle', 110);
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.05, peak: v * 0.4 }, 'lowpass', 700, 300);
         break;
       case 'mine':
         // 镐击石「叮」:金属感高频振铃(两个失谐泛音)+ 石面崩裂脆声
@@ -62,18 +63,18 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t + 0.15, { attack: 0.04, decay: 0.12, peak: v * 0.3 }, 'bandpass', detune(1100), 600, 0.8);
         break;
       case 'pickStone':
-        // 拨拾碎石「咔啦」:几颗石子被翻动的短促碰撞,音高各异的硬质小击
+        // 拨拾碎石:几颗石子翻动的干硬「咔哒」,极短衰减、无滑频,不带水感
         for (let i = 0; i < 3; i++) {
           tone(
             this.ctx,
             this.dest,
-            detune(1300 + i * 500),
+            detune(1500 + Math.random() * 900),
             t + i * 0.05,
-            { attack: 0.002, decay: 0.045, peak: v * (0.55 - i * 0.12) },
+            { attack: 0.001, decay: 0.025, peak: v * (0.55 - i * 0.12) },
             'triangle'
           );
-          noiseBurst(this.ctx, this.dest, t + i * 0.05, { attack: 0.001, decay: 0.02, peak: v * 0.3 }, 'bandpass', 3200, 1600);
         }
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.001, decay: 0.015, peak: v * 0.35 }, 'highpass', 5000);
         break;
       case 'knock':
         tone(this.ctx, this.dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
@@ -94,10 +95,18 @@ export class Sfx {
         }
         break;
       case 'drink':
-        // 两声「咕咚」:中频下滑正弦 + 吞咽的高频轻响,保证外放可闻
-        for (let i = 0; i < 2; i++) {
-          tone(this.ctx, this.dest, detune(620), t + i * 0.16, { attack: 0.01, decay: 0.14, peak: v * 0.8 }, 'sine', 300);
-          noiseBurst(this.ctx, this.dest, t + i * 0.16 + 0.1, { attack: 0.004, decay: 0.04, peak: v * 0.35 }, 'bandpass', 1800, 800);
+        // 「咕咕」吞咽:每口一个由低滑高的极短水泡音,连着三四声
+        for (let i = 0; i < 4; i++) {
+          tone(
+            this.ctx,
+            this.dest,
+            detune(230 + i * 40),
+            t + i * 0.13,
+            { attack: 0.008, decay: 0.06, peak: v * (0.9 - i * 0.1) },
+            'sine',
+            detune(230 + i * 40) * 1.9
+          );
+          noiseBurst(this.ctx, this.dest, t + i * 0.13, { attack: 0.003, decay: 0.04, peak: v * 0.25 }, 'bandpass', 900, 500);
         }
         break;
       case 'whoosh':
