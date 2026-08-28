@@ -28,79 +28,69 @@ type CrabModel = {
   body: THREE.Mesh;
 };
 
-/** 低多边形螃蟹:扁圆身体 + 眼柄 + 8 条腿 + 2 只钳子 */
+/** 低多边形螃蟹:极扁的圆壳 + 眼柄 + 8 条横向摊开的粗腿 + 2 只大钳。
+ * 配色参考业内低多边形螃蟹资产:饱和橙壳、深红橙腿、奶油腹、近黑眼。 */
 function makeCrabModel(): CrabModel {
   const group = new THREE.Group();
-  const shell = clayMaterial('#d35427');
-  const underside = clayMaterial('#e8985a');
+  const shell = clayMaterial('#e87a3e');
+  const limb = clayMaterial('#b8442c');
+  const belly = clayMaterial('#f2e3c9');
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), shell);
-  body.scale.set(1.3, 0.6, 1);
-  body.position.y = 0.14;
+  // 壳:扁盘状,长轴横跨左右,高度压到直径的三成以下
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 6), shell);
+  body.scale.set(1.05, 0.3, 1.35);
+  body.position.y = 0.09;
   body.castShadow = true;
   group.add(body);
 
-  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 5), underside);
-  belly.scale.set(1.25, 0.5, 0.95);
-  belly.position.y = 0.1;
-  group.add(belly);
+  // 腹甲:略小的奶油色扁盘,从壳下露出边缘
+  const under = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 5), belly);
+  under.scale.set(1, 0.28, 1.3);
+  under.position.y = 0.07;
+  group.add(under);
 
-  // 眼柄:两根小杆顶一颗黑珠
+  // 眼柄:壳前缘两根短杆顶近黑圆珠
   for (const side of [-1, 1]) {
-    const stalk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.02, 0.025, 0.14, 4),
-      underside
-    );
-    stalk.position.set(0.2, 0.3, side * 0.08);
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.1, 4), limb);
+    stalk.position.set(0.26, 0.16, side * 0.07);
     group.add(stalk);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), clayMaterial('#2a2a2a'));
-    eye.position.set(0.2, 0.38, side * 0.08);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), clayMaterial('#241f1c'));
+    eye.position.set(0.26, 0.22, side * 0.07);
     group.add(eye);
   }
 
-  // 8 条腿:左右各 4,根部连着身体,走路时绕根部摆动
+  // 8 条腿:左右各 4,粗锥形杆几乎水平向外摊开,走路时绕根部摆动
   const legs: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
     for (let i = 0; i < 4; i++) {
-      const leg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.014, 0.022, 0.26, 4),
-        underside
-      );
-      const z = side * (0.16 + i * 0.03);
-      const x = 0.18 - i * 0.13;
-      // 杆体重心在几何中心,先平移使根部位移到一端
-      leg.geometry.translate(0, -0.13, 0);
-      leg.position.set(x, 0.13, z);
-      leg.rotation.z = -side * 0.9;
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.032, 0.3, 4), limb);
+      // 杆体重心在几何中心,先平移使根部落到一端
+      leg.geometry.translate(0, -0.15, 0);
+      leg.position.set(0.16 - i * 0.11, 0.1, side * 0.26);
+      leg.rotation.z = -side * 0.3;
       leg.castShadow = true;
       group.add(leg);
       legs.push(leg);
     }
   }
 
-  // 2 只钳子:小臂 + 钳身,横行时前后张合
+  // 2 只钳子:粗臂 + 大钳身,是螃蟹最有辨识度的部位,做得比腿更夸张
   const claws: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
-    const arm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.02, 0.028, 0.18, 4),
-      underside
-    );
-    arm.geometry.translate(0, -0.09, 0);
-    arm.position.set(0.24, 0.16, side * 0.24);
-    arm.rotation.z = -side * 1.1;
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.034, 0.16, 4), limb);
+    arm.geometry.translate(0, -0.08, 0);
+    arm.position.set(0.22, 0.11, side * 0.3);
+    arm.rotation.z = -side * 1.0;
     group.add(arm);
-    const pincer = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), shell);
-    pincer.scale.set(1.2, 0.8, 0.8);
-    pincer.position.set(0.36, 0.12, side * 0.32);
+    const pincer = new THREE.Mesh(new THREE.SphereGeometry(0.085, 6, 5), shell);
+    pincer.scale.set(1.25, 0.7, 0.85);
+    pincer.position.set(0.32, 0.08, side * 0.4);
     pincer.castShadow = true;
     group.add(pincer);
     claws.push(arm, pincer);
   }
 
-  const model: CrabModel = { group, legs, claws, body };
-  // 螃蟹应明显小于玩家,整体缩小后投影/受击范围同步缩小
-  group.scale.setScalar(0.65);
-  return model;
+  return { group, legs, claws, body };
 }
 
 type Crab = {
@@ -271,10 +261,10 @@ export class Crabs implements Updatable {
     // 钳子:平时轻抬,受惊/移动时快速开合
     const clawWave = excited ? Math.sin(elapsed * 14 + crab.phase) * 0.15 : 0.05;
     crab.model.claws.forEach((part, i) => {
-      part.position.y = (i % 2 === 0 ? 0.16 : 0.12) + Math.abs(clawWave) + Math.sin(elapsed * 2 + crab.phase + i) * 0.01;
+      part.position.y = (i % 2 === 0 ? 0.11 : 0.08) + Math.abs(clawWave) + Math.sin(elapsed * 2 + crab.phase + i) * 0.01;
     });
     // 身体轻微起伏
-    crab.model.body.position.y = 0.14 + Math.sin(elapsed * (moving ? 12 : 2) + crab.phase) * (moving ? 0.02 : 0.005);
+    crab.model.body.position.y = 0.09 + Math.sin(elapsed * (moving ? 12 : 2) + crab.phase) * (moving ? 0.02 : 0.005);
   }
 
   /**
