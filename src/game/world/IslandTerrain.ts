@@ -23,6 +23,9 @@ function createNoise(seed: number) {
 const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
+/** 水下地面按深度渐变:沙色 → 浅青 → 深青,表现浅滩到深水 */
+const SHALLOW_SEABED = new THREE.Color('#a8dcc9');
+const DEEP_SEABED = new THREE.Color('#4f9d9f');
 /** 一处下挖的水域:圆形 carve + 水面圆盘 */
 type WaterArea = {
   x: number;
@@ -118,7 +121,16 @@ export class IslandTerrain {
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
       pos.setY(i, y);
-      const c = y < 0.05 ? SAND : y < 1.8 ? GRASS : DARK_GRASS;
+      let c: THREE.Color;
+      if (y >= 0.05) {
+        c = y < 1.8 ? GRASS : DARK_GRASS;
+      } else {
+        // 水下深度:0.5 米内沙色渐入浅青,更深再渐向深青
+        const depth = 0.05 - y;
+        c = SAND.clone();
+        c.lerp(SHALLOW_SEABED, THREE.MathUtils.clamp(depth / 0.5, 0, 1));
+        c.lerp(DEEP_SEABED, THREE.MathUtils.clamp((depth - 0.5) / 1.5, 0, 1));
+      }
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
