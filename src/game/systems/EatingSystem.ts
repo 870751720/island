@@ -34,6 +34,8 @@ export class EatingSystem {
     const food = this.food;
     if (!food) return;
     if (this.player.isMoving || this.player.isSwimming) {
+      // 中断进食时切断仍在播的咀嚼声
+      this.audio.stop('munch');
       this.food = null;
       return;
     }

@@ -28,6 +28,8 @@ export class WaterSystem {
       nearWater && thirsty && !this.player.isMoving && !harvestBusy;
 
     if (!this.active) {
+      // 中途走开等取消喝水时,切断仍在播的吞咽声
+      if (this.timer > 0) this.audio.stop('drink');
       this.timer = 0;
       return;
     }

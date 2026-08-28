@@ -63,6 +63,11 @@ export class GameAudio {
     this.sfx?.play(name);
   }
 
+  /** 中途切断仍在播的长音效(交互取消时用) */
+  stop(name: SfxName): void {
+    this.sfx?.stop(name);
+  }
+
   /** 昼夜切换驱动配乐情绪 */
   setNight(night: boolean): void {
     this.music?.setNight(night);
