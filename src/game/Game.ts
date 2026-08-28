@@ -97,7 +97,7 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.player = new Player(terrain, terrain.findSpawnPoint());
     this.scene.add(this.player.group);
-    this.water = new WaterSystem(this.player, terrain.ponds, this.survival);
+    this.water = new WaterSystem(this.player, terrain, this.survival);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
     // Q 键作为桌面端补充的工具切换

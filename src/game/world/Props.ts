@@ -142,6 +142,8 @@ export class Props implements Updatable {
           if (y > 0.3) break;
         }
         if (y <= 0.3) continue;
+        // 避开水面及其边缘
+        if (terrain.isNearWater(new THREE.Vector3(x, y, z), 1)) continue;
         let berries: THREE.Mesh[] | null = null;
         let group: THREE.Group;
         if (kind === 'tree') group = makeTree();

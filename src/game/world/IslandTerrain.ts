@@ -23,19 +23,22 @@ function createNoise(seed: number) {
 const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
+const SEA_LEVEL = -0.35;
 
-export type Pond = {
+/** 一处下挖的水域:圆形 carve + 水面圆盘 */
+type WaterArea = {
   x: number;
   z: number;
   radius: number;
-  /** 喝水判定中心(水边) */
-  position: THREE.Vector3;
+  depth: number;
+  waterY: number;
 };
 
 export class IslandTerrain {
   readonly mesh: THREE.Mesh;
   readonly waterGroup = new THREE.Group();
-  readonly ponds: Pond[] = [];
+  /** 全部水面区域(水洼+河流),供资源生成等避让 */
+  readonly waterAreas: WaterArea[] = [];
   readonly size: number;
   private heightAt: (x: number, z: number) => number;
 
@@ -43,56 +46,94 @@ export class IslandTerrain {
     this.size = size;
     const noise = createNoise(seed);
     const half = size / 2;
-    // 噪声频率随尺寸缩放,大岛也能同时有大海湾与内陆起伏
     const f1 = 6 / size;
     const f2 = 18 / size;
 
-    // 内陆水洼:随机挑几处高地挖圆形洼地,积水面略低于周边地面
-    const rng = (i: number) => {
-      const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
-      return n - Math.floor(n);
-    };
     const baseHeight = (x: number, z: number) => {
       const dist = Math.sqrt(x * x + z * z) / half;
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
       return falloff * falloff * h - 0.6;
     };
-    // 先定洼地位置,再定义最终高度函数(洼地处的原始地面高度用于确定水面)
-    const attempts = 40;
-    for (let i = 0; i < attempts && this.ponds.length < 5; i++) {
-      const x = (rng(i * 2 + 1) * 2 - 1) * half * 0.5;
-      const z = (rng(i * 2 + 2) * 2 - 1) * half * 0.5;
-      const y = baseHeight(x, z);
-      if (y < 1.0) continue;
-      if (this.ponds.some((p) => Math.hypot(p.x - x, p.z - z) < p.radius + 14)) continue;
-      const radius = 3.5 + rng(i + 100) * 3;
-      const waterY = y - 0.5;
-      this.ponds.push({ x, z, radius, position: new THREE.Vector3(x, waterY, z) });
+
+    const rng = (i: number) => {
+      const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
+      return n - Math.floor(n);
+    };
+    const waterMat = () =>
+      new THREE.MeshStandardMaterial({
+        color: '#4aa3c7',
+        roughness: 0.3,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.9,
+      });
+    const addWater = (area: WaterArea) => {
+      this.waterAreas.push(area);
       const disc = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * 0.96, 24),
-        new THREE.MeshStandardMaterial({
-          color: '#4aa3c7',
-          roughness: 0.3,
-          metalness: 0.1,
-          transparent: true,
-          opacity: 0.9,
-        })
+        new THREE.CircleGeometry(area.radius * 0.96, 24),
+        waterMat()
       );
       disc.rotation.x = -Math.PI / 2;
-      disc.position.set(x, waterY, z);
+      disc.position.set(area.x, area.waterY, area.z);
       this.waterGroup.add(disc);
+    };
+
+    // 内陆水洼:数量随岛屿面积,间距与尺寸挂钩,不写死上限
+    const maxPonds = THREE.MathUtils.clamp(Math.round((size * size) / 3200), 3, 14);
+    const minPondGap = Math.max(18, size / 8);
+    for (let i = 0; i < size && this.countPonds() < maxPonds; i++) {
+      const x = (rng(i * 2 + 1) * 2 - 1) * half * 0.55;
+      const z = (rng(i * 2 + 2) * 2 - 1) * half * 0.55;
+      const y = baseHeight(x, z);
+      if (y < 1.0) continue;
+      if (this.tooClose(x, z, minPondGap)) continue;
+      addWater({
+        x,
+        z,
+        radius: 3.5 + rng(i + 100) * 3,
+        depth: 1.6,
+        waterY: y - 0.5,
+      });
     }
 
-    // 岛屿高度:多层噪声叠起伏,圆形衰减保证边缘沉入海面,水洼处下挖
-    this.heightAt = (x: number, z: number) => {
-      const h = baseHeight(x, z);
-      let carveDepth = 0;
-      for (const pond of this.ponds) {
-        const d = Math.hypot(x - pond.x, z - pond.z) / pond.radius;
-        if (d < 1) carveDepth += (1 - d * d) * 1.6;
+    // 一条河流:从最靠岛心的水洼出发,蜿蜒向外挖入海(最多一条)
+    const origin = this.nearestPondToCenter();
+    if (origin) {
+      const angle = Math.atan2(origin.z, origin.x);
+      const wob = rng(999) * Math.PI * 2;
+      const wobble = 2 + rng(998) * 2;
+      for (let step = 1; ; step++) {
+        const along = step * 1.8;
+        const side = Math.sin(along * 0.12 + wob) * wobble;
+        const x = Math.cos(angle) * (Math.hypot(origin.x, origin.z) + along) - Math.sin(angle) * side;
+        const z = Math.sin(angle) * (Math.hypot(origin.x, origin.z) + along) + Math.cos(angle) * side;
+        const dist = Math.hypot(x, z);
+        // 挖到海岸之外即止
+        if (dist > half) break;
+        const h = baseHeight(x, z);
+        // 河床挖到海平面之下,河面与海平面同高
+        if (h > SEA_LEVEL - 0.4) {
+          addWater({
+            x,
+            z,
+            radius: 2.0,
+            depth: h + 0.8,
+            waterY: SEA_LEVEL + 0.02,
+          });
+        }
+        if (step > size) break;
       }
-      return h - carveDepth;
+    }
+
+    // 岛屿高度:噪声地形 + 水域 carve
+    this.heightAt = (x: number, z: number) => {
+      let carve = 0;
+      for (const w of this.waterAreas) {
+        const d = Math.hypot(x - w.x, z - w.z) / w.radius;
+        if (d < 1) carve += w.depth * (1 - d * d);
+      }
+      return baseHeight(x, z) - carve;
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
@@ -106,7 +147,6 @@ export class IslandTerrain {
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
       pos.setY(i, y);
-      // 按高度着色:近水沙滩 → 草地 → 深色草地
       const c = y < 0.05 ? SAND : y < 1.8 ? GRASS : DARK_GRASS;
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
@@ -124,6 +164,30 @@ export class IslandTerrain {
       })
     );
     this.mesh.receiveShadow = true;
+  }
+
+  private countPonds(): number {
+    // 水洼的 waterY 高于海平面,河流与海同高
+    return this.waterAreas.filter((w) => w.waterY > 0).length;
+  }
+
+  private tooClose(x: number, z: number, gap: number): boolean {
+    return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
+  }
+
+  private nearestPondToCenter(): WaterArea | null {
+    const ponds = this.waterAreas.filter((w) => w.waterY > 0);
+    if (!ponds.length) return null;
+    return ponds.reduce((a, b) =>
+      Math.hypot(a.x, a.z) < Math.hypot(b.x, b.z) ? a : b
+    );
+  }
+
+  /** 玩家是否处于任意水面附近(喝水判定) */
+  isNearWater(pos: THREE.Vector3, extraRange: number): boolean {
+    return this.waterAreas.some(
+      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius + extraRange
+    );
   }
 
   getHeight(x: number, z: number): number {
