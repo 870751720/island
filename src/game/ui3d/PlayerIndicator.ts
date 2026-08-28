@@ -1,71 +1,54 @@
 import * as THREE from 'three';
+import { ArcRing, makeRingBackdrop, type RingSize } from './ProgressRing';
 
-const RING_INNER = 0.32;
-const RING_OUTER = 0.48;
+const PROGRESS_SIZE: RingSize = { inner: 0.32, outer: 0.48 };
+const PROGRESS_COLOR = '#4caf50';
+const STAMINA_SIZE: RingSize = { inner: 0.62, outer: 0.78 };
+const STAMINA_COLOR = '#f1c40f';
 
-/** 玩家头顶的作业进度圆环(世界空间,始终朝向相机);提示文字由 React UI 层渲染 */
+/** 玩家身边的圆环指示:头顶作业进度环(始终朝向相机)+ 脚边水面上的体力环(游泳时);提示文字由 React UI 层渲染 */
 export class PlayerIndicator {
+  /** 锚定在玩家脚部位置 */
   readonly group = new THREE.Group();
-  private progressRing: THREE.Mesh;
-  private progress = -1;
+  private head = new THREE.Group();
+  private stamina = new THREE.Group();
+  private headProgress: ArcRing;
+  private staminaProgress: ArcRing;
   private camera: THREE.Camera;
 
   constructor(camera: THREE.Camera, scene: THREE.Scene) {
     this.camera = camera;
-    this.group.position.y = 2.1;
+    this.head.position.y = 2.1;
+    this.head.add(makeRingBackdrop(PROGRESS_SIZE));
+    this.headProgress = new ArcRing(PROGRESS_SIZE, PROGRESS_COLOR, 0.95);
+    this.headProgress.mesh.position.z = 0.01; // 抬高一丁点避免与底环共面 z-fighting
+    this.head.add(this.headProgress.mesh);
+    this.group.add(this.head);
 
-    const bg = new THREE.Mesh(
-      new THREE.RingGeometry(RING_INNER, RING_OUTER, 48),
-      new THREE.MeshBasicMaterial({
-        color: '#000000',
-        transparent: true,
-        opacity: 0.35,
-        side: THREE.DoubleSide,
-        depthTest: false,
-        depthWrite: false,
-      })
-    );
-    bg.renderOrder = 998;
-    this.group.add(bg);
-    this.progressRing = new THREE.Mesh(
-      new THREE.RingGeometry(RING_INNER, RING_OUTER, 48, 1, -Math.PI / 2, 0.01),
-      new THREE.MeshBasicMaterial({
-        color: '#ffd54f',
-        transparent: true,
-        opacity: 0.95,
-        side: THREE.DoubleSide,
-        depthTest: false,
-        depthWrite: false,
-      })
-    );
-    // 沿朝向相机的法向抬高一丁点,避免与底环共面 z-fighting
-    this.progressRing.position.z = 0.01;
-    this.progressRing.renderOrder = 999;
-    this.group.add(this.progressRing);
+    // 体力环平铺在水面,环绕玩家
+    this.stamina.rotation.x = -Math.PI / 2;
+    this.stamina.position.y = 0.06;
+    this.stamina.add(makeRingBackdrop(STAMINA_SIZE));
+    this.staminaProgress = new ArcRing(STAMINA_SIZE, STAMINA_COLOR, 0.85);
+    this.staminaProgress.mesh.position.z = 0.01;
+    this.stamina.add(this.staminaProgress.mesh);
+    this.group.add(this.stamina);
 
-    this.setProgress(null);
+    this.headProgress.setArc(null);
+    this.staminaProgress.setArc(null);
     scene.add(this.group);
   }
 
+  /** 头顶作业进度(0-1 或 null),并同步朝向相机 */
   setProgress(progress: number | null): void {
-    if (progress === null) {
-      this.group.visible = false;
-      this.progress = -1;
-      return;
-    }
-    this.group.visible = true;
-    const p = Math.min(Math.max(progress, 0), 1);
-    if (Math.abs(p - this.progress) < 0.005) return;
-    this.progress = p;
-    this.progressRing.geometry.dispose();
-    this.progressRing.geometry = new THREE.RingGeometry(
-      RING_INNER,
-      RING_OUTER,
-      64,
-      1,
-      -Math.PI / 2,
-      Math.max(p, 0.01) * Math.PI * 2
-    );
-    this.group.quaternion.copy(this.camera.quaternion);
+    this.head.visible = progress !== null;
+    this.head.quaternion.copy(this.camera.quaternion);
+    this.headProgress.setArc(progress);
+  }
+
+  /** 脚边体力环(0-1 或 null),仅在游泳时显示 */
+  setStamina(stamina: number | null): void {
+    this.stamina.visible = stamina !== null;
+    this.staminaProgress.setArc(stamina);
   }
 }

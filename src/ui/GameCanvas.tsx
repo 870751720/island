@@ -11,7 +11,6 @@ const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
   thirst: 100,
   health: 100,
-  stamina: 100,
   dead: false,
   wood: 0,
   gravel: 0,

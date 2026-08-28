@@ -19,7 +19,6 @@ export type HudSnapshot = {
   hunger: number;
   thirst: number;
   health: number;
-  stamina: number;
   dead: boolean;
   wood: number;
   gravel: number;
@@ -273,8 +272,11 @@ export class Game {
             : null;
     }
     const p = this.player.group.position;
-    this.indicator.group.position.set(p.x, p.y + 2.1, p.z);
+    this.indicator.group.position.copy(p);
     this.indicator.setProgress(progress);
+    this.indicator.setStamina(
+      this.player.isSwimming ? this.survival.state.stamina / 100 : null
+    );
 
     // 头顶文字投影为屏幕坐标
     const head = new THREE.Vector3(p.x, p.y + 2.75, p.z).project(this.camera);
