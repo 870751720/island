@@ -100,7 +100,6 @@ export class Game {
       this.player,
       this.props,
       this.inventory,
-      this.tools,
       this.fx
     );
 
@@ -222,11 +221,15 @@ export class Game {
         nearby.kind === 'tree'
           ? canAct
             ? '砍树'
-            : '需要斧子'
+            : this.tools.axe
+              ? '需要手持斧子'
+              : '需要斧子'
           : nearby.kind === 'rock'
             ? canAct
               ? '采石'
-              : '需要镐子'
+              : this.tools.pickaxe
+                ? '需要手持镐子'
+                : '需要镐子'
             : nearby.kind === 'gravel'
               ? '捡碎石'
               : nearby.kind === 'shrub'

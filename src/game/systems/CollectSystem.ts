@@ -1,7 +1,6 @@
 import type { Player, ActionType } from '../entities/Player';
 import type { Prop, Props } from '../world/Props';
 import { Inventory } from './Inventory';
-import type { Tools } from './Crafting';
 import type { Particles } from '../fx/Particles';
 
 const COLLECT_RANGE = 1.6;
@@ -62,22 +61,26 @@ export class CollectSystem {
     private player: Player,
     private props: Props,
     private inventory: Inventory,
-    private tools: Tools,
     private fx: Particles
   ) {}
 
   update(delta: number): void {
+    // 范围内优先选中当前可交互的资源点,避免被不可交互的挡住
     this.nearby = null;
+    let fallback: Prop | null = null;
     const p = this.player.group.position;
     for (const prop of this.props.list) {
       if (!prop.ready) continue;
-      if (prop.position.distanceTo(p) < COLLECT_RANGE) {
+      if (prop.position.distanceTo(p) >= COLLECT_RANGE) continue;
+      if (this.canCollect(prop)) {
         this.nearby = prop;
         break;
       }
+      fallback ??= prop;
     }
+    this.nearby ??= fallback;
 
-    const working = !!this.nearby && this.canCollect() && !this.player.isMoving;
+    const working = !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving;
     this.player.setAction(working ? HARVEST_CONFIG[this.nearby!.kind].action : null);
     if (!working) {
       this.swingTimer = 0;
@@ -94,12 +97,11 @@ export class CollectSystem {
     return this.nearby;
   }
 
-  /** 当前是否满足附近资源点的工具要求 */
-  canCollect(): boolean {
-    const prop = this.nearby;
+  /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
+  canCollect(prop: Prop = this.nearby!): boolean {
     if (!prop) return false;
-    if (prop.kind === 'tree') return this.tools.axe;
-    if (prop.kind === 'rock') return this.tools.pickaxe;
+    if (prop.kind === 'tree') return this.player.currentTool === 'axe';
+    if (prop.kind === 'rock') return this.player.currentTool === 'pickaxe';
     return true;
   }
 
