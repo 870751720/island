@@ -77,6 +77,7 @@
 - 主分支为 `main`。改完代码后:提交 → push 到 `origin main`,这会自动触发 GitHub Actions 部署到 GitHub Pages。
 - push 后需等待 CI/CD 部署完成再向用户报告:优先用 gh CLI(`GH_TOKEN` 取自 `githubtoken.txt`)执行 `gh run watch`;若本机未安装 gh,则用 GitHub API 轮询 `actions/runs` 直到 `status=completed`,再确认 `conclusion=success` 且 https://870751720.github.io/island/ 可访问,最后把该链接连同本次变更摘要一起给用户。
 - 提交信息使用简洁的中文或英文祈使句均可。
+- **测试分工:改完代码不需要 ZCode 做运行时测试(不起 dev 服务器、不做浏览器冒烟测试),只需通过类型检查/构建即可。** 流程为:改码 → 类型检查/构建 → 提交 → push → 等 CI/CD 部署完成 → 把线上链接和变更摘要给用户,由用户自行测试。
 
 ## GitHub 凭证约定
 

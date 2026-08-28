@@ -3,6 +3,7 @@ import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
+import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -10,6 +11,7 @@ import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { Particles } from './fx/Particles';
 import { WaterFx } from './fx/WaterFx';
+import { Rain } from './fx/Rain';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -36,6 +38,8 @@ export type HudSnapshot = {
   eatProgress: number;
   clock: string;
   isNight: boolean;
+  weather: WeatherType;
+  weatherLabel: string;
 };
 
 const VIEW_SIZE = 18;
@@ -57,6 +61,8 @@ export class Game {
   private crafting: CraftingSystem;
   private eating: EatingSystem;
   private dayNight: DayNightSystem;
+  private weather: WeatherSystem;
+  private rain: Rain;
   private terrain: IslandTerrain;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
@@ -134,17 +140,24 @@ export class Game {
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    // 天气在昼夜之后更新,对光照与天空做调制
+    this.weather = new WeatherSystem(sun, hemi, this.scene);
+    this.rain = new Rain();
+    this.scene.add(this.rain.points);
 
     this.loop.add({
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
         this.dayNight.update(delta);
+        this.weather.update(delta);
+        this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
         this.props.update(delta);
         this.fx.update(delta);
         this.waterFx.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
+        this.survival.thirstDrainMultiplier = this.weather.thirstDrainMultiplier;
         this.survival.swimming = this.player.isSwimming;
         this.survival.update(delta);
         this.collect.update(delta);
@@ -264,6 +277,7 @@ export class Game {
     this.resizeObserver.disconnect();
     window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
+    this.rain.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -287,6 +301,8 @@ export class Game {
       eatProgress: this.eating.getProgress() ?? 0,
       clock: this.dayNight.state.clock,
       isNight: this.dayNight.isNight,
+      weather: this.weather.state.type,
+      weatherLabel: this.weather.state.label,
     });
   }
 

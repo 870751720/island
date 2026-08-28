@@ -27,6 +27,8 @@ const INITIAL_HUD: HudSnapshot = {
   eatProgress: 0,
   clock: '12:00',
   isNight: false,
+  weather: 'sunny' as const,
+  weatherLabel: '☀️ 晴',
 };
 
 export function GameCanvas() {

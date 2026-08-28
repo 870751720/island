@@ -22,6 +22,8 @@ export class SurvivalSystem implements Updatable {
   readonly state: SurvivalState;
   /** 夜晚等环境因素对消耗速率的全局倍率 */
   drainMultiplier = 1;
+  /** 天气等因素对口渴消耗的额外倍率(如雨天淋雨减缓) */
+  thirstDrainMultiplier = 1;
   /** 当前是否在游泳(由游戏循环每帧同步) */
   swimming = false;
 
@@ -33,7 +35,10 @@ export class SurvivalSystem implements Updatable {
     const s = this.state;
     if (s.dead) return;
     s.hunger = Math.max(0, s.hunger - HUNGER_RATE * this.drainMultiplier * delta);
-    s.thirst = Math.max(0, s.thirst - THIRST_RATE * this.drainMultiplier * delta);
+    s.thirst = Math.max(
+      0,
+      s.thirst - THIRST_RATE * this.drainMultiplier * this.thirstDrainMultiplier * delta
+    );
     if (s.hunger <= 0 || s.thirst <= 0) {
       s.health = Math.max(0, s.health - STARVE_DAMAGE * delta);
     }
