@@ -118,7 +118,7 @@ export class FishingSystem {
     this.scene.add(this.bobber);
     // 钓线:细圆柱,每帧从竿梢拉到浮漂
     this.line = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 1, 4),
+      new THREE.CylinderGeometry(0.027, 0.027, 1, 4),
       new THREE.MeshBasicMaterial({ color: '#f5f2e8' })
     );
     this.scene.add(this.line);
