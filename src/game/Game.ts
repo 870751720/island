@@ -44,6 +44,7 @@ export class Game {
   private tools: Tools = { axe: false, pickaxe: false };
   private dayNight: DayNightSystem;
   private indicator: PlayerIndicator;
+  private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number) => void;
   private hudTimer = 0;
@@ -76,20 +77,22 @@ export class Game {
     const sun = new THREE.DirectionalLight('#fff3d6', 1.6);
     sun.position.set(25, 35, 15);
     sun.castShadow = true;
-    sun.shadow.camera.left = -45;
-    sun.shadow.camera.right = 45;
-    sun.shadow.camera.top = 45;
-    sun.shadow.camera.bottom = -45;
+    // 阴影范围罩住当前视野,位置在循环中跟随玩家
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
     sun.shadow.mapSize.set(1024, 1024);
-    this.scene.add(sun);
+    this.scene.add(sun, sun.target);
+    this.sun = sun;
 
     const terrain = new IslandTerrain();
     this.scene.add(terrain.mesh);
-    this.scene.add(new Ocean().mesh);
+    this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
     this.props = new Props(this.scene, terrain);
     this.fx = new Particles(this.scene);
 
-    this.player = new Player(terrain);
+    this.player = new Player(terrain, terrain.findSpawnPoint());
     this.scene.add(this.player.group);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
@@ -148,6 +151,12 @@ export class Game {
     this.camera.position.y += (desiredY - this.camera.position.y) * k;
     this.camera.position.z += (desiredZ - this.camera.position.z) * k;
     this.camera.lookAt(target.x, target.y, target.z);
+
+    // 太阳与阴影范围跟随玩家(方向由昼夜系统维护),大岛也能全程有影子
+    const d = this.dayNight.sunOffset;
+    this.sun.position.set(target.x + d.x, target.y + d.y, target.z + d.z);
+    this.sun.target.position.copy(target);
+    this.sun.target.updateMatrixWorld();
   }
 
   private onKeyDown = (e: KeyboardEvent) => {

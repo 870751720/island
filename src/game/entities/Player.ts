@@ -66,7 +66,7 @@ export class Player implements Updatable {
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
 
-  constructor(terrain: IslandTerrain) {
+  constructor(terrain: IslandTerrain, spawn: THREE.Vector3) {
     this.terrain = terrain;
 
     const skin = clayMaterial('#e8b88a');
@@ -110,7 +110,7 @@ export class Player implements Updatable {
     armR.add(axe, pickaxe);
     this.toolModels = { axe, pickaxe };
 
-    this.group.position.set(0, terrain.getHeight(0, 0), 0);
+    this.group.position.copy(spawn);
   }
 
   get isMoving(): boolean {

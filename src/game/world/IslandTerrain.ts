@@ -29,21 +29,24 @@ export class IslandTerrain {
   readonly size: number;
   private heightAt: (x: number, z: number) => number;
 
-  constructor(size = 60, seed = 1) {
+  constructor(size = 160, seed = Math.random() * 1000) {
     this.size = size;
     const noise = createNoise(seed);
     const half = size / 2;
+    // 噪声频率随尺寸缩放,大岛也能同时有大海湾与内陆起伏
+    const f1 = 6 / size;
+    const f2 = 18 / size;
     // 岛屿高度:多层噪声叠起伏,圆形衰减保证边缘沉入海面
     this.heightAt = (x: number, z: number) => {
       const dist = Math.sqrt(x * x + z * z) / half;
       const falloff = Math.max(0, 1 - dist * dist);
-      const h =
-        noise(x * 0.08, z * 0.08) * 3.2 +
-        noise(x * 0.25, z * 0.25) * 0.9;
+      const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
       return falloff * falloff * h - 0.6;
     };
 
-    const geometry = new THREE.PlaneGeometry(size, size, 90, 90);
+    // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
+    const segments = Math.round(size / 1.8);
+    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
     geometry.rotateX(-Math.PI / 2);
     const pos = geometry.attributes.position as THREE.BufferAttribute;
     const colors = new Float32Array(pos.count * 3);
@@ -74,5 +77,18 @@ export class IslandTerrain {
 
   getHeight(x: number, z: number): number {
     return this.heightAt(x, z);
+  }
+
+  /** 找到中心附近的一块陆地作为出生点 */
+  findSpawnPoint(): THREE.Vector3 {
+    const r = this.size / 2;
+    for (let radius = 0; radius < r; radius += 4) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        const x = Math.cos(a) * radius;
+        const z = Math.sin(a) * radius;
+        if (this.heightAt(x, z) > 0.5) return new THREE.Vector3(x, this.heightAt(x, z), z);
+      }
+    }
+    return new THREE.Vector3(0, this.heightAt(0, 0), 0);
   }
 }

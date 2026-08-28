@@ -16,6 +16,8 @@ export type DayPhase = 'day' | 'dusk' | 'night' | 'dawn';
 /** 昼夜循环:驱动太阳/月光、天空色与环境光,t∈[0,1),0 为正午起点 */
 export class DayNightSystem implements Updatable {
   private t = 0.1; // 从白天开始
+  /** 太阳/月光相对玩家的方向偏移,由相机跟随逻辑叠加玩家坐标 */
+  readonly sunOffset = new THREE.Vector3(25, 35, 15);
   readonly state: { phase: DayPhase; clock: string };
 
   constructor(
@@ -46,10 +48,11 @@ export class DayNightSystem implements Updatable {
     // 太阳绕 x-y 平面旋转,夜晚用对面方向的月光
     const theta = this.t * Math.PI * 2;
     if (elev >= -0.05) {
-      this.sun.position.set(Math.cos(theta) * 25, Math.max(elev, 0.05) * 35, 15);
+      this.sunOffset.set(Math.cos(theta) * 25, Math.max(elev, 0.05) * 35, 15);
     } else {
-      this.sun.position.set(-Math.cos(theta) * 25, Math.max(-elev, 0.05) * 35, -15);
+      this.sunOffset.set(-Math.cos(theta) * 25, Math.max(-elev, 0.05) * 35, -15);
     }
+    this.sun.position.copy(this.sunOffset);
     this.sun.target.position.set(0, 0, 0);
     this.sun.target.updateMatrixWorld();
 

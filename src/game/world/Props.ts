@@ -167,11 +167,11 @@ export class Props implements Updatable {
         if (berries) this.berries.set(prop, berries);
       }
     };
-    spawn('tree', 26);
-    spawn('rock', 8);
-    spawn('gravel', 14);
-    spawn('berry', 8);
-    spawn('shrub', 12);
+    spawn('tree', 60);
+    spawn('rock', 18);
+    spawn('gravel', 32);
+    spawn('berry', 20);
+    spawn('shrub', 30);
   }
 
   /** 采集后的外观变化,并按配置安排再生 */
