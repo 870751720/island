@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
-const DROP_COUNT = 350;
+const DROP_COUNT = 700;
 const AREA = 44; // 覆盖玩家周围的方形区域边长
 const TOP = 22;
-const FALL_SPEED = 26;
+const FALL_SPEED = 34;
 
 /** 雨滴粒子:一组 Points 跟随玩家位置下落循环,透明度随雨量渐变 */
 export class Rain {
@@ -21,8 +21,8 @@ export class Rain {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
     this.material = new THREE.PointsMaterial({
-      color: '#9db8d6',
-      size: 0.14,
+      color: '#bcd2e8',
+      size: 0.2,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -35,7 +35,7 @@ export class Rain {
   update(delta: number, center: THREE.Vector3, intensity: number): void {
     this.points.visible = intensity > 0.01;
     if (!this.points.visible) return;
-    this.material.opacity = 0.7 * intensity;
+    this.material.opacity = 0.85 * intensity;
     // 只水平跟随,雨滴世界高度独立维护,避免跟随导致的视觉拖拽
     this.points.position.set(center.x, 0, center.z);
     for (let i = 1; i < this.positions.length; i += 3) {
