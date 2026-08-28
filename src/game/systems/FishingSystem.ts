@@ -216,7 +216,7 @@ export class FishingSystem {
         this.fish!.rotation.z = t * Math.PI * 4;
         if (this.timer >= CATCH_TIME) {
           const added = this.inventory.add('fish', 1);
-          this.audio.play(added > 0 ? 'catch' : 'drop');
+          this.audio.play(added > 0 ? 'pickup' : 'drop');
           const p = to.clone();
           this.scene.remove(this.fish!);
           this.fish = null;

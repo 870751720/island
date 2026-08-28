@@ -11,8 +11,7 @@ export type SfxName =
   | 'whoosh' // 抛竿挥动
   | 'splash' // 落水/拉鱼水花
   | 'bite' // 咬钩提示
-  | 'catch' // 钓到鱼
-  | 'pickup' // 捡回掉落物
+  | 'pickup' // 获得物品(采集收获/捡回/钓到鱼,统一)
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
   | 'death'; // 死亡
@@ -27,7 +26,6 @@ const VOL: Record<SfxName, number> = {
   whoosh: 0.4,
   splash: 0.45,
   bite: 0.6,
-  catch: 0.5,
   pickup: 0.4,
   drop: 0.35,
   success: 0.45,
@@ -55,8 +53,9 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.1, peak: v * 0.8 }, 'highpass', 2200);
         break;
       case 'pick':
-        // 草果:柔软的「沙」
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.006, decay: 0.09, peak: v }, 'bandpass', detune(1500), 700);
+        // 草叶沙沙:两段错开的擦声
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.008, decay: 0.16, peak: v }, 'bandpass', detune(1600), 600);
+        noiseBurst(this.ctx, this.dest, t + 0.08, { attack: 0.008, decay: 0.14, peak: v * 0.7 }, 'bandpass', detune(2200), 800);
         break;
       case 'knock':
         tone(this.ctx, this.dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
@@ -93,10 +92,6 @@ export class Sfx {
         // 浮漂下沉的「咚」+ 提示拨弦
         tone(this.ctx, this.dest, detune(300), t, { attack: 0.003, decay: 0.15, peak: v }, 'sine', 120);
         pianoTone(this.ctx, this.dest, midiToFreq(84), t + 0.02, 0.5, v * 0.7);
-        break;
-      case 'catch':
-        // 上行小三连,轻快收获感
-        [76, 81, 88].forEach((m, i) => pianoTone(this.ctx, this.dest, midiToFreq(m), t + i * 0.1, 0.8, v * 0.8));
         break;
       case 'pickup':
         pianoTone(this.ctx, this.dest, midiToFreq(detune(81)), t, 0.4, v);
