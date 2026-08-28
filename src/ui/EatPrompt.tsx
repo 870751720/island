@@ -16,8 +16,8 @@ export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void 
       }}
       style={{
         position: 'absolute',
-        right: 20,
-        bottom: 196,
+        left: 'max(12px, env(safe-area-inset-left))',
+        top: 'calc(50% + 84px)',
         display: 'flex',
         alignItems: 'center',
         gap: 10,

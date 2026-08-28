@@ -30,8 +30,9 @@ export function CraftPrompt({
     <div
       style={{
         position: 'absolute',
-        right: 20,
-        bottom: 128,
+        left: 'max(12px, env(safe-area-inset-left))',
+        top: '50%',
+        transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
