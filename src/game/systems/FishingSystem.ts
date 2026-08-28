@@ -4,6 +4,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Inventory } from './Inventory';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 
 const CAST_TIME = 0.7; // 抛竿(秒)
 const WAIT_MIN = 4; // 等鱼上钩最短等待
@@ -67,7 +68,8 @@ export class FishingSystem {
     private terrain: IslandTerrain,
     private inventory: Inventory,
     private waterFx: WaterFx,
-    private fx: Particles
+    private fx: Particles,
+    private audio: GameAudio
   ) {}
 
   /** 当前是否在钓鱼(其他系统让位用) */
@@ -112,6 +114,7 @@ export class FishingSystem {
     const target = this.findBobberTarget();
     if (!target) return false;
     this.state = 'casting';
+    this.audio.play('whoosh');
     this.timer = 0;
     this.bobber = makeBobber();
     this.bobber.visible = false;
@@ -133,6 +136,7 @@ export class FishingSystem {
     if (this.state !== 'bite') return false;
     this.state = 'catching';
     this.timer = 0;
+    this.audio.play('splash');
     this.waterFx.splash(this.bobberTarget);
     this.fish = makeFish();
     this.fish.position.copy(this.bobberTarget);
@@ -164,6 +168,7 @@ export class FishingSystem {
         this.bobber!.position.y += Math.sin(t * Math.PI) * 1.2;
         if (this.timer >= CAST_TIME) {
           this.state = 'waiting';
+          this.audio.play('splash');
           this.waitTotal = WAIT_MIN + Math.random() * (WAIT_MAX - WAIT_MIN);
           this.timer = 0;
           this.rippleTimer = 0;
@@ -183,6 +188,7 @@ export class FishingSystem {
         }
         if (this.timer >= this.waitTotal) {
           this.state = 'bite';
+          this.audio.play('bite');
           this.timer = 0;
           // 咬钩:浮漂猛地下沉,水花四溅
           this.bobber!.position.y = this.bobberTarget.y - 0.15;
@@ -210,6 +216,7 @@ export class FishingSystem {
         this.fish!.rotation.z = t * Math.PI * 4;
         if (this.timer >= CATCH_TIME) {
           const added = this.inventory.add('fish', 1);
+          this.audio.play(added > 0 ? 'catch' : 'drop');
           const p = to.clone();
           this.scene.remove(this.fish!);
           this.fish = null;

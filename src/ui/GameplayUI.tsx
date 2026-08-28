@@ -54,6 +54,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -87,6 +88,24 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
       <Hud hud={hud} />
+      <button
+        aria-label="静音开关"
+        onClick={() => setMuted(gameRef.current?.toggleMute() ?? false)}
+        style={{
+          position: 'absolute',
+          top: 'max(10px, env(safe-area-inset-top))',
+          right: 'max(10px, env(safe-area-inset-right))',
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          border: 'none',
+          background: 'rgba(255,255,255,0.75)',
+          fontSize: 20,
+          lineHeight: 1,
+        }}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
       <Backpack
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}

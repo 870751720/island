@@ -2,6 +2,7 @@ import type { Player } from '../entities/Player';
 import { craft, canCraft, type Recipe, type Tools } from './Crafting';
 import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 
 const CRAFT_TIME = 2.4; // 合成总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -17,7 +18,8 @@ export class CraftingSystem {
     private player: Player,
     private inventory: Inventory,
     private tools: Tools,
-    private fx: Particles
+    private fx: Particles,
+    private audio: GameAudio
   ) {}
 
   start(recipe: Recipe): boolean {
@@ -46,6 +48,7 @@ export class CraftingSystem {
     this.tickTimer += delta;
     if (this.tickTimer >= CRAFT_TICK) {
       this.tickTimer -= CRAFT_TICK;
+      this.audio.play('knock');
       const p = this.player.group.position.clone();
       p.y += 0.6;
       this.fx.burst(p, FX_COLOR, 5);
@@ -55,6 +58,7 @@ export class CraftingSystem {
       craft(recipe, this.inventory, this.tools);
       // 工具制作完成直接拿在手上,材料产物进背包
       if (recipe.tool) this.player.setTool(recipe.tool);
+      this.audio.play('success');
       const p = this.player.group.position.clone();
       p.y += 0.8;
       this.fx.burst(p, recipe.id === 'axe' ? '#7a4f21' : '#8d99a6', 14);

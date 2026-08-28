@@ -2,6 +2,7 @@ import type { Player } from '../entities/Player';
 import type { Food } from './Food';
 import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 import type { SurvivalSystem } from './SurvivalSystem';
 
 const EAT_TIME = 1.5; // 进食总时长(秒)
@@ -17,7 +18,8 @@ export class EatingSystem {
     private player: Player,
     private inventory: Inventory,
     private survival: SurvivalSystem,
-    private fx: Particles
+    private fx: Particles,
+    private audio: GameAudio
   ) {}
 
   start(food: Food): boolean {
@@ -40,6 +42,7 @@ export class EatingSystem {
     this.tickTimer += delta;
     if (this.tickTimer >= EAT_TICK) {
       this.tickTimer -= EAT_TICK;
+      this.audio.play('munch');
       // 嘴边掉渣特效
       const p = this.player.group.position.clone();
       p.y += 2;

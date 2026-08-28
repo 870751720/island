@@ -3,6 +3,7 @@ import type { Player } from '../entities/Player';
 import type { ResourceKind, Inventory } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
@@ -40,7 +41,8 @@ export class DropSystem {
     private player: Player,
     private inventory: Inventory,
     private terrain: IslandTerrain,
-    private fx: Particles
+    private fx: Particles,
+    private audio: GameAudio
   ) {}
 
   /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下) */
@@ -63,6 +65,7 @@ export class DropSystem {
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
     this.drops.push({ kind, count, mesh, age: 0, baseY });
+    this.audio.play('drop');
   }
 
   update(delta: number, elapsed: number): void {
@@ -96,6 +99,7 @@ export class DropSystem {
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (this.inventory.add(drop.kind, drop.count) < drop.count) return false;
+      this.audio.play('pickup');
       this.fx.burst(drop.mesh.position, DROP_STYLE[drop.kind].color, 8);
       this.remove(i);
       return true;

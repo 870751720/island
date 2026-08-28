@@ -13,6 +13,7 @@ import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import { Particles } from './fx/Particles';
+import { GameAudio } from './audio/GameAudio';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
@@ -75,6 +76,7 @@ export class Game {
   private water: WaterSystem;
   private props: Props;
   private fx: Particles;
+  private audio = new GameAudio();
   private waterFx: WaterFx;
   private footprints: Footprints;
   private survival = new SurvivalSystem();
@@ -98,6 +100,7 @@ export class Game {
   private onLabel: (label: string | null, x: number, y: number) => void;
   private hudTimer = 0;
   private autoEquipTimer = 0;
+  private lastDead = false;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
 
@@ -150,7 +153,7 @@ export class Game {
     this.footprints = new Footprints(this.scene, terrain);
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
     this.scene.add(this.player.group);
-    this.water = new WaterSystem(this.player, terrain, this.survival);
+    this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
     // Q 键作为桌面端补充的工具切换
@@ -161,6 +164,7 @@ export class Game {
       this.props,
       this.inventory,
       this.fx,
+      this.audio,
       // 合成/进食/钓鱼占用双手,期间采集让位
       () =>
         this.crafting.isWorking ||
@@ -168,25 +172,34 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking
     );
-    this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx);
+    this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx, this.audio);
     this.workbench = new WorkbenchSystem(
       this.scene,
       this.player,
       this.inventory,
       this.terrain,
       this.props,
-      this.fx
+      this.fx,
+      this.audio
     );
-    this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
+    this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
     this.fishing = new FishingSystem(
       this.scene,
       this.player,
       this.terrain,
       this.inventory,
       this.waterFx,
-      this.fx
+      this.fx,
+      this.audio
     );
-    this.drops = new DropSystem(this.scene, this.player, this.inventory, this.terrain, this.fx);
+    this.drops = new DropSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.fx,
+      this.audio
+    );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
     // 天气在昼夜之后更新,对光照与天空做调制
@@ -200,6 +213,8 @@ export class Game {
         this.player.update(delta, elapsed);
         this.dayNight.update(delta);
         this.weather.update(delta);
+        this.audio.setNight(this.dayNight.isNight);
+        this.audio.setRainIntensity(this.weather.rainIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
@@ -237,6 +252,8 @@ export class Game {
         this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
+        if (this.survival.state.dead && !this.lastDead) this.audio.play('death');
+        this.lastDead = this.survival.state.dead;
         this.pushHud(delta);
       },
     });
@@ -398,7 +415,14 @@ export class Game {
   }
 
   start(): void {
+    // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
+    this.audio.start();
     this.loop.start();
+  }
+
+  /** 静音开关,返回切换后的静音状态 */
+  toggleMute(): boolean {
+    return this.audio.toggleMute();
   }
 
   dispose(): void {
@@ -409,6 +433,7 @@ export class Game {
     this.drops.dispose();
     this.rain.dispose();
     this.footprints.dispose();
+    this.audio.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

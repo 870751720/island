@@ -2,6 +2,7 @@ import type { Player, ActionType } from '../entities/Player';
 import type { Prop, Props } from '../world/Props';
 import { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
@@ -81,6 +82,7 @@ export class CollectSystem {
     private props: Props,
     private inventory: Inventory,
     private fx: Particles,
+    private audio: GameAudio,
     /** 其他占用双手的行为(如合成中),为真时采集让位 */
     private isBusy: () => boolean = () => false
   ) {}
@@ -145,6 +147,7 @@ export class CollectSystem {
 
   private hit(prop: Prop): void {
     const config = HARVEST_CONFIG[kindOf(prop)];
+    this.audio.play(config.action === 'chop' ? 'chop' : config.action === 'mine' ? 'mine' : 'pick');
     this.fx.burst(prop.position, config.fxColor, 6);
     this.props.shake(prop);
     const hits = (this.hitCounts.get(prop) ?? 0) + 1;
@@ -155,6 +158,7 @@ export class CollectSystem {
     this.hitCounts.delete(prop);
     this.props.harvest(prop);
     config.yield(this.inventory);
+    this.audio.play('pickup');
     this.fx.burst(prop.position, config.fxColor, 14);
     this.nearby = null;
   }

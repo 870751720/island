@@ -1,6 +1,7 @@
 import type { Player } from '../entities/Player';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { SurvivalSystem } from './SurvivalSystem';
+import type { GameAudio } from '../audio/GameAudio';
 
 const DRINK_TIME = 2; // 一轮喝水(秒)
 const THIRST_PER_ROUND = 40;
@@ -14,7 +15,8 @@ export class WaterSystem {
   constructor(
     private player: Player,
     private terrain: IslandTerrain,
-    private survival: SurvivalSystem
+    private survival: SurvivalSystem,
+    private audio: GameAudio
   ) {}
 
   update(delta: number, harvestBusy: boolean): void {
@@ -34,6 +36,7 @@ export class WaterSystem {
     this.timer += delta;
     if (this.timer < DRINK_TIME) return;
     this.timer = 0;
+    this.audio.play('drink');
     this.survival.drink();
   }
 

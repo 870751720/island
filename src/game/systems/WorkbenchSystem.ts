@@ -6,6 +6,7 @@ import { WORKBENCH_COST } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
+import type { GameAudio } from '../audio/GameAudio';
 
 const CRAFT_TIME = 2.4; // 制作总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -28,7 +29,8 @@ export class WorkbenchSystem {
     private inventory: Inventory,
     private terrain: IslandTerrain,
     private props: Props,
-    private fx: Particles
+    private fx: Particles,
+    private audio: GameAudio
   ) {}
 
   /** 场上是否已有工作台 */
@@ -78,6 +80,7 @@ export class WorkbenchSystem {
     this.tickTimer += delta;
     if (this.tickTimer >= CRAFT_TICK) {
       this.tickTimer -= CRAFT_TICK;
+      this.audio.play('knock');
       const p = this.player.group.position.clone();
       p.y += 0.6;
       this.fx.burst(p, FX_COLOR, 5);
@@ -87,6 +90,7 @@ export class WorkbenchSystem {
       this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
       this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
       this.bench = new Workbench(this.scene, this.player.group.position);
+      this.audio.play('success');
       const p = this.player.group.position.clone();
       p.y += 0.8;
       this.fx.burst(p, '#8a6239', 14);
