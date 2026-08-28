@@ -359,13 +359,14 @@ export class Birds implements Updatable {
     g.rotation.y = bird.heading;
 
     if (bird.state === 'walk') {
-      // 收翅站立:翅膀大幅上折贴到背侧,踱步间隙低头啄食
-      for (const wing of bird.model.wings) wing.rotation.z = wing.userData.side * 1.25;
+      // 落地踱步时直接藏起翅膀,只留身体、头喙和尾
+      for (const wing of bird.model.wings) wing.visible = false;
       const peck = Math.sin(elapsed * 3 + bird.phase);
       bird.model.head.rotation.x = peck > 0.75 ? (peck - 0.75) * 2.4 : 0;
       // 身体小幅蹦跳步态
       g.position.y += Math.abs(Math.sin(elapsed * 8 + bird.phase)) * 0.03;
     } else {
+      for (const wing of bird.model.wings) wing.visible = true;
       bird.model.head.rotation.x = 0;
       // 扑翼:巡航平缓,降落滑翔更慢,惊飞时急促
       const flap = bird.state === 'flee' ? 14 : bird.state === 'land' ? 5 : 8;
