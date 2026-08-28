@@ -29,6 +29,7 @@ const INITIAL_HUD: HudSnapshot = {
   workbenchProgress: 0,
   eatName: null,
   eatProgress: 0,
+  autoEquipProgress: 0,
 };
 
 /**
@@ -83,7 +84,13 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
+          {(hud.axe || hud.pickaxe) && (
+            <ToolButton
+              tool={hud.tool}
+              pulse={hud.autoEquipProgress > 0}
+              onCycle={() => gameRef.current?.cycleTool()}
+            />
+          )}
           <CraftPrompt
             hud={hud}
             onCraft={(id) => gameRef.current?.craftTool(id)}

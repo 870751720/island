@@ -8,8 +8,16 @@ const TOOL_ICONS: Record<HandTool, string> = {
   pickaxe: '⛏️',
 };
 
-/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子(仅已拥有) */
-export function ToolButton({ tool, onCycle }: { tool: HandTool; onCycle: () => void }) {
+/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子;pulse 时轻缩放提示可切换 */
+export function ToolButton({
+  tool,
+  pulse,
+  onCycle,
+}: {
+  tool: HandTool;
+  pulse: boolean;
+  onCycle: () => void;
+}) {
   return (
     <button
       onPointerDown={(e) => {
@@ -30,9 +38,11 @@ export function ToolButton({ tool, onCycle }: { tool: HandTool; onCycle: () => v
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+        animation: pulse ? 'tool-pulse 0.9s ease-in-out infinite' : 'none',
       }}
     >
       {TOOL_ICONS[tool]}
+      <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>
     </button>
   );
 }

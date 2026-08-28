@@ -42,6 +42,8 @@ export type HudSnapshot = {
   workbenchProgress: number;
   eatName: string | null;
   eatProgress: number;
+  /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
+  autoEquipProgress: number;
 };
 
 const VIEW_SIZE = 18;
@@ -334,6 +336,7 @@ export class Game {
       workbenchProgress: this.workbench.getProgress() ?? 0,
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
+      autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
     });
   }
 
