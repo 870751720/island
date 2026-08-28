@@ -4,7 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
-import { RECIPES, type Tools } from './systems/Crafting';
+import { RECIPES, type CraftId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
@@ -33,13 +33,16 @@ export type HudSnapshot = {
   gravel: number;
   stone: number;
   berry: number;
+  fiber: number;
+  rope: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
   axe: boolean;
   pickaxe: boolean;
+  fishingrod: boolean;
   tool: HandTool;
-  craftId: 'axe' | 'pickaxe' | null;
+  craftId: CraftId | null;
   craftProgress: number;
   canCraftWorkbench: boolean;
   workbenchCrafting: boolean;
@@ -68,7 +71,7 @@ export class Game {
   private footprints: Footprints;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
-  private tools: Tools = { axe: false, pickaxe: false };
+  private tools: Tools = { axe: false, pickaxe: false, fishingrod: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private eating: EatingSystem;
@@ -249,7 +252,7 @@ export class Game {
 
   /** 循环切换手持工具:空手 → 斧子 → 镐子(仅已拥有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe'];
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod'];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.tools[t]);
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
@@ -312,7 +315,7 @@ export class Game {
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
-  craftTool(id: keyof Tools): boolean {
+  craftTool(id: CraftId): boolean {
     if (this.workbench.isWorking) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe ? this.crafting.start(recipe) : false;
@@ -350,10 +353,13 @@ export class Game {
       gravel: this.inventory.count('gravel'),
       stone: this.inventory.count('stone'),
       berry: this.inventory.count('berry'),
+      fiber: this.inventory.count('fiber'),
+      rope: this.inventory.count('rope'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       axe: this.tools.axe,
       pickaxe: this.tools.pickaxe,
+      fishingrod: this.tools.fishingrod,
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,
@@ -394,7 +400,9 @@ export class Game {
               ? '捡碎石'
               : nearby.kind === 'shrub'
                 ? '捡树枝'
-                : '采浆果';
+                : nearby.kind === 'grass'
+                  ? '采纤维'
+                  : '采浆果';
     } else if (this.water.isActive) {
       label = '喝水';
       progress = this.water.getProgress();

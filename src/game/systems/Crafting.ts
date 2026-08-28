@@ -1,20 +1,35 @@
 import type { ResourceKind, Inventory } from './Inventory';
 
-export type Tools = {
-  axe: boolean;
-  pickaxe: boolean;
-};
+/** 可拥有的工具 */
+export type ToolId = 'axe' | 'pickaxe' | 'fishingrod';
+
+export type Tools = Record<ToolId, boolean>;
+
+/** 配方 id:工具与其同名,材料类为产物入口 */
+export type CraftId = ToolId | 'rope';
 
 export type Recipe = {
-  id: keyof Tools;
+  id: CraftId;
   name: string;
   icon: string;
   cost: Partial<Record<ResourceKind, number>>;
+  /** 工具类:制作后永久拥有 */
+  tool?: ToolId;
+  /** 材料类:产物进背包,可反复制作 */
+  output?: ResourceKind;
 };
 
 export const RECIPES: Recipe[] = [
-  { id: 'axe', name: '斧子', icon: '🪓', cost: { wood: 2, gravel: 2 } },
-  { id: 'pickaxe', name: '镐子', icon: '⛏️', cost: { wood: 2, gravel: 3 } },
+  { id: 'axe', name: '斧子', icon: '🪓', cost: { wood: 2, gravel: 2 }, tool: 'axe' },
+  { id: 'pickaxe', name: '镐子', icon: '⛏️', cost: { wood: 2, gravel: 3 }, tool: 'pickaxe' },
+  { id: 'rope', name: '绳线', icon: '🧵', cost: { fiber: 3 }, output: 'rope' },
+  {
+    id: 'fishingrod',
+    name: '鱼竿',
+    icon: '🎣',
+    cost: { wood: 1, rope: 2 },
+    tool: 'fishingrod',
+  },
 ];
 
 /** 全局唯一工作台的配方:2 石头 + 1 树枝 */
@@ -40,10 +55,14 @@ export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
 }
 
 export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boolean {
-  if (tools[recipe.id] || !canCraft(recipe, inventory)) return false;
+  if (recipe.tool ? tools[recipe.tool] : !canCraft(recipe, inventory)) return false;
   for (const [kind, n] of Object.entries(recipe.cost)) {
     inventory.remove(kind as ResourceKind, n ?? 0);
   }
-  tools[recipe.id] = true;
+  if (recipe.tool) {
+    tools[recipe.tool] = true;
+  } else {
+    return inventory.add(recipe.output!, 1) > 0;
+  }
   return true;
 }

@@ -59,6 +59,12 @@ const HARVEST_CONFIG: Record<
     fxColor: '#6b8f4e',
     yield: (inv) => inv.add('wood', 1),
   },
+  grass: {
+    action: 'pick',
+    hits: 1,
+    fxColor: '#a4c46a',
+    yield: (inv) => inv.add('fiber', 2),
+  },
 };
 
 export type HarvestInfo = { progress: number };

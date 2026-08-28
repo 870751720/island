@@ -21,7 +21,11 @@ export class CraftingSystem {
   ) {}
 
   start(recipe: Recipe): boolean {
-    if (this.recipe || this.tools[recipe.id] || !canCraft(recipe, this.inventory)) {
+    if (
+      this.recipe ||
+      (recipe.tool && this.tools[recipe.tool]) ||
+      !canCraft(recipe, this.inventory)
+    ) {
       return false;
     }
     this.recipe = recipe;
@@ -49,8 +53,8 @@ export class CraftingSystem {
     if (this.timer >= CRAFT_TIME) {
       this.recipe = null;
       craft(recipe, this.inventory, this.tools);
-      // 制作完成直接拿在手上
-      this.player.setTool(recipe.id);
+      // 工具制作完成直接拿在手上,材料产物进背包
+      if (recipe.tool) this.player.setTool(recipe.tool);
       const p = this.player.group.position.clone();
       p.y += 0.8;
       this.fx.burst(p, recipe.id === 'axe' ? '#7a4f21' : '#8d99a6', 14);

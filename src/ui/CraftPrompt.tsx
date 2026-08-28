@@ -9,6 +9,8 @@ const UNIT_LABELS: Record<string, string> = {
   gravel: '碎',
   stone: '石',
   berry: '果',
+  fiber: '纤',
+  rope: '线',
 };
 
 /** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片(工具 + 工作台) */
@@ -23,7 +25,9 @@ export function CraftPrompt({
 }) {
   // 任一合成进行中时不再展示卡片
   if (hud.craftId !== null || hud.workbenchCrafting) return null;
-  const craftable = RECIPES.filter((r) => !hud[r.id] && hasCost(r.cost, hud));
+  const craftable = RECIPES.filter(
+    (r) => (r.output || !hud[r.id as keyof HudSnapshot]) && hasCost(r.cost, hud)
+  );
   const showWorkbench = hud.canCraftWorkbench;
   if (craftable.length === 0 && !showWorkbench) return null;
   return (

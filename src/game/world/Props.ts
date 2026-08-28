@@ -4,7 +4,7 @@ import { IslandTerrain } from './IslandTerrain';
 
 const SHAKE_TIME = 0.4;
 
-export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub';
+export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass';
 
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
 const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
@@ -13,6 +13,7 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   gravel: { regrow: 0 },
   berry: { regrow: 60 },
   shrub: { regrow: 90 },
+  grass: { regrow: 60 },
 };
 
 export type Prop = {
@@ -109,6 +110,23 @@ function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
   return { group, berries };
 }
 
+function makeGrassTuft(): THREE.Group {
+  // 草丛:几片交叉的细长叶片,产出植物纤维
+  const g = new THREE.Group();
+  for (let i = 0; i < 6; i++) {
+    const blade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.05, 0.45, 3),
+      clayMaterial(i % 2 === 0 ? '#7fae55' : '#a4c46a')
+    );
+    const a = (i / 6) * Math.PI * 2 + 0.4;
+    blade.position.set(Math.cos(a) * 0.12, 0.22, Math.sin(a) * 0.12);
+    blade.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
+    blade.castShadow = true;
+    g.add(blade);
+  }
+  return g;
+}
+
 function makeShrub(): THREE.Group {
   // 灌木丛:多团叶子,产出树枝
   const g = new THREE.Group();
@@ -155,6 +173,7 @@ export class Props implements Updatable {
         else if (kind === 'rock') group = makeRock();
         else if (kind === 'gravel') group = makeGravel();
         else if (kind === 'shrub') group = makeShrub();
+        else if (kind === 'grass') group = makeGrassTuft();
         else {
           const made = makeBerryBush();
           group = made.group;
@@ -179,6 +198,7 @@ export class Props implements Updatable {
     spawn('gravel', 32);
     spawn('berry', 20);
     spawn('shrub', 30);
+    spawn('grass', 26);
   }
 
   /** 采集后的外观变化,并按配置安排再生 */
@@ -204,6 +224,7 @@ export class Props implements Updatable {
         break;
       case 'rock':
       case 'gravel':
+      case 'grass':
         prop.group.visible = false;
         break;
       case 'berry':
@@ -231,6 +252,8 @@ export class Props implements Updatable {
       prop.regrowLeft = 0;
       if (prop.kind === 'berry') {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
+      } else if (prop.kind === 'grass') {
+        prop.group.visible = true;
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
       }

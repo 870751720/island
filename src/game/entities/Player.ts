@@ -25,8 +25,25 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 /** 作业动画类型:砍树/凿石/拾取/喝水 */
 export type ActionType = 'chop' | 'mine' | 'pick' | 'drink' | 'craft' | 'eat_berry';
 
-/** 手持工具:空手/斧子/镐子 */
-export type HandTool = 'hand' | 'axe' | 'pickaxe';
+/** 手持工具:空手/斧子/镐子/鱼竿 */
+export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod';
+
+function makeFishingRodModel(): THREE.Group {
+  // 鱼竿:细长树枝 + 竿梢垂下的钓线
+  const g = new THREE.Group();
+  const rod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02, 0.035, 0.85, 5),
+    clayMaterial('#8a6239')
+  );
+  const line = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.008, 0.008, 0.3, 3),
+    clayMaterial('#e8e4d8')
+  );
+  line.position.set(0, 0.27, 0.06);
+  g.add(rod, line);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
 
 function makeAxeModel(): THREE.Group {
   // 斧柄 + 斧刃,握在右手
@@ -123,12 +140,13 @@ export class Player implements Updatable {
     // 工具握在右手(armR)末端
     const axe = makeAxeModel();
     const pickaxe = makePickaxeModel();
-    axe.position.set(0, -0.3, 0.05);
-    pickaxe.position.set(0, -0.3, 0.05);
-    axe.visible = false;
-    pickaxe.visible = false;
-    armR.add(axe, pickaxe);
-    this.toolModels = { axe, pickaxe };
+    const fishingrod = makeFishingRodModel();
+    for (const t of [axe, pickaxe, fishingrod]) {
+      t.position.set(0, -0.3, 0.05);
+      t.visible = false;
+    }
+    armR.add(axe, pickaxe, fishingrod);
+    this.toolModels = { axe, pickaxe, fishingrod };
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';

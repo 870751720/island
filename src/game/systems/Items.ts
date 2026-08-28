@@ -33,4 +33,16 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🍒',
     description: '灌木丛中采摘的野果,可以直接食用,恢复少量饥饿和口渴。',
   },
+  fiber: {
+    kind: 'fiber',
+    name: '植物纤维',
+    icon: '🌿',
+    description: '从草丛里采来的坚韧纤维,可以搓成绳线,是制作绳类道具的基础材料。',
+  },
+  rope: {
+    kind: 'rope',
+    name: '绳线',
+    icon: '🧵',
+    description: '用植物纤维搓成的细绳,结实有韧性,可以用来制作鱼竿等工具。',
+  },
 };

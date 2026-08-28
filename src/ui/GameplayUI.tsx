@@ -20,10 +20,13 @@ const INITIAL_HUD: HudSnapshot = {
   gravel: 0,
   stone: 0,
   berry: 0,
+  fiber: 0,
+  rope: 0,
   slots: [],
   capacity: 10,
   axe: false,
   pickaxe: false,
+  fishingrod: false,
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -91,7 +94,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          {(hud.axe || hud.pickaxe) && (
+          {(hud.axe || hud.pickaxe || hud.fishingrod) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}

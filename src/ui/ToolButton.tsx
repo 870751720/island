@@ -6,9 +6,10 @@ const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
   axe: '🪓',
   pickaxe: '⛏️',
+  fishingrod: '🎣',
 };
 
-/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子;pulse 时轻缩放提示可切换 */
+/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿(仅已拥有的);pulse 时轻缩放提示可切换 */
 export function ToolButton({
   tool,
   pulse,
