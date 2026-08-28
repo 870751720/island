@@ -32,10 +32,11 @@ export type ActionType =
   | 'eat_berry'
   | 'eat_fish'
   | 'cast'
-  | 'fish';
+  | 'fish'
+  | 'shoot';
 
 /** 手持工具:空手/斧子/镐子/鱼竿 */
-export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod';
+export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
 
 function makeFishingRodModel(): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
@@ -62,6 +63,28 @@ function makeAxeModel(): THREE.Group {
   const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.16), clayMaterial('#9a9a9a'));
   blade.position.set(0, 0.26, 0.1);
   g.add(handle, blade);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
+function makeBowModel(): THREE.Group {
+  // 弓:细杆弯成弓形(用弧形排布的短柱近似)+ 一根弓弦
+  const g = new THREE.Group();
+  const wood = clayMaterial('#8a6239');
+  const segments = 7;
+  for (let i = 0; i < segments; i++) {
+    const t = i / (segments - 1);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 4), wood);
+    seg.position.set(0, (t - 0.5) * 0.78, Math.sin(t * Math.PI) * 0.1 - 0.1);
+    seg.rotation.x = -Math.cos(t * Math.PI) * 0.5;
+    g.add(seg);
+  }
+  const string = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.006, 0.006, 0.78, 3),
+    new THREE.MeshBasicMaterial({ color: '#f5f2e8' })
+  );
+  string.position.set(0, 0, -0.1);
+  g.add(string);
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -148,12 +171,13 @@ export class Player implements Updatable {
     const axe = makeAxeModel();
     const pickaxe = makePickaxeModel();
     const fishingrod = makeFishingRodModel();
-    for (const t of [axe, pickaxe, fishingrod]) {
+    const bow = makeBowModel();
+    for (const t of [axe, pickaxe, fishingrod, bow]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, fishingrod);
-    this.toolModels = { axe, pickaxe, fishingrod };
+    armR.add(axe, pickaxe, fishingrod, bow);
+    this.toolModels = { axe, pickaxe, fishingrod, bow };
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';
@@ -252,6 +276,7 @@ export class Player implements Updatable {
         const swing = this.moving ? 0.7 : 0;
         for (const limb of this.limbs) {
           limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+          limb.mesh.rotation.z = 0;
         }
       }
     }
@@ -317,6 +342,15 @@ export class Player implements Updatable {
         this.group.rotation.x = 0.1;
         this.arms[1].rotation.x = -1.5 + Math.sin(t * 0.4) * 0.05;
         this.arms[0].rotation.x = -0.2;
+        break;
+      }
+      case 'shoot': {
+        // 开弓放箭:左臂前伸持弓,右臂拉弦到脸颊后猛地松开
+        this.group.rotation.x = 0.05;
+        this.arms[0].rotation.x = -1.55;
+        const draw = Math.sin(t * 6);
+        this.arms[1].rotation.x = -1.55 + draw * 0.35;
+        this.arms[1].rotation.z = draw * 0.25;
         break;
       }
       case 'eat_berry': {

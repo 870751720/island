@@ -24,11 +24,13 @@ const INITIAL_HUD: HudSnapshot = {
   berry: 0,
   fiber: 0,
   rope: 0,
+  arrow: 0,
   slots: [],
   capacity: 10,
   axe: false,
   pickaxe: false,
   fishingrod: false,
+  bow: false,
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -107,11 +109,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          {(hud.axe || hud.pickaxe || hud.fishingrod || hud.nearWorkbench) && (
+          {(hud.axe || hud.pickaxe || hud.fishingrod || hud.bow || hud.nearWorkbench) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
               workbench={hud.nearWorkbench && hud.craftId === null}
+              arrowCount={hud.arrow}
               onCycle={() => gameRef.current?.cycleTool()}
               onWorkbench={() => setWorkbenchOpen(true)}
             />

@@ -51,4 +51,10 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🐟',
     description: '在海边或水洼边钓上来的鱼,新鲜有营养,可以直接生吃恢复饥饿。',
   },
+  arrow: {
+    kind: 'arrow',
+    name: '箭',
+    icon: '🏹',
+    description: '用树枝削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
+  },
 };

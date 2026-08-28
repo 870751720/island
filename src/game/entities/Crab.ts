@@ -268,6 +268,21 @@ export class Crabs implements Updatable {
     crab.model.body.position.y = 0.09 + Math.sin(elapsed * (moving ? 12 : 2) + crab.phase) * (moving ? 0.02 : 0.005);
   }
 
+  /** 返回范围内最近的一只活螃蟹的位置(无则 null),供弓箭索敌 */
+  nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
+    let best: Crab | null = null;
+    let bestDist = range * range;
+    for (const crab of this.crabs) {
+      if (!crab.alive) continue;
+      const d = crab.pos.distanceToSquared(origin);
+      if (d < bestDist) {
+        best = crab;
+        bestDist = d;
+      }
+    }
+    return best ? best.pos.clone() : null;
+  }
+
   /**
    * 击杀某点附近的一只活螃蟹(供后续攻击手段调用),返回是否命中。
    * 螃蟹死后消失,经过 RESPAWN_TIME 在海岸其他位置重新刷新。

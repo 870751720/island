@@ -10,6 +10,8 @@ export type SfxName =
   | 'munch' // 进食
   | 'drink' // 喝下一轮水
   | 'whoosh' // 抛竿挥动
+  | 'shoot' // 放箭:弦弹与箭矢破空
+  | 'arrowHit' // 箭矢命中猎物
   | 'splash' // 落水/拉鱼水花
   | 'bite' // 咬钩提示
   | 'pickup' // 获得物品(采集收获/捡回/钓到鱼,统一)
@@ -26,6 +28,8 @@ const VOL: Record<SfxName, number> = {
   munch: 0.5,
   drink: 0.55,
   whoosh: 0.4,
+  shoot: 0.45,
+  arrowHit: 0.5,
   splash: 0.45,
   bite: 0.6,
   pickup: 0.4,
@@ -128,6 +132,16 @@ export class Sfx {
         break;
       case 'whoosh':
         noiseBurst(this.ctx, dest, t, { attack: 0.05, decay: 0.25, peak: v }, 'bandpass', 600, 2400);
+        break;
+      case 'shoot':
+        // 弓弦「崩」的短促弹拨 + 箭矢破空掠过的滑噪声
+        tone(this.ctx, dest, detune(320), t, { attack: 0.002, decay: 0.09, peak: v * 0.8 }, 'triangle', 140);
+        noiseBurst(this.ctx, dest, t + 0.02, { attack: 0.02, decay: 0.18, peak: v * 0.7 }, 'bandpass', 1800, 3000);
+        break;
+      case 'arrowHit':
+        // 命中闷响:低频穿透 + 短促的羽草炸开声
+        tone(this.ctx, dest, detune(160), t, { attack: 0.002, decay: 0.12, peak: v }, 'sine', 70);
+        noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.5 }, 'bandpass', 900, 500);
         break;
       case 'splash':
         noiseBurst(this.ctx, dest, t, { attack: 0.004, decay: 0.28, peak: v }, 'lowpass', 3200, 400);

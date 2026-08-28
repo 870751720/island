@@ -17,6 +17,7 @@ const UNIT_LABELS: Record<string, string> = {
   berry: '果',
   fiber: '纤',
   rope: '线',
+  arrow: '箭',
 };
 
 function costLabel(cost: Recipe['cost']): string {
@@ -51,7 +52,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.gravel, hud.fiber, hud.rope, hud.fishingrod]);
+  }, [hud.wood, hud.gravel, hud.fiber, hud.rope, hud.fishingrod, hud.bow]);
 
   return (
     <div
@@ -131,6 +132,7 @@ function maxCount(recipe: Recipe, hud: HudSnapshot): number {
     axe: hud.axe,
     pickaxe: hud.pickaxe,
     fishingrod: hud.fishingrod,
+    bow: hud.bow,
   });
 }
 

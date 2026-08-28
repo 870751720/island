@@ -19,6 +19,8 @@ const WALK_SPEED = 0.7;
 /** 巡航目标点选在玩家周围这个环内,保证玩家总能偶尔看到鸟 */
 const WANDER_MIN = 8;
 const WANDER_MAX = 26;
+/** 鸟被击杀后,延迟多久在别处高空重新起飞 */
+const RESPAWN_TIME = 30;
 
 const BODY_COLORS = ['#5d6d7e', '#8d6e63', '#34495e', '#6d7b5a'];
 
@@ -116,6 +118,8 @@ type Bird = {
   stepTarget: THREE.Vector3 | null;
   fleeHeading: number;
   phase: number;
+  alive: boolean;
+  respawnLeft: number;
 };
 
 /** 海鸥般的小鸟:多数时间在玩家周围盘旋巡航,偶尔落到浆果丛旁、水洼边或空地上踱步啄食;落地时被玩家靠近会惊飞,飞行中不怕人 */
@@ -154,6 +158,8 @@ export class Birds implements Updatable {
         stepTarget: null,
         fleeHeading: 0,
         phase: rng() * Math.PI * 2,
+        alive: true,
+        respawnLeft: 0,
       });
     }
     scene.add(this.group);
@@ -218,6 +224,11 @@ export class Birds implements Updatable {
   update(delta: number, elapsed: number): void {
     const p = this.player.group.position;
     for (const bird of this.birds) {
+      if (!bird.alive) {
+        bird.respawnLeft -= delta;
+        if (bird.respawnLeft <= 0) this.respawn(bird);
+        continue;
+      }
       bird.stateTime += delta;
       const dist = Math.hypot(p.x - bird.pos.x, p.z - bird.pos.z);
 
@@ -334,6 +345,51 @@ export class Birds implements Updatable {
 
       this.animate(bird, elapsed);
     }
+  }
+
+  /** 返回范围内最近的一只活鸟的位置(无则 null),供弓箭索敌 */
+  nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
+    let best: Bird | null = null;
+    let bestDist = range * range;
+    for (const bird of this.birds) {
+      if (!bird.alive) continue;
+      const d = bird.pos.distanceToSquared(origin);
+      if (d < bestDist) {
+        best = bird;
+        bestDist = d;
+      }
+    }
+    return best ? best.pos.clone() : null;
+  }
+
+  /** 击杀某点附近的一只活鸟(箭矢命中调用),返回是否命中;死后经 RESPAWN_TIME 在别处高空重新起飞 */
+  killNearby(pos: THREE.Vector3, range: number): boolean {
+    let best: Bird | null = null;
+    let bestDist = range * range;
+    for (const bird of this.birds) {
+      if (!bird.alive) continue;
+      const d = bird.pos.distanceToSquared(pos);
+      if (d < bestDist) {
+        best = bird;
+        bestDist = d;
+      }
+    }
+    if (!best) return false;
+    best.alive = false;
+    best.respawnLeft = RESPAWN_TIME;
+    best.model.group.visible = false;
+    return true;
+  }
+
+  private respawn(bird: Bird): void {
+    bird.pos.copy(this.pickWanderTarget(Math.random));
+    bird.heading = Math.random() * Math.PI * 2;
+    bird.state = 'fly';
+    bird.stateTime = 0;
+    bird.walkLeft = 0;
+    bird.stepTarget = null;
+    bird.alive = true;
+    bird.model.group.visible = true;
   }
 
   /** 沿水平朝目标转向并前进,返回是否已抵达(水平距离);到达阈值取转弯半径的 1.3 倍以上,否则目标会进入转弯圈内永远绕圈 */

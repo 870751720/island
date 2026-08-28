@@ -10,6 +10,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   fiber: '#a4c46a',
   rope: '#d9c27a',
   fish: '#5fa8d3',
+  arrow: '#a97c50',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -140,6 +141,28 @@ function makeRope(): THREE.Object3D {
   return g;
 }
 
+/** 箭:几支细木箭斜插成一小捆 */
+function makeArrows(): THREE.Object3D {
+  const g = new THREE.Group();
+  const shaftMat = clay(DROP_COLORS.arrow);
+  const headMat = clay('#8a8a8a');
+  const featherMat = clay('#e8e2d4');
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const arrow = new THREE.Group();
+    const shaft = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 4), shaftMat);
+    const head = mesh(new THREE.ConeGeometry(0.04, 0.1, 4), headMat);
+    head.position.y = 0.28;
+    const feather = mesh(new THREE.BoxGeometry(0.02, 0.14, 0.08), featherMat);
+    feather.position.y = -0.18;
+    arrow.add(shaft, head, feather);
+    arrow.rotation.z = 0.35;
+    arrow.position.set(Math.cos(a) * 0.08, 0.05, Math.sin(a) * 0.08);
+    g.add(arrow);
+  }
+  return g;
+}
+
 /** 鱼:纺锤形鱼身 + 三角尾鳍 + 背鳍,与钓上来的鱼同色系 */
 function makeFish(): THREE.Object3D {
   const g = new THREE.Group();
@@ -171,6 +194,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fiber: makeFiber,
   rope: makeRope,
   fish: makeFish,
+  arrow: makeArrows,
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

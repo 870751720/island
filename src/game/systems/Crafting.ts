@@ -1,12 +1,12 @@
 import type { ResourceKind, Inventory } from './Inventory';
 
 /** 可拥有的工具 */
-export type ToolId = 'axe' | 'pickaxe' | 'fishingrod';
+export type ToolId = 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
 
 export type Tools = Record<ToolId, boolean>;
 
 /** 配方 id:工具与其同名,材料类为产物入口 */
-export type CraftId = ToolId | 'rope';
+export type CraftId = ToolId | 'rope' | 'arrow';
 
 export type Recipe = {
   id: CraftId;
@@ -19,6 +19,8 @@ export type Recipe = {
   tool?: ToolId;
   /** 材料类:产物进背包,可反复制作 */
   output?: ResourceKind;
+  /** 单次制作的产物个数(默认 1,如 1 根树枝削 10 只箭) */
+  outputCount?: number;
 };
 
 export const RECIPES: Recipe[] = [
@@ -53,6 +55,23 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 1, rope: 2 },
     station: 'workbench',
     tool: 'fishingrod',
+  },
+  {
+    id: 'bow',
+    name: '弓',
+    icon: '🏹',
+    cost: { wood: 1, rope: 2 },
+    station: 'workbench',
+    tool: 'bow',
+  },
+  {
+    id: 'arrow',
+    name: '箭 ×10',
+    icon: '🏹',
+    cost: { wood: 1 },
+    station: 'hand',
+    output: 'arrow',
+    outputCount: 10,
   },
 ];
 
@@ -100,7 +119,7 @@ export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boole
   if (recipe.tool) {
     tools[recipe.tool] = true;
   } else {
-    return inventory.add(recipe.output!, 1) > 0;
+    return inventory.add(recipe.output!, recipe.outputCount ?? 1) > 0;
   }
   return true;
 }

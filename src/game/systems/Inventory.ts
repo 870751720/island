@@ -5,7 +5,8 @@ export type ResourceKind =
   | 'berry'
   | 'fiber'
   | 'rope'
-  | 'fish';
+  | 'fish'
+  | 'arrow';
 
 /** 一个背包格:道具类型与叠加数量,空格为 null */
 export type InventorySlot = { kind: ResourceKind; count: number } | null;

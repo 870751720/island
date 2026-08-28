@@ -15,6 +15,7 @@ import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
+import { BowSystem } from './systems/BowSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
 import { WaterFx } from './fx/WaterFx';
@@ -40,12 +41,14 @@ export type HudSnapshot = {
   berry: number;
   fiber: number;
   rope: number;
+  arrow: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
   axe: boolean;
   pickaxe: boolean;
   fishingrod: boolean;
+  bow: boolean;
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
@@ -86,12 +89,13 @@ export class Game {
   private footprints: Footprints;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
-  private tools: Tools = { axe: false, pickaxe: false, fishingrod: false };
+  private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
   private fishing: FishingSystem;
+  private archery: BowSystem;
   private drops: DropSystem;
   private dayNight: DayNightSystem;
   private weather: WeatherSystem;
@@ -181,7 +185,8 @@ export class Game {
         this.crafting.isWorking ||
         this.workbench.isWorking ||
         this.eating.isWorking ||
-        this.fishing.isWorking
+        this.fishing.isWorking ||
+        this.archery.isWorking
     );
     this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx, this.audio);
     this.workbench = new WorkbenchSystem(
@@ -200,6 +205,16 @@ export class Game {
       this.terrain,
       this.inventory,
       this.waterFx,
+      this.fx,
+      this.audio
+    );
+    this.archery = new BowSystem(
+      this.scene,
+      this.player,
+      this.terrain,
+      this.inventory,
+      this.crabs,
+      this.birds,
       this.fx,
       this.audio
     );
@@ -259,7 +274,18 @@ export class Game {
             this.crafting.isWorking ||
             this.workbench.isWorking ||
             this.eating.isWorking ||
+            this.archery.isWorking ||
             this.water.isActive
+        );
+        this.archery.update(
+          delta,
+          this.collect.isWorking ||
+            this.crafting.isWorking ||
+            this.workbench.isWorking ||
+            this.eating.isWorking ||
+            this.fishing.isWorking ||
+            this.water.isActive ||
+            this.survival.state.dead
         );
         this.drops.update(delta, elapsed);
         this.updateAutoEquip(delta);
@@ -269,7 +295,8 @@ export class Game {
             this.crafting.isWorking ||
             this.workbench.isWorking ||
             this.eating.isWorking ||
-            this.fishing.isWorking
+            this.fishing.isWorking ||
+            this.archery.isWorking
         );
         this.updateIndicator();
         this.updateCamera(delta);
@@ -325,7 +352,7 @@ export class Game {
 
   /** 循环切换手持工具:空手 → 斧子 → 镐子(仅已拥有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod'];
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow'];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.tools[t]);
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
@@ -480,11 +507,13 @@ export class Game {
       berry: this.inventory.count('berry'),
       fiber: this.inventory.count('fiber'),
       rope: this.inventory.count('rope'),
+      arrow: this.inventory.count('arrow'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       axe: this.tools.axe,
       pickaxe: this.tools.pickaxe,
       fishingrod: this.tools.fishingrod,
+      bow: this.tools.bow,
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,
