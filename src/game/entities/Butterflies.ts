@@ -25,37 +25,74 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 
 type ButterflyModel = {
   group: THREE.Group;
-  wings: [THREE.Mesh, THREE.Mesh];
+  /** 左右翅组,绕身体纵轴(z 轴)扑动 */
+  wings: THREE.Group[];
 };
 
-/** 低多边形蝴蝶:细长身体 + 两片绕中轴扑动的三角翅膀 */
+/** 用平面轮廓生成一片蝶翅:shape 在 XY 平面定义(x 向外、y 沿身体纵轴),再放平到 XZ */
+function wingGeometry(outline: THREE.Shape): THREE.BufferGeometry {
+  const geo = new THREE.ShapeGeometry(outline, 6);
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
+/** 前翅:大而前掠,外缘圆润,是蝴蝶轮廓的主体 */
+function forewingShape(): THREE.Shape {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0.05);
+  s.quadraticCurveTo(0.16, 0.14, 0.3, 0.16);
+  s.quadraticCurveTo(0.42, 0.16, 0.38, 0.05);
+  s.quadraticCurveTo(0.32, -0.02, 0.08, -0.02);
+  return s;
+}
+
+/** 后翅:较小,接在前翅根部后方,外缘略收 */
+function hindwingShape(): THREE.Shape {
+  const s = new THREE.Shape();
+  s.moveTo(0.02, -0.02);
+  s.quadraticCurveTo(0.18, -0.03, 0.26, -0.12);
+  s.quadraticCurveTo(0.28, -0.22, 0.14, -0.22);
+  s.quadraticCurveTo(0.04, -0.16, 0.02, -0.06);
+  return s;
+}
+
+/** 低多边形蝴蝶:极细的针状身体 + 两对大面积圆轮廓翅膀(每侧前后翅一组,绕身体轴对拍) */
 function makeButterflyModel(color: string): ButterflyModel {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 4), clayMaterial('#3a3230'));
-  body.scale.set(0.7, 0.7, 2.4);
-  group.add(body);
+  const dark = clayMaterial('#3a3230');
 
-  // 翅膀:压扁的三角面,几何先平移让翼根落在转轴上
-  const wingShape = new THREE.BufferGeometry();
-  wingShape.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(
-      [0, 0, 0.08, 0, 0, -0.1, 0.26, 0, -0.02],
-      3
-    )
-  );
-  wingShape.computeVertexNormals();
-  const mat = clayMaterial(color);
-  mat.side = THREE.DoubleSide;
-  const wings: [THREE.Mesh, THREE.Mesh] = [
-    new THREE.Mesh(wingShape, mat),
-    new THREE.Mesh(wingShape, mat),
-  ];
-  wings[0].scale.x = 1;
-  wings[1].scale.x = -1;
-  for (const wing of wings) {
-    wing.castShadow = true;
-    group.add(wing);
+  // 身体:细针状,只在头尾稍粗
+  const abdomen = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.22, 5), dark);
+  abdomen.rotation.x = Math.PI / 2;
+  group.add(abdomen);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), dark);
+  head.position.z = 0.13;
+  group.add(head);
+  // 触角:两根前伸的细丝
+  for (const side of [-1, 1]) {
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.1, 3), dark);
+    antenna.geometry.translate(0, 0.05, 0);
+    antenna.position.set(0, 0.012, 0.14);
+    antenna.rotation.set(-0.9, 0, side * 0.5);
+    group.add(antenna);
+  }
+
+  // 翅膀:左右各一组(前翅+后翅),挂在同一个 pivot 上绕身体纵轴(z 轴)扑动
+  const wingMat = clayMaterial(color);
+  wingMat.side = THREE.DoubleSide;
+  const fore = wingGeometry(forewingShape());
+  const hind = wingGeometry(hindwingShape());
+  const wings: THREE.Group[] = [];
+  for (const side of [1, -1]) {
+    const pivot = new THREE.Group();
+    const foreMesh = new THREE.Mesh(fore, wingMat);
+    const hindMesh = new THREE.Mesh(hind, wingMat);
+    foreMesh.castShadow = true;
+    hindMesh.castShadow = true;
+    pivot.add(foreMesh, hindMesh);
+    pivot.scale.x = side;
+    group.add(pivot);
+    wings.push(pivot);
   }
   return { group, wings };
 }
@@ -177,11 +214,10 @@ export class Butterflies implements Updatable {
     // 身体纵轴(+z)朝运动方向:rotation.y = θ 时局部 +z 指向 (sinθ, 0, cosθ)
     g.rotation.y = bf.heading;
 
-    // 扑翼:两片翅膀绕身体纵轴对拍,惊飞后频率更高
+    // 扑翼:两侧 pivot 镜像(scale.x=-1),同角绕 z 轴旋转即为对称对拍;惊飞后频率更高
     const flap = bf.fleeTime > 0 ? 26 : 14;
     const angle = Math.abs(Math.sin(elapsed * flap + bf.phase)) * 1.1 + 0.15;
-    bf.model.wings[0].rotation.z = angle;
-    bf.model.wings[1].rotation.z = -angle;
+    for (const wing of bf.model.wings) wing.rotation.z = angle;
   }
 
   private respawn(bf: Butterfly): void {
