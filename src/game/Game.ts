@@ -12,6 +12,7 @@ import { WaterSystem } from './systems/WaterSystem';
 import { Particles } from './fx/Particles';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
+import { RainImpact } from './fx/RainImpact';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -63,6 +64,7 @@ export class Game {
   private dayNight: DayNightSystem;
   private weather: WeatherSystem;
   private rain: Rain;
+  private rainImpact: RainImpact;
   private terrain: IslandTerrain;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
@@ -144,6 +146,7 @@ export class Game {
     this.weather = new WeatherSystem(sun, hemi, this.scene);
     this.rain = new Rain();
     this.scene.add(this.rain.lines);
+    this.rainImpact = new RainImpact(terrain, this.waterFx, this.fx);
 
     this.loop.add({
       update: (delta, elapsed) => {
@@ -151,6 +154,7 @@ export class Game {
         this.dayNight.update(delta);
         this.weather.update(delta);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
+        this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
         this.props.update(delta);
