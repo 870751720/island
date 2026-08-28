@@ -11,7 +11,7 @@ export class Ocean {
         roughness: 0.35,
         metalness: 0.1,
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.65,
       })
     );
     this.mesh.rotation.x = -Math.PI / 2;

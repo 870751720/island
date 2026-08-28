@@ -23,8 +23,9 @@ function createNoise(seed: number) {
 const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
-/** 水下的湿沙:沙色加深偏棕,不出现蓝色 */
+/** 水下的湿沙:沙色加深偏棕,不出现蓝色;随水深再向深棕渐变以区分浅滩与深水 */
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
+const DEEP_SEABED = new THREE.Color('#5d5238');
 /** 一处下挖的水域:圆形 carve + 水面圆盘 */
 type WaterArea = {
   x: number;
@@ -67,7 +68,7 @@ export class IslandTerrain {
         roughness: 0.35,
         metalness: 0.1,
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.65,
       });
     const addWater = (area: WaterArea) => {
       this.waterAreas.push(area);
@@ -120,14 +121,14 @@ export class IslandTerrain {
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
       pos.setY(i, y);
-      const c =
-        y < this.waterLevelAt(x, z) - 0.02
-          ? WET_SAND
-          : y < 0.05
-            ? SAND
-            : y < 1.8
-              ? GRASS
-              : DARK_GRASS;
+      const waterY = this.waterLevelAt(x, z);
+      let c: THREE.Color;
+      if (y < waterY - 0.02) {
+        // 水下湿沙,越深越暗:浅水透出亮湿沙,深水显深色底
+        c = WET_SAND.clone().lerp(DEEP_SEABED, THREE.MathUtils.clamp((waterY - y) / 2, 0, 1));
+      } else {
+        c = y < 0.05 ? SAND : y < 1.8 ? GRASS : DARK_GRASS;
+      }
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
@@ -196,14 +197,17 @@ export class IslandTerrain {
     return this.heightAt(x, z);
   }
 
-  /** 找到中心附近的一块陆地作为出生点 */
+  /** 从岛心向外螺旋,找第一处海岸沙地(水线上方不高的干沙带)作为出生点 */
   findSpawnPoint(): THREE.Vector3 {
     const r = this.size / 2;
-    for (let radius = 0; radius < r; radius += 4) {
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+    for (let radius = 2; radius < r; radius += 2) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
         const x = Math.cos(a) * radius;
         const z = Math.sin(a) * radius;
-        if (this.heightAt(x, z) > 0.5) return new THREE.Vector3(x, this.heightAt(x, z), z);
+        const h = this.heightAt(x, z);
+        if (h > 0.1 && h < 0.5 && !this.isInWater(new THREE.Vector3(x, h, z))) {
+          return new THREE.Vector3(x, h, z);
+        }
       }
     }
     return new THREE.Vector3(0, this.heightAt(0, 0), 0);
