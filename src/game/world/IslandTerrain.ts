@@ -21,9 +21,11 @@ function createNoise(seed: number) {
 }
 
 const SAND = new THREE.Color('#e8d8a0');
+const WET_SAND = new THREE.Color('#bd9d6b'); // 被潮水浸湿的沙
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
-const SEA_LEVEL = -0.35;
+const TIDE_REFRESH = 0.25; // 湿沙重算间隔(秒)
+const DRY_RATE = 0.04; // 湿沙干燥速率(每秒)
 /** 一处下挖的水域:圆形 carve + 水面圆盘 */
 type WaterArea = {
   x: number;
@@ -40,6 +42,11 @@ export class IslandTerrain {
   readonly waterAreas: WaterArea[] = [];
   readonly size: number;
   private heightAt: (x: number, z: number) => number;
+  private vertexHeights: Float32Array;
+  private dryColors: Float32Array;
+  private wetness: Float32Array;
+  private colorAttr: THREE.BufferAttribute;
+  private tideTimer = 0;
 
   constructor(size = 160, seed = Math.random() * 1000) {
     this.size = size;
@@ -113,17 +120,25 @@ export class IslandTerrain {
     geometry.rotateX(-Math.PI / 2);
     const pos = geometry.attributes.position as THREE.BufferAttribute;
     const colors = new Float32Array(pos.count * 3);
+    this.vertexHeights = new Float32Array(pos.count);
+    this.dryColors = new Float32Array(pos.count * 3);
+    this.wetness = new Float32Array(pos.count);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
       pos.setY(i, y);
+      this.vertexHeights[i] = y;
       const c = y < 0.05 ? SAND : y < 1.8 ? GRASS : DARK_GRASS;
+      this.dryColors[i * 3] = c.r;
+      this.dryColors[i * 3 + 1] = c.g;
+      this.dryColors[i * 3 + 2] = c.b;
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
     }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    this.colorAttr = new THREE.BufferAttribute(colors, 3);
+    geometry.setAttribute('color', this.colorAttr);
     geometry.computeVertexNormals();
 
     this.mesh = new THREE.Mesh(
@@ -143,6 +158,25 @@ export class IslandTerrain {
 
   private tooClose(x: number, z: number, gap: number): boolean {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
+  }
+
+  /** 潮汐:水线以下浸湿沙色,退潮后湿痕缓慢晒干 */
+  updateTide(waterY: number, delta: number): void {
+    this.tideTimer += delta;
+    if (this.tideTimer < TIDE_REFRESH) return;
+    const dt = this.tideTimer;
+    this.tideTimer = 0;
+    const colors = this.colorAttr.array as Float32Array;
+    for (let i = 0; i < this.vertexHeights.length; i++) {
+      if (this.vertexHeights[i] > 0.3) continue; // 潮线只影响沙滩
+      if (this.vertexHeights[i] < waterY + 0.02) this.wetness[i] = 1;
+      else this.wetness[i] = Math.max(0, this.wetness[i] - dt * DRY_RATE);
+      const w = this.wetness[i];
+      colors[i * 3] = this.dryColors[i * 3] + (WET_SAND.r - this.dryColors[i * 3]) * w;
+      colors[i * 3 + 1] = this.dryColors[i * 3 + 1] + (WET_SAND.g - this.dryColors[i * 3 + 1]) * w;
+      colors[i * 3 + 2] = this.dryColors[i * 3 + 2] + (WET_SAND.b - this.dryColors[i * 3 + 2]) * w;
+    }
+    this.colorAttr.needsUpdate = true;
   }
 
   /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒) */

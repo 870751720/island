@@ -12,6 +12,7 @@ import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { Clouds } from './world/Clouds';
+import { Foam } from './world/Foam';
 import { Props } from './world/Props';
 
 export type HudSnapshot = {
@@ -48,6 +49,7 @@ export class Game {
   private dayNight: DayNightSystem;
   private terrain: IslandTerrain;
   private ocean: Ocean;
+  private foam: Foam;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
@@ -95,8 +97,11 @@ export class Game {
     const terrain = new IslandTerrain();
     this.terrain = terrain;
     this.scene.add(terrain.mesh);
-    this.ocean = new Ocean(Math.max(500, terrain.size * 3));
+    const heightAt = (x: number, z: number) => terrain.getHeight(x, z);
+    this.ocean = new Ocean(Math.max(500, terrain.size * 3), heightAt);
     this.scene.add(this.ocean.mesh);
+    this.foam = new Foam(terrain.size * 1.4, heightAt);
+    this.scene.add(this.foam.mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
     this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain);
@@ -126,6 +131,8 @@ export class Game {
         this.dayNight.update(delta);
         this.clouds.update(delta);
         this.ocean.update(elapsed);
+        this.foam.update(delta, this.ocean.waterY, this.ocean.isRising);
+        this.terrain.updateTide(this.ocean.waterY, delta);
         this.terrain.updateWater(elapsed);
         this.props.update(delta);
         this.fx.update(delta);
