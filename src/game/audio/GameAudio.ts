@@ -32,8 +32,13 @@ export class GameAudio {
     const reverb = createReverb(ctx);
     reverb.output.connect(master);
 
+    // 音乐走独立总线,整体音量压在音效之下
+    const musicBus = ctx.createGain();
+    musicBus.gain.value = 0.55;
+    musicBus.connect(reverb.input);
+
     this.sfx = new Sfx(ctx, reverb.input);
-    this.music = new Music(ctx, reverb.input);
+    this.music = new Music(ctx, musicBus);
     this.ambience = new Ambience(ctx, reverb.input);
     this.music.start();
     // 组件挂载后再启动的上下文可能是挂起状态,借下一次触摸/按键唤醒

@@ -1,91 +1,90 @@
 import { midiToFreq, pianoTone, tone } from './synth';
 
 /**
- * 生成式配乐,久石让式调性:
- * C 大调五声音阶的如歌旋律 + I-V-vi-IV 和声进行 + 分解和弦伴奏 + 温暖铺底,
- * 柔和钢琴音色、慢速律动;白天明亮流动,夜晚低回稀疏。
- * 以「动机重复与变奏」组织乐句:先呈示 2 小节动机,再移位变奏,最后收束。
+ * 生成式配乐:三首久石让风格骨架的原创小曲轮换播放。
+ * 参考其代表作的技术语汇(不受版权保护的部分)——调性、和声进行、拍号与织体:
+ *  1. 「夏日之风」《One Summer's Day》式:C 大调 4/4 慢速流动,五声性旋律 + 分解和弦
+ *  2. 「海边圆舞曲」《人生的旋转木马》式:A 小调 3/4,低音-和弦-和弦圆舞曲织体
+ *  3. 「森林絮语」《风之甬道》式:F 大调田园风,长气息旋律
+ * 旋律为原创谱面数据;每次播放带轻微随机留白与音量呼吸,夜晚自动低八度、放慢、留白更多。
  */
 
-/** 和声进行(8 小节一轮):MIDI 根音与和弦音(大调级数) */
-const PROGRESSION: { root: number; chord: number[] }[] = [
-  { root: 48, chord: [60, 64, 67] }, // C
-  { root: 43, chord: [59, 62, 67] }, // G
-  { root: 45, chord: [57, 60, 64] }, // Am
-  { root: 41, chord: [57, 60, 65] }, // F
-  { root: 48, chord: [60, 64, 67] }, // C
-  { root: 43, chord: [59, 62, 67] }, // G
-  { root: 45, chord: [57, 60, 65] }, // F
-  { root: 43, chord: [59, 62, 67] }, // G
+/** 单个旋律音:在小节内的拍偏移、MIDI 音高、时长(拍) */
+type Note = { beat: number; midi: number; dur: number };
+
+type Bar = {
+  /** 和弦根音 MIDI(低音区) */
+  root: number;
+  /** 和弦音 MIDI(中音区,铺底用) */
+  chord: number[];
+  melody: Note[];
+};
+
+type Piece = {
+  name: string;
+  bpm: number;
+  beatsPerBar: number;
+  /** 圆舞曲等「低音-和弦」织体用;false 时为波浪形分解和弦 */
+  waltz: boolean;
+  bars: Bar[];
+};
+
+const PIECES: Piece[] = [
+  {
+    // 夏日之风:C 大调,如歌的级进旋律
+    name: 'summer',
+    bpm: 72,
+    beatsPerBar: 4,
+    waltz: false,
+    bars: [
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 76, dur: 2 }, { beat: 2, midi: 79, dur: 1 }, { beat: 3, midi: 81, dur: 1 }] },
+      { root: 43, chord: [59, 62, 67], melody: [{ beat: 0, midi: 79, dur: 2 }, { beat: 2, midi: 74, dur: 1 }, { beat: 3, midi: 76, dur: 1 }] },
+      { root: 45, chord: [57, 60, 64], melody: [{ beat: 0, midi: 76, dur: 2 }, { beat: 2, midi: 74, dur: 1 }, { beat: 3, midi: 72, dur: 1 }] },
+      { root: 40, chord: [55, 59, 64], melody: [{ beat: 0, midi: 71, dur: 2 }, { beat: 2, midi: 74, dur: 2 }] },
+      { root: 41, chord: [57, 60, 65], melody: [{ beat: 0, midi: 72, dur: 1 }, { beat: 1, midi: 77, dur: 1 }, { beat: 2, midi: 76, dur: 2 }] },
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 79, dur: 2 }, { beat: 2, midi: 76, dur: 1 }, { beat: 3, midi: 74, dur: 1 }] },
+      { root: 41, chord: [57, 60, 65], melody: [{ beat: 0, midi: 81, dur: 2 }, { beat: 2, midi: 79, dur: 1 }, { beat: 3, midi: 77, dur: 1 }] },
+      { root: 43, chord: [59, 62, 67], melody: [{ beat: 0, midi: 74, dur: 4 }] },
+    ],
+  },
+  {
+    // 海边圆舞曲:A 小调 3/4,旋转木马式的摇曳
+    name: 'waltz',
+    bpm: 88,
+    beatsPerBar: 3,
+    waltz: true,
+    bars: [
+      { root: 45, chord: [57, 60, 64], melody: [{ beat: 0, midi: 76, dur: 2 }, { beat: 2, midi: 72, dur: 1 }] },
+      { root: 41, chord: [57, 60, 65], melody: [{ beat: 0, midi: 77, dur: 2 }, { beat: 2, midi: 76, dur: 1 }] },
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 72, dur: 1 }, { beat: 1, midi: 76, dur: 1 }, { beat: 2, midi: 79, dur: 1 }] },
+      { root: 43, chord: [59, 62, 67], melody: [{ beat: 0, midi: 74, dur: 3 }] },
+      { root: 45, chord: [57, 60, 64], melody: [{ beat: 0, midi: 81, dur: 2 }, { beat: 2, midi: 79, dur: 1 }] },
+      { root: 50, chord: [62, 65, 69], melody: [{ beat: 0, midi: 77, dur: 1 }, { beat: 1, midi: 76, dur: 1 }, { beat: 2, midi: 74, dur: 1 }] },
+      { root: 44, chord: [56, 59, 64], melody: [{ beat: 0, midi: 71, dur: 2 }, { beat: 2, midi: 68, dur: 1 }] },
+      { root: 45, chord: [57, 60, 64], melody: [{ beat: 0, midi: 69, dur: 3 }] },
+    ],
+  },
+  {
+    // 森林絮语:F 大调田园风,长气息
+    name: 'forest',
+    bpm: 66,
+    beatsPerBar: 4,
+    waltz: false,
+    bars: [
+      { root: 41, chord: [53, 57, 60], melody: [{ beat: 0, midi: 77, dur: 2 }, { beat: 2, midi: 76, dur: 1 }, { beat: 3, midi: 72, dur: 1 }] },
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 76, dur: 2 }, { beat: 2, midi: 74, dur: 1 }, { beat: 3, midi: 72, dur: 1 }] },
+      { root: 50, chord: [62, 65, 69], melody: [{ beat: 0, midi: 74, dur: 4 }] },
+      { root: 46, chord: [58, 62, 65], melody: [{ beat: 0, midi: 74, dur: 2 }, { beat: 2, midi: 76, dur: 1 }, { beat: 3, midi: 77, dur: 1 }] },
+      { root: 41, chord: [53, 57, 60], melody: [{ beat: 0, midi: 79, dur: 2 }, { beat: 2, midi: 77, dur: 1 }, { beat: 3, midi: 76, dur: 1 }] },
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 72, dur: 1 }, { beat: 1, midi: 76, dur: 1 }, { beat: 2, midi: 79, dur: 2 }] },
+      { root: 46, chord: [58, 62, 65], melody: [{ beat: 0, midi: 77, dur: 1 }, { beat: 1, midi: 76, dur: 1 }, { beat: 2, midi: 74, dur: 2 }] },
+      { root: 48, chord: [60, 64, 67], melody: [{ beat: 0, midi: 72, dur: 4 }] },
+    ],
+  },
 ];
 
-/** 五声音阶旋律音域(C 大调五声:C D E G A) */
-const PENTATONIC = [0, 2, 4, 7, 9];
-
-/**
- * 旋律动机库:每条是「拍偏移 → 相对根音(根音=0)的音级偏移」的小节片段。
- * -1 表示休止。动机多为级进 + 偶尔四度跳进,是久石让式歌唱性旋律的骨架。
- */
-const MOTIFS: { offset: number; degree: number }[][] = [
-  [
-    { offset: 0, degree: 12 },
-    { offset: 1, degree: 14 },
-    { offset: 1.5, degree: 16 },
-    { offset: 2, degree: 19 },
-    { offset: 3, degree: 16 },
-  ],
-  [
-    { offset: 0, degree: 16 },
-    { offset: 0.5, degree: 14 },
-    { offset: 1, degree: 12 },
-    { offset: 2, degree: 9 },
-    { offset: 2.5, degree: 12 },
-    { offset: 3, degree: 14 },
-  ],
-  [
-    { offset: 0.5, degree: 12 },
-    { offset: 1, degree: 16 },
-    { offset: 2, degree: 19 },
-    { offset: 2.5, degree: 21 },
-    { offset: 3, degree: 19 },
-  ],
-  [
-    { offset: 0, degree: 19 },
-    { offset: 1, degree: 16 },
-    { offset: 1.5, degree: 14 },
-    { offset: 2, degree: 12 },
-    { offset: 3, degree: -1 },
-  ],
-  [
-    { offset: 0, degree: 7 },
-    { offset: 1, degree: 12 },
-    { offset: 1.5, degree: 14 },
-    { offset: 2, degree: 16 },
-    { offset: 3, degree: 19 },
-    { offset: 3.5, degree: 21 },
-  ],
-];
-
-/** 相邻五声音阶索引的步进(用于生成自然音阶级进) */
-function pentatonicNote(baseMidi: number, steps: number): number {
-  const octave = Math.floor(steps / PENTATONIC.length);
-  const idx = ((steps % PENTATONIC.length) + PENTATONIC.length) % PENTATONIC.length;
-  return baseMidi + PENTATONIC[idx] + octave * 12;
-}
-
-/** 动机移位:把动机各音按五声音阶级数平移 */
-function transposeMotif(
-  motif: { offset: number; degree: number }[],
-  root: number,
-  semitoneShift: number
-): { offset: number; note: number; isRest: boolean }[] {
-  return motif.map(({ offset, degree }) => {
-    if (degree < 0) return { offset, note: 0, isRest: true };
-    // 和弦根音为基准取五声音阶最近音,再整体移位
-    const steps = Math.round((degree / 12) * PENTATONIC.length);
-    return { offset, note: root + 12 + PENTATONIC[steps % 5] + semitoneShift, isRest: false };
-  });
-}
+/** 每首曲子连续播放的遍数,听熟一点再换 */
+const REPEATS_BEFORE_SWITCH = 2;
 
 const LOOKAHEAD = 0.6; // 提前排程秒数
 const TICK_MS = 200;
@@ -93,15 +92,13 @@ const TICK_MS = 200;
 export class Music {
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBarTime = 0;
-  private barIndex = 0;
-  /** 当前乐句的旋律安排:8 小节,每小节一组音符(或 null 表示该小节只伴奏) */
-  private phrase: { offset: number; note: number; isRest: boolean }[][];
+  private barCounter = 0;
+  private pieceIndex = 0;
+  private repeatCount = 0;
   private night = false;
   private disposed = false;
 
-  constructor(private ctx: AudioContext, private dest: AudioNode) {
-    this.phrase = this.newPhrase();
-  }
+  constructor(private ctx: AudioContext, private dest: AudioNode) {}
 
   start(): void {
     if (this.timer) return;
@@ -111,84 +108,72 @@ export class Music {
 
   /** 昼夜切换:夜晚更慢、更低、更稀疏 */
   setNight(night: boolean): void {
-    if (this.night === night) return;
     this.night = night;
-    this.phrase = this.newPhrase();
+  }
+
+  private get piece(): Piece {
+    return PIECES[this.pieceIndex];
   }
 
   private get bpm(): number {
-    return this.night ? 56 : 72;
-  }
-
-  /** 生成一个 8 小节乐句:动机呈示 → 变奏 → 发展 → 收束 */
-  private newPhrase(): { offset: number; note: number; isRest: boolean }[][] {
-    const motif = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
-    const variation = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
-    const bars: { offset: number; note: number; isRest: boolean }[][] = [];
-    for (let i = 0; i < 8; i++) {
-      // 夜晚一半小节留白,只留伴奏呼吸
-      if (this.night && i % 2 === 1) {
-        bars.push([]);
-        continue;
-      }
-      const source =
-        i < 2
-          ? motif // 呈示
-          : i < 4
-            ? motif // 重复巩固
-            : i < 6
-              ? variation // 换动机发展
-              : MOTIFS[Math.floor(Math.random() * MOTIFS.length)]; // 收束
-      const shift = i >= 2 && i < 4 ? 5 : 0; // 重复时上移(近似五声四度)
-      bars.push(transposeMotif(source, PROGRESSION[i].root, shift));
-    }
-    return bars;
+    return this.night ? Math.round(this.piece.bpm * 0.8) : this.piece.bpm;
   }
 
   private schedule(): void {
     if (this.disposed) return;
-    const barDur = (60 / this.bpm) * 4;
+    const barDur = (60 / this.bpm) * this.piece.beatsPerBar;
     while (this.nextBarTime < this.ctx.currentTime + LOOKAHEAD) {
-      this.scheduleBar(this.barIndex, this.nextBarTime, barDur);
+      const piece = this.piece;
+      this.scheduleBar(piece.bars[this.barCounter % piece.bars.length], this.nextBarTime, barDur, piece);
       this.nextBarTime += barDur;
-      this.barIndex++;
-      if (this.barIndex % 8 === 0) this.phrase = this.newPhrase();
+      this.barCounter++;
+      // 一首弹完几遍换下一首
+      if (this.barCounter >= piece.bars.length * REPEATS_BEFORE_SWITCH) {
+        this.barCounter = 0;
+        this.pieceIndex = (this.pieceIndex + 1) % PIECES.length;
+      }
     }
   }
 
-  private scheduleBar(bar: number, barTime: number, barDur: number): void {
-    const beat = barDur / 4;
-    const { root, chord } = PROGRESSION[bar % PROGRESSION.length];
-    const melodyOctave = this.night ? 0 : 12;
+  private scheduleBar(bar: Bar, barTime: number, barDur: number, piece: Piece): void {
+    const beat = barDur / piece.beatsPerBar;
+    const melodyOctave = this.night ? -12 : 0;
 
-    // 伴奏:分解和弦,8 分音符,波浪形起伏
-    const arpPattern = this.night ? [0, 2, 1] : [0, 1, 2, 1, 0, 2, 1, 2];
-    arpPattern.forEach((chordIdx, i) => {
-      const t = barTime + (i * barDur) / arpPattern.length;
-      const note = root + 12 + [0, 4, 7][chordIdx];
-      pianoTone(this.ctx, this.dest, midiToFreq(note), t, 1.6, 0.07);
-    });
+    // 伴奏
+    if (piece.waltz) {
+      // 圆舞曲织体:第 1 拍低音,其余拍和弦
+      pianoTone(this.ctx, this.dest, midiToFreq(bar.root), barTime, 1.2, 0.08);
+      for (let b = 1; b < piece.beatsPerBar; b++) {
+        bar.chord.forEach((n) => pianoTone(this.ctx, this.dest, midiToFreq(n), barTime + b * beat, 0.8, 0.035));
+      }
+    } else {
+      // 波浪形分解和弦
+      const arp = this.night ? [0, 2, 1] : [0, 1, 2, 1, 0, 2, 1, 2];
+      arp.forEach((idx, i) => {
+        const t = barTime + (i * barDur) / arp.length;
+        pianoTone(this.ctx, this.dest, midiToFreq(bar.root + 12 + [0, 4, 7][idx]), t, 1.6, 0.05);
+      });
+    }
 
-    // 铺底:整小节持续和弦,极轻的三角波群
-    const padNotes = this.night ? [chord[0], chord[2]] : chord;
-    padNotes.forEach((note) => {
+    // 铺底:整小节持续和弦,极轻的三角波群(夜晚只留外声部)
+    const padNotes = this.night ? [bar.chord[0], bar.chord[bar.chord.length - 1]] : bar.chord;
+    padNotes.forEach((n) => {
       tone(
         this.ctx,
         this.dest,
-        midiToFreq(note - 12),
+        midiToFreq(n - 12),
         barTime,
-        { attack: barDur * 0.4, decay: barDur * 0.8, peak: 0.022 },
+        { attack: barDur * 0.4, decay: barDur * 0.8, peak: 0.016 },
         'triangle'
       );
     });
 
-    // 旋律:乐句安排的音符,偶尔留白让伴奏呼吸
-    for (const { offset, note, isRest } of this.phrase[bar % this.phrase.length]) {
-      if (isRest) continue;
-      if (Math.random() < 0.06) continue; // 轻微随机留白,每次听都不同
-      const t = barTime + offset * beat;
-      const dur = 1.4 + Math.random() * 0.6;
-      pianoTone(this.ctx, this.dest, midiToFreq(note + melodyOctave), t, dur, 0.14);
+    // 旋律:夜晚更稀疏的留白,白天偶尔呼吸
+    const restChance = this.night ? 0.25 : 0.06;
+    for (const { beat: b, midi, dur } of bar.melody) {
+      if (Math.random() < restChance) continue;
+      const t = barTime + b * beat;
+      pianoTone(this.ctx, this.dest, midiToFreq(midi + melodyOctave), t, dur * beat + 0.8, 0.1);
     }
   }
 
