@@ -3,8 +3,11 @@ import type { Updatable } from '../core/GameLoop';
 import { MoveInput } from '../core/MoveInput';
 import { IslandTerrain } from '../world/IslandTerrain';
 import type { WaterFx } from '../fx/WaterFx';
+import type { Footprints } from '../fx/Footprints';
 
 const MOVE_SPEED = 5;
+/** 每走多远留一枚脚印(约一步) */
+const STEP_DISTANCE = 0.55;
 const SWIM_SPEED = 2.6;
 /** 水深超过该值才进入游泳(更浅处涉水,水可漫过裤腿);裤腿高约 0.55 */
 const SWIM_DEPTH = 0.6;
@@ -69,6 +72,8 @@ export class Player implements Updatable {
   private legs: THREE.Mesh[] = [];
   private moveVec = new THREE.Vector2();
   private moving = false;
+  private stepDistance = 0;
+  private stepLeft = false;
   private swimming = false;
   private wading = false;
   private action: ActionType | null = null;
@@ -78,7 +83,8 @@ export class Player implements Updatable {
   constructor(
     terrain: IslandTerrain,
     spawn: THREE.Vector3,
-    private waterFx: WaterFx
+    private waterFx: WaterFx,
+    private footprints: Footprints
   ) {
     this.terrain = terrain;
 
@@ -171,12 +177,24 @@ export class Player implements Updatable {
     if (this.moving) {
       const len = this.moveVec.length();
       const speed = this.swimming ? SWIM_SPEED : MOVE_SPEED;
-      p.x += (this.moveVec.x / len) * speed * delta;
-      p.z += (this.moveVec.y / len) * speed * delta;
+      const step = speed * delta;
+      p.x += (this.moveVec.x / len) * step;
+      p.z += (this.moveVec.y / len) * step;
       const half = this.terrain.size / 2 - 1;
       p.x = THREE.MathUtils.clamp(p.x, -half, half);
       p.z = THREE.MathUtils.clamp(p.z, -half, half);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
+      // 陆地上行走按步距交替留脚印,水中不留
+      if (!this.swimming && !this.wading) {
+        this.stepDistance += step;
+        if (this.stepDistance >= STEP_DISTANCE) {
+          this.stepDistance = 0;
+          this.stepLeft = !this.stepLeft;
+          this.footprints.step(p.x, p.z, this.group.rotation.y, this.stepLeft);
+        }
+      }
+    } else {
+      this.stepDistance = 0;
     }
 
     // 游泳时贴着水面漂浮,露出上半身;岸上贴地
