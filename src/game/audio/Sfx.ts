@@ -43,16 +43,15 @@ export class Sfx {
 
     switch (name) {
       case 'chop':
-        // 斧刃入木「笃」:刃口劈裂的高频脆响 + 木体共振的短「咚」 + 低频冲量
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.001, decay: 0.025, peak: v * 0.6 }, 'highpass', 3200);
-        tone(this.ctx, this.dest, detune(900), t, { attack: 0.002, decay: 0.07, peak: v }, 'sine', 520);
-        tone(this.ctx, this.dest, detune(180), t, { attack: 0.004, decay: 0.11, peak: v * 0.85 }, 'sine', 90);
+        // 斧刃入木:沉闷的「咚·笃」——低频冲量为骨,木体低共振短音为肉,无高频脆响
+        tone(this.ctx, this.dest, detune(150), t, { attack: 0.005, decay: 0.15, peak: v }, 'sine', 70);
+        tone(this.ctx, this.dest, detune(480), t + 0.005, { attack: 0.004, decay: 0.09, peak: v * 0.6 }, 'sine', 280);
         break;
       case 'mine':
-        // 镐击石「叮」:金属感高频振铃(两个失谐泛音)+ 石面崩裂脆声
-        tone(this.ctx, this.dest, detune(2500), t, { attack: 0.001, decay: 0.11, peak: v * 0.5 }, 'triangle');
-        tone(this.ctx, this.dest, detune(4000), t, { attack: 0.001, decay: 0.07, peak: v * 0.35 }, 'triangle');
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.001, decay: 0.035, peak: v * 0.7 }, 'highpass', 4200);
+        // 镐凿石头「磕」:硬质中频敲击 + 沉闷回震 + 少量崩落碎屑
+        tone(this.ctx, this.dest, detune(700), t, { attack: 0.002, decay: 0.07, peak: v * 0.7 }, 'triangle', 380);
+        tone(this.ctx, this.dest, detune(160), t, { attack: 0.004, decay: 0.12, peak: v * 0.8 }, 'sine', 80);
+        noiseBurst(this.ctx, this.dest, t + 0.01, { attack: 0.002, decay: 0.05, peak: v * 0.35 }, 'bandpass', 2600, 1200);
         break;
       case 'pick':
         // 手拨草丛「唰」:多层错位的软噪声叠出起伏,像草叶被拨动后回弹
