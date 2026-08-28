@@ -8,6 +8,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { EatPrompt } from './EatPrompt';
+import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
 
@@ -36,6 +37,10 @@ const INITIAL_HUD: HudSnapshot = {
   eatName: null,
   eatProgress: 0,
   autoEquipProgress: 0,
+  canFish: false,
+  fishingState: null,
+  fishingProgress: 0,
+  biteActive: false,
   nearDrop: null,
 };
 
@@ -107,6 +112,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
           />
           <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
+          <FishingControls
+            hud={hud}
+            onStart={() => gameRef.current?.startFishing()}
+            onHook={() => gameRef.current?.hookFish()}
+          />
           {!backpackOpen && (
             <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
           )}

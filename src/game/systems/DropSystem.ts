@@ -17,6 +17,7 @@ const DROP_STYLE: Record<ResourceKind, { color: string; scale: number }> = {
   berry: { color: '#c0392b', scale: 0.9 },
   fiber: { color: '#a4c46a', scale: 0.9 },
   rope: { color: '#d9c27a', scale: 0.9 },
+  fish: { color: '#5fa8d3', scale: 1 },
 };
 
 export type DropInfo = { kind: ResourceKind; count: number };

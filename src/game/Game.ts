@@ -11,6 +11,7 @@ import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
+import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import { Particles } from './fx/Particles';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
@@ -51,6 +52,13 @@ export type HudSnapshot = {
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
   autoEquipProgress: number;
+  /** 站在可钓点且手持鱼竿时出现钓鱼按钮 */
+  canFish: boolean;
+  /** 钓鱼进行中的阶段,空闲为 null */
+  fishingState: FishingState | null;
+  fishingProgress: number;
+  /** 咬钩反应窗口进行中(点屏幕任意处收竿) */
+  biteActive: boolean;
   /** 玩家附近可捡回的掉落物,无时为 null */
   nearDrop: DropInfo | null;
 };
@@ -75,6 +83,8 @@ export class Game {
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private eating: EatingSystem;
+  private lastFishingState: FishingState | null = null;
+  private fishing: FishingSystem;
   private drops: DropSystem;
   private dayNight: DayNightSystem;
   private weather: WeatherSystem;
@@ -151,8 +161,12 @@ export class Game {
       this.props,
       this.inventory,
       this.fx,
-      // 合成/进食占用双手,期间采集让位
-      () => this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking
+      // 合成/进食/钓鱼占用双手,期间采集让位
+      () =>
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.eating.isWorking ||
+        this.fishing.isWorking
     );
     this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx);
     this.workbench = new WorkbenchSystem(
@@ -164,6 +178,14 @@ export class Game {
       this.fx
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
+    this.fishing = new FishingSystem(
+      this.scene,
+      this.player,
+      this.terrain,
+      this.inventory,
+      this.waterFx,
+      this.fx
+    );
     this.drops = new DropSystem(this.scene, this.player, this.inventory, this.terrain, this.fx);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
@@ -194,12 +216,24 @@ export class Game {
         this.crafting.update(delta);
         this.workbench.update(delta);
         this.eating.update(delta);
+        this.fishing.update(
+          delta,
+          this.collect.isWorking ||
+            this.crafting.isWorking ||
+            this.workbench.isWorking ||
+            this.eating.isWorking ||
+            this.water.isActive
+        );
         this.drops.update(delta, elapsed);
         this.updateAutoEquip(delta);
         this.water.update(
-      delta,
-      this.collect.isWorking || this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking
-    );
+          delta,
+          this.collect.isWorking ||
+            this.crafting.isWorking ||
+            this.workbench.isWorking ||
+            this.eating.isWorking ||
+            this.fishing.isWorking
+        );
         this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -279,6 +313,19 @@ export class Game {
       ) {
         need = 'pickaxe';
       }
+    } else if (
+      !nearby &&
+      !this.player.isMoving &&
+      !this.crafting.isWorking &&
+      !this.workbench.isWorking &&
+      !this.eating.isWorking &&
+      !this.survival.state.dead &&
+      this.tools.fishingrod &&
+      this.player.currentTool !== 'fishingrod' &&
+      this.fishing.canFishHere()
+    ) {
+      // 站在水洼边或海边滩地不动,自动切换鱼竿
+      need = 'fishingrod';
     }
     if (!need) {
       this.autoEquipTimer = 0;
@@ -293,13 +340,36 @@ export class Game {
 
   /** 吃食物(定时进食动作):指定种类则吃该种,否则吃背包里最前面的,返回是否成功开始 */
   eatFood(kind?: ResourceKind): boolean {
-    if (this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking) {
+    if (
+      this.crafting.isWorking ||
+      this.workbench.isWorking ||
+      this.eating.isWorking ||
+      this.fishing.isWorking
+    ) {
       return false;
     }
     const food = kind
       ? FOODS.find((f) => f.kind === kind)
       : FOODS.find((f) => this.inventory.count(f.kind) > 0);
     return food ? this.eating.start(food) : false;
+  }
+
+  /** 发起钓鱼(屏幕中心按钮),返回是否成功开始 */
+  startFishing(): boolean {
+    if (
+      this.crafting.isWorking ||
+      this.workbench.isWorking ||
+      this.eating.isWorking ||
+      this.water.isActive
+    ) {
+      return false;
+    }
+    return this.fishing.start();
+  }
+
+  /** 咬钩窗口内点击屏幕任意处收竿 */
+  hookFish(): boolean {
+    return this.fishing.hook();
   }
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则失败 */
@@ -345,7 +415,11 @@ export class Game {
 
   private pushHud(delta: number): void {
     this.hudTimer += delta;
-    if (this.hudTimer < 0.25) return;
+    // 钓鱼阶段变化(尤其咬钩)立即推送,保证反应窗口反馈及时
+    const fishingState = this.fishing.currentState;
+    const fishingChanged = fishingState !== this.lastFishingState;
+    this.lastFishingState = fishingState;
+    if (this.hudTimer < 0.25 && !fishingChanged) return;
     this.hudTimer = 0;
     this.onHud({
       ...this.survival.state,
@@ -369,6 +443,10 @@ export class Game {
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
+      canFish: this.fishing.canStart(),
+      fishingState: this.fishing.currentState,
+      fishingProgress: this.fishing.getProgress() ?? 0,
+      biteActive: this.fishing.currentState === 'bite',
       nearDrop: this.drops.getNearby(),
     });
   }
@@ -389,6 +467,17 @@ export class Game {
     } else if (this.eating.isWorking) {
       label = `${this.eating.currentFood!.icon} 吃${this.eating.currentFood!.name}`;
       progress = this.eating.getProgress();
+    } else if (this.fishing.isWorking) {
+      const s = this.fishing.currentState!;
+      label =
+        s === 'casting'
+          ? '抛竿…'
+          : s === 'waiting'
+            ? '等待上钩…'
+            : s === 'bite'
+              ? '咬钩了!快点击屏幕!'
+              : '收竿!';
+      progress = this.fishing.getProgress();
     } else if (nearby && this.collect.canCollect(nearby)) {
       progress = this.collect.getHarvestInfo()?.progress ?? null;
       label =
@@ -406,6 +495,9 @@ export class Game {
     } else if (this.water.isActive) {
       label = '喝水';
       progress = this.water.getProgress();
+    } else if (this.autoEquipTimer > 0 && !nearby) {
+      label = '切换鱼竿…';
+      progress = this.autoEquipTimer / 3;
     } else if (nearby) {
       const switching = this.autoEquipTimer > 0;
       label =

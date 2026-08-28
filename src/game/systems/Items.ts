@@ -45,4 +45,10 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🧵',
     description: '用植物纤维搓成的细绳,结实有韧性,可以用来制作鱼竿等工具。',
   },
+  fish: {
+    kind: 'fish',
+    name: '鱼',
+    icon: '🐟',
+    description: '在海边或水洼边钓上来的鱼,新鲜有营养,烤着吃最好。',
+  },
 };

@@ -6,7 +6,7 @@ import { FOODS } from '@/game/systems/Food';
 /** 饥饿低于 50% 且背包有食物时弹出的进食卡片,点击吃背包里最前面的食物 */
 export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void }) {
   if (hud.eatName !== null || hud.hunger >= 50 || hud.dead) return null;
-  const food = FOODS.find((f) => hud[f.kind] > 0);
+  const food = FOODS.find((f) => Number(hud[f.kind as keyof HudSnapshot] ?? 0) > 0);
   if (!food) return null;
   return (
     <button
