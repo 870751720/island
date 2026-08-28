@@ -91,9 +91,12 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem }: Props) 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
+  // 背包空时不显示背包按钮
+  const hasItems = hud.slots.some((slot) => !!slot);
 
   return (
     <>
+      {hasItems && (
       <button
         onPointerDown={(e) => {
           e.preventDefault();
@@ -116,6 +119,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem }: Props) 
       >
         🎒
       </button>
+      )}
       {open && (
         <div
           style={{
