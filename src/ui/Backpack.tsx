@@ -62,11 +62,12 @@ export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
         }}
         style={{
           position: 'absolute',
-          top: 'max(10px, env(safe-area-inset-top))',
-          right: 'max(10px, env(safe-area-inset-right))',
-          width: 48,
-          height: 48,
-          borderRadius: 12,
+          // 位于右中侧工具按钮正上方(工具按钮 top 50%、高 72px)
+          top: 'calc(50% - 104px)',
+          right: 'max(16px, env(safe-area-inset-right))',
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
           border: 'none',
           background: 'rgba(255,255,255,0.75)',
           fontSize: 24,
@@ -80,8 +81,9 @@ export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
         <div
           style={{
             position: 'absolute',
-            top: 'max(66px, calc(env(safe-area-inset-top) + 56px))',
-            right: 'max(10px, env(safe-area-inset-right))',
+            // 按钮已移到右中侧工具按钮上方,面板在按钮左侧展开避免遮挡工具按钮
+            top: 'calc(50% - 104px)',
+            right: 'max(84px, calc(env(safe-area-inset-right) + 84px))',
             width: 'min(78vw, 280px)',
             maxHeight: '70vh',
             overflowY: 'auto',
