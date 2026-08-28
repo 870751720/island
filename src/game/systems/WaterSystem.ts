@@ -33,10 +33,11 @@ export class WaterSystem {
     }
 
     this.player.setAction('drink');
+    // 每轮开始喝水就播「咕咕」声,让声音落在喝水过程中而非结束时
+    if (this.timer === 0) this.audio.play('drink');
     this.timer += delta;
     if (this.timer < DRINK_TIME) return;
     this.timer = 0;
-    this.audio.play('drink');
     this.survival.drink();
   }
 

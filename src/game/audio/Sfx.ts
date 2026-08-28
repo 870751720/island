@@ -136,8 +136,11 @@ export class Sfx {
         [72, 76, 79, 84].forEach((m, i) => pianoTone(this.ctx, this.dest, midiToFreq(m), t + i * 0.09, 1, v));
         break;
       case 'death':
-        // 下行小二度慢音,低回
-        [67, 65, 60].forEach((m, i) => pianoTone(this.ctx, this.dest, midiToFreq(m), t + i * 0.45, 1.8, v));
+        // 经典下行轮廓:音符逐个降低、间隔越来越短,像皮球弹跳到静止,末了一声低音落地
+        [76, 72, 68, 64, 60].forEach((m, i) => {
+          pianoTone(this.ctx, this.dest, midiToFreq(m), t + [0, 0.28, 0.5, 0.66, 0.78][i], 0.6, v);
+        });
+        tone(this.ctx, this.dest, 90, t + 0.85, { attack: 0.005, decay: 0.5, peak: v * 0.7 }, 'sine', 45);
         break;
     }
   }
