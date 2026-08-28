@@ -21,7 +21,7 @@ function createNoise(seed: number) {
 }
 
 const SAND = new THREE.Color('#e8d8a0');
-const WET_SAND = new THREE.Color('#bd9d6b'); // 被潮水浸湿的沙
+const WET_SAND = new THREE.Color('#c7ac79'); // 被潮水浸湿的沙
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
 const TIDE_REFRESH = 0.25; // 湿沙重算间隔(秒)

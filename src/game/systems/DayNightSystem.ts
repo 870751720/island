@@ -33,6 +33,11 @@ export class DayNightSystem implements Updatable {
     return this.sunElevation() < -0.05;
   }
 
+  /** 环境光照水平 [0.25, 1],供不受光照管的自发光元素跟随昼夜 */
+  get lightLevel(): number {
+    return THREE.MathUtils.clamp(this.sun.intensity / 1.6, 0.25, 1);
+  }
+
   private sunElevation(): number {
     return Math.sin(this.t * Math.PI * 2);
   }

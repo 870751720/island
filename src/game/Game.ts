@@ -131,7 +131,7 @@ export class Game {
         this.dayNight.update(delta);
         this.clouds.update(delta);
         this.ocean.update(elapsed);
-        this.foam.update(delta, this.ocean.waterY, this.ocean.isRising);
+        this.foam.update(delta, this.ocean.waterY, this.ocean.isRising, this.dayNight.lightLevel, elapsed);
         this.terrain.updateTide(this.ocean.waterY, delta);
         this.terrain.updateWater(elapsed);
         this.props.update(delta);
