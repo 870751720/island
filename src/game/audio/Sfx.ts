@@ -81,32 +81,27 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.05, peak: v * 0.5 }, 'bandpass', 2600, 1200);
         break;
       case 'munch':
-        // 三连「咔嚓」:频段上移到手机外放可闻的脆响区
-        for (let i = 0; i < 3; i++) {
-          noiseBurst(
-            this.ctx,
-            this.dest,
-            t + i * 0.09,
-            { attack: 0.004, decay: 0.07, peak: v * (1 - i * 0.2) },
-            'bandpass',
-            detune(2400),
-            900
-          );
+        // 分层咬合:每口 = 脆断瞬态(高频咔嚓)+ 湿软挤压(低频 squish),节奏与音高随机避免机械
+        for (let i = 0; i < 4; i++) {
+          const bt = t + i * (0.2 + Math.random() * 0.06);
+          noiseBurst(this.ctx, this.dest, bt, { attack: 0.001, decay: 0.03, peak: v * (0.7 - i * 0.1) }, 'highpass', detune(4500));
+          noiseBurst(this.ctx, this.dest, bt, { attack: 0.008, decay: 0.07, peak: v * (0.5 - i * 0.08) }, 'bandpass', detune(700), 300);
+          tone(this.ctx, this.dest, detune(150), bt, { attack: 0.004, decay: 0.06, peak: v * 0.3 }, 'sine', 80);
         }
         break;
       case 'drink':
-        // 「咕咕」吞咽:每口一个由低滑高的极短水泡音,连着三四声
-        for (let i = 0; i < 4; i++) {
+        // 「咕咕」吞咽贯穿整轮喝水:八声水泡音由低滑高,间隔铺满约 2 秒的喝水时长
+        for (let i = 0; i < 8; i++) {
           tone(
             this.ctx,
             this.dest,
-            detune(230 + i * 40),
-            t + i * 0.13,
-            { attack: 0.008, decay: 0.06, peak: v * (0.9 - i * 0.1) },
+            detune(220 + i * 22),
+            t + i * 0.23,
+            { attack: 0.008, decay: 0.06, peak: v * (0.95 - i * 0.08) },
             'sine',
-            detune(230 + i * 40) * 1.9
+            detune(220 + i * 22) * 1.9
           );
-          noiseBurst(this.ctx, this.dest, t + i * 0.13, { attack: 0.003, decay: 0.04, peak: v * 0.25 }, 'bandpass', 900, 500);
+          noiseBurst(this.ctx, this.dest, t + i * 0.23, { attack: 0.003, decay: 0.04, peak: v * 0.22 }, 'bandpass', 900, 500);
         }
         break;
       case 'whoosh':
