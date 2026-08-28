@@ -111,7 +111,10 @@ export class Game {
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number) => void;
+  private onMumble: (text: string | null, x: number, y: number) => void;
   private mumbles: MumbleSystem;
+  private mumbleText: string | null = null;
+  private mumbleTimer = 0;
   private hudTimer = 0;
   private autoEquipTimer = 0;
   private lastDead = false;
@@ -122,12 +125,16 @@ export class Game {
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
     onLabel: (label: string | null, x: number, y: number) => void,
-    onMumble: (text: string) => void
+    onMumble: (text: string | null, x: number, y: number) => void
   ) {
     this.container = container;
     this.onHud = onHud;
     this.onLabel = onLabel;
-    this.mumbles = new MumbleSystem((_trigger, text) => onMumble(text));
+    this.onMumble = onMumble;
+    this.mumbles = new MumbleSystem((_trigger, text) => {
+      this.mumbleText = text;
+      this.mumbleTimer = 4;
+    });
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.enabled = true;
@@ -316,7 +323,7 @@ export class Game {
             this.fishing.isWorking ||
             this.archery.isWorking
         );
-        this.updateIndicator();
+        this.updateIndicator(delta);
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
         if (this.survival.state.dead && !this.lastDead) this.audio.play('death');
@@ -551,7 +558,7 @@ export class Game {
   }
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
-  private updateIndicator(): void {
+  private updateIndicator(delta: number): void {
     const nearby = this.collect.getNearby();
     let label: string | null = null;
     let progress: number | null = null;
@@ -631,6 +638,18 @@ export class Game {
       label,
       Math.round(((head.x + 1) / 2) * w),
       Math.round(((1 - head.y) / 2) * h)
+    );
+
+    // 自言自语气泡挂在作业提示上方,4 秒后消失
+    if (this.mumbleText) {
+      this.mumbleTimer -= delta;
+      if (this.mumbleTimer <= 0) this.mumbleText = null;
+    }
+    const bubble = new THREE.Vector3(p.x, p.y + 4.3, p.z).project(this.camera);
+    this.onMumble(
+      this.mumbleText,
+      Math.round(((bubble.x + 1) / 2) * w),
+      Math.round(((1 - bubble.y) / 2) * h)
     );
   }
 }

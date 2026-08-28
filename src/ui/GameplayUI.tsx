@@ -12,7 +12,6 @@ import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
-import { MumbleBubble, type MumbleBubbleState } from './MumbleBubble';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -60,8 +59,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
-  const [mumble, setMumble] = useState<MumbleBubbleState>(null);
-  const mumbleSeq = useRef(0);
+  const mumbleRef = useRef<HTMLDivElement>(null);
 
   // 离开工作台范围自动收起制作面板
   useEffect(() => {
@@ -84,7 +82,16 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
       },
-      (text) => setMumble({ text, seq: ++mumbleSeq.current })
+      // 自言自语气泡同样每帧直写 DOM,挂在角色头顶
+      (text, x, y) => {
+        const el = mumbleRef.current;
+        if (!el) return;
+        el.style.display = text ? 'block' : 'none';
+        if (text) {
+          el.textContent = text;
+          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+        }
+      }
     );
     gameRef.current = game;
     game.start();
@@ -149,7 +156,6 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         </>
       )}
       {hud.dead && <DeathScreen onConfirm={onExit} />}
-      <MumbleBubble mumble={mumble} />
       <div
         ref={labelRef}
         style={{
@@ -166,6 +172,29 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
           userSelect: 'none',
+        }}
+      />
+      <div
+        ref={mumbleRef}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          display: 'none',
+          maxWidth: '60vw',
+          padding: '6px 14px',
+          background: 'rgba(255,255,255,0.94)',
+          color: '#4a3b2a',
+          borderRadius: 14,
+          fontFamily: 'sans-serif',
+          fontSize: 14,
+          lineHeight: 1.4,
+          textAlign: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          // 气泡小尾巴
+          clipPath: 'polygon(0 0, 100% 0, 100% 100%, 55% 100%, 50% calc(100% + 6px), 45% 100%, 0 100%)',
         }}
       />
     </div>
