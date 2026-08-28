@@ -56,41 +56,26 @@ function hindwingShape(): THREE.Shape {
   return s;
 }
 
-/** 低多边形蝴蝶:极细的针状身体 + 两对大面积圆轮廓翅膀(每侧前后翅一组,绕身体轴对拍) */
+/** 低多边形蝴蝶:只画两对大面积圆轮廓翅膀,不画身体(小尺寸下身体反而是噪点) */
 function makeButterflyModel(color: string): ButterflyModel {
   const group = new THREE.Group();
-  const dark = clayMaterial('#3a3230');
 
-  // 身体:细针状,只在头尾稍粗
-  const abdomen = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.22, 5), dark);
-  abdomen.rotation.x = Math.PI / 2;
-  group.add(abdomen);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), dark);
-  head.position.z = 0.13;
-  group.add(head);
-  // 触角:两根前伸的细丝
-  for (const side of [-1, 1]) {
-    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.1, 3), dark);
-    antenna.geometry.translate(0, 0.05, 0);
-    antenna.position.set(0, 0.012, 0.14);
-    antenna.rotation.set(-0.9, 0, side * 0.5);
-    group.add(antenna);
-  }
-
-  // 翅膀:左右各一组(前翅+后翅),挂在同一个 pivot 上绕身体纵轴(z 轴)扑动
+  // 翅膀:左右各一组(前翅+后翅),挂在 pivot 上绕身体纵轴(z 轴)扑动
   const wingMat = clayMaterial(color);
   wingMat.side = THREE.DoubleSide;
   const fore = wingGeometry(forewingShape());
   const hind = wingGeometry(hindwingShape());
   const wings: THREE.Group[] = [];
-  for (const side of [1, -1]) {
+  for (const side of [1, -1] as const) {
     const pivot = new THREE.Group();
     const foreMesh = new THREE.Mesh(fore, wingMat);
     const hindMesh = new THREE.Mesh(hind, wingMat);
     foreMesh.castShadow = true;
     hindMesh.castShadow = true;
     pivot.add(foreMesh, hindMesh);
+    // 镜像放另一侧;记下朝向,扑动时两侧同上同下
     pivot.scale.x = side;
+    pivot.userData.side = side;
     group.add(pivot);
     wings.push(pivot);
   }
@@ -216,11 +201,11 @@ export class Butterflies implements Updatable {
     // 身体纵轴(+z)朝运动方向:rotation.y = θ 时局部 +z 指向 (sinθ, 0, cosθ)
     g.rotation.y = bf.heading;
 
-    // 扑翼:两侧 pivot 镜像(scale.x=-1),同角绕 z 轴旋转即为对称对拍;
-    // 低频小幅慢拍更像蝴蝶,大幅快拍会显得整只在左右摇晃
+    // 扑翼:绕 z 轴抬翅。右侧 pivot 经 scale.x=-1 镜像,旋转角需取反,
+    // 两侧才会一起抬起、一起放下(同角不取反会变成一上一下的跷跷板)
     const flap = bf.fleeTime > 0 ? 12 : 5;
     const angle = Math.abs(Math.sin(elapsed * flap + bf.phase)) * 0.7 + 0.1;
-    for (const wing of bf.model.wings) wing.rotation.z = angle;
+    for (const wing of bf.model.wings) wing.rotation.z = wing.userData.side * angle;
   }
 
   private respawn(bf: Butterfly): void {
