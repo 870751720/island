@@ -4,6 +4,7 @@ export type SurvivalState = {
   hunger: number; // 0-100
   thirst: number; // 0-100
   health: number; // 0-100
+  stamina: number; // 0-100,游泳消耗,陆上恢复
   dead: boolean;
 };
 
@@ -11,14 +12,19 @@ const HUNGER_RATE = 0.8; // 每秒下降
 const THIRST_RATE = 1.2;
 const THIRST_PER_ROUND = 40;
 const STARVE_DAMAGE = 2;
+const STAMINA_SWIM_RATE = 4; // 游泳每秒消耗
+const STAMINA_RECOVER_RATE = 10; // 陆上每秒恢复
+const DROWN_DAMAGE = 25; // 体力耗尽后落水每秒掉血
 
 export class SurvivalSystem implements Updatable {
   readonly state: SurvivalState;
   /** 夜晚等环境因素对消耗速率的全局倍率 */
   drainMultiplier = 1;
+  /** 当前是否在游泳(由游戏循环每帧同步) */
+  swimming = false;
 
   constructor() {
-    this.state = { hunger: 100, thirst: 100, health: 100, dead: false };
+    this.state = { hunger: 100, thirst: 100, health: 100, stamina: 100, dead: false };
   }
 
   update(delta: number): void {
@@ -28,8 +34,17 @@ export class SurvivalSystem implements Updatable {
     s.thirst = Math.max(0, s.thirst - THIRST_RATE * this.drainMultiplier * delta);
     if (s.hunger <= 0 || s.thirst <= 0) {
       s.health = Math.max(0, s.health - STARVE_DAMAGE * delta);
-      if (s.health <= 0) s.dead = true;
     }
+    if (this.swimming) {
+      s.stamina = Math.max(0, s.stamina - STAMINA_SWIM_RATE * delta);
+      // 体力耗尽仍泡在水里:呛水持续掉血直至溺亡
+      if (s.stamina <= 0) {
+        s.health = Math.max(0, s.health - DROWN_DAMAGE * delta);
+      }
+    } else {
+      s.stamina = Math.min(100, s.stamina + STAMINA_RECOVER_RATE * delta);
+    }
+    if (s.health <= 0) s.dead = true;
   }
 
   eatBerry(): void {

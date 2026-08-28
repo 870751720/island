@@ -123,6 +123,8 @@ export class Player implements Updatable {
     armR.add(axe, pickaxe);
     this.toolModels = { axe, pickaxe };
 
+    // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
+    this.group.rotation.order = 'YXZ';
     this.group.position.copy(spawn);
   }
 

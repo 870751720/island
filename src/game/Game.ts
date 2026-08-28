@@ -19,6 +19,7 @@ export type HudSnapshot = {
   hunger: number;
   thirst: number;
   health: number;
+  stamina: number;
   dead: boolean;
   wood: number;
   gravel: number;
@@ -131,6 +132,7 @@ export class Game {
         this.fx.update(delta);
         this.waterFx.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
+        this.survival.swimming = this.player.isSwimming;
         this.survival.update(delta);
         this.collect.update(delta);
         this.water.update(delta, this.collect.isWorking);
