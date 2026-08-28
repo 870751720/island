@@ -6,9 +6,16 @@ import type { Particles } from '../fx/Particles';
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 
+/** 作业对象种类:树桩是树的第二段,单独配置 */
+type HarvestKind = Prop['kind'] | 'stump';
+
+function kindOf(prop: Prop): HarvestKind {
+  return prop.kind === 'tree' && prop.stage === 'stump' ? 'stump' : prop.kind;
+}
+
 /** 各资源点:作业动画、命中次数、命中特效色、产出 */
 const HARVEST_CONFIG: Record<
-  Prop['kind'],
+  HarvestKind,
   {
     action: ActionType;
     hits: number;
@@ -21,6 +28,12 @@ const HARVEST_CONFIG: Record<
     hits: 3,
     fxColor: '#4f9440',
     yield: (inv) => inv.add('wood', 3),
+  },
+  stump: {
+    action: 'chop',
+    hits: 2,
+    fxColor: '#8a6239',
+    yield: (inv) => inv.add('wood', 1),
   },
   rock: {
     action: 'mine',
@@ -84,7 +97,7 @@ export class CollectSystem {
 
     const working =
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
-    this.player.setAction(working ? HARVEST_CONFIG[this.nearby!.kind].action : null);
+    this.player.setAction(working ? HARVEST_CONFIG[kindOf(this.nearby!)].action : null);
     if (!working) {
       this.swingTimer = 0;
       return;
@@ -108,7 +121,8 @@ export class CollectSystem {
   /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
   canCollect(prop: Prop = this.nearby!): boolean {
     if (!prop) return false;
-    if (prop.kind === 'tree') return this.player.currentTool === 'axe';
+    const kind = kindOf(prop);
+    if (kind === 'tree' || kind === 'stump') return this.player.currentTool === 'axe';
     if (prop.kind === 'rock') return this.player.currentTool === 'pickaxe';
     return true;
   }
@@ -117,15 +131,16 @@ export class CollectSystem {
   getHarvestInfo(): HarvestInfo | null {
     const prop = this.nearby;
     if (!prop || !this.canCollect()) return null;
-    const { hits } = HARVEST_CONFIG[prop.kind];
+    const { hits } = HARVEST_CONFIG[kindOf(prop)];
     const done = this.hitCounts.get(prop) ?? 0;
     const swing = Math.min(this.swingTimer / SWING_TIME, 1);
     return { progress: Math.min((done + swing) / hits, 1) };
   }
 
   private hit(prop: Prop): void {
-    const config = HARVEST_CONFIG[prop.kind];
+    const config = HARVEST_CONFIG[kindOf(prop)];
     this.fx.burst(prop.position, config.fxColor, 6);
+    this.props.shake(prop);
     const hits = (this.hitCounts.get(prop) ?? 0) + 1;
     if (hits < config.hits) {
       this.hitCounts.set(prop, hits);

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from './IslandTerrain';
 
+const SHAKE_TIME = 0.4;
+
 export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub';
 
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
@@ -19,6 +21,8 @@ export type Prop = {
   position: THREE.Vector3;
   ready: boolean;
   regrowLeft: number;
+  /** 树的砍伐阶段:full=完整树,stump=只剩树桩仍可砍 */
+  stage?: 'full' | 'stump';
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -123,6 +127,7 @@ function makeShrub(): THREE.Group {
 export class Props implements Updatable {
   readonly list: Prop[] = [];
   private berries = new Map<Prop, THREE.Mesh[]>();
+  private shakes = new Map<Prop, number>();
 
   constructor(
     scene: THREE.Scene,
@@ -185,11 +190,17 @@ export class Props implements Updatable {
     }
     switch (prop.kind) {
       case 'tree':
-        // 砍掉树冠只留树桩
-        prop.group.children
-          .filter((c) => c instanceof THREE.Mesh)
-          .slice(1)
-          .forEach((c) => (c.visible = false));
+        if (prop.stage === 'stump') {
+          prop.group.visible = false;
+        } else {
+          // 第一段砍掉树冠只留树桩,树桩仍可继续砍
+          prop.stage = 'stump';
+          prop.ready = true;
+          prop.group.children
+            .filter((c) => c instanceof THREE.Mesh)
+            .slice(1)
+            .forEach((c) => (c.visible = false));
+        }
         break;
       case 'rock':
       case 'gravel':
@@ -206,6 +217,11 @@ export class Props implements Updatable {
     }
   }
 
+  /** 命中时的受击晃动,持续衰减 */
+  shake(prop: Prop): void {
+    this.shakes.set(prop, SHAKE_TIME);
+  }
+
   update(delta: number): void {
     for (const prop of this.list) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
@@ -218,6 +234,19 @@ export class Props implements Updatable {
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
       }
+    }
+    for (const [prop, left] of this.shakes) {
+      const t = left - delta;
+      if (t <= 0) {
+        prop.group.rotation.x = 0;
+        prop.group.rotation.z = 0;
+        this.shakes.delete(prop);
+        continue;
+      }
+      this.shakes.set(prop, t);
+      const amp = (t / SHAKE_TIME) * 0.06;
+      prop.group.rotation.x = Math.sin(t * 40) * amp;
+      prop.group.rotation.z = Math.cos(t * 34) * amp * 0.7;
     }
   }
 }
