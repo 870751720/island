@@ -69,7 +69,7 @@ export const RECIPES: Recipe[] = [
     name: '箭 ×10',
     icon: '🏹',
     cost: { wood: 1 },
-    station: 'hand',
+    station: 'workbench',
     output: 'arrow',
     outputCount: 10,
   },
