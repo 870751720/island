@@ -111,10 +111,11 @@ export class CollectSystem {
       return;
     }
 
-    // 每次挥动开始就给声音反馈(采集是沙沙声、砍/凿是命中感),不等命中结算
+    // 每次挥动开始就给声音反馈(采集草丛/碎石/砍凿各有专属声),不等命中结算
     if (this.swingTimer === 0) {
-      const config = HARVEST_CONFIG[kindOf(this.nearby!)];
-      this.audio.play(config.action === 'chop' ? 'chop' : config.action === 'mine' ? 'mine' : 'pick');
+      const kind = kindOf(this.nearby!);
+      const action = HARVEST_CONFIG[kind].action;
+      this.audio.play(action === 'chop' ? 'chop' : action === 'mine' ? 'mine' : kind === 'gravel' ? 'pickStone' : 'pick');
     }
     this.swingTimer += delta;
     if (this.swingTimer < SWING_TIME) return;
