@@ -345,8 +345,8 @@ export class Birds implements Updatable {
     g.rotation.y = bird.heading;
 
     if (bird.state === 'walk') {
-      // 收翅站立,踱步间隙低头啄食
-      for (const wing of bird.model.wings) wing.rotation.z = wing.userData.side * 0.25;
+      // 收翅站立:翅膀大幅上折贴到背侧,踱步间隙低头啄食
+      for (const wing of bird.model.wings) wing.rotation.z = wing.userData.side * 1.25;
       const peck = Math.sin(elapsed * 3 + bird.phase);
       bird.model.head.rotation.x = peck > 0.75 ? (peck - 0.75) * 2.4 : 0;
       // 身体小幅蹦跳步态
