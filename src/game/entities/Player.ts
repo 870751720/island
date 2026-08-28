@@ -70,6 +70,7 @@ export class Player implements Updatable {
   private moveVec = new THREE.Vector2();
   private moving = false;
   private swimming = false;
+  private wading = false;
   private action: ActionType | null = null;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
@@ -162,6 +163,10 @@ export class Player implements Updatable {
     const wasSwimming = this.swimming;
     this.swimming = groundY < waterY - SWIM_DEPTH;
     if (this.swimming !== wasSwimming) this.waterFx.splash(p);
+    // 涉水:已进到水里但还没到游泳深度
+    const wasWading = this.wading;
+    this.wading = !this.swimming && groundY < waterY - 0.1;
+    if (this.wading !== wasWading) this.waterFx.splash(p);
 
     if (this.moving) {
       const len = this.moveVec.length();
@@ -179,10 +184,12 @@ export class Player implements Updatable {
 
     if (this.swimming) {
       this.animateSwim(elapsed);
-      this.waterFx.updateSwimming(delta, p);
+      this.waterFx.updateSwimming(delta, p, 0.4, waterY);
       // 游泳时收起工具,避免抡着斧子划水
       for (const model of Object.values(this.toolModels)) model!.visible = false;
     } else {
+      // 涉水移动时脚下泛涟漪
+      if (this.wading && this.moving) this.waterFx.updateSwimming(delta, p, 0.55, waterY);
       for (const [name, model] of Object.entries(this.toolModels)) {
         model!.visible = name === this.handTool;
       }

@@ -197,15 +197,15 @@ export class IslandTerrain {
     return this.heightAt(x, z);
   }
 
-  /** 从岛心向外螺旋,找第一处海岸沙地(水线上方不高的干沙带)作为出生点 */
+  /** 从岛外向内找第一处水线上方的干地,确保出生就在海岸边 */
   findSpawnPoint(): THREE.Vector3 {
-    const r = this.size / 2;
-    for (let radius = 2; radius < r; radius += 2) {
+    const r = this.size / 2 - 2;
+    for (let radius = r; radius > 2; radius -= 2) {
       for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
         const x = Math.cos(a) * radius;
         const z = Math.sin(a) * radius;
         const h = this.heightAt(x, z);
-        if (h > 0.1 && h < 0.5 && !this.isInWater(new THREE.Vector3(x, h, z))) {
+        if (h > 0.1 && !this.isInWater(new THREE.Vector3(x, h, z))) {
           return new THREE.Vector3(x, h, z);
         }
       }

@@ -42,12 +42,12 @@ export class WaterFx {
     this.ripple(position.x, position.y, position.z);
   }
 
-  /** 游泳中持续在身后泛涟漪 */
-  updateSwimming(delta: number, position: THREE.Vector3): void {
+  /** 水中移动时持续在身后泛涟漪,游泳与涉水共用,涉水间隔更长;涟漪生成在水面高度 */
+  updateSwimming(delta: number, position: THREE.Vector3, interval = 0.4, waterY = position.y): void {
     this.rippleTimer -= delta;
     if (this.rippleTimer <= 0) {
-      this.rippleTimer = 0.4;
-      this.ripple(position.x, position.y, position.z);
+      this.rippleTimer = interval;
+      this.ripple(position.x, waterY, position.z);
     }
   }
 
