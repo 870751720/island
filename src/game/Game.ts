@@ -6,6 +6,7 @@ import { DayNightSystem } from './systems/DayNightSystem';
 import { RECIPES, craft, type Tools } from './systems/Crafting';
 import { WaterSystem } from './systems/WaterSystem';
 import { Particles } from './fx/Particles';
+import { WaterFx } from './fx/WaterFx';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -42,6 +43,7 @@ export class Game {
   private water: WaterSystem;
   private props: Props;
   private fx: Particles;
+  private waterFx: WaterFx;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
@@ -99,9 +101,10 @@ export class Game {
     this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain);
     this.fx = new Particles(this.scene);
+    this.waterFx = new WaterFx(this.scene, this.fx);
 
     this.scene.add(terrain.waterGroup);
-    this.player = new Player(terrain, terrain.findSpawnPoint());
+    this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx);
     this.scene.add(this.player.group);
     this.water = new WaterSystem(this.player, terrain, this.survival);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
@@ -126,6 +129,7 @@ export class Game {
         this.terrain.updateWater(elapsed);
         this.props.update(delta);
         this.fx.update(delta);
+        this.waterFx.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
         this.collect.update(delta);

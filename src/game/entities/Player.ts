@@ -2,8 +2,14 @@ import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { MoveInput } from '../core/MoveInput';
 import { IslandTerrain } from '../world/IslandTerrain';
+import type { WaterFx } from '../fx/WaterFx';
 
 const MOVE_SPEED = 5;
+const SWIM_SPEED = 2.6;
+/** 水深超过该值才进入游泳,更浅处仍是涉水走路 */
+const SWIM_DEPTH = 0.35;
+/** 游泳时身体没入水面的深度 */
+const FLOAT_DEPTH = 0.55;
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -60,13 +66,19 @@ export class Player implements Updatable {
   private terrain: IslandTerrain;
   private limbs: { mesh: THREE.Mesh; phase: number }[] = [];
   private arms: THREE.Mesh[] = [];
+  private legs: THREE.Mesh[] = [];
   private moveVec = new THREE.Vector2();
   private moving = false;
+  private swimming = false;
   private action: ActionType | null = null;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
 
-  constructor(terrain: IslandTerrain, spawn: THREE.Vector3) {
+  constructor(
+    terrain: IslandTerrain,
+    spawn: THREE.Vector3,
+    private waterFx: WaterFx
+  ) {
     this.terrain = terrain;
 
     const skin = clayMaterial('#e8b88a');
@@ -99,6 +111,7 @@ export class Player implements Updatable {
       { mesh: legR, phase: 0 },
     ];
     this.arms = [armL, armR];
+    this.legs = [legL, legR];
 
     // 工具握在右手(armR)末端
     const axe = makeAxeModel();
@@ -115,6 +128,10 @@ export class Player implements Updatable {
 
   get isMoving(): boolean {
     return this.moving;
+  }
+
+  get isSwimming(): boolean {
+    return this.swimming;
   }
 
   get currentTool(): HandTool {
@@ -136,28 +153,60 @@ export class Player implements Updatable {
   update(delta: number, elapsed: number): void {
     this.input.getVector(this.moveVec);
     this.moving = this.moveVec.lengthSq() > 0.001;
+
+    const p = this.group.position;
+    const groundY = this.terrain.getHeight(p.x, p.z);
+    const waterY = this.terrain.getWaterLevel(p.x, p.z);
+    const wasSwimming = this.swimming;
+    this.swimming = groundY < waterY - SWIM_DEPTH;
+    if (this.swimming !== wasSwimming) this.waterFx.splash(p);
+
     if (this.moving) {
       const len = this.moveVec.length();
-      const p = this.group.position;
-      p.x += (this.moveVec.x / len) * MOVE_SPEED * delta;
-      p.z += (this.moveVec.y / len) * MOVE_SPEED * delta;
+      const speed = this.swimming ? SWIM_SPEED : MOVE_SPEED;
+      p.x += (this.moveVec.x / len) * speed * delta;
+      p.z += (this.moveVec.y / len) * speed * delta;
       const half = this.terrain.size / 2 - 1;
       p.x = THREE.MathUtils.clamp(p.x, -half, half);
       p.z = THREE.MathUtils.clamp(p.z, -half, half);
-      p.y = this.terrain.getHeight(p.x, p.z);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
     }
 
-    if (this.action && !this.moving) {
-      this.animateAction(elapsed);
+    // 游泳时贴着水面漂浮,露出上半身;岸上贴地
+    p.y = this.swimming ? waterY - FLOAT_DEPTH : this.terrain.getHeight(p.x, p.z);
+
+    if (this.swimming) {
+      this.animateSwim(elapsed);
+      this.waterFx.updateSwimming(delta, p);
+      // 游泳时收起工具,避免抡着斧子划水
+      for (const model of Object.values(this.toolModels)) model!.visible = false;
     } else {
-      this.group.rotation.x = 0;
-      // 运行时走路动画:四肢绕根关节摆动
-      const swing = this.moving ? 0.7 : 0;
-      for (const limb of this.limbs) {
-        limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+      for (const [name, model] of Object.entries(this.toolModels)) {
+        model!.visible = name === this.handTool;
+      }
+      if (this.action && !this.moving) {
+        this.animateAction(elapsed);
+      } else {
+        this.group.rotation.x = 0;
+        // 运行时走路动画:四肢绕根关节摆动
+        const swing = this.moving ? 0.7 : 0;
+        for (const limb of this.limbs) {
+          limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+        }
       }
     }
+  }
+
+  /** 游泳动画:身体前倾躺水面,双臂轮转划水,双腿交替打水,随浪轻微起伏 */
+  private animateSwim(elapsed: number): void {
+    this.group.rotation.x = 1.15 + Math.sin(elapsed * 1.6) * 0.06;
+    this.group.position.y += Math.sin(elapsed * 2) * 0.04;
+    // 双臂连续轮转划水,相位相反
+    this.arms[0].rotation.x = elapsed * 5;
+    this.arms[1].rotation.x = elapsed * 5 + Math.PI;
+    // 双腿高频小幅打水
+    this.legs[0].rotation.x = Math.sin(elapsed * 12) * 0.45;
+    this.legs[1].rotation.x = Math.sin(elapsed * 12 + Math.PI) * 0.45;
   }
 
   /** 作业动画:砍树双臂抡、凿石单臂凿、拾取弯腰快速扒 */

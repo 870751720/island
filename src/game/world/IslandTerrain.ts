@@ -160,11 +160,22 @@ export class IslandTerrain {
     );
   }
 
-  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,后续游泳复用);边界对齐可见水面圆盘 */
+  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);边界对齐可见水面圆盘 */
   isInWater(pos: THREE.Vector3): boolean {
     return this.waterAreas.some(
       (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius * 0.96
     );
+  }
+
+  /** 海面高度 */
+  readonly seaLevel = -0.35;
+
+  /** 某处的水面高度:在水洼内返回洼面,否则为海面 */
+  getWaterLevel(x: number, z: number): number {
+    for (const w of this.waterAreas) {
+      if (Math.hypot(x - w.x, z - w.z) < w.radius * 0.96) return w.waterY;
+    }
+    return this.seaLevel;
   }
 
   getHeight(x: number, z: number): number {
