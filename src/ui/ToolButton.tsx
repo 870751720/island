@@ -8,7 +8,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   pickaxe: '⛏️',
 };
 
-/** 右下角工具切换按钮:循环 空手 → 斧子 → 镐子(仅已拥有) */
+/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子(仅已拥有) */
 export function ToolButton({ tool, onCycle }: { tool: HandTool; onCycle: () => void }) {
   return (
     <button
@@ -18,8 +18,9 @@ export function ToolButton({ tool, onCycle }: { tool: HandTool; onCycle: () => v
       }}
       style={{
         position: 'absolute',
-        right: 20,
-        bottom: 36,
+        right: 'max(16px, env(safe-area-inset-right))',
+        top: '50%',
+        transform: 'translateY(-50%)',
         width: 72,
         height: 72,
         borderRadius: '50%',

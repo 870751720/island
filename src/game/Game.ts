@@ -3,7 +3,7 @@ import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
-import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
+import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
@@ -42,10 +42,6 @@ export type HudSnapshot = {
   workbenchProgress: number;
   eatName: string | null;
   eatProgress: number;
-  clock: string;
-  isNight: boolean;
-  weather: WeatherType;
-  weatherLabel: string;
 };
 
 const VIEW_SIZE = 18;
@@ -338,10 +334,6 @@ export class Game {
       workbenchProgress: this.workbench.getProgress() ?? 0,
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
-      clock: this.dayNight.state.clock,
-      isNight: this.dayNight.isNight,
-      weather: this.weather.state.type,
-      weatherLabel: this.weather.state.label,
     });
   }
 

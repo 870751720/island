@@ -29,10 +29,6 @@ const INITIAL_HUD: HudSnapshot = {
   workbenchProgress: 0,
   eatName: null,
   eatProgress: 0,
-  clock: '12:00',
-  isNight: false,
-  weather: 'sunny' as const,
-  weatherLabel: '☀️ 晴',
 };
 
 /**
