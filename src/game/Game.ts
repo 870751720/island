@@ -11,6 +11,7 @@ import { Inventory } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
+import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 
 export type HudSnapshot = {
@@ -45,6 +46,9 @@ export class Game {
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
   private dayNight: DayNightSystem;
+  private terrain: IslandTerrain;
+  private ocean: Ocean;
+  private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
@@ -89,8 +93,12 @@ export class Game {
     this.sun = sun;
 
     const terrain = new IslandTerrain();
+    this.terrain = terrain;
     this.scene.add(terrain.mesh);
-    this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
+    this.ocean = new Ocean(Math.max(500, terrain.size * 3));
+    this.scene.add(this.ocean.mesh);
+    this.clouds = new Clouds(terrain.size * 0.95);
+    this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain);
     this.fx = new Particles(this.scene);
 
@@ -116,6 +124,9 @@ export class Game {
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
         this.dayNight.update(delta);
+        this.clouds.update(delta);
+        this.ocean.update(elapsed);
+        this.terrain.updateWater(elapsed);
         this.props.update(delta);
         this.fx.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;

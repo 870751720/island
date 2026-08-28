@@ -75,6 +75,7 @@ export class IslandTerrain {
       );
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(area.x, area.waterY, area.z);
+      disc.userData.baseY = area.waterY;
       this.waterGroup.add(disc);
     };
 
@@ -142,6 +143,15 @@ export class IslandTerrain {
 
   private tooClose(x: number, z: number, gap: number): boolean {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
+  }
+
+  /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒) */
+  updateWater(elapsed: number): void {
+    this.waterGroup.children.forEach((disc, i) => {
+      disc.position.y = disc.userData.baseY + Math.sin(elapsed * 1.1 + i * 1.7) * 0.02;
+      const s = 1 + Math.sin(elapsed * 0.8 + i * 2.3) * 0.012;
+      disc.scale.setScalar(s);
+    });
   }
 
   /** 玩家是否处于任意水面附近(喝水判定) */
