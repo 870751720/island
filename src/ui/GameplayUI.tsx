@@ -8,6 +8,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { EatPrompt } from './EatPrompt';
+import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
 
 const INITIAL_HUD: HudSnapshot = {
@@ -32,6 +33,7 @@ const INITIAL_HUD: HudSnapshot = {
   eatName: null,
   eatProgress: 0,
   autoEquipProgress: 0,
+  nearDrop: null,
 };
 
 /**
@@ -102,6 +104,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
           />
           <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
+          {!backpackOpen && (
+            <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
+          )}
         </>
       )}
       {hud.dead && <DeathScreen onConfirm={onExit} />}

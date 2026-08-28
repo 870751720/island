@@ -6,7 +6,7 @@ import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
-import { DropSystem } from './systems/DropSystem';
+import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
@@ -48,6 +48,8 @@ export type HudSnapshot = {
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
   autoEquipProgress: number;
+  /** 玩家附近可捡回的掉落物,无时为 null */
+  nearDrop: DropInfo | null;
 };
 
 const VIEW_SIZE = 18;
@@ -297,6 +299,11 @@ export class Game {
     return food ? this.eating.start(food) : false;
   }
 
+  /** 捡回附近掉落物(点「捡回」卡片),背包放不下则失败 */
+  pickupDrop(): boolean {
+    return this.drops.pickupNearby();
+  }
+
   /** 丢弃一个道具到玩家附近的地上 */
   dropItem(kind: ResourceKind): boolean {
     if (!this.inventory.remove(kind, 1)) return false;
@@ -356,6 +363,7 @@ export class Game {
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
+      nearDrop: this.drops.getNearby(),
     });
   }
 

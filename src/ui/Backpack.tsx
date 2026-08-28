@@ -120,15 +120,27 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem }: Props) 
         <div
           style={{
             position: 'absolute',
-            // 按钮在右中侧工具按钮上方,面板在按钮左侧展开避免遮挡工具按钮
-            top: 'calc(50% - 140px)',
-            right: 'max(100px, calc(env(safe-area-inset-right) + 100px))',
-            width: `min(80vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 12}px)`,
-            maxHeight: '78vh',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.35)',
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            // 点到遮罩本身才关闭,面板内点击不冒泡关闭
+            if (e.target === e.currentTarget) onToggle();
+          }}
+        >
+        <div
+          style={{
+            width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
+            maxHeight: '80vh',
             overflowY: 'auto',
-            padding: '12px 12px',
-            background: 'rgba(255,255,255,0.92)',
-            borderRadius: 12,
+            padding: '14px 12px',
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: 14,
             fontFamily: 'sans-serif',
             fontSize: 15,
             color: '#333',
@@ -197,6 +209,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem }: Props) 
               </div>
             </div>
           )}
+        </div>
         </div>
       )}
     </>
