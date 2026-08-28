@@ -5,6 +5,8 @@ import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
+import { EatingSystem } from './systems/EatingSystem';
+import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { Particles } from './fx/Particles';
 import { WaterFx } from './fx/WaterFx';
@@ -30,6 +32,8 @@ export type HudSnapshot = {
   tool: HandTool;
   craftId: 'axe' | 'pickaxe' | null;
   craftProgress: number;
+  eatName: string | null;
+  eatProgress: number;
   clock: string;
   isNight: boolean;
 };
@@ -51,6 +55,7 @@ export class Game {
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
   private crafting: CraftingSystem;
+  private eating: EatingSystem;
   private dayNight: DayNightSystem;
   private terrain: IslandTerrain;
   private clouds: Clouds;
@@ -122,10 +127,11 @@ export class Game {
       this.props,
       this.inventory,
       this.fx,
-      // 合成占用双手,期间采集让位
-      () => this.crafting.isWorking
+      // 合成/进食占用双手,期间采集让位
+      () => this.crafting.isWorking || this.eating.isWorking
     );
     this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx);
+    this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
 
@@ -143,8 +149,9 @@ export class Game {
         this.survival.update(delta);
         this.collect.update(delta);
         this.crafting.update(delta);
+        this.eating.update(delta);
         this.updateAutoEquip(delta);
-        this.water.update(delta, this.collect.isWorking);
+        this.water.update(delta, this.collect.isWorking || this.crafting.isWorking || this.eating.isWorking);
         this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -211,6 +218,7 @@ export class Game {
       nearby &&
       !this.player.isMoving &&
       !this.crafting.isWorking &&
+      !this.eating.isWorking &&
       !this.survival.state.dead
     ) {
       if (nearby.kind === 'tree' && this.tools.axe && this.player.currentTool !== 'axe') {
@@ -234,11 +242,11 @@ export class Game {
     }
   }
 
-  /** 从背包食用浆果,返回是否成功 */
-  eatBerry(): boolean {
-    if (!this.inventory.remove('berry')) return false;
-    this.survival.eatBerry();
-    return true;
+  /** 吃背包里最前面的食物(定时进食动作),返回是否成功开始 */
+  eatFood(): boolean {
+    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    const food = FOODS.find((f) => this.inventory.state[f.kind] > 0);
+    return food ? this.eating.start(food) : false;
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
@@ -275,6 +283,8 @@ export class Game {
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,
+      eatName: this.eating.currentFood?.name ?? null,
+      eatProgress: this.eating.getProgress() ?? 0,
       clock: this.dayNight.state.clock,
       isNight: this.dayNight.isNight,
     });
@@ -290,6 +300,9 @@ export class Game {
     } else if (this.crafting.isWorking) {
       label = `制作中:${this.crafting.currentRecipe!.name}`;
       progress = this.crafting.getProgress();
+    } else if (this.eating.isWorking) {
+      label = `${this.eating.currentFood!.icon} 吃${this.eating.currentFood!.name}`;
+      progress = this.eating.getProgress();
     } else if (nearby && this.collect.canCollect(nearby)) {
       progress = this.collect.getHarvestInfo()?.progress ?? null;
       label =

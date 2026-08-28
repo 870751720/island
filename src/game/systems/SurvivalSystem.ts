@@ -8,6 +8,8 @@ export type SurvivalState = {
   dead: boolean;
 };
 
+import type { Food } from './Food';
+
 const HUNGER_RATE = 0.8; // 每秒下降
 const THIRST_RATE = 1.2;
 const THIRST_PER_ROUND = 40;
@@ -47,9 +49,9 @@ export class SurvivalSystem implements Updatable {
     if (s.health <= 0) s.dead = true;
   }
 
-  eatBerry(): void {
-    this.state.hunger = Math.min(100, this.state.hunger + 12);
-    this.state.thirst = Math.min(100, this.state.thirst + 4);
+  eat(food: Food): void {
+    this.state.hunger = Math.min(100, this.state.hunger + food.hunger);
+    this.state.thirst = Math.min(100, this.state.thirst + food.thirst);
   }
 
   drink(): void {

@@ -7,6 +7,7 @@ import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
+import { EatPrompt } from './EatPrompt';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -22,6 +23,8 @@ const INITIAL_HUD: HudSnapshot = {
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
+  eatName: null,
+  eatProgress: 0,
   clock: '12:00',
   isNight: false,
 };
@@ -68,7 +71,7 @@ export function GameCanvas() {
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}
         items={hud}
-        onEatBerry={() => gameRef.current?.eatBerry()}
+        onEatFood={() => gameRef.current?.eatFood()}
         onCraft={(id) => gameRef.current?.craftTool(id)}
       />
       {!hud.dead && (
@@ -76,6 +79,7 @@ export function GameCanvas() {
           <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
           <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
           <CraftPrompt hud={hud} onCraft={(id) => gameRef.current?.craftTool(id)} />
+          <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
         </>
       )}
       <div

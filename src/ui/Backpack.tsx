@@ -7,7 +7,7 @@ type Props = {
   open: boolean;
   onToggle: () => void;
   items: HudSnapshot;
-  onEatBerry: () => void;
+  onEatFood: () => void;
   onCraft: (id: 'axe' | 'pickaxe') => void;
 };
 
@@ -52,7 +52,7 @@ function actionButton(disabled: boolean, label: string, onPress: () => void): Re
   );
 }
 
-export function Backpack({ open, onToggle, items, onEatBerry, onCraft }: Props) {
+export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
   return (
     <>
       <button
@@ -101,7 +101,7 @@ export function Backpack({ open, onToggle, items, onEatBerry, onCraft }: Props) 
               <span style={{ flex: 1 }}>{name}</span>
               <span>× {items[kind]}</span>
               {kind === 'berry' &&
-                actionButton(items.berry <= 0, '吃', onEatBerry)}
+                actionButton(items.berry <= 0, '吃', onEatFood)}
             </div>
           ))}
           <div style={{ fontWeight: 700, margin: '10px 0 4px' }}>合成</div>
