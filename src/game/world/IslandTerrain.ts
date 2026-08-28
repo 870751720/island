@@ -51,7 +51,8 @@ export class IslandTerrain {
       const dist = Math.sqrt(x * x + z * z) / half;
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
-      return falloff * falloff * h - 0.6;
+      // 岛外海底逐渐加深到约 -2.1,保证外海水深足够进入游泳
+      return falloff * falloff * h - 0.6 - (1 - falloff) * (1 - falloff) * 1.5;
     };
 
     const rng = (i: number) => {
