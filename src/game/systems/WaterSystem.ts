@@ -6,7 +6,7 @@ const DRINK_TIME = 2; // 一轮喝水(秒)
 const THIRST_PER_ROUND = 40;
 const DRINK_RANGE = 1.5; // 距水边
 
-/** 靠近水洼/河流站定自动喝水恢复口渴;有采集作业时让位 */
+/** 靠近水洼站定自动喝水恢复口渴;有采集作业时让位 */
 export class WaterSystem {
   private timer = 0;
   private active = false;

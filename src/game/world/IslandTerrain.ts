@@ -24,10 +24,6 @@ const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
 const SEA_LEVEL = -0.35;
-const RIVER_HALF_WIDTH = 2.2;
-const RIVER_STEP = 1.8;
-const RIVER_DEPTH = 1.6; // 与水洼同深
-
 /** 一处下挖的水域:圆形 carve + 水面圆盘 */
 type WaterArea = {
   x: number;
@@ -37,39 +33,11 @@ type WaterArea = {
   waterY: number;
 };
 
-/** 河流中心线折线点 */
-type RiverPoint = { x: number; z: number };
-
-/** 点到折线的最近距离,返回所在段索引与距离 */
-function distToPolyline(
-  x: number,
-  z: number,
-  pts: RiverPoint[]
-): { dist: number; index: number } {
-  let best = { dist: Infinity, index: 0 };
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i];
-    const b = pts[i + 1];
-    const abx = b.x - a.x;
-    const abz = b.z - a.z;
-    const t = THREE.MathUtils.clamp(
-      ((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz || 1),
-      0,
-      1
-    );
-    const dist = Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t));
-    if (dist < best.dist) best = { dist, index: i + t };
-  }
-  return best;
-}
-
 export class IslandTerrain {
   readonly mesh: THREE.Mesh;
   readonly waterGroup = new THREE.Group();
   /** 全部水面区域(水洼),供资源生成等避让 */
   readonly waterAreas: WaterArea[] = [];
-  /** 河流中心线 */
-  readonly river: RiverPoint[] = [];
   readonly size: number;
   private heightAt: (x: number, z: number) => number;
 
@@ -128,46 +96,12 @@ export class IslandTerrain {
       });
     }
 
-    // 一条河流:从随机内陆点出发,蜿蜒向外入海(最多一条,不与水洼相连)
-    const riverSource = (() => {
-      for (let i = 0; i < size; i++) {
-        const x = (rng(i * 2 + 501) * 2 - 1) * half * 0.4;
-        const z = (rng(i * 2 + 502) * 2 - 1) * half * 0.4;
-        const y = baseHeight(x, z);
-        if (y < 1.0) continue;
-        if (this.tooClose(x, z, RIVER_HALF_WIDTH + 2)) continue;
-        return { x, z, y };
-      }
-      return null;
-    })();
-    if (riverSource) {
-      const angle = Math.atan2(riverSource.z, riverSource.x);
-      const wob = rng(999) * Math.PI * 2;
-      const wobble = 2 + rng(998) * 2;
-      const startDist = Math.hypot(riverSource.x, riverSource.z);
-      for (let step = 0; step < size; step++) {
-        const along = startDist + step * RIVER_STEP;
-        const side = Math.sin(along * 0.12 + wob) * wobble;
-        const x = Math.cos(angle) * along - Math.sin(angle) * side;
-        const z = Math.sin(angle) * along + Math.cos(angle) * side;
-        // 越过海岸线即止
-        if (Math.hypot(x, z) > half) break;
-        this.river.push({ x, z });
-      }
-      if (this.river.length > 1) this.waterGroup.add(this.buildRiverMesh(waterMat));
-    }
-
     // 岛屿高度:噪声地形 + 水域 carve
     this.heightAt = (x: number, z: number) => {
       let carve = 0;
       for (const w of this.waterAreas) {
         const d = Math.hypot(x - w.x, z - w.z) / w.radius;
         if (d < 1) carve += w.depth * (1 - d * d);
-      }
-      if (this.river.length > 1) {
-        const { dist } = distToPolyline(x, z, this.river);
-        const d = dist / RIVER_HALF_WIDTH;
-        if (d < 1) carve += RIVER_DEPTH * (1 - d * d);
       }
       return baseHeight(x, z) - carve;
     };
@@ -206,51 +140,15 @@ export class IslandTerrain {
     return this.waterAreas.length;
   }
 
-  /** 沿中心线生成等宽连续河面条带 */
-  private buildRiverMesh(mat: () => THREE.MeshStandardMaterial): THREE.Mesh {
-    const y = SEA_LEVEL + 0.02;
-    const positions: number[] = [];
-    const indices: number[] = [];
-    const pts = this.river;
-    for (let i = 0; i < pts.length; i++) {
-      const prev = pts[Math.max(0, i - 1)];
-      const next = pts[Math.min(pts.length - 1, i + 1)];
-      const len = Math.hypot(next.x - prev.x, next.z - prev.z) || 1;
-      const nx = -(next.z - prev.z) / len;
-      const nz = (next.x - prev.x) / len;
-      const w = RIVER_HALF_WIDTH * 0.96;
-      positions.push(pts[i].x + nx * w, y, pts[i].z + nz * w);
-      positions.push(pts[i].x - nx * w, y, pts[i].z - nz * w);
-      if (i > 0) {
-        const b = i * 2;
-        indices.push(b - 2, b - 1, b, b - 1, b + 1, b);
-      }
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    return new THREE.Mesh(geometry, mat());
-  }
-
   private tooClose(x: number, z: number, gap: number): boolean {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
   }
 
   /** 玩家是否处于任意水面附近(喝水判定) */
   isNearWater(pos: THREE.Vector3, extraRange: number): boolean {
-    if (
-      this.waterAreas.some(
-        (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius + extraRange
-      )
-    )
-      return true;
-    if (this.river.length > 1)
-      return distToPolyline(pos.x, pos.z, this.river).dist < RIVER_HALF_WIDTH + extraRange;
-    return false;
+    return this.waterAreas.some(
+      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius + extraRange
+    );
   }
 
   getHeight(x: number, z: number): number {
