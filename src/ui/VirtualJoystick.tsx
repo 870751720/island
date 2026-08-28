@@ -7,7 +7,8 @@ const KNOB = 52;
 const MAX_OFFSET = (SIZE - KNOB) / 2;
 
 /**
- * 浮动虚拟摇杆:左半屏任意位置按下即在触点生成摇杆,抬起后消失。
+ * 浮动虚拟摇杆:全屏任意空白处按下即在触点生成摇杆,抬起后消失。
+ * 触控层须在 DOM 中位于各按钮之前,按钮优先接收事件。
  * Pointer Events 触控拖动,输出归一化移动向量。
  */
 export function VirtualJoystick({
@@ -55,10 +56,7 @@ export function VirtualJoystick({
       onPointerCancel={reset}
       style={{
         position: 'absolute',
-        left: 0,
-        top: 0,
-        width: '50%',
-        height: '100%',
+        inset: 0,
         touchAction: 'none',
         userSelect: 'none',
       }}

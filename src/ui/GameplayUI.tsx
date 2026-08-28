@@ -76,6 +76,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       ref={containerRef}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
+      {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
       <Hud hud={hud} />
       <Backpack
         open={backpackOpen}
@@ -86,7 +87,6 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
           <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
           <CraftPrompt
             hud={hud}
