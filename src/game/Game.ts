@@ -6,6 +6,7 @@ import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
+import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
@@ -36,6 +37,9 @@ export type HudSnapshot = {
   tool: HandTool;
   craftId: 'axe' | 'pickaxe' | null;
   craftProgress: number;
+  canCraftWorkbench: boolean;
+  workbenchCrafting: boolean;
+  workbenchProgress: number;
   eatName: string | null;
   eatProgress: number;
   clock: string;
@@ -62,6 +66,7 @@ export class Game {
   private inventory = new Inventory();
   private tools: Tools = { axe: false, pickaxe: false };
   private crafting: CraftingSystem;
+  private workbench: WorkbenchSystem;
   private eating: EatingSystem;
   private dayNight: DayNightSystem;
   private weather: WeatherSystem;
@@ -139,9 +144,17 @@ export class Game {
       this.inventory,
       this.fx,
       // 合成/进食占用双手,期间采集让位
-      () => this.crafting.isWorking || this.eating.isWorking
+      () => this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking
     );
     this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx);
+    this.workbench = new WorkbenchSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx
+    );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
@@ -170,9 +183,13 @@ export class Game {
         this.survival.update(delta);
         this.collect.update(delta);
         this.crafting.update(delta);
+        this.workbench.update(delta);
         this.eating.update(delta);
         this.updateAutoEquip(delta);
-        this.water.update(delta, this.collect.isWorking || this.crafting.isWorking || this.eating.isWorking);
+        this.water.update(
+      delta,
+      this.collect.isWorking || this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking
+    );
         this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -239,6 +256,7 @@ export class Game {
       nearby &&
       !this.player.isMoving &&
       !this.crafting.isWorking &&
+      !this.workbench.isWorking &&
       !this.eating.isWorking &&
       !this.survival.state.dead
     ) {
@@ -265,15 +283,24 @@ export class Game {
 
   /** 吃背包里最前面的食物(定时进食动作),返回是否成功开始 */
   eatFood(): boolean {
-    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    if (this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking) {
+      return false;
+    }
     const food = FOODS.find((f) => this.inventory.state[f.kind] > 0);
     return food ? this.eating.start(food) : false;
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: keyof Tools): boolean {
+    if (this.workbench.isWorking) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe ? this.crafting.start(recipe) : false;
+  }
+
+  /** 发起工作台制作(完成后在原位放置),返回是否成功开始 */
+  craftWorkbench(): boolean {
+    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    return this.workbench.start();
   }
 
   start(): void {
@@ -306,6 +333,9 @@ export class Game {
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,
+      canCraftWorkbench: this.workbench.canStart(),
+      workbenchCrafting: this.workbench.isWorking,
+      workbenchProgress: this.workbench.getProgress() ?? 0,
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
       clock: this.dayNight.state.clock,
@@ -325,6 +355,9 @@ export class Game {
     } else if (this.crafting.isWorking) {
       label = `制作中:${this.crafting.currentRecipe!.name}`;
       progress = this.crafting.getProgress();
+    } else if (this.workbench.isWorking) {
+      label = '制作中:工作台';
+      progress = this.workbench.getProgress();
     } else if (this.eating.isWorking) {
       label = `${this.eating.currentFood!.icon} 吃${this.eating.currentFood!.name}`;
       progress = this.eating.getProgress();

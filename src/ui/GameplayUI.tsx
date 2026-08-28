@@ -24,6 +24,9 @@ const INITIAL_HUD: HudSnapshot = {
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
+  canCraftWorkbench: false,
+  workbenchCrafting: false,
+  workbenchProgress: 0,
   eatName: null,
   eatProgress: 0,
   clock: '12:00',
@@ -85,7 +88,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         <>
           <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />
           <ToolButton tool={hud.tool} onCycle={() => gameRef.current?.cycleTool()} />
-          <CraftPrompt hud={hud} onCraft={(id) => gameRef.current?.craftTool(id)} />
+          <CraftPrompt
+            hud={hud}
+            onCraft={(id) => gameRef.current?.craftTool(id)}
+            onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
+          />
           <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
         </>
       )}
