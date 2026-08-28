@@ -30,7 +30,7 @@ export class Ambience {
   /** 雨声强度 0~1,平滑过渡 */
   setRainIntensity(intensity: number): void {
     if (this.disposed) return;
-    this.rainTarget = Math.min(Math.max(intensity, 0), 1) * 0.14;
+    this.rainTarget = Math.min(Math.max(intensity, 0), 1) * 0.07;
     this.rain.gain.gain.setTargetAtTime(this.rainTarget, this.ctx.currentTime, 1.5);
   }
 

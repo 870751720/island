@@ -420,11 +420,6 @@ export class Game {
     this.loop.start();
   }
 
-  /** 静音开关,返回切换后的静音状态 */
-  toggleMute(): boolean {
-    return this.audio.toggleMute();
-  }
-
   dispose(): void {
     this.loop.stop();
     this.resizeObserver.disconnect();
