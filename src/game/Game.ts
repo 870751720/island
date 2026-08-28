@@ -143,7 +143,7 @@ export class Game {
     // 天气在昼夜之后更新,对光照与天空做调制
     this.weather = new WeatherSystem(sun, hemi, this.scene);
     this.rain = new Rain();
-    this.scene.add(this.rain.points);
+    this.scene.add(this.rain.lines);
 
     this.loop.add({
       update: (delta, elapsed) => {
