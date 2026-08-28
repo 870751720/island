@@ -243,8 +243,8 @@ export class Birds implements Updatable {
             bird.pos.y = Math.max(bird.pos.y, this.terrain.getHeight(bird.pos.x, bird.pos.z) + bird.alt);
           }
           break;
-        case 'fly':
-          this.flyToward(bird, bird.target, CRUISE_SPEED, delta);
+        case 'fly': {
+          const arrived = this.flyToward(bird, bird.target, CRUISE_SPEED, delta);
           // 高度向巡航高度平滑过渡(带爬升速度上限,起飞时也是渐升);
           // 取前方一段航程的地形最高点,上坡前提前爬升而不是等撞上山再拉起
           const aheadX = bird.pos.x + Math.sin(bird.heading) * 3;
@@ -256,7 +256,7 @@ export class Birds implements Updatable {
           const desiredY = groundAhead + bird.alt;
           bird.pos.y += THREE.MathUtils.clamp(desiredY - bird.pos.y, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
           bird.pos.y += Math.sin(elapsed * 2 + bird.phase) * 0.006;
-          if (Math.hypot(bird.target.x - bird.pos.x, bird.target.z - bird.pos.z) < 1.5) {
+          if (arrived) {
             if (Math.random() < 0.35) {
               bird.state = 'land';
               bird.stateTime = 0;
@@ -266,19 +266,29 @@ export class Birds implements Updatable {
             }
           }
           break;
-        case 'land':
-          this.flyToward(bird, bird.target, CRUISE_SPEED * 0.7, delta);
-          // 朝落点滑降
-          const drop = bird.target.y + 0.12 - bird.pos.y;
-          bird.pos.y += THREE.MathUtils.clamp(drop, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
-          if (bird.pos.distanceTo(bird.target) < 0.35) {
-            bird.pos.copy(bird.target);
-            bird.state = 'walk';
-            bird.stateTime = 0;
-            bird.walkLeft = 6 + Math.random() * 12;
-            bird.stepTarget = null;
+        }
+        case 'land': {
+          if (this.flyToward(bird, bird.target, CRUISE_SPEED * 0.7, delta)) {
+            // 末端进近:已进转弯圈,改为直线朝落点滑落,不再依赖转向
+            const to = new THREE.Vector3(
+              bird.target.x - bird.pos.x,
+              bird.target.y + 0.12 - bird.pos.y,
+              bird.target.z - bird.pos.z
+            );
+            const d = to.length();
+            const stepLen = CRUISE_SPEED * 0.7 * delta;
+            if (d <= Math.max(stepLen, 0.15)) {
+              bird.pos.copy(bird.target);
+              bird.state = 'walk';
+              bird.stateTime = 0;
+              bird.walkLeft = 6 + Math.random() * 12;
+              bird.stepTarget = null;
+            } else {
+              bird.pos.addScaledVector(to.normalize(), stepLen);
+            }
           }
           break;
+        }
         case 'walk':
           bird.walkLeft -= delta;
           if (bird.walkLeft <= 0) {
@@ -322,12 +332,12 @@ export class Birds implements Updatable {
     }
   }
 
-  /** 沿水平朝目标转向并前进,返回是否已抵达(水平距离) */
+  /** 沿水平朝目标转向并前进,返回是否已抵达(水平距离);到达阈值取转弯半径的 1.3 倍以上,否则目标会进入转弯圈内永远绕圈 */
   private flyToward(bird: Bird, target: THREE.Vector3, speed: number, delta: number): boolean {
+    const arrive = (speed / TURN_RATE) * 1.3 + 0.05;
     const dx = target.x - bird.pos.x;
     const dz = target.z - bird.pos.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist < 0.06) return true;
+    if (Math.hypot(dx, dz) < arrive) return true;
     const targetHeading = Math.atan2(dx, dz);
     let diff = targetHeading - bird.heading;
     while (diff > Math.PI) diff -= Math.PI * 2;
@@ -336,7 +346,7 @@ export class Birds implements Updatable {
     bird.heading += step;
     bird.pos.x += Math.sin(bird.heading) * speed * delta;
     bird.pos.z += Math.cos(bird.heading) * speed * delta;
-    return Math.hypot(target.x - bird.pos.x, target.z - bird.pos.z) < 0.06;
+    return Math.hypot(target.x - bird.pos.x, target.z - bird.pos.z) < arrive;
   }
 
   private animate(bird: Bird, elapsed: number): void {
@@ -357,7 +367,7 @@ export class Birds implements Updatable {
       const flap = bird.state === 'flee' ? 14 : bird.state === 'land' ? 5 : 8;
       const amp = bird.state === 'land' ? 0.45 : 0.7;
       const angle = Math.abs(Math.sin(elapsed * flap + bird.phase)) * amp + 0.1;
-          for (const wing of bird.model.wings) wing.rotation.z = wing.userData.side * angle;
-        }
+      for (const wing of bird.model.wings) wing.rotation.z = wing.userData.side * angle;
+    }
   }
 }
