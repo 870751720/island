@@ -109,7 +109,9 @@ export class IslandTerrain {
         const d = Math.hypot(x - w.x, z - w.z) / w.radius;
         if (d < 1) carve += w.depth * (1 - d * d);
       }
-      return baseHeight(x, z) - carve;
+      const h = baseHeight(x, z) - carve;
+      // 洼底不得低于海平面,否则全局海水平面会切进水洼内,露出蓝色积水
+      return carve > 0 ? Math.max(h, this.seaLevel + 0.1) : h;
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)

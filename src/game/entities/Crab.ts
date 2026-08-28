@@ -32,6 +32,7 @@ type CrabModel = {
  * 配色参考业内低多边形螃蟹资产:饱和橙壳、深红橙腿、奶油腹、近黑眼。 */
 function makeCrabModel(): CrabModel {
   const group = new THREE.Group();
+  group.scale.setScalar(1 / 3);
   const shell = clayMaterial('#e87a3e');
   const limb = clayMaterial('#b8442c');
   const belly = clayMaterial('#f2e3c9');
