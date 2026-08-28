@@ -104,22 +104,11 @@ export class Sfx {
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.05, peak: v * 0.5 }, 'bandpass', 2600, 1200);
         break;
       case 'munch':
-        // 一口:多个极短微碎裂(嚼碎的颗粒感)+ 轻湿挤压;每 0.5s 循环一次故只咬两口
+        // 柔湿咀嚼:每口两层带通挤压音(中低频「mua」),无脆响颗粒;每 0.5s 循环故只咬两口
         for (let i = 0; i < 2; i++) {
           const bt = t + i * (0.22 + Math.random() * 0.05);
-          for (let j = 0; j < 4; j++) {
-            noiseBurst(
-              this.ctx,
-              dest,
-              bt + Math.random() * 0.07,
-              { attack: 0.001, decay: 0.015, peak: v * (0.5 - j * 0.08) },
-              'bandpass',
-              2500 + Math.random() * 3500,
-              undefined,
-              2
-            );
-          }
-          noiseBurst(this.ctx, dest, bt + 0.01, { attack: 0.01, decay: 0.08, peak: v * 0.3 }, 'bandpass', detune(850), 350);
+          noiseBurst(this.ctx, dest, bt, { attack: 0.02, decay: 0.1, peak: v * 0.5 }, 'bandpass', detune(750), 350, 1.4);
+          noiseBurst(this.ctx, dest, bt + 0.02, { attack: 0.02, decay: 0.08, peak: v * 0.35 }, 'bandpass', detune(1300), 600);
         }
         break;
       case 'drink':
