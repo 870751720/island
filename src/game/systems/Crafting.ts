@@ -84,7 +84,7 @@ export function maxCraftCount(
   counts: Partial<Record<ResourceKind, number>>,
   tools: Tools
 ): number {
-  if (recipe.tool) return tools[recipe.tool] ? 0 : 1;
+  if (recipe.tool) return tools[recipe.tool] || !hasCost(recipe.cost, counts) ? 0 : 1;
   return Object.entries(recipe.cost).reduce(
     (max, [kind, n]) =>
       Math.min(max, Math.floor((counts[kind as ResourceKind] ?? 0) / (n ?? 1))),
