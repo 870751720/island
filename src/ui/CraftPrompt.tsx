@@ -13,7 +13,7 @@ const UNIT_LABELS: Record<string, string> = {
   rope: '线',
 };
 
-/** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片(工具 + 工作台) */
+/** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片(斧/镐 + 工作台) */
 export function CraftPrompt({
   hud,
   onCraft,
@@ -23,10 +23,13 @@ export function CraftPrompt({
   onCraft: (id: Recipe['id']) => void;
   onCraftWorkbench: () => void;
 }) {
-  // 任一合成进行中时不再展示卡片
+  // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (hud.craftId !== null || hud.workbenchCrafting) return null;
   const craftable = RECIPES.filter(
-    (r) => (r.output || !hud[r.id as keyof HudSnapshot]) && hasCost(r.cost, hud)
+    (r) =>
+      r.station === 'hand' &&
+      (r.output || !hud[r.id as keyof HudSnapshot]) &&
+      hasCost(r.cost, hud)
   );
   const showWorkbench = hud.canCraftWorkbench;
   if (craftable.length === 0 && !showWorkbench) return null;

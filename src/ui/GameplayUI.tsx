@@ -7,6 +7,7 @@ import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
+import { WorkbenchPanel } from './WorkbenchPanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
@@ -34,6 +35,7 @@ const INITIAL_HUD: HudSnapshot = {
   canCraftWorkbench: false,
   workbenchCrafting: false,
   workbenchProgress: 0,
+  nearWorkbench: false,
   eatName: null,
   eatProgress: 0,
   autoEquipProgress: 0,
@@ -54,6 +56,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [workbenchOpen, setWorkbenchOpen] = useState(false);
+
+  // 离开工作台范围自动收起制作面板
+  useEffect(() => {
+    if (!hud.nearWorkbench) setWorkbenchOpen(false);
+  }, [hud.nearWorkbench]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -99,11 +107,22 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          {(hud.axe || hud.pickaxe || hud.fishingrod) && (
+          {(hud.axe || hud.pickaxe || hud.fishingrod || hud.nearWorkbench) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
+              workbench={hud.nearWorkbench && hud.craftId === null}
               onCycle={() => gameRef.current?.cycleTool()}
+              onWorkbench={() => setWorkbenchOpen(true)}
+            />
+          )}
+          {workbenchOpen && (
+            <WorkbenchPanel
+              hud={hud}
+              onCraft={(id, count) => {
+                if (gameRef.current?.craftAtWorkbench(id, count)) setWorkbenchOpen(false);
+              }}
+              onClose={() => setWorkbenchOpen(false)}
             />
           )}
           <CraftPrompt

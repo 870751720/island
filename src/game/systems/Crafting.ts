@@ -13,6 +13,8 @@ export type Recipe = {
   name: string;
   icon: string;
   cost: Partial<Record<ResourceKind, number>>;
+  /** 制作站点:hand 为手搓卡片,workbench 为只能在靠近工作台时制作 */
+  station: 'hand' | 'workbench';
   /** 工具类:制作后永久拥有 */
   tool?: ToolId;
   /** 材料类:产物进背包,可反复制作 */
@@ -20,14 +22,36 @@ export type Recipe = {
 };
 
 export const RECIPES: Recipe[] = [
-  { id: 'axe', name: '斧子', icon: '🪓', cost: { wood: 2, gravel: 2 }, tool: 'axe' },
-  { id: 'pickaxe', name: '镐子', icon: '⛏️', cost: { wood: 2, gravel: 3 }, tool: 'pickaxe' },
-  { id: 'rope', name: '绳线', icon: '🧵', cost: { fiber: 3 }, output: 'rope' },
+  {
+    id: 'axe',
+    name: '斧子',
+    icon: '🪓',
+    cost: { wood: 2, gravel: 2 },
+    station: 'hand',
+    tool: 'axe',
+  },
+  {
+    id: 'pickaxe',
+    name: '镐子',
+    icon: '⛏️',
+    cost: { wood: 2, gravel: 3 },
+    station: 'hand',
+    tool: 'pickaxe',
+  },
+  {
+    id: 'rope',
+    name: '绳线',
+    icon: '🧵',
+    cost: { fiber: 3 },
+    station: 'workbench',
+    output: 'rope',
+  },
   {
     id: 'fishingrod',
     name: '鱼竿',
     icon: '🎣',
     cost: { wood: 1, rope: 2 },
+    station: 'workbench',
     tool: 'fishingrod',
   },
 ];
@@ -51,6 +75,20 @@ export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
         inventory.count(kind),
       ])
     )
+  );
+}
+
+/** 按材料数量表当前最多可制作的个数(工具类为 0 或 1) */
+export function maxCraftCount(
+  recipe: Recipe,
+  counts: Partial<Record<ResourceKind, number>>,
+  tools: Tools
+): number {
+  if (recipe.tool) return tools[recipe.tool] ? 0 : 1;
+  return Object.entries(recipe.cost).reduce(
+    (max, [kind, n]) =>
+      Math.min(max, Math.floor((counts[kind as ResourceKind] ?? 0) / (n ?? 1))),
+    99
   );
 }
 

@@ -12,6 +12,7 @@ const CRAFT_TIME = 2.4; // 制作总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#c9a15c';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
+const NEAR_RANGE = 2.2; // 玩家距工作台小于该值时算在工作范围内
 
 /**
  * 全局唯一的工作台:材料满足且场上没有工作台时可通过卡片发起制作,
@@ -36,6 +37,14 @@ export class WorkbenchSystem {
   /** 场上是否已有工作台 */
   get exists(): boolean {
     return !!this.bench;
+  }
+
+  /** 玩家是否在的工作范围内(可打开制作面板) */
+  get isNear(): boolean {
+    if (!this.bench) return false;
+    this.scratch.copy(this.bench.group.position);
+    this.scratch.y = this.player.group.position.y;
+    return this.scratch.distanceTo(this.player.group.position) < NEAR_RANGE;
   }
 
   get isWorking(): boolean {

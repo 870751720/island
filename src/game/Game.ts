@@ -49,6 +49,8 @@ export type HudSnapshot = {
   canCraftWorkbench: boolean;
   workbenchCrafting: boolean;
   workbenchProgress: number;
+  /** 玩家在的工作范围内(工具按钮变为工作台,点击打开制作面板) */
+  nearWorkbench: boolean;
   eatName: string | null;
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
@@ -229,6 +231,14 @@ export class Game {
         this.survival.update(delta);
         this.collect.update(delta);
         this.crafting.update(delta);
+        // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
+        if (
+          this.crafting.isWorking &&
+          this.crafting.currentRecipe?.station === 'workbench' &&
+          !this.workbench.isNear
+        ) {
+          this.crafting.cancel();
+        }
         this.workbench.update(delta);
         this.eating.update(delta);
         this.fishing.update(
@@ -405,7 +415,16 @@ export class Game {
   craftTool(id: CraftId): boolean {
     if (this.workbench.isWorking) return false;
     const recipe = RECIPES.find((r) => r.id === id);
-    return recipe ? this.crafting.start(recipe) : false;
+    return recipe && recipe.station === 'hand' ? this.crafting.start(recipe) : false;
+  }
+
+  /** 在工作台发起制作(可选个数,逐个完成),玩家须在的工作范围内,返回是否成功开始 */
+  craftAtWorkbench(id: CraftId, count: number): boolean {
+    if (this.workbench.isWorking || !this.workbench.isNear) return false;
+    const recipe = RECIPES.find((r) => r.id === id);
+    return recipe && recipe.station === 'workbench'
+      ? this.crafting.start(recipe, count)
+      : false;
   }
 
   /** 发起工作台制作(完成后在原位放置),返回是否成功开始 */
@@ -460,6 +479,7 @@ export class Game {
       canCraftWorkbench: this.workbench.canStart(),
       workbenchCrafting: this.workbench.isWorking,
       workbenchProgress: this.workbench.getProgress() ?? 0,
+      nearWorkbench: this.workbench.isNear,
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
@@ -479,7 +499,8 @@ export class Game {
     if (this.survival.state.dead) {
       // 死亡时不显示
     } else if (this.crafting.isWorking) {
-      label = `制作中:${this.crafting.currentRecipe!.name}`;
+      const { total, current } = this.crafting.queueInfo;
+      label = `制作中:${this.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;
       progress = this.crafting.getProgress();
     } else if (this.workbench.isWorking) {
       label = '制作中:工作台';
