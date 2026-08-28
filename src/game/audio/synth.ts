@@ -99,7 +99,7 @@ function noiseBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-/** 噪声爆发:带通/低通滤波,用于砍击、水花、风等 */
+/** 噪声爆发:带通/低通滤波,用于砍击、水花、风等;q 越大滤波越共振,0.0001~20 */
 export function noiseBurst(
   ctx: AudioContext,
   dest: AudioNode,
@@ -107,7 +107,8 @@ export function noiseBurst(
   env: Envelope,
   filterType: BiquadFilterType,
   filterFreq: number,
-  endFreq?: number
+  endFreq?: number,
+  q = 1
 ): void {
   const src = ctx.createBufferSource();
   src.buffer = noiseBuffer(ctx);
@@ -119,7 +120,7 @@ export function noiseBurst(
   if (endFreq !== undefined) {
     filter.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), time + env.decay);
   }
-  filter.Q.value = 1;
+  filter.Q.value = q;
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, time);

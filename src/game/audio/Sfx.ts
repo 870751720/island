@@ -43,28 +43,22 @@ export class Sfx {
 
     switch (name) {
       case 'chop':
-        // 低频闷响 + 高频木屑噪声
-        tone(this.ctx, this.dest, detune(120), t, { attack: 0.004, decay: 0.12, peak: v }, 'sine', 60);
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.7 }, 'bandpass', 1800, 500);
+        // 斧刃入木「笃」:刃口劈裂的高频脆响 + 木体共振的短「咚」 + 低频冲量
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.001, decay: 0.025, peak: v * 0.6 }, 'highpass', 3200);
+        tone(this.ctx, this.dest, detune(900), t, { attack: 0.002, decay: 0.07, peak: v }, 'sine', 520);
+        tone(this.ctx, this.dest, detune(180), t, { attack: 0.004, decay: 0.11, peak: v * 0.85 }, 'sine', 90);
         break;
       case 'mine':
-        // 石头:短促高频「叮」+ 碎屑噪声
-        tone(this.ctx, this.dest, detune(900), t, { attack: 0.002, decay: 0.09, peak: v * 0.7 }, 'square', 500);
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.1, peak: v * 0.8 }, 'highpass', 2200);
+        // 镐击石「叮」:金属感高频振铃(两个失谐泛音)+ 石面崩裂脆声
+        tone(this.ctx, this.dest, detune(2500), t, { attack: 0.001, decay: 0.11, peak: v * 0.5 }, 'triangle');
+        tone(this.ctx, this.dest, detune(4000), t, { attack: 0.001, decay: 0.07, peak: v * 0.35 }, 'triangle');
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.001, decay: 0.035, peak: v * 0.7 }, 'highpass', 4200);
         break;
       case 'pick':
-        // 拨开草丛:一记软软的「唰」(频段下滑的带通噪声) + 叶片刮擦的细碎颗粒
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.03, decay: 0.16, peak: v * 0.6 }, 'bandpass', detune(2400), 700);
-        for (let i = 0; i < 6; i++) {
-          noiseBurst(
-            this.ctx,
-            this.dest,
-            t + 0.02 + Math.random() * 0.14,
-            { attack: 0.002, decay: 0.02 + Math.random() * 0.03, peak: v * (0.3 + Math.random() * 0.4) },
-            'bandpass',
-            2600 + Math.random() * 2400
-          );
-        }
+        // 手拨草丛「唰」:多层错位的软噪声叠出起伏,像草叶被拨动后回弹
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.04, decay: 0.14, peak: v * 0.5 }, 'bandpass', detune(1500), 800, 0.8);
+        noiseBurst(this.ctx, this.dest, t + 0.07, { attack: 0.05, decay: 0.18, peak: v * 0.45 }, 'bandpass', detune(2200), 1000, 0.8);
+        noiseBurst(this.ctx, this.dest, t + 0.15, { attack: 0.04, decay: 0.12, peak: v * 0.3 }, 'bandpass', detune(1100), 600, 0.8);
         break;
       case 'knock':
         tone(this.ctx, this.dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
