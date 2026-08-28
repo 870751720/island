@@ -245,12 +245,17 @@ export class Birds implements Updatable {
           break;
         case 'fly':
           this.flyToward(bird, bird.target, CRUISE_SPEED, delta);
-          // 高度向巡航高度平滑过渡(带爬升速度上限,起飞时也是渐升)
-          const desiredY = this.terrain.getHeight(bird.pos.x, bird.pos.z) + bird.alt;
+          // 高度向巡航高度平滑过渡(带爬升速度上限,起飞时也是渐升);
+          // 取前方一段航程的地形最高点,上坡前提前爬升而不是等撞上山再拉起
+          const aheadX = bird.pos.x + Math.sin(bird.heading) * 3;
+          const aheadZ = bird.pos.z + Math.cos(bird.heading) * 3;
+          const groundAhead = Math.max(
+            this.terrain.getHeight(bird.pos.x, bird.pos.z),
+            this.terrain.getHeight(aheadX, aheadZ)
+          );
+          const desiredY = groundAhead + bird.alt;
           bird.pos.y += THREE.MathUtils.clamp(desiredY - bird.pos.y, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
           bird.pos.y += Math.sin(elapsed * 2 + bird.phase) * 0.006;
-          // 跨过海面/水洼上空时不贴水:高度不低于水面加安全余量
-          bird.pos.y = Math.max(bird.pos.y, this.terrain.getWaterLevel(bird.pos.x, bird.pos.z) + 0.6);
           if (Math.hypot(bird.target.x - bird.pos.x, bird.target.z - bird.pos.z) < 1.5) {
             if (Math.random() < 0.35) {
               bird.state = 'land';
@@ -266,8 +271,6 @@ export class Birds implements Updatable {
           // 朝落点滑降
           const drop = bird.target.y + 0.12 - bird.pos.y;
           bird.pos.y += THREE.MathUtils.clamp(drop, -CLIMB_SPEED * delta, CLIMB_SPEED * delta);
-          // 途中掠过水面时保持在水面上方
-          bird.pos.y = Math.max(bird.pos.y, this.terrain.getWaterLevel(bird.pos.x, bird.pos.z) + 0.6);
           if (bird.pos.distanceTo(bird.target) < 0.35) {
             bird.pos.copy(bird.target);
             bird.state = 'walk';
@@ -303,6 +306,16 @@ export class Birds implements Updatable {
             bird.stateTime = 0;
           }
           break;
+      }
+
+      if (bird.state !== 'walk') {
+        // 飞行兜底:无论转向、滑降还是惊飞,绝不钻到地表或水面以下
+        const minY =
+          Math.max(
+            this.terrain.getHeight(bird.pos.x, bird.pos.z),
+            this.terrain.getWaterLevel(bird.pos.x, bird.pos.z)
+          ) + 0.5;
+        bird.pos.y = Math.max(bird.pos.y, minY);
       }
 
       this.animate(bird, elapsed);
