@@ -160,10 +160,10 @@ export class IslandTerrain {
     );
   }
 
-  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,后续游泳复用) */
+  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,后续游泳复用);边界对齐可见水面圆盘 */
   isInWater(pos: THREE.Vector3): boolean {
     return this.waterAreas.some(
-      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius
+      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius * 0.96
     );
   }
 
