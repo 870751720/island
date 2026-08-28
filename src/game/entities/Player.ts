@@ -22,7 +22,7 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-/** 作业动画类型:砍树/凿石/拾取/喝水/钓鱼 */
+/** 作业动画类型:砍树/凿石/拾取/喝水/钓鱼(抛竿/持竿) */
 export type ActionType =
   | 'chop'
   | 'mine'
@@ -30,24 +30,23 @@ export type ActionType =
   | 'drink'
   | 'craft'
   | 'eat_berry'
+  | 'cast'
   | 'fish';
 
 /** 手持工具:空手/斧子/镐子/鱼竿 */
 export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod';
 
 function makeFishingRodModel(): THREE.Group {
-  // 鱼竿:细长树枝 + 竿梢垂下的钓线
+  // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
   const g = new THREE.Group();
   const rod = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.035, 0.85, 5),
+    new THREE.CylinderGeometry(0.025, 0.04, 0.85, 5),
     clayMaterial('#8a6239')
   );
-  const line = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.008, 0.008, 0.3, 3),
-    clayMaterial('#e8e4d8')
-  );
-  line.position.set(0, 0.27, 0.06);
-  g.add(rod, line);
+  const tip = new THREE.Object3D();
+  tip.position.y = 0.42;
+  g.add(rod, tip);
+  g.userData.tip = tip;
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -180,6 +179,14 @@ export class Player implements Updatable {
     }
   }
 
+  /** 手持鱼竿时取竿梢世界坐标(钓线起点),未持竿返回 false */
+  getRodTip(out: THREE.Vector3): boolean {
+    const rod = this.toolModels.fishingrod;
+    if (!rod || this.handTool !== 'fishingrod') return false;
+    (rod.userData.tip as THREE.Object3D).getWorldPosition(out);
+    return true;
+  }
+
   setAction(action: ActionType | null): void {
     this.action = action;
   }
@@ -295,6 +302,13 @@ export class Player implements Updatable {
         const s = Math.sin(t * 1.5);
         this.arms[1].rotation.x = s * 1.1 - 1.1;
         this.arms[0].rotation.x = -s * 0.6 - 0.5;
+        break;
+      }
+      case 'cast': {
+        // 抛竿:右臂从身后高位向前下方挥出,身体随挥动前倾
+        this.group.rotation.x = 0.15;
+        this.arms[1].rotation.x = -2.6 + (Math.sin(t * 0.9) + 1) * 1.0;
+        this.arms[0].rotation.x = -0.3;
         break;
       }
       case 'fish': {

@@ -14,7 +14,9 @@ const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边判定:站在海平面以上不高的滩地上即可下竿 */
 const BEACH_BAND = 0.55;
 /** 从脚下向水面方向探测浮漂落点的最远距离 */
-const CAST_RANGE = 2.6;
+const CAST_RANGE = 3.2;
+/** 找到水后浮漂再往水中央多探一段,避免落在边缘 */
+const CAST_INSET = 0.7;
 
 export type FishingState = 'casting' | 'waiting' | 'bite' | 'catching';
 
@@ -50,8 +52,11 @@ export class FishingSystem {
   private waitTotal = 0;
   private rippleTimer = 0;
   private bobber: THREE.Group | null = null;
+  private line: THREE.Mesh | null = null;
   private fish: THREE.Mesh | null = null;
   private scratch = new THREE.Vector3();
+  private scratch2 = new THREE.Vector3();
+  private up = new THREE.Vector3(0, 1, 0);
 
   constructor(
     private scene: THREE.Scene,
@@ -108,6 +113,12 @@ export class FishingSystem {
     this.bobber = makeBobber();
     this.bobber.visible = false;
     this.scene.add(this.bobber);
+    // 钓线:细圆柱,每帧从竿梢拉到浮漂
+    this.line = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, 1, 4),
+      new THREE.MeshBasicMaterial({ color: '#f5f2e8' })
+    );
+    this.scene.add(this.line);
     this.bobberTarget = target;
     return true;
   }
@@ -124,6 +135,7 @@ export class FishingSystem {
     this.fish.position.copy(this.bobberTarget);
     this.scene.add(this.fish);
     this.removeBobber();
+    this.removeLine();
     return true;
   }
 
@@ -134,8 +146,9 @@ export class FishingSystem {
       this.stop();
       return;
     }
-    this.player.setAction('fish');
+    this.player.setAction(this.state === 'casting' ? 'cast' : 'fish');
     this.timer += delta;
+    if (this.state !== 'catching') this.updateLine();
 
     switch (this.state) {
       case 'casting': {
@@ -198,6 +211,7 @@ export class FishingSystem {
           this.scene.remove(this.fish!);
           this.fish = null;
           this.state = null;
+          this.removeLine();
           if (added > 0) {
             this.fx.burst(p, '#5fa8d3', 10);
           } else {
@@ -213,6 +227,7 @@ export class FishingSystem {
   private stop(): void {
     this.state = null;
     this.removeBobber();
+    this.removeLine();
     if (this.fish) {
       this.scene.remove(this.fish);
       this.fish = null;
@@ -223,6 +238,26 @@ export class FishingSystem {
     if (!this.bobber) return;
     this.scene.remove(this.bobber);
     this.bobber = null;
+  }
+
+  private removeLine(): void {
+    if (!this.line) return;
+    this.scene.remove(this.line);
+    this.line.geometry.dispose();
+    this.line = null;
+  }
+
+  /** 钓线从竿梢拉到浮漂(抛竿飞行中也跟随,视觉上是甩出去的线) */
+  private updateLine(): void {
+    if (!this.line || !this.bobber || !this.bobber.visible) return;
+    if (!this.player.getRodTip(this.scratch2)) return;
+    const end = this.bobber.position;
+    const dir = this.scratch.copy(end).sub(this.scratch2);
+    const len = dir.length();
+    if (len < 0.01) return;
+    this.line.position.copy(this.scratch2).addScaledVector(dir, 0.5);
+    this.line.scale.set(1, len, 1);
+    this.line.quaternion.setFromUnitVectors(this.up, dir.normalize());
   }
 
   /** 从玩家脚下朝水面探测浮漂落点:优先朝最近水洼,海边则朝岛外 */
@@ -250,6 +285,13 @@ export class FishingSystem {
       const ground = this.terrain.getHeight(x, z);
       const water = this.terrain.getWaterLevel(x, z);
       if (ground < water) {
+        // 落点再往水中央多探一段,别贴着岸线
+        const inset = Math.min(d + CAST_INSET, CAST_RANGE);
+        const ix = p.x + dir.x * inset;
+        const iz = p.z + dir.z * inset;
+        if (this.terrain.getHeight(ix, iz) < this.terrain.getWaterLevel(ix, iz)) {
+          return new THREE.Vector3(ix, this.terrain.getWaterLevel(ix, iz), iz);
+        }
         return new THREE.Vector3(x, water, z);
       }
     }
