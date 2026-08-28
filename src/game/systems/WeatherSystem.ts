@@ -5,18 +5,19 @@ export type WeatherType = 'sunny' | 'rain';
 const MIN_DURATION = 50; // 一种天气持续的最短/最长秒数
 const MAX_DURATION = 110;
 const TRANSITION = 10; // 天气强度过渡秒数
+const RAIN_CHANCE = 1 / 20; // 每次天气轮换时切换为雨天的概率
 
 const RAIN_SKY = new THREE.Color('#5f7280');
 const RAIN_SUN = new THREE.Color('#8fa3b4');
 
 /**
- * 天气系统:晴/雨随机轮换,强度平滑过渡。
+ * 天气系统:晴/雨随机轮换(每次轮换仅小概率切到雨天),强度平滑过渡。
  * 在昼夜系统之后执行,对天空色、灯光做一层调制;
  * 雨天提供口渴消耗系数(可接雨水)。
  */
 export class WeatherSystem {
   readonly state: { type: WeatherType; label: string };
-  private type: WeatherType = Math.random() < 0.5 ? 'sunny' : 'rain';
+  private type: WeatherType = Math.random() < RAIN_CHANCE ? 'rain' : 'sunny';
   private timer = this.pickDuration();
   /** 当前雨强度(过渡插值),输出给粒子 */
   private rainAmount = this.type === 'rain' ? 1 : 0;
@@ -62,7 +63,7 @@ export class WeatherSystem {
 
   private switchWeather(): void {
     this.timer = this.pickDuration();
-    this.type = this.type === 'rain' ? 'sunny' : 'rain';
+    this.type = Math.random() < RAIN_CHANCE ? 'rain' : 'sunny';
     this.label = this.type === 'rain' ? '🌧️ 雨' : '☀️ 晴';
     this.state.type = this.type;
     this.state.label = this.label;
