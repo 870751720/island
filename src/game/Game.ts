@@ -3,6 +3,7 @@ import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
+import { Birds } from './entities/Birds';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -99,6 +100,7 @@ export class Game {
   private terrain: IslandTerrain;
   private crabs: Crabs;
   private butterflies: Butterflies;
+  private birds: Birds;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
@@ -161,6 +163,7 @@ export class Game {
     this.scene.add(this.player.group);
     this.crabs = new Crabs(this.scene, terrain, this.player);
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
+    this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
@@ -229,6 +232,7 @@ export class Game {
         this.terrain.updateWater(elapsed);
         this.crabs.update(delta, elapsed);
         this.butterflies.update(delta, elapsed);
+        this.birds.update(delta, elapsed);
         this.props.update(delta);
         this.fx.update(delta);
         this.waterFx.update(delta);
