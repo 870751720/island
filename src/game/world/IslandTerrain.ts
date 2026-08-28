@@ -160,6 +160,14 @@ export class IslandTerrain {
     );
   }
 
+  /** 玩家是否站在水里(脚低于水面且在水洼范围内) */
+  isInWater(pos: THREE.Vector3): boolean {
+    return this.waterAreas.some(
+      (w) =>
+        Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius && pos.y < w.waterY
+    );
+  }
+
   getHeight(x: number, z: number): number {
     return this.heightAt(x, z);
   }
