@@ -19,7 +19,7 @@ export type SfxName =
 const VOL: Record<SfxName, number> = {
   chop: 0.5,
   mine: 0.45,
-  pick: 0.3,
+  pick: 0.5,
   knock: 0.4,
   munch: 0.35,
   drink: 0.4,
@@ -53,9 +53,9 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.1, peak: v * 0.8 }, 'highpass', 2200);
         break;
       case 'pick':
-        // 草叶沙沙:两段错开的擦声
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.008, decay: 0.16, peak: v }, 'bandpass', detune(1600), 600);
-        noiseBurst(this.ctx, this.dest, t + 0.08, { attack: 0.008, decay: 0.14, peak: v * 0.7 }, 'bandpass', detune(2200), 800);
+        // 草叶沙沙:两段错开的擦声,频段偏低保证手机外放可闻
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.008, decay: 0.18, peak: v }, 'bandpass', detune(900), 350);
+        noiseBurst(this.ctx, this.dest, t + 0.08, { attack: 0.008, decay: 0.16, peak: v * 0.8 }, 'bandpass', detune(1300), 450);
         break;
       case 'knock':
         tone(this.ctx, this.dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
@@ -94,7 +94,9 @@ export class Sfx {
         pianoTone(this.ctx, this.dest, midiToFreq(84), t + 0.02, 0.5, v * 0.7);
         break;
       case 'pickup':
-        pianoTone(this.ctx, this.dest, midiToFreq(detune(81)), t, 0.4, v);
+        // 清脆双音:两声快速上行,收获的奖励感
+        pianoTone(this.ctx, this.dest, midiToFreq(79), t, 0.35, v);
+        pianoTone(this.ctx, this.dest, midiToFreq(86), t + 0.09, 0.5, v);
         break;
       case 'drop':
         tone(this.ctx, this.dest, detune(160), t, { attack: 0.004, decay: 0.14, peak: v }, 'sine', 70);
