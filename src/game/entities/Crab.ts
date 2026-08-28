@@ -97,7 +97,10 @@ function makeCrabModel(): CrabModel {
     claws.push(arm, pincer);
   }
 
-  return { group, legs, claws, body };
+  const model: CrabModel = { group, legs, claws, body };
+  // 螃蟹应明显小于玩家,整体缩小后投影/受击范围同步缩小
+  group.scale.setScalar(0.65);
+  return model;
 }
 
 type Crab = {

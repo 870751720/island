@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   loadAudioSettings,
   saveAudioSettings,
@@ -10,6 +10,9 @@ import {
 export function StartScreen({ onStart }: { onStart: () => void }) {
   const [settings, setSettings] = useState<AudioSettings>(loadAudioSettings);
   const [showSettings, setShowSettings] = useState(false);
+  // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,先禁用避免「点了没反应」
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   const update = (patch: Partial<AudioSettings>) => {
     const next = { ...settings, ...patch };
@@ -30,8 +33,8 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
       <div className="start-panel">
         <h1 className="start-title">荒岛求生</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
-        <button className="start-button" onClick={onStart}>
-          开始游戏
+        <button className="start-button" disabled={!ready} onClick={onStart}>
+          {ready ? '开始游戏' : '加载中…'}
         </button>
         <button className="settings-toggle" onClick={() => setShowSettings((v) => !v)}>
           ⚙️ 声音设置
@@ -174,6 +177,11 @@ const css = `
 .start-button:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #c97c12;
+}
+.start-button:disabled {
+  background: linear-gradient(#c9c2b4, #a89f8d);
+  box-shadow: 0 6px 0 #8a8272;
+  cursor: wait;
 }
 .settings-toggle {
   margin-top: 14px;
