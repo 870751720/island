@@ -23,9 +23,8 @@ function createNoise(seed: number) {
 const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
-/** 水下地面按深度渐变:沙色 → 浅青 → 深青,表现浅滩到深水 */
-const SHALLOW_SEABED = new THREE.Color('#a8dcc9');
-const DEEP_SEABED = new THREE.Color('#4f9d9f');
+/** 水下的湿沙:沙色加深偏棕,不出现蓝色 */
+const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
 /** 一处下挖的水域:圆形 carve + 水面圆盘 */
 type WaterArea = {
   x: number;
@@ -121,16 +120,14 @@ export class IslandTerrain {
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
       pos.setY(i, y);
-      let c: THREE.Color;
-      if (y >= 0.05) {
-        c = y < 1.8 ? GRASS : DARK_GRASS;
-      } else {
-        // 水下深度:0.5 米内沙色渐入浅青,更深再渐向深青
-        const depth = 0.05 - y;
-        c = SAND.clone();
-        c.lerp(SHALLOW_SEABED, THREE.MathUtils.clamp(depth / 0.5, 0, 1));
-        c.lerp(DEEP_SEABED, THREE.MathUtils.clamp((depth - 0.5) / 1.5, 0, 1));
-      }
+      const c =
+        y < this.waterLevelAt(x, z) - 0.02
+          ? WET_SAND
+          : y < 0.05
+            ? SAND
+            : y < 1.8
+              ? GRASS
+              : DARK_GRASS;
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
@@ -185,6 +182,10 @@ export class IslandTerrain {
 
   /** 某处的水面高度:在水洼内返回洼面,否则为海面 */
   getWaterLevel(x: number, z: number): number {
+    return this.waterLevelAt(x, z);
+  }
+
+  private waterLevelAt(x: number, z: number): number {
     for (const w of this.waterAreas) {
       if (Math.hypot(x - w.x, z - w.z) < w.radius * 0.96) return w.waterY;
     }

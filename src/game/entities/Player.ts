@@ -6,8 +6,8 @@ import type { WaterFx } from '../fx/WaterFx';
 
 const MOVE_SPEED = 5;
 const SWIM_SPEED = 2.6;
-/** 水深超过该值才进入游泳,更浅处仍是涉水走路 */
-const SWIM_DEPTH = 0.35;
+/** 水深超过该值才进入游泳(更浅处涉水,水可漫过裤腿);裤腿高约 0.55 */
+const SWIM_DEPTH = 0.6;
 /** 游泳时身体没入水面的深度 */
 const FLOAT_DEPTH = 0.55;
 
