@@ -4,7 +4,7 @@ import type { SurvivalSystem } from './SurvivalSystem';
 
 const DRINK_TIME = 2; // 一轮喝水(秒)
 const THIRST_PER_ROUND = 40;
-const DRINK_RANGE = 1.5; // 距水边
+const DRINK_RANGE = 1; // 距水边
 
 /** 靠近水洼岸边站定自动喝水恢复口渴;站在水里或有采集作业时让位 */
 export class WaterSystem {
