@@ -21,13 +21,13 @@ const VOL: Record<SfxName, number> = {
   mine: 0.45,
   pick: 0.5,
   knock: 0.4,
-  munch: 0.35,
-  drink: 0.4,
+  munch: 0.5,
+  drink: 0.55,
   whoosh: 0.4,
   splash: 0.45,
   bite: 0.6,
   pickup: 0.4,
-  drop: 0.35,
+  drop: 0.5,
   success: 0.45,
   death: 0.5,
 };
@@ -53,16 +53,16 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.1, peak: v * 0.8 }, 'highpass', 2200);
         break;
       case 'pick':
-        // 沙沙声 =「shhh」轻扫气声 + 叶片折断的脆嚓颗粒,干爽中高频,不带低频闷响
-        noiseBurst(this.ctx, this.dest, t, { attack: 0.09, decay: 0.2, peak: v * 0.55 }, 'bandpass', detune(900), 2600);
-        for (let i = 0; i < 10; i++) {
+        // 拨开草丛:一记软软的「唰」(频段下滑的带通噪声) + 叶片刮擦的细碎颗粒
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.03, decay: 0.16, peak: v * 0.6 }, 'bandpass', detune(2400), 700);
+        for (let i = 0; i < 6; i++) {
           noiseBurst(
             this.ctx,
             this.dest,
-            t + 0.05 + Math.random() * 0.22,
-            { attack: 0.001, decay: 0.012 + Math.random() * 0.025, peak: v * (0.4 + Math.random() * 0.5) },
+            t + 0.02 + Math.random() * 0.14,
+            { attack: 0.002, decay: 0.02 + Math.random() * 0.03, peak: v * (0.3 + Math.random() * 0.4) },
             'bandpass',
-            2000 + Math.random() * 3000
+            2600 + Math.random() * 2400
           );
         }
         break;
@@ -71,7 +71,7 @@ export class Sfx {
         noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.05, peak: v * 0.5 }, 'bandpass', 2600, 1200);
         break;
       case 'munch':
-        // 三连「咔嚓」
+        // 三连「咔嚓」:频段上移到手机外放可闻的脆响区
         for (let i = 0; i < 3; i++) {
           noiseBurst(
             this.ctx,
@@ -79,15 +79,16 @@ export class Sfx {
             t + i * 0.09,
             { attack: 0.004, decay: 0.07, peak: v * (1 - i * 0.2) },
             'bandpass',
-            detune(1100),
-            500
+            detune(2400),
+            900
           );
         }
         break;
       case 'drink':
-        // 两声「咕咚」:下滑正弦
+        // 两声「咕咚」:中频下滑正弦 + 吞咽的高频轻响,保证外放可闻
         for (let i = 0; i < 2; i++) {
-          tone(this.ctx, this.dest, detune(340), t + i * 0.16, { attack: 0.01, decay: 0.14, peak: v * 0.8 }, 'sine', 160);
+          tone(this.ctx, this.dest, detune(620), t + i * 0.16, { attack: 0.01, decay: 0.14, peak: v * 0.8 }, 'sine', 300);
+          noiseBurst(this.ctx, this.dest, t + i * 0.16 + 0.1, { attack: 0.004, decay: 0.04, peak: v * 0.35 }, 'bandpass', 1800, 800);
         }
         break;
       case 'whoosh':
@@ -108,7 +109,9 @@ export class Sfx {
         pianoTone(this.ctx, this.dest, midiToFreq(86), t + 0.09, 0.5, v);
         break;
       case 'drop':
-        tone(this.ctx, this.dest, detune(160), t, { attack: 0.004, decay: 0.14, peak: v }, 'sine', 70);
+        // 落地「嗒」:中频闷响 + 短促接触噪声,避开手机放不出的低频
+        tone(this.ctx, this.dest, detune(420), t, { attack: 0.004, decay: 0.12, peak: v }, 'sine', 200);
+        noiseBurst(this.ctx, this.dest, t, { attack: 0.002, decay: 0.04, peak: v * 0.5 }, 'bandpass', 2000, 900);
         break;
       case 'success':
         // 完成小琶音:do-mi-so-高do
