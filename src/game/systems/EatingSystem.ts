@@ -21,7 +21,7 @@ export class EatingSystem {
   ) {}
 
   start(food: Food): boolean {
-    if (this.food || this.inventory.state[food.kind] <= 0) return false;
+    if (this.food || this.inventory.count(food.kind) <= 0) return false;
     this.food = food;
     this.timer = 0;
     this.tickTimer = 0;

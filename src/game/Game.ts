@@ -6,6 +6,7 @@ import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
+import { DropSystem } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
@@ -16,7 +17,7 @@ import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
-import { Inventory } from './systems/Inventory';
+import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
@@ -32,6 +33,9 @@ export type HudSnapshot = {
   gravel: number;
   stone: number;
   berry: number;
+  /** 背包格子快照(空格为 null)与容量 */
+  slots: InventorySlot[];
+  capacity: number;
   axe: boolean;
   pickaxe: boolean;
   tool: HandTool;
@@ -66,6 +70,7 @@ export class Game {
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private eating: EatingSystem;
+  private drops: DropSystem;
   private dayNight: DayNightSystem;
   private weather: WeatherSystem;
   private rain: Rain;
@@ -154,6 +159,7 @@ export class Game {
       this.fx
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx);
+    this.drops = new DropSystem(this.scene, this.player, this.inventory, this.terrain, this.fx);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
     // 天气在昼夜之后更新,对光照与天空做调制
@@ -183,6 +189,7 @@ export class Game {
         this.crafting.update(delta);
         this.workbench.update(delta);
         this.eating.update(delta);
+        this.drops.update(delta, elapsed);
         this.updateAutoEquip(delta);
         this.water.update(
       delta,
@@ -279,13 +286,22 @@ export class Game {
     }
   }
 
-  /** 吃背包里最前面的食物(定时进食动作),返回是否成功开始 */
-  eatFood(): boolean {
+  /** 吃食物(定时进食动作):指定种类则吃该种,否则吃背包里最前面的,返回是否成功开始 */
+  eatFood(kind?: ResourceKind): boolean {
     if (this.crafting.isWorking || this.workbench.isWorking || this.eating.isWorking) {
       return false;
     }
-    const food = FOODS.find((f) => this.inventory.state[f.kind] > 0);
+    const food = kind
+      ? FOODS.find((f) => f.kind === kind)
+      : FOODS.find((f) => this.inventory.count(f.kind) > 0);
     return food ? this.eating.start(food) : false;
+  }
+
+  /** 丢弃一个道具到玩家附近的地上 */
+  dropItem(kind: ResourceKind): boolean {
+    if (!this.inventory.remove(kind, 1)) return false;
+    this.drops.drop(kind, 1);
+    return true;
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
@@ -310,6 +326,7 @@ export class Game {
     this.resizeObserver.disconnect();
     window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
+    this.drops.dispose();
     this.rain.dispose();
     this.footprints.dispose();
     this.renderer.dispose();
@@ -322,10 +339,12 @@ export class Game {
     this.hudTimer = 0;
     this.onHud({
       ...this.survival.state,
-      wood: this.inventory.state.wood,
-      gravel: this.inventory.state.gravel,
-      stone: this.inventory.state.stone,
-      berry: this.inventory.state.berry,
+      wood: this.inventory.count('wood'),
+      gravel: this.inventory.count('gravel'),
+      stone: this.inventory.count('stone'),
+      berry: this.inventory.count('berry'),
+      slots: this.inventory.snapshot(),
+      capacity: this.inventory.capacity,
       axe: this.tools.axe,
       pickaxe: this.tools.pickaxe,
       tool: this.player.currentTool,

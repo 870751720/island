@@ -28,7 +28,15 @@ export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKin
 }
 
 export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
-  return hasCost(recipe.cost, inventory.state);
+  return hasCost(
+    recipe.cost,
+    Object.fromEntries(
+      (Object.keys(recipe.cost) as ResourceKind[]).map((kind) => [
+        kind,
+        inventory.count(kind),
+      ])
+    )
+  );
 }
 
 export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boolean {

@@ -19,6 +19,8 @@ const INITIAL_HUD: HudSnapshot = {
   gravel: 0,
   stone: 0,
   berry: 0,
+  slots: [],
+  capacity: 10,
   axe: false,
   pickaxe: false,
   tool: 'hand' as const,
@@ -78,9 +80,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       <Backpack
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}
-        items={hud}
-        onEatFood={() => gameRef.current?.eatFood()}
-        onCraft={(id) => gameRef.current?.craftTool(id)}
+        hud={hud}
+        onUseItem={(kind) => {
+          gameRef.current?.eatFood(kind);
+          setBackpackOpen(false);
+        }}
+        onDropItem={(kind) => gameRef.current?.dropItem(kind)}
       />
       {!hud.dead && (
         <>

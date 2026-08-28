@@ -1,48 +1,82 @@
 'use client';
 
+import { useState } from 'react';
 import type { HudSnapshot } from '@/game/Game';
-import { RECIPES, hasCost, type Recipe } from '@/game/systems/Crafting';
+import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
+import { ITEMS } from '@/game/systems/Items';
+import { FOODS } from '@/game/systems/Food';
 
 type Props = {
   open: boolean;
   onToggle: () => void;
-  items: HudSnapshot;
-  onEatFood: () => void;
-  onCraft: (id: 'axe' | 'pickaxe') => void;
+  hud: HudSnapshot;
+  /** 使用(吃)该食物道具,由外层触发进食并关闭背包 */
+  onUseItem: (kind: ResourceKind) => void;
+  /** 丢弃一个该道具到地上 */
+  onDropItem: (kind: ResourceKind) => void;
 };
 
-const RESOURCES: { kind: 'wood' | 'gravel' | 'stone' | 'berry'; icon: string; name: string }[] = [
-  { kind: 'wood', icon: '🪵', name: '木材' },
-  { kind: 'gravel', icon: '🪨', name: '碎石' },
-  { kind: 'stone', icon: '🪨', name: '石头' },
-  { kind: 'berry', icon: '🍒', name: '浆果' },
-];
+function isFood(kind: ResourceKind): boolean {
+  return FOODS.some((f) => f.kind === kind);
+}
 
-function rowStyle(): React.CSSProperties {
+const SLOT_SIZE = 52;
+const SLOT_GAP = 8;
+const COLUMNS = 5;
+
+function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
   return {
+    width: SLOT_SIZE,
+    height: SLOT_SIZE,
+    borderRadius: 10,
+    border: selected ? '2px solid #4caf50' : '2px solid rgba(0,0,0,0.12)',
+    background: filled ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.05)',
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '6px 0',
-    borderBottom: '1px solid rgba(0,0,0,0.08)',
+    justifyContent: 'center',
+    fontSize: 24,
+    position: 'relative',
+    touchAction: 'none',
+    userSelect: 'none',
+    boxSizing: 'border-box',
   };
 }
 
-function actionButton(disabled: boolean, label: string, onPress: () => void): React.ReactNode {
+function countBadge(count: number): React.ReactNode {
+  return (
+    <span
+      style={{
+        position: 'absolute',
+        right: 3,
+        bottom: 1,
+        fontSize: 11,
+        fontWeight: 700,
+        color: '#555',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      ×{count}
+    </span>
+  );
+}
+
+function actionButton(disabled: boolean, label: string, color: string, onPress: () => void): React.ReactNode {
   return (
     <button
       disabled={disabled}
       onPointerDown={(e) => {
         e.preventDefault();
-        onPress();
+        if (!disabled) onPress();
       }}
       style={{
-        padding: '6px 14px',
-        borderRadius: 8,
+        flex: 1,
+        padding: '10px 0',
+        borderRadius: 10,
         border: 'none',
-        background: disabled ? '#bbb' : '#4caf50',
+        background: disabled ? '#bbb' : color,
         color: '#fff',
-        fontSize: 14,
+        fontSize: 15,
+        fontWeight: 700,
         touchAction: 'none',
         userSelect: 'none',
       }}
@@ -52,7 +86,12 @@ function actionButton(disabled: boolean, label: string, onPress: () => void): Re
   );
 }
 
-export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
+/** 背包:格子制(相同道具叠加,默认 10 格),点击道具查看描述,可丢弃或使用食物 */
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem }: Props) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
+  const selectedDef = selected ? ITEMS[selected.kind] : null;
+
   return (
     <>
       <button
@@ -81,13 +120,13 @@ export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
         <div
           style={{
             position: 'absolute',
-            // 按钮已移到右中侧工具按钮上方,面板在按钮左侧展开避免遮挡工具按钮
-            top: 'calc(50% - 120px)',
+            // 按钮在右中侧工具按钮上方,面板在按钮左侧展开避免遮挡工具按钮
+            top: 'calc(50% - 140px)',
             right: 'max(100px, calc(env(safe-area-inset-right) + 100px))',
-            width: 'min(78vw, 280px)',
-            maxHeight: '70vh',
+            width: `min(80vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 12}px)`,
+            maxHeight: '78vh',
             overflowY: 'auto',
-            padding: '12px 14px',
+            padding: '12px 12px',
             background: 'rgba(255,255,255,0.92)',
             borderRadius: 12,
             fontFamily: 'sans-serif',
@@ -96,37 +135,68 @@ export function Backpack({ open, onToggle, items, onEatFood, onCraft }: Props) {
             boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>背包</div>
-          {RESOURCES.map(({ kind, icon, name }) => (
-            <div key={kind} style={rowStyle()}>
-              <span style={{ fontSize: 20 }}>{icon}</span>
-              <span style={{ flex: 1 }}>{name}</span>
-              <span>× {items[kind]}</span>
-              {kind === 'berry' &&
-                actionButton(items.berry <= 0, '吃', onEatFood)}
-            </div>
-          ))}
-          <div style={{ fontWeight: 700, margin: '10px 0 4px' }}>合成</div>
-          {RECIPES.map((recipe: Recipe) => {
-            const owned = items[recipe.id];
-            return (
-              <div key={recipe.id} style={rowStyle()}>
-                <span style={{ fontSize: 20 }}>{recipe.icon}</span>
-                <span style={{ flex: 1 }}>{recipe.name}</span>
-                {owned ? (
-                  <span style={{ color: '#4caf50', fontWeight: 700 }}>已拥有</span>
-                ) : (
-                  actionButton(
-                    !hasCost(recipe.cost, items),
-                    Object.entries(recipe.cost)
-                      .map(([k, n]) => `${n}${k === 'wood' ? '木' : '碎'} `)
-                      .join(''),
-                    () => onCraft(recipe.id)
-                  )
-                )}
+          <div style={{ fontWeight: 700, margin: '0 2px 8px' }}>背包</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
+              gap: SLOT_GAP,
+              justifyContent: 'center',
+            }}
+          >
+            {Array.from({ length: hud.capacity }, (_, i) => {
+              const slot = hud.slots[i];
+              return (
+                <div
+                  key={i}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    if (slot) setSelectedIndex(selectedIndex === i ? null : i);
+                  }}
+                  style={slotStyle(!!slot, selectedIndex === i)}
+                >
+                  {slot && (
+                    <>
+                      <span>{ITEMS[slot.kind].icon}</span>
+                      {countBadge(slot.count)}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {selected && selectedDef && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: '10px 8px 8px',
+                borderTop: '1px solid rgba(0,0,0,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 24 }}>{selectedDef.icon}</span>
+                <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
+                <span style={{ color: '#888' }}>×{selected.count}</span>
               </div>
-            );
-          })}
+              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+                {selectedDef.description}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {isFood(selectedDef.kind) &&
+                  actionButton(false, '使用', '#4caf50', () => {
+                    setSelectedIndex(null);
+                    onUseItem(selectedDef.kind);
+                  })}
+                {actionButton(false, '丢弃', '#e67e22', () => {
+                  onDropItem(selectedDef.kind);
+                  setSelectedIndex(null);
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>

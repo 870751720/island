@@ -55,8 +55,8 @@ export class WorkbenchSystem {
   /** 是否满足发起条件(材料齐 + 没有工作台 + 当前位置可摆放) */
   canStart(): boolean {
     if (this.exists || this.isWorking) return false;
-    if (this.inventory.state.stone < (WORKBENCH_COST.stone ?? 0)) return false;
-    if (this.inventory.state.wood < (WORKBENCH_COST.wood ?? 0)) return false;
+    if (this.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
+    if (this.inventory.count('wood') < (WORKBENCH_COST.wood ?? 0)) return false;
     return this.canPlace();
   }
 
