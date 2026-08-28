@@ -8,6 +8,8 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { EatPrompt } from './EatPrompt';
+import { StartScreen } from './StartScreen';
+import { DeathScreen } from './DeathScreen';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -37,8 +39,10 @@ export function GameCanvas() {
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
+    if (!playing) return;
     const container = containerRef.current;
     if (!container) return;
     const game = new Game(
@@ -61,7 +65,13 @@ export function GameCanvas() {
       game.dispose();
       gameRef.current = null;
     };
-  }, []);
+  }, [playing]);
+
+  const handleConfirmDeath = () => {
+    setPlaying(false);
+    setBackpackOpen(false);
+    setHud(INITIAL_HUD);
+  };
 
   return (
     <div
@@ -76,6 +86,8 @@ export function GameCanvas() {
         onEatFood={() => gameRef.current?.eatFood()}
         onCraft={(id) => gameRef.current?.craftTool(id)}
       />
+      {!playing && <StartScreen onStart={() => setPlaying(true)} />}
+      {playing && hud.dead && <DeathScreen onConfirm={handleConfirmDeath} />}
       {!hud.dead && (
         <>
           <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />

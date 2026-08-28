@@ -41,23 +41,6 @@ export function Hud({ hud }: { hud: HudSnapshot }) {
           </span>
         </div>
       </div>
-      {hud.dead && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,0,0,0.55)',
-            color: '#fff',
-            fontFamily: 'sans-serif',
-            fontSize: 'clamp(20px, 6vw, 32px)',
-          }}
-        >
-          你没能活下来…刷新页面重新开始
-        </div>
-      )}
     </>
   );
 }
