@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
+import { Crabs } from './entities/Crab';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -95,6 +96,7 @@ export class Game {
   private rain: Rain;
   private rainImpact: RainImpact;
   private terrain: IslandTerrain;
+  private crabs: Crabs;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
@@ -155,6 +157,7 @@ export class Game {
     this.footprints = new Footprints(this.scene, terrain);
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
     this.scene.add(this.player.group);
+    this.crabs = new Crabs(this.scene, terrain, this.player);
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
@@ -221,6 +224,7 @@ export class Game {
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
+        this.crabs.update(delta, elapsed);
         this.props.update(delta);
         this.fx.update(delta);
         this.waterFx.update(delta);
