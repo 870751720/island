@@ -4,6 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { RECIPES, craft, type Tools } from './systems/Crafting';
+import { WaterSystem } from './systems/WaterSystem';
 import { Particles } from './fx/Particles';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory } from './systems/Inventory';
@@ -37,6 +38,7 @@ export class Game {
   private loop = new GameLoop();
   private player: Player;
   private collect: CollectSystem;
+  private water: WaterSystem;
   private props: Props;
   private fx: Particles;
   private survival = new SurvivalSystem();
@@ -92,8 +94,10 @@ export class Game {
     this.props = new Props(this.scene, terrain);
     this.fx = new Particles(this.scene);
 
+    this.scene.add(terrain.waterGroup);
     this.player = new Player(terrain, terrain.findSpawnPoint());
     this.scene.add(this.player.group);
+    this.water = new WaterSystem(this.player, terrain.ponds, this.survival);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
     // Q 键作为桌面端补充的工具切换
@@ -117,6 +121,7 @@ export class Game {
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.update(delta);
         this.collect.update(delta);
+        this.water.update(delta, this.collect.isWorking);
         this.updateIndicator();
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -224,27 +229,34 @@ export class Game {
     const nearby = this.collect.getNearby();
     let label: string | null = null;
     let progress: number | null = null;
-    if (!this.survival.state.dead && nearby) {
-      const canAct = this.collect.canCollect();
+    if (this.survival.state.dead) {
+      // 死亡时不显示
+    } else if (nearby && this.collect.canCollect(nearby)) {
+      progress = this.collect.getHarvestInfo()?.progress ?? null;
       label =
         nearby.kind === 'tree'
-          ? canAct
-            ? '砍树'
-            : this.tools.axe
-              ? '需要手持斧子'
-              : '需要斧子'
+          ? '砍树'
           : nearby.kind === 'rock'
-            ? canAct
-              ? '采石'
-              : this.tools.pickaxe
-                ? '需要手持镐子'
-                : '需要镐子'
+            ? '采石'
             : nearby.kind === 'gravel'
               ? '捡碎石'
               : nearby.kind === 'shrub'
                 ? '捡树枝'
                 : '采浆果';
-      if (canAct) progress = this.collect.getHarvestInfo()?.progress ?? null;
+    } else if (this.water.isActive) {
+      label = '喝水';
+      progress = this.water.getProgress();
+    } else if (nearby) {
+      label =
+        nearby.kind === 'tree'
+          ? this.tools.axe
+            ? '需要手持斧子'
+            : '需要斧子'
+          : nearby.kind === 'rock'
+            ? this.tools.pickaxe
+              ? '需要手持镐子'
+              : '需要镐子'
+            : null;
     }
     const p = this.player.group.position;
     this.indicator.group.position.set(p.x, p.y + 2.1, p.z);

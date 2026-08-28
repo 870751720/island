@@ -13,8 +13,8 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-/** 作业动画类型:砍树/凿石/拾取 */
-export type ActionType = 'chop' | 'mine' | 'pick';
+/** 作业动画类型:砍树/凿石/拾取/喝水 */
+export type ActionType = 'chop' | 'mine' | 'pick' | 'drink';
 
 /** 手持工具:空手/斧子/镐子 */
 export type HandTool = 'hand' | 'axe' | 'pickaxe';
@@ -180,6 +180,12 @@ export class Player implements Updatable {
         // 身体前倾小幅上下扒动
         this.group.rotation.x = Math.sin(t * 2) * 0.08;
         for (const arm of this.arms) arm.rotation.x = -1.2 + Math.sin(t * 2) * 0.4;
+        break;
+      }
+      case 'drink': {
+        // 双手捧到嘴边,身体微微后仰
+        this.group.rotation.x = -0.05;
+        for (const arm of this.arms) arm.rotation.x = -2.2 + Math.sin(t) * 0.1;
         break;
       }
     }

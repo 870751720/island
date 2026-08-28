@@ -24,8 +24,18 @@ const SAND = new THREE.Color('#e8d8a0');
 const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
 
+export type Pond = {
+  x: number;
+  z: number;
+  radius: number;
+  /** 喝水判定中心(水边) */
+  position: THREE.Vector3;
+};
+
 export class IslandTerrain {
   readonly mesh: THREE.Mesh;
+  readonly waterGroup = new THREE.Group();
+  readonly ponds: Pond[] = [];
   readonly size: number;
   private heightAt: (x: number, z: number) => number;
 
@@ -36,12 +46,53 @@ export class IslandTerrain {
     // 噪声频率随尺寸缩放,大岛也能同时有大海湾与内陆起伏
     const f1 = 6 / size;
     const f2 = 18 / size;
-    // 岛屿高度:多层噪声叠起伏,圆形衰减保证边缘沉入海面
-    this.heightAt = (x: number, z: number) => {
+
+    // 内陆水洼:随机挑几处高地挖圆形洼地,积水面略低于周边地面
+    const rng = (i: number) => {
+      const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
+      return n - Math.floor(n);
+    };
+    const baseHeight = (x: number, z: number) => {
       const dist = Math.sqrt(x * x + z * z) / half;
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
       return falloff * falloff * h - 0.6;
+    };
+    // 先定洼地位置,再定义最终高度函数(洼地处的原始地面高度用于确定水面)
+    const attempts = 40;
+    for (let i = 0; i < attempts && this.ponds.length < 5; i++) {
+      const x = (rng(i * 2 + 1) * 2 - 1) * half * 0.5;
+      const z = (rng(i * 2 + 2) * 2 - 1) * half * 0.5;
+      const y = baseHeight(x, z);
+      if (y < 1.0) continue;
+      if (this.ponds.some((p) => Math.hypot(p.x - x, p.z - z) < p.radius + 14)) continue;
+      const radius = 3.5 + rng(i + 100) * 3;
+      const waterY = y - 0.5;
+      this.ponds.push({ x, z, radius, position: new THREE.Vector3(x, waterY, z) });
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(radius * 0.96, 24),
+        new THREE.MeshStandardMaterial({
+          color: '#4aa3c7',
+          roughness: 0.3,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.9,
+        })
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(x, waterY, z);
+      this.waterGroup.add(disc);
+    }
+
+    // 岛屿高度:多层噪声叠起伏,圆形衰减保证边缘沉入海面,水洼处下挖
+    this.heightAt = (x: number, z: number) => {
+      const h = baseHeight(x, z);
+      let carveDepth = 0;
+      for (const pond of this.ponds) {
+        const d = Math.hypot(x - pond.x, z - pond.z) / pond.radius;
+        if (d < 1) carveDepth += (1 - d * d) * 1.6;
+      }
+      return h - carveDepth;
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)

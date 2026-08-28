@@ -97,6 +97,11 @@ export class CollectSystem {
     return this.nearby;
   }
 
+  /** 是否正在作业(喝水等让位判定用) */
+  get isWorking(): boolean {
+    return !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving;
+  }
+
   /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
   canCollect(prop: Prop = this.nearby!): boolean {
     if (!prop) return false;

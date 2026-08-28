@@ -9,6 +9,7 @@ export type SurvivalState = {
 
 const HUNGER_RATE = 0.8; // 每秒下降
 const THIRST_RATE = 1.2;
+const THIRST_PER_ROUND = 40;
 const STARVE_DAMAGE = 2;
 
 export class SurvivalSystem implements Updatable {
@@ -34,5 +35,9 @@ export class SurvivalSystem implements Updatable {
   eatBerry(): void {
     this.state.hunger = Math.min(100, this.state.hunger + 12);
     this.state.thirst = Math.min(100, this.state.thirst + 4);
+  }
+
+  drink(): void {
+    this.state.thirst = Math.min(100, this.state.thirst + THIRST_PER_ROUND);
   }
 }
