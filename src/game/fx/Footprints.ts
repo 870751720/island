@@ -42,7 +42,7 @@ export class Footprints {
     );
     mesh.rotation.set(-Math.PI / 2, 0, 0);
     // 椭圆长轴初始指向世界 -Z,旋转到行进方向
-    mesh.rotateZ(Math.PI - headingY);
+    mesh.rotateZ(Math.PI + headingY);
     this.scene.add(mesh);
     this.prints.push({ mesh, life: LIFETIME });
   }
