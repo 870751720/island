@@ -33,10 +33,12 @@ export const FOODS: Food[] = [
   { kind: 'goldenFish', name: '黄金鱼', icon: '✨', action: 'eat_fish', fxColor: '#e6b422', hunger: 60, thirst: 40 },
   { kind: 'crabMeat', name: '蟹肉', icon: '🦀', action: 'eat_fish', fxColor: '#e2793a', hunger: 15, thirst: 0 },
   { kind: 'birdMeat', name: '鸟肉', icon: '🐦', action: 'eat_fish', fxColor: '#c98a5a', hunger: 18, thirst: 0 },
+  { kind: 'gameMeat', name: '兽肉', icon: '🍖', action: 'eat_fish', fxColor: '#b04a3a', hunger: 20, thirst: 0 },
   { kind: 'cookedBerry', name: '烤浆果', icon: '🍬', action: 'eat_berry', fxColor: '#a0522d', hunger: 18, thirst: 6 },
   { kind: 'cookedFish', name: '烤鱼', icon: '🍢', action: 'eat_fish', fxColor: '#d99a4e', hunger: 40, thirst: 0 },
   { kind: 'cookedCrabMeat', name: '烤蟹肉', icon: '🍤', action: 'eat_fish', fxColor: '#e8703a', hunger: 28, thirst: 0 },
   { kind: 'cookedBirdMeat', name: '烤鸟肉', icon: '🍗', action: 'eat_fish', fxColor: '#b5722f', hunger: 35, thirst: 0 },
+  { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🥩', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 42, thirst: 0 },
 ];
 
 /** 烹饪映射:生食在燃烧的火堆上烤成熟食,效果增强;不可烤的食材不在表中 */
@@ -54,6 +56,7 @@ export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {
   manta: 'cookedFish',
   crabMeat: 'cookedCrabMeat',
   birdMeat: 'cookedBirdMeat',
+  gameMeat: 'cookedGameMeat',
 };
 
 /** 按背包格子顺序找第一个食物(「背包里最前面的食物」) */

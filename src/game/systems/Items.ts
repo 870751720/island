@@ -163,6 +163,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🐦',
     description: '射杀小鸟掉落的鸟肉,可以生吃,烤熟后更滋补。',
   },
+  gameMeat: {
+    kind: 'gameMeat',
+    name: '兽肉',
+    icon: '🍖',
+    description: '猎捕兔、羊、鹿或熊得到的兽肉,可以生吃,烤熟后是大补的硬菜。',
+  },
   cookedBerry: {
     kind: 'cookedBerry',
     name: '烤浆果',
@@ -186,6 +192,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '烤鸟肉',
     icon: '🍗',
     description: '外焦里嫩的烤鸟肉,是荒岛上难得的硬菜。',
+  },
+  cookedGameMeat: {
+    kind: 'cookedGameMeat',
+    name: '烤兽肉',
+    icon: '🥩',
+    description: '火堆上烤得焦香的大块兽肉,荒岛盛宴的主菜。',
   },
   arrow: {
     kind: 'arrow',

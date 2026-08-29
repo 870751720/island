@@ -69,4 +69,10 @@ export class SurvivalSystem implements Updatable {
   drink(): void {
     this.state.thirst = Math.min(100, this.state.thirst + THIRST_PER_ROUND);
   }
+
+  /** 受到外力伤害(如野兽扑击),死亡判定交给 update 统一处理 */
+  damage(amount: number): void {
+    if (this.state.dead) return;
+    this.state.health = Math.max(0, this.state.health - amount);
+  }
 }

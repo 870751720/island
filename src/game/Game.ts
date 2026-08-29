@@ -4,6 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
+import { Wildlife } from './entities/Wildlife';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -140,6 +141,7 @@ export class Game {
   private crabs: Crabs;
   private butterflies: Butterflies;
   private birds: Birds;
+  private wildlife: Wildlife;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
@@ -232,6 +234,19 @@ export class Game {
     this.crabs = new Crabs(this.scene, terrain, this.player);
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
     this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
+    // 熊扑击玩家的结算:掉血 + 玩家位置泛红特效与音效
+    this.wildlife = new Wildlife(
+      this.scene,
+      terrain,
+      this.player,
+      (damage) => {
+        this.survival.damage(damage);
+        const p = this.player.group.position;
+        this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
+        this.audio.play('chop');
+      },
+      () => !this.survival.state.dead && !this.player.isSwimming
+    );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
 
@@ -317,10 +332,11 @@ export class Game {
       this.inventory,
       this.crabs,
       this.birds,
+      this.wildlife,
       this.fx,
       this.audio,
       // 击杀的战利品落在击杀位置,走近后点「捡回」拾取
-      (kind, x, z) => this.drops.dropAt(kind, 1, x, z)
+      (kind, count, x, z) => this.drops.dropAt(kind, count, x, z)
     );
     this.drops = new DropSystem(
       this.scene,
@@ -363,6 +379,7 @@ export class Game {
         this.crabs.update(delta, elapsed);
         this.butterflies.update(delta, elapsed);
         this.birds.update(delta, elapsed);
+        this.wildlife.update(delta, elapsed);
         this.props.update(delta);
         this.fx.update(delta);
         this.waterFx.update(delta);

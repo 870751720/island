@@ -28,10 +28,12 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   oldHook: '#8a8f98',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
+  gameMeat: '#b04a3a',
   cookedBerry: '#a0522d',
   cookedFish: '#d99a4e',
   cookedCrabMeat: '#e8703a',
   cookedBirdMeat: '#b5722f',
+  cookedGameMeat: '#9c4a2f',
   arrow: '#a97c50',
   oakSeed: '#b5813f',
   pineSeed: '#8a6b45',
@@ -217,6 +219,22 @@ function makeBirdMeat(): THREE.Object3D {
   bone.position.set(0.2, 0.14, 0);
   const knob = mesh(new THREE.IcosahedronGeometry(0.04, 0), boneMat);
   knob.position.set(0.3, 0.18, 0);
+  g.add(flesh, bone, knob);
+  return g;
+}
+
+/** 生兽肉:带腿骨的大块红肉 */
+function makeGameMeat(): THREE.Object3D {
+  const g = new THREE.Group();
+  const flesh = mesh(new THREE.IcosahedronGeometry(0.18, 0), clay(DROP_COLORS.gameMeat));
+  flesh.scale.set(1.2, 0.85, 0.9);
+  flesh.position.y = 0.12;
+  const boneMat = clay('#e8e2d4');
+  const bone = mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.28, 4), boneMat);
+  bone.rotation.z = Math.PI / 2 - 0.25;
+  bone.position.set(0.24, 0.16, 0);
+  const knob = mesh(new THREE.IcosahedronGeometry(0.045, 0), boneMat);
+  knob.position.set(0.36, 0.2, 0);
   g.add(flesh, bone, knob);
   return g;
 }
@@ -532,10 +550,12 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   oldHook: makeOldHook,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
+  gameMeat: makeGameMeat,
   cookedBerry: makeCookedBerry,
   cookedFish: () => makeRoast(DROP_COLORS.cookedFish),
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
+  cookedGameMeat: () => makeRoast(DROP_COLORS.cookedGameMeat),
   arrow: makeArrows,
   oakSeed: () => makeSeed(DROP_COLORS.oakSeed),
   pineSeed: () => makeSeed(DROP_COLORS.pineSeed),

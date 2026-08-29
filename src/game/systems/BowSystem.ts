@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import type { Crabs } from '../entities/Crab';
 import type { Birds } from '../entities/Birds';
+import type { Wildlife } from '../entities/Wildlife';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
@@ -58,7 +59,7 @@ type Arrow = {
 };
 
 /**
- * 弓箭:手持弓且背包有箭时,攻击范围内的螃蟹/小鸟(蝴蝶除外)会被自动瞄准,
+ * 弓箭:手持弓且背包有箭时,攻击范围内的螃蟹/小鸟/野生动物(蝴蝶除外)会被自动瞄准,
  * 拉弓片刻后放箭,箭飞到目标点判定命中;每次射击 3 秒冷却。
  */
 export class BowSystem {
@@ -77,10 +78,16 @@ export class BowSystem {
     private inventory: Inventory,
     private crabs: Crabs,
     private birds: Birds,
+    private wildlife: Wildlife,
     private fx: Particles,
     private audio: GameAudio,
     /** 击杀掉落战利品(在击杀位置掉落对应肉类) */
-    private onLoot: (kind: 'crabMeat' | 'birdMeat', x: number, z: number) => void
+    private onLoot: (
+      kind: 'crabMeat' | 'birdMeat' | 'gameMeat',
+      count: number,
+      x: number,
+      z: number
+    ) => void
   ) {}
 
   /** 拉弓期间占用双手(其他系统让位用) */
@@ -120,14 +127,16 @@ export class BowSystem {
     this.drawLeft = DRAW_TIME;
   }
 
-  /** 攻击范围内最近的活螃蟹/活鸟(蝴蝶不可射) */
+  /** 攻击范围内最近的活螃蟹/活鸟/野生动物(蝴蝶不可射) */
   private findTarget(): THREE.Vector3 | null {
     const p = this.player.group.position;
-    const crab = this.crabs.nearestAlive(p, RANGE);
-    const bird = this.birds.nearestAlive(p, RANGE);
-    if (!crab) return bird;
-    if (!bird) return crab;
-    return crab.distanceToSquared(p) <= bird.distanceToSquared(p) ? crab : bird;
+    const candidates = [
+      this.crabs.nearestAlive(p, RANGE),
+      this.birds.nearestAlive(p, RANGE),
+      this.wildlife.nearestAlive(p, RANGE),
+    ].filter((v): v is THREE.Vector3 => !!v);
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, v) => (v.distanceToSquared(p) < best.distanceToSquared(p) ? v : best));
   }
 
   /** 放箭:扣一支箭,生成飞行箭矢,进入冷却 */
@@ -178,15 +187,24 @@ export class BowSystem {
     }
   }
 
-  /** 到达目标点:命中范围内的螃蟹或小鸟即击杀并掉肉;未命中则插在地上 */
+  /** 到达目标点:命中范围内的螃蟹/小鸟/野生动物即结算;未命中则插在地上 */
   private resolveHit(arrow: Arrow, index: number): void {
     const p = arrow.group.position;
-    const hitCrab = this.crabs.killNearby(p, HIT_RANGE);
-    const hitBird = !hitCrab && this.birds.killNearby(p, HIT_RANGE);
-    if (hitCrab || hitBird) {
+    const beast = this.wildlife.damageNearby(p, HIT_RANGE);
+    const hitCrab = !beast && this.crabs.killNearby(p, HIT_RANGE);
+    const hitBird = !beast && !hitCrab && this.birds.killNearby(p, HIT_RANGE);
+    if (beast || hitCrab || hitBird) {
       this.audio.play('arrowHit');
       this.fx.burst(p, '#c0392d', 10);
-      this.onLoot(hitCrab ? 'crabMeat' : 'birdMeat', p.x, p.z);
+      // 野生动物可中数箭:受伤未死不掉肉,箭留在身上消失
+      if (beast !== 'hit') {
+        this.onLoot(
+          beast ? 'gameMeat' : hitCrab ? 'crabMeat' : 'birdMeat',
+          beast ? this.wildlife.lootOf(beast.species) : 1,
+          p.x,
+          p.z
+        );
+      }
       this.removeArrow(arrow, index);
     } else {
       arrow.stuck = STICK_TIME;
