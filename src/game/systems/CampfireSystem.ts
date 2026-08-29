@@ -252,4 +252,23 @@ export class CampfireSystem {
   get cookingKind(): ResourceKind | null {
     return this.cookKind;
   }
+
+  /** 当前所有火堆的存档快照 */
+  snapshot(): { x: number; y: number; z: number; fuel: number }[] {
+    return this.fires
+      .filter((fire) => fire.ashLeft === null)
+      .map((fire) => {
+        const p = fire.group.position;
+        return { x: p.x, y: p.y, z: p.z, fuel: fire.fuel };
+      });
+  }
+
+  /** 从存档恢复火堆(灰烬不保存,燃料至少 1 秒) */
+  restore(list: { x: number; y: number; z: number; fuel: number }[]): void {
+    for (const f of list) {
+      this.fires.push(
+        new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), Math.max(f.fuel, 1))
+      );
+    }
+  }
 }

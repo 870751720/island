@@ -28,6 +28,9 @@ export const MAX_STACK = 20;
 export class Inventory {
   private slots: InventorySlot[] = Array.from({ length: DEFAULT_CAPACITY }, () => null);
 
+  /** 拾取提示:每次实际放入道具后回调(种类与实际放入数量) */
+  onAdd: ((kind: ResourceKind, count: number) => void) | null = null;
+
   get capacity(): number {
     return this.slots.length;
   }
@@ -55,7 +58,26 @@ export class Inventory {
       this.slots[i] = { kind, count: take };
       remain -= take;
     }
-    return n - remain;
+    const added = n - remain;
+    if (added > 0) this.onAdd?.(kind, added);
+    return added;
+  }
+
+  /** 从存档恢复格子内容(连同容量),非法数据忽略 */
+  load(slots: unknown, capacity?: number): void {
+    if (!Array.isArray(slots)) return;
+    const restored: InventorySlot[] = slots
+      .slice(0, Math.max(capacity ?? slots.length, 1))
+      .map((slot) => {
+        const s = slot as { kind?: unknown; count?: unknown } | null;
+        return s &&
+          typeof s.kind === 'string' &&
+          typeof s.count === 'number' &&
+          s.count > 0
+          ? { kind: s.kind as ResourceKind, count: Math.min(s.count, MAX_STACK) }
+          : null;
+      });
+    if (restored.length > 0) this.slots = restored;
   }
 
   count(kind: ResourceKind): number {

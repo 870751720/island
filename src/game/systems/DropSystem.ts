@@ -109,6 +109,28 @@ export class DropSystem {
     this.drops.splice(index, 1);
   }
 
+  /** 当前所有地面掉落物的存档快照 */
+  snapshot(): { kind: ResourceKind; count: number; x: number; z: number }[] {
+    return this.drops.map((drop) => ({
+      kind: drop.kind,
+      count: drop.count,
+      x: drop.mesh.position.x,
+      z: drop.mesh.position.z,
+    }));
+  }
+
+  /** 从存档恢复掉落物(不播丢落音效) */
+  restore(list: { kind: ResourceKind; count: number; x: number; z: number }[]): void {
+    for (const d of list) {
+      if (d.count <= 0) continue;
+      const mesh = makeDropModel(d.kind);
+      const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
+      mesh.position.set(d.x, baseY, d.z);
+      this.scene.add(mesh);
+      this.drops.push({ kind: d.kind, count: d.count, mesh, age: 0, baseY });
+    }
+  }
+
   dispose(): void {
     for (let i = this.drops.length - 1; i >= 0; i--) this.remove(i);
   }

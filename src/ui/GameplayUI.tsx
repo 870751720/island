@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Game, type HudSnapshot } from '@/game/Game';
+import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -66,6 +66,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
   const [campfireOpen, setCampfireOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
+  // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
+  const pickupIdRef = useRef(0);
+  const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
 
   // 离开工作台/火堆范围自动收起对应面板
   useEffect(() => {
@@ -108,6 +111,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           el.textContent = text;
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
+      },
+      // 背包入包时头顶飘出「图标 ×数量」
+      (toast) => {
+        const id = ++pickupIdRef.current;
+        setPickups((list) => [...list, { ...toast, id }]);
+        setTimeout(() => setPickups((list) => list.filter((t) => t.id !== id)), 1400);
       }
     );
     gameRef.current = game;
@@ -198,6 +207,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         </>
       )}
       {hud.dead && <DeathScreen onConfirm={onExit} />}
+      {pickups.map((t) => (
+        <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>
+          {t.icon}
+          <span className="pickup-count">×{t.count}</span>
+        </div>
+      ))}
       <div
         ref={labelRef}
         style={{

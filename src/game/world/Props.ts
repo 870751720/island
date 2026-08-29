@@ -12,6 +12,14 @@ const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
 
 export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass';
 
+/** 资源点的可序列化状态(存档用,布局由种子保证可复现) */
+export type PropState = {
+  kind: PropKind;
+  ready: boolean;
+  regrowLeft: number;
+  stage?: 'full' | 'stump';
+};
+
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
 const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   tree: { regrow: 0 },
@@ -214,33 +222,64 @@ export class Props implements Updatable {
     if (regrow > 0) {
       prop.regrowLeft = regrow;
     }
+    if (prop.kind === 'tree' && prop.stage !== 'stump') {
+      // 第一段砍掉树冠只留树桩,树桩仍可继续砍
+      prop.stage = 'stump';
+      prop.ready = true;
+    }
+    this.syncAppearance(prop);
+  }
+
+  /** 依据 ready/stage 同步采集后的外观(树桩保留,其余隐藏或缩形) */
+  private syncAppearance(prop: Prop): void {
     switch (prop.kind) {
       case 'tree':
         if (prop.stage === 'stump') {
-          prop.group.visible = false;
-        } else {
-          // 第一段砍掉树冠只留树桩,树桩仍可继续砍
-          prop.stage = 'stump';
-          prop.ready = true;
+          // 树桩:只留树干;彻底砍倒后整体隐藏
           prop.group.children
             .filter((c) => c instanceof THREE.Mesh)
             .slice(1)
             .forEach((c) => (c.visible = false));
         }
+        prop.group.visible = prop.ready || prop.stage !== 'stump';
         break;
       case 'rock':
       case 'gravel':
       case 'grass':
-        prop.group.visible = false;
+        prop.group.visible = prop.ready;
         break;
       case 'berry':
         // 浆果丛保留,只藏起果子
-        for (const berry of this.berries.get(prop) ?? []) berry.visible = false;
+        for (const berry of this.berries.get(prop) ?? []) berry.visible = prop.ready;
         break;
       case 'shrub':
-        // 灌木丛被割,缩到很小的桩
-        prop.group.scale.setScalar(0.35);
+        // 灌木丛被割后缩成小桩
+        prop.group.scale.setScalar(prop.ready ? 1 : 0.35);
         break;
+    }
+  }
+
+  /** 当前全部资源点状态快照(存档用,顺序与 list 一致) */
+  snapshot(): PropState[] {
+    return this.list.map((prop) => ({
+      kind: prop.kind,
+      ready: prop.ready,
+      regrowLeft: prop.regrowLeft,
+      stage: prop.stage,
+    }));
+  }
+
+  /** 从存档恢复各资源点状态;长度或种类对不上时跳过(布局已变) */
+  applySave(states: PropState[]): void {
+    if (states.length !== this.list.length) return;
+    for (let i = 0; i < this.list.length; i++) {
+      const prop = this.list[i];
+      const state = states[i];
+      if (!state || state.kind !== prop.kind) return;
+      prop.ready = state.ready;
+      prop.regrowLeft = state.regrowLeft;
+      prop.stage = state.stage;
+      this.syncAppearance(prop);
     }
   }
 

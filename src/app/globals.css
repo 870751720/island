@@ -8,3 +8,41 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* 拾取飘字:入包时从玩家头顶向上飘并渐隐 */
+.pickup-toast {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border-radius: 14px;
+  font-family: sans-serif;
+  font-size: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pickup-float 1.4s ease-out forwards;
+}
+
+.pickup-count {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@keyframes pickup-float {
+  0% {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -46px;
+  }
+}
+

@@ -33,6 +33,18 @@ export class DayNightSystem implements Updatable {
     return this.sunElevation() < -0.05;
   }
 
+  /** 当前昼夜时刻 t∈[0,1),供存档读取 */
+  get time(): number {
+    return this.t;
+  }
+
+  set time(t: number) {
+    if (Number.isFinite(t)) {
+      this.t = ((t % 1) + 1) % 1;
+      this.apply();
+    }
+  }
+
   private sunElevation(): number {
     return Math.sin(this.t * Math.PI * 2);
   }

@@ -114,4 +114,16 @@ export class WorkbenchSystem {
   getProgress(): number | null {
     return this.isWorking ? Math.min(this.timer / CRAFT_TIME, 1) : null;
   }
+
+  /** 工作台位置快照(没有工作台时为 null) */
+  snapshot(): { x: number; y: number; z: number } | null {
+    if (!this.bench) return null;
+    const p = this.bench.group.position;
+    return { x: p.x, y: p.y, z: p.z };
+  }
+
+  /** 从存档恢复工作台 */
+  restore(pos: { x: number; y: number; z: number }): void {
+    this.bench = new Workbench(this.scene, new THREE.Vector3(pos.x, pos.y, pos.z));
+  }
 }

@@ -27,6 +27,8 @@ import { RainImpact } from './fx/RainImpact';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
+import { SaveSystem, type SaveData } from './systems/SaveSystem';
+import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
@@ -84,6 +86,11 @@ export type HudSnapshot = {
 
 const VIEW_SIZE = 18;
 
+/** 拾取提示(玩家头顶飘图标):图标、数量与诞生时的屏幕坐标 */
+export type PickupToast = { icon: string; count: number; x: number; y: number };
+
+const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
+
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -122,6 +129,10 @@ export class Game {
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number) => void;
   private onMumble: (text: string | null, x: number, y: number) => void;
+  private onPickup: (toast: PickupToast) => void;
+  private terrainSeed: number;
+  private propsSeed: number;
+  private autosaveTimer = 0;
   private mumbles: MumbleSystem;
   private mumbleText: string | null = null;
   private mumbleTimer = 0;
@@ -135,12 +146,20 @@ export class Game {
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
     onLabel: (label: string | null, x: number, y: number) => void,
-    onMumble: (text: string | null, x: number, y: number) => void
+    onMumble: (text: string | null, x: number, y: number) => void,
+    onPickup: (toast: PickupToast) => void
   ) {
     this.container = container;
     this.onHud = onHud;
     this.onLabel = onLabel;
     this.onMumble = onMumble;
+    this.onPickup = onPickup;
+
+    // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛
+    const save = SaveSystem.load();
+    this.terrainSeed = save?.terrainSeed ?? Math.random() * 1000;
+    this.propsSeed = save?.propsSeed ?? Math.floor(Math.random() * 0xffffffff);
+    this.inventory.onAdd = (kind, count) => this.emitPickup(kind, count);
     this.mumbles = new MumbleSystem((_trigger, text) => {
       this.mumbleText = text;
       this.mumbleTimer = 4;
@@ -172,13 +191,13 @@ export class Game {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    const terrain = new IslandTerrain();
+    const terrain = new IslandTerrain(160, this.terrainSeed);
     this.terrain = terrain;
     this.scene.add(terrain.mesh);
     this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
     this.scene.add(this.clouds.group);
-    this.props = new Props(this.scene, terrain);
+    this.props = new Props(this.scene, terrain, mulberry32(this.propsSeed));
     this.fx = new Particles(this.scene);
     this.waterFx = new WaterFx(this.scene, this.fx);
 
@@ -353,10 +372,80 @@ export class Game {
         this.updateIndicator(delta);
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
-        if (this.survival.state.dead && !this.lastDead) this.audio.play('death');
+        if (this.survival.state.dead && !this.lastDead) {
+          this.audio.play('death');
+          // 死亡即清档:下次进入从新岛重新开始
+          SaveSystem.clear();
+        }
         this.lastDead = this.survival.state.dead;
+        if (!this.survival.state.dead) {
+          this.autosaveTimer += delta;
+          if (this.autosaveTimer >= AUTOSAVE_INTERVAL) {
+            this.autosaveTimer = 0;
+            SaveSystem.save(this.collectSave());
+          }
+        }
         this.pushHud(delta);
       },
+    });
+
+    this.applySave(save);
+  }
+
+  /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
+  private applySave(save: SaveData | null): void {
+    if (!save) return;
+    const p = this.player.group.position;
+    p.set(save.player.x, save.player.y, save.player.z);
+    this.survival.state.hunger = save.survival.hunger;
+    this.survival.state.thirst = save.survival.thirst;
+    this.survival.state.health = save.survival.health;
+    this.survival.state.stamina = save.survival.stamina;
+    this.survival.state.dead = false;
+    this.inventory.load(save.slots, save.capacity);
+    this.tools = { ...save.tools };
+    const tool = save.handTool;
+    if (tool === 'hand' || this.tools[tool]) this.player.setTool(tool);
+    this.dayNight.time = save.dayTime;
+    this.props.applySave(save.props);
+    this.campfire.restore(save.campfires);
+    if (save.workbench) this.workbench.restore(save.workbench);
+    this.drops.restore(save.drops);
+  }
+
+  /** 汇总当前进度为存档数据 */
+  private collectSave(): SaveData {
+    const p = this.player.group.position;
+    const s = this.survival.state;
+    return {
+      version: 1,
+      terrainSeed: this.terrainSeed,
+      propsSeed: this.propsSeed,
+      player: { x: p.x, y: p.y, z: p.z },
+      survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
+      slots: this.inventory.snapshot(),
+      capacity: this.inventory.capacity,
+      tools: { ...this.tools },
+      handTool: this.player.currentTool,
+      dayTime: this.dayNight.time,
+      props: this.props.snapshot(),
+      campfires: this.campfire.snapshot(),
+      workbench: this.workbench.snapshot(),
+      drops: this.drops.snapshot(),
+    };
+  }
+
+  /** 背包入包时在玩家头顶飘出图标与数量 */
+  private emitPickup(kind: ResourceKind, count: number): void {
+    const p = this.player.group.position;
+    const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
+    const w = this.renderer.domElement.clientWidth;
+    const h = this.renderer.domElement.clientHeight;
+    this.onPickup({
+      icon: ITEMS[kind].icon,
+      count,
+      x: Math.round(((head.x + 1) / 2) * w),
+      y: Math.round(((1 - head.y) / 2) * h),
     });
   }
 
@@ -547,6 +636,8 @@ export class Game {
 
   dispose(): void {
     this.loop.stop();
+    // 退出前再存一次,保证最近进度不丢;已死亡则存档已清
+    if (!this.survival.state.dead) SaveSystem.save(this.collectSave());
     this.resizeObserver.disconnect();
     window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
