@@ -157,11 +157,14 @@ export class Wildlife implements Updatable {
     scene.add(this.group);
   }
 
-  /** 某点是否为可站立的草地(不进沙滩、水域和海) */
+  /** 某点是否为可站立的草地(不进沙滩,也不进海与池塘等水面之下) */
   private isGrass(x: number, z: number): boolean {
     const r = Math.hypot(x, z);
     if (r > this.terrain.size / 2 - 2) return false;
-    return this.terrain.getHeight(x, z) >= GRASS_MIN;
+    const y = this.terrain.getHeight(x, z);
+    if (y < GRASS_MIN) return false;
+    // 池塘处地形被挖到水面之下,陆地处水面高度即地形高度
+    return y >= this.terrain.getWaterLevel(x, z) - 0.02;
   }
 
   /** 在岛上随机撒点找一处草地(离玩家远一点,避免刷新在脸上) */
@@ -268,6 +271,11 @@ export class Wildlife implements Updatable {
   private animate(animal: Animal, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
+    // 兔子蹦着走:移动时整体做抛物线小跳,四腿收起
+    const hop = animal.species === 'rabbit';
+    if (hop && moving) {
+      g.position.y += Math.abs(Math.sin(elapsed * (excited ? 13 : 8) + animal.phase)) * 0.24;
+    }
     // 模型面朝 +Z,朝向按移动方向角换算
     g.rotation.y = Math.PI / 2 - animal.heading;
 
@@ -276,7 +284,7 @@ export class Wildlife implements Updatable {
       // 前左/后右一组,前右/后左一组,交替摆动
       const pair = i === 0 || i === 3 ? 0 : Math.PI;
       const swing = Math.sin(elapsed * speed + animal.phase + pair);
-      leg.rotation.x = moving ? swing * 0.6 : 0;
+      leg.rotation.x = moving && !hop ? swing * 0.6 : 0;
     });
     // 头颈:平时轻晃,熊扑击瞬间向前顶
     const bob = animal.lungeLeft > 0 ? 0.28 : Math.sin(elapsed * 2 + animal.phase) * 0.04;

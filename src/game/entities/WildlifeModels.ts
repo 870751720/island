@@ -12,9 +12,19 @@ export type AnimalModel = {
   tail: THREE.Object3D;
 };
 
-/** 一条腿:锥形杆从髋部垂下,根部落在一端以便摆动 */
-function makeLeg(mat: THREE.Material, x: number, y: number, z: number, len: number): THREE.Mesh {
-  const leg = new THREE.Mesh(new THREE.CylinderGeometry(len * 0.22, len * 0.3, len, 4), mat);
+/** 一条腿:锥形杆从髋部垂下,根部落在一端以便摆动;thickness 调整粗细(鹿等纤腿动物 < 1) */
+function makeLeg(
+  mat: THREE.Material,
+  x: number,
+  y: number,
+  z: number,
+  len: number,
+  thickness = 1
+): THREE.Mesh {
+  const leg = new THREE.Mesh(
+    new THREE.CylinderGeometry(len * 0.22 * thickness, len * 0.3 * thickness, len, 4),
+    mat
+  );
   leg.geometry.translate(0, -len / 2, 0);
   leg.position.set(x, y, z);
   leg.castShadow = true;
@@ -144,21 +154,21 @@ function makeDeerModel(): AnimalModel {
   neck.rotation.x = 0.5;
   neck.castShadow = true;
   headPivot.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), coat);
-  head.scale.set(0.85, 0.9, 1.5);
-  head.position.set(0, 0.38, 0.19);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), coat);
+  head.scale.set(0.95, 1, 1.5);
+  head.position.set(0, 0.38, 0.2);
   head.castShadow = true;
   headPivot.add(head);
   // 鹿角:两根主枝各带一根分叉
   for (const side of [-1, 1]) {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.3, 4), horn);
     beam.geometry.translate(0, 0.15, 0);
-    beam.position.set(side * 0.05, 0.42, 0.14);
+    beam.position.set(side * 0.06, 0.46, 0.15);
     beam.rotation.z = side * 0.5;
     headPivot.add(beam);
     const tine = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.16, 4), horn);
     tine.geometry.translate(0, 0.08, 0);
-    tine.position.set(side * 0.14, 0.5, 0.14);
+    tine.position.set(side * 0.16, 0.55, 0.15);
     tine.rotation.z = side * 1.1;
     headPivot.add(tine);
   }
@@ -166,10 +176,10 @@ function makeDeerModel(): AnimalModel {
 
   // 纤细长腿
   const legs = [
-    makeLeg(coat, -0.12, 0.62, 0.26, 0.62),
-    makeLeg(coat, 0.12, 0.62, 0.26, 0.62),
-    makeLeg(coat, -0.12, 0.62, -0.26, 0.62),
-    makeLeg(coat, 0.12, 0.62, -0.26, 0.62),
+    makeLeg(coat, -0.12, 0.62, 0.26, 0.62, 0.55),
+    makeLeg(coat, 0.12, 0.62, 0.26, 0.62, 0.55),
+    makeLeg(coat, -0.12, 0.62, -0.26, 0.62, 0.55),
+    makeLeg(coat, 0.12, 0.62, -0.26, 0.62, 0.55),
   ];
   legs.forEach((l) => group.add(l));
 
