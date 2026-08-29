@@ -135,6 +135,8 @@ function makeSeedPouchModel(): THREE.Group {
 }
 
 const SKIN_COLOR = '#e8b88a';
+/** 未穿裤子时的腿部颜色:深棕色平角裤,避免整条腿都是肤色显得发黄 */
+const BARE_LEG_COLOR = '#5b4632';
 
 /** 衣服/裤子装备对应的身体颜色(帽子/背包用真实模型,不在此列) */
 const EQUIP_COLORS: Partial<Record<EquipKind, string>> = {
@@ -254,10 +256,10 @@ export class Player implements Updatable {
   ) {
     this.terrain = terrain;
 
-    // 默认光着身子:躯干和腿都是肉色,穿上衣服/裤子后换色
+    // 默认上身赤裸(肉色躯干),下身是深色平角裤,穿上衣服/裤子后换色
     const skin = clayMaterial(SKIN_COLOR);
     this.torsoMaterial = clayMaterial(SKIN_COLOR);
-    this.legMaterial = clayMaterial(SKIN_COLOR);
+    this.legMaterial = clayMaterial(BARE_LEG_COLOR);
 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.28), this.torsoMaterial);
     torso.position.y = 0.85;
@@ -300,18 +302,22 @@ export class Player implements Updatable {
     armR.add(axe, pickaxe, fishingrod, bow, seed);
     this.toolModels = { axe, pickaxe, fishingrod, bow, seed };
 
-    // 帽子戴在头顶,背包背在背后,默认都不显示
+    // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();
     strawHat.position.y = 0.18;
+    strawHat.visible = false;
     const vineHat = makeVineHatModel();
     vineHat.position.y = 0.18;
+    vineHat.visible = false;
     head.add(strawHat, vineHat);
     this.hatModels = { strawHat, vineHat };
 
     const strawBackpack = makeStrawBackpackModel();
     strawBackpack.position.set(0, 0.82, -0.28);
+    strawBackpack.visible = false;
     const frameBackpack = makeFrameBackpackModel();
     frameBackpack.position.set(0, 0.88, -0.34);
+    frameBackpack.visible = false;
     this.group.add(strawBackpack, frameBackpack);
     this.backpackModels = { strawBackpack, frameBackpack };
 
@@ -345,7 +351,7 @@ export class Player implements Updatable {
     if (slot === 'clothing') {
       this.torsoMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? SKIN_COLOR : SKIN_COLOR);
     } else if (slot === 'pants') {
-      this.legMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? SKIN_COLOR : SKIN_COLOR);
+      this.legMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? BARE_LEG_COLOR : BARE_LEG_COLOR);
     } else {
       const models = slot === 'hat' ? this.hatModels : this.backpackModels;
       for (const [name, model] of Object.entries(models)) {
