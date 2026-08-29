@@ -133,23 +133,11 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🪁',
     description: '扁菱形的深海滑翔者,钓上它绝对值得吹嘘一整天。',
   },
-  treasureMap: {
-    kind: 'treasureMap',
-    name: '藏宝图碎片',
-    icon: '🗺️',
-    description: '泡得发黄的图纸残片,上面画着岛的一角……集齐也许能找到什么。',
-  },
   goldenFish: {
     kind: 'goldenFish',
     name: '黄金鱼',
     icon: '✨',
     description: '通体金光闪闪的传说之鱼!吃掉它能大幅恢复饥饿与口渴,也可留作收藏。',
-  },
-  oldHook: {
-    kind: 'oldHook',
-    name: '旧鱼钩',
-    icon: '🪝',
-    description: '锈迹斑斑的精制鱼钩,不知道是哪位前辈渔人留下的,或许能做成好竿。',
   },
   crabMeat: {
     kind: 'crabMeat',

@@ -14,7 +14,7 @@ export type LootEntry = {
   /** 挣扎/粒子/掉落模型的主色 */
   color: string;
   /** 造型:普通鱼 / 细长 / 扁宽 / 杂物块 / 罐子 / 瓶子 / 卷纸 / 鱼钩 */
-  shape: 'fish' | 'long' | 'flat' | 'junk' | 'can' | 'bottle' | 'map' | 'hook';
+  shape: 'fish' | 'long' | 'flat' | 'junk' | 'can' | 'bottle';
 };
 
 /** 各档位的战利品池 */
@@ -42,11 +42,7 @@ export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
     { kind: 'swordfish', weight: 2, size: 1.7, color: '#5a7d9e', shape: 'long' },
     { kind: 'manta', weight: 2, size: 1.7, color: '#4a5568', shape: 'flat' },
   ],
-  4: [
-    { kind: 'treasureMap', weight: 3, size: 0.9, color: '#e8d9a0', shape: 'map' },
-    { kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' },
-    { kind: 'oldHook', weight: 3, size: 0.8, color: '#8a8f98', shape: 'hook' },
-  ],
+  4: [{ kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' }],
 };
 
 /** 各档位的咬钩交互:反应窗口秒数与所需点击次数 */

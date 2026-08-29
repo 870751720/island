@@ -99,24 +99,6 @@ function makeCatch(entry: LootEntry): THREE.Object3D {
       g.add(body, neck, cork);
       break;
     }
-    case 'map': {
-      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.32, 6), mat);
-      roll.rotation.z = Math.PI / 2;
-      const tie = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.012, 4, 8), clayMaterial('#8a6239'));
-      tie.rotation.y = Math.PI / 2;
-      g.add(roll, tie);
-      break;
-    }
-    case 'hook': {
-      const hook = new THREE.Mesh(
-        new THREE.TorusGeometry(0.1, 0.018, 4, 8, Math.PI * 1.4),
-        mat
-      );
-      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 4), clayMaterial('#e8e2d4'));
-      line.position.y = 0.12;
-      g.add(hook, line);
-      break;
-    }
   }
   g.scale.setScalar(entry.size);
   return g;

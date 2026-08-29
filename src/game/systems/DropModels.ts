@@ -23,9 +23,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   catfish: '#5b664f',
   swordfish: '#5a7d9e',
   manta: '#4a5568',
-  treasureMap: '#e8d9a0',
   goldenFish: '#e6b422',
-  oldHook: '#8a8f98',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   gameMeat: '#b04a3a',
@@ -373,33 +371,6 @@ function makeBottle(): THREE.Object3D {
   return g;
 }
 
-/** 藏宝图碎片:卷起的图纸 + 系绳 */
-function makeTreasureMap(): THREE.Object3D {
-  const g = new THREE.Group();
-  const roll = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.36, 6), clay(DROP_COLORS.treasureMap));
-  roll.rotation.z = Math.PI / 2;
-  roll.position.y = 0.08;
-  const tie = mesh(new THREE.TorusGeometry(0.066, 0.014, 4, 8), clay('#8a6239'));
-  tie.rotation.y = Math.PI / 2;
-  tie.position.y = 0.08;
-  g.add(roll, tie);
-  return g;
-}
-
-/** 旧鱼钩:弯月钩身 + 一段钓线 */
-function makeOldHook(): THREE.Object3D {
-  const g = new THREE.Group();
-  const hook = mesh(
-    new THREE.TorusGeometry(0.12, 0.02, 4, 8, Math.PI * 1.4),
-    clay(DROP_COLORS.oldHook)
-  );
-  hook.position.y = 0.14;
-  const line = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.18, 4), clay('#e8e2d4'));
-  line.position.y = 0.32;
-  g.add(hook, line);
-  return g;
-}
-
 /** 工具通用木柄:竖直的枝干柄 */
 function toolHandle(mat: THREE.MeshStandardMaterial): THREE.Mesh {
   const handle = mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.7, 5), mat);
@@ -573,9 +544,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   catfish: () => makeFishShape(DROP_COLORS.catfish, 1.1, 0.9, 1.6),
   swordfish: () => makeFishShape(DROP_COLORS.swordfish, 0.9, 0.9, 1.8),
   manta: () => makeFishShape(DROP_COLORS.manta, 1.8, 0.5, 1.1),
-  treasureMap: makeTreasureMap,
   goldenFish: () => makeFishShape(DROP_COLORS.goldenFish, 1.1, 1.1, 1.2),
-  oldHook: makeOldHook,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,
