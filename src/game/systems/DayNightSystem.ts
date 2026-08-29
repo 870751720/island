@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 
-const DAY_LENGTH = 240; // 一整轮昼夜(秒)
+const DAY_LENGTH = 240; // 一整轮昼夜(秒,按白天流速计)
+/** 夜晚时钟加速倍率:自然夜约 116 秒,加速后压到约 40 秒 */
+const NIGHT_CLOCK_RATE = 2.9;
 
 const SKY_DAY = new THREE.Color('#a8d8ea');
 const SKY_DUSK = new THREE.Color('#e8a06a');
@@ -50,7 +52,9 @@ export class DayNightSystem implements Updatable {
   }
 
   update(delta: number): void {
-    this.t = (this.t + delta / DAY_LENGTH) % 1;
+    // 夜里时钟加速,让自然夜(约 116 秒)压到约 40 秒;白天与晨昏仍按原速走
+    const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
+    this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
     this.apply();
   }
 
