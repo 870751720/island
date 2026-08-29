@@ -335,8 +335,13 @@ export class Game {
       this.wildlife,
       this.fx,
       this.audio,
-      // 击杀的战利品落在击杀位置,走近后点「捡回」拾取
-      (kind, count, x, z) => this.drops.dropAt(kind, count, x, z)
+      // 击杀的战利品散落在击杀位置周围,走近后点「捡回」拾取
+      (items: { kind: ResourceKind; count: number }[], x: number, z: number) => {
+        items.forEach((item, i) => {
+          const angle = (i / items.length) * Math.PI * 2;
+          this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);
+        });
+      }
     );
     this.drops = new DropSystem(
       this.scene,

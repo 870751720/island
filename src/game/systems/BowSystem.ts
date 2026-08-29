@@ -4,7 +4,7 @@ import type { Crabs } from '../entities/Crab';
 import type { Birds } from '../entities/Birds';
 import type { Wildlife } from '../entities/Wildlife';
 import type { IslandTerrain } from '../world/IslandTerrain';
-import type { Inventory } from './Inventory';
+import type { Inventory, ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -81,10 +81,9 @@ export class BowSystem {
     private wildlife: Wildlife,
     private fx: Particles,
     private audio: GameAudio,
-    /** 击杀掉落战利品(在击杀位置掉落对应肉类) */
+    /** 击杀掉落战利品(在击杀位置附近散落多种道具) */
     private onLoot: (
-      kind: 'crabMeat' | 'birdMeat' | 'gameMeat',
-      count: number,
+      items: { kind: ResourceKind; count: number }[],
       x: number,
       z: number
     ) => void
@@ -198,12 +197,10 @@ export class BowSystem {
       this.fx.burst(p, '#c0392d', 10);
       // 野生动物可中数箭:受伤未死不掉肉,箭留在身上消失
       if (beast !== 'hit') {
-        this.onLoot(
-          beast ? 'gameMeat' : hitCrab ? 'crabMeat' : 'birdMeat',
-          beast ? this.wildlife.lootOf(beast.species) : 1,
-          p.x,
-          p.z
-        );
+        const loot = beast
+          ? this.wildlife.lootOf(beast.species)
+          : ([{ kind: hitCrab ? ('crabMeat' as const) : ('birdMeat' as const), count: 1 }]);
+        this.onLoot(loot, p.x, p.z);
       }
       this.removeArrow(arrow, index);
     } else {

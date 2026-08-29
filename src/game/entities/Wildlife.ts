@@ -2,8 +2,12 @@ import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from '../world/IslandTerrain';
 import { ANIMAL_BUILDERS } from './WildlifeModels';
+import type { ResourceKind } from '../systems/Inventory';
 
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'bear';
+
+/** 击杀掉落的战利品(兽肉之外按物种附带不同材料) */
+export type AnimalLoot = { kind: ResourceKind; count: number }[];
 
 /** 草地高度带:高于沙滩带上限算草地,动物只在草地上活动 */
 const GRASS_MIN = 0.16;
@@ -28,8 +32,8 @@ type SpeciesConfig = {
   attackCooldown: number;
   /** 中几箭倒下 */
   hp: number;
-  /** 击杀掉落的兽肉份数 */
-  loot: number;
+  /** 击杀掉落的战利品 */
+  loot: AnimalLoot;
   respawn: number;
 };
 
@@ -45,7 +49,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     damage: 0,
     attackCooldown: 0,
     hp: 1,
-    loot: 1,
+    loot: [
+      { kind: 'gameMeat', count: 1 },
+      { kind: 'fiber', count: 1 },
+    ],
     respawn: DAY_RESPAWN,
   },
   sheep: {
@@ -59,7 +66,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     damage: 0,
     attackCooldown: 0,
     hp: 1,
-    loot: 2,
+    loot: [
+      { kind: 'gameMeat', count: 2 },
+      { kind: 'fiber', count: 3 },
+    ],
     respawn: DAY_RESPAWN,
   },
   deer: {
@@ -73,7 +83,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     damage: 0,
     attackCooldown: 0,
     hp: 1,
-    loot: 2,
+    loot: [
+      { kind: 'gameMeat', count: 3 },
+      { kind: 'rope', count: 1 },
+    ],
     respawn: DAY_RESPAWN,
   },
   bear: {
@@ -87,7 +100,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     damage: 15,
     attackCooldown: 1.6,
     hp: 3,
-    loot: 3,
+    loot: [{ kind: 'gameMeat', count: 4 }],
     respawn: BEAR_RESPAWN,
   },
 };
@@ -335,8 +348,8 @@ export class Wildlife implements Updatable {
     return { species };
   }
 
-  /** 击杀应掉落的兽肉份数(按物种) */
-  lootOf(species: AnimalSpecies): number {
+  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同) */
+  lootOf(species: AnimalSpecies): AnimalLoot {
     return SPECIES[species].loot;
   }
 
