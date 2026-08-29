@@ -717,9 +717,26 @@ export class Game {
     return this.fishing.hook();
   }
 
-  /** GM 发放鱼竿(直接进背包,工具栏自动点亮) */
-  gmGrantFishingrod(): void {
-    this.inventory.add('fishingrod', 1);
+  /** GM 发放道具(直接进背包,工具栏自动点亮) */
+  gmGiveItem(kind: ResourceKind, count: number): void {
+    this.inventory.add(kind, count);
+  }
+
+  /** GM 生存状态回满并复活 */
+  gmRestoreStatus(): void {
+    const s = this.survival.state;
+    s.hunger = s.thirst = s.health = s.stamina = 100;
+    s.dead = false;
+  }
+
+  /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午 */
+  gmSetTime(t: number): void {
+    this.dayNight.time = t;
+  }
+
+  /** GM 强制切换天气 */
+  gmSetWeather(type: 'sunny' | 'rain'): void {
+    this.weather.force(type);
   }
 
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */

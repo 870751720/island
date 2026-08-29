@@ -35,6 +35,10 @@ export class SurvivalSystem implements Updatable {
   update(delta: number): void {
     const s = this.state;
     if (s.dead) return;
+    if (GmSystem.godMode) {
+      s.hunger = s.thirst = s.health = s.stamina = 100;
+      return;
+    }
     s.hunger = Math.max(0, s.hunger - HUNGER_RATE * this.drainMultiplier * delta);
     s.thirst = Math.max(
       0,

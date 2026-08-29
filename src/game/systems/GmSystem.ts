@@ -2,6 +2,8 @@
 export const GmSystem = {
   /** 是否允许死亡;关闭后生命耗尽也不会死 */
   allowDeath: true,
+  /** 无敌模式:饥饿/口渴不掉、生命与体力回满 */
+  godMode: false,
   /** 是否锁定白天;开启后时间停止在正午 */
   lockDaytime: false,
   /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */

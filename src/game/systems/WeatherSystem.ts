@@ -61,6 +61,15 @@ export class WeatherSystem {
     return 1 - 0.4 * this.rainAmount;
   }
 
+  /** GM 强制切换天气:立即生效并重新计时轮换 */
+  force(type: WeatherType): void {
+    this.type = type;
+    this.label = type === 'rain' ? '🌧️ 雨' : '☀️ 晴';
+    this.state.type = type;
+    this.state.label = this.label;
+    this.timer = this.pickDuration();
+  }
+
   private switchWeather(): void {
     this.timer = this.pickDuration();
     this.type = Math.random() < RAIN_CHANCE ? 'rain' : 'sunny';

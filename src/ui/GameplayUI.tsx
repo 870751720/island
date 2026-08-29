@@ -13,7 +13,7 @@ import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
-import { GmPanel } from './GmPanel';
+import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
 
 const INITIAL_HUD: HudSnapshot = {
@@ -159,7 +159,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       {gmOpen && (
         <GmPanel
           onClose={() => setGmOpen(false)}
-          onGrantRod={() => gameRef.current?.gmGrantFishingrod()}
+          actions={{
+            restoreStatus: () => gameRef.current?.gmRestoreStatus(),
+            setTime: (t) => gameRef.current?.gmSetTime(t),
+            setWeather: (type) => gameRef.current?.gmSetWeather(type),
+            giveItem: (kind, count) => gameRef.current?.gmGiveItem(kind, count),
+          }}
         />
       )}
       <Backpack
