@@ -209,8 +209,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       {hud.dead && <DeathScreen onConfirm={onExit} />}
       {pickups.map((t) => (
         <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>
-          {t.icon}
-          <span className="pickup-count">×{t.count}</span>
+          {t.items.map((item, i) => (
+            <span key={i} style={{ marginLeft: i > 0 ? 8 : 0 }}>
+              {item.icon}
+              <span className="pickup-count">×{item.count}</span>
+            </span>
+          ))}
         </div>
       ))}
       <div

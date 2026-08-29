@@ -87,7 +87,7 @@ export type HudSnapshot = {
 const VIEW_SIZE = 18;
 
 /** 拾取提示(玩家头顶飘图标):图标、数量与诞生时的屏幕坐标 */
-export type PickupToast = { icon: string; count: number; x: number; y: number };
+export type PickupToast = { items: { icon: string; count: number }[]; x: number; y: number };
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 
@@ -388,6 +388,7 @@ export class Game {
           }
         }
         this.pushHud(delta);
+        this.flushPickups();
       },
     });
 
@@ -438,17 +439,29 @@ export class Game {
   }
 
   /** 背包入包时在玩家头顶飘出图标与数量 */
+  /** 本帧入包待合并的拾取项(同帧多种道具合并为一条提示) */
+  private pendingPickups: { icon: string; count: number }[] = [];
+
   private emitPickup(kind: ResourceKind, count: number): void {
+    const icon = ITEMS[kind].icon;
+    const existing = this.pendingPickups.find((p) => p.icon === icon);
+    if (existing) existing.count += count;
+    else this.pendingPickups.push({ icon, count });
+  }
+
+  /** 帧末统一发出本帧的拾取提示:同一瞬间获得的多种道具合并为一条,避免重叠 */
+  private flushPickups(): void {
+    if (this.pendingPickups.length === 0) return;
     const p = this.player.group.position;
     const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
     const w = this.renderer.domElement.clientWidth;
     const h = this.renderer.domElement.clientHeight;
     this.onPickup({
-      icon: ITEMS[kind].icon,
-      count,
+      items: this.pendingPickups,
       x: Math.round(((head.x + 1) / 2) * w),
       y: Math.round(((1 - head.y) / 2) * h),
     });
+    this.pendingPickups = [];
   }
 
   private resize(): void {
