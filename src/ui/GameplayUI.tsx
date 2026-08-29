@@ -8,6 +8,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
+import { CampfirePanel } from './CampfirePanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
@@ -37,6 +38,11 @@ const INITIAL_HUD: HudSnapshot = {
   workbenchCrafting: false,
   workbenchProgress: 0,
   nearWorkbench: false,
+  canCraftCampfire: false,
+  campfireCrafting: false,
+  campfireProgress: 0,
+  nearCampfire: false,
+  campfireInfo: null,
   eatName: null,
   eatProgress: 0,
   autoEquipProgress: 0,
@@ -58,12 +64,16 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
+  const [campfireOpen, setCampfireOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
 
-  // 离开工作台范围自动收起制作面板
+  // 离开工作台/火堆范围自动收起对应面板
   useEffect(() => {
     if (!hud.nearWorkbench) setWorkbenchOpen(false);
   }, [hud.nearWorkbench]);
+  useEffect(() => {
+    if (!hud.nearCampfire) setCampfireOpen(false);
+  }, [hud.nearCampfire]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -119,14 +129,21 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          {(hud.axe || hud.pickaxe || hud.fishingrod || hud.bow || hud.nearWorkbench) && (
+          {(hud.axe ||
+            hud.pickaxe ||
+            hud.fishingrod ||
+            hud.bow ||
+            hud.nearWorkbench ||
+            hud.nearCampfire) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
               workbench={hud.nearWorkbench && hud.craftId === null}
+              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null}
               arrowCount={hud.arrow}
               onCycle={() => gameRef.current?.cycleTool()}
               onWorkbench={() => setWorkbenchOpen(true)}
+              onCampfire={() => setCampfireOpen(true)}
             />
           )}
           {workbenchOpen && (
@@ -138,10 +155,19 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               onClose={() => setWorkbenchOpen(false)}
             />
           )}
+          {campfireOpen && hud.nearCampfire && (
+            <CampfirePanel
+              hud={hud}
+              onAddFuel={(kind) => gameRef.current?.campfireAddFuel(kind)}
+              onCook={(kind) => gameRef.current?.campfireCook(kind)}
+              onClose={() => setCampfireOpen(false)}
+            />
+          )}
           <CraftPrompt
             hud={hud}
             onCraft={(id) => gameRef.current?.craftTool(id)}
             onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
+            onCraftCampfire={() => gameRef.current?.craftCampfire()}
           />
           <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
           <FishingControls

@@ -3,10 +3,13 @@
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import { RECIPES, WORKBENCH_COST, hasCost, type Recipe } from '@/game/systems/Crafting';
+import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
 
 const UNIT_LABELS: Record<string, string> = {
-  wood: '木',
+  wood: '枝',
+  log: '木',
   stone: '石',
+  flint: '燧',
   berry: '果',
   fiber: '纤',
   rope: '线',
@@ -17,13 +20,15 @@ export function CraftPrompt({
   hud,
   onCraft,
   onCraftWorkbench,
+  onCraftCampfire,
 }: {
   hud: HudSnapshot;
   onCraft: (id: Recipe['id']) => void;
   onCraftWorkbench: () => void;
+  onCraftCampfire: () => void;
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
-  if (hud.craftId !== null || hud.workbenchCrafting) return null;
+  if (hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting) return null;
   const craftable = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&
@@ -31,7 +36,8 @@ export function CraftPrompt({
       hasCost(r.cost, hud)
   );
   const showWorkbench = hud.canCraftWorkbench;
-  if (craftable.length === 0 && !showWorkbench) return null;
+  const showCampfire = hud.canCraftCampfire;
+  if (craftable.length === 0 && !showWorkbench && !showCampfire) return null;
   return (
     <div
       style={{
@@ -76,6 +82,24 @@ export function CraftPrompt({
             <br />
             <span style={{ fontSize: 12, color: '#888' }}>
               {costLabel(WORKBENCH_COST)}
+            </span>
+          </span>
+        </button>
+      )}
+      {showCampfire && (
+        <button
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onCraftCampfire();
+          }}
+          style={cardStyle}
+        >
+          <span style={{ fontSize: 26 }}>🔥</span>
+          <span>
+            原地搭小火堆
+            <br />
+            <span style={{ fontSize: 12, color: '#888' }}>
+              {costLabel(CAMPFIRE_COST)}
             </span>
           </span>
         </button>

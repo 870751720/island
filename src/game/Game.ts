@@ -11,6 +11,7 @@ import { RECIPES, type CraftId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
+import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
@@ -57,6 +58,14 @@ export type HudSnapshot = {
   workbenchProgress: number;
   /** 玩家在的工作范围内(工具按钮变为工作台,点击打开制作面板) */
   nearWorkbench: boolean;
+  /** 火堆卡片与搭建进度 */
+  canCraftCampfire: boolean;
+  campfireCrafting: boolean;
+  campfireProgress: number;
+  /** 玩家在火堆旁(工具按钮变为火堆,点击打开火堆面板) */
+  nearCampfire: boolean;
+  /** 身旁火堆的状态(燃烧与否与剩余燃料),不在火堆旁为 null */
+  campfireInfo: CampfireInfo | null;
   eatName: string | null;
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
@@ -92,6 +101,7 @@ export class Game {
   private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
+  private campfire: CampfireSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
   private fishing: FishingSystem;
@@ -194,6 +204,7 @@ export class Game {
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.campfire.isWorking ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking
@@ -218,6 +229,15 @@ export class Game {
       this.fx,
       this.audio
     );
+    this.campfire = new CampfireSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio
+    );
     this.archery = new BowSystem(
       this.scene,
       this.player,
@@ -226,7 +246,9 @@ export class Game {
       this.crabs,
       this.birds,
       this.fx,
-      this.audio
+      this.audio,
+      // 击杀的战利品落在击杀位置,走近后点「捡回」拾取
+      (kind, x, z) => this.drops.dropAt(kind, 1, x, z)
     );
     this.drops = new DropSystem(
       this.scene,
@@ -276,27 +298,30 @@ export class Game {
         ) {
           this.crafting.cancel();
         }
-        this.workbench.update(delta);
-        this.eating.update(delta);
-        this.fishing.update(
-          delta,
-          this.collect.isWorking ||
-            this.crafting.isWorking ||
-            this.workbench.isWorking ||
-            this.eating.isWorking ||
-            this.archery.isWorking ||
-            this.water.isActive
-        );
-        this.archery.update(
-          delta,
-          this.collect.isWorking ||
-            this.crafting.isWorking ||
-            this.workbench.isWorking ||
-            this.eating.isWorking ||
-            this.fishing.isWorking ||
-            this.water.isActive ||
-            this.survival.state.dead
-        );
+    this.workbench.update(delta);
+    this.campfire.update(delta, elapsed);
+    this.eating.update(delta);
+    this.fishing.update(
+      delta,
+      this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isWorking ||
+        this.eating.isWorking ||
+        this.archery.isWorking ||
+        this.water.isActive
+    );
+    this.archery.update(
+      delta,
+      this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isWorking ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.water.isActive ||
+        this.survival.state.dead
+    );
         this.drops.update(delta, elapsed);
         this.updateAutoEquip(delta);
         this.mumbles.update(delta, {
@@ -313,15 +338,16 @@ export class Game {
           tools: this.tools,
           collecting: this.collect.isWorking,
         });
-        this.water.update(
-          delta,
-          this.collect.isWorking ||
-            this.crafting.isWorking ||
-            this.workbench.isWorking ||
-            this.eating.isWorking ||
-            this.fishing.isWorking ||
-            this.archery.isWorking
-        );
+    this.water.update(
+      delta,
+      this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isWorking ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking
+    );
         this.updateIndicator(delta);
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -467,6 +493,21 @@ export class Game {
     return this.drops.pickupNearby();
   }
 
+  /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
+  craftCampfire(): boolean {
+    return this.campfire.start();
+  }
+
+  /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
+  campfireAddFuel(kind: ResourceKind): boolean {
+    return this.campfire.addFuel(kind) > 0;
+  }
+
+  /** 在身旁燃烧的火堆上烤 1 份食物,返回是否成功 */
+  campfireCook(kind: ResourceKind): boolean {
+    return this.campfire.cook(kind) !== null;
+  }
+
   /** 丢弃一个道具到玩家附近的地上 */
   dropItem(kind: ResourceKind): boolean {
     if (!this.inventory.remove(kind, 1)) return false;
@@ -544,6 +585,11 @@ export class Game {
       workbenchCrafting: this.workbench.isWorking,
       workbenchProgress: this.workbench.getProgress() ?? 0,
       nearWorkbench: this.workbench.isNear,
+      canCraftCampfire: this.campfire.canStart(),
+      campfireCrafting: this.campfire.isWorking,
+      campfireProgress: this.campfire.getProgress() ?? 0,
+      nearCampfire: !!this.campfire.nearby,
+      campfireInfo: this.campfire.getCampfireInfo(),
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
@@ -569,6 +615,9 @@ export class Game {
     } else if (this.workbench.isWorking) {
       label = '制作中:工作台';
       progress = this.workbench.getProgress();
+    } else if (this.campfire.isWorking) {
+      label = '搭建中:小火堆';
+      progress = this.campfire.getProgress();
     } else if (this.eating.isWorking) {
       label = `${this.eating.currentFood!.icon} 吃${this.eating.currentFood!.name}`;
       progress = this.eating.getProgress();

@@ -6,6 +6,7 @@ import type { GameAudio } from '../audio/GameAudio';
 
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
+const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 
 /** 作业对象种类:树桩是树的第二段,单独配置 */
 type HarvestKind = Prop['kind'] | 'stump';
@@ -28,25 +29,37 @@ const HARVEST_CONFIG: Record<
     action: 'chop',
     hits: 3,
     fxColor: '#4f9440',
-    yield: (inv) => inv.add('wood', 3),
+    yield: (inv) => {
+      inv.add('wood', 2);
+      inv.add('log', 1);
+    },
   },
   stump: {
     action: 'chop',
     hits: 2,
     fxColor: '#8a6239',
-    yield: (inv) => inv.add('wood', 1),
+    yield: (inv) => {
+      inv.add('wood', 1);
+      inv.add('log', 2);
+    },
   },
   rock: {
     action: 'mine',
     hits: 4,
     fxColor: '#9a9a9a',
-    yield: (inv) => inv.add('stone', 2),
+    yield: (inv) => {
+      inv.add('stone', 2);
+      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
+    },
   },
   gravel: {
     action: 'pick',
     hits: 1,
     fxColor: '#b5b0a8',
-    yield: (inv) => inv.add('stone', 2),
+    yield: (inv) => {
+      inv.add('stone', 2);
+      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
+    },
   },
   berry: {
     action: 'pick',
@@ -64,7 +77,7 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 1,
     fxColor: '#a4c46a',
-    yield: (inv) => inv.add('fiber', 2),
+    yield: (inv) => inv.add('fiber', 1),
   },
 };
 

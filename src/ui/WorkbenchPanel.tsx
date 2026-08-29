@@ -11,8 +11,10 @@ import {
 } from '@/game/systems/Crafting';
 
 const UNIT_LABELS: Record<string, string> = {
-  wood: '木',
+  wood: '枝',
+  log: '木',
   stone: '石',
+  flint: '燧',
   berry: '果',
   fiber: '纤',
   rope: '线',

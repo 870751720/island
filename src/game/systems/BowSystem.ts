@@ -78,7 +78,9 @@ export class BowSystem {
     private crabs: Crabs,
     private birds: Birds,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    /** 击杀掉落战利品(在击杀位置掉落对应肉类) */
+    private onLoot: (kind: 'crabMeat' | 'birdMeat', x: number, z: number) => void
   ) {}
 
   /** 拉弓期间占用双手(其他系统让位用) */
@@ -176,14 +178,15 @@ export class BowSystem {
     }
   }
 
-  /** 到达目标点:命中范围内的螃蟹或小鸟即击杀;未命中则插在地上 */
+  /** 到达目标点:命中范围内的螃蟹或小鸟即击杀并掉肉;未命中则插在地上 */
   private resolveHit(arrow: Arrow, index: number): void {
     const p = arrow.group.position;
-    const hit =
-      this.crabs.killNearby(p, HIT_RANGE) || this.birds.killNearby(p, HIT_RANGE);
-    if (hit) {
+    const hitCrab = this.crabs.killNearby(p, HIT_RANGE);
+    const hitBird = !hitCrab && this.birds.killNearby(p, HIT_RANGE);
+    if (hitCrab || hitBird) {
       this.audio.play('arrowHit');
-      this.fx.burst(p, '#c0392b', 10);
+      this.fx.burst(p, '#c0392d', 10);
+      this.onLoot(hitCrab ? 'crabMeat' : 'birdMeat', p.x, p.z);
       this.removeArrow(arrow, index);
     } else {
       arrow.stuck = STICK_TIME;

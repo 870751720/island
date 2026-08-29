@@ -6,20 +6,36 @@ export type ItemDef = {
   name: string;
   icon: string;
   description: string;
+  /** 可燃物:投入火堆增加的燃烧秒数(未标记的道具不可燃烧) */
+  burnTime?: number;
 };
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
   wood: {
     kind: 'wood',
-    name: '木材',
+    name: '树枝',
+    icon: '🌿',
+    description: '砍树、捡灌木丛获得,细而易燃,是制作工具的基础材料,也可以当火堆的柴。',
+    burnTime: 20,
+  },
+  log: {
+    kind: 'log',
+    name: '木头',
     icon: '🪵',
-    description: '砍树或捡树枝获得,是制作工具和工作台的基础材料。',
+    description: '砍树获得的木段,耐烧的好柴火,也是搭建火堆的材料。',
+    burnTime: 45,
   },
   stone: {
     kind: 'stone',
     name: '石头',
     icon: '🪨',
     description: '从碎石堆捡拾或用镐子开采大石块获得,制作工具和工作台的常用材料。',
+  },
+  flint: {
+    kind: 'flint',
+    name: '燧石',
+    icon: '⚡',
+    description: '敲碎石头时偶尔蹦出的尖锐石片,与木头摩擦就能生起火堆。',
   },
   berry: {
     kind: 'berry',
@@ -44,6 +60,42 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '鱼',
     icon: '🐟',
     description: '在海边或水洼边钓上来的鱼,新鲜有营养,可以直接生吃恢复饥饿。',
+  },
+  crabMeat: {
+    kind: 'crabMeat',
+    name: '蟹肉',
+    icon: '🦀',
+    description: '射杀螃蟹掉落的蟹肉,可以生吃,烤一烤会更鲜美。',
+  },
+  birdMeat: {
+    kind: 'birdMeat',
+    name: '鸟肉',
+    icon: '🐦',
+    description: '射杀小鸟掉落的鸟肉,可以生吃,烤熟后更滋补。',
+  },
+  cookedBerry: {
+    kind: 'cookedBerry',
+    name: '烤浆果',
+    icon: '🍬',
+    description: '火堆上烤过的浆果,糖分焦香,恢复效果更好。',
+  },
+  cookedFish: {
+    kind: 'cookedFish',
+    name: '烤鱼',
+    icon: '🍢',
+    description: '火堆上烤得滋滋作响的鱼,香气扑鼻,恢复大量饥饿。',
+  },
+  cookedCrabMeat: {
+    kind: 'cookedCrabMeat',
+    name: '烤蟹肉',
+    icon: '🍤',
+    description: '烤得通红的蟹肉,鲜甜弹牙,比生吃滋补得多。',
+  },
+  cookedBirdMeat: {
+    kind: 'cookedBirdMeat',
+    name: '烤鸟肉',
+    icon: '🍗',
+    description: '外焦里嫩的烤鸟肉,是荒岛上难得的硬菜。',
   },
   arrow: {
     kind: 'arrow',

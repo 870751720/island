@@ -37,12 +37,20 @@ export class DropSystem {
 
   /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下) */
   drop(kind: ResourceKind, count: number): void {
-    const mesh = makeDropModel(kind);
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
     const p = this.player.group.position;
-    const x = p.x + Math.cos(angle) * radius;
-    const z = p.z + Math.sin(angle) * radius;
+    this.dropAt(
+      kind,
+      count,
+      p.x + Math.cos(angle) * radius,
+      p.z + Math.sin(angle) * radius
+    );
+  }
+
+  /** 在指定坐标掉落道具(狩猎战利品等),同样走「捡回」卡片拾取 */
+  dropAt(kind: ResourceKind, count: number, x: number, z: number): void {
+    const mesh = makeDropModel(kind);
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
