@@ -460,12 +460,6 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                                   <span style={{ fontSize: 12, color: '#888' }}>评分 {EQUIPMENT[kind].score}</span>
                                 </div>
                                 <div style={{ marginTop: 4, color: '#666' }}>{def.description}</div>
-                                <div style={{ display: 'flex', marginTop: 8 }}>
-                                  {actionButton(false, '卸下', '#e67e22', () => {
-                                    setTip(null);
-                                    onUnequip(slot);
-                                  })}
-                                </div>
                               </>
                             ) : (
                               <div style={{ textAlign: 'center', color: '#999' }}>

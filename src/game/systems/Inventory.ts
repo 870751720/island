@@ -111,6 +111,11 @@ export class Inventory {
     if (restored.length > 0) this.slots = restored;
   }
 
+  /** 该种类道具是否还能放入(已有同种格或有空格;叠加无上限) */
+  canFit(kind: ResourceKind): boolean {
+    return this.slots.some((slot) => !slot || slot.kind === kind);
+  }
+
   count(kind: ResourceKind): number {
     return this.slots.reduce(
       (sum, slot) => sum + (slot && slot.kind === kind ? slot.count : 0),

@@ -96,6 +96,8 @@ export type HudSnapshot = {
   biteNeed: number;
   /** 玩家附近可捡回的掉落物,无时为 null */
   nearDrop: DropInfo | null;
+  /** 通用临时提示(自动消失),如「背包满了」 */
+  notice: { id: number; text: string } | null;
 };
 
 const VIEW_SIZE = 18;
@@ -159,6 +161,8 @@ export class Game {
   private mumbleText: string | null = null;
   private mumbleTimer = 0;
   private hudTimer = 0;
+  private noticeId = 0;
+  private notice: { id: number; text: string } | null = null;
   private autoEquipTimer = 0;
   private lastDead = false;
   private resizeObserver: ResizeObserver;
@@ -743,7 +747,7 @@ export class Game {
   giveItem(kind: ResourceKind, count: number): number {
     const added = this.inventory.add(kind, count);
     const overflow = count - added;
-    if (overflow > 0) this.drops.drop(kind, overflow);
+    if (overflow > 0) this.drops.dropOverflow(kind, overflow);
     return added;
   }
 
@@ -769,9 +773,22 @@ export class Game {
     return openBottle(this.inventory);
   }
 
-  /** 捡回附近掉落物(点「捡回」卡片),背包放不下则失败 */
+  /** 捡回附近掉落物(点「捡回」卡片),背包放不下则提示 */
   pickupDrop(): boolean {
+    const near = this.drops.getNearby();
+    if (!near) return false;
+    if (!this.inventory.canFit(near.kind)) {
+      this.notify('背包满了,装不下更多东西');
+      return false;
+    }
     return this.drops.pickupNearby();
+  }
+
+  /** 通用临时提示(由 UI 自动消失) */
+  notify(text: string): void {
+    this.notice = { id: ++this.noticeId, text };
+    this.hudTimer = 1; // 跳过节流立即推送
+    this.pushHud(0);
   }
 
   /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
@@ -907,6 +924,7 @@ export class Game {
       biteClicks: this.fishing.biteClicks,
       biteNeed: this.fishing.biteNeed,
       nearDrop: this.drops.getNearby(),
+      notice: this.notice,
     });
   }
 

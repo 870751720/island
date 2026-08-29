@@ -12,6 +12,7 @@ import { CampfirePanel } from './CampfirePanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
+import { Notice } from './Notice';
 import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
@@ -58,6 +59,7 @@ const INITIAL_HUD: HudSnapshot = {
   biteClicks: 0,
   biteNeed: 1,
   nearDrop: null,
+  notice: null,
 };
 
 /**
@@ -257,6 +259,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           {!backpackOpen && (
             <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
           )}
+          <Notice notice={hud.notice} />
         </>
       )}
       {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}

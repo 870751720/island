@@ -11,8 +11,8 @@ const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
 const BOB_HEIGHT = 0.15; // 悬浮上下浮动幅度
 const SPIN_SPEED = 1.6; // 旋转速度(弧度/秒)
 
-/** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 */
-export type DropSource = 'discarded' | 'loot';
+/** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 / 背包放不下溢出 */
+export type DropSource = 'discarded' | 'loot' | 'overflow';
 
 export type DropInfo = { kind: ResourceKind; count: number; source: DropSource };
 
@@ -48,6 +48,20 @@ export class DropSystem {
       kind,
       count,
       'discarded',
+      p.x + Math.cos(angle) * radius,
+      p.z + Math.sin(angle) * radius
+    );
+  }
+
+  /** 背包放不下溢出到玩家附近(与主动丢弃区分来源) */
+  dropOverflow(kind: ResourceKind, count: number): void {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.7 + Math.random() * 0.5;
+    const p = this.player.group.position;
+    this.spawn(
+      kind,
+      count,
+      'overflow',
       p.x + Math.cos(angle) * radius,
       p.z + Math.sin(angle) * radius
     );
