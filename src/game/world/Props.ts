@@ -4,6 +4,12 @@ import { IslandTerrain } from './IslandTerrain';
 
 const SHAKE_TIME = 0.4;
 
+/** 有阻挡的物件的碰撞半径(树按树干算,大石按岩体算);未列出的种类可穿过 */
+const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
+  tree: 0.3,
+  rock: 0.6,
+};
+
 export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass';
 
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
@@ -235,6 +241,23 @@ export class Props implements Updatable {
         // 灌木丛被割,缩到很小的桩
         prop.group.scale.setScalar(0.35);
         break;
+    }
+  }
+
+  /** 将圆形实体沿 XZ 推出有阻挡的物件(存活的树与大石),原地修改位置 */
+  resolveCollision(p: THREE.Vector3, radius: number): void {
+    for (const prop of this.list) {
+      const blockR = BLOCK_RADIUS[prop.kind];
+      // 树被砍倒(整体隐藏)或大石被采空后不再阻挡;树桩仍阻挡
+      if (!blockR || !prop.group.visible) continue;
+      const dx = p.x - prop.position.x;
+      const dz = p.z - prop.position.z;
+      const min = blockR + radius;
+      if (dx * dx + dz * dz >= min * min) continue;
+      const d = Math.max(Math.sqrt(dx * dx + dz * dz), 1e-4);
+      const push = (min - d) / d;
+      p.x += dx * push;
+      p.z += dz * push;
     }
   }
 

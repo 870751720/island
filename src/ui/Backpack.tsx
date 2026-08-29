@@ -28,6 +28,14 @@ function isFood(kind: ResourceKind): boolean {
 const SLOT_SIZE = 52;
 const SLOT_GAP = 8;
 const COLUMNS = 5;
+/** 物品详情区固定最小高度:与选中道具时(标题行+两行描述+按钮行)等高,空态不塌陷 */
+const DETAIL_AREA_STYLE: React.CSSProperties = {
+  minHeight: 130,
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  gap: 8,
+};
 
 function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
   return {
@@ -233,33 +241,35 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               </div>
 
               {tab === 'detail' ? (
-                selected && selectedDef ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 24 }}>{selectedDef.icon}</span>
-                      <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
-                      <span style={{ color: '#888' }}>×{selected.count}</span>
-                    </div>
-                    <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>
-                      {selectedDef.description}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {isFood(selectedDef.kind) &&
-                        actionButton(false, '使用', '#4caf50', () => {
+                <div style={DETAIL_AREA_STYLE}>
+                  {selected && selectedDef ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 24 }}>{selectedDef.icon}</span>
+                        <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
+                        <span style={{ color: '#888' }}>×{selected.count}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+                        {selectedDef.description}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {isFood(selectedDef.kind) &&
+                          actionButton(false, '使用', '#4caf50', () => {
+                            setSelectedIndex(null);
+                            onUseItem(selectedDef.kind);
+                          })}
+                        {actionButton(false, '丢弃', '#e67e22', () => {
+                          onDropItem(selectedDef.kind);
                           setSelectedIndex(null);
-                          onUseItem(selectedDef.kind);
                         })}
-                      {actionButton(false, '丢弃', '#e67e22', () => {
-                        onDropItem(selectedDef.kind);
-                        setSelectedIndex(null);
-                      })}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>
+                      点击上方物品查看详情
                     </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 13, color: '#999', textAlign: 'center', padding: '14px 0' }}>
-                    点击上方物品查看详情
-                  </div>
-                )
+                  )}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {craftables.length === 0 && !hud.canCraftWorkbench && (

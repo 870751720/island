@@ -185,6 +185,7 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
+    this.player.setObstacles(this.props);
     this.scene.add(this.player.group);
     this.crabs = new Crabs(this.scene, terrain, this.player);
     this.butterflies = new Butterflies(this.scene, this.props, this.player);

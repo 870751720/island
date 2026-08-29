@@ -13,6 +13,13 @@ const SWIM_SPEED = 2.6;
 const SWIM_DEPTH = 0.6;
 /** 游泳时身体没入水面的深度 */
 const FLOAT_DEPTH = 0.55;
+/** 玩家碰撞半径(与树、大石等静态阻挡做圆形推挤) */
+const PLAYER_RADIUS = 0.35;
+
+/** 静态阻挡解算器:把实体位置推出有阻挡的物件 */
+export interface ObstacleSolver {
+  resolveCollision(p: THREE.Vector3, radius: number): void;
+}
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -127,6 +134,12 @@ export class Player implements Updatable {
   private action: ActionType | null = null;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
+  private obstacles: ObstacleSolver | null = null;
+
+  /** 注入静态阻挡(树、大石等),移动时被推出不可穿越的物件 */
+  setObstacles(obstacles: ObstacleSolver): void {
+    this.obstacles = obstacles;
+  }
 
   constructor(
     terrain: IslandTerrain,
@@ -241,6 +254,8 @@ export class Player implements Updatable {
       const half = this.terrain.size / 2 - 1;
       p.x = THREE.MathUtils.clamp(p.x, -half, half);
       p.z = THREE.MathUtils.clamp(p.z, -half, half);
+      // 静态阻挡:被推出树、大石等不可穿越的物件(游泳时不管)
+      if (!this.swimming) this.obstacles?.resolveCollision(p, PLAYER_RADIUS);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
       // 陆地上行走按步距交替留脚印,水中不留
       if (!this.swimming && !this.wading) {
