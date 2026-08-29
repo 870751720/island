@@ -89,16 +89,21 @@ function makeSproutParts(): THREE.Mesh[] {
 /** 小树:细树干 + 一团小树冠(按树种配色) */
 function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.08, 0.5, 5),
+    new THREE.CylinderGeometry(0.08, 0.12, 0.9, 5),
     clayMaterial('#8a6239')
   );
-  trunk.position.y = 0.25;
+  trunk.position.y = 0.45;
   const crown = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.28, 0),
+    new THREE.IcosahedronGeometry(0.5, 0),
     clayMaterial(CROWN_COLORS[species])
   );
-  crown.position.y = 0.6;
-  return [trunk, crown];
+  crown.position.y = 1.1;
+  const crown2 = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.3, 0),
+    clayMaterial('#4f9440')
+  );
+  crown2.position.set(0.12, 1.45, 0.08);
+  return [trunk, crown, crown2];
 }
 
 /** 成树:按树种拼装三种造型 */
@@ -123,21 +128,31 @@ function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
     return [trunk, ...crowns];
   }
   if (species === 'palm') {
-    // 棕榈树:高细树干顶端展开几片长叶
+    // 棕榈树:粗壮树干,顶端交错多层宽叶并挂上椰子
     const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.12, 1.5, 5),
+      new THREE.CylinderGeometry(0.13, 0.18, 1.5, 5),
       clayMaterial(trunkColor)
     );
     trunk.position.y = 0.75;
-    trunk.rotation.z = 0.08;
-    const parts = [trunk];
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      const frond = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.8, 4), clayMaterial(crownColor));
-      frond.scale.set(0.4, 1, 1);
-      frond.position.set(Math.cos(a) * 0.28, 1.5, Math.sin(a) * 0.28);
-      frond.rotation.set(Math.sin(a) * 0.9, -a, Math.cos(a) * 0.9);
+    const parts: THREE.Mesh[] = [trunk];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const layer = i < 4 ? 1.52 : 1.38;
+      const frond = new THREE.Mesh(
+        new THREE.ConeGeometry(0.16, 0.95, 4),
+        clayMaterial(i % 2 === 0 ? crownColor : '#5aa84c')
+      );
+      frond.scale.set(0.45, 1, 1);
+      frond.position.set(Math.cos(a) * 0.32, layer, Math.sin(a) * 0.32);
+      frond.rotation.set(Math.sin(a) * 0.85, -a, Math.cos(a) * 0.85);
       parts.push(frond);
+    }
+    const coconutMat = clayMaterial('#6b4f2e');
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const coconut = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 0), coconutMat);
+      coconut.position.set(Math.cos(a) * 0.14, 1.42, Math.sin(a) * 0.14);
+      parts.push(coconut);
     }
     return parts;
   }
@@ -366,8 +381,8 @@ export class Props implements Updatable {
     if (regrow > 0) {
       prop.regrowLeft = regrow;
     }
-    if (prop.kind === 'tree' && prop.stage !== 'stump') {
-      // 第一段砍掉树冠只留树桩,树桩仍可继续砍
+    if (prop.kind === 'tree' && prop.stage !== 'stump' && prop.growth === 'mature') {
+      // 成树第一段砍掉树冠只留树桩,树桩仍可继续砍;小树砍倒即消失
       prop.stage = 'stump';
       prop.ready = true;
     }
@@ -379,8 +394,8 @@ export class Props implements Updatable {
     switch (prop.kind) {
       case 'tree':
         this.applyTreeLook(prop);
-        // 树桩被彻底砍倒后整体隐藏;其余阶段(含未成树)始终可见
-        prop.group.visible = prop.ready || prop.stage !== 'stump';
+        // 发芽始终可见;其余阶段被砍倒(成树砍桩后/小树砍倒后)整体隐藏
+        prop.group.visible = prop.growth === 'sprout' || prop.ready;
         break;
       case 'rock':
       case 'gravel':
@@ -435,6 +450,8 @@ export class Props implements Updatable {
       if (prop.kind === 'tree') {
         prop.species = state.species ?? 'oak';
         prop.growth = state.growth ?? 'mature';
+        // 小树随时可砍(只出树枝)
+        if (prop.growth === 'sapling') prop.ready = true;
       }
       this.syncAppearance(prop);
     }
@@ -519,7 +536,8 @@ export class Props implements Updatable {
       if (prop.kind !== 'tree' || prop.growth === 'mature' || prop.stage === 'stump') continue;
       if (Math.random() >= GROWTH_CHANCE) continue;
       prop.growth = prop.growth === 'sprout' ? 'sapling' : 'mature';
-      if (prop.growth === 'mature') prop.ready = true;
+      // 长成小树后即可砍伐(只出树枝),长成成树产出完整
+      prop.ready = true;
       this.applyTreeLook(prop);
     }
   }
