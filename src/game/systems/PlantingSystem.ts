@@ -8,6 +8,7 @@ import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
 const PLANT_TIME = 2; // 站定到完成播种的时长(秒)
+const PLANT_TICK = 0.6; // 播种动作的刨土音效间隔(秒)
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处下种
 
 /** 背包里第一粒种子(按格子顺序),没有种子返回 null */
@@ -24,6 +25,7 @@ function firstSeed(inventory: Inventory): { species: TreeSpecies } | null {
  */
 export class PlantingSystem {
   private timer = 0;
+  private tickTimer = 0;
   private scratch = new THREE.Vector3();
 
   constructor(
@@ -57,10 +59,19 @@ export class PlantingSystem {
     const seed = this.player.currentTool === 'seed' ? firstSeed(this.inventory) : null;
     if (!seed || this.player.isMoving || this.player.isSwimming || this.isBusy() || !this.canPlace()) {
       this.timer = 0;
+      this.tickTimer = 0;
       return;
     }
     this.player.setAction('pick');
     this.timer += delta;
+    this.tickTimer += delta;
+    if (this.tickTimer >= PLANT_TICK) {
+      this.tickTimer -= PLANT_TICK;
+      this.audio.play('knock');
+      const fxPos = this.player.group.position.clone();
+      fxPos.y += 0.4;
+      this.fx.burst(fxPos, '#8a6239', 4);
+    }
     if (this.timer < PLANT_TIME) return;
     this.timer = 0;
     this.inventory.remove(SEED_OF[seed.species], 1);

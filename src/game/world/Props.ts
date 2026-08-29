@@ -86,23 +86,23 @@ function makeSproutParts(): THREE.Mesh[] {
   return [stem, leafL, leafR];
 }
 
-/** 小树:细树干 + 一团小树冠(按树种配色) */
+/** 小树:接近成树三分之二大的幼树(按树种配色) */
 function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.12, 0.9, 5),
+    new THREE.CylinderGeometry(0.1, 0.15, 1.3, 5),
     clayMaterial('#8a6239')
   );
-  trunk.position.y = 0.45;
+  trunk.position.y = 0.65;
   const crown = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.5, 0),
+    new THREE.IcosahedronGeometry(0.55, 0),
     clayMaterial(CROWN_COLORS[species])
   );
-  crown.position.y = 1.1;
+  crown.position.y = 1.6;
   const crown2 = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.3, 0),
+    new THREE.IcosahedronGeometry(0.36, 0),
     clayMaterial('#4f9440')
   );
-  crown2.position.set(0.12, 1.45, 0.08);
+  crown2.position.set(0.16, 2.1, 0.12);
   return [trunk, crown, crown2];
 }
 
@@ -128,30 +128,51 @@ function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
     return [trunk, ...crowns];
   }
   if (species === 'palm') {
-    // 棕榈树:粗壮树干,顶端交错多层宽叶并挂上椰子
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.13, 0.18, 1.5, 5),
-      clayMaterial(trunkColor)
+    // 棕榈树:三段微弯的粗树干,顶部一大团密实树冠(中心填充 + 外圈大叶)并挂着椰子
+    const parts: THREE.Mesh[] = [];
+    const trunk = clayMaterial(trunkColor);
+    const segments: [number, number, number][] = [
+      // [高度, x 偏移, 倾斜]
+      [0.6, 0, 0],
+      [0.55, 0.07, 0.1],
+      [0.5, 0.17, 0.18],
+    ];
+    let y = 0;
+    for (const [h, x, tilt] of segments) {
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, h, 5), trunk);
+      seg.position.set(x, y + h / 2, 0);
+      seg.rotation.z = tilt;
+      parts.push(seg);
+      y += h * 0.95;
+    }
+    const topX = segments[2][1];
+    const topY = y + 0.15;
+    // 树冠中心:密实的绿色团块打底,避免叶子间露出空隙
+    const core = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.55, 0),
+      clayMaterial(crownColor)
     );
-    trunk.position.y = 0.75;
-    const parts: THREE.Mesh[] = [trunk];
+    core.scale.set(1.15, 0.75, 1.15);
+    core.position.set(topX, topY, 0);
+    parts.push(core);
+    // 外圈:宽大的叶子向外下垂展开
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const layer = i < 4 ? 1.52 : 1.38;
       const frond = new THREE.Mesh(
-        new THREE.ConeGeometry(0.16, 0.95, 4),
+        new THREE.ConeGeometry(0.2, 1.1, 4),
         clayMaterial(i % 2 === 0 ? crownColor : '#5aa84c')
       );
-      frond.scale.set(0.45, 1, 1);
-      frond.position.set(Math.cos(a) * 0.32, layer, Math.sin(a) * 0.32);
-      frond.rotation.set(Math.sin(a) * 0.85, -a, Math.cos(a) * 0.85);
+      frond.scale.set(0.5, 1, 1);
+      frond.position.set(topX + Math.cos(a) * 0.5, topY - 0.08, Math.sin(a) * 0.5);
+      frond.rotation.set(Math.sin(a) * 1.05, -a, Math.cos(a) * 1.05);
       parts.push(frond);
     }
+    // 树冠下挂三颗椰子
     const coconutMat = clayMaterial('#6b4f2e');
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2;
       const coconut = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 0), coconutMat);
-      coconut.position.set(Math.cos(a) * 0.14, 1.42, Math.sin(a) * 0.14);
+      coconut.position.set(topX + Math.cos(a) * 0.16, topY - 0.4, Math.sin(a) * 0.16);
       parts.push(coconut);
     }
     return parts;
