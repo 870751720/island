@@ -11,17 +11,21 @@ const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
 const BOB_HEIGHT = 0.15; // 悬浮上下浮动幅度
 const SPIN_SPEED = 1.6; // 旋转速度(弧度/秒)
 
-export type DropInfo = { kind: ResourceKind; count: number };
+/** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 */
+export type DropSource = 'discarded' | 'loot';
+
+export type DropInfo = { kind: ResourceKind; count: number; source: DropSource };
 
 type Drop = {
   kind: ResourceKind;
   count: number;
+  source: DropSource;
   mesh: THREE.Object3D;
   age: number;
   baseY: number;
 };
 
-/** 地面掉落物:丢弃的道具以各自专属造型落在玩家附近,旋转悬浮;靠近后出现「捡回」卡片,点击才拾回背包 */
+/** 地面掉落物:掉落的道具以各自专属造型落在玩家附近,旋转悬浮;靠近后出现「捡回」卡片,点击才拾回背包 */
 export class DropSystem {
   private drops: Drop[] = [];
   private scratch = new THREE.Vector3();
@@ -40,9 +44,10 @@ export class DropSystem {
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
     const p = this.player.group.position;
-    this.dropAt(
+    this.spawn(
       kind,
       count,
+      'discarded',
       p.x + Math.cos(angle) * radius,
       p.z + Math.sin(angle) * radius
     );
@@ -50,11 +55,15 @@ export class DropSystem {
 
   /** 在指定坐标掉落道具(狩猎战利品等),同样走「捡回」卡片拾取 */
   dropAt(kind: ResourceKind, count: number, x: number, z: number): void {
+    this.spawn(kind, count, 'loot', x, z);
+  }
+
+  private spawn(kind: ResourceKind, count: number, source: DropSource, x: number, z: number): void {
     const mesh = makeDropModel(kind);
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
-    this.drops.push({ kind, count, mesh, age: 0, baseY });
+    this.drops.push({ kind, count, source, mesh, age: 0, baseY });
     this.audio.play('drop');
   }
 
@@ -77,7 +86,7 @@ export class DropSystem {
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (!nearest || drop.age > nearest.age) nearest = drop;
     }
-    return nearest ? { kind: nearest.kind, count: nearest.count } : null;
+    return nearest ? { kind: nearest.kind, count: nearest.count, source: nearest.source } : null;
   }
 
   /** 捡回附近掉落物;背包放不下时返回 false(掉落物留在地上) */
@@ -110,24 +119,27 @@ export class DropSystem {
   }
 
   /** 当前所有地面掉落物的存档快照 */
-  snapshot(): { kind: ResourceKind; count: number; x: number; z: number }[] {
+  snapshot(): { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[] {
     return this.drops.map((drop) => ({
       kind: drop.kind,
       count: drop.count,
+      source: drop.source,
       x: drop.mesh.position.x,
       z: drop.mesh.position.z,
     }));
   }
 
   /** 从存档恢复掉落物(不播丢落音效) */
-  restore(list: { kind: ResourceKind; count: number; x: number; z: number }[]): void {
+  restore(
+    list: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]
+  ): void {
     for (const d of list) {
       if (d.count <= 0) continue;
       const mesh = makeDropModel(d.kind);
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
-      this.drops.push({ kind: d.kind, count: d.count, mesh, age: 0, baseY });
+      this.drops.push({ kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
     }
   }
 

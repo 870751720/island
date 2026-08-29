@@ -31,7 +31,7 @@ import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, type EquipKind, type EquipSlot } from './systems/Equipment';
-import { SaveSystem, type SaveData } from './systems/SaveSystem';
+import { SaveSystem, SAVE_VERSION, type SaveData } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -506,7 +506,7 @@ export class Game {
     const p = this.player.group.position;
     const s = this.survival.state;
     return {
-      version: 4,
+      version: SAVE_VERSION,
       terrainSeed: this.terrainSeed,
       propsSeed: this.propsSeed,
       player: { x: p.x, y: p.y, z: p.z },

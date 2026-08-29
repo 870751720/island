@@ -3,9 +3,10 @@ import type { EquipKind, EquipSlot } from './Equipment';
 import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
+import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -39,7 +40,7 @@ export type SaveData = {
   props: PropSave[];
   campfires: (PlacementSave & { fuel: number })[];
   workbench: PlacementSave | null;
-  drops: { kind: ResourceKind; count: number; x: number; z: number }[];
+  drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
 };
 
 /** localStorage 存档:定期自动写入,死亡清档,下次进入恢复 */
