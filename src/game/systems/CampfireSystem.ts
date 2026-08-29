@@ -108,9 +108,11 @@ export class CampfireSystem {
     });
   }
 
-  /** 是否满足发起条件(材料齐 + 位置可摆放) */
+  /** 是否满足发起条件(材料齐 + 位置可摆放 + 全场没有火堆) */
   canStart(): boolean {
     if (this.isBusy) return false;
+    // 已有火堆(含燃着/熄灭未清场)时不再弹搭建卡片;灰烬不算
+    if (this.fires.some((f) => f.ashLeft === null)) return false;
     if (this.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (this.inventory.count('log') < CAMPFIRE_COST.log) return false;
     return this.canPlace();

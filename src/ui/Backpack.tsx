@@ -5,7 +5,7 @@ import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, maxCraftCount, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, WORKBENCH_COST, maxCraftCount, type CraftId } from '@/game/systems/Crafting';
 
 type Props = {
   open: boolean;
@@ -17,6 +17,8 @@ type Props = {
   onDropItem: (kind: ResourceKind) => void;
   /** 在背包里发起手搓制作(站定敲打完成后入包/装备) */
   onCraft: (id: CraftId) => void;
+  /** 在背包里发起搭建工作台(全局唯一,材料齐且场上没有时显示) */
+  onCraftWorkbench: () => void;
 };
 
 function isFood(kind: ResourceKind): boolean {
@@ -91,7 +93,7 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
 
 /** 背包:格子制(相同道具叠加,默认 10 格);下方固定双 Tab 区域——
  * 物品页展示选中道具详情(可使用/丢弃),制作页只列出当前可手搓的配方 */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft }: Props) {
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [tab, setTab] = useState<'detail' | 'craft'>('detail');
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
@@ -260,9 +262,31 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft }
                 )
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {craftables.length === 0 && (
+                  {craftables.length === 0 && !hud.canCraftWorkbench && (
                     <div style={{ fontSize: 13, color: '#999', textAlign: 'center', padding: '14px 0' }}>
                       暂时没有能手搓的东西
+                    </div>
+                  )}
+                  {hud.canCraftWorkbench && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 4px',
+                      }}
+                    >
+                      <span style={{ fontSize: 22 }}>🛠️</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div>工作台</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>
+                          {Object.entries(WORKBENCH_COST)
+                            .filter(([, n]) => !!n)
+                            .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
+                            .join(' + ')}
+                        </div>
+                      </div>
+                      {actionButton(false, '制作', '#4caf50', onCraftWorkbench)}
                     </div>
                   )}
                   {craftables.map((r) => (

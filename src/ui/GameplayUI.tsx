@@ -137,6 +137,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         onCraft={(id) => {
           if (gameRef.current?.craftTool(id)) setBackpackOpen(false);
         }}
+        onCraftWorkbench={() => {
+          if (gameRef.current?.craftWorkbench()) setBackpackOpen(false);
+        }}
       />
       {!hud.dead && (
         <>

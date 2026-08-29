@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const ASH_TIME = 10; // 灰烬存留秒数
-const FULL_FUEL = 120; // 火焰达到满尺寸/满亮度的参考燃料秒数
+const FULL_FUEL = 210; // 火焰达到满簇满尺寸/满亮度的参考燃料秒数
 const LOW_FUEL = 12; // 剩余低于该秒数算濒熄:火苗缩小、剧烈闪烁
 
 function clayMaterial(color: string, emissive = 0): THREE.MeshStandardMaterial {
@@ -16,9 +16,9 @@ function clayMaterial(color: string, emissive = 0): THREE.MeshStandardMaterial {
 
 /**
  * 火堆摆件:石圈 + 交叉架起的木柴,燃着时表现随剩余燃料多寡变化——火焰
- * 簇数分档(>90s 三簇 / >30s 两簇 / 更少一簇),整团火焰大小与灯光亮度、
- * 照射范围随燃料连续收缩,柴堆随之变矮,炊烟袅袅;濒熄(低于 12s)时火苗
- * 剧烈明灭,燃尽后只剩一小堆灰烬,灰烬倒计时后整堆消失。
+ * 簇数分档(>210s 四簇 / >150s 三簇 / >30s 两簇 / 更少一簇),整团火焰大小
+ * 与灯光亮度、照射范围随燃料连续收缩,柴堆随之变矮,炊烟袅袅;濒熄
+ * (低于 12s)时火苗剧烈明灭,燃尽后只剩一小堆灰烬,灰烬倒计时后整堆消失。
  * 外部只读 fuel / spent 并调用 update,由系统负责加入与移除。
  */
 export class Campfire {
@@ -68,15 +68,16 @@ export class Campfire {
     }
     this.group.add(this.logs);
 
-    // 火焰:三簇橙黄色锥体挂在独立组下(整组随燃料缩放),按燃料阶段决定显示几簇
+    // 火焰:四簇橙黄色锥体挂在独立组下(整组随燃料缩放),按燃料阶段决定显示几簇
     this.fireRoot = new THREE.Group();
-    const flameColors = ['#ff9d2e', '#ffcf5e', '#ff6a2e'];
-    for (let i = 0; i < 3; i++) {
+    const flameColors = ['#ff9d2e', '#ffcf5e', '#ff6a2e', '#ffb35e'];
+    for (let i = 0; i < 4; i++) {
       const flame = new THREE.Mesh(
-        new THREE.ConeGeometry(0.14 - i * 0.03, 0.5 - i * 0.1, 5),
+        new THREE.ConeGeometry(0.14 - (i % 3) * 0.03, 0.5 - (i % 3) * 0.1, 5),
         clayMaterial(flameColors[i], 0.9)
       );
-      flame.position.set((i - 1) * 0.1, 0.35, (i % 2) * 0.08 - 0.04);
+      const angle = (i / 4) * Math.PI * 2;
+      flame.position.set(Math.cos(angle) * 0.12, 0.35, Math.sin(angle) * 0.12);
       this.flames.push(flame);
       this.fireRoot.add(flame);
     }
@@ -167,7 +168,7 @@ export class Campfire {
 
   /** 燃料阶段变化时切换表现:簇数分档,整团火焰大小连续随燃料收缩,柴堆随之变矮 */
   private applyStage(): void {
-    const stage = this.fuel > 90 ? 3 : this.fuel > 30 ? 2 : 1;
+    const stage = this.fuel > 150 ? (this.fuel > 210 ? 4 : 3) : this.fuel > 30 ? 2 : 1;
     for (let i = 0; i < this.flames.length; i++) {
       this.flames[i].visible = i < stage;
     }
