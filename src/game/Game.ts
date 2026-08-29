@@ -49,10 +49,10 @@ export type HudSnapshot = {
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
-  axe: boolean;
-  pickaxe: boolean;
-  fishingrod: boolean;
-  bow: boolean;
+  hasAxe: boolean;
+  hasPickaxe: boolean;
+  hasFishingrod: boolean;
+  hasBow: boolean;
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
@@ -106,6 +106,7 @@ export class Game {
   private footprints: Footprints;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
+  /** 已拥有工具的缓存(由背包内容每帧同步,供 HUD/自言自语/制作判断) */
   private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
@@ -290,6 +291,7 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
+        this.syncTools();
         this.dayNight.update(delta);
         this.weather.update(delta);
         this.audio.setNight(this.dayNight.isNight);
@@ -403,7 +405,8 @@ export class Game {
     this.survival.state.stamina = save.survival.stamina;
     this.survival.state.dead = false;
     this.inventory.load(save.slots, save.capacity);
-    this.tools = { ...save.tools };
+    // 工具拥有状态由背包(含工具道具)推导
+    this.syncTools();
     const tool = save.handTool;
     if (tool === 'hand' || this.tools[tool]) this.player.setTool(tool);
     this.dayNight.time = save.dayTime;
@@ -425,7 +428,6 @@ export class Game {
       survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
-      tools: { ...this.tools },
       handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
       props: this.props.snapshot(),
@@ -486,6 +488,17 @@ export class Game {
   private onKeyDown = (e: KeyboardEvent) => {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
+
+  /** 工具拥有状态与背包内容保持同步:工具入包即拥有,丢弃即失去 */
+  private syncTools(): void {
+    for (const id of Object.keys(this.tools) as (keyof Tools)[]) {
+      this.tools[id] = this.inventory.count(id) > 0;
+    }
+    // 手上的工具被丢掉/吃掉后收回手
+    if (this.player.currentTool !== 'hand' && !this.tools[this.player.currentTool]) {
+      this.player.setTool('hand');
+    }
+  }
 
   setJoystick(x: number, z: number): void {
     this.player.input.setJoystick(x, z);
@@ -667,10 +680,10 @@ export class Game {
       arrow: this.inventory.count('arrow'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
-      axe: this.tools.axe,
-      pickaxe: this.tools.pickaxe,
-      fishingrod: this.tools.fishingrod,
-      bow: this.tools.bow,
+      hasAxe: this.tools.axe,
+      hasPickaxe: this.tools.pickaxe,
+      hasFishingrod: this.tools.fishingrod,
+      hasBow: this.tools.bow,
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,

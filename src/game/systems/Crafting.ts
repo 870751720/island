@@ -15,7 +15,7 @@ export type Recipe = {
   cost: Partial<Record<ResourceKind, number>>;
   /** 制作站点:hand 为手搓卡片,workbench 为只能在靠近工作台时制作 */
   station: 'hand' | 'workbench';
-  /** 工具类:制作后永久拥有 */
+  /** 工具类:产物为随身工具道具,进背包即算拥有(同类最多 1 件) */
   tool?: ToolId;
   /** 材料类:产物进背包,可反复制作 */
   output?: ResourceKind;
@@ -116,10 +116,6 @@ export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boole
   for (const [kind, n] of Object.entries(recipe.cost)) {
     inventory.remove(kind as ResourceKind, n ?? 0);
   }
-  if (recipe.tool) {
-    tools[recipe.tool] = true;
-  } else {
-    return inventory.add(recipe.output!, recipe.outputCount ?? 1) > 0;
-  }
-  return true;
+  // 工具也是背包道具:入包即拥有,丢掉则失去
+  return inventory.add(recipe.tool ?? recipe.output!, recipe.outputCount ?? 1) > 0;
 }

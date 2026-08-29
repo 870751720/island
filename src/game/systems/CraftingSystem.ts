@@ -1,6 +1,7 @@
 import type { Player } from '../entities/Player';
 import { craft, type Recipe, type Tools } from './Crafting';
 import type { Inventory, ResourceKind } from './Inventory';
+import { MAX_STACK } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -30,6 +31,14 @@ export class CraftingSystem {
       (recipe.tool && this.tools[recipe.tool]) ||
       count < 1 ||
       !this.canAfford(recipe, count)
+    ) {
+      return false;
+    }
+    // 工具要占用背包格:满了(且无法叠加)时不允许开工
+    if (
+      recipe.tool &&
+      this.inventory.freeSlots <= 0 &&
+      this.inventory.count(recipe.tool) >= MAX_STACK
     ) {
       return false;
     }

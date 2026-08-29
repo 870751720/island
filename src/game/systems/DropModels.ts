@@ -18,6 +18,10 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedCrabMeat: '#e8703a',
   cookedBirdMeat: '#b5722f',
   arrow: '#a97c50',
+  axe: '#8b5a2b',
+  pickaxe: '#7d848a',
+  fishingrod: '#a97c50',
+  bow: '#8b6b42',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -265,6 +269,72 @@ function makeFish(): THREE.Object3D {
   return g;
 }
 
+/** 工具通用木柄:竖直的枝干柄 */
+function toolHandle(mat: THREE.MeshStandardMaterial): THREE.Mesh {
+  const handle = mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.7, 5), mat);
+  handle.position.y = 0.35;
+  handle.rotation.z = 0.12;
+  return handle;
+}
+
+/** 斧子:木柄 + 单侧石斧头 */
+function makeAxe(): THREE.Object3D {
+  const g = new THREE.Group();
+  const handle = toolHandle(clay(DROP_COLORS.axe));
+  const head = mesh(new THREE.BoxGeometry(0.3, 0.18, 0.07), clay('#9a9a9a'));
+  head.position.set(0.14, 0.62, 0);
+  head.rotation.z = 0.4;
+  const edge = mesh(new THREE.ConeGeometry(0.09, 0.12, 4), clay('#c8c8c8'));
+  edge.position.set(0.3, 0.66, 0);
+  edge.rotation.z = -Math.PI / 2;
+  g.add(handle, head, edge);
+  return g;
+}
+
+/** 镐子:木柄 + 弯月石镐尖 */
+function makePickaxe(): THREE.Object3D {
+  const g = new THREE.Group();
+  const handle = toolHandle(clay('#8b6239'));
+  const headMat = clay(DROP_COLORS.pickaxe);
+  const tipL = mesh(new THREE.ConeGeometry(0.05, 0.3, 4), headMat);
+  tipL.position.set(-0.16, 0.64, 0);
+  tipL.rotation.z = Math.PI / 2;
+  const tipR = tipL.clone();
+  tipR.position.x = 0.16;
+  tipR.rotation.z = -Math.PI / 2;
+  g.add(handle, tipL, tipR);
+  return g;
+}
+
+/** 鱼竿:细长竿身垂下一段绳线 */
+function makeFishingRod(): THREE.Object3D {
+  const g = new THREE.Group();
+  const rod = mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.9, 4), clay(DROP_COLORS.fishingrod));
+  rod.position.y = 0.45;
+  rod.rotation.z = 0.18;
+  const line = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.35, 3), clay('#e8e2d4'));
+  line.position.set(0.3, 0.35, 0);
+  g.add(rod, line);
+  return g;
+}
+
+/** 弓:弯成弧线的弓身 + 绷直的弦 */
+function makeBow(): THREE.Object3D {
+  const g = new THREE.Group();
+  const limbMat = clay(DROP_COLORS.bow);
+  for (let i = 0; i < 5; i++) {
+    const t = (i / 4 - 0.5) * Math.PI * 0.7;
+    const seg = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.18, 4), limbMat);
+    seg.position.set(-Math.cos(t) * 0.32, 0.36 + Math.sin(t) * 0.4, 0);
+    seg.rotation.z = t;
+    g.add(seg);
+  }
+  const string = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.8, 3), clay('#e8e2d4'));
+  string.position.set(-0.32, 0.36, 0);
+  g.add(string);
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
   log: makeLog,
@@ -281,6 +351,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   arrow: makeArrows,
+  axe: makeAxe,
+  pickaxe: makePickaxe,
+  fishingrod: makeFishingRod,
+  bow: makeBow,
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

@@ -27,10 +27,10 @@ const INITIAL_HUD: HudSnapshot = {
   arrow: 0,
   slots: [],
   capacity: 10,
-  axe: false,
-  pickaxe: false,
-  fishingrod: false,
-  bow: false,
+  hasAxe: false,
+  hasPickaxe: false,
+  hasFishingrod: false,
+  hasBow: false,
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -152,10 +152,10 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       />
       {!hud.dead && (
         <>
-          {(hud.axe ||
-            hud.pickaxe ||
-            hud.fishingrod ||
-            hud.bow ||
+          {(hud.hasAxe ||
+            hud.hasPickaxe ||
+            hud.hasFishingrod ||
+            hud.hasBow ||
             hud.nearWorkbench ||
             hud.nearCampfire) && (
             <ToolButton

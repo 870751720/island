@@ -56,7 +56,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.stone, hud.fiber, hud.rope, hud.fishingrod, hud.bow]);
+  }, [hud.wood, hud.stone, hud.fiber, hud.rope, hud.hasFishingrod, hud.hasBow]);
 
   return (
     <div
@@ -77,6 +77,12 @@ export function WorkbenchPanel({
           {recipes.map((r) => {
             const max = maxCount(r, hud);
             const count = Math.min(counts[r.id] ?? 1, max);
+            const ownedTools = {
+              axe: hud.hasAxe,
+              pickaxe: hud.hasPickaxe,
+              fishingrod: hud.hasFishingrod,
+              bow: hud.hasBow,
+            };
             return (
               <div key={r.id} style={rowStyle}>
                 <span style={{ fontSize: 26 }}>{r.icon}</span>
@@ -122,7 +128,11 @@ export function WorkbenchPanel({
                     if (max > 0) onCraft(r.id, Math.max(1, count));
                   }}
                 >
-                  {max === 0 ? (r.tool && hud[r.tool] ? '已拥有' : '材料不足') : '制作'}
+                  {max === 0
+                    ? r.tool && ownedTools[r.tool]
+                      ? '已拥有'
+                      : '材料不足'
+                    : '制作'}
                 </button>
               </div>
             );
@@ -138,10 +148,10 @@ export function WorkbenchPanel({
 
 function maxCount(recipe: Recipe, hud: HudSnapshot): number {
   return maxCraftCount(recipe, hud, {
-    axe: hud.axe,
-    pickaxe: hud.pickaxe,
-    fishingrod: hud.fishingrod,
-    bow: hud.bow,
+    axe: hud.hasAxe,
+    pickaxe: hud.hasPickaxe,
+    fishingrod: hud.hasFishingrod,
+    bow: hud.hasBow,
   });
 }
 

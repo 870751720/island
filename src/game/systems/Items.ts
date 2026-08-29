@@ -103,4 +103,28 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏹',
     description: '用树枝削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
   },
+  axe: {
+    kind: 'axe',
+    name: '斧子',
+    icon: '🪓',
+    description: '石斧头绑上树枝柄,砍树的必备工具,放进背包就算拥有。',
+  },
+  pickaxe: {
+    kind: 'pickaxe',
+    name: '镐子',
+    icon: '⛏️',
+    description: '石镐,开采大石块的必备工具,放进背包就算拥有。',
+  },
+  fishingrod: {
+    kind: 'fishingrod',
+    name: '鱼竿',
+    icon: '🎣',
+    description: '细枝绑上绳线做成的鱼竿,站在水边就能钓鱼。',
+  },
+  bow: {
+    kind: 'bow',
+    name: '弓',
+    icon: '🏹',
+    description: '枝干弯成弓身、绳线做弦,手持时会自动射向附近的猎物。',
+  },
 };

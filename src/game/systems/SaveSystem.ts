@@ -25,7 +25,6 @@ export type SaveData = {
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
-  tools: { axe: boolean; pickaxe: boolean; fishingrod: boolean; bow: boolean };
   handTool: HandTool;
   dayTime: number;
   props: PropSave[];

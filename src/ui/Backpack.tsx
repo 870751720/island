@@ -109,7 +109,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   // 背包空时不显示背包按钮
   const hasItems = hud.slots.some((slot) => !!slot);
 
-  const tools = { axe: hud.axe, pickaxe: hud.pickaxe, fishingrod: hud.fishingrod, bow: hud.bow };
+  const tools = { axe: hud.hasAxe, pickaxe: hud.hasPickaxe, fishingrod: hud.hasFishingrod, bow: hud.hasBow };
   // 手搓配方:只显示当前能做的(材料齐且工具未拥有)
   const craftables = RECIPES.filter(
     (r) => r.station === 'hand' && maxCraftCount(r, hud, tools) > 0
