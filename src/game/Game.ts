@@ -170,6 +170,8 @@ export class Game {
   private notice: { id: number; text: string } | null = null;
   private autoEquipTimer = 0;
   private lastDead = false;
+  private lastHealth = 100;
+  private hurtSoundTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
 
@@ -423,6 +425,16 @@ export class Game {
           this.weather.thirstDrainMultiplier * this.equipment.thirstMultiplier();
         this.survival.swimming = this.player.isSwimming;
         this.survival.update(delta);
+      // 血量下降(受击/饥饿/溺水)触发角色模型闪红与受伤音(音效带间隔节流,持续掉血不成串响)
+      if (this.survival.state.health < this.lastHealth - 0.001) {
+        this.player.hurt();
+        this.hurtSoundTimer -= delta;
+        if (this.hurtSoundTimer <= 0) {
+          this.audio.play('hurt');
+          this.hurtSoundTimer = 1.5;
+        }
+      }
+      this.lastHealth = this.survival.state.health;
         this.collect.update(delta);
         this.planting.update(delta);
         this.crafting.update(delta);
@@ -520,6 +532,7 @@ export class Game {
     this.survival.state.thirst = save.survival.thirst;
     this.survival.state.health = save.survival.health;
     this.survival.state.stamina = save.survival.stamina;
+    this.lastHealth = save.survival.health;
     this.survival.state.dead = false;
     this.inventory.load(save.slots, save.capacity);
     this.equipment.restore(save.equipped, this.inventory);

@@ -19,6 +19,7 @@ export type SfxName =
   | 'pickup' // 获得物品(采集收获/捡回/钓到鱼,统一)
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
+  | 'hurt' // 受伤闷哼
   | 'death'; // 死亡
 
 const VOL: Record<SfxName, number> = {
@@ -39,6 +40,7 @@ const VOL: Record<SfxName, number> = {
   pickup: 0.4,
   drop: 0.5,
   success: 0.45,
+  hurt: 0.5,
   death: 0.5,
 };
 
@@ -187,6 +189,11 @@ export class Sfx {
       case 'success':
         // 完成小琶音:do-mi-so-高do
         [72, 76, 79, 84].forEach((m, i) => pianoTone(this.ctx, dest, midiToFreq(m), t + i * 0.09, 1, v));
+        break;
+      case 'hurt':
+        // 受伤闷哼:急速下坠的低频滑音 + 短噪声冲击
+        tone(this.ctx, dest, detune(300), t, { attack: 0.003, decay: 0.18, peak: v }, 'sine', 90);
+        noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
       case 'death':
         // 经典下行轮廓:音符逐个降低、间隔越来越短,像皮球弹跳到静止,末了一声低音落地

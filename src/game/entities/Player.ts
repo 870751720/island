@@ -12,6 +12,7 @@ const STEP_DISTANCE = 0.55;
 const SWIM_SPEED = 2.6;
 /** 水深超过该值才进入游泳(更浅处涉水,水可漫过裤腿);裤腿高约 0.55 */
 const SWIM_DEPTH = 0.6;
+const HURT_FLASH_TIME = 0.35;
 /** 游泳时身体没入水面的深度 */
 const FLOAT_DEPTH = 0.55;
 /** 玩家碰撞半径(与树、大石等静态阻挡做圆形推挤) */
@@ -234,6 +235,7 @@ export class Player implements Updatable {
   private swimming = false;
   private wading = false;
   private action: ActionType | null = null;
+  private hurtFlash = 0;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
   private obstacles: ObstacleSolver | null = null;
@@ -372,7 +374,21 @@ export class Player implements Updatable {
     this.action = action;
   }
 
+  /** 受击反馈:模型短暂泛红(通过 emissive 衰减实现) */
+  hurt(): void {
+    this.hurtFlash = HURT_FLASH_TIME;
+  }
+
   update(delta: number, elapsed: number): void {
+    // 受击泛红:每帧按剩余时间衰减,结束后归零还原
+    if (this.hurtFlash > 0) {
+      this.hurtFlash = Math.max(0, this.hurtFlash - delta);
+      const k = this.hurtFlash / HURT_FLASH_TIME;
+      this.group.traverse((o) => {
+        const mat = (o as THREE.Mesh).material;
+        if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setRGB(0.9 * k, 0.05 * k, 0.03 * k);
+      });
+    }
     this.input.getVector(this.moveVec);
     this.moving = this.moveVec.lengthSq() > 0.001;
 
