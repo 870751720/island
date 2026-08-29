@@ -5,7 +5,7 @@ import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, WORKBENCH_COST, recipeVisible, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, type CraftId, type ToolId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 
 type Props = {
@@ -105,17 +105,18 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
   );
 }
 
-/** 背包:格子制(相同道具叠加,默认 10 格);下方固定双 Tab 区域——
- * 物品页展示选中道具详情(可使用/丢弃),制作页只列出当前可手搓的配方 */
+/** 背包:格子制(相同道具叠加,默认 10 格);下方固定 Tab 区域——
+ * 物品页展示选中道具详情(可使用/丢弃),制作页只列出当前可手搓的配方,
+ * 工具页展示永久拥有的工具与描述,角色页展示装备栏 */
 export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [tab, setTab] = useState<'detail' | 'craft' | 'char'>('detail');
+  const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
+  const [tab, setTab] = useState<'detail' | 'craft' | 'tools' | 'char'>('detail');
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
-  // 背包空时不显示背包按钮
-  const hasItems = hud.slots.some((slot) => !!slot);
-
   const tools = { axe: hud.hasAxe, pickaxe: hud.hasPickaxe, fishingrod: hud.hasFishingrod, bow: hud.hasBow };
+  // 背包空但已拥有工具时仍显示背包按钮(工具 tab 在里面)
+  const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
     (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped)
@@ -123,7 +124,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
 
   return (
     <>
-      {hasItems && (
+      {showBackpackButton && (
       <button
         onPointerDown={(e) => {
           e.preventDefault();
@@ -221,7 +222,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               }}
             >
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                {(['detail', 'craft', 'char'] as const).map((t) => (
+                {(['detail', 'craft', 'tools', 'char'] as const).map((t) => (
                   <button
                     key={t}
                     onPointerDown={(e) => {
@@ -241,7 +242,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       userSelect: 'none',
                     }}
                   >
-                    {t === 'detail' ? '物品' : t === 'craft' ? '制作' : '角色'}
+                    {t === 'detail' ? '物品' : t === 'craft' ? '制作' : t === 'tools' ? '工具' : '角色'}
                   </button>
                 ))}
               </div>
@@ -333,6 +334,52 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       {actionButton(false, '制作', '#4caf50', () => onCraft(r.id))}
                     </div>
                   ))}
+                </div>
+              ) : tab === 'tools' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {TOOL_IDS.map((id) => {
+                    const def = ITEMS[id];
+                    const owned = tools[id];
+                    return (
+                      <div key={id}>
+                        <div
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            setSelectedTool(selectedTool === id ? null : id);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '6px 4px',
+                            opacity: owned ? 1 : 0.45,
+                            touchAction: 'none',
+                            userSelect: 'none',
+                          }}
+                        >
+                          <span style={{ fontSize: 22 }}>{def.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>{def.name}</div>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: owned ? '#4caf50' : '#999',
+                            }}
+                          >
+                            {owned ? '已拥有' : '未拥有'}
+                          </span>
+                        </div>
+                        {selectedTool === id && (
+                          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5, padding: '0 4px 4px' }}>
+                            {def.description}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
+                    工具制作一次永久拥有,不会占用背包
+                  </div>
                 </div>
               ) : (
                 <div style={DETAIL_AREA_STYLE}>

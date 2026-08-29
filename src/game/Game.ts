@@ -8,7 +8,7 @@ import { Wildlife } from './entities/Wildlife';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
-import { RECIPES, type CraftId, type Tools } from './systems/Crafting';
+import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
@@ -120,7 +120,7 @@ export class Game {
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
   private equipment = new Equipment();
-  /** 已拥有工具的缓存(由背包内容每帧同步,供 HUD/自言自语/制作判断) */
+  /** 已拥有的工具(制作一次永久拥有,不进背包,供 HUD/自言自语/制作判断) */
   private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
@@ -371,7 +371,6 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
-        this.syncTools();
         this.dayNight.update(delta);
         this.meteor.update(delta);
         this.weather.update(delta);
@@ -493,8 +492,10 @@ export class Game {
     this.survival.state.dead = false;
     this.inventory.load(save.slots, save.capacity);
     this.equipment.restore(save.equipped, this.inventory);
-    // 工具拥有状态由背包(含工具道具)推导
-    this.syncTools();
+    // 恢复已拥有的工具
+    if (Array.isArray(save.tools)) {
+      for (const id of save.tools) this.tools[id] = true;
+    }
     const tool = save.handTool;
     if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.tools[tool])) {
       this.player.setTool(tool);
@@ -518,6 +519,7 @@ export class Game {
       survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
+      tools: TOOL_IDS.filter((id) => this.tools[id]),
       equipped: this.equipment.snapshotForSave(),
       handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
@@ -591,17 +593,6 @@ export class Game {
   private onKeyDown = (e: KeyboardEvent) => {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
-
-  /** 工具拥有状态与背包内容保持同步:工具入包即拥有,丢弃即失去 */
-  private syncTools(): void {
-    for (const id of Object.keys(this.tools) as (keyof Tools)[]) {
-      this.tools[id] = this.inventory.count(id) > 0;
-    }
-    // 手上的工具被丢掉/吃掉后收回手
-    if (this.player.currentTool !== 'hand' && !this.hasTool(this.player.currentTool)) {
-      this.player.setTool('hand');
-    }
-  }
 
   /** 手上是否还持有该工具(种子按背包种子数判断) */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
@@ -722,8 +713,12 @@ export class Game {
     return this.fishing.hook();
   }
 
-  /** GM 发放道具(直接进背包,工具栏自动点亮) */
+  /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */
   gmGiveItem(kind: ResourceKind, count: number): void {
+    if ((TOOL_IDS as string[]).includes(kind)) {
+      this.tools[kind as ToolId] = true;
+      return;
+    }
     this.inventory.add(kind, count);
   }
 

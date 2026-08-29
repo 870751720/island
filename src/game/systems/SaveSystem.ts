@@ -1,4 +1,5 @@
 import type { InventorySlot, ResourceKind } from './Inventory';
+import type { ToolId } from './Crafting';
 import type { EquipKind, EquipSlot } from './Equipment';
 import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
@@ -6,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -33,6 +34,8 @@ export type SaveData = {
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
+  /** 已拥有的工具(制作一次永久拥有,不进背包) */
+  tools: ToolId[];
   /** 各栏位已装备的道具(未装备的栏位缺省) */
   equipped: Partial<Record<EquipSlot, EquipKind>>;
   handTool: HandTool;

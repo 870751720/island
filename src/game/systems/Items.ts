@@ -245,13 +245,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'axe',
     name: '斧子',
     icon: '🪓',
-    description: '石斧头绑上树枝柄,砍树的必备工具,放进背包就算拥有。',
+    description: '石斧头绑上树枝柄,砍树的必备工具,制作一次永久拥有。',
   },
   pickaxe: {
     kind: 'pickaxe',
     name: '镐子',
     icon: '⛏️',
-    description: '石镐,开采大石块的必备工具,放进背包就算拥有。',
+    description: '石镐,开采大石块的必备工具,制作一次永久拥有。',
   },
   fishingrod: {
     kind: 'fishingrod',

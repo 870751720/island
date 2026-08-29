@@ -16,13 +16,16 @@ export type Recipe = {
   cost: Partial<Record<ResourceKind, number>>;
   /** 制作站点:hand 为手搓卡片,workbench 为只能在靠近工作台时制作 */
   station: 'hand' | 'workbench';
-  /** 工具类:产物为随身工具道具,进背包即算拥有(同类最多 1 件) */
+  /** 工具类:制作完成即永久拥有(不进背包、不可丢弃) */
   tool?: ToolId;
   /** 材料类:产物进背包,可反复制作 */
   output?: ResourceKind;
   /** 单次制作的产物个数(默认 1,如 1 根树枝削 10 只箭) */
   outputCount?: number;
 };
+
+/** 全部工具(工具 tab 展示顺序) */
+export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'fishingrod', 'bow'];
 
 export const RECIPES: Recipe[] = [
   {
@@ -199,6 +202,10 @@ export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boole
   for (const [kind, n] of Object.entries(recipe.cost)) {
     inventory.remove(kind as ResourceKind, n ?? 0);
   }
-  // 工具也是背包道具:入包即拥有,丢掉则失去
-  return inventory.add(recipe.tool ?? recipe.output!, recipe.outputCount ?? 1) > 0;
+  if (recipe.tool) {
+    // 工具制作完成即永久拥有,不进背包
+    tools[recipe.tool] = true;
+    return true;
+  }
+  return inventory.add(recipe.output!, recipe.outputCount ?? 1) > 0;
 }
