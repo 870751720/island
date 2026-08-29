@@ -51,6 +51,7 @@ export type HudSnapshot = {
   stone: number;
   berry: number;
   fiber: number;
+  fur: number;
   rope: number;
   arrow: number;
   /** 背包格子快照(空格为 null)与容量 */
@@ -897,6 +898,7 @@ export class Game {
       stone: this.inventory.count('stone'),
       berry: this.inventory.count('berry'),
       fiber: this.inventory.count('fiber'),
+      fur: this.inventory.count('fur'),
       rope: this.inventory.count('rope'),
       arrow: this.inventory.count('arrow'),
       slots: this.inventory.snapshot(),

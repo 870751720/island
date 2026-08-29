@@ -26,6 +26,7 @@ const INITIAL_HUD: HudSnapshot = {
   stone: 0,
   berry: 0,
   fiber: 0,
+  fur: 0,
   rope: 0,
   arrow: 0,
   slots: [],
