@@ -43,8 +43,8 @@ export type ActionType =
   | 'fish'
   | 'shoot';
 
-/** 手持工具:空手/斧子/镐子/鱼竿 */
-export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
+/** 手持工具:空手/斧子/镐子/鱼竿/弓/种子(用于播种) */
+export type HandTool = 'hand' | 'axe' | 'pickaxe' | 'fishingrod' | 'bow' | 'seed';
 
 function makeFishingRodModel(): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
@@ -117,6 +117,22 @@ function makePickaxeModel(): THREE.Group {
   return g;
 }
 
+/** 种子袋:小布袋装着几粒种子,握在右手 */
+function makeSeedPouchModel(): THREE.Group {
+  const g = new THREE.Group();
+  const pouch = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.05, 0.14, 6),
+    clayMaterial('#c9a15c')
+  );
+  const seedMat = clayMaterial('#8a6b45');
+  const seed1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), seedMat);
+  seed1.position.set(0.04, 0.09, 0.02);
+  const seed2 = seed1.clone();
+  seed2.position.set(-0.03, 0.09, -0.02);
+  g.add(pouch, seed1, seed2);
+  return g;
+}
+
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
@@ -186,12 +202,13 @@ export class Player implements Updatable {
     const pickaxe = makePickaxeModel();
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
-    for (const t of [axe, pickaxe, fishingrod, bow]) {
+    const seed = makeSeedPouchModel();
+    for (const t of [axe, pickaxe, fishingrod, bow, seed]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, fishingrod, bow);
-    this.toolModels = { axe, pickaxe, fishingrod, bow };
+    armR.add(axe, pickaxe, fishingrod, bow, seed);
+    this.toolModels = { axe, pickaxe, fishingrod, bow, seed };
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';

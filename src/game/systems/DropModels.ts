@@ -18,6 +18,12 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedCrabMeat: '#e8703a',
   cookedBirdMeat: '#b5722f',
   arrow: '#a97c50',
+  oakSeed: '#b5813f',
+  pineSeed: '#8a6b45',
+  palmSeed: '#a0784e',
+  oakFruit: '#b5813f',
+  pineFruit: '#8a6b45',
+  palmFruit: '#a0784e',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
   fishingrod: '#a97c50',
@@ -335,6 +341,34 @@ function makeBow(): THREE.Object3D {
   return g;
 }
 
+/** 种子:圆润的小粒,带一点芽尖 */
+function makeSeed(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.IcosahedronGeometry(0.12, 0), clay(color));
+  body.scale.set(1, 1.25, 0.9);
+  body.position.y = 0.1;
+  const sprout = mesh(new THREE.ConeGeometry(0.035, 0.12, 4), clay('#7fae55'));
+  sprout.position.y = 0.24;
+  g.add(body, sprout);
+  return g;
+}
+
+/** 果实:一颗饱满的果子带两片叶 */
+function makeFruit(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.IcosahedronGeometry(0.15, 0), clay(color));
+  body.position.y = 0.13;
+  const leafMat = clay('#4a7a3a');
+  const leaf1 = mesh(new THREE.ConeGeometry(0.05, 0.14, 4), leafMat);
+  leaf1.position.set(0.03, 0.28, 0);
+  leaf1.rotation.z = 0.5;
+  const leaf2 = leaf1.clone();
+  leaf2.position.x = -0.03;
+  leaf2.rotation.z = -0.5;
+  g.add(body, leaf1, leaf2);
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
   log: makeLog,
@@ -351,6 +385,12 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   arrow: makeArrows,
+  oakSeed: () => makeSeed(DROP_COLORS.oakSeed),
+  pineSeed: () => makeSeed(DROP_COLORS.pineSeed),
+  palmSeed: () => makeSeed(DROP_COLORS.palmSeed),
+  oakFruit: () => makeFruit(DROP_COLORS.oakFruit),
+  pineFruit: () => makeFruit(DROP_COLORS.pineFruit),
+  palmFruit: () => makeFruit(DROP_COLORS.palmFruit),
   axe: makeAxe,
   pickaxe: makePickaxe,
   fishingrod: makeFishingRod,

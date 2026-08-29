@@ -1,16 +1,22 @@
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { PropKind } from '../world/Props';
+import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 
 const SAVE_KEY = 'island.save.v1';
 const SAVE_VERSION = 1;
 
-/** 资源点可恢复状态(与 Props.list 顺序一一对应,布局由种子保证一致) */
+/** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
   kind: PropKind;
   ready: boolean;
   regrowLeft: number;
   stage?: 'full' | 'stump';
+  species?: TreeSpecies;
+  growth?: TreeStage;
+  /** 玩家种下的树的落点坐标;自然生成的资源点没有该字段 */
+  x?: number;
+  z?: number;
 };
 
 /** 火堆/工作台/掉落物等摆件的落点 */

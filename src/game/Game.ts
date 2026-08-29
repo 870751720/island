@@ -11,6 +11,7 @@ import { RECIPES, type CraftId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
+import { PlantingSystem } from './systems/PlantingSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { firstFoodIn, FOODS, type Food } from './systems/Food';
@@ -34,6 +35,7 @@ import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
+import { SEED_OF, TREE_SPECIES } from './world/TreeSpecies';
 
 export type HudSnapshot = {
   hunger: number;
@@ -53,6 +55,8 @@ export type HudSnapshot = {
   hasPickaxe: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
+  /** 背包里是否有种子(可切换到种子播种) */
+  hasSeed: boolean;
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
@@ -111,6 +115,7 @@ export class Game {
   private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
+  private planting: PlantingSystem;
   private campfire: CampfireSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
@@ -223,14 +228,15 @@ export class Game {
       this.inventory,
       this.fx,
       this.audio,
-      // 合成/进食/钓鱼占用双手,期间采集让位
+      // 合成/进食/钓鱼/播种占用双手,期间采集让位
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
-        this.archery.isWorking
+        this.archery.isWorking ||
+        this.planting.isWorking
     );
     this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx, this.audio);
     this.workbench = new WorkbenchSystem(
@@ -241,6 +247,23 @@ export class Game {
       this.props,
       this.fx,
       this.audio
+    );
+    this.planting = new PlantingSystem(
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 其他占用双手的行为进行中时播种让位
+      () =>
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.water.isActive
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
     this.fishing = new FishingSystem(
@@ -313,6 +336,7 @@ export class Game {
         this.survival.swimming = this.player.isSwimming;
         this.survival.update(delta);
         this.collect.update(delta);
+        this.planting.update(delta);
         this.crafting.update(delta);
         // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
         if (
@@ -333,6 +357,7 @@ export class Game {
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.archery.isWorking ||
+        this.planting.isWorking ||
         this.water.isActive
     );
     this.archery.update(
@@ -343,6 +368,7 @@ export class Game {
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
+        this.planting.isWorking ||
         this.water.isActive ||
         this.survival.state.dead
     );
@@ -370,7 +396,8 @@ export class Game {
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
-        this.archery.isWorking
+        this.archery.isWorking ||
+        this.planting.isWorking
     );
         this.updateIndicator(delta);
         this.updateCamera(delta);
@@ -410,7 +437,9 @@ export class Game {
     // 工具拥有状态由背包(含工具道具)推导
     this.syncTools();
     const tool = save.handTool;
-    if (tool === 'hand' || this.tools[tool]) this.player.setTool(tool);
+    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.tools[tool])) {
+      this.player.setTool(tool);
+    }
     this.dayNight.time = save.dayTime;
     this.props.applySave(save.props);
     this.campfire.restore(save.campfires);
@@ -509,19 +538,29 @@ export class Game {
       this.tools[id] = this.inventory.count(id) > 0;
     }
     // 手上的工具被丢掉/吃掉后收回手
-    if (this.player.currentTool !== 'hand' && !this.tools[this.player.currentTool]) {
+    if (this.player.currentTool !== 'hand' && !this.hasTool(this.player.currentTool)) {
       this.player.setTool('hand');
     }
+  }
+
+  /** 手上是否还持有该工具(种子按背包种子数判断) */
+  private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
+    return tool === 'seed' ? this.hasSeed() : !!this.tools[tool];
+  }
+
+  /** 背包里是否还有任意树种种子 */
+  private hasSeed(): boolean {
+    return TREE_SPECIES.some((s) => this.inventory.count(SEED_OF[s]) > 0);
   }
 
   setJoystick(x: number, z: number): void {
     this.player.input.setJoystick(x, z);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子(仅已拥有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 鱼竿 → 弓 → 种子(仅已拥有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow'];
-    const owned: HandTool[] = order.filter((t) => t === 'hand' || this.tools[t]);
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow', 'seed'];
+    const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
   }
@@ -544,6 +583,7 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isWorking ||
       this.eating.isWorking ||
+      this.planting.isWorking ||
       this.survival.state.dead
     ) {
       return null;
@@ -588,7 +628,8 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isWorking ||
       this.eating.isWorking ||
-      this.fishing.isWorking
+      this.fishing.isWorking ||
+      this.planting.isWorking
     ) {
       return false;
     }
@@ -604,6 +645,7 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isWorking ||
       this.eating.isWorking ||
+      this.planting.isWorking ||
       this.water.isActive
     ) {
       return false;
@@ -708,6 +750,7 @@ export class Game {
       hasPickaxe: this.tools.pickaxe,
       hasFishingrod: this.tools.fishingrod,
       hasBow: this.tools.bow,
+      hasSeed: this.hasSeed(),
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,
@@ -745,6 +788,9 @@ export class Game {
     } else if (this.workbench.isWorking) {
       label = '制作中:工作台';
       progress = this.workbench.getProgress();
+    } else if (this.planting.isWorking) {
+      label = '播种中…';
+      progress = this.planting.getProgress();
     } else if (this.campfire.isCooking) {
       const { total, current } = this.campfire.cookInfo;
       const food = ITEMS[this.campfire.cookingKind!];

@@ -31,6 +31,7 @@ const INITIAL_HUD: HudSnapshot = {
   hasPickaxe: false,
   hasFishingrod: false,
   hasBow: false,
+  hasSeed: false,
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -156,6 +157,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             hud.hasPickaxe ||
             hud.hasFishingrod ||
             hud.hasBow ||
+            hud.hasSeed ||
             hud.nearWorkbench ||
             hud.nearCampfire) && (
             <ToolButton

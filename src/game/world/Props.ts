@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from './IslandTerrain';
+import {
+  GROWTH_CHANCE,
+  GROWTH_INTERVAL,
+  type TreeSpecies,
+  type TreeStage,
+} from './TreeSpecies';
 
 const SHAKE_TIME = 0.4;
 
@@ -12,12 +18,17 @@ const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
 
 export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass';
 
-/** 资源点的可序列化状态(存档用,布局由种子保证可复现) */
+/** 资源点的可序列化状态(存档用,自然生成的布局由种子保证可复现;玩家种下的树带坐标) */
 export type PropState = {
   kind: PropKind;
   ready: boolean;
   regrowLeft: number;
   stage?: 'full' | 'stump';
+  species?: TreeSpecies;
+  growth?: TreeStage;
+  /** 玩家种下的树的落点坐标;自然生成的资源点没有该字段 */
+  x?: number;
+  z?: number;
 };
 
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
@@ -38,6 +49,10 @@ export type Prop = {
   regrowLeft: number;
   /** 树的砍伐阶段:full=完整树,stump=只剩树桩仍可砍 */
   stage?: 'full' | 'stump';
+  /** 树种(自然生成的旧存档没有时按橡树处理) */
+  species?: TreeSpecies;
+  /** 树的生长阶段;仅成树可砍 */
+  growth?: TreeStage;
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -48,28 +63,108 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-function makeTree(): THREE.Group {
-  const g = new THREE.Group();
+/** 各树种的树冠配色 */
+const CROWN_COLORS: Record<TreeSpecies, string> = {
+  oak: '#3f7d33',
+  pine: '#2e6b3d',
+  palm: '#4d9440',
+};
+
+/** 发芽:一根细茎顶着两片嫩叶 */
+function makeSproutParts(): THREE.Mesh[] {
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02, 0.03, 0.16, 4),
+    clayMaterial('#7fae55')
+  );
+  stem.position.y = 0.08;
+  const leafL = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4), clayMaterial('#a4c46a'));
+  leafL.position.set(-0.05, 0.18, 0);
+  leafL.rotation.z = 0.9;
+  const leafR = leafL.clone();
+  leafR.position.x = 0.05;
+  leafR.rotation.z = -0.9;
+  return [stem, leafL, leafR];
+}
+
+/** 小树:细树干 + 一团小树冠(按树种配色) */
+function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.12, 0.18, 0.9, 5),
+    new THREE.CylinderGeometry(0.05, 0.08, 0.5, 5),
     clayMaterial('#8a6239')
   );
-  trunk.position.y = 0.45;
+  trunk.position.y = 0.25;
   const crown = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.65, 0),
-    clayMaterial('#3f7d33')
+    new THREE.IcosahedronGeometry(0.28, 0),
+    clayMaterial(CROWN_COLORS[species])
   );
+  crown.position.y = 0.6;
+  return [trunk, crown];
+}
+
+/** 成树:按树种拼装三种造型 */
+function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
+  const trunkColor = '#8a6239';
+  const crownColor = CROWN_COLORS[species];
+  if (species === 'pine') {
+    // 松树:细高树干 + 三层锥形树冠
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.13, 1.0, 5),
+      clayMaterial(trunkColor)
+    );
+    trunk.position.y = 0.5;
+    const tiers = [0.62, 0.46, 0.3];
+    const crowns = tiers.map(
+      (r, i) =>
+        new THREE.Mesh(new THREE.ConeGeometry(r, 0.7 - i * 0.12, 6), clayMaterial(crownColor))
+    );
+    crowns[0].position.y = 0.85;
+    crowns[1].position.y = 1.25;
+    crowns[2].position.y = 1.6;
+    return [trunk, ...crowns];
+  }
+  if (species === 'palm') {
+    // 棕榈树:高细树干顶端展开几片长叶
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.12, 1.5, 5),
+      clayMaterial(trunkColor)
+    );
+    trunk.position.y = 0.75;
+    trunk.rotation.z = 0.08;
+    const parts = [trunk];
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const frond = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.8, 4), clayMaterial(crownColor));
+      frond.scale.set(0.4, 1, 1);
+      frond.position.set(Math.cos(a) * 0.28, 1.5, Math.sin(a) * 0.28);
+      frond.rotation.set(Math.sin(a) * 0.9, -a, Math.cos(a) * 0.9);
+      parts.push(frond);
+    }
+    return parts;
+  }
+  // 橡树:矮壮树干 + 两团圆树冠
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.18, 0.9, 5),
+    clayMaterial(trunkColor)
+  );
+  trunk.position.y = 0.45;
+  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), clayMaterial(crownColor));
   crown.position.y = 1.2;
   const crown2 = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.42, 0),
     clayMaterial('#4f9440')
   );
   crown2.position.set(0.15, 1.65, 0.1);
-  for (const m of [trunk, crown, crown2]) {
-    m.castShadow = true;
-    g.add(m);
-  }
-  return g;
+  return [trunk, crown, crown2];
+}
+
+/** 树桩:一截短树干 */
+function makeStumpParts(): THREE.Mesh[] {
+  const stump = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.19, 0.28, 5),
+    clayMaterial('#8a6239')
+  );
+  stump.position.y = 0.14;
+  return [stump];
 }
 
 function makeRock(): THREE.Group {
@@ -155,15 +250,18 @@ function makeShrub(): THREE.Group {
   return g;
 }
 
-/** 岛上散布的资源点,管理采集后的外观变化与再生 */
+/** 岛上散布的资源点,管理采集后的外观变化、再生与树的生长 */
 export class Props implements Updatable {
   readonly list: Prop[] = [];
+  /** 自然生成的资源点数量(种下的树追加在其后,存档时需带坐标单独恢复) */
+  private naturalCount = 0;
   private berries = new Map<Prop, THREE.Mesh[]>();
   private shakes = new Map<Prop, number>();
+  private growthTimer = 0;
 
   constructor(
-    scene: THREE.Scene,
-    terrain: IslandTerrain,
+    private scene: THREE.Scene,
+    private terrain: IslandTerrain,
     rng: () => number = Math.random
   ) {
     const half = terrain.size / 2;
@@ -183,7 +281,7 @@ export class Props implements Updatable {
         if (terrain.isNearWater(new THREE.Vector3(x, y, z), 1)) continue;
         let berries: THREE.Mesh[] | null = null;
         let group: THREE.Group;
-        if (kind === 'tree') group = makeTree();
+        if (kind === 'tree') group = new THREE.Group();
         else if (kind === 'rock') group = makeRock();
         else if (kind === 'gravel') group = makeGravel();
         else if (kind === 'shrub') group = makeShrub();
@@ -203,6 +301,12 @@ export class Props implements Updatable {
           ready: true,
           regrowLeft: 0,
         };
+        if (kind === 'tree') {
+          // 岛上的树分三种,随机分布,自然生成的都是成树
+          prop.species = TREE_SPECIES_OF(rng);
+          prop.growth = 'mature';
+        }
+        if (kind === 'tree') this.applyTreeLook(prop);
         this.list.push(prop);
         if (berries) this.berries.set(prop, berries);
       }
@@ -213,6 +317,46 @@ export class Props implements Updatable {
     spawn('berry', 20);
     spawn('shrub', 30);
     spawn('grass', 26);
+    this.naturalCount = this.list.length;
+  }
+
+  /** 玩家种下一棵树:在落点生成发芽阶段的树并纳入管理 */
+  plant(species: TreeSpecies, x: number, z: number): Prop {
+    const y = this.terrain.getHeight(x, z);
+    const group = new THREE.Group();
+    group.position.set(x, y - 0.05, z);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    this.scene.add(group);
+    const prop: Prop = {
+      kind: 'tree',
+      group,
+      position: group.position.clone(),
+      ready: false,
+      regrowLeft: 0,
+      stage: 'full',
+      species,
+      growth: 'sprout',
+    };
+    this.applyTreeLook(prop);
+    this.list.push(prop);
+    return prop;
+  }
+
+  /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
+  private applyTreeLook(prop: Prop): void {
+    while (prop.group.children.length > 0) prop.group.remove(prop.group.children[0]);
+    const parts =
+      prop.stage === 'stump'
+        ? makeStumpParts()
+        : prop.growth === 'sprout'
+          ? makeSproutParts()
+          : prop.growth === 'sapling'
+            ? makeSaplingParts(prop.species ?? 'oak')
+            : makeMatureParts(prop.species ?? 'oak');
+    for (const part of parts) {
+      part.castShadow = true;
+      prop.group.add(part);
+    }
   }
 
   /** 采集后的外观变化,并按配置安排再生 */
@@ -230,17 +374,12 @@ export class Props implements Updatable {
     this.syncAppearance(prop);
   }
 
-  /** 依据 ready/stage 同步采集后的外观(树桩保留,其余隐藏或缩形) */
+  /** 依据 ready/stage/growth 同步采集后的外观(树桩保留,其余隐藏或缩形) */
   private syncAppearance(prop: Prop): void {
     switch (prop.kind) {
       case 'tree':
-        if (prop.stage === 'stump') {
-          // 树桩:只留树干;彻底砍倒后整体隐藏
-          prop.group.children
-            .filter((c) => c instanceof THREE.Mesh)
-            .slice(1)
-            .forEach((c) => (c.visible = false));
-        }
+        this.applyTreeLook(prop);
+        // 树桩被彻底砍倒后整体隐藏;其余阶段(含未成树)始终可见
         prop.group.visible = prop.ready || prop.stage !== 'stump';
         break;
       case 'rock':
@@ -259,35 +398,70 @@ export class Props implements Updatable {
     }
   }
 
-  /** 当前全部资源点状态快照(存档用,顺序与 list 一致) */
+  /** 当前全部资源点状态快照(存档用,自然生成在前、种下的树带坐标在后) */
   snapshot(): PropState[] {
-    return this.list.map((prop) => ({
-      kind: prop.kind,
-      ready: prop.ready,
-      regrowLeft: prop.regrowLeft,
-      stage: prop.stage,
-    }));
+    return this.list.map((prop, i) => {
+      const state: PropState = {
+        kind: prop.kind,
+        ready: prop.ready,
+        regrowLeft: prop.regrowLeft,
+        stage: prop.stage,
+      };
+      if (prop.kind === 'tree') {
+        state.species = prop.species;
+        state.growth = prop.growth;
+      }
+      if (i >= this.naturalCount) {
+        state.x = prop.position.x;
+        state.z = prop.position.z;
+      }
+      return state;
+    });
   }
 
-  /** 从存档恢复各资源点状态;长度或种类对不上时跳过(布局已变) */
+  /** 从存档恢复各资源点状态;自然部分长度或种类对不上时跳过(布局已变) */
   applySave(states: PropState[]): void {
-    if (states.length !== this.list.length) return;
-    for (let i = 0; i < this.list.length; i++) {
+    const natural = states.filter((s) => s.x === undefined);
+    const planted = states.filter((s) => s.x !== undefined);
+    if (natural.length !== this.naturalCount) return;
+    this.removePlanted();
+    for (let i = 0; i < natural.length; i++) {
       const prop = this.list[i];
-      const state = states[i];
+      const state = natural[i];
       if (!state || state.kind !== prop.kind) return;
       prop.ready = state.ready;
       prop.regrowLeft = state.regrowLeft;
       prop.stage = state.stage;
+      if (prop.kind === 'tree') {
+        prop.species = state.species ?? 'oak';
+        prop.growth = state.growth ?? 'mature';
+      }
+      this.syncAppearance(prop);
+    }
+    for (const state of planted) {
+      if (state.kind !== 'tree' || state.x === undefined || state.z === undefined) continue;
+      const prop = this.plant(state.species ?? 'oak', state.x, state.z);
+      prop.ready = state.ready;
+      prop.regrowLeft = state.regrowLeft;
+      prop.stage = state.stage;
+      prop.growth = state.growth ?? 'sprout';
       this.syncAppearance(prop);
     }
   }
 
-  /** 将圆形实体沿 XZ 推出有阻挡的物件(存活的树与大石),原地修改位置 */
+  /** 移除玩家种下的树(读档恢复前清理) */
+  private removePlanted(): void {
+    for (const prop of this.list.splice(this.naturalCount)) {
+      this.scene.remove(prop.group);
+    }
+  }
+
+  /** 将圆形实体沿 XZ 推出有阻挡的物件(成树、树桩与大石),原地修改位置 */
   resolveCollision(p: THREE.Vector3, radius: number): void {
     for (const prop of this.list) {
       const blockR = BLOCK_RADIUS[prop.kind];
-      // 树被砍倒(整体隐藏)或大石被采空后不再阻挡;树桩仍阻挡
+      // 幼树不阻挡;树被砍倒(整体隐藏)或大石被采空后不再阻挡;树桩仍阻挡
+      if (prop.kind === 'tree' && prop.growth !== 'mature' && prop.stage !== 'stump') continue;
       if (!blockR || !prop.group.visible) continue;
       const dx = p.x - prop.position.x;
       const dz = p.z - prop.position.z;
@@ -320,6 +494,7 @@ export class Props implements Updatable {
         prop.group.scale.setScalar(1);
       }
     }
+    this.updateTreeGrowth(delta);
     for (const [prop, left] of this.shakes) {
       const t = left - delta;
       if (t <= 0) {
@@ -334,4 +509,24 @@ export class Props implements Updatable {
       prop.group.rotation.z = Math.cos(t * 34) * amp * 0.7;
     }
   }
+
+  /** 未成树每分钟有 1/2 概率长到下一阶段,长成成树后才可砍伐 */
+  private updateTreeGrowth(delta: number): void {
+    this.growthTimer += delta;
+    if (this.growthTimer < GROWTH_INTERVAL) return;
+    this.growthTimer -= GROWTH_INTERVAL;
+    for (const prop of this.list) {
+      if (prop.kind !== 'tree' || prop.growth === 'mature' || prop.stage === 'stump') continue;
+      if (Math.random() >= GROWTH_CHANCE) continue;
+      prop.growth = prop.growth === 'sprout' ? 'sapling' : 'mature';
+      if (prop.growth === 'mature') prop.ready = true;
+      this.applyTreeLook(prop);
+    }
+  }
+}
+
+/** 用生成种子对应的随机流挑一个树种 */
+function TREE_SPECIES_OF(rng: () => number): TreeSpecies {
+  const species: TreeSpecies[] = ['oak', 'pine', 'palm'];
+  return species[Math.floor(rng() * species.length)];
 }

@@ -103,6 +103,42 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏹',
     description: '用树枝削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
   },
+  oakSeed: {
+    kind: 'oakSeed',
+    name: '橡树种子',
+    icon: '🌰',
+    description: '砍橡树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵橡树,结出的橡果可以食用。',
+  },
+  pineSeed: {
+    kind: 'pineSeed',
+    name: '松树种子',
+    icon: '🌱',
+    description: '砍松树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵松树,结出的松果可以食用。',
+  },
+  palmSeed: {
+    kind: 'palmSeed',
+    name: '棕榈种子',
+    icon: '🌴',
+    description: '砍棕榈树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵棕榈树,结出的椰子可以食用。',
+  },
+  oakFruit: {
+    kind: 'oakFruit',
+    name: '橡果',
+    icon: '🥜',
+    description: '砍橡树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
+  },
+  pineFruit: {
+    kind: 'pineFruit',
+    name: '松果',
+    icon: '🌲',
+    description: '砍松树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
+  },
+  palmFruit: {
+    kind: 'palmFruit',
+    name: '椰子',
+    icon: '🥥',
+    description: '砍棕榈树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
+  },
   axe: {
     kind: 'axe',
     name: '斧子',

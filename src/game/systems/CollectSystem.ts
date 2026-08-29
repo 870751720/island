@@ -1,5 +1,11 @@
 import type { Player, ActionType } from '../entities/Player';
 import type { Prop, Props } from '../world/Props';
+import {
+  FRUIT_DROP_CHANCE,
+  FRUIT_OF,
+  SEED_DROP_CHANCE,
+  SEED_OF,
+} from '../world/TreeSpecies';
 import { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -22,16 +28,20 @@ const HARVEST_CONFIG: Record<
     action: ActionType;
     hits: number;
     fxColor: string;
-    yield: (inventory: Inventory) => void;
+    yield: (inventory: Inventory, prop: Prop) => void;
   }
 > = {
   tree: {
     action: 'chop',
     hits: 3,
     fxColor: '#4f9440',
-    yield: (inv) => {
+    yield: (inv, prop) => {
       inv.add('wood', 2);
       inv.add('log', 1);
+      // 第一阶段砍倒树冠时,按树种概率掉落种子与可食用果实
+      const species = prop.species ?? 'oak';
+      if (Math.random() < SEED_DROP_CHANCE) inv.add(SEED_OF[species], 1);
+      if (Math.random() < FRUIT_DROP_CHANCE) inv.add(FRUIT_OF[species], 1);
     },
   },
   stump: {
@@ -175,7 +185,7 @@ export class CollectSystem {
     }
     this.hitCounts.delete(prop);
     this.props.harvest(prop);
-    config.yield(this.inventory);
+    config.yield(this.inventory, prop);
     this.audio.play('pickup');
     this.fx.burst(prop.position, config.fxColor, 14);
     this.nearby = null;

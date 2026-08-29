@@ -15,6 +15,9 @@ export type Food = {
 /** 可食用食物表:每种食物的名称、进食动画与特效色 */
 export const FOODS: Food[] = [
   { kind: 'berry', name: '浆果', icon: '🍒', action: 'eat_berry', fxColor: '#c0392b', hunger: 12, thirst: 4 },
+  { kind: 'oakFruit', name: '橡果', icon: '🥜', action: 'eat_berry', fxColor: '#b5813f', hunger: 10, thirst: 3 },
+  { kind: 'pineFruit', name: '松果', icon: '🌲', action: 'eat_berry', fxColor: '#8a6b45', hunger: 10, thirst: 3 },
+  { kind: 'palmFruit', name: '椰子', icon: '🥥', action: 'eat_berry', fxColor: '#a0784e', hunger: 12, thirst: 8 },
   { kind: 'fish', name: '生鱼', icon: '🐟', action: 'eat_fish', fxColor: '#5fa8d3', hunger: 25, thirst: 0 },
   { kind: 'crabMeat', name: '蟹肉', icon: '🦀', action: 'eat_fish', fxColor: '#e2793a', hunger: 15, thirst: 0 },
   { kind: 'birdMeat', name: '鸟肉', icon: '🐦', action: 'eat_fish', fxColor: '#c98a5a', hunger: 18, thirst: 0 },
