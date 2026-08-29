@@ -12,20 +12,19 @@ export type VitalWarnHandle = {
 
 const LOW_THRESHOLD = 20;
 
-const ROWS: { key: keyof VitalLevels; icon: string; color: string }[] = [
-  { key: 'health', icon: '❤️', color: '#c0392b' },
-  { key: 'hunger', icon: '🍗', color: '#b9631e' },
-  { key: 'thirst', icon: '💧', color: '#2471a3' },
+const ROWS: { key: keyof VitalLevels; icon: string }[] = [
+  { key: 'health', icon: '❤️' },
+  { key: 'hunger', icon: '🍗' },
+  { key: 'thirst', icon: '💧' },
 ];
 
 /**
- * 低数值提醒:饥饿/口渴/健康任一 ≤20% 时,在玩家头顶显示对应「图标 + 剩余量小条」。
+ * 低数值提醒:饥饿/口渴/健康任一 ≤20% 时,在玩家头顶显示对应图标。
  * 每帧由 Game 投影出屏幕坐标后直写 DOM,跟随角色移动,不触发 React 重渲染。
  */
 export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) {
   const rootRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const fillRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useImperativeHandle(ref, () => ({
     update(vitals, x, y) {
@@ -36,12 +35,8 @@ export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) 
       if (!anyLow || !vitals) return;
       root.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
       ROWS.forEach((r, i) => {
-        const low = vitals[r.key] <= LOW_THRESHOLD;
         const row = rowRefs.current[i];
-        const fill = fillRefs.current[i];
-        if (!row || !fill) return;
-        row.style.display = low ? 'flex' : 'none';
-        if (low) fill.style.width = `${Math.max(0, vitals[r.key])}%`;
+        if (row) row.style.display = vitals[r.key] <= LOW_THRESHOLD ? 'flex' : 'none';
       });
     },
   }));
@@ -56,15 +51,7 @@ export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) 
           }}
           style={rowStyle}
         >
-          <span style={{ fontSize: 12, lineHeight: 1 }}>{r.icon}</span>
-          <div style={trackStyle}>
-            <div
-              ref={(el) => {
-                fillRefs.current[i] = el;
-              }}
-              style={{ ...fillStyle, background: r.color }}
-            />
-          </div>
+          <span style={{ fontSize: 13, lineHeight: 1 }}>{r.icon}</span>
         </div>
       ))}
     </div>
@@ -74,18 +61,4 @@ export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) 
 const rowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 4,
-};
-
-const trackStyle: CSSProperties = {
-  width: 44,
-  height: 5,
-  borderRadius: 3,
-  background: 'rgba(0,0,0,0.4)',
-  overflow: 'hidden',
-};
-
-const fillStyle: CSSProperties = {
-  height: '100%',
-  borderRadius: 3,
 };
