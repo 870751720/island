@@ -9,6 +9,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   fishingrod: '🎣',
   bow: '🏹',
   seed: '🌱',
+  crate: '📦',
 };
 
 /** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
@@ -18,10 +19,12 @@ export function ToolButton({
   pulse,
   workbench,
   campfire = false,
+  crate = false,
   arrowCount = 0,
   onCycle,
   onWorkbench,
   onCampfire,
+  onCrate,
 }: {
   tool: HandTool;
   pulse: boolean;
@@ -29,17 +32,20 @@ export function ToolButton({
   workbench: boolean;
   /** 是否显示为火堆模式(靠近火堆) */
   campfire?: boolean;
+  /** 是否显示为木箱模式(靠近木箱) */
+  crate?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
   arrowCount?: number;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
+  onCrate: () => void;
 }) {
   return (
     <button
       onPointerDown={(e) => {
         e.preventDefault();
-        workbench ? onWorkbench() : campfire ? onCampfire() : onCycle();
+        workbench ? onWorkbench() : campfire ? onCampfire() : crate ? onCrate() : onCycle();
       }}
       style={{
         position: 'absolute',
@@ -54,17 +60,21 @@ export function ToolButton({
           ? 'rgba(202, 138, 62, 0.9)'
           : campfire
             ? 'rgba(214, 92, 44, 0.9)'
-            : 'rgba(90, 110, 140, 0.8)',
+            : crate
+              ? 'rgba(154, 118, 62, 0.9)'
+              : 'rgba(90, 110, 140, 0.8)',
         fontSize: 30,
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire ? 'tool-pulse 0.9s ease-in-out infinite' : 'none',
+          pulse || workbench || campfire || crate
+            ? 'tool-pulse 0.9s ease-in-out infinite'
+            : 'none',
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : TOOL_ICONS[tool]}
-      {!workbench && !campfire && tool === 'bow' && (
+      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : TOOL_ICONS[tool]}
+      {!workbench && !campfire && !crate && tool === 'bow' && (
         <span
           style={{
             position: 'absolute',

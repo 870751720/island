@@ -13,6 +13,7 @@ import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { PlantingSystem } from './systems/PlantingSystem';
+import { CrateSystem } from './systems/CrateSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -64,6 +65,12 @@ export type HudSnapshot = {
   hasBow: boolean;
   /** 背包里是否有种子(可切换到种子播种) */
   hasSeed: boolean;
+  /** 背包里是否有木箱(可切换到木箱放置) */
+  hasCrate: boolean;
+  /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
+  nearCrate: boolean;
+  /** 身旁木箱的 10 格快照(不在木箱旁为 null) */
+  crateSlots: InventorySlot[] | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
   equipped: Record<EquipSlot, EquipKind | null>;
   tool: HandTool;
@@ -132,6 +139,7 @@ export class Game {
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
+  private crates: CrateSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private eating: EatingSystem;
@@ -284,7 +292,7 @@ export class Game {
       this.inventory,
       this.fx,
       this.audio,
-      // 合成/进食/钓鱼/播种占用双手,期间采集让位
+      // 合成/进食/钓鱼/播种/放箱占用双手,期间采集让位
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
@@ -292,7 +300,8 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking
+        this.planting.isWorking ||
+        this.crates.isPlacing
     );
     this.crafting = new CraftingSystem(
       this.player,
@@ -331,6 +340,26 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
+        this.crates.isPlacing ||
+        this.water.isActive
+    );
+    this.crates = new CrateSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 其他占用双手的行为进行中时放置让位
+      () =>
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
         this.water.isActive
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
@@ -437,6 +466,7 @@ export class Game {
       this.lastHealth = this.survival.state.health;
         this.collect.update(delta);
         this.planting.update(delta);
+        this.crates.update(delta);
         this.crafting.update(delta);
         // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
         if (
@@ -458,6 +488,7 @@ export class Game {
         this.eating.isWorking ||
         this.archery.isWorking ||
         this.planting.isWorking ||
+        this.crates.isPlacing ||
         this.water.isActive
     );
     this.archery.update(
@@ -469,6 +500,7 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.planting.isWorking ||
+        this.crates.isPlacing ||
         this.water.isActive ||
         this.survival.state.dead
     );
@@ -497,7 +529,8 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking
+        this.planting.isWorking ||
+        this.crates.isPlacing
     );
         this.updateIndicator(delta);
         this.updateCamera(delta);
@@ -541,13 +574,14 @@ export class Game {
       for (const id of save.tools) this.tools[id] = true;
     }
     const tool = save.handTool;
-    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.tools[tool])) {
+    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : tool === 'crate' ? this.inventory.count('crate') > 0 : this.tools[tool])) {
       this.player.setTool(tool);
     }
     this.dayNight.time = save.dayTime;
     this.props.applySave(save.props);
     this.campfire.restore(save.campfires);
     if (save.workbench) this.workbench.restore(save.workbench);
+    this.crates.restore(save.crates);
     this.drops.restore(save.drops);
   }
 
@@ -570,6 +604,7 @@ export class Game {
       props: this.props.snapshot(),
       campfires: this.campfire.snapshot(),
       workbench: this.workbench.snapshot(),
+      crates: this.crates.snapshot(),
       drops: this.drops.snapshot(),
     };
   }
@@ -638,9 +673,13 @@ export class Game {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
 
-  /** 手上是否还持有该工具(种子按背包种子数判断) */
+  /** 手上是否还持有该工具(种子/木箱按背包数量判断) */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
-    return tool === 'seed' ? this.hasSeed() : !!this.tools[tool];
+    return tool === 'seed'
+      ? this.hasSeed()
+      : tool === 'crate'
+        ? this.inventory.count('crate') > 0
+        : !!this.tools[tool];
   }
 
   /** 背包里是否还有任意树种种子 */
@@ -652,9 +691,9 @@ export class Game {
     this.player.input.setJoystick(x, z);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 鱼竿 → 弓 → 种子(仅已拥有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 鱼竿 → 弓 → 种子 → 木箱(仅已拥有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow', 'seed'];
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow', 'seed', 'crate'];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
@@ -679,6 +718,7 @@ export class Game {
       this.workbench.isWorking ||
       this.eating.isWorking ||
       this.planting.isWorking ||
+      this.crates.isPlacing ||
       this.survival.state.dead
     ) {
       return null;
@@ -819,6 +859,24 @@ export class Game {
     return this.campfire.start();
   }
 
+  /** 把背包里该种类全部道具存入身旁木箱(整格),失败时给出提示 */
+  crateStore(kind: ResourceKind): boolean {
+    if (!this.crates.store(kind)) {
+      this.notify('木箱装不下了');
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁木箱里该种类全部道具取回背包(整格),失败时给出提示 */
+  crateTake(kind: ResourceKind): boolean {
+    if (!this.crates.take(kind)) {
+      this.notify('背包满了,装不下更多东西');
+      return false;
+    }
+    return true;
+  }
+
   /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
   campfireAddFuel(kind: ResourceKind): boolean {
     return this.campfire.addFuel(kind) > 0;
@@ -925,6 +983,9 @@ export class Game {
       hasFishingrod: this.tools.fishingrod,
       hasBow: this.tools.bow,
       hasSeed: this.hasSeed(),
+      hasCrate: this.inventory.count('crate') > 0,
+      nearCrate: !!this.crates.nearby,
+      crateSlots: this.crates.nearbySlots(),
       equipped: this.equipment.snapshot(),
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
@@ -970,6 +1031,9 @@ export class Game {
     } else if (this.planting.isWorking) {
       label = '播种中…';
       progress = this.planting.getProgress();
+    } else if (this.crates.isPlacing) {
+      label = '放置木箱…';
+      progress = this.crates.getProgress();
     } else if (this.campfire.isCooking) {
       const { total, current } = this.campfire.cookInfo;
       const food = ITEMS[this.campfire.cookingKind!];

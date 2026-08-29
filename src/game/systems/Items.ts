@@ -331,4 +331,10 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🧺',
     description: '皮料缝制的大背囊,装得下半座岛(背包 18 格)。',
   },
+  crate: {
+    kind: 'crate',
+    name: '木箱',
+    icon: '📦',
+    description: '木板钉成的收纳箱。手持木箱站定空地 2 秒即可放到地上,之后靠近可以打开,存取 10 格物品。',
+  },
 };

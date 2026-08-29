@@ -10,6 +10,7 @@ import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
 import { CampfirePanel } from './CampfirePanel';
+import { CratePanel } from './CratePanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
@@ -37,6 +38,9 @@ const INITIAL_HUD: HudSnapshot = {
   hasFishingrod: false,
   hasBow: false,
   hasSeed: false,
+  hasCrate: false,
+  nearCrate: false,
+  crateSlots: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
   craftId: null,
@@ -76,6 +80,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
   const [campfireOpen, setCampfireOpen] = useState(false);
+  const [crateOpen, setCrateOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
   const vitalWarnRef = useRef<VitalWarnHandle>(null);
   // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
@@ -107,12 +112,16 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (!hud.nearCampfire) setCampfireOpen(false);
   }, [hud.nearCampfire]);
+  useEffect(() => {
+    if (!hud.nearCrate) setCrateOpen(false);
+  }, [hud.nearCrate]);
   // 死亡后关闭所有弹出的面板
   useEffect(() => {
     if (hud.dead) {
       setBackpackOpen(false);
       setWorkbenchOpen(false);
       setCampfireOpen(false);
+      setCrateOpen(false);
     }
   }, [hud.dead]);
 
@@ -216,16 +225,19 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             hud.hasBow ||
             hud.hasSeed ||
             hud.nearWorkbench ||
-            hud.nearCampfire) && (
+            hud.nearCampfire ||
+            hud.nearCrate) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
               workbench={hud.nearWorkbench && hud.craftId === null}
               campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null}
+              crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null}
               arrowCount={hud.arrow}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}
+              onCrate={() => setCrateOpen(true)}
             />
           )}
           {workbenchOpen && (
@@ -247,6 +259,14 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
                 setCampfireOpen(false);
               }}
               onClose={() => setCampfireOpen(false)}
+            />
+          )}
+          {crateOpen && hud.nearCrate && (
+            <CratePanel
+              hud={hud}
+              onStore={(kind) => gameRef.current?.crateStore(kind)}
+              onTake={(kind) => gameRef.current?.crateTake(kind)}
+              onClose={() => setCrateOpen(false)}
             />
           )}
           <CraftPrompt

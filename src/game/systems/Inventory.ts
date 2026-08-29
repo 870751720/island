@@ -51,7 +51,8 @@ export type ResourceKind =
   | 'furShirt'
   | 'furPants'
   | 'furHat'
-  | 'furBackpack';
+  | 'furBackpack'
+  | 'crate';
 
 /** 一个背包格:道具类型与叠加数量,空格为 null */
 export type InventorySlot = { kind: ResourceKind; count: number } | null;

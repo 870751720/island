@@ -56,6 +56,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   furHat: '#9a7448',
   strawBackpack: '#c9a56a',
   furBackpack: '#8a5a2b',
+  crate: '#a97b48',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -605,6 +606,21 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   furHat: () => makeHat(DROP_COLORS.furHat, '#6b4a28'),
   strawBackpack: () => makeBackpack(DROP_COLORS.strawBackpack),
   furBackpack: () => makeBackpack(DROP_COLORS.furBackpack),
+  crate: () => {
+    // 木箱:小箱体 + 两条封边条
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: DROP_COLORS.crate, flatShading: true, roughness: 1 });
+    const band = new THREE.MeshStandardMaterial({ color: '#7a5a32', flatShading: true, roughness: 1 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.16), wood);
+    body.castShadow = true;
+    g.add(body);
+    for (const z of [-0.07, 0.07]) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.17, 0.03), band);
+      strip.position.z = z;
+      g.add(strip);
+    }
+    return g;
+  },
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

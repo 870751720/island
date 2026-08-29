@@ -7,7 +7,7 @@ export type ToolId = 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
 export type Tools = Record<ToolId, boolean>;
 
 /** 配方 id:工具与其同名,材料类与装备类为产物入口 */
-export type CraftId = ToolId | 'rope' | 'arrow' | EquipKind;
+export type CraftId = ToolId | 'rope' | 'arrow' | 'crate' | EquipKind;
 
 export type Recipe = {
   id: CraftId;
@@ -76,6 +76,14 @@ export const RECIPES: Recipe[] = [
     station: 'workbench',
     output: 'arrow',
     outputCount: 10,
+  },
+  {
+    id: 'crate',
+    name: '木箱',
+    icon: '📦',
+    cost: { wood: 4 },
+    station: 'workbench',
+    output: 'crate',
   },
   {
     id: 'grassShirt',
