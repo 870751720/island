@@ -504,9 +504,9 @@ export class Game {
     return this.campfire.addFuel(kind) > 0;
   }
 
-  /** 在身旁燃烧的火堆上发起批量烹饪(烤完背包里全部该食材),返回是否成功开始 */
-  campfireCook(kind: ResourceKind): boolean {
-    return this.campfire.startCooking(kind);
+  /** 在身旁燃烧的火堆上发起烹饪(可选份数,同工作台),返回是否成功开始 */
+  campfireCook(kind: ResourceKind, count: number): boolean {
+    return this.campfire.startCooking(kind, count);
   }
 
   /** 丢弃一个道具到玩家附近的地上 */

@@ -181,18 +181,19 @@ export class CampfireSystem {
     return burnTime;
   }
 
-  /** 在身旁燃烧的火堆上发起批量烹饪:一次烤完背包里该食材的全部数量,走开或火灭则退回剩余食材 */
-  startCooking(kind: ResourceKind): boolean {
-    if (this.isBusy) return false;
+  /** 在身旁燃烧的火堆上发起烹饪:烤指定份数(同工作台可选个数),走开或火灭则退回剩余食材 */
+  startCooking(kind: ResourceKind, count: number): boolean {
+    if (this.isBusy || count < 1) return false;
     const fire = this.nearby;
     const cooked = COOKABLE[kind];
-    const count = this.inventory.count(kind);
-    if (!fire || !fire.isLit || !cooked || count < 1) return false;
-    this.inventory.remove(kind, count);
+    const owned = this.inventory.count(kind);
+    if (!fire || !fire.isLit || !cooked || owned < 1) return false;
+    const n = Math.min(count, owned);
+    this.inventory.remove(kind, n);
     this.cookKind = kind;
     this.cookFire = fire;
-    this.cookQueue = count;
-    this.cookTotal = count;
+    this.cookQueue = n;
+    this.cookTotal = n;
     this.cookTimer = 0;
     this.cookTickTimer = 0;
     return true;
