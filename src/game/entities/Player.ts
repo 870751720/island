@@ -140,10 +140,10 @@ const BARE_LEG_COLOR = '#5b4632';
 
 /** 衣服/裤子装备对应的身体颜色(帽子/背包用真实模型,不在此列) */
 const EQUIP_COLORS: Partial<Record<EquipKind, string>> = {
-  leafShirt: '#5a8a3a',
-  fiberShirt: '#c9a15c',
-  leafPants: '#4a7a3a',
-  fiberPants: '#a8823c',
+  grassShirt: '#5a8a3a',
+  furShirt: '#8a6239',
+  grassPants: '#4a7a3a',
+  furPants: '#75512c',
 };
 
 /** 草帽:宽檐圆顶帽 */
@@ -160,19 +160,19 @@ function makeStrawHatModel(): THREE.Group {
   return g;
 }
 
-/** 藤编帽:一圈圈盘出的无檐圆帽 */
-function makeVineHatModel(): THREE.Group {
+/** 皮帽:一圈圈盘出的无檐圆帽 */
+function makeFurHatModel(): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.2 - i * 0.05, 0.045, 4, 8),
-      clayMaterial(i % 2 === 0 ? '#8a9a4a' : '#a3b25e')
+      clayMaterial(i % 2 === 0 ? '#9a7448' : '#b08a5a')
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.03 + i * 0.055;
     g.add(ring);
   }
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), clayMaterial('#8a9a4a'));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), clayMaterial('#9a7448'));
   dome.position.y = 0.19;
   g.add(dome);
   return g;
@@ -198,8 +198,8 @@ function makeStrawBackpackModel(): THREE.Group {
   return g;
 }
 
-/** 木架背包:木框上架一个箱式背囊 */
-function makeFrameBackpackModel(): THREE.Group {
+/** 皮包:木框上架一个皮料背囊 */
+function makeFurBackpackModel(): THREE.Group {
   const g = new THREE.Group();
   const wood = clayMaterial('#8a6239');
   const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), wood);
@@ -210,9 +210,9 @@ function makeFrameBackpackModel(): THREE.Group {
   crossTop.position.y = 0.3;
   const crossBottom = crossTop.clone();
   crossBottom.position.y = -0.2;
-  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.4, 0.16), clayMaterial('#b39055'));
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.4, 0.16), clayMaterial('#9a7448'));
   pack.position.set(0, 0.05, -0.06);
-  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.36, 6), clayMaterial('#c9c27a'));
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.36, 6), clayMaterial('#c9a877'));
   roll.rotation.z = Math.PI / 2;
   roll.position.y = 0.33;
   g.add(railL, railR, crossTop, crossBottom, pack, roll);
@@ -306,20 +306,20 @@ export class Player implements Updatable {
     const strawHat = makeStrawHatModel();
     strawHat.position.y = 0.18;
     strawHat.visible = false;
-    const vineHat = makeVineHatModel();
-    vineHat.position.y = 0.18;
-    vineHat.visible = false;
-    head.add(strawHat, vineHat);
-    this.hatModels = { strawHat, vineHat };
+    const furHat = makeFurHatModel();
+    furHat.position.y = 0.18;
+    furHat.visible = false;
+    head.add(strawHat, furHat);
+    this.hatModels = { strawHat, furHat };
 
     const strawBackpack = makeStrawBackpackModel();
     strawBackpack.position.set(0, 0.82, -0.28);
     strawBackpack.visible = false;
-    const frameBackpack = makeFrameBackpackModel();
-    frameBackpack.position.set(0, 0.88, -0.34);
-    frameBackpack.visible = false;
-    this.group.add(strawBackpack, frameBackpack);
-    this.backpackModels = { strawBackpack, frameBackpack };
+    const furBackpack = makeFurBackpackModel();
+    furBackpack.position.set(0, 0.88, -0.34);
+    furBackpack.visible = false;
+    this.group.add(strawBackpack, furBackpack);
+    this.backpackModels = { strawBackpack, furBackpack };
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';

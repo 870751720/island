@@ -5,36 +5,40 @@ export type EquipSlot = 'clothing' | 'pants' | 'hat' | 'backpack';
 
 /** 可装备道具的种类 */
 export type EquipKind =
-  | 'leafShirt'
-  | 'fiberShirt'
-  | 'leafPants'
-  | 'fiberPants'
+  | 'grassShirt'
+  | 'grassPants'
   | 'strawHat'
-  | 'vineHat'
   | 'strawBackpack'
-  | 'frameBackpack';
+  | 'furShirt'
+  | 'furPants'
+  | 'furHat'
+  | 'furBackpack';
 
 export type EquipmentDef = {
   kind: EquipKind;
   slot: EquipSlot;
   /** 评分:同栏位评分更高才值得换上 */
   score: number;
+  /** 防御:受伤时一次性扣减伤害,各栏位叠加 */
+  defense?: number;
+  /** 口渴速度倍率(如 0.95 表示减缓 5%),各栏位相乘 */
+  thirstMod?: number;
   /** 衣服/裤子:替换玩家身体/腿部模型颜色 */
   bodyColor?: string;
   /** 背包:装备后背包扩容到的格数 */
   capacity?: number;
 };
 
-/** 四类装备各两件的静态定义 */
+/** 四类装备各两件的静态定义:一级草制、二级皮制 */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
-  leafShirt: { kind: 'leafShirt', slot: 'clothing', score: 1, bodyColor: '#5a8a3a' },
-  fiberShirt: { kind: 'fiberShirt', slot: 'clothing', score: 3, bodyColor: '#c9a15c' },
-  leafPants: { kind: 'leafPants', slot: 'pants', score: 1, bodyColor: '#4a7a3a' },
-  fiberPants: { kind: 'fiberPants', slot: 'pants', score: 3, bodyColor: '#a8823c' },
-  strawHat: { kind: 'strawHat', slot: 'hat', score: 2 },
-  vineHat: { kind: 'vineHat', slot: 'hat', score: 4 },
+  grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, bodyColor: '#5a8a3a' },
+  grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, bodyColor: '#4a7a3a' },
+  strawHat: { kind: 'strawHat', slot: 'hat', score: 2, thirstMod: 0.95 },
   strawBackpack: { kind: 'strawBackpack', slot: 'backpack', score: 2, capacity: 14 },
-  frameBackpack: { kind: 'frameBackpack', slot: 'backpack', score: 4, capacity: 18 },
+  furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, bodyColor: '#8a6239' },
+  furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, bodyColor: '#75512c' },
+  furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, thirstMod: 0.95 },
+  furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 18 },
 };
 
 /** 栏位展示顺序与中文名(角色面板用) */
@@ -58,6 +62,22 @@ export class Equipment {
 
   getEquipped(slot: EquipSlot): EquipKind | null {
     return this.equipped[slot] ?? null;
+  }
+
+  /** 全身防御力:各栏位叠加,受伤时按此扣减伤害 */
+  totalDefense(): number {
+    return SLOT_ORDER.reduce(
+      (sum, slot) => sum + (this.equipped[slot] ? EQUIPMENT[this.equipped[slot]!].defense ?? 0 : 0),
+      0
+    );
+  }
+
+  /** 装备对口渴速度的总倍率(帽子等提供,相乘叠加) */
+  thirstMultiplier(): number {
+    return SLOT_ORDER.reduce(
+      (mul, slot) => mul * (this.equipped[slot] ? EQUIPMENT[this.equipped[slot]!].thirstMod ?? 1 : 1),
+      1
+    );
   }
 
   /** 全部栏位快照(存档与 HUD 用) */

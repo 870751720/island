@@ -151,6 +151,7 @@ export class Game {
   private onLabel: (label: string | null, x: number, y: number, color?: string) => void;
   private onMumble: (text: string | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
+  private onDamage: (amount: number, x: number, y: number) => void;
   private terrainSeed: number;
   private propsSeed: number;
   private autosaveTimer = 0;
@@ -168,13 +169,15 @@ export class Game {
     onHud: (snap: HudSnapshot) => void,
     onLabel: (label: string | null, x: number, y: number, color?: string) => void,
     onMumble: (text: string | null, x: number, y: number) => void,
-    onPickup: (toast: PickupToast) => void
+    onPickup: (toast: PickupToast) => void,
+    onDamage: (amount: number, x: number, y: number) => void
   ) {
     this.container = container;
     this.onHud = onHud;
     this.onLabel = onLabel;
     this.onMumble = onMumble;
     this.onPickup = onPickup;
+    this.onDamage = onDamage;
 
     // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛
     const save = SaveSystem.load();
@@ -236,16 +239,23 @@ export class Game {
     this.crabs = new Crabs(this.scene, terrain, this.player);
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
     this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
-    // 熊扑击玩家的结算:掉血 + 玩家位置泛红特效与音效
+    // 熊扑击玩家的结算:装备防御减伤(至少 1 点)+ 头顶伤害数字 + 泛红特效与音效
     this.wildlife = new Wildlife(
       this.scene,
       terrain,
       this.player,
       (damage) => {
-        this.survival.damage(damage);
+        const final = Math.max(1, damage - this.equipment.totalDefense());
+        this.survival.damage(final);
         const p = this.player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
         this.audio.play('chop');
+        const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
+        this.onDamage(
+          final,
+          Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),
+          Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
+        );
       },
       () => !this.survival.state.dead && !this.player.isSwimming
     );
@@ -391,7 +401,8 @@ export class Game {
         this.waterFx.update(delta);
         this.footprints.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
-        this.survival.thirstDrainMultiplier = this.weather.thirstDrainMultiplier;
+        this.survival.thirstDrainMultiplier =
+          this.weather.thirstDrainMultiplier * this.equipment.thirstMultiplier();
         this.survival.swimming = this.player.isSwimming;
         this.survival.update(delta);
         this.collect.update(delta);

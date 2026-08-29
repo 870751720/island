@@ -169,6 +169,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🍖',
     description: '猎捕兔、羊、鹿或熊得到的兽肉,可以生吃,烤熟后是大补的硬菜。',
   },
+  fur: {
+    kind: 'fur',
+    name: '皮毛',
+    icon: '🐾',
+    description: '猎捕野兽剥下的皮毛,御寒耐磨,是缝制皮制装备的核心材料。',
+  },
   cookedBerry: {
     kind: 'cookedBerry',
     name: '烤浆果',
@@ -265,52 +271,52 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏹',
     description: '枝干弯成弓身、绳线做弦,手持时会自动射向附近的猎物。',
   },
-  leafShirt: {
-    kind: 'leafShirt',
-    name: '树叶衣',
+  grassShirt: {
+    kind: 'grassShirt',
+    name: '草衣',
     icon: '🍃',
-    description: '用大片树叶串成的简易上衣,聊胜于无。装备评分 1。',
+    description: '草茎木片捆成的简易上衣,防御 +1。',
   },
-  fiberShirt: {
-    kind: 'fiberShirt',
-    name: '纤维衣',
-    icon: '👕',
-    description: '植物纤维紧密编织的衣服,耐磨又体面。装备评分 3。',
-  },
-  leafPants: {
-    kind: 'leafPants',
-    name: '树叶裤',
+  grassPants: {
+    kind: 'grassPants',
+    name: '草裤',
     icon: '🍂',
-    description: '树叶围成的遮羞短裤,荒岛求生的第一步。装备评分 1。',
-  },
-  fiberPants: {
-    kind: 'fiberPants',
-    name: '纤维裤',
-    icon: '👖',
-    description: '纤维编织的长裤,行动利落不扎皮肤。装备评分 3。',
+    description: '草叶围成的遮羞短裤,防御 +1。',
   },
   strawHat: {
     kind: 'strawHat',
     name: '草帽',
     icon: '👒',
-    description: '干草编的宽檐帽,白天烈日下也能凉快些。装备评分 2。',
-  },
-  vineHat: {
-    kind: 'vineHat',
-    name: '藤编帽',
-    icon: '🎩',
-    description: '藤条一圈圈盘成的结实帽子,风雨都不怕。装备评分 4。',
+    description: '干草编的宽檐帽,口渴速度 -5%。',
   },
   strawBackpack: {
     kind: 'strawBackpack',
-    name: '草编背包',
+    name: '草包',
     icon: '🎒',
-    description: '草绳编的背包,背上了就能多带 4 件东西(背包 14 格)。装备评分 2。',
+    description: '草绳编的背包,背上了就能多带 4 件东西(背包 14 格)。',
   },
-  frameBackpack: {
-    kind: 'frameBackpack',
-    name: '木架背包',
+  furShirt: {
+    kind: 'furShirt',
+    name: '皮衣',
+    icon: '👕',
+    description: '兽皮缝制的厚实上衣,防御 +3。',
+  },
+  furPants: {
+    kind: 'furPants',
+    name: '皮裤',
+    icon: '👖',
+    description: '兽皮裹腿的长裤,防御 +2。',
+  },
+  furHat: {
+    kind: 'furHat',
+    name: '皮帽',
+    icon: '🎩',
+    description: '皮毛缝的圆帽,防御 +1,口渴速度 -5%。',
+  },
+  furBackpack: {
+    kind: 'furBackpack',
+    name: '皮包',
     icon: '🧺',
-    description: '木框绑绳的大背囊,装得下半座岛(背包 18 格)。装备评分 4。',
+    description: '皮料缝制的大背囊,装得下半座岛(背包 18 格)。',
   },
 };

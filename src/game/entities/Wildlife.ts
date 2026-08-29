@@ -51,7 +51,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     hp: 1,
     loot: [
       { kind: 'gameMeat', count: 1 },
-      { kind: 'fiber', count: 1 },
+      { kind: 'fur', count: 1 },
     ],
     respawn: DAY_RESPAWN,
   },
@@ -68,7 +68,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     hp: 1,
     loot: [
       { kind: 'gameMeat', count: 2 },
-      { kind: 'fiber', count: 3 },
+      { kind: 'fur', count: 2 },
     ],
     respawn: DAY_RESPAWN,
   },
@@ -85,7 +85,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     hp: 1,
     loot: [
       { kind: 'gameMeat', count: 3 },
-      { kind: 'rope', count: 1 },
+      { kind: 'fur', count: 2 },
     ],
     respawn: DAY_RESPAWN,
   },
@@ -100,7 +100,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     damage: 15,
     attackCooldown: 1.6,
     hp: 3,
-    loot: [{ kind: 'gameMeat', count: 4 }],
+    loot: [
+      { kind: 'gameMeat', count: 4 },
+      { kind: 'fur', count: 4 },
+    ],
     respawn: BEAR_RESPAWN,
   },
 };

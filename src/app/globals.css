@@ -46,3 +46,38 @@ body {
   }
 }
 
+/* 受伤飘字:红色伤害数字从头顶弹起再坠落渐隐 */
+.damage-pop {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 2px 10px;
+  color: #ff4d3d;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  font-family: sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: damage-pop-float 1s ease-out forwards;
+}
+
+@keyframes damage-pop-float {
+  0% {
+    opacity: 0;
+    translate: 0 8px;
+    scale: 0.6;
+  }
+  20% {
+    opacity: 1;
+    scale: 1.15;
+  }
+  35% {
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -30px;
+  }
+}
+

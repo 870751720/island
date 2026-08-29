@@ -29,6 +29,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   gameMeat: '#b04a3a',
+  fur: '#9a7448',
   cookedBerry: '#a0522d',
   cookedFish: '#d99a4e',
   cookedCrabMeat: '#e8703a',
@@ -45,14 +46,14 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   pickaxe: '#7d848a',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
-  leafShirt: '#5a8a3a',
-  fiberShirt: '#c9a15c',
-  leafPants: '#4a7a3a',
-  fiberPants: '#a8823c',
+  grassShirt: '#5a8a3a',
+  furShirt: '#8a6239',
+  grassPants: '#4a7a3a',
+  furPants: '#75512c',
   strawHat: '#d9c27a',
-  vineHat: '#8a9a4a',
+  furHat: '#9a7448',
   strawBackpack: '#c9a56a',
-  frameBackpack: '#8a6239',
+  furBackpack: '#8a5a2b',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -236,6 +237,29 @@ function makeGameMeat(): THREE.Object3D {
   const knob = mesh(new THREE.IcosahedronGeometry(0.045, 0), boneMat);
   knob.position.set(0.36, 0.2, 0);
   g.add(flesh, bone, knob);
+  return g;
+}
+
+/** 皮毛:一整张带绒毛边的兽皮 */
+function makeFur(): THREE.Object3D {
+  const g = new THREE.Group();
+  const hide = mesh(new THREE.IcosahedronGeometry(0.2, 0), clay(DROP_COLORS.fur));
+  hide.scale.set(1.3, 0.4, 1);
+  hide.position.y = 0.08;
+  g.add(hide);
+  // 四角的绒毛尖
+  const tuftMat = clay('#c9a877');
+  for (const [x, z] of [
+    [0.2, 0.14],
+    [-0.2, 0.14],
+    [0.2, -0.14],
+    [-0.2, -0.14],
+  ]) {
+    const tuft = mesh(new THREE.ConeGeometry(0.05, 0.14, 4), tuftMat);
+    tuft.position.set(x, 0.12, z);
+    tuft.rotation.z = x > 0 ? -0.5 : 0.5;
+    g.add(tuft);
+  }
   return g;
 }
 
@@ -551,6 +575,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,
+  fur: makeFur,
   cookedBerry: makeCookedBerry,
   cookedFish: () => makeRoast(DROP_COLORS.cookedFish),
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
@@ -567,14 +592,14 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   pickaxe: makePickaxe,
   fishingrod: makeFishingRod,
   bow: makeBow,
-  leafShirt: () => makeShirt(DROP_COLORS.leafShirt),
-  fiberShirt: () => makeShirt(DROP_COLORS.fiberShirt),
-  leafPants: () => makePants(DROP_COLORS.leafPants),
-  fiberPants: () => makePants(DROP_COLORS.fiberPants),
+  grassShirt: () => makeShirt(DROP_COLORS.grassShirt),
+  furShirt: () => makeShirt(DROP_COLORS.furShirt),
+  grassPants: () => makePants(DROP_COLORS.grassPants),
+  furPants: () => makePants(DROP_COLORS.furPants),
   strawHat: () => makeHat(DROP_COLORS.strawHat, '#a8823c'),
-  vineHat: () => makeHat(DROP_COLORS.vineHat, '#c9c27a'),
+  furHat: () => makeHat(DROP_COLORS.furHat, '#6b4a28'),
   strawBackpack: () => makeBackpack(DROP_COLORS.strawBackpack),
-  frameBackpack: () => makeBackpack(DROP_COLORS.frameBackpack),
+  furBackpack: () => makeBackpack(DROP_COLORS.furBackpack),
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

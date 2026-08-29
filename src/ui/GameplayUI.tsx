@@ -76,6 +76,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
   const pickupIdRef = useRef(0);
   const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
+  // 受伤飘字:头顶飘出红色伤害数字,动画结束后自动移除
+  const damageIdRef = useRef(0);
+  const [damagePops, setDamagePops] = useState<{ id: number; amount: number; x: number; y: number }[]>([]);
   const [gmOpen, setGmOpen] = useState(false);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
@@ -140,6 +143,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         const id = ++pickupIdRef.current;
         setPickups((list) => [...list, { ...toast, id }]);
         setTimeout(() => setPickups((list) => list.filter((t) => t.id !== id)), 1400);
+      },
+      // 受伤时头顶飘出伤害数字
+      (amount, x, y) => {
+        const id = ++damageIdRef.current;
+        setDamagePops((list) => [...list, { id, amount, x, y }]);
+        setTimeout(() => setDamagePops((list) => list.filter((t) => t.id !== id)), 1000);
       }
     );
     gameRef.current = game;
@@ -260,6 +269,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               <span className="pickup-count">×{item.count}</span>
             </span>
           ))}
+        </div>
+      ))}
+      {damagePops.map((d) => (
+        <div key={d.id} className="damage-pop" style={{ left: d.x, top: d.y }}>
+          -{d.amount}
         </div>
       ))}
       <div
