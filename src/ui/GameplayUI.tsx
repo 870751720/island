@@ -14,6 +14,7 @@ import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './GmPanel';
+import { BottleMessage } from './BottleMessage';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -75,6 +76,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const pickupIdRef = useRef(0);
   const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
   const [gmOpen, setGmOpen] = useState(false);
+  // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
+  const [bottleMsg, setBottleMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
   const heartTapsRef = useRef<number[]>([]);
   const handleHeartTap = () => {
@@ -164,6 +167,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         onToggle={() => setBackpackOpen((v) => !v)}
         hud={hud}
         onUseItem={(kind) => {
+          if (kind === 'bottle') {
+            const msg = gameRef.current?.useBottle();
+            if (msg) setBottleMsg(msg);
+            setBackpackOpen(false);
+            return;
+          }
           gameRef.current?.eatFood(kind);
           setBackpackOpen(false);
         }}
@@ -234,6 +243,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           )}
         </>
       )}
+      {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}
       {hud.dead && <DeathScreen onConfirm={onExit} />}
       {pickups.map((t) => (
         <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>

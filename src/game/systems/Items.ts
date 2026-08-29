@@ -71,7 +71,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'bottle',
     name: '漂流瓶',
     icon: '🍾',
-    description: '随波逐流的玻璃瓶,拔开瓶塞,里面是一句陌生人留下的字条。',
+    description: '随波逐流的玻璃瓶,点击「使用」拔开瓶塞,读一读陌生人留下的字条,读完瓶子就没了。',
   },
   sardine: {
     kind: 'sardine',

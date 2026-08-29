@@ -26,8 +26,9 @@ type Props = {
   onUnequip: (slot: EquipSlot) => void;
 };
 
-function isFood(kind: ResourceKind): boolean {
-  return FOODS.some((f) => f.kind === kind);
+/** 可「使用」的道具:食物(进食)与漂流瓶(读瓶中信) */
+function isUsable(kind: ResourceKind): boolean {
+  return FOODS.some((f) => f.kind === kind) || kind === 'bottle';
 }
 
 const SLOT_SIZE = 52;
@@ -258,7 +259,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         {selectedDef.description}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        {isFood(selectedDef.kind) &&
+                        {isUsable(selectedDef.kind) &&
                           actionButton(false, '使用', '#4caf50', () => {
                             setSelectedIndex(null);
                             onUseItem(selectedDef.kind);

@@ -38,6 +38,7 @@ import { Ocean } from './world/Ocean';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 import { SEED_OF, TREE_SPECIES } from './world/TreeSpecies';
+import { openBottle } from './systems/BottleMessages';
 
 export type HudSnapshot = {
   hunger: number;
@@ -702,6 +703,11 @@ export class Game {
   /** GM 发放鱼竿(直接进背包,工具栏自动点亮) */
   gmGrantFishingrod(): void {
     this.inventory.add('fishingrod', 1);
+  }
+
+  /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
+  useBottle(): string | null {
+    return openBottle(this.inventory);
   }
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则失败 */
