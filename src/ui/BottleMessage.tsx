@@ -4,7 +4,10 @@
 export function BottleMessage({ text, onClose }: { text: string; onClose: () => void }) {
   return (
     <div
-      onClick={onClose}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -16,7 +19,7 @@ export function BottleMessage({ text, onClose }: { text: string; onClose: () => 
       }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         style={{
           width: 'min(340px, 86vw)',
           padding: '22px 20px 18px',
