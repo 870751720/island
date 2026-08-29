@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
+import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -76,6 +77,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
   const [campfireOpen, setCampfireOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
+  const vitalWarnRef = useRef<VitalWarnHandle>(null);
   // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
   const pickupIdRef = useRef(0);
   const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
@@ -141,6 +143,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
       },
+      // 低数值提醒:每帧直写 DOM,组件内部自行判断是否显示
+      (vitals, x, y) => vitalWarnRef.current?.update(vitals, x, y),
       // 背包入包时头顶飘出「图标 ×数量」
       (toast) => {
         const id = ++pickupIdRef.current;
@@ -321,6 +325,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           clipPath: 'polygon(0 0, 100% 0, 100% 100%, 55% 100%, 50% calc(100% + 6px), 45% 100%, 0 100%)',
         }}
       />
+      <VitalWarn ref={vitalWarnRef} />
     </div>
   );
 }

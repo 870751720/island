@@ -12,24 +12,7 @@ import {
   type Recipe,
 } from '@/game/systems/Crafting';
 import { RecipeBook } from './RecipeBook';
-
-const UNIT_LABELS: Record<string, string> = {
-  wood: '枝',
-  log: '木',
-  stone: '石',
-  flint: '燧',
-  berry: '果',
-  fiber: '纤',
-  rope: '线',
-  arrow: '箭',
-};
-
-function costLabel(cost: Recipe['cost']): string {
-  return Object.entries(cost)
-    .filter(([, n]) => !!n)
-    .map(([k, n]) => `${n}${UNIT_LABELS[k] ?? k}`)
-    .join(' ');
-}
+import { costLabel } from './materials';
 
 /** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
 export function WorkbenchPanel({

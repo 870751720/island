@@ -4,16 +4,7 @@ import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import { RECIPES, WORKBENCH_COST, hasCost, recipeVisible, type Recipe } from '@/game/systems/Crafting';
 import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
-
-const UNIT_LABELS: Record<string, string> = {
-  wood: '枝',
-  log: '木',
-  stone: '石',
-  flint: '燧',
-  berry: '果',
-  fiber: '纤',
-  rope: '线',
-};
+import { costLabel } from './materials';
 
 /** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片(斧/镐 + 工作台) */
 export function CraftPrompt({
@@ -113,13 +104,6 @@ export function CraftPrompt({
       )}
     </div>
   );
-}
-
-function costLabel(cost: Record<string, number | undefined>): string {
-  return Object.entries(cost)
-    .filter(([, n]) => !!n)
-    .map(([k, n]) => `${n}${UNIT_LABELS[k] ?? k}`)
-    .join(' ');
 }
 
 const cardStyle: CSSProperties = {

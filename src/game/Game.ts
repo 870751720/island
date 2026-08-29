@@ -41,6 +41,7 @@ import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 import { SEED_OF, TREE_SPECIES } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
+import type { VitalLevels } from '../ui/VitalWarn';
 
 export type HudSnapshot = {
   hunger: number;
@@ -155,6 +156,7 @@ export class Game {
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number, color?: string) => void;
   private onMumble: (text: string | null, x: number, y: number) => void;
+  private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private onDamage: (amount: number, x: number, y: number) => void;
   private terrainSeed: number;
@@ -176,6 +178,7 @@ export class Game {
     onHud: (snap: HudSnapshot) => void,
     onLabel: (label: string | null, x: number, y: number, color?: string) => void,
     onMumble: (text: string | null, x: number, y: number) => void,
+    onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void
   ) {
@@ -183,6 +186,7 @@ export class Game {
     this.onHud = onHud;
     this.onLabel = onLabel;
     this.onMumble = onMumble;
+    this.onVitals = onVitals;
     this.onPickup = onPickup;
     this.onDamage = onDamage;
 
@@ -1044,6 +1048,15 @@ export class Game {
       this.mumbleText,
       Math.round(((bubble.x + 1) / 2) * w),
       Math.round(((1 - bubble.y) / 2) * h)
+    );
+
+    // 低数值提醒挂在头顶(作业提示下方),任一数值 ≤20% 时 UI 层显示对应图标+剩余条
+    const s = this.survival.state;
+    const warnAnchor = new THREE.Vector3(p.x, p.y + 1.9, p.z).project(this.camera);
+    this.onVitals(
+      s.dead ? null : { hunger: s.hunger, thirst: s.thirst, health: s.health },
+      Math.round(((warnAnchor.x + 1) / 2) * w),
+      Math.round(((1 - warnAnchor.y) / 2) * h)
     );
   }
 }

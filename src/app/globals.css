@@ -61,6 +61,28 @@ body {
   animation: damage-pop-float 1s ease-out forwards;
 }
 
+/* 低数值提醒:饥饿/口渴/健康过低时头顶图标+剩余条,呼吸闪烁引起注意 */
+.vital-warn {
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 9px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  pointer-events: none;
+  animation: vital-warn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vital-warn-pulse {
+  0%,
+  100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 @keyframes damage-pop-float {
   0% {
     opacity: 0;

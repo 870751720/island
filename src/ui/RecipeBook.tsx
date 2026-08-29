@@ -3,8 +3,8 @@
 import type { CSSProperties } from 'react';
 import { RECIPES, type Recipe } from '@/game/systems/Crafting';
 import { ITEMS } from '@/game/systems/Items';
-import type { ResourceKind } from '@/game/systems/Inventory';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
+import { costLabel } from './materials';
 
 const STATION_NAMES: Record<Recipe['station'], string> = {
   hand: '手搓',
@@ -48,10 +48,7 @@ export function RecipeBook({ onClose }: { onClose: () => void }) {
                   <span style={tagStyle}>{STATION_NAMES[r.station]}</span>
                 </div>
                 <div style={{ fontSize: 12, color: '#888' }}>
-                  {Object.entries(r.cost)
-                    .filter(([, n]) => !!n)
-                    .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
-                    .join(' + ')}
+                  {costLabel(r.cost, ' + ')}
                 </div>
                 {effectText(r) && (
                   <div style={{ fontSize: 12, color: '#999' }}>{effectText(r)}</div>

@@ -49,3 +49,4 @@
 - 四级模型差异(程序化拼装,随等级增量添加):Lv1 木桌 + 砧石;Lv2 石板桌面 + 抽屉;Lv3 背后工具架 + 锤子;Lv4 工具架加顶棚 + 桌上锯子,砧石随等级略增大。
 - 实现落点:`Workbench` 实体持有等级并提供 `upgrade()`(释放旧几何体后重建模型);`WorkbenchSystem.upgrade()` 发起定时升级,`mode` 区分搭建/升级;`HudSnapshot.workbenchLevel` 供面板显示。
 - 存档:`workbench` 快照新增 `level` 字段,`SAVE_VERSION` 升至 8,旧档按约定丢弃。
+- 2026-08-30:材料文案统一——工作台面板、手搓卡片、合成图鉴共用 `src/ui/materials.ts` 的 `costLabel`,统一显示道具正式名称(修复皮毛显示为内部 id `fur` 的问题)。
