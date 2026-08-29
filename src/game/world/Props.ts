@@ -73,15 +73,15 @@ const CROWN_COLORS: Record<TreeSpecies, string> = {
 /** 发芽:一根细茎顶着两片嫩叶 */
 function makeSproutParts(): THREE.Mesh[] {
   const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.03, 0.16, 4),
+    new THREE.CylinderGeometry(0.04, 0.06, 0.42, 4),
     clayMaterial('#7fae55')
   );
-  stem.position.y = 0.08;
-  const leafL = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4), clayMaterial('#a4c46a'));
-  leafL.position.set(-0.05, 0.18, 0);
+  stem.position.y = 0.21;
+  const leafL = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.34, 4), clayMaterial('#a4c46a'));
+  leafL.position.set(-0.1, 0.46, 0);
   leafL.rotation.z = 0.9;
   const leafR = leafL.clone();
-  leafR.position.x = 0.05;
+  leafR.position.x = 0.1;
   leafR.rotation.z = -0.9;
   return [stem, leafL, leafR];
 }
