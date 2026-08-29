@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
-import { RECIPES, WORKBENCH_COST, hasCost, type Recipe } from '@/game/systems/Crafting';
+import { RECIPES, WORKBENCH_COST, hasCost, recipeVisible, type Recipe } from '@/game/systems/Crafting';
 import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
 
 const UNIT_LABELS: Record<string, string> = {
@@ -39,7 +39,8 @@ export function CraftPrompt({
     (r) =>
       r.station === 'hand' &&
       (!r.tool || !ownedTools[r.tool]) &&
-      hasCost(r.cost, hud)
+      hasCost(r.cost, hud) &&
+      recipeVisible(r, hud, ownedTools, hud.equipped, hud.slots)
   );
   const showWorkbench = hud.canCraftWorkbench;
   const showCampfire = hud.canCraftCampfire;
