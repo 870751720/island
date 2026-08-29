@@ -240,7 +240,6 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'center',
-            paddingTop: '8vh',
             background: 'rgba(0,0,0,0.35)',
           }}
           onPointerDown={(e) => {
@@ -251,8 +250,10 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
         >
           <div
             style={{
+              // 顶边对齐旧版居中面板的位置(按旧面板约 520px 高折算),内容增多时向下生长
+              marginTop: 'max(12px, calc(50vh - 260px))',
               width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
-              maxHeight: '84vh',
+              maxHeight: '80vh',
               overflowY: 'auto',
               padding: '12px',
               background: 'rgba(255,255,255,0.95)',
