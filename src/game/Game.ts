@@ -90,6 +90,7 @@ const VIEW_SIZE = 18;
 export type PickupToast = { items: { icon: string; count: number }[]; x: number; y: number };
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
+const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -525,47 +526,57 @@ export class Game {
     this.player.setTool(next);
   }
 
-  /** 空手站在需要工具的资源点旁不动 3 秒且已拥有该工具时,自动切换到手上 */
-  private updateAutoEquip(delta: number): void {
-    const nearby = this.collect.getNearby();
-    let need: HandTool | null = null;
+  /** 工具按钮点击:场景有明确需要的工具时直接切过去,否则循环切换 */
+  useToolButton(): void {
+    const need = this.wantedTool();
+    if (need) {
+      this.autoEquipTimer = 0;
+      this.player.setTool(need);
+    } else {
+      this.cycleTool();
+    }
+  }
+
+  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子、水边→鱼竿),不满足条件返回 null */
+  private wantedTool(): HandTool | null {
     if (
-      nearby &&
-      !this.player.isMoving &&
-      !this.crafting.isWorking &&
-      !this.workbench.isWorking &&
-      !this.eating.isWorking &&
-      !this.survival.state.dead
+      this.player.isMoving ||
+      this.crafting.isWorking ||
+      this.workbench.isWorking ||
+      this.eating.isWorking ||
+      this.survival.state.dead
     ) {
+      return null;
+    }
+    const nearby = this.collect.getNearby();
+    if (nearby) {
       if (nearby.kind === 'tree' && this.tools.axe && this.player.currentTool !== 'axe') {
-        need = 'axe';
-      } else if (
-        nearby.kind === 'rock' &&
-        this.tools.pickaxe &&
-        this.player.currentTool !== 'pickaxe'
-      ) {
-        need = 'pickaxe';
+        return 'axe';
       }
-    } else if (
-      !nearby &&
-      !this.player.isMoving &&
-      !this.crafting.isWorking &&
-      !this.workbench.isWorking &&
-      !this.eating.isWorking &&
-      !this.survival.state.dead &&
+      if (nearby.kind === 'rock' && this.tools.pickaxe && this.player.currentTool !== 'pickaxe') {
+        return 'pickaxe';
+      }
+      return null;
+    }
+    if (
       this.tools.fishingrod &&
       this.player.currentTool !== 'fishingrod' &&
       this.fishing.canFishHere()
     ) {
-      // 站在水洼边或海边滩地不动,自动切换鱼竿
-      need = 'fishingrod';
+      return 'fishingrod';
     }
+    return null;
+  }
+
+  /** 空手站在需要工具的资源点旁不动 1 秒且已拥有该工具时,自动切换到手上 */
+  private updateAutoEquip(delta: number): void {
+    const need = this.wantedTool();
     if (!need) {
       this.autoEquipTimer = 0;
       return;
     }
     this.autoEquipTimer += delta;
-    if (this.autoEquipTimer >= 3) {
+    if (this.autoEquipTimer >= AUTO_EQUIP_DELAY) {
       this.autoEquipTimer = 0;
       this.player.setTool(need);
     }
@@ -711,7 +722,7 @@ export class Game {
       campfireInfo: this.campfire.getCampfireInfo(),
       eatName: this.eating.currentFood?.name ?? null,
       eatProgress: this.eating.getProgress() ?? 0,
-      autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / 3 : 0,
+      autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
       canFish: this.fishing.canStart(),
       fishingState: this.fishing.currentState,
       fishingProgress: this.fishing.getProgress() ?? 0,
@@ -775,7 +786,7 @@ export class Game {
       progress = this.water.getProgress();
     } else if (this.autoEquipTimer > 0 && !nearby) {
       label = '切换鱼竿…';
-      progress = this.autoEquipTimer / 3;
+      progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
     } else if (nearby) {
       const switching = this.autoEquipTimer > 0;
       label =
@@ -792,7 +803,7 @@ export class Game {
                 ? '需要手持镐子'
                 : '需要镐子'
             : null;
-      if (switching) progress = this.autoEquipTimer / 3;
+      if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
     }
     const p = this.player.group.position;
     this.indicator.group.position.copy(p);

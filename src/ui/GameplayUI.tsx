@@ -164,7 +164,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               workbench={hud.nearWorkbench && hud.craftId === null}
               campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null}
               arrowCount={hud.arrow}
-              onCycle={() => gameRef.current?.cycleTool()}
+              onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}
             />
