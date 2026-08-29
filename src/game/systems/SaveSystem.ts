@@ -43,8 +43,13 @@ export type SaveData = {
 export const SaveSystem = {
   load(): SaveData | null {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      let raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
+      // 旧存档迁移:棕榈树已改为果树
+      raw = raw
+        .replaceAll('"palmSeed"', '"fruitSeed"')
+        .replaceAll('"palmFruit"', '"fruitFruit"')
+        .replaceAll('"palm"', '"fruit"');
       const data = JSON.parse(raw) as SaveData;
       return data && data.version === SAVE_VERSION && Array.isArray(data.props) ? data : null;
     } catch {

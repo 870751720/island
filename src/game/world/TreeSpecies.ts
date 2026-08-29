@@ -1,25 +1,25 @@
 import type { ResourceKind } from '../systems/Inventory';
 
-/** 树的三种类型:橡树/松树/棕榈树 */
-export type TreeSpecies = 'oak' | 'pine' | 'palm';
+/** 树的三种类型:橡树/松树/果树 */
+export type TreeSpecies = 'oak' | 'pine' | 'fruit';
 
 /** 树的生长阶段:种子种下即发芽,逐阶段长成成树 */
 export type TreeStage = 'sprout' | 'sapling' | 'mature';
 
-export const TREE_SPECIES: TreeSpecies[] = ['oak', 'pine', 'palm'];
+export const TREE_SPECIES: TreeSpecies[] = ['oak', 'pine', 'fruit'];
 
 /** 每种树对应的种子道具 */
 export const SEED_OF: Record<TreeSpecies, ResourceKind> = {
   oak: 'oakSeed',
   pine: 'pineSeed',
-  palm: 'palmSeed',
+  fruit: 'fruitSeed',
 };
 
 /** 每种树对应的可食用果实 */
 export const FRUIT_OF: Record<TreeSpecies, ResourceKind> = {
   oak: 'oakFruit',
   pine: 'pineFruit',
-  palm: 'palmFruit',
+  fruit: 'fruitFruit',
 };
 
 /** 砍倒成树第一阶段后额外掉落种子/果实的概率 */

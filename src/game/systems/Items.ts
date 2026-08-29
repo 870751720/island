@@ -115,11 +115,11 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🌱',
     description: '砍松树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵松树,结出的松果可以食用。',
   },
-  palmSeed: {
-    kind: 'palmSeed',
-    name: '棕榈种子',
-    icon: '🌴',
-    description: '砍棕榈树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵棕榈树,结出的椰子可以食用。',
+  fruitSeed: {
+    kind: 'fruitSeed',
+    name: '果树种子',
+    icon: '🍏',
+    description: '砍果树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵果树,结出的红果可以食用。',
   },
   oakFruit: {
     kind: 'oakFruit',
@@ -133,11 +133,11 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🌲',
     description: '砍松树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
   },
-  palmFruit: {
-    kind: 'palmFruit',
-    name: '椰子',
-    icon: '🥥',
-    description: '砍棕榈树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
+  fruitFruit: {
+    kind: 'fruitFruit',
+    name: '红果',
+    icon: '🍎',
+    description: '砍果树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
   },
   axe: {
     kind: 'axe',
