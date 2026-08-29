@@ -4,4 +4,6 @@ export const GmSystem = {
   allowDeath: true,
   /** 是否锁定白天;开启后时间停止在正午 */
   lockDaytime: false,
+  /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */
+  fishingTierWeights: [45, 40, 12, 3],
 };

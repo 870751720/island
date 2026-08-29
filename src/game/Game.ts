@@ -86,8 +86,10 @@ export type HudSnapshot = {
   /** 钓鱼进行中的阶段,空闲为 null */
   fishingState: FishingState | null;
   fishingProgress: number;
-  /** 咬钩反应窗口进行中(点屏幕任意处收竿) */
+  /** 咬钩反应窗口进行中(点/连点屏幕收竿)与连点进度 */
   biteActive: boolean;
+  biteClicks: number;
+  biteNeed: number;
   /** 玩家附近可捡回的掉落物,无时为 null */
   nearDrop: DropInfo | null;
 };
@@ -125,6 +127,7 @@ export class Game {
   private campfire: CampfireSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
+  private lastBiteClicks = 0;
   private fishing: FishingSystem;
   private archery: BowSystem;
   private drops: DropSystem;
@@ -140,7 +143,7 @@ export class Game {
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
-  private onLabel: (label: string | null, x: number, y: number) => void;
+  private onLabel: (label: string | null, x: number, y: number, color?: string) => void;
   private onMumble: (text: string | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private terrainSeed: number;
@@ -158,7 +161,7 @@ export class Game {
   constructor(
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
-    onLabel: (label: string | null, x: number, y: number) => void,
+    onLabel: (label: string | null, x: number, y: number, color?: string) => void,
     onMumble: (text: string | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void
   ) {
@@ -696,6 +699,11 @@ export class Game {
     return this.fishing.hook();
   }
 
+  /** GM 发放鱼竿(直接进背包,工具栏自动点亮) */
+  gmGrantFishingrod(): void {
+    this.inventory.add('fishingrod', 1);
+  }
+
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则失败 */
   pickupDrop(): boolean {
     return this.drops.pickupNearby();
@@ -778,11 +786,14 @@ export class Game {
 
   private pushHud(delta: number): void {
     this.hudTimer += delta;
-    // 钓鱼阶段变化(尤其咬钩)立即推送,保证反应窗口反馈及时
+    // 钓鱼阶段变化(尤其咬钩)与连点计数立即推送,保证反应窗口反馈及时
     const fishingState = this.fishing.currentState;
     const fishingChanged = fishingState !== this.lastFishingState;
+    const clicksChanged =
+      fishingState === 'bite' && this.fishing.biteClicks !== this.lastBiteClicks;
     this.lastFishingState = fishingState;
-    if (this.hudTimer < 0.25 && !fishingChanged) return;
+    this.lastBiteClicks = this.fishing.biteClicks;
+    if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged) return;
     this.hudTimer = 0;
     this.onHud({
       ...this.survival.state,
@@ -819,6 +830,8 @@ export class Game {
       fishingState: this.fishing.currentState,
       fishingProgress: this.fishing.getProgress() ?? 0,
       biteActive: this.fishing.currentState === 'bite',
+      biteClicks: this.fishing.biteClicks,
+      biteNeed: this.fishing.biteNeed,
       nearDrop: this.drops.getNearby(),
     });
   }
@@ -853,13 +866,16 @@ export class Game {
       progress = this.eating.getProgress();
     } else if (this.fishing.isWorking) {
       const s = this.fishing.currentState!;
+      const tease = this.fishing.getTease();
       label =
         s === 'casting'
           ? '抛竿…'
           : s === 'waiting'
-            ? '等待上钩…'
+            ? tease?.text ?? '等待上钩…'
             : s === 'bite'
-              ? '咬钩了!快点击屏幕!'
+              ? this.fishing.biteNeed > 1
+                ? `咬钩了!快连点屏幕!${this.fishing.biteClicks}/${this.fishing.biteNeed}`
+                : '咬钩了!快点击屏幕!'
               : '收竿!';
       progress = this.fishing.getProgress();
     } else if (nearby && this.collect.canCollect(nearby)) {
@@ -907,14 +923,15 @@ export class Game {
       this.player.isSwimming ? this.survival.state.stamina / 100 : null
     );
 
-    // 头顶文字投影为屏幕坐标
+    // 头顶文字投影为屏幕坐标(预告彩字时带颜色)
     const head = new THREE.Vector3(p.x, p.y + 2.75, p.z).project(this.camera);
     const w = this.renderer.domElement.clientWidth;
     const h = this.renderer.domElement.clientHeight;
     this.onLabel(
       label,
       Math.round(((head.x + 1) / 2) * w),
-      Math.round(((1 - head.y) / 2) * h)
+      Math.round(((1 - head.y) / 2) * h),
+      this.fishing.getTease()?.color
     );
 
     // 自言自语气泡挂在作业提示上方,4 秒后消失

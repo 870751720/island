@@ -10,7 +10,22 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   berry: '#c0392b',
   fiber: '#a4c46a',
   rope: '#d9c27a',
-  fish: '#5fa8d3',
+  cola: '#c0392b',
+  colaZero: '#2c3e50',
+  bottle: '#a8d4d6',
+  sardine: '#b8cdd9',
+  perch: '#8fa87b',
+  shrimp: '#e8927c',
+  loach: '#8a7a4a',
+  puffer: '#d9c15a',
+  cuttlefish: '#6b5f8a',
+  grouper: '#6d7b5a',
+  catfish: '#5b664f',
+  swordfish: '#5a7d9e',
+  manta: '#4a5568',
+  treasureMap: '#e8d9a0',
+  goldenFish: '#e6b422',
+  oldHook: '#8a8f98',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   cookedBerry: '#a0522d',
@@ -260,26 +275,82 @@ function makeArrows(): THREE.Object3D {
   return g;
 }
 
-/** 鱼:纺锤形鱼身 + 三角尾鳍 + 背鳍,与钓上来的鱼同色系 */
-function makeFish(): THREE.Object3D {
+/** 鱼:纺锤形鱼身 + 三角尾鳍 + 背鳍,按体型参数适配各鱼种 */
+function makeFishShape(color: string, sx = 1, sy = 1, sz = 1): THREE.Object3D {
   const g = new THREE.Group();
-  const bodyMat = clay(DROP_COLORS.fish);
+  const bodyMat = clay(color);
   const finMat = clay('#3d7aa8');
   const bellyMat = clay('#cfe4ef');
   const body = mesh(new THREE.IcosahedronGeometry(0.18, 0), bodyMat);
-  body.scale.set(1, 0.6, 1.5);
+  body.scale.set(sx, 0.6 * sy, 1.5 * sz);
   body.position.y = 0.12;
   const belly = mesh(new THREE.IcosahedronGeometry(0.14, 0), bellyMat);
-  belly.scale.set(0.9, 0.45, 1.3);
+  belly.scale.set(0.9 * sx, 0.45 * sy, 1.3 * sz);
   belly.position.set(0, 0.04, 0.04);
   const tail = mesh(new THREE.ConeGeometry(0.1, 0.2, 4), finMat);
   tail.rotation.x = -Math.PI / 2;
-  tail.scale.set(0.4, 1, 1);
-  tail.position.set(0, 0.12, 0.32);
+  tail.scale.set(0.4, sz, sx);
+  tail.position.set(0, 0.12, 0.32 * sz);
   const dorsal = mesh(new THREE.ConeGeometry(0.07, 0.14, 4), finMat);
-  dorsal.scale.set(0.35, 1, 1);
-  dorsal.position.set(0, 0.26, 0.02);
+  dorsal.scale.set(0.35 * sx, sy, sz);
+  dorsal.position.set(0, 0.26 * sy, 0.02);
   g.add(body, belly, tail, dorsal);
+  return g;
+}
+
+/** 可乐罐:圆柱罐身 + 浅色标签带 */
+function makeCan(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.24, 8), clay(color));
+  body.position.y = 0.12;
+  const band = mesh(new THREE.CylinderGeometry(0.093, 0.093, 0.07, 8), clay('#e8e2d4'));
+  band.position.y = 0.12;
+  const top = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 8), clay('#c8c8c8'));
+  top.position.y = 0.25;
+  g.add(body, band, top);
+  return g;
+}
+
+/** 漂流瓶:圆瓶身 + 瓶颈 + 木塞,内藏一卷字条 */
+function makeBottle(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(DROP_COLORS.bottle);
+  const body = mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.26, 6), mat);
+  body.position.y = 0.13;
+  const neck = mesh(new THREE.CylinderGeometry(0.035, 0.055, 0.12, 6), mat);
+  neck.position.y = 0.31;
+  const cork = mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.05, 6), clay('#b5813f'));
+  cork.position.y = 0.39;
+  const note = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 4), clay('#f2ead0'));
+  note.position.y = 0.13;
+  g.add(body, neck, cork, note);
+  return g;
+}
+
+/** 藏宝图碎片:卷起的图纸 + 系绳 */
+function makeTreasureMap(): THREE.Object3D {
+  const g = new THREE.Group();
+  const roll = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.36, 6), clay(DROP_COLORS.treasureMap));
+  roll.rotation.z = Math.PI / 2;
+  roll.position.y = 0.08;
+  const tie = mesh(new THREE.TorusGeometry(0.066, 0.014, 4, 8), clay('#8a6239'));
+  tie.rotation.y = Math.PI / 2;
+  tie.position.y = 0.08;
+  g.add(roll, tie);
+  return g;
+}
+
+/** 旧鱼钩:弯月钩身 + 一段钓线 */
+function makeOldHook(): THREE.Object3D {
+  const g = new THREE.Group();
+  const hook = mesh(
+    new THREE.TorusGeometry(0.12, 0.02, 4, 8, Math.PI * 1.4),
+    clay(DROP_COLORS.oldHook)
+  );
+  hook.position.y = 0.14;
+  const line = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.18, 4), clay('#e8e2d4'));
+  line.position.y = 0.32;
+  g.add(hook, line);
   return g;
 }
 
@@ -443,7 +514,22 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   berry: makeBerry,
   fiber: makeFiber,
   rope: makeRope,
-  fish: makeFish,
+  cola: () => makeCan(DROP_COLORS.cola),
+  colaZero: () => makeCan(DROP_COLORS.colaZero),
+  bottle: makeBottle,
+  sardine: () => makeFishShape(DROP_COLORS.sardine, 0.85, 0.85, 1),
+  perch: () => makeFishShape(DROP_COLORS.perch),
+  shrimp: () => makeFishShape(DROP_COLORS.shrimp, 0.7, 0.7, 1.2),
+  loach: () => makeFishShape(DROP_COLORS.loach, 0.7, 0.6, 1.5),
+  puffer: () => makeFishShape(DROP_COLORS.puffer, 1.2, 1.1, 0.9),
+  cuttlefish: () => makeFishShape(DROP_COLORS.cuttlefish, 1.3, 0.6, 0.9),
+  grouper: () => makeFishShape(DROP_COLORS.grouper, 1.2, 1.2, 1.3),
+  catfish: () => makeFishShape(DROP_COLORS.catfish, 1.1, 0.9, 1.6),
+  swordfish: () => makeFishShape(DROP_COLORS.swordfish, 0.9, 0.9, 1.8),
+  manta: () => makeFishShape(DROP_COLORS.manta, 1.8, 0.5, 1.1),
+  treasureMap: makeTreasureMap,
+  goldenFish: () => makeFishShape(DROP_COLORS.goldenFish, 1.1, 1.1, 1.2),
+  oldHook: makeOldHook,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   cookedBerry: makeCookedBerry,

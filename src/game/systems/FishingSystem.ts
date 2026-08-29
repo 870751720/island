@@ -5,11 +5,20 @@ import type { Inventory } from './Inventory';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import {
+  pickTease,
+  rollLoot,
+  rollTier,
+  rollWait,
+  teaseStage,
+  TIER_BITE,
+  type FishTier,
+  type LootEntry,
+  type Tease,
+  type TeaseStage,
+} from './FishTable';
 
 const CAST_TIME = 0.7; // 抛竿(秒)
-const WAIT_MIN = 4; // 等鱼上钩最短等待
-const WAIT_MAX = 9; // 等鱼上钩最长等待
-const BITE_WINDOW = 1.3; // 咬钩后可提起的反应窗口(秒)
 const CATCH_TIME = 0.9; // 收竿把鱼拉回(秒)
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边判定:站在海平面以上不高的滩地上即可下竿 */
@@ -39,25 +48,97 @@ function makeBobber(): THREE.Group {
   return g;
 }
 
-/** 提竿拉回的鱼:拉长的低面数鱼身 */
-function makeFish(): THREE.Mesh {
-  const fish = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), clayMaterial('#5fa8d3'));
-  fish.scale.set(1.6, 0.7, 0.6);
-  return fish;
+/** 上钩战利品的低面数造型:按 shape 拼装,按 size 缩放 */
+function makeCatch(entry: LootEntry): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clayMaterial(entry.color);
+  switch (entry.shape) {
+    case 'fish': {
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), mat);
+      body.scale.set(1.6, 0.7, 0.6);
+      g.add(body);
+      break;
+    }
+    case 'long': {
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.4, 2, 6), mat);
+      body.rotation.z = Math.PI / 2;
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 4), mat);
+      tail.rotation.z = -Math.PI / 2;
+      tail.scale.set(0.4, 1, 1);
+      tail.position.x = -0.3;
+      g.add(body, tail);
+      break;
+    }
+    case 'flat': {
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), mat);
+      body.scale.set(1.8, 0.28, 1.1);
+      g.add(body);
+      break;
+    }
+    case 'junk': {
+      const body = new THREE.Mesh(new THREE.DodecahedronGeometry(0.13, 0), mat);
+      body.rotation.set(0.4, 0.7, 0.2);
+      g.add(body);
+      break;
+    }
+    case 'can': {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 8), mat);
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.083, 0.083, 0.05, 8),
+        clayMaterial('#e8e2d4')
+      );
+      g.add(body, band);
+      break;
+    }
+    case 'bottle': {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.22, 6), mat);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.1, 6), mat);
+      neck.position.y = 0.15;
+      const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.04, 6), clayMaterial('#b5813f'));
+      cork.position.y = 0.21;
+      g.add(body, neck, cork);
+      break;
+    }
+    case 'map': {
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.32, 6), mat);
+      roll.rotation.z = Math.PI / 2;
+      const tie = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.012, 4, 8), clayMaterial('#8a6239'));
+      tie.rotation.y = Math.PI / 2;
+      g.add(roll, tie);
+      break;
+    }
+    case 'hook': {
+      const hook = new THREE.Mesh(
+        new THREE.TorusGeometry(0.1, 0.018, 4, 8, Math.PI * 1.4),
+        mat
+      );
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 4), clayMaterial('#e8e2d4'));
+      line.position.y = 0.12;
+      g.add(hook, line);
+      break;
+    }
+  }
+  g.scale.setScalar(entry.size);
+  return g;
 }
 
 /**
- * 钓鱼:水洼边与海边滩地可下竿。抛竿后浮漂落水,随机等待;
- * 咬钩时浮漂猛地下沉并在限时内点击屏幕任意处即可收竿得鱼,超时鱼跑。
+ * 钓鱼:水洼边与海边滩地可下竿。按档位抽取战利品,等待期内按档位出
+ * 白/紫/金色预告;咬钩后需在窗口内点击(高档位需连点多次)才能收竿。
  */
 export class FishingSystem {
   private state: FishingState | null = null;
   private timer = 0;
   private waitTotal = 0;
   private rippleTimer = 0;
+  private tier: FishTier = 1;
+  private loot: LootEntry | null = null;
+  private tease: Tease | null = null;
+  private teaseStageDone: TeaseStage | null = null;
+  private clicks = 0;
   private bobber: THREE.Group | null = null;
   private line: THREE.Mesh | null = null;
-  private fish: THREE.Mesh | null = null;
+  private fish: THREE.Object3D | null = null;
   private scratch = new THREE.Vector3();
   private scratch2 = new THREE.Vector3();
   private up = new THREE.Vector3(0, 1, 0);
@@ -81,12 +162,28 @@ export class FishingSystem {
     return this.state;
   }
 
+  /** 咬钩连点进度(仅 bite 态有意义) */
+  get biteClicks(): number {
+    return this.clicks;
+  }
+
+  get biteNeed(): number {
+    return TIER_BITE[this.tier].clicks;
+  }
+
   /** 进度 0-1:抛竿/咬钩倒计时/收竿,等待与空闲为 null */
   getProgress(): number | null {
     if (this.state === 'casting') return Math.min(this.timer / CAST_TIME, 1);
-    if (this.state === 'bite') return 1 - Math.max(this.timer, 0) / BITE_WINDOW;
+    if (this.state === 'bite') {
+      return 1 - Math.max(this.timer, 0) / TIER_BITE[this.tier].window;
+    }
     if (this.state === 'catching') return Math.min(this.timer / CATCH_TIME, 1);
     return null;
+  }
+
+  /** 等待期的档位预告(玩家头顶彩字),无则为 null */
+  getTease(): Tease | null {
+    return this.state === 'waiting' ? this.tease : null;
   }
 
   /** 站位是否可钓鱼:不在水里/不游泳,且在水洼边或海边滩地 */
@@ -116,6 +213,11 @@ export class FishingSystem {
     this.state = 'casting';
     this.audio.play('whoosh');
     this.timer = 0;
+    this.tier = rollTier();
+    this.loot = rollLoot(this.tier);
+    this.tease = null;
+    this.teaseStageDone = null;
+    this.clicks = 0;
     this.bobber = makeBobber();
     this.bobber.visible = false;
     this.scene.add(this.bobber);
@@ -131,14 +233,16 @@ export class FishingSystem {
 
   private bobberTarget = new THREE.Vector3();
 
-  /** 咬钩窗口内点击屏幕任意处调用,收竿得鱼;其余时刻无效 */
+  /** 咬钩窗口内点击屏幕任意处调用,累计点击;达到次数收竿得鱼,其余时刻无效 */
   hook(): boolean {
     if (this.state !== 'bite') return false;
+    this.clicks++;
+    if (this.clicks < TIER_BITE[this.tier].clicks) return false;
     this.state = 'catching';
     this.timer = 0;
     this.audio.play('splash');
     this.waterFx.splash(this.bobberTarget);
-    this.fish = makeFish();
+    this.fish = makeCatch(this.loot!);
     this.fish.position.copy(this.bobberTarget);
     this.scene.add(this.fish);
     this.removeBobber();
@@ -169,7 +273,7 @@ export class FishingSystem {
         if (this.timer >= CAST_TIME) {
           this.state = 'waiting';
           this.audio.play('splash');
-          this.waitTotal = WAIT_MIN + Math.random() * (WAIT_MAX - WAIT_MIN);
+          this.waitTotal = rollWait(this.tier);
           this.timer = 0;
           this.rippleTimer = 0;
           this.bobber!.position.copy(this.bobberTarget);
@@ -186,10 +290,19 @@ export class FishingSystem {
           this.rippleTimer = 0;
           this.waterFx.ripple(this.bobberTarget.x, this.bobberTarget.y, this.bobberTarget.z);
         }
+        // 档位预告:阶段切换时抽一句并缓存
+        const stage = teaseStage(this.tier, this.waitTotal - this.timer);
+        if (stage && stage !== this.teaseStageDone) {
+          this.teaseStageDone = stage;
+          this.tease = pickTease(stage);
+        }
+        if (stage === null) this.tease = null;
         if (this.timer >= this.waitTotal) {
           this.state = 'bite';
+          this.tease = null;
           this.audio.play('bite');
           this.timer = 0;
+          this.clicks = 0;
           // 咬钩:浮漂猛地下沉,水花四溅
           this.bobber!.position.y = this.bobberTarget.y - 0.15;
           this.waterFx.splash(this.bobberTarget);
@@ -199,7 +312,7 @@ export class FishingSystem {
       case 'bite': {
         this.bobber!.position.y =
           this.bobberTarget.y - 0.15 + Math.sin(this.timer * 25) * 0.05;
-        if (this.timer >= BITE_WINDOW) {
+        if (this.timer >= TIER_BITE[this.tier].window) {
           // 超时鱼跑:涟漪散开,收竿结束
           this.waterFx.ripple(this.bobberTarget.x, this.bobberTarget.y, this.bobberTarget.z);
           this.stop();
@@ -215,7 +328,7 @@ export class FishingSystem {
         this.fish!.position.y += Math.sin(t * Math.PI) * 1.4;
         this.fish!.rotation.z = t * Math.PI * 4;
         if (this.timer >= CATCH_TIME) {
-          const added = this.inventory.add('fish', 1);
+          const added = this.inventory.add(this.loot!.kind, 1);
           this.audio.play(added > 0 ? 'pickup' : 'drop');
           const p = to.clone();
           this.scene.remove(this.fish!);
@@ -223,7 +336,7 @@ export class FishingSystem {
           this.state = null;
           this.removeLine();
           if (added > 0) {
-            this.fx.burst(p, '#5fa8d3', 10);
+            this.fx.burst(p, this.loot!.color, 10);
           } else {
             this.fx.burst(p, '#b5b0a8', 8);
           }
@@ -236,6 +349,7 @@ export class FishingSystem {
   /** 中断钓鱼,清掉场上物件(收竿不给鱼) */
   private stop(): void {
     this.state = null;
+    this.tease = null;
     this.removeBobber();
     this.removeLine();
     if (this.fish) {

@@ -15,8 +15,9 @@ export function FishingControls({
 }) {
   if (hud.dead) return null;
 
-  // 咬钩反应窗口:全屏任意点击收竿,盖住其余交互
+  // 咬钩反应窗口:全屏任意点击收竿(高档位需连点),盖住其余交互
   if (hud.biteActive) {
+    const multi = hud.biteNeed > 1;
     return (
       <div
         onPointerDown={(e) => {
@@ -27,16 +28,27 @@ export function FishingControls({
           position: 'absolute',
           inset: 0,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'radial-gradient(circle, rgba(255,235,130,0.25), rgba(0,0,0,0))',
+          gap: 12,
+          background: multi
+            ? 'radial-gradient(circle, rgba(190,120,255,0.28), rgba(0,0,0,0))'
+            : 'radial-gradient(circle, rgba(255,235,130,0.25), rgba(0,0,0,0))',
           touchAction: 'none',
           userSelect: 'none',
           zIndex: 40,
           animation: 'bite-flash 0.35s ease-in-out infinite',
         }}
       >
-        <div style={biteHintStyle}>🐟 咬钩了!点一下屏幕!</div>
+        <div style={biteHintStyle}>
+          {multi ? '💥 咬钩了!快连点屏幕!' : '🐟 咬钩了!点一下屏幕!'}
+        </div>
+        {multi && (
+          <div style={clickCountStyle}>
+            {hud.biteClicks}/{hud.biteNeed}
+          </div>
+        )}
         <style>{`@keyframes bite-flash { 0%, 100% { opacity: 0.55 } 50% { opacity: 1 } }`}</style>
       </div>
     );
@@ -88,4 +100,14 @@ const biteHintStyle: CSSProperties = {
   fontWeight: 700,
   fontFamily: 'sans-serif',
   whiteSpace: 'nowrap',
+};
+
+const clickCountStyle: CSSProperties = {
+  padding: '8px 24px',
+  borderRadius: 16,
+  background: 'rgba(0,0,0,0.55)',
+  color: '#f7d774',
+  fontSize: 26,
+  fontWeight: 800,
+  fontFamily: 'sans-serif',
 };

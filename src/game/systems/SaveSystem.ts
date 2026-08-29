@@ -5,7 +5,7 @@ import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 
 const SAVE_KEY = 'island.save.v1';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {

@@ -50,10 +50,20 @@ function ToggleRow({
   );
 }
 
+/** 钓鱼档位名称(GM 面板概率权重用) */
+const TIER_NAMES = ['杂物', '普通鱼', '大鱼', '珍宝'];
+
 /** GM 面板:调试开关,直接读写 GmSystem 内存态 */
-export function GmPanel({ onClose }: { onClose: () => void }) {
+export function GmPanel({ onClose, onGrantRod }: { onClose: () => void; onGrantRod: () => void }) {
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
+  const [weights, setWeights] = useState<number[]>([...GmSystem.fishingTierWeights]);
+
+  const setWeight = (i: number, v: number) => {
+    const next = weights.map((w, j) => (j === i ? v : w));
+    GmSystem.fishingTierWeights = next;
+    setWeights(next);
+  };
 
   return (
     <div
@@ -100,6 +110,28 @@ export function GmPanel({ onClose }: { onClose: () => void }) {
             }}
           />
         </div>
+        <div style={{ marginTop: 18, marginBottom: 6, textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#4a3b2a' }}>
+          钓鱼
+        </div>
+        <button onClick={onGrantRod} style={{ ...rowButtonStyle, background: '#3aa76d' }}>
+          发放鱼竿 ×1
+        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+          {TIER_NAMES.map((name, i) => (
+            <div key={name} style={weightRowStyle}>
+              <span>{name}权重</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => setWeight(i, Math.max(0, weights[i] - 5))} style={stepStyle}>
+                  −
+                </button>
+                <span style={{ minWidth: 34, textAlign: 'center', fontWeight: 600 }}>{weights[i]}</span>
+                <button onClick={() => setWeight(i, weights[i] + 5)} style={stepStyle}>
+                  +
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
         <button
           onClick={onClose}
           style={{
@@ -122,3 +154,41 @@ export function GmPanel({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+const rowButtonStyle = {
+  width: '100%',
+  minHeight: 44,
+  border: 'none',
+  borderRadius: 10,
+  background: '#8a6f4b',
+  color: '#fff',
+  fontFamily: 'sans-serif',
+  fontSize: 15,
+  fontWeight: 600,
+  cursor: 'pointer',
+} as const;
+
+const weightRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  padding: '6px 14px',
+  borderRadius: 10,
+  background: 'rgba(0,0,0,0.06)',
+  fontSize: 14,
+  color: '#4a3b2a',
+  fontFamily: 'sans-serif',
+} as const;
+
+const stepStyle = {
+  width: 36,
+  height: 36,
+  border: 'none',
+  borderRadius: 8,
+  background: '#8a6f4b',
+  color: '#fff',
+  fontSize: 18,
+  fontWeight: 700,
+  cursor: 'pointer',
+} as const;

@@ -53,6 +53,8 @@ const INITIAL_HUD: HudSnapshot = {
   fishingState: null,
   fishingProgress: 0,
   biteActive: false,
+  biteClicks: 0,
+  biteNeed: 1,
   nearDrop: null,
 };
 
@@ -108,13 +110,14 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
     const game = new Game(
       container,
       setHud,
-      // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染
-      (label, x, y) => {
+      // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染(预告彩字带颜色)
+      (label: string | null, x: number, y: number, color?: string) => {
         const el = labelRef.current;
         if (!el) return;
         el.style.display = label ? 'block' : 'none';
         if (label) {
           el.textContent = label;
+          el.style.color = color ?? '#fff';
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
       },
@@ -150,7 +153,12 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
       <Hud hud={hud} onHeartTap={handleHeartTap} />
-      {gmOpen && <GmPanel onClose={() => setGmOpen(false)} />}
+      {gmOpen && (
+        <GmPanel
+          onClose={() => setGmOpen(false)}
+          onGrantRod={() => gameRef.current?.gmGrantFishingrod()}
+        />
+      )}
       <Backpack
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}
