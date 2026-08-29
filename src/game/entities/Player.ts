@@ -29,6 +29,7 @@ export type ActionType =
   | 'pick'
   | 'drink'
   | 'craft'
+  | 'cook'
   | 'eat_berry'
   | 'eat_fish'
   | 'cast'
@@ -328,6 +329,16 @@ export class Player implements Updatable {
         const s = Math.sin(t * 1.5);
         this.arms[1].rotation.x = s * 1.1 - 1.1;
         this.arms[0].rotation.x = -s * 0.6 - 0.5;
+        break;
+      }
+      case 'cook': {
+        // 面向火堆翻炒:身体前倾,双臂前伸交替画圈拨动
+        this.group.rotation.x = 0.22;
+        const s = Math.sin(t);
+        this.arms[0].rotation.x = -1.5 + s * 0.5;
+        this.arms[0].rotation.z = s * 0.3;
+        this.arms[1].rotation.x = -1.5 - s * 0.5;
+        this.arms[1].rotation.z = -s * 0.3;
         break;
       }
       case 'cast': {

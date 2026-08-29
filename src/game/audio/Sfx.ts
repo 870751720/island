@@ -7,6 +7,7 @@ export type SfxName =
   | 'pick' // 采集草果枝命中
   | 'pickStone' // 拨拾碎石命中
   | 'knock' // 手搓/工作台敲打
+  | 'stoke' // 添柴:木柴落火与火焰腾起
   | 'munch' // 进食
   | 'drink' // 喝下一轮水
   | 'whoosh' // 抛竿挥动
@@ -25,6 +26,7 @@ const VOL: Record<SfxName, number> = {
   pick: 0.5,
   pickStone: 0.5,
   knock: 0.4,
+  stoke: 0.55,
   munch: 0.5,
   drink: 0.55,
   whoosh: 0.4,
@@ -106,6 +108,15 @@ export class Sfx {
       case 'knock':
         tone(this.ctx, dest, detune(220), t, { attack: 0.003, decay: 0.1, peak: v }, 'triangle', 90);
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.05, peak: v * 0.5 }, 'bandpass', 2600, 1200);
+        break;
+      case 'stoke':
+        // 添柴:木头抛落的闷响两声,随后火焰腾起的低频「呼」声
+        for (let i = 0; i < 2; i++) {
+          const wt = t + i * 0.12;
+          tone(this.ctx, dest, detune(170 - i * 30), wt, { attack: 0.002, decay: 0.07, peak: v * 0.7 }, 'sine', 80);
+          noiseBurst(this.ctx, dest, wt, { attack: 0.002, decay: 0.04, peak: v * 0.4 }, 'bandpass', 1800, 900);
+        }
+        noiseBurst(this.ctx, dest, t + 0.2, { attack: 0.05, decay: 0.35, peak: v * 0.8 }, 'lowpass', 900, 400);
         break;
       case 'munch':
         // 柔湿咀嚼:每口两层带通挤压音(中低频「mua」),无脆响颗粒;每 0.5s 循环故只咬两口

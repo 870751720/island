@@ -16,7 +16,8 @@ const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚�
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
 export const CAMPFIRE_COST = { flint: 1, log: 2 };
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
-const MAX_FUEL = 120; // 燃料上限(秒),防止无限堆积
+const COOK_TIME = 1.6; // 每份食物的烹饪时长(秒)
+const COOK_TICK = 0.8; // 烹饪翻动特效间隔(秒)
 
 /** 火堆旁的状态快照(HUD 用) */
 export type CampfireInfo = {
@@ -28,14 +29,22 @@ export type CampfireInfo = {
 
 /**
  * 火堆系统:材料满足且位置可摆放时通过卡片发起搭建,站定敲打完成后
- * 在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,可反复添柴续命,
- * 燃尽后化为灰烬并倒计时消失。烹饪在燃烧的火堆上进行,消耗少量燃料。
+ * 在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,可反复添柴续命(无上限),
+ * 燃尽后化为灰烬并倒计时消失。烹饪在燃烧的火堆上批量进行,一次烤完
+ * 背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
  */
 export class CampfireSystem {
   private timer = 0;
   private tickTimer = 0;
   private fires: Campfire[] = [];
   private scratch = new THREE.Vector3();
+  // 批量烹饪:食材先收走,逐份烤熟入包;走开或火灭则退回剩余食材
+  private cookKind: ResourceKind | null = null;
+  private cookFire: Campfire | null = null;
+  private cookQueue = 0;
+  private cookTotal = 0;
+  private cookTimer = 0;
+  private cookTickTimer = 0;
 
   constructor(
     private scene: THREE.Scene,
@@ -50,6 +59,16 @@ export class CampfireSystem {
   /** 是否正在搭建火堆(站定敲打阶段) */
   get isWorking(): boolean {
     return this.timer > 0;
+  }
+
+  /** 是否正在烹饪 */
+  get isCooking(): boolean {
+    return this.cookKind !== null;
+  }
+
+  /** 搭建或烹饪中(占用双手) */
+  get isBusy(): boolean {
+    return this.isWorking || this.isCooking;
   }
 
   /** 玩家身旁最近的火堆(范围内的),无则 null */
@@ -91,7 +110,7 @@ export class CampfireSystem {
 
   /** 是否满足发起条件(材料齐 + 位置可摆放) */
   canStart(): boolean {
-    if (this.isWorking) return false;
+    if (this.isBusy) return false;
     if (this.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (this.inventory.count('log') < CAMPFIRE_COST.log) return false;
     return this.canPlace();
@@ -114,7 +133,7 @@ export class CampfireSystem {
         this.fires.splice(i, 1);
       }
     }
-    if (!this.isWorking) return;
+    if (!this.isWorking) return this.updateCooking(delta);
     if (this.player.isMoving || this.player.isSwimming) {
       this.timer = 0;
       return;
@@ -143,8 +162,9 @@ export class CampfireSystem {
     }
   }
 
-  /** 当前搭建进度 0-1,未在搭建时为 null */
+  /** 当前搭建/烹饪进度 0-1(烹饪为单份进度),空闲时为 null */
   getProgress(): number | null {
+    if (this.isCooking) return Math.min(this.cookTimer / COOK_TIME, 1);
     return this.isWorking ? Math.min(this.timer / CRAFT_TIME, 1) : null;
   }
 
@@ -153,24 +173,79 @@ export class CampfireSystem {
     const fire = this.nearby;
     const burnTime = ITEMS[kind].burnTime;
     if (!fire || !burnTime || !this.inventory.remove(kind, 1)) return 0;
-    fire.fuel = Math.min(fire.fuel + burnTime, MAX_FUEL);
+    fire.fuel += burnTime;
+    this.audio.play('stoke');
+    const p = fire.group.position.clone();
+    p.y += 0.5;
+    this.fx.burst(p, '#ff9a3d', 6);
     return burnTime;
   }
 
-  /** 在身旁燃烧的火堆上烤 1 份食物(不消耗燃料);返回成品,失败为 null */
-  cook(kind: ResourceKind): ResourceKind | null {
+  /** 在身旁燃烧的火堆上发起批量烹饪:一次烤完背包里该食材的全部数量,走开或火灭则退回剩余食材 */
+  startCooking(kind: ResourceKind): boolean {
+    if (this.isBusy) return false;
     const fire = this.nearby;
     const cooked = COOKABLE[kind];
-    if (!fire || !fire.isLit || !cooked || !this.inventory.remove(kind, 1)) return null;
-    if (this.inventory.add(cooked, 1) < 1) {
-      // 背包放不下则退回食材
-      this.inventory.add(kind, 1);
-      return null;
+    const count = this.inventory.count(kind);
+    if (!fire || !fire.isLit || !cooked || count < 1) return false;
+    this.inventory.remove(kind, count);
+    this.cookKind = kind;
+    this.cookFire = fire;
+    this.cookQueue = count;
+    this.cookTotal = count;
+    this.cookTimer = 0;
+    this.cookTickTimer = 0;
+    return true;
+  }
+
+  private updateCooking(delta: number): void {
+    const kind = this.cookKind;
+    const fire = this.cookFire;
+    if (!kind || !fire) return;
+    const fireGone = fire.spent || fire.ashLeft !== null || !fire.isLit || this.nearby !== fire;
+    if (this.player.isMoving || this.player.isSwimming || fireGone) {
+      // 中断:剩余食材原样退回
+      this.inventory.add(kind, this.cookQueue);
+      this.cookKind = null;
+      this.cookFire = null;
+      return;
     }
-    this.audio.play('success');
-    const p = fire.group.position.clone();
-    p.y += 0.6;
-    this.fx.burst(p, '#ffcf5e', 8);
-    return cooked;
+    this.player.setAction('cook');
+    this.cookTimer += delta;
+    this.cookTickTimer += delta;
+    if (this.cookTickTimer >= COOK_TICK) {
+      this.cookTickTimer -= COOK_TICK;
+      const p = fire.group.position.clone();
+      p.y += 0.55;
+      this.fx.burst(p, '#ffb84d', 3);
+    }
+    if (this.cookTimer >= COOK_TIME) {
+      this.inventory.add(COOKABLE[kind]!, 1);
+      this.audio.play('pickup');
+      this.cookTimer = 0;
+      this.cookTickTimer = 0;
+      this.cookQueue -= 1;
+      if (this.cookQueue <= 0) {
+        this.cookKind = null;
+        this.cookFire = null;
+        this.audio.play('success');
+        const p = fire.group.position.clone();
+        p.y += 0.6;
+        this.fx.burst(p, '#ffcf5e', 10);
+      }
+    }
+  }
+
+  /** 烹饪排队总数与当前第几份(未在烹饪时均为 0) */
+  get cookInfo(): { total: number; current: number } {
+    return {
+      total: this.cookTotal,
+      current: this.cookKind ? this.cookTotal - this.cookQueue + 1 : 0,
+    };
+  }
+
+  /** 正在烹饪的食材名(未在烹饪时为 null) */
+  get cookingKind(): ResourceKind | null {
+    return this.cookKind;
   }
 }

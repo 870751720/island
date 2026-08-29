@@ -170,7 +170,10 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             <CampfirePanel
               hud={hud}
               onAddFuel={(kind) => gameRef.current?.campfireAddFuel(kind)}
-              onCook={(kind) => gameRef.current?.campfireCook(kind)}
+              onCook={(kind) => {
+                gameRef.current?.campfireCook(kind);
+                setCampfireOpen(false);
+              }}
               onClose={() => setCampfireOpen(false)}
             />
           )}

@@ -74,6 +74,7 @@ export function CampfirePanel({
         </div>
 
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>烹饪</div>
+        <div style={{ fontSize: 12, color: '#999', marginBottom: 6 }}>一次烤完背包里全部同类食材</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {cookables.length === 0 && (
             <span style={{ fontSize: 13, color: '#999' }}>背包里没有能烤的食材</span>
@@ -91,7 +92,7 @@ export function CampfirePanel({
                 style={{ ...chipStyle, opacity: lit ? 1 : 0.45 }}
               >
                 {food.icon} {food.name} ×{count(food.kind)}
-                <span style={{ fontSize: 11, color: '#e0862e' }}>→ {cooked.icon} {cooked.name}</span>
+                <span style={{ fontSize: 11, color: '#e0862e' }}>→ {cooked.icon} {cooked.name}×{count(food.kind)}</span>
               </button>
             );
           })}

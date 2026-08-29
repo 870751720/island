@@ -14,6 +14,7 @@ import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { FOODS, type Food } from './systems/Food';
+import { ITEMS } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import { BowSystem } from './systems/BowSystem';
@@ -204,7 +205,7 @@ export class Game {
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
-        this.campfire.isWorking ||
+        this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking
@@ -306,7 +307,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
-        this.campfire.isWorking ||
+        this.campfire.isBusy ||
         this.eating.isWorking ||
         this.archery.isWorking ||
         this.water.isActive
@@ -316,7 +317,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
-        this.campfire.isWorking ||
+        this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.water.isActive ||
@@ -343,7 +344,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
-        this.campfire.isWorking ||
+        this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking
@@ -503,9 +504,9 @@ export class Game {
     return this.campfire.addFuel(kind) > 0;
   }
 
-  /** 在身旁燃烧的火堆上烤 1 份食物,返回是否成功 */
+  /** 在身旁燃烧的火堆上发起批量烹饪(烤完背包里全部该食材),返回是否成功开始 */
   campfireCook(kind: ResourceKind): boolean {
-    return this.campfire.cook(kind) !== null;
+    return this.campfire.startCooking(kind);
   }
 
   /** 丢弃一个道具到玩家附近的地上 */
@@ -586,7 +587,7 @@ export class Game {
       workbenchProgress: this.workbench.getProgress() ?? 0,
       nearWorkbench: this.workbench.isNear,
       canCraftCampfire: this.campfire.canStart(),
-      campfireCrafting: this.campfire.isWorking,
+      campfireCrafting: this.campfire.isBusy,
       campfireProgress: this.campfire.getProgress() ?? 0,
       nearCampfire: !!this.campfire.nearby,
       campfireInfo: this.campfire.getCampfireInfo(),
@@ -615,6 +616,11 @@ export class Game {
     } else if (this.workbench.isWorking) {
       label = '制作中:工作台';
       progress = this.workbench.getProgress();
+    } else if (this.campfire.isCooking) {
+      const { total, current } = this.campfire.cookInfo;
+      const food = ITEMS[this.campfire.cookingKind!];
+      label = `烹饪中:${food.icon} ${food.name} ${current}/${total}`;
+      progress = this.campfire.getProgress();
     } else if (this.campfire.isWorking) {
       label = '搭建中:小火堆';
       progress = this.campfire.getProgress();
