@@ -74,6 +74,14 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (!hud.nearCampfire) setCampfireOpen(false);
   }, [hud.nearCampfire]);
+  // 死亡后关闭所有弹出的面板
+  useEffect(() => {
+    if (hud.dead) {
+      setBackpackOpen(false);
+      setWorkbenchOpen(false);
+      setCampfireOpen(false);
+    }
+  }, [hud.dead]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,6 +134,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           setBackpackOpen(false);
         }}
         onDropItem={(kind) => gameRef.current?.dropItem(kind)}
+        onCraft={(id) => {
+          if (gameRef.current?.craftTool(id)) setBackpackOpen(false);
+        }}
       />
       {!hud.dead && (
         <>

@@ -38,7 +38,10 @@ export function WorkbenchPanel({
   onCraft: (id: CraftId, count: number) => void;
   onClose: () => void;
 }) {
-  const recipes = RECIPES.filter((r) => r.station === 'workbench');
+  // 只列出当前能制作的配方(材料齐且工具未拥有),做不出的不占位置
+  const recipes = RECIPES.filter(
+    (r) => r.station === 'workbench' && maxCount(r, hud) > 0
+  );
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(recipes.map((r) => [r.id, 1]))
   );
@@ -66,6 +69,11 @@ export function WorkbenchPanel({
       <div style={panelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>🛠️ 工作台</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {recipes.length === 0 && (
+            <div style={{ fontSize: 13, color: '#999', padding: '6px 0' }}>
+              材料还不够,先去收集吧
+            </div>
+          )}
           {recipes.map((r) => {
             const max = maxCount(r, hud);
             const count = Math.min(counts[r.id] ?? 1, max);

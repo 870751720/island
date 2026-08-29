@@ -15,9 +15,8 @@ const FX_COLOR = '#e0862e';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
 export const CAMPFIRE_COST = { flint: 1, log: 2 };
-const INITIAL_FUEL = 20; // 搭好时引燃的初始燃烧秒数
+const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
 const MAX_FUEL = 120; // 燃料上限(秒),防止无限堆积
-const COOK_FUEL_COST = 8; // 每烤一份食物消耗的燃烧秒数
 
 /** 火堆旁的状态快照(HUD 用) */
 export type CampfireInfo = {
@@ -158,15 +157,13 @@ export class CampfireSystem {
     return burnTime;
   }
 
-  /** 在身旁燃烧的火堆上烤 1 份食物,消耗少量燃料;返回成品,失败为 null */
+  /** 在身旁燃烧的火堆上烤 1 份食物(不消耗燃料);返回成品,失败为 null */
   cook(kind: ResourceKind): ResourceKind | null {
     const fire = this.nearby;
     const cooked = COOKABLE[kind];
     if (!fire || !fire.isLit || !cooked || !this.inventory.remove(kind, 1)) return null;
-    if (fire.fuel < COOK_FUEL_COST) return null;
-    fire.fuel -= COOK_FUEL_COST;
     if (this.inventory.add(cooked, 1) < 1) {
-      // 背包放不下则退回食材,不白烧燃料
+      // 背包放不下则退回食材
       this.inventory.add(kind, 1);
       return null;
     }
