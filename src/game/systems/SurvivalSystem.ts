@@ -68,6 +68,7 @@ export class SurvivalSystem implements Updatable {
   eat(food: Food): void {
     this.state.hunger = Math.min(100, this.state.hunger + food.hunger);
     this.state.thirst = Math.min(100, this.state.thirst + food.thirst);
+    this.state.health = Math.min(100, this.state.health + food.health);
   }
 
   drink(): void {

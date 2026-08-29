@@ -31,7 +31,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   gameMeat: '#b04a3a',
   fur: '#9a7448',
   cookedBerry: '#a0522d',
-  cookedFish: '#d99a4e',
+  cookedSmallFish: '#d99a4e',
+  cookedBigFish: '#c76b3a',
+  cookedGoldenFish: '#e6b422',
   cookedCrabMeat: '#e8703a',
   cookedBirdMeat: '#b5722f',
   cookedGameMeat: '#9c4a2f',
@@ -263,8 +265,8 @@ function makeFur(): THREE.Object3D {
   return g;
 }
 
-/** 烤物:焦糖色的肉串,带烤痕 */
-function makeRoast(color: string): THREE.Object3D {
+/** 烤物:焦糖色的肉串,带烤痕;scale 整体放大 */
+function makeRoast(color: string, scale = 1): THREE.Object3D {
   const g = new THREE.Group();
   const stick = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4), clay('#a97c50'));
   stick.rotation.z = 0.5;
@@ -276,6 +278,7 @@ function makeRoast(color: string): THREE.Object3D {
     g.add(chunk);
   }
   g.add(stick);
+  g.scale.setScalar(scale);
   return g;
 }
 
@@ -577,7 +580,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   gameMeat: makeGameMeat,
   fur: makeFur,
   cookedBerry: makeCookedBerry,
-  cookedFish: () => makeRoast(DROP_COLORS.cookedFish),
+  cookedSmallFish: () => makeRoast(DROP_COLORS.cookedSmallFish),
+  cookedBigFish: () => makeRoast(DROP_COLORS.cookedBigFish, 1.3),
+  cookedGoldenFish: () => makeRoast(DROP_COLORS.cookedGoldenFish, 1.3),
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   cookedGameMeat: () => makeRoast(DROP_COLORS.cookedGameMeat),

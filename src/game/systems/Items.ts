@@ -181,11 +181,23 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🍬',
     description: '火堆上烤过的浆果,糖分焦香,恢复效果更好。',
   },
-  cookedFish: {
-    kind: 'cookedFish',
-    name: '烤鱼',
+  cookedSmallFish: {
+    kind: 'cookedSmallFish',
+    name: '烤小鱼',
     icon: '🍢',
-    description: '火堆上烤得滋滋作响的鱼,香气扑鼻,恢复大量饥饿。',
+    description: '火堆上烤得滋滋作响的小鱼,香气扑鼻,恢复饥饿、口渴还补健康。',
+  },
+  cookedBigFish: {
+    kind: 'cookedBigFish',
+    name: '烤大鱼',
+    icon: '🍡',
+    description: '火堆上烤熟的大鱼,外焦里嫩,是滋补的硬菜。',
+  },
+  cookedGoldenFish: {
+    kind: 'cookedGoldenFish',
+    name: '烤黄金鱼',
+    icon: '🌟',
+    description: '烤得金光四溢的传说之鱼,一口回满所有状态!',
   },
   cookedCrabMeat: {
     kind: 'cookedCrabMeat',
