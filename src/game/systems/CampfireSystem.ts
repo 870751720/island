@@ -53,7 +53,9 @@ export class CampfireSystem {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
+    private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n)
   ) {}
 
   /** 是否正在搭建火堆(站定敲打阶段) */
@@ -224,7 +226,7 @@ export class CampfireSystem {
       this.fx.burst(p, '#ffb84d', 3);
     }
     if (this.cookTimer >= COOK_TIME) {
-      this.inventory.add(COOKABLE[kind]!, 1);
+      this.give(COOKABLE[kind]!, 1);
       this.audio.play('pickup');
       this.cookTimer = 0;
       this.cookTickTimer = 0;

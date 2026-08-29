@@ -22,6 +22,8 @@ export class CraftingSystem {
     private tools: Tools,
     private fx: Particles,
     private audio: GameAudio,
+    /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
+    private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n),
     /** 每完成一件产物时回调(产物种类),供装备自动上身等后续处理 */
     private onFinish: (kind: ResourceKind) => void = () => {}
   ) {}
@@ -68,7 +70,7 @@ export class CraftingSystem {
       this.fx.burst(p, FX_COLOR, 5);
     }
     if (this.timer >= CRAFT_TIME) {
-      craft(recipe, this.inventory, this.tools);
+      craft(recipe, this.inventory, this.tools, this.give);
       // 工具制作完成永久拥有并直接拿在手上,材料产物进背包
       if (recipe.tool) this.player.setTool(recipe.tool);
       this.onFinish(recipe.tool ?? recipe.output!);

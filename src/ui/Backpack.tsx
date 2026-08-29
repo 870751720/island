@@ -404,35 +404,33 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                   return (
                     <div
                       key={id}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        openTip(
+                          e,
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 20 }}>{def.icon}</span>
+                              <span style={{ fontWeight: 700, flex: 1 }}>{def.name}</span>
+                              <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
+                                {owned ? '已拥有' : '未拥有'}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: 4 }}>{def.description}</div>
+                          </>
+                        );
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
                         padding: '6px 4px',
                         opacity: owned ? 1 : 0.45,
+                        touchAction: 'none',
+                        userSelect: 'none',
                       }}
                     >
-                      <span
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          openTip(
-                            e,
-                            <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontSize: 20 }}>{def.icon}</span>
-                                <span style={{ fontWeight: 700, flex: 1 }}>{def.name}</span>
-                                <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
-                                  {owned ? '已拥有' : '未拥有'}
-                                </span>
-                              </div>
-                              <div style={{ marginTop: 4 }}>{def.description}</div>
-                            </>
-                          );
-                        }}
-                        style={{ fontSize: 22, touchAction: 'none', userSelect: 'none' }}
-                      >
-                        {def.icon}
-                      </span>
+                      <span style={{ fontSize: 22 }}>{def.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>{def.name}</div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
                         {owned ? '已拥有' : '未拥有'}
@@ -440,9 +438,6 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </div>
                   );
                 })}
-                <div style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
-                  点击图标查看说明;工具制作一次永久拥有,不占用背包
-                </div>
               </div>
             ) : (
               <div style={CONTENT_STYLE}>
@@ -452,7 +447,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                   const score = kind ? EQUIPMENT[kind].score : null;
                   return (
                     <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
+                      <div
                         onPointerDown={(e) => {
                           e.preventDefault();
                           openTip(
@@ -479,19 +474,27 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             )
                           );
                         }}
-                        style={{ fontSize: 20, touchAction: 'none', userSelect: 'none' }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          flex: 1,
+                          minWidth: 0,
+                          touchAction: 'none',
+                          userSelect: 'none',
+                        }}
                       >
-                        {def ? def.icon : '➖'}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
-                        <div style={{ fontWeight: 700 }}>
-                          {def ? def.name : '未装备'}
-                          {score !== null && (
-                            <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 6 }}>
-                              评分 {score}
-                            </span>
-                          )}
+                        <span style={{ fontSize: 20 }}>{def ? def.icon : '➖'}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
+                          <div style={{ fontWeight: 700 }}>
+                            {def ? def.name : '未装备'}
+                            {score !== null && (
+                              <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 6 }}>
+                                评分 {score}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       {kind && actionButton(false, '卸下', '#e67e22', () => onUnequip(slot))}

@@ -287,6 +287,8 @@ export class Game {
       this.tools,
       this.fx,
       this.audio,
+      // 背包放不下的产物掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count),
       // 装备做出来且评分高于身上这件时直接上身
       (kind) => {
         if (isEquipKind(kind)) this.equipment.equip(kind, this.inventory);
@@ -335,7 +337,9 @@ export class Game {
       this.terrain,
       this.props,
       this.fx,
-      this.audio
+      this.audio,
+      // 烹饪好的食物背包放不下时掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count)
     );
     this.archery = new BowSystem(
       this.scene,
@@ -732,7 +736,15 @@ export class Game {
       this.tools[kind as ToolId] = true;
       return;
     }
-    this.inventory.add(kind, count);
+    this.giveItem(kind, count);
+  }
+
+  /** 产物入包,背包放不下的部分掉在玩家身旁地上 */
+  giveItem(kind: ResourceKind, count: number): number {
+    const added = this.inventory.add(kind, count);
+    const overflow = count - added;
+    if (overflow > 0) this.drops.drop(kind, overflow);
+    return added;
   }
 
   /** GM 生存状态回满并复活 */

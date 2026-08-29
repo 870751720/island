@@ -212,7 +212,13 @@ export function recipeVisible(
   return maxCraftCount(recipe, counts, tools) > 0;
 }
 
-export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boolean {
+export function craft(
+  recipe: Recipe,
+  inventory: Inventory,
+  tools: Tools,
+  /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
+  give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n)
+): boolean {
   if (recipe.tool ? tools[recipe.tool] : !canCraft(recipe, inventory)) return false;
   for (const [kind, n] of Object.entries(recipe.cost)) {
     inventory.remove(kind as ResourceKind, n ?? 0);
@@ -222,5 +228,5 @@ export function craft(recipe: Recipe, inventory: Inventory, tools: Tools): boole
     tools[recipe.tool] = true;
     return true;
   }
-  return inventory.add(recipe.output!, recipe.outputCount ?? 1) > 0;
+  return give(recipe.output!, recipe.outputCount ?? 1) > 0;
 }
