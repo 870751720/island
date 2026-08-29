@@ -146,6 +146,9 @@ export const RECIPES: Recipe[] = [
 /** 全局唯一工作台的配方:2 石头 + 1 树枝 */
 export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2, wood: 1 };
 
+/** 工作台每升一级消耗的石头数 */
+export const WORKBENCH_UPGRADE_STONES = 10;
+
 /** 按资源数量表判断材料是否足够(背包与 HUD 快照均可传入) */
 export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKind, number>>): boolean {
   return Object.entries(cost).every(

@@ -7,6 +7,7 @@ import {
   RECIPES,
   maxCraftCount,
   recipeVisible,
+  WORKBENCH_UPGRADE_STONES,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -30,14 +31,16 @@ function costLabel(cost: Recipe['cost']): string {
     .join(' ');
 }
 
-/** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作 */
+/** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
 export function WorkbenchPanel({
   hud,
   onCraft,
+  onUpgrade,
   onClose,
 }: {
   hud: HudSnapshot;
   onCraft: (id: CraftId, count: number) => void;
+  onUpgrade: () => boolean;
   onClose: () => void;
 }) {
   // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件),做不出的不占位置
@@ -45,6 +48,7 @@ export function WorkbenchPanel({
     (r) => r.station === 'workbench' && recipeVisible(r, hud, toolsOf(hud), hud.equipped)
   );
   const [bookOpen, setBookOpen] = useState(false);
+  const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(recipes.map((r) => [r.id, 1]))
   );
@@ -71,7 +75,9 @@ export function WorkbenchPanel({
     >
       <div style={panelStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <span style={{ fontWeight: 700, fontSize: 17, flex: 1 }}>🛠️ 工作台</span>
+          <span style={{ fontWeight: 700, fontSize: 17, flex: 1 }}>
+            🛠️ 工作台 Lv.{hud.workbenchLevel}
+          </span>
           <button
             style={bookButtonStyle}
             onPointerDown={(e) => {
@@ -147,6 +153,32 @@ export function WorkbenchPanel({
             );
           })}
         </div>
+        {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
+          <div style={{ ...rowStyle, marginTop: 10, background: 'rgba(76,175,80,0.08)' }}>
+            <span style={{ fontSize: 26 }}>⬆️</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
+              <div style={{ fontSize: 12, color: upgradeHint ? '#c62828' : '#888' }}>
+                {upgradeHint ?? `${WORKBENCH_UPGRADE_STONES}石`}
+              </div>
+            </div>
+            <button
+              style={craftButtonStyle(hud.stone >= WORKBENCH_UPGRADE_STONES)}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                if (hud.stone >= WORKBENCH_UPGRADE_STONES) {
+                  if (onUpgrade()) onClose();
+                } else {
+                  setUpgradeHint(
+                    `需要 ${WORKBENCH_UPGRADE_STONES} 个石头(现有 ${hud.stone})`
+                  );
+                }
+              }}
+            >
+              {hud.stone >= WORKBENCH_UPGRADE_STONES ? '升级' : '材料不足'}
+            </button>
+          </div>
+        )}
         <button style={closeButtonStyle} onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
           关闭
         </button>

@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -42,7 +42,7 @@ export type SaveData = {
   dayTime: number;
   props: PropSave[];
   campfires: (PlacementSave & { fuel: number })[];
-  workbench: PlacementSave | null;
+  workbench: (PlacementSave & { level: number }) | null;
   drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
 };
 

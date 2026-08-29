@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import { Workbench } from '../entities/Workbench';
 import type { Inventory } from './Inventory';
-import { WORKBENCH_COST } from './Crafting';
+import { WORKBENCH_COST, WORKBENCH_UPGRADE_STONES } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -16,11 +16,14 @@ const NEAR_RANGE = 2.2; // 玩家距工作台小于该值时算在工作范围�
 
 /**
  * 全局唯一的工作台:材料满足且场上没有工作台时可通过卡片发起制作,
- * 站定敲打完成后在玩家原位放置;在水中或脚下被树石等资源点占住时无法制作。
+ * 站定敲打完成后在玩家原位放置;已放置后可花费石头升级(最高 4 级),
+ * 敲打完成后工作台换成更高等级的模型。
  */
 export class WorkbenchSystem {
   private timer = 0;
   private tickTimer = 0;
+  /** 当前计时流程是搭建新工作台还是升级现有工作台 */
+  private mode: 'build' | 'upgrade' = 'build';
   private bench: Workbench | null = null;
   private scratch = new THREE.Vector3();
 
@@ -39,6 +42,11 @@ export class WorkbenchSystem {
     return !!this.bench;
   }
 
+  /** 当前工作台等级(没有工作台为 0) */
+  get level(): number {
+    return this.bench?.level ?? 0;
+  }
+
   /** 玩家是否在的工作范围内(可打开制作面板) */
   get isNear(): boolean {
     if (!this.bench) return false;
@@ -48,7 +56,19 @@ export class WorkbenchSystem {
   }
 
   get isWorking(): boolean {
-    return this.bench === null && this.timer > 0;
+    return this.timer > 0;
+  }
+
+  /** 当前是否在升级工作台 */
+  get isUpgrading(): boolean {
+    return this.isWorking && this.mode === 'upgrade';
+  }
+
+  /** 是否满足升级条件(有工作台、未满级、石头够、不在敲打中) */
+  canUpgrade(): boolean {
+    if (!this.bench || this.isWorking) return false;
+    if (this.bench.level >= 4) return false;
+    return this.inventory.count('stone') >= WORKBENCH_UPGRADE_STONES;
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点占住) */
@@ -73,6 +93,16 @@ export class WorkbenchSystem {
 
   start(): boolean {
     if (!this.canStart()) return false;
+    this.mode = 'build';
+    this.timer = 0.001;
+    this.tickTimer = 0;
+    return true;
+  }
+
+  /** 发起升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
+  upgrade(): boolean {
+    if (!this.canUpgrade()) return false;
+    this.mode = 'upgrade';
     this.timer = 0.001;
     this.tickTimer = 0;
     return true;
@@ -80,6 +110,7 @@ export class WorkbenchSystem {
 
   update(delta: number): void {
     if (!this.isWorking) return;
+    if (this.mode === 'build' ? this.exists : !this.exists) return;
     if (this.player.isMoving || this.player.isSwimming) {
       this.cancel();
       return;
@@ -96,9 +127,14 @@ export class WorkbenchSystem {
     }
     if (this.timer >= CRAFT_TIME) {
       this.timer = 0;
-      this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
-      this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
-      this.bench = new Workbench(this.scene, this.player.group.position);
+      if (this.mode === 'build') {
+        this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
+        this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
+        this.bench = new Workbench(this.scene, this.player.group.position);
+      } else {
+        this.inventory.remove('stone', WORKBENCH_UPGRADE_STONES);
+        this.bench!.upgrade();
+      }
       this.audio.play('success');
       const p = this.player.group.position.clone();
       p.y += 0.8;
@@ -115,15 +151,19 @@ export class WorkbenchSystem {
     return this.isWorking ? Math.min(this.timer / CRAFT_TIME, 1) : null;
   }
 
-  /** 工作台位置快照(没有工作台时为 null) */
-  snapshot(): { x: number; y: number; z: number } | null {
+  /** 工作台快照(没有工作台时为 null) */
+  snapshot(): { x: number; y: number; z: number; level: number } | null {
     if (!this.bench) return null;
     const p = this.bench.group.position;
-    return { x: p.x, y: p.y, z: p.z };
+    return { x: p.x, y: p.y, z: p.z, level: this.bench.level };
   }
 
-  /** 从存档恢复工作台 */
-  restore(pos: { x: number; y: number; z: number }): void {
-    this.bench = new Workbench(this.scene, new THREE.Vector3(pos.x, pos.y, pos.z));
+  /** 从存档恢复工作台(含等级) */
+  restore(pos: { x: number; y: number; z: number; level: number }): void {
+    this.bench = new Workbench(
+      this.scene,
+      new THREE.Vector3(pos.x, pos.y, pos.z),
+      pos.level
+    );
   }
 }

@@ -41,6 +41,7 @@ const INITIAL_HUD: HudSnapshot = {
   canCraftWorkbench: false,
   workbenchCrafting: false,
   workbenchProgress: 0,
+  workbenchLevel: 0,
   nearWorkbench: false,
   canCraftCampfire: false,
   campfireCrafting: false,
@@ -217,6 +218,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               onCraft={(id, count) => {
                 if (gameRef.current?.craftAtWorkbench(id, count)) setWorkbenchOpen(false);
               }}
+              onUpgrade={() => !!gameRef.current?.upgradeWorkbench()}
               onClose={() => setWorkbenchOpen(false)}
             />
           )}

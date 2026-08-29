@@ -69,6 +69,8 @@ export type HudSnapshot = {
   canCraftWorkbench: boolean;
   workbenchCrafting: boolean;
   workbenchProgress: number;
+  /** 当前工作台等级 1-4(没有工作台为 0) */
+  workbenchLevel: number;
   /** 玩家在的工作范围内(工具按钮变为工作台,点击打开制作面板) */
   nearWorkbench: boolean;
   /** 火堆卡片与搭建进度 */
@@ -803,6 +805,12 @@ export class Game {
     return this.workbench.start();
   }
 
+  /** 发起工作台升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
+  upgradeWorkbench(): boolean {
+    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    return this.workbench.upgrade();
+  }
+
   start(): void {
     // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
     this.audio.start();
@@ -857,6 +865,7 @@ export class Game {
       canCraftWorkbench: this.workbench.canStart(),
       workbenchCrafting: this.workbench.isWorking,
       workbenchProgress: this.workbench.getProgress() ?? 0,
+      workbenchLevel: this.workbench.level,
       nearWorkbench: this.workbench.isNear,
       canCraftCampfire: this.campfire.canStart(),
       campfireCrafting: this.campfire.isBusy,
@@ -888,7 +897,7 @@ export class Game {
       label = `制作中:${this.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;
       progress = this.crafting.getProgress();
     } else if (this.workbench.isWorking) {
-      label = '制作中:工作台';
+      label = this.workbench.isUpgrading ? '升级中:工作台' : '制作中:工作台';
       progress = this.workbench.getProgress();
     } else if (this.planting.isWorking) {
       label = '播种中…';
