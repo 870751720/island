@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, type CraftId, type ToolId } from '@/game/systems/Crafting';
+import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 
 type Props = {
@@ -14,7 +14,7 @@ type Props = {
   hud: HudSnapshot;
   /** 使用(吃)该食物道具,由外层触发进食并关闭背包 */
   onUseItem: (kind: ResourceKind) => void;
-  /** 丢弃一个该道具到地上 */
+  /** 丢弃该种类全部道具到地上 */
   onDropItem: (kind: ResourceKind) => void;
   /** 在背包里发起手搓制作(站定敲打完成后入包/装备) */
   onCraft: (id: CraftId) => void;
@@ -38,6 +38,8 @@ const SLOT_GAP = 8;
 const COLUMNS = 5;
 const TAB_LABELS: Record<Tab, string> = { items: '物品', craft: '制作', tools: '工具', char: '角色' };
 const TABS = Object.keys(TAB_LABELS) as Tab[];
+/** 双击判定窗口(毫秒):同一格两次点击间隔小于该值视为双击 */
+const DOUBLE_TAP_MS = 350;
 
 /** 物品详情区固定最小高度:与选中道具时(标题行+两行描述+按钮行)等高,空态不塌陷 */
 const DETAIL_AREA_STYLE: React.CSSProperties = {
@@ -118,23 +120,6 @@ const CONTENT_STYLE: React.CSSProperties = {
   paddingTop: 10,
 };
 
-/** 图标格(工具/角色页):点击弹出 tip */
-const ICON_TILE_STYLE = (dim: boolean): React.CSSProperties => ({
-  width: 64,
-  height: 64,
-  borderRadius: 12,
-  border: '2px solid rgba(0,0,0,0.12)',
-  background: 'rgba(0,0,0,0.05)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 30,
-  opacity: dim ? 0.45 : 1,
-  position: 'relative',
-  touchAction: 'none',
-  userSelect: 'none',
-});
-
 /** 点击图标弹出的物品 tip:锚定在触发图标的屏幕位置附近(优先上方) */
 type TipState = { x: number; y: number; content: React.ReactNode };
 
@@ -177,12 +162,14 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 }
 
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
- * 物品页 = 格子背包 + 选中道具详情,制作页独占整页,
- * 工具/角色页以图标展示,点击图标弹出对应物品 tip;面板高度随内容向下生长 */
+ * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
+ * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
 export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [tip, setTip] = useState<TipState | null>(null);
+  /** 最近一次点击格子的时间与下标,用于双击判定 */
+  const lastTap = useRef<{ index: number; time: number } | null>(null);
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
   const tools = { axe: hud.hasAxe, pickaxe: hud.hasPickaxe, fishingrod: hud.hasFishingrod, bow: hud.hasBow };
@@ -309,7 +296,20 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         key={i}
                         onPointerDown={(e) => {
                           e.preventDefault();
-                          if (slot) setSelectedIndex(selectedIndex === i ? null : i);
+                          if (!slot) return;
+                          // 双击同一格:可直接使用(食物/漂流瓶)或装备
+                          const now = Date.now();
+                          const isDoubleTap =
+                            lastTap.current?.index === i && now - lastTap.current.time < DOUBLE_TAP_MS;
+                          lastTap.current = { index: i, time: now };
+                          if (isDoubleTap && (isUsable(slot.kind) || isEquipKind(slot.kind))) {
+                            lastTap.current = null;
+                            setSelectedIndex(null);
+                            if (isUsable(slot.kind)) onUseItem(slot.kind);
+                            else onEquip(slot.kind);
+                            return;
+                          }
+                          setSelectedIndex(selectedIndex === i ? null : i);
                         }}
                         style={slotStyle(!!slot, selectedIndex === i)}
                       >
@@ -345,7 +345,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             onEquip(selectedDef.kind);
                             setSelectedIndex(null);
                           })}
-                        {actionButton(false, '丢弃', '#e67e22', () => {
+                        {actionButton(false, '丢弃全部', '#e67e22', () => {
                           onDropItem(selectedDef.kind);
                           setSelectedIndex(null);
                         })}
@@ -353,7 +353,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </>
                   ) : (
                     <div style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>
-                      点击上方物品查看详情
+                      点击选中物品,双击可直接使用或装备
                     </div>
                   )}
                 </div>
@@ -398,20 +398,21 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               </div>
             ) : tab === 'tools' ? (
               <div style={CONTENT_STYLE}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${COLUMNS}, 64px)`,
-                    gap: SLOT_GAP,
-                    justifyContent: 'center',
-                  }}
-                >
-                  {TOOL_IDS.map((id) => {
-                    const def = ITEMS[id];
-                    const owned = tools[id];
-                    return (
-                      <div
-                        key={id}
+                {TOOL_IDS.map((id) => {
+                  const def = ITEMS[id];
+                  const owned = tools[id];
+                  return (
+                    <div
+                      key={id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 4px',
+                        opacity: owned ? 1 : 0.45,
+                      }}
+                    >
+                      <span
                         onPointerDown={(e) => {
                           e.preventDefault();
                           openTip(
@@ -428,33 +429,30 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             </>
                           );
                         }}
-                        style={ICON_TILE_STYLE(!owned)}
+                        style={{ fontSize: 22, touchAction: 'none', userSelect: 'none' }}
                       >
                         {def.icon}
-                      </div>
-                    );
-                  })}
-                </div>
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>{def.name}</div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
+                        {owned ? '已拥有' : '未拥有'}
+                      </span>
+                    </div>
+                  );
+                })}
                 <div style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
                   点击图标查看说明;工具制作一次永久拥有,不占用背包
                 </div>
               </div>
             ) : (
               <div style={CONTENT_STYLE}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${COLUMNS}, 64px)`,
-                    gap: SLOT_GAP,
-                    justifyContent: 'center',
-                  }}
-                >
-                  {SLOT_ORDER.map((slot) => {
-                    const kind = hud.equipped[slot];
-                    const def = kind ? ITEMS[kind] : null;
-                    return (
-                      <div
-                        key={slot}
+                {SLOT_ORDER.map((slot) => {
+                  const kind = hud.equipped[slot];
+                  const def = kind ? ITEMS[kind] : null;
+                  const score = kind ? EQUIPMENT[kind].score : null;
+                  return (
+                    <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
                         onPointerDown={(e) => {
                           e.preventDefault();
                           openTip(
@@ -481,20 +479,25 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             )
                           );
                         }}
-                        style={ICON_TILE_STYLE(!def)}
+                        style={{ fontSize: 20, touchAction: 'none', userSelect: 'none' }}
                       >
-                        {def ? (
-                          def.icon
-                        ) : (
-                          <span style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</span>
-                        )}
+                        {def ? def.icon : '➖'}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
+                        <div style={{ fontWeight: 700 }}>
+                          {def ? def.name : '未装备'}
+                          {score !== null && (
+                            <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 6 }}>
+                              评分 {score}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-                <div style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
-                  点击装备图标查看属性并可卸下
-                </div>
+                      {kind && actionButton(false, '卸下', '#e67e22', () => onUnequip(slot))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -57,10 +57,7 @@ export type InventorySlot = { kind: ResourceKind; count: number } | null;
 /** 初始背包格数,装备背包类道具后可通过 setCapacity 扩容 */
 export const DEFAULT_CAPACITY = 10;
 
-/** 同种道具在单个格子内的最大叠加数 */
-export const MAX_STACK = 20;
-
-/** 格子制背包:相同道具自动叠加,先叠满已有格子再占用空格 */
+/** 格子制背包:相同道具无上限叠加到同一格,再占用空格 */
 export class Inventory {
   private slots: InventorySlot[] = Array.from({ length: DEFAULT_CAPACITY }, () => null);
 
@@ -82,17 +79,15 @@ export class Inventory {
     let remain = n;
     for (const slot of this.slots) {
       if (remain <= 0) break;
-      if (slot && slot.kind === kind && slot.count < MAX_STACK) {
-        const take = Math.min(MAX_STACK - slot.count, remain);
-        slot.count += take;
-        remain -= take;
+      if (slot && slot.kind === kind) {
+        slot.count += remain;
+        remain = 0;
       }
     }
     for (let i = 0; i < this.slots.length && remain > 0; i++) {
       if (this.slots[i]) continue;
-      const take = Math.min(MAX_STACK, remain);
-      this.slots[i] = { kind, count: take };
-      remain -= take;
+      this.slots[i] = { kind, count: remain };
+      remain = 0;
     }
     const added = n - remain;
     if (added > 0) this.onAdd?.(kind, added);
@@ -110,7 +105,7 @@ export class Inventory {
           typeof s.kind === 'string' &&
           typeof s.count === 'number' &&
           s.count > 0
-          ? { kind: s.kind as ResourceKind, count: Math.min(s.count, MAX_STACK) }
+          ? { kind: s.kind as ResourceKind, count: s.count }
           : null;
       });
     if (restored.length > 0) this.slots = restored;

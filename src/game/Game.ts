@@ -777,10 +777,12 @@ export class Game {
     return this.campfire.startCooking(kind, count);
   }
 
-  /** 丢弃一个道具到玩家附近的地上 */
+  /** 丢弃该种类的全部道具(整格)到玩家附近的地上 */
   dropItem(kind: ResourceKind): boolean {
-    if (!this.inventory.remove(kind, 1)) return false;
-    this.drops.drop(kind, 1);
+    const count = this.inventory.count(kind);
+    if (count <= 0) return false;
+    this.inventory.remove(kind, count);
+    this.drops.drop(kind, count);
     return true;
   }
 
