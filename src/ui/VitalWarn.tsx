@@ -14,7 +14,7 @@ const LOW_THRESHOLD = 20;
 /** 放在角色右侧,避开头顶正中的交互进度环 */
 const OFFSET_X = 32;
 /** 略微下移,贴近角色身体 */
-const OFFSET_Y = 15;
+const OFFSET_Y = 30;
 
 const ROWS: { key: keyof VitalLevels; icon: string }[] = [
   { key: 'health', icon: '❤️' },
