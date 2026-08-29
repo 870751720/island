@@ -21,7 +21,7 @@
 - `src/game/systems/CrateSystem.ts`:
   - 放置:与 `PlantingSystem` 同一心智——手持木箱、不在水里/水边、脚下与周围 1 格内无资源点、与其他木箱距离 ≥0.8,站定 2 秒完成放置,播放敲击音效与木屑特效,头顶圆环走进度。
   - 附近检测:与工作台/火堆一致的 2.2 范围,取最近木箱。
-  - 存取:`store/take` 均为按种类整格转移,装不下/背包满时通过 notice 提示。
+  - 存取:`store/take` 均为按种类整格转移,装不下/背包满时通过 notice 提示;成功时播放音效(存入 `drop`、取回 `pickup`)。
   - 存档:`snapshot/restore` 保存每个木箱的落点与格子内容。
 - `src/game/entities/Player.ts`:`HandTool` 新增 `crate`,右手抱小木箱模型。
 - `src/game/Game.ts`:接线 `CrateSystem`(放置与其他双手行为互斥);HUD 快照新增 `hasCrate/nearCrate/crateSlots`;工具循环顺序 空手→斧→镐→鱼竿→弓→种子→木箱;头顶提示「放置木箱…」。
@@ -32,3 +32,4 @@
 ## 迭代记录
 
 - 2026-08-30:首版——工作台 4 树枝制作木箱、手持自动放置、靠近打开 10 格储物面板、存档保存木箱与内容。
+- 2026-08-30:存入/取回成功时增加音效反馈。

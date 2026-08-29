@@ -126,6 +126,7 @@ export class CrateSystem {
     if (!crate || n <= 0 || !crate.storage.canFit(kind)) return false;
     this.inventory.remove(kind, n);
     crate.storage.add(kind, n);
+    this.audio.play('drop');
     return true;
   }
 
@@ -136,6 +137,7 @@ export class CrateSystem {
     if (!crate || n <= 0 || !this.inventory.canFit(kind)) return false;
     crate.storage.remove(kind, n);
     this.inventory.add(kind, n);
+    this.audio.play('pickup');
     return true;
   }
 
