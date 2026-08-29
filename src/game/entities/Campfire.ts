@@ -141,8 +141,8 @@ export class Campfire {
       // 灯光亮度与照射范围随燃料伸缩,濒熄时剧烈明灭
       const k = Math.min(this.fuel / FULL_FUEL, 1);
       const wobble = low ? Math.sin(elapsed * 18) * 0.5 : Math.sin(elapsed * 10) * 0.15;
-      this.light.intensity = Math.max(0.25 + k * 1.1 + wobble, 0.1);
-      this.light.distance = 3 + k * 4;
+      this.light.intensity = Math.max(0.3 + k * 1.7 + wobble, 0.1);
+      this.light.distance = 3.5 + k * 5.5;
       this.updateSmoke(elapsed);
       if (this.fuel <= 0) this.extinguish();
       else this.applyStage();
@@ -172,8 +172,8 @@ export class Campfire {
     for (let i = 0; i < this.flames.length; i++) {
       this.flames[i].visible = i < stage;
     }
-    // 满柴是 1,只剩一点火苗时缩到一半以下
-    const size = 0.45 + Math.min(this.fuel / FULL_FUEL, 1) * 0.55;
+    // 满柴(210s)时是低燃料时的一半基准再放大到两倍:0.5 → 2.0
+    const size = 0.5 + Math.min(this.fuel / FULL_FUEL, 1) * 1.5;
     this.fireRoot.scale.setScalar(size);
     this.logs.scale.y = Math.max(0.4, size);
     this.logs.scale.x = this.logs.scale.z = Math.max(0.7, 0.6 + size * 0.4);

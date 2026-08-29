@@ -218,6 +218,7 @@ export class CampfireSystem {
     this.cookTickTimer += delta;
     if (this.cookTickTimer >= COOK_TICK) {
       this.cookTickTimer -= COOK_TICK;
+      this.audio.play('sizzle');
       const p = fire.group.position.clone();
       p.y += 0.55;
       this.fx.burst(p, '#ffb84d', 3);

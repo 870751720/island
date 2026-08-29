@@ -8,6 +8,7 @@ export type SfxName =
   | 'pickStone' // 拨拾碎石命中
   | 'knock' // 手搓/工作台敲打
   | 'stoke' // 添柴:木柴落火与火焰腾起
+  | 'sizzle' // 烹饪:食材下锅的滋滋油响
   | 'munch' // 进食
   | 'drink' // 喝下一轮水
   | 'whoosh' // 抛竿挥动
@@ -27,6 +28,7 @@ const VOL: Record<SfxName, number> = {
   pickStone: 0.5,
   knock: 0.4,
   stoke: 0.55,
+  sizzle: 0.4,
   munch: 0.5,
   drink: 0.55,
   whoosh: 0.4,
@@ -117,6 +119,15 @@ export class Sfx {
           noiseBurst(this.ctx, dest, wt, { attack: 0.002, decay: 0.04, peak: v * 0.4 }, 'bandpass', 1800, 900);
         }
         noiseBurst(this.ctx, dest, t + 0.2, { attack: 0.05, decay: 0.35, peak: v * 0.8 }, 'lowpass', 900, 400);
+        break;
+      case 'sizzle':
+        // 烤肉滋滋声:一段持续的高频油爆气声垫底 + 几粒随机的爆裂脆响
+        noiseBurst(this.ctx, dest, t, { attack: 0.04, decay: 0.55, peak: v * 0.5 }, 'highpass', 3800);
+        for (let i = 0; i < 4; i++) {
+          const st = t + 0.05 + Math.random() * 0.45;
+          tone(this.ctx, dest, detune(2600 + Math.random() * 2400), st, { attack: 0.001, decay: 0.03, peak: v * (0.4 - i * 0.06) }, 'triangle');
+          noiseBurst(this.ctx, dest, st, { attack: 0.001, decay: 0.02, peak: v * 0.3 }, 'highpass', 5200);
+        }
         break;
       case 'munch':
         // 柔湿咀嚼:每口两层带通挤压音(中低频「mua」),无脆响颗粒;每 0.5s 循环故只咬两口
