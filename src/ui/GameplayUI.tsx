@@ -13,6 +13,7 @@ import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { DropPrompt } from './DropPrompt';
 import { DeathScreen } from './DeathScreen';
+import { GmPanel } from './GmPanel';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -71,6 +72,19 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
   const pickupIdRef = useRef(0);
   const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
+  const [gmOpen, setGmOpen] = useState(false);
+  // 连续 5 次点击红心(2 秒内)打开 GM 面板
+  const heartTapsRef = useRef<number[]>([]);
+  const handleHeartTap = () => {
+    const now = performance.now();
+    const taps = heartTapsRef.current.filter((t) => now - t < 2000);
+    taps.push(now);
+    heartTapsRef.current = taps;
+    if (taps.length >= 5) {
+      heartTapsRef.current = [];
+      setGmOpen(true);
+    }
+  };
 
   // 离开工作台/火堆范围自动收起对应面板
   useEffect(() => {
@@ -135,7 +149,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
-      <Hud hud={hud} />
+      <Hud hud={hud} onHeartTap={handleHeartTap} />
+      {gmOpen && <GmPanel onClose={() => setGmOpen(false)} />}
       <Backpack
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}

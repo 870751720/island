@@ -11,8 +11,8 @@ function StatRow({ icon, value, color }: { icon: string; value: number; color: s
   );
 }
 
-/** 左上角状态栏:生命/饥饿/口渴三条「图标 + 数值」 */
-export function Hud({ hud }: { hud: HudSnapshot }) {
+/** 左上角状态栏:生命/饥饿/口渴三条「图标 + 数值」;红心为 GM 面板的隐藏入口 */
+export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => void }) {
   return (
     <div
       style={{
@@ -29,7 +29,17 @@ export function Hud({ hud }: { hud: HudSnapshot }) {
         fontSize: 'clamp(12px, 3.5vw, 14px)',
       }}
     >
-      <StatRow icon="❤️" value={hud.health} color="#c0392b" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
+        <span
+          onClick={onHeartTap}
+          style={{ fontSize: '1.15em', lineHeight: 1, cursor: 'pointer' }}
+        >
+          ❤️
+        </span>
+        <span style={{ color: '#c0392b', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+          {Math.round(hud.health)}
+        </span>
+      </div>
       <StatRow icon="🍗" value={hud.hunger} color="#b9631e" />
       <StatRow icon="💧" value={hud.thirst} color="#2471a3" />
     </div>

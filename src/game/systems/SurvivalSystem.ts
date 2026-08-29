@@ -9,6 +9,7 @@ export type SurvivalState = {
 };
 
 import type { Food } from './Food';
+import { GmSystem } from './GmSystem';
 
 const HUNGER_RATE = 0.8 / 3; // 每秒下降(原 0.8,放缓 3 倍)
 const THIRST_RATE = 1.2 / 3; // 原速率放缓 3 倍
@@ -51,7 +52,13 @@ export class SurvivalSystem implements Updatable {
     } else {
       s.stamina = Math.min(100, s.stamina + STAMINA_RECOVER_RATE * delta);
     }
-    if (s.health <= 0) s.dead = true;
+    if (s.health <= 0) {
+      if (GmSystem.allowDeath) {
+        s.dead = true;
+      } else {
+        s.health = 1;
+      }
+    }
   }
 
   eat(food: Food): void {

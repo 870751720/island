@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import { GmSystem } from './GmSystem';
 
 const DAY_LENGTH = 240; // 一整轮昼夜(秒,按白天流速计)
 /** 夜晚时钟加速倍率:自然夜约 116 秒,加速后压到约 40 秒 */
@@ -52,6 +53,14 @@ export class DayNightSystem implements Updatable {
   }
 
   update(delta: number): void {
+    if (GmSystem.lockDaytime) {
+      // 锁定白天:时间停在正午,若当前在夜里先拉回白天
+      if (this.sunElevation() < 0.25) {
+        this.t = 0.25;
+        this.apply();
+      }
+      return;
+    }
     // 夜里时钟加速,让自然夜(约 116 秒)压到约 40 秒;白天与晨昏仍按原速走
     const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
