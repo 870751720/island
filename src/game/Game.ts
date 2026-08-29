@@ -13,7 +13,7 @@ import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
-import { FOODS, type Food } from './systems/Food';
+import { firstFoodIn, FOODS, type Food } from './systems/Food';
 import { ITEMS } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
@@ -570,7 +570,7 @@ export class Game {
     }
     const food = kind
       ? FOODS.find((f) => f.kind === kind)
-      : FOODS.find((f) => this.inventory.count(f.kind) > 0);
+      : firstFoodIn(this.inventory.snapshot());
     return food ? this.eating.start(food) : false;
   }
 

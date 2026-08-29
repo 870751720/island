@@ -1,5 +1,5 @@
 import type { ActionType } from '../entities/Player';
-import type { ResourceKind } from './Inventory';
+import type { InventorySlot, ResourceKind } from './Inventory';
 
 /** 可食用食物:每种食物有各自的进食动画与特效色 */
 export type Food = {
@@ -12,7 +12,7 @@ export type Food = {
   thirst: number;
 };
 
-/** 进食顺序:越靠前越先被吃(「背包里最前面的食物」) */
+/** 可食用食物表:每种食物的名称、进食动画与特效色 */
 export const FOODS: Food[] = [
   { kind: 'berry', name: '浆果', icon: '🍒', action: 'eat_berry', fxColor: '#c0392b', hunger: 12, thirst: 4 },
   { kind: 'fish', name: '生鱼', icon: '🐟', action: 'eat_fish', fxColor: '#5fa8d3', hunger: 25, thirst: 0 },
@@ -31,3 +31,13 @@ export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {
   crabMeat: 'cookedCrabMeat',
   birdMeat: 'cookedBirdMeat',
 };
+
+/** 按背包格子顺序找第一个食物(「背包里最前面的食物」) */
+export function firstFoodIn(slots: readonly InventorySlot[]): Food | undefined {
+  for (const slot of slots) {
+    if (!slot) continue;
+    const food = FOODS.find((f) => f.kind === slot.kind);
+    if (food) return food;
+  }
+  return undefined;
+}
