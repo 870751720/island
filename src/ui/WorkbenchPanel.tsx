@@ -6,9 +6,11 @@ import type { HudSnapshot } from '@/game/Game';
 import {
   RECIPES,
   maxCraftCount,
+  recipeVisible,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
+import { RecipeBook } from './RecipeBook';
 
 const UNIT_LABELS: Record<string, string> = {
   wood: '枝',
@@ -38,10 +40,11 @@ export function WorkbenchPanel({
   onCraft: (id: CraftId, count: number) => void;
   onClose: () => void;
 }) {
-  // 只列出当前能制作的配方(材料齐且工具未拥有),做不出的不占位置
+  // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件),做不出的不占位置
   const recipes = RECIPES.filter(
-    (r) => r.station === 'workbench' && maxCount(r, hud) > 0
+    (r) => r.station === 'workbench' && recipeVisible(r, hud, toolsOf(hud), hud.equipped)
   );
+  const [bookOpen, setBookOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(recipes.map((r) => [r.id, 1]))
   );
@@ -67,7 +70,18 @@ export function WorkbenchPanel({
       }}
     >
       <div style={panelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>🛠️ 工作台</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontWeight: 700, fontSize: 17, flex: 1 }}>🛠️ 工作台</span>
+          <button
+            style={bookButtonStyle}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              setBookOpen(true);
+            }}
+          >
+            📖 合成图鉴
+          </button>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {recipes.length === 0 && (
             <div style={{ fontSize: 13, color: '#999', padding: '6px 0' }}>
@@ -77,12 +91,7 @@ export function WorkbenchPanel({
           {recipes.map((r) => {
             const max = maxCount(r, hud);
             const count = Math.min(counts[r.id] ?? 1, max);
-            const ownedTools = {
-              axe: hud.hasAxe,
-              pickaxe: hud.hasPickaxe,
-              fishingrod: hud.hasFishingrod,
-              bow: hud.hasBow,
-            };
+            const ownedTools = toolsOf(hud);
             return (
               <div key={r.id} style={rowStyle}>
                 <span style={{ fontSize: 26 }}>{r.icon}</span>
@@ -142,17 +151,22 @@ export function WorkbenchPanel({
           关闭
         </button>
       </div>
+      {bookOpen && <RecipeBook onClose={() => setBookOpen(false)} />}
     </div>
   );
 }
 
-function maxCount(recipe: Recipe, hud: HudSnapshot): number {
-  return maxCraftCount(recipe, hud, {
+function toolsOf(hud: HudSnapshot) {
+  return {
     axe: hud.hasAxe,
     pickaxe: hud.hasPickaxe,
     fishingrod: hud.hasFishingrod,
     bow: hud.hasBow,
-  });
+  };
+}
+
+function maxCount(recipe: Recipe, hud: HudSnapshot): number {
+  return maxCraftCount(recipe, hud, toolsOf(hud));
 }
 
 const overlayStyle: CSSProperties = {
@@ -218,6 +232,18 @@ const closeButtonStyle: CSSProperties = {
   border: 'none',
   background: 'rgba(0,0,0,0.1)',
   fontSize: 15,
+  touchAction: 'none',
+  userSelect: 'none',
+};
+
+const bookButtonStyle: CSSProperties = {
+  padding: '6px 12px',
+  borderRadius: 8,
+  border: 'none',
+  background: 'rgba(0,0,0,0.08)',
+  color: '#666',
+  fontSize: 13,
+  fontWeight: 700,
   touchAction: 'none',
   userSelect: 'none',
 };

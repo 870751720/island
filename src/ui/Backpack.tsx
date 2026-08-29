@@ -5,7 +5,7 @@ import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, WORKBENCH_COST, maxCraftCount, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, WORKBENCH_COST, recipeVisible, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 
 type Props = {
@@ -115,9 +115,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const hasItems = hud.slots.some((slot) => !!slot);
 
   const tools = { axe: hud.hasAxe, pickaxe: hud.hasPickaxe, fishingrod: hud.hasFishingrod, bow: hud.hasBow };
-  // 手搓配方:只显示当前能做的(材料齐且工具未拥有)
+  // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) => r.station === 'hand' && maxCraftCount(r, hud, tools) > 0
+    (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped)
   );
 
   return (
