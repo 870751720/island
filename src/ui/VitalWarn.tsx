@@ -12,7 +12,9 @@ export type VitalWarnHandle = {
 
 const LOW_THRESHOLD = 20;
 /** 放在角色右侧,避开头顶正中的交互进度环 */
-const OFFSET_X = 52;
+const OFFSET_X = 32;
+/** 略微下移,贴近角色身体 */
+const OFFSET_Y = 15;
 
 const ROWS: { key: keyof VitalLevels; icon: string }[] = [
   { key: 'health', icon: '❤️' },
@@ -35,7 +37,7 @@ export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) 
       const anyLow = !!vitals && ROWS.some((r) => vitals[r.key] <= LOW_THRESHOLD);
       root.style.display = anyLow ? 'flex' : 'none';
       if (!anyLow || !vitals) return;
-      root.style.transform = `translate(-50%, -100%) translate(${x + OFFSET_X}px, ${y}px)`;
+      root.style.transform = `translate(-50%, -100%) translate(${x + OFFSET_X}px, ${y + OFFSET_Y}px)`;
       ROWS.forEach((r, i) => {
         const row = rowRefs.current[i];
         if (row) row.style.display = vitals[r.key] <= LOW_THRESHOLD ? 'flex' : 'none';
