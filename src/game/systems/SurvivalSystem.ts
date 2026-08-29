@@ -15,6 +15,8 @@ const HUNGER_RATE = 0.8 / 3; // 每秒下降(原 0.8,放缓 3 倍)
 const THIRST_RATE = 1.2 / 3; // 原速率放缓 3 倍
 const THIRST_PER_ROUND = 40;
 const STARVE_DAMAGE = 2;
+/** 饥饿/口渴归零后的掉血每 2 秒结算一次(一次性扣一笔,避免角色持续泛红) */
+const STARVE_TICK = 2;
 const STAMINA_SWIM_RATE = 4; // 游泳每秒消耗
 const STAMINA_RECOVER_RATE = 10; // 陆上每秒恢复
 const DROWN_DAMAGE = 25; // 体力耗尽后落水每秒掉血
@@ -27,6 +29,8 @@ export class SurvivalSystem implements Updatable {
   thirstDrainMultiplier = 1;
   /** 当前是否在游泳(由游戏循环每帧同步) */
   swimming = false;
+  /** 饥饿/口渴掉血的累计结算计时 */
+  private starveTimer = 0;
 
   constructor() {
     this.state = { hunger: 100, thirst: 100, health: 100, stamina: 100, dead: false };
@@ -45,7 +49,14 @@ export class SurvivalSystem implements Updatable {
       s.thirst - THIRST_RATE * this.drainMultiplier * this.thirstDrainMultiplier * delta
     );
     if (s.hunger <= 0 || s.thirst <= 0) {
-      s.health = Math.max(0, s.health - STARVE_DAMAGE * delta);
+      // 每 2 秒结算一笔累计掉血,吃/喝回补后未结算的部分不再扣
+      this.starveTimer += delta;
+      if (this.starveTimer >= STARVE_TICK) {
+        s.health = Math.max(0, s.health - STARVE_DAMAGE * this.starveTimer);
+        this.starveTimer = 0;
+      }
+    } else {
+      this.starveTimer = 0;
     }
     if (this.swimming) {
       s.stamina = Math.max(0, s.stamina - STAMINA_SWIM_RATE * delta);
