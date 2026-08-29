@@ -22,7 +22,9 @@ export class CraftingSystem {
     private inventory: Inventory,
     private tools: Tools,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    /** 每完成一件产物时回调(产物种类),供装备自动上身等后续处理 */
+    private onFinish: (kind: ResourceKind) => void = () => {}
   ) {}
 
   start(recipe: Recipe, count = 1): boolean {
@@ -78,6 +80,7 @@ export class CraftingSystem {
       craft(recipe, this.inventory, this.tools);
       // 工具制作完成直接拿在手上,材料产物进背包
       if (recipe.tool) this.player.setTool(recipe.tool);
+      this.onFinish(recipe.tool ?? recipe.output!);
       this.audio.play('success');
       const p = this.player.group.position.clone();
       p.y += 0.8;

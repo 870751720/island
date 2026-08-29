@@ -29,6 +29,7 @@ import { RainImpact } from './fx/RainImpact';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
+import { EQUIPMENT, Equipment, isEquipKind, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, type SaveData } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -58,6 +59,8 @@ export type HudSnapshot = {
   hasBow: boolean;
   /** 背包里是否有种子(可切换到种子播种) */
   hasSeed: boolean;
+  /** 四个装备栏位当前穿戴的道具(未装备为 null) */
+  equipped: Record<EquipSlot, EquipKind | null>;
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
@@ -112,6 +115,7 @@ export class Game {
   private footprints: Footprints;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
+  private equipment = new Equipment();
   /** 已拥有工具的缓存(由背包内容每帧同步,供 HUD/自言自语/制作判断) */
   private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
   private crafting: CraftingSystem;
@@ -215,6 +219,12 @@ export class Game {
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
     this.player.setObstacles(this.props);
     this.scene.add(this.player.group);
+    // 穿戴变化即时反映到玩家模型;背包类装备同时扩容背包
+    this.equipment.onChange = (slot, kind) => {
+      this.player.setEquip(slot, kind);
+      const cap = kind ? EQUIPMENT[kind].capacity : undefined;
+      if (cap) this.inventory.setCapacity(cap);
+    };
     this.crabs = new Crabs(this.scene, terrain, this.player);
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
     this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
@@ -240,7 +250,17 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking
     );
-    this.crafting = new CraftingSystem(this.player, this.inventory, this.tools, this.fx, this.audio);
+    this.crafting = new CraftingSystem(
+      this.player,
+      this.inventory,
+      this.tools,
+      this.fx,
+      this.audio,
+      // 装备做出来且评分高于身上这件时直接上身
+      (kind) => {
+        if (isEquipKind(kind)) this.equipment.equip(kind, this.inventory);
+      }
+    );
     this.workbench = new WorkbenchSystem(
       this.scene,
       this.player,
@@ -446,6 +466,7 @@ export class Game {
     this.survival.state.stamina = save.survival.stamina;
     this.survival.state.dead = false;
     this.inventory.load(save.slots, save.capacity);
+    this.equipment.restore(save.equipped, this.inventory);
     // 工具拥有状态由背包(含工具道具)推导
     this.syncTools();
     const tool = save.handTool;
@@ -464,13 +485,14 @@ export class Game {
     const p = this.player.group.position;
     const s = this.survival.state;
     return {
-      version: 1,
+      version: 4,
       terrainSeed: this.terrainSeed,
       propsSeed: this.propsSeed,
       player: { x: p.x, y: p.y, z: p.z },
       survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
+      equipped: this.equipment.snapshotForSave(),
       handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
       props: this.props.snapshot(),
@@ -701,6 +723,16 @@ export class Game {
     return true;
   }
 
+  /** 从背包装备一件道具(物品详情点击「装备」),返回是否成功 */
+  equipItem(kind: ResourceKind): boolean {
+    return isEquipKind(kind) ? this.equipment.equip(kind, this.inventory, true) : false;
+  }
+
+  /** 卸下某栏位的装备放回背包,背包放不下则失败 */
+  unequipItem(slot: EquipSlot): boolean {
+    return this.equipment.unequip(slot, this.inventory);
+  }
+
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: CraftId): boolean {
     if (this.workbench.isWorking) return false;
@@ -767,6 +799,7 @@ export class Game {
       hasFishingrod: this.tools.fishingrod,
       hasBow: this.tools.bow,
       hasSeed: this.hasSeed(),
+      equipped: this.equipment.snapshot(),
       tool: this.player.currentTool,
       craftId: this.crafting.currentRecipe?.id ?? null,
       craftProgress: this.crafting.getProgress() ?? 0,

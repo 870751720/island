@@ -4,6 +4,7 @@ import { MoveInput } from '../core/MoveInput';
 import { IslandTerrain } from '../world/IslandTerrain';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Footprints } from '../fx/Footprints';
+import type { EquipKind, EquipSlot } from '../systems/Equipment';
 
 const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
@@ -133,6 +134,89 @@ function makeSeedPouchModel(): THREE.Group {
   return g;
 }
 
+const SKIN_COLOR = '#e8b88a';
+
+/** 衣服/裤子装备对应的身体颜色(帽子/背包用真实模型,不在此列) */
+const EQUIP_COLORS: Partial<Record<EquipKind, string>> = {
+  leafShirt: '#5a8a3a',
+  fiberShirt: '#c9a15c',
+  leafPants: '#4a7a3a',
+  fiberPants: '#a8823c',
+};
+
+/** 草帽:宽檐圆顶帽 */
+function makeStrawHatModel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial('#d9c27a');
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.04, 8), mat);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.14, 8), mat);
+  top.position.y = 0.09;
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.025, 4, 8), clayMaterial('#a8823c'));
+  band.rotation.x = Math.PI / 2;
+  band.position.y = 0.05;
+  g.add(brim, top, band);
+  return g;
+}
+
+/** 藤编帽:一圈圈盘出的无檐圆帽 */
+function makeVineHatModel(): THREE.Group {
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.2 - i * 0.05, 0.045, 4, 8),
+      clayMaterial(i % 2 === 0 ? '#8a9a4a' : '#a3b25e')
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.03 + i * 0.055;
+    g.add(ring);
+  }
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), clayMaterial('#8a9a4a'));
+  dome.position.y = 0.19;
+  g.add(dome);
+  return g;
+}
+
+/** 草编背包:圆筒草筐 + 两根背带 */
+function makeStrawBackpackModel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial('#c9a56a');
+  const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.42, 7), mat);
+  for (const y of [-0.12, 0, 0.12, 0.24]) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.185 - Math.max(0, y) * 0.2, 0.02, 4, 7), clayMaterial('#a8823c'));
+    band.rotation.x = Math.PI / 2;
+    band.position.y = y;
+    g.add(band);
+  }
+  const strapMat = clayMaterial('#8a6b45');
+  const strapL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.03), strapMat);
+  strapL.position.set(-0.1, 0.1, 0.2);
+  const strapR = strapL.clone();
+  strapR.position.x = 0.1;
+  g.add(basket, strapL, strapR);
+  return g;
+}
+
+/** 木架背包:木框上架一个箱式背囊 */
+function makeFrameBackpackModel(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = clayMaterial('#8a6239');
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), wood);
+  railL.position.set(-0.16, 0.05, 0.02);
+  const railR = railL.clone();
+  railR.position.x = 0.16;
+  const crossTop = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.04, 0.04), wood);
+  crossTop.position.y = 0.3;
+  const crossBottom = crossTop.clone();
+  crossBottom.position.y = -0.2;
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.4, 0.16), clayMaterial('#b39055'));
+  pack.position.set(0, 0.05, -0.06);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.36, 6), clayMaterial('#c9c27a'));
+  roll.rotation.z = Math.PI / 2;
+  roll.position.y = 0.33;
+  g.add(railL, railR, crossTop, crossBottom, pack, roll);
+  return g;
+}
+
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
@@ -151,6 +235,11 @@ export class Player implements Updatable {
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
   private obstacles: ObstacleSolver | null = null;
+  /** 衣服/裤子各占一个独立材质,装备时改色 */
+  private torsoMaterial!: THREE.MeshStandardMaterial;
+  private legMaterial!: THREE.MeshStandardMaterial;
+  private hatModels: Partial<Record<EquipKind, THREE.Group>> = {};
+  private backpackModels: Partial<Record<EquipKind, THREE.Group>> = {};
 
   /** 注入静态阻挡(树、大石等),移动时被推出不可穿越的物件 */
   setObstacles(obstacles: ObstacleSolver): void {
@@ -165,11 +254,12 @@ export class Player implements Updatable {
   ) {
     this.terrain = terrain;
 
-    const skin = clayMaterial('#e8b88a');
-    const shirt = clayMaterial('#4a7fb5');
-    const pants = clayMaterial('#5b4632');
+    // 默认光着身子:躯干和腿都是肉色,穿上衣服/裤子后换色
+    const skin = clayMaterial(SKIN_COLOR);
+    this.torsoMaterial = clayMaterial(SKIN_COLOR);
+    this.legMaterial = clayMaterial(SKIN_COLOR);
 
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.28), shirt);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.28), this.torsoMaterial);
     torso.position.y = 0.85;
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.3, 0.32), skin);
     head.position.y = 1.32;
@@ -179,7 +269,7 @@ export class Player implements Updatable {
     armL.position.set(-0.31, 0.85, 0);
     const armR = armL.clone();
     armR.position.x = 0.31;
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), pants);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), this.legMaterial);
     legL.position.set(-0.12, 0.3, 0);
     const legR = legL.clone();
     legR.position.x = 0.12;
@@ -210,6 +300,21 @@ export class Player implements Updatable {
     armR.add(axe, pickaxe, fishingrod, bow, seed);
     this.toolModels = { axe, pickaxe, fishingrod, bow, seed };
 
+    // 帽子戴在头顶,背包背在背后,默认都不显示
+    const strawHat = makeStrawHatModel();
+    strawHat.position.y = 0.18;
+    const vineHat = makeVineHatModel();
+    vineHat.position.y = 0.18;
+    head.add(strawHat, vineHat);
+    this.hatModels = { strawHat, vineHat };
+
+    const strawBackpack = makeStrawBackpackModel();
+    strawBackpack.position.set(0, 0.82, -0.28);
+    const frameBackpack = makeFrameBackpackModel();
+    frameBackpack.position.set(0, 0.88, -0.34);
+    this.group.add(strawBackpack, frameBackpack);
+    this.backpackModels = { strawBackpack, frameBackpack };
+
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';
     this.group.position.copy(spawn);
@@ -232,6 +337,20 @@ export class Player implements Updatable {
     this.handTool = tool;
     for (const [name, model] of Object.entries(this.toolModels)) {
       model!.visible = name === tool;
+    }
+  }
+
+  /** 更新装备外观:衣服/裤子换色,帽子/背包显隐对应模型(kind 为空表示卸下) */
+  setEquip(slot: EquipSlot, kind: EquipKind | null): void {
+    if (slot === 'clothing') {
+      this.torsoMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? SKIN_COLOR : SKIN_COLOR);
+    } else if (slot === 'pants') {
+      this.legMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? SKIN_COLOR : SKIN_COLOR);
+    } else {
+      const models = slot === 'hat' ? this.hatModels : this.backpackModels;
+      for (const [name, model] of Object.entries(models)) {
+        model!.visible = name === kind;
+      }
     }
   }
 

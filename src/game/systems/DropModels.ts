@@ -28,6 +28,14 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   pickaxe: '#7d848a',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
+  leafShirt: '#5a8a3a',
+  fiberShirt: '#c9a15c',
+  leafPants: '#4a7a3a',
+  fiberPants: '#a8823c',
+  strawHat: '#d9c27a',
+  vineHat: '#8a9a4a',
+  strawBackpack: '#c9a56a',
+  frameBackpack: '#8a6239',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -369,6 +377,64 @@ function makeFruit(color: string): THREE.Object3D {
   return g;
 }
 
+/** 衣服:平铺的上衣形(躯干 + 两袖) */
+function makeShirt(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const body = mesh(new THREE.BoxGeometry(0.34, 0.34, 0.1), mat);
+  body.position.y = 0.18;
+  const sleeveL = mesh(new THREE.BoxGeometry(0.1, 0.26, 0.09), mat);
+  sleeveL.rotation.z = 0.5;
+  sleeveL.position.set(-0.24, 0.22, 0);
+  const sleeveR = sleeveL.clone();
+  sleeveR.rotation.z = -0.5;
+  sleeveR.position.x = 0.24;
+  g.add(body, sleeveL, sleeveR);
+  return g;
+}
+
+/** 裤子:平铺的长裤形(腰 + 两裤腿) */
+function makePants(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const waist = mesh(new THREE.BoxGeometry(0.3, 0.14, 0.1), mat);
+  waist.position.y = 0.42;
+  const legL = mesh(new THREE.BoxGeometry(0.13, 0.36, 0.09), mat);
+  legL.position.set(-0.08, 0.18, 0);
+  const legR = legL.clone();
+  legR.position.x = 0.08;
+  g.add(waist, legL, legR);
+  return g;
+}
+
+/** 帽子:圆顶宽檐帽,帽身绕一圈装饰带 */
+function makeHat(color: string, band: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const brim = mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.04, 8), mat);
+  brim.position.y = 0.05;
+  const top = mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.16, 8), mat);
+  top.position.y = 0.14;
+  const belt = mesh(new THREE.TorusGeometry(0.155, 0.025, 4, 8), clay(band));
+  belt.rotation.x = Math.PI / 2;
+  belt.position.y = 0.09;
+  g.add(brim, top, belt);
+  return g;
+}
+
+/** 背包:鼓鼓的背囊加一根提带 */
+function makeBackpack(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const pack = mesh(new THREE.BoxGeometry(0.32, 0.38, 0.18), clay(color));
+  pack.position.y = 0.2;
+  const flap = mesh(new THREE.BoxGeometry(0.34, 0.1, 0.2), clay(color));
+  flap.position.y = 0.4;
+  const handle = mesh(new THREE.TorusGeometry(0.07, 0.02, 4, 8), clay(color));
+  handle.position.y = 0.48;
+  g.add(pack, flap, handle);
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
   log: makeLog,
@@ -395,6 +461,14 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   pickaxe: makePickaxe,
   fishingrod: makeFishingRod,
   bow: makeBow,
+  leafShirt: () => makeShirt(DROP_COLORS.leafShirt),
+  fiberShirt: () => makeShirt(DROP_COLORS.fiberShirt),
+  leafPants: () => makePants(DROP_COLORS.leafPants),
+  fiberPants: () => makePants(DROP_COLORS.fiberPants),
+  strawHat: () => makeHat(DROP_COLORS.strawHat, '#a8823c'),
+  vineHat: () => makeHat(DROP_COLORS.vineHat, '#c9c27a'),
+  strawBackpack: () => makeBackpack(DROP_COLORS.strawBackpack),
+  frameBackpack: () => makeBackpack(DROP_COLORS.frameBackpack),
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

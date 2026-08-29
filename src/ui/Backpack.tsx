@@ -6,6 +6,7 @@ import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
 import { RECIPES, WORKBENCH_COST, maxCraftCount, type CraftId } from '@/game/systems/Crafting';
+import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 
 type Props = {
   open: boolean;
@@ -19,6 +20,10 @@ type Props = {
   onCraft: (id: CraftId) => void;
   /** 在背包里发起搭建工作台(全局唯一,材料齐且场上没有时显示) */
   onCraftWorkbench: () => void;
+  /** 从背包装备一件装备(物品详情点击「装备」) */
+  onEquip: (kind: ResourceKind) => void;
+  /** 卸下某栏位装备放回背包 */
+  onUnequip: (slot: EquipSlot) => void;
 };
 
 function isFood(kind: ResourceKind): boolean {
@@ -101,9 +106,9 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
 
 /** 背包:格子制(相同道具叠加,默认 10 格);下方固定双 Tab 区域——
  * 物品页展示选中道具详情(可使用/丢弃),制作页只列出当前可手搓的配方 */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench }: Props) {
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [tab, setTab] = useState<'detail' | 'craft'>('detail');
+  const [tab, setTab] = useState<'detail' | 'craft' | 'char'>('detail');
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
   // 背包空时不显示背包按钮
@@ -215,7 +220,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               }}
             >
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                {(['detail', 'craft'] as const).map((t) => (
+                {(['detail', 'craft', 'char'] as const).map((t) => (
                   <button
                     key={t}
                     onPointerDown={(e) => {
@@ -235,7 +240,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       userSelect: 'none',
                     }}
                   >
-                    {t === 'detail' ? '物品' : '制作'}
+                    {t === 'detail' ? '物品' : t === 'craft' ? '制作' : '角色'}
                   </button>
                 ))}
               </div>
@@ -258,6 +263,11 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             setSelectedIndex(null);
                             onUseItem(selectedDef.kind);
                           })}
+                        {isEquipKind(selectedDef.kind) &&
+                          actionButton(false, `装备(评分${EQUIPMENT[selectedDef.kind].score})`, '#4caf50', () => {
+                            onEquip(selectedDef.kind);
+                            setSelectedIndex(null);
+                          })}
                         {actionButton(false, '丢弃', '#e67e22', () => {
                           onDropItem(selectedDef.kind);
                           setSelectedIndex(null);
@@ -270,7 +280,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : tab === 'craft' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {craftables.length === 0 && !hud.canCraftWorkbench && (
                     <div style={{ fontSize: 13, color: '#999', textAlign: 'center', padding: '14px 0' }}>
@@ -322,6 +332,32 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       {actionButton(false, '制作', '#4caf50', () => onCraft(r.id))}
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div style={DETAIL_AREA_STYLE}>
+                  {SLOT_ORDER.map((slot) => {
+                    const kind = hud.equipped[slot];
+                    const def = kind ? ITEMS[kind] : null;
+                    const score = kind ? EQUIPMENT[kind].score : null;
+                    return (
+                      <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>{def ? def.icon : '➖'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
+                          <div style={{ fontWeight: 700 }}>
+                            {def ? def.name : '未装备'}
+                            {score !== null && (
+                              <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 6 }}>
+                                评分 {score}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {kind &&
+                          actionButton(false, '卸下', '#e67e22', () => onUnequip(slot))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

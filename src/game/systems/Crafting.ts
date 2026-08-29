@@ -1,12 +1,13 @@
 import type { ResourceKind, Inventory } from './Inventory';
+import type { EquipKind } from './Equipment';
 
 /** 可拥有的工具 */
 export type ToolId = 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
 
 export type Tools = Record<ToolId, boolean>;
 
-/** 配方 id:工具与其同名,材料类为产物入口 */
-export type CraftId = ToolId | 'rope' | 'arrow';
+/** 配方 id:工具与其同名,材料类与装备类为产物入口 */
+export type CraftId = ToolId | 'rope' | 'arrow' | EquipKind;
 
 export type Recipe = {
   id: CraftId;
@@ -72,6 +73,70 @@ export const RECIPES: Recipe[] = [
     station: 'workbench',
     output: 'arrow',
     outputCount: 10,
+  },
+  {
+    id: 'leafShirt',
+    name: '树叶衣',
+    icon: '🍃',
+    cost: { fiber: 3 },
+    station: 'hand',
+    output: 'leafShirt',
+  },
+  {
+    id: 'leafPants',
+    name: '树叶裤',
+    icon: '🍂',
+    cost: { fiber: 3 },
+    station: 'hand',
+    output: 'leafPants',
+  },
+  {
+    id: 'strawHat',
+    name: '草帽',
+    icon: '👒',
+    cost: { fiber: 4 },
+    station: 'hand',
+    output: 'strawHat',
+  },
+  {
+    id: 'fiberShirt',
+    name: '纤维衣',
+    icon: '👕',
+    cost: { fiber: 5, rope: 1 },
+    station: 'workbench',
+    output: 'fiberShirt',
+  },
+  {
+    id: 'fiberPants',
+    name: '纤维裤',
+    icon: '👖',
+    cost: { fiber: 5, rope: 1 },
+    station: 'workbench',
+    output: 'fiberPants',
+  },
+  {
+    id: 'vineHat',
+    name: '藤编帽',
+    icon: '🎩',
+    cost: { fiber: 5, rope: 1 },
+    station: 'workbench',
+    output: 'vineHat',
+  },
+  {
+    id: 'strawBackpack',
+    name: '草编背包',
+    icon: '🎒',
+    cost: { fiber: 8 },
+    station: 'workbench',
+    output: 'strawBackpack',
+  },
+  {
+    id: 'frameBackpack',
+    name: '木架背包',
+    icon: '🧺',
+    cost: { wood: 4, rope: 2, fiber: 4 },
+    station: 'workbench',
+    output: 'frameBackpack',
   },
 ];
 

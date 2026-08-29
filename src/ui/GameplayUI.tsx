@@ -32,6 +32,7 @@ const INITIAL_HUD: HudSnapshot = {
   hasFishingrod: false,
   hasBow: false,
   hasSeed: false,
+  equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -150,6 +151,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         onCraftWorkbench={() => {
           if (gameRef.current?.craftWorkbench()) setBackpackOpen(false);
         }}
+        onEquip={(kind) => gameRef.current?.equipItem(kind)}
+        onUnequip={(slot) => gameRef.current?.unequipItem(slot)}
       />
       {!hud.dead && (
         <>
