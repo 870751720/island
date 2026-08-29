@@ -37,7 +37,6 @@ export type HudSnapshot = {
   health: number;
   dead: boolean;
   wood: number;
-  gravel: number;
   stone: number;
   berry: number;
   fiber: number;
@@ -527,7 +526,6 @@ export class Game {
     this.onHud({
       ...this.survival.state,
       wood: this.inventory.count('wood'),
-      gravel: this.inventory.count('gravel'),
       stone: this.inventory.count('stone'),
       berry: this.inventory.count('berry'),
       fiber: this.inventory.count('fiber'),
@@ -593,7 +591,7 @@ export class Game {
           : nearby.kind === 'rock'
             ? '采石'
             : nearby.kind === 'gravel'
-              ? '捡碎石'
+              ? '捡石头'
               : nearby.kind === 'shrub'
                 ? '捡树枝'
                 : nearby.kind === 'grass'

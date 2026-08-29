@@ -46,7 +46,7 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 1,
     fxColor: '#b5b0a8',
-    yield: (inv) => inv.add('gravel', 2),
+    yield: (inv) => inv.add('stone', 2),
   },
   berry: {
     action: 'pick',

@@ -6,7 +6,6 @@ import { RECIPES, WORKBENCH_COST, hasCost, type Recipe } from '@/game/systems/Cr
 
 const UNIT_LABELS: Record<string, string> = {
   wood: '木',
-  gravel: '碎',
   stone: '石',
   berry: '果',
   fiber: '纤',

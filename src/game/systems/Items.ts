@@ -15,17 +15,11 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🪵',
     description: '砍树或捡树枝获得,是制作工具和工作台的基础材料。',
   },
-  gravel: {
-    kind: 'gravel',
-    name: '碎石',
-    icon: '🪨',
-    description: '从碎石堆捡到的小石块,制作工具的常用材料。',
-  },
   stone: {
     kind: 'stone',
     name: '石头',
     icon: '🪨',
-    description: '用镐子开采大石块获得,可以用来搭建工作台。',
+    description: '从碎石堆捡拾或用镐子开采大石块获得,制作工具和工作台的常用材料。',
   },
   berry: {
     kind: 'berry',

@@ -1,6 +1,5 @@
 export type ResourceKind =
   | 'wood'
-  | 'gravel'
   | 'stone'
   | 'berry'
   | 'fiber'

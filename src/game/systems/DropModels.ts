@@ -4,7 +4,6 @@ import type { ResourceKind } from './Inventory';
 /** 各道具掉落物的主题色(粒子特效与造型细节共用) */
 export const DROP_COLORS: Record<ResourceKind, string> = {
   wood: '#8b5a2b',
-  gravel: '#b5b0a8',
   stone: '#9a9a9a',
   berry: '#c0392b',
   fiber: '#a4c46a',
@@ -48,20 +47,6 @@ function makeWood(): THREE.Object3D {
   upper.rotation.y = -0.2;
   upper.position.y = 0.19;
   g.add(lower, upper);
-  return g;
-}
-
-/** 碎石:三颗大小不一的碎石块堆在一起 */
-function makeGravel(): THREE.Object3D {
-  const g = new THREE.Group();
-  const mat = clay(DROP_COLORS.gravel);
-  const rock = (r: number, x: number, z: number, y: number, ry: number) => {
-    const m = mesh(new THREE.DodecahedronGeometry(r, 0), mat);
-    m.position.set(x, y, z);
-    m.rotation.set(0.3, ry, 0.2);
-    return m;
-  };
-  g.add(rock(0.13, 0, 0, 0.08, 0.5), rock(0.09, 0.18, 0.06, 0.06, 1.4), rock(0.07, -0.14, 0.14, 0.05, 2.3));
   return g;
 }
 
@@ -188,7 +173,6 @@ function makeFish(): THREE.Object3D {
 
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
-  gravel: makeGravel,
   stone: makeStone,
   berry: makeBerry,
   fiber: makeFiber,

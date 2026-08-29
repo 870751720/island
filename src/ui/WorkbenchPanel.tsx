@@ -12,7 +12,6 @@ import {
 
 const UNIT_LABELS: Record<string, string> = {
   wood: '木',
-  gravel: '碎',
   stone: '石',
   berry: '果',
   fiber: '纤',
@@ -52,7 +51,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.gravel, hud.fiber, hud.rope, hud.fishingrod, hud.bow]);
+  }, [hud.wood, hud.stone, hud.fiber, hud.rope, hud.fishingrod, hud.bow]);
 
   return (
     <div
