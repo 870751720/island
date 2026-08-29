@@ -4,7 +4,7 @@ import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 
 const SAVE_KEY = 'island.save.v1';
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -43,13 +43,8 @@ export type SaveData = {
 export const SaveSystem = {
   load(): SaveData | null {
     try {
-      let raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
-      // 旧存档迁移:棕榈树已改为果树
-      raw = raw
-        .replaceAll('"palmSeed"', '"fruitSeed"')
-        .replaceAll('"palmFruit"', '"fruitFruit"')
-        .replaceAll('"palm"', '"fruit"');
       const data = JSON.parse(raw) as SaveData;
       return data && data.version === SAVE_VERSION && Array.isArray(data.props) ? data : null;
     } catch {
