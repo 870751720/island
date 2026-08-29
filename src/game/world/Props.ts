@@ -14,9 +14,10 @@ const SHAKE_TIME = 0.4;
 const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
   tree: 0.3,
   rock: 0.6,
+  meteor: 0.6,
 };
 
-export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass';
+export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass' | 'meteor';
 
 /** 资源点的可序列化状态(存档用,自然生成的布局由种子保证可复现;玩家种下的树带坐标) */
 export type PropState = {
@@ -36,6 +37,7 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   tree: { regrow: 0 },
   rock: { regrow: 0 },
   gravel: { regrow: 0 },
+  meteor: { regrow: 0 },
   berry: { regrow: 60 },
   shrub: { regrow: 90 },
   grass: { regrow: 60 },
@@ -203,6 +205,39 @@ function makeRock(): THREE.Group {
   return g;
 }
 
+/** 陨石:暗色岩体半埋入地,表面嵌着几粒发亮的灼热碎屑 */
+function makeMeteor(): THREE.Group {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.55, 0),
+    clayMaterial('#4a4650')
+  );
+  body.scale.set(1.05, 0.7, 0.95);
+  body.rotation.set(0.3, 0.6, 0.15);
+  body.position.y = 0.28;
+  body.castShadow = true;
+  g.add(body);
+  const emberMat = new THREE.MeshStandardMaterial({
+    color: '#e8703a',
+    emissive: '#c0392b',
+    emissiveIntensity: 0.8,
+    flatShading: true,
+    roughness: 1,
+  });
+  const embers: [number, number, number][] = [
+    [0.32, 0.42, 0.18],
+    [-0.28, 0.34, 0.3],
+    [0.05, 0.5, -0.38],
+    [-0.15, 0.2, 0.48],
+  ];
+  for (const [x, y, z] of embers) {
+    const ember = new THREE.Mesh(new THREE.TetrahedronGeometry(0.1, 0), emberMat);
+    ember.position.set(x, y, z);
+    g.add(ember);
+  }
+  return g;
+}
+
 function makeGravel(): THREE.Group {
   const g = new THREE.Group();
   const mat = clayMaterial('#b5b0a8');
@@ -365,6 +400,23 @@ export class Props implements Updatable {
     return prop;
   }
 
+  /** 落下一颗陨石:在落点生成可采集的陨石资源点(产出同岩石) */
+  placeMeteor(x: number, z: number): Prop {
+    const y = this.terrain.getHeight(x, z);
+    const group = makeMeteor();
+    group.position.set(x, y - 0.05, z);
+    this.scene.add(group);
+    const prop: Prop = {
+      kind: 'meteor',
+      group,
+      position: group.position.clone(),
+      ready: true,
+      regrowLeft: 0,
+    };
+    this.list.push(prop);
+    return prop;
+  }
+
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
   private applyTreeLook(prop: Prop): void {
     while (prop.group.children.length > 0) prop.group.remove(prop.group.children[0]);
@@ -406,6 +458,7 @@ export class Props implements Updatable {
         prop.group.visible = prop.growth === 'sprout' || prop.ready;
         break;
       case 'rock':
+      case 'meteor':
       case 'gravel':
       case 'grass':
         prop.group.visible = prop.ready;
@@ -464,7 +517,14 @@ export class Props implements Updatable {
       this.syncAppearance(prop);
     }
     for (const state of planted) {
-      if (state.kind !== 'tree' || state.x === undefined || state.z === undefined) continue;
+      if (state.x === undefined || state.z === undefined) continue;
+      if (state.kind === 'meteor') {
+        const prop = this.placeMeteor(state.x, state.z);
+        prop.ready = state.ready;
+        this.syncAppearance(prop);
+        continue;
+      }
+      if (state.kind !== 'tree') continue;
       const prop = this.plant(state.species ?? 'oak', state.x, state.z);
       prop.ready = state.ready;
       prop.regrowLeft = state.regrowLeft;

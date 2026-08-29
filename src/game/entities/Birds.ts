@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import type { Props } from '../world/Props';
 import type { IslandTerrain } from '../world/IslandTerrain';
+import { TREE_SPECIES, type TreeSpecies } from '../world/TreeSpecies';
 
 /** 玩家靠到这个距离内,落地踱步中的鸟会被惊飞(飞行中不怕人) */
 const FLEE_RANGE = 5;
@@ -21,6 +22,10 @@ const WANDER_MIN = 8;
 const WANDER_MAX = 26;
 /** 鸟被击杀后,延迟多久在别处高空重新起飞 */
 const RESPAWN_TIME = 30;
+/** 每次落地在原地遗落一粒种子的概率 */
+const SEED_DROP_CHANCE = 1 / 20;
+/** 与播种系统一致:离资源点近于该值时无处下种 */
+const PROP_BLOCK_RANGE = 1;
 
 const BODY_COLORS = ['#5d6d7e', '#8d6e63', '#34495e', '#6d7b5a'];
 
@@ -294,6 +299,7 @@ export class Birds implements Updatable {
               bird.stateTime = 0;
               bird.walkLeft = 6 + Math.random() * 12;
               bird.stepTarget = null;
+              this.maybeDropSeed(bird.target);
             } else {
               bird.pos.addScaledVector(to.normalize(), stepLen);
             }
@@ -345,6 +351,24 @@ export class Birds implements Updatable {
 
       this.animate(bird, elapsed);
     }
+  }
+
+  /** 落地时小概率在原地遗落一粒种子(相当于替玩家播种),落点须与播种规则一致 */
+  private maybeDropSeed(pos: THREE.Vector3): void {
+    if (Math.random() >= SEED_DROP_CHANCE) return;
+    if (this.terrain.getHeight(pos.x, pos.z) <= 0.3) return;
+    if (this.terrain.isNearWater(pos, 1)) return;
+    if (
+      this.props.list.some((prop) => {
+        const dx = prop.position.x - pos.x;
+        const dz = prop.position.z - pos.z;
+        return dx * dx + dz * dz < PROP_BLOCK_RANGE * PROP_BLOCK_RANGE;
+      })
+    ) {
+      return;
+    }
+    const species: TreeSpecies = TREE_SPECIES[Math.floor(Math.random() * TREE_SPECIES.length)];
+    this.props.plant(species, pos.x, pos.z);
   }
 
   /** 返回范围内最近的一只活鸟的位置(无则 null),供弓箭索敌 */

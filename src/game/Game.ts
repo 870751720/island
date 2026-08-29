@@ -12,6 +12,7 @@ import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { PlantingSystem } from './systems/PlantingSystem';
+import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { firstFoodIn, FOODS, type Food } from './systems/Food';
@@ -116,6 +117,7 @@ export class Game {
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
+  private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
@@ -306,6 +308,15 @@ export class Game {
     );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    this.meteor = new MeteorSystem(
+      this.scene,
+      terrain,
+      this.props,
+      this.player,
+      this.dayNight,
+      this.fx,
+      this.audio
+    );
     // 天气在昼夜之后更新,对光照与天空做调制
     this.weather = new WeatherSystem(sun, hemi, this.scene);
     this.rain = new Rain();
@@ -317,6 +328,7 @@ export class Game {
         this.player.update(delta, elapsed);
         this.syncTools();
         this.dayNight.update(delta);
+        this.meteor.update(delta);
         this.weather.update(delta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setRainIntensity(this.weather.rainIntensity);
@@ -593,7 +605,11 @@ export class Game {
       if (nearby.kind === 'tree' && this.tools.axe && this.player.currentTool !== 'axe') {
         return 'axe';
       }
-      if (nearby.kind === 'rock' && this.tools.pickaxe && this.player.currentTool !== 'pickaxe') {
+      if (
+        (nearby.kind === 'rock' || nearby.kind === 'meteor') &&
+        this.tools.pickaxe &&
+        this.player.currentTool !== 'pickaxe'
+      ) {
         return 'pickaxe';
       }
       return null;
@@ -818,7 +834,7 @@ export class Game {
       label =
         nearby.kind === 'tree'
           ? '砍树'
-          : nearby.kind === 'rock'
+          : nearby.kind === 'rock' || nearby.kind === 'meteor'
             ? '采石'
             : nearby.kind === 'gravel'
               ? '捡石头'
@@ -842,7 +858,7 @@ export class Game {
             : this.tools.axe
               ? '需要手持斧子'
               : '需要斧子'
-          : nearby.kind === 'rock'
+          : nearby.kind === 'rock' || nearby.kind === 'meteor'
             ? switching
               ? '切换镐子…'
               : this.tools.pickaxe

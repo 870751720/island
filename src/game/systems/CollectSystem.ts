@@ -73,6 +73,15 @@ const HARVEST_CONFIG: Record<
       if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
     },
   },
+  meteor: {
+    action: 'mine',
+    hits: 4,
+    fxColor: '#e8703a',
+    yield: (inv) => {
+      inv.add('stone', 2);
+      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
+    },
+  },
   gravel: {
     action: 'pick',
     hits: 1,
@@ -173,7 +182,7 @@ export class CollectSystem {
     if (kind === 'tree' || kind === 'stump' || kind === 'sapling') {
       return this.player.currentTool === 'axe';
     }
-    if (prop.kind === 'rock') return this.player.currentTool === 'pickaxe';
+    if (prop.kind === 'rock' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
     return true;
   }
 
