@@ -119,7 +119,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped)
+    (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped, hud.slots)
   );
 
   return (

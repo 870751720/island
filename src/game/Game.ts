@@ -250,7 +250,7 @@ export class Game {
         const p = this.player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
         this.audio.play('chop');
-        const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
+        const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
         this.onDamage(
           final,
           Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),

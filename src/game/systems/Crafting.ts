@@ -1,4 +1,4 @@
-import type { ResourceKind, Inventory } from './Inventory';
+import type { InventorySlot, ResourceKind, Inventory } from './Inventory';
 import { EQUIPMENT, isEquipKind, type EquipKind, type EquipSlot } from './Equipment';
 
 /** 可拥有的工具 */
@@ -185,17 +185,29 @@ export function maxCraftCount(
 /** 各栏位当前穿戴(HUD 快照,未装备为 null) */
 export type EquippedMap = Record<EquipSlot, EquipKind | null>;
 
-/** 配方卡片是否展示:材料足够且工具未拥有;装备类还须评分高于身上这件(否则做出来也用不上) */
+/**
+ * 配方卡片是否展示:材料足够且工具未拥有;装备类还须比身上穿的与背包里存的同栏位装备都更好
+ * (否则做出来也用不上)。slots 为背包格子快照。
+ */
 export function recipeVisible(
   recipe: Recipe,
   counts: Partial<Record<ResourceKind, number>>,
   tools: Tools,
-  equipped: EquippedMap
+  equipped: EquippedMap,
+  slots: (InventorySlot | null)[] = []
 ): boolean {
   if (recipe.output && isEquipKind(recipe.output)) {
     const def = EQUIPMENT[recipe.output];
     const current = equipped[def.slot];
     if (current && isEquipKind(current) && EQUIPMENT[current].score >= def.score) return false;
+    const stored = slots.some(
+      (slot) =>
+        slot &&
+        isEquipKind(slot.kind) &&
+        EQUIPMENT[slot.kind].slot === def.slot &&
+        EQUIPMENT[slot.kind].score >= def.score
+    );
+    if (stored) return false;
   }
   return maxCraftCount(recipe, counts, tools) > 0;
 }

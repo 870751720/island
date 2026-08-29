@@ -45,7 +45,7 @@ export function WorkbenchPanel({
 }) {
   // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件),做不出的不占位置
   const recipes = RECIPES.filter(
-    (r) => r.station === 'workbench' && recipeVisible(r, hud, toolsOf(hud), hud.equipped)
+    (r) => r.station === 'workbench' && recipeVisible(r, hud, toolsOf(hud), hud.equipped, hud.slots)
   );
   const [bookOpen, setBookOpen] = useState(false);
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
