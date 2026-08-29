@@ -27,6 +27,7 @@ import { GameAudio } from './audio/GameAudio';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
+import { Wind } from './fx/Wind';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
@@ -141,6 +142,7 @@ export class Game {
   private weather: WeatherSystem;
   private rain: Rain;
   private rainImpact: RainImpact;
+  private windFx: Wind;
   private terrain: IslandTerrain;
   private crabs: Crabs;
   private butterflies: Butterflies;
@@ -387,6 +389,8 @@ export class Game {
     this.rain = new Rain();
     this.scene.add(this.rain.lines);
     this.rainImpact = new RainImpact(terrain, this.waterFx, this.fx);
+    this.windFx = new Wind();
+    this.scene.add(this.windFx.mesh);
 
     this.loop.add({
       update: (delta, elapsed) => {
@@ -404,7 +408,8 @@ export class Game {
         this.butterflies.update(delta, elapsed);
         this.birds.update(delta, elapsed);
         this.wildlife.update(delta, elapsed);
-        this.props.update(delta);
+        this.props.update(delta, elapsed, this.weather.wind);
+        this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
         this.waterFx.update(delta);
         this.footprints.update(delta);
@@ -868,6 +873,7 @@ export class Game {
     this.player.dispose();
     this.drops.dispose();
     this.rain.dispose();
+    this.windFx.dispose();
     this.footprints.dispose();
     this.audio.dispose();
     this.renderer.dispose();

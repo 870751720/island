@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { GmSystem } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 
+/** 风表现三态标签:auto 走自然概率,on/off 强制 */
+const WIND_LABELS = { auto: '🍃 自动', on: '🌬️ 强制风', off: '🚫 无风' } as const;
+
 /** 昼夜时刻预设:t∈[0,1),按太阳高度取白天正午/黄昏/深夜/清晨 */
 const TIME_PRESETS: { label: string; t: number }[] = [
   { label: '☀️ 正午', t: 0.25 },
@@ -21,6 +24,7 @@ export function WorldTab({
   onSetWeather: (type: 'sunny' | 'rain') => void;
 }) {
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
+  const [wind, setWind] = useState(GmSystem.wind);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -55,6 +59,23 @@ export function WorldTab({
         <div style={{ display: 'flex', gap: 6 }}>
           <ActionButton label="☀️ 晴天" onClick={() => onSetWeather('sunny')} />
           <ActionButton label="🌧️ 雨天" onClick={() => onSetWeather('rain')} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>风表现</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['auto', 'on', 'off'] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => {
+                GmSystem.wind = mode;
+                setWind(mode);
+              }}
+              style={{ ...presetStyle, background: wind === mode ? '#a8823f' : '#8a6f4b' }}
+            >
+              {WIND_LABELS[mode]}
+            </button>
+          ))}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
 import {
   GROWTH_CHANCE,
@@ -9,6 +10,14 @@ import {
 } from './TreeSpecies';
 
 const SHAKE_TIME = 0.4;
+
+/** 各类植被的风摇参数:幅度、频率(草最敏感,树最沉稳) */
+const SWAY_CONFIG: Partial<Record<PropKind, { amp: number; freq: number }>> = {
+  tree: { amp: 0.05, freq: 1.6 },
+  grass: { amp: 0.14, freq: 3.5 },
+  shrub: { amp: 0.04, freq: 2.2 },
+  berry: { amp: 0.03, freq: 2.2 },
+};
 
 /** 有阻挡的物件的碰撞半径(树按树干算,大石按岩体算);未列出的种类可穿过 */
 const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
@@ -316,6 +325,7 @@ export class Props implements Updatable {
   private berries = new Map<Prop, THREE.Mesh[]>();
   private shakes = new Map<Prop, number>();
   private growthTimer = 0;
+  private swayTime = 0;
 
   constructor(
     private scene: THREE.Scene,
@@ -564,7 +574,7 @@ export class Props implements Updatable {
     this.shakes.set(prop, SHAKE_TIME);
   }
 
-  update(delta: number): void {
+  update(delta: number, _elapsed?: number, wind?: WindParams): void {
     for (const prop of this.list) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
       prop.regrowLeft -= delta;
@@ -593,6 +603,32 @@ export class Props implements Updatable {
       prop.group.rotation.x = Math.sin(t * 40) * amp;
       prop.group.rotation.z = Math.cos(t * 34) * amp * 0.7;
     }
+    this.updateSway(delta, wind);
+  }
+
+  /** 植被随风摇摆:按位置沿风向的相位差形成波浪扫过感,被击晃动时跳过 */
+  private updateSway(delta: number, wind?: WindParams): void {
+    const intensity = wind?.intensity ?? 0;
+    const dirX = wind?.dirX ?? 0;
+    const dirZ = wind?.dirZ ?? 0;
+    for (const prop of this.list) {
+      const cfg = SWAY_CONFIG[prop.kind];
+      if (!cfg || !prop.group.visible || this.shakes.has(prop)) continue;
+      // 树桩贴地,不摇
+      if (prop.kind === 'tree' && prop.stage === 'stump') continue;
+      if (intensity < 0.02) {
+        if (prop.group.rotation.x !== 0 || prop.group.rotation.z !== 0) {
+          prop.group.rotation.x = 0;
+          prop.group.rotation.z = 0;
+        }
+        continue;
+      }
+      const phase = (prop.position.x * dirX + prop.position.z * dirZ) * 0.8;
+      const tilt = cfg.amp * intensity * Math.sin(this.swayTime * cfg.freq + phase);
+      prop.group.rotation.x = tilt * dirZ;
+      prop.group.rotation.z = -tilt * dirX;
+    }
+    if (intensity >= 0.02) this.swayTime += delta;
   }
 
   /** 未成树每分钟有 1/2 概率长到下一阶段,长成成树后才可砍伐 */
