@@ -28,3 +28,4 @@
 ## 迭代记录
 
 - 2026-08-30:初版,床制作/放置/挖走、睡觉跳清晨、二级床。
+- 2026-08-30(二):睡觉体验升级——玩家躺上床(沿床身对齐、面朝上、呼吸起伏),头顶「💤 zzz」气泡随进度变长;睡觉期间每 1.6s 播放合成的打呼声(`Sfx.snore`);睡觉过渡改为 4 秒,期间天空随进度日夜流转(入睡→入夜→破晓,新增 `DayNightSystem.beginSleep/setSleepProgress/endSleep/cancelSleep`,中途起床时间退回);新增右上角「第 N 天」HUD(自然昼夜跨正午与睡觉跳夜都计天,入档 `SaveData.day`,`SAVE_VERSION` 19)。

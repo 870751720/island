@@ -19,6 +19,10 @@ export type DayPhase = 'day' | 'dusk' | 'night' | 'dawn';
 /** 昼夜循环:驱动太阳/月光、天空色与环境光,t∈[0,1),0 为正午起点 */
 export class DayNightSystem implements Updatable {
   private t = 0.1; // 从白天开始
+  /** 当前是第几天(从 1 开始,跨过正午计一天) */
+  private dayCount = 1;
+  /** 睡觉过渡的起始时刻(非空表示过渡进行中) */
+  private sleepFrom: number | null = null;
   /** 太阳/月光相对玩家的方向偏移,由相机跟随逻辑叠加玩家坐标 */
   readonly sunOffset = new THREE.Vector3(25, 35, 15);
   readonly state: { phase: DayPhase; clock: string };
@@ -52,20 +56,59 @@ export class DayNightSystem implements Updatable {
     return Math.sin(this.t * Math.PI * 2);
   }
 
+  /** 当前是第几天(从 1 开始计) */
+  get day(): number {
+    return this.dayCount;
+  }
+
+  set day(d: number) {
+    if (Number.isFinite(d) && d >= 1) this.dayCount = Math.floor(d);
+  }
+
   /** 清晨时刻(新一天的起点,太阳刚升起不久) */
   private static readonly MORNING_T = 0.05;
 
   /**
-   * 一觉睡到第二天清晨:把时刻直接跳到清晨,返回按白天流速折算的
-   * 跳过秒数,供外层推进资源再生等按时间结算的逻辑。
+   * 开始睡觉过渡:记录起始时刻,返回按白天流速折算的跳过秒数,
+   * 供外层推进资源再生等按时间结算的逻辑;天空随后由
+   * setSleepProgress 逐帧推向清晨,最后 endSleep 落定。
    */
-  sleepUntilMorning(): number {
+  beginSleep(): number {
     if (GmSystem.lockDaytime) return 0;
-    const morning = DayNightSystem.MORNING_T;
-    const dt = this.t < morning ? morning - this.t : 1 - this.t + morning;
-    this.t = morning;
-    this.apply();
+    this.sleepFrom = this.t;
+    const dt = this.t < DayNightSystem.MORNING_T
+      ? DayNightSystem.MORNING_T - this.t
+      : 1 - this.t + DayNightSystem.MORNING_T;
+    // 跨过正午起点就算过了一天
+    if (this.t >= DayNightSystem.MORNING_T) this.dayCount += 1;
     return dt * DAY_LENGTH;
+  }
+
+  /** 睡觉过渡中按进度 0-1 把时刻推向清晨(天空随之日夜流转) */
+  setSleepProgress(k: number): void {
+    if (this.sleepFrom === null) return;
+    const from = this.sleepFrom;
+    const dt = from < DayNightSystem.MORNING_T
+      ? DayNightSystem.MORNING_T - from
+      : 1 - from + DayNightSystem.MORNING_T;
+    this.time = from + dt * THREE.MathUtils.clamp(k, 0, 1);
+  }
+
+  /** 睡觉过渡落定:时刻停在清晨 */
+  endSleep(): void {
+    if (this.sleepFrom === null) return;
+    this.sleepFrom = null;
+    this.t = DayNightSystem.MORNING_T;
+    this.apply();
+  }
+
+  /** 睡觉被打断:时刻退回入睡前的位置,天数不计 */
+  cancelSleep(): void {
+    if (this.sleepFrom === null) return;
+    const from = this.sleepFrom;
+    this.sleepFrom = null;
+    if (from >= DayNightSystem.MORNING_T) this.dayCount -= 1;
+    this.time = from;
   }
 
   update(delta: number): void {
@@ -79,7 +122,9 @@ export class DayNightSystem implements Updatable {
     }
     // 夜里时钟加速,让自然夜(约 116 秒)压到约 40 秒;白天与晨昏仍按原速走
     const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
+    const prev = this.t;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
+    if (this.t < prev) this.dayCount += 1;
     this.apply();
   }
 

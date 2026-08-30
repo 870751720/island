@@ -20,6 +20,7 @@ export type SfxName =
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
   | 'hurt' // 受伤闷哼
+  | 'snore' // 睡觉打呼
   | 'death'; // 死亡
 
 const VOL: Record<SfxName, number> = {
@@ -41,6 +42,7 @@ const VOL: Record<SfxName, number> = {
   drop: 0.5,
   success: 0.45,
   hurt: 0.5,
+  snore: 0.5,
   death: 0.5,
 };
 
@@ -195,6 +197,15 @@ export class Sfx {
         tone(this.ctx, dest, detune(300), t, { attack: 0.003, decay: 0.18, peak: v }, 'sine', 90);
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
+      case 'snore': {
+        // 打呼:一口气从鼻腔滚出来的低频哼鸣,音高缓降再收尾,两声错开像呼-噜
+        for (let i = 0; i < 2; i++) {
+          const st = t + i * 0.42;
+          tone(this.ctx, dest, detune(120 - i * 12), st, { attack: 0.09, decay: 0.3, peak: v * (0.8 - i * 0.2) }, 'sine', 68);
+          noiseBurst(this.ctx, dest, st, { attack: 0.08, decay: 0.3, peak: v * 0.25 }, 'lowpass', 260, 120);
+        }
+        break;
+      }
       case 'death':
         // 经典下行轮廓:音符逐个降低、间隔越来越短,像皮球弹跳到静止,末了一声低音落地
         [76, 72, 68, 64, 60].forEach((m, i) => {

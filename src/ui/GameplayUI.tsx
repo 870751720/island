@@ -77,6 +77,7 @@ const INITIAL_HUD: HudSnapshot = {
   biteNeed: 1,
   nearDrop: null,
   notice: null,
+  day: 1,
 };
 
 /**

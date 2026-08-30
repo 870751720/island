@@ -43,7 +43,8 @@ export type ActionType =
   | 'eat_fish'
   | 'cast'
   | 'fish'
-  | 'shoot';
+  | 'shoot'
+  | 'sleep';
 
 /** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/种子(用于播种) */
 export type HandTool =
@@ -261,6 +262,8 @@ export class Player implements Updatable {
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
   private obstacles: ObstacleSolver | null = null;
+  /** 躺床睡觉的目标姿态(非空表示睡着:位置/朝向由睡眠姿态接管) */
+  private sleepPose: { pos: THREE.Vector3; rotY: number; returnPos: THREE.Vector3 } | null = null;
   /** 衣服/裤子各占一个独立材质,装备时改色 */
   private torsoMaterial!: THREE.MeshStandardMaterial;
   private legMaterial!: THREE.MeshStandardMaterial;
@@ -397,6 +400,26 @@ export class Player implements Updatable {
     this.action = action;
   }
 
+  get isSleeping(): boolean {
+    return this.sleepPose !== null;
+  }
+
+  /** 躺到床上睡(pos 为脚跟落点、rotY 为躺平朝向),起身时回到原位 */
+  setSleeping(pos: THREE.Vector3, rotY: number): void {
+    this.sleepPose = { pos: pos.clone(), rotY, returnPos: this.group.position.clone() };
+    this.action = null;
+    this.group.rotation.y = rotY;
+    for (const model of Object.values(this.toolModels)) model!.visible = false;
+  }
+
+  /** 起床:回到入睡前的站位并站直 */
+  wakeUp(): void {
+    if (!this.sleepPose) return;
+    this.group.position.copy(this.sleepPose.returnPos);
+    this.group.rotation.x = 0;
+    this.sleepPose = null;
+  }
+
   /** 受击反馈:模型短暂泛红(通过 emissive 衰减实现) */
   hurt(): void {
     this.hurtFlash = HURT_FLASH_TIME;
@@ -411,6 +434,10 @@ export class Player implements Updatable {
         const mat = (o as THREE.Mesh).material;
         if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setRGB(0.9 * k, 0.05 * k, 0.03 * k);
       });
+    }
+    if (this.sleepPose) {
+      this.updateSleep(delta, elapsed);
+      return;
     }
     this.input.getVector(this.moveVec);
     this.moving = this.moveVec.lengthSq() > 0.001;
@@ -477,6 +504,27 @@ export class Player implements Updatable {
         }
       }
     }
+  }
+
+  /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;仍读取摇杆以便外层察觉移动并唤醒 */
+  private updateSleep(delta: number, elapsed: number): void {
+    this.input.getVector(this.moveVec);
+    this.moving = this.moveVec.lengthSq() > 0.001;
+    const pose = this.sleepPose!;
+    const k = 1 - Math.pow(0.002, delta);
+    this.group.position.lerp(pose.pos, k);
+    this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, -Math.PI / 2, k);
+    // 放松的躺姿:双臂微张随呼吸轻摆,双腿伸直
+    for (const [i, arm] of this.arms.entries()) {
+      arm.rotation.x = -0.15 + Math.sin(elapsed * 1.6 + i * Math.PI) * 0.05;
+      arm.rotation.z = 0.18 + i * 0.06;
+    }
+    for (const leg of this.legs) {
+      leg.rotation.x = 0;
+      leg.rotation.z = 0;
+    }
+    // 呼吸起伏:身体轻轻抬落
+    this.group.position.y = pose.pos.y + Math.sin(elapsed * 1.6) * 0.02;
   }
 
   /** 游泳动画:身体前倾躺水面,双臂轮转划水,双腿交替打水,随浪轻微起伏 */

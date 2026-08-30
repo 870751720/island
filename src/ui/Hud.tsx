@@ -42,6 +42,26 @@ export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => v
       </div>
       <StatRow icon="🍗" value={hud.hunger} color="#b9631e" />
       <StatRow icon="💧" value={hud.thirst} color="#2471a3" />
+      <div
+        style={{
+          position: 'absolute',
+          top: 'max(10px, env(safe-area-inset-top))',
+          right: 'max(10px, env(safe-area-inset-right))',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4em',
+          padding: '6px 12px',
+          background: 'rgba(255,255,255,0.75)',
+          borderRadius: 10,
+          fontFamily: 'sans-serif',
+          fontSize: 'clamp(12px, 3.5vw, 14px)',
+          fontWeight: 600,
+          color: '#5b4632',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        <span style={{ fontSize: '1.15em', lineHeight: 1 }}>🌅</span>第 {hud.day} 天
+      </div>
     </div>
   );
 }

@@ -14,7 +14,12 @@ const NEAR_RANGE = 2.2; // 玩家距床小于该值时算在床旁
 const DIG_RANGE = 1.6; // 持锄头可开挖床的距离
 const DIG_HITS = 2; // 锄头挖床的命中次数(精致石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
-const SLEEP_TIME = 3; // 睡觉过渡时长(秒)
+const SLEEP_TIME = 4; // 睡觉过渡时长(秒)
+const SNORE_TICK = 1.6; // 打呼声间隔(秒)
+/** 床垫顶面相对床摆点的高度(玩家身体中轴躺上去的高度,含背部半径) */
+const LIE_HEIGHT = 0.56;
+/** 躺平时脚跟相对床中心沿床身方向的偏移(玩家身长约 1.6,中心对齐) */
+const LIE_FEET_OFFSET = 0.72;
 
 /** 各等级床对应的道具 */
 const BED_ITEM: Record<number, 'bed1' | 'bed2'> = { 1: 'bed1', 2: 'bed2' };
@@ -38,7 +43,9 @@ export class BedSystem {
   private hits = 0;
   private digTarget: Bed | null = null;
   private sleepTimer = 0;
+  private snoreTimer = 0;
   private onWake: (() => void) | null = null;
+  private onSleepCancel: (() => void) | null = null;
 
   constructor(
     private scene: THREE.Scene,
@@ -115,11 +122,21 @@ export class BedSystem {
     return true;
   }
 
-  /** 靠近床发起睡觉,完成后回调 onWake 由外层结算(时间跳跃与状态变化),返回是否成功开始 */
-  startSleep(onWake: () => void): boolean {
+  /** 靠近床发起睡觉:玩家躺上床打呼,过渡中天空日夜流转;完成后回调 onWake 由外层结算(时间落定与状态变化),中途移动则回调 onSleepCancel 取消 */
+  startSleep(onWake: () => void, onSleepCancel: () => void): boolean {
     if (this.isBusy || !this.nearby) return false;
+    const bed = this.nearby;
+    // 躺平朝向:身体(头朝枕头,即床身 -X 方向)与床身对齐
+    const beta = bed.group.rotation.y;
+    const feet = bed.group.position.clone();
+    feet.x += Math.cos(beta) * LIE_FEET_OFFSET;
+    feet.z -= Math.sin(beta) * LIE_FEET_OFFSET;
+    feet.y += LIE_HEIGHT;
+    this.player.setSleeping(feet, beta + Math.PI / 2);
     this.onWake = onWake;
+    this.onSleepCancel = onSleepCancel;
     this.sleepTimer = 0.001;
+    this.snoreTimer = SNORE_TICK;
     return true;
   }
 
@@ -128,16 +145,32 @@ export class BedSystem {
     if (!this.isSleeping) return;
     // 睡着后乱动就醒(不结算)
     if (this.player.isMoving || this.player.isSwimming) {
-      this.sleepTimer = 0;
-      this.onWake = null;
+      this.cancelSleep();
       return;
     }
     this.sleepTimer += delta;
+    this.snoreTimer += delta;
+    if (this.snoreTimer >= SNORE_TICK) {
+      this.snoreTimer = 0;
+      this.audio.play('snore');
+    }
     if (this.sleepTimer < SLEEP_TIME) return;
     this.sleepTimer = 0;
+    this.player.wakeUp();
+    this.onSleepCancel = null;
     const wake = this.onWake;
     this.onWake = null;
     wake?.();
+  }
+
+  /** 打断睡觉:玩家回到床边站起,时间与结算一并回退 */
+  private cancelSleep(): void {
+    this.sleepTimer = 0;
+    this.player.wakeUp();
+    this.onWake = null;
+    const cancel = this.onSleepCancel;
+    this.onSleepCancel = null;
+    cancel?.();
   }
 
   /** 手持锄头站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */

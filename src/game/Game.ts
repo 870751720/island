@@ -122,6 +122,8 @@ export type HudSnapshot = {
   nearDrop: DropInfo | null;
   /** 通用临时提示(自动消失),如「背包满了」 */
   notice: { id: number; text: string } | null;
+  /** 当前是第几天(跨过正午计一天,睡觉跳夜也会推进) */
+  day: number;
 };
 
 const VIEW_SIZE = 18;
@@ -533,6 +535,10 @@ export class Game {
         this.planting.update(delta);
         this.crates.update(delta);
         this.beds.update(delta);
+        // 睡觉过渡中:天空随进度日夜流转
+        if (this.beds.isSleeping) {
+          this.dayNight.setSleepProgress(this.beds.getSleepProgress() ?? 0);
+        }
         this.crafting.update(delta);
         // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
         if (
@@ -650,6 +656,7 @@ export class Game {
       this.player.setTool(tool);
     }
     this.dayNight.time = save.dayTime;
+    if (save.day) this.dayNight.day = save.day;
     this.props.applySave(save.props);
     this.campfire.restore(save.campfires);
     if (save.workbenches) this.workbench.restore(save.workbenches);
@@ -675,6 +682,7 @@ export class Game {
       equipped: this.equipment.snapshotForSave(),
       handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
+      day: this.dayNight.day,
       props: this.props.snapshot(),
       campfires: this.campfire.snapshot(),
       workbenches: this.workbench.snapshot(),
@@ -949,7 +957,7 @@ export class Game {
   /** 睡觉消耗/恢复的固定数值 */
   private static readonly SLEEP_COST = 20;
 
-  /** 靠近床发起睡觉:过渡片刻后一觉跳到第二天清晨(时间/再生/火堆一并结算) */
+  /** 靠近床发起睡觉:玩家躺上床,天空在过渡中日夜流转,醒来后统一结算 */
   sleep(): boolean {
     if (this.beds.isBusy || !this.beds.nearby || this.survival.state.dead) return false;
     const s = this.survival.state;
@@ -957,19 +965,24 @@ export class Game {
       this.notify('又饿又渴睡不着,先吃点喝点再睡吧');
       return false;
     }
-    return this.beds.startSleep(() => {
-      const skipped = this.dayNight.sleepUntilMorning();
-      this.props.advance(skipped);
-      this.campfire.passTime(skipped, performance.now() / 1000);
-      s.hunger -= Game.SLEEP_COST;
-      s.thirst -= Game.SLEEP_COST;
-      s.health = Math.min(100, s.health + Game.SLEEP_COST);
-      this.audio.play('success');
-      const p = this.player.group.position.clone();
-      p.y += 0.8;
-      this.fx.burst(p, '#cfe8ff', 14);
-      this.notify('一觉睡到了第二天清晨');
-    });
+    const skipped = this.dayNight.beginSleep();
+    return this.beds.startSleep(
+      () => {
+        this.dayNight.endSleep();
+        this.props.advance(skipped);
+        this.campfire.passTime(skipped, performance.now() / 1000);
+        s.hunger -= Game.SLEEP_COST;
+        s.thirst -= Game.SLEEP_COST;
+        s.health = Math.min(100, s.health + Game.SLEEP_COST);
+        this.audio.play('success');
+        const p = this.player.group.position.clone();
+        p.y += 0.8;
+        this.fx.burst(p, '#cfe8ff', 14);
+        this.notify('一觉睡到了第二天清晨');
+      },
+      // 中途起床:时间退回入睡前
+      () => this.dayNight.cancelSleep()
+    );
   }
 
   /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
@@ -1191,6 +1204,7 @@ export class Game {
       biteNeed: this.fishing.biteNeed,
       nearDrop: this.drops.getNearby(),
       notice: this.notice,
+      day: this.dayNight.day,
     });
   }
 
@@ -1317,14 +1331,18 @@ export class Game {
       this.fishing.getTease()?.color
     );
 
-    // 自言自语气泡挂在作业提示上方,4 秒后消失
+    // 自言自语气泡挂在作业提示上方,4 秒后消失;睡着时固定显示打呼的 zzz
     if (this.mumbleText) {
       this.mumbleTimer -= delta;
       if (this.mumbleTimer <= 0) this.mumbleText = null;
     }
+    const snoring = this.beds.isSleeping
+      ? `💤 ${'z'.repeat(1 + Math.floor((this.beds.getSleepProgress() ?? 0) * 3))}`
+      : null;
+    const bubbleText = this.mumbleText ?? snoring;
     const bubble = new THREE.Vector3(p.x, p.y + 4.3, p.z).project(this.camera);
     this.onMumble(
-      this.mumbleText,
+      bubbleText,
       Math.round(((bubble.x + 1) / 2) * w),
       Math.round(((1 - bubble.y) / 2) * h)
     );
