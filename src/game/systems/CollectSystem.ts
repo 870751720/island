@@ -172,6 +172,7 @@ export class CollectSystem {
     let fallback: Prop | null = null;
     const p = this.player.group.position;
     for (const prop of this.props.list) {
+      if (prop.dug) continue; // 已被挖走的不再可选(它仍留在列表中占存档索引)
       // 未恢复的资源点不可交互,除非手持锄头(丛任何状态都能整棵挖走)
       if (!prop.ready && !this.isDigging(prop)) continue;
       if (prop.position.distanceTo(p) >= COLLECT_RANGE) continue;
