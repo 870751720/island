@@ -191,6 +191,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setTime: (t) => gameRef.current?.gmSetTime(t),
             setWeather: (type) => gameRef.current?.gmSetWeather(type),
             giveItem: (kind, count) => gameRef.current?.gmGiveItem(kind, count),
+            giveTool: (tool, tier) => gameRef.current?.gmGiveTool(tool, tier),
           }}
         />
       )}

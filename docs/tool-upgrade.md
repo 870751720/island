@@ -45,7 +45,11 @@
 
 ### 解锁与校验
 
-- `WorkbenchPanel`:等级不足时精致配方灰显并提示「需二级工作台」;`Game.craftAtWorkbench` 在发起前二次校验等级,`CraftingSystem.start` 校验工具等级,防越权排队。
+- `WorkbenchPanel`:等级不足时精致配方不显示(合成图鉴仍可查);`Game.craftAtWorkbench` 在发起前二次校验等级,`CraftingSystem.start` 校验工具等级,防越权排队。
+
+### GM 面板
+
+物品 tab 顶部为工具区块,每件工具提供「基础 / 精致」两个发放按钮(`Game.gmGiveTool`,只升不降);普通物品列表不再重复显示工具条目。
 - 合成图鉴(`RecipeBook`)展示精致配方、站点标签(工作台·Lv2)与增益说明。
 
 ### 展示

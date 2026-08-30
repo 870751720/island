@@ -811,6 +811,11 @@ export class Game {
     this.giveItem(kind, count);
   }
 
+  /** GM 直接把工具点亮到指定等级(1 基础 / 2 精致) */
+  gmGiveTool(tool: ToolId, tier: 1 | 2): void {
+    this.tools[tool] = Math.max(this.tools[tool], tier);
+  }
+
   /** 产物入包,背包放不下的部分掉在玩家身旁地上 */
   giveItem(kind: ResourceKind, count: number): number {
     const added = this.inventory.add(kind, count);

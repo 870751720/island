@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
+import type { ToolId } from '@/game/systems/Crafting';
 import { PlayerTab } from './PlayerTab';
 import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
@@ -13,6 +14,7 @@ export type GmActions = {
   setTime: (t: number) => void;
   setWeather: (type: 'sunny' | 'rain') => void;
   giveItem: (kind: ResourceKind, count: number) => void;
+  giveTool: (tool: ToolId, tier: 1 | 2) => void;
 };
 
 const TABS = [
@@ -50,7 +52,7 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
         {tab === 'player' && <PlayerTab onRestoreStatus={actions.restoreStatus} />}
         {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetWeather={actions.setWeather} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} />}
-        {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} />}
+        {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         <button onClick={onClose} style={closeStyle}>
           关闭
         </button>

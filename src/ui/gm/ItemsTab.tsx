@@ -2,18 +2,27 @@
 
 import { useMemo, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
+import { TOOL_IDS, toolName, type ToolId } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
-/** 物品 tab:全物品发放,可按名称筛选 */
-export function ItemsTab({ onGiveItem }: { onGiveItem: (kind: ResourceKind, count: number) => void }) {
+/** 物品 tab:全物品发放 + 工具按等级发放(基础/精致),可按名称筛选 */
+export function ItemsTab({
+  onGiveItem,
+  onGiveTool,
+}: {
+  onGiveItem: (kind: ResourceKind, count: number) => void;
+  onGiveTool: (tool: ToolId, tier: 1 | 2) => void;
+}) {
   const [query, setQuery] = useState('');
+  const toolSet = useMemo(() => new Set<string>(TOOL_IDS), []);
   const kinds = useMemo(
     () =>
-      (Object.keys(ITEMS) as ResourceKind[]).filter((k) =>
-        ITEMS[k].name.includes(query.trim())
+      (Object.keys(ITEMS) as ResourceKind[]).filter(
+        (k) => !toolSet.has(k) && ITEMS[k].name.includes(query.trim())
       ),
-    [query]
+    [query, toolSet]
   );
+  const tools = TOOL_IDS.filter((id) => toolName(id, 1).includes(query.trim()));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -36,24 +45,25 @@ export function ItemsTab({ onGiveItem }: { onGiveItem: (kind: ResourceKind, coun
         }}
       />
       <div style={{ maxHeight: '42vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tools.map((id) => (
+          <div key={id} style={rowStyle}>
+            <span>
+              {ITEMS[id].icon} {toolName(id, 1)} / {toolName(id, 2)}
+            </span>
+            <span style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => onGiveTool(id, 1)} style={giveStyle}>
+                基础
+              </button>
+              <button onClick={() => onGiveTool(id, 2)} style={giveStyle}>
+                精致
+              </button>
+            </span>
+          </div>
+        ))}
         {kinds.map((kind) => {
           const item = ITEMS[kind];
           return (
-            <div
-              key={kind}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-                padding: '6px 12px',
-                borderRadius: 10,
-                background: 'rgba(0,0,0,0.06)',
-                fontSize: 14,
-                color: '#4a3b2a',
-                fontFamily: 'sans-serif',
-              }}
-            >
+            <div key={kind} style={rowStyle}>
               <span>
                 {item.icon} {item.name}
               </span>
@@ -72,6 +82,19 @@ export function ItemsTab({ onGiveItem }: { onGiveItem: (kind: ResourceKind, coun
     </div>
   );
 }
+
+const rowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '6px 12px',
+  borderRadius: 10,
+  background: 'rgba(0,0,0,0.06)',
+  fontSize: 14,
+  color: '#4a3b2a',
+  fontFamily: 'sans-serif',
+} as const;
 
 const giveStyle = {
   minWidth: 44,
