@@ -5,6 +5,7 @@ import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife } from './entities/Wildlife';
+import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -181,6 +182,7 @@ export class Game {
   private butterflies: Butterflies;
   private birds: Birds;
   private wildlife: Wildlife;
+  private dog: Pomeranian;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private sun: THREE.DirectionalLight;
@@ -336,6 +338,13 @@ export class Game {
       },
       () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping,
       // 围栏挡动物:围栏闭合时兔/羊/鹿/熊被圈住出不去
+      (x, z) => this.fences.isBlocked(x, z)
+    );
+    // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
+    this.dog = new Pomeranian(
+      this.scene,
+      terrain,
+      this.player,
       (x, z) => this.fences.isBlocked(x, z)
     );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
@@ -570,6 +579,7 @@ export class Game {
         this.butterflies.update(delta, elapsed);
         this.birds.update(delta, elapsed);
         this.wildlife.update(delta, elapsed);
+        this.dog.update(delta, elapsed, this.drops);
         this.props.update(delta, elapsed, this.weather.wind);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
@@ -734,6 +744,7 @@ export class Game {
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
     this.drops.restore(save.drops);
+    if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
   }
 
   /** 汇总当前进度为存档数据 */
@@ -762,6 +773,7 @@ export class Game {
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
       drops: this.drops.snapshot(),
+      dog: this.dog.snapshot(),
     };
   }
 
@@ -1247,6 +1259,7 @@ export class Game {
     window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
     this.drops.dispose();
+    this.dog.dispose();
     this.rain.dispose();
     this.windFx.dispose();
     this.footprints.dispose();

@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -59,6 +59,8 @@ export type SaveData = {
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { x: number; z: number; dir: 'x' | 'z' }[];
   drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
+  /** 黑色博美伴侣的落点 */
+  dog?: { x: number; z: number };
 };
 
 /** localStorage 存档:定期自动写入,死亡清档,下次进入恢复 */
