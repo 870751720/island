@@ -45,6 +45,8 @@ import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
+import { MinimapSystem, type GroundKind, type MinimapMarker, type MinimapSnapshot } from './systems/MinimapSystem';
+import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { VitalLevels } from '../ui/VitalWarn';
 
 export type HudSnapshot = {
@@ -175,6 +177,7 @@ export class Game {
   private rainImpact: RainImpact;
   private windFx: Wind;
   private terrain: IslandTerrain;
+  private minimap: MinimapSystem;
   private crabs: Crabs;
   private butterflies: Butterflies;
   private birds: Birds;
@@ -263,6 +266,7 @@ export class Game {
 
     const terrain = new IslandTerrain(160, this.terrainSeed);
     this.terrain = terrain;
+    this.minimap = new MinimapSystem(terrain.size);
     this.scene.add(terrain.mesh);
     this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
@@ -542,6 +546,7 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.player.update(delta, elapsed);
+        this.minimap.update(this.player.group.position.x, this.player.group.position.z);
         this.dayNight.update(delta);
         this.meteor.update(delta);
         this.weather.update(delta);
@@ -709,6 +714,7 @@ export class Game {
     this.dayNight.time = save.dayTime;
     if (save.day) this.dayNight.day = save.day;
     this.props.applySave(save.props);
+    if (save.fog) this.minimap.restore(save.fog);
     this.campfire.restore(save.campfires);
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
@@ -746,7 +752,38 @@ export class Game {
       beds: this.beds.snapshot(),
       drops: this.drops.snapshot(),
       dog: this.dog.snapshot(),
+      fog: this.minimap.serialize(),
     };
+  }
+
+  /** 小地图地面采样(绘制底图颜色用):高度低于水面为水,岸边为沙,高处为深草 */
+  getGroundKind(x: number, z: number): GroundKind {
+    const h = this.terrain.getHeight(x, z);
+    if (h < this.terrain.getWaterLevel(x, z) - 0.02) return 'water';
+    if (h < 0.05) return 'sand';
+    return h < 1.8 ? 'grass' : 'dark';
+  }
+
+  /** 供小地图每帧拉取:岛屿尺寸、玩家落点、已探索迷雾与建筑标记 */
+  getMinimapSnapshot(): MinimapSnapshot {
+    const p = this.player.group.position;
+    const markers: MinimapMarker[] = [];
+    for (const pos of this.workbench.positions) markers.push({ kind: 'workbench', ...pos });
+    for (const pos of this.campfire.positions) markers.push({ kind: 'campfire', ...pos });
+    for (const pos of this.beds.positions) markers.push({ kind: 'bed', ...pos });
+    return {
+      islandSize: this.terrain.size,
+      player: { x: p.x, z: p.z },
+      markers: markers.filter((m) => this.minimap.isExplored(m.x, m.z)),
+      explored: this.minimap.grid,
+      gridLen: this.minimap.gridLen,
+    };
+  }
+
+  /** 设置面板调整音量后热应用(音乐/音效两条总线)并持久化 */
+  setAudioSettings(settings: AudioSettings): void {
+    this.audio.setVolumes(settings.music, settings.sfx);
+    saveAudioSettings(settings);
   }
 
   /** 背包入包时在玩家头顶飘出图标与数量 */

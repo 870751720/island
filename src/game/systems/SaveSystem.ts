@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -61,6 +61,8 @@ export type SaveData = {
   drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };
+  /** 小地图探索迷雾网格(按行展开的 0/1 数组,缺省视为全新探索) */
+  fog?: number[];
 };
 
 /** localStorage 存档:定期自动写入,死亡清档,下次进入恢复 */

@@ -19,6 +19,8 @@ export class GameAudio {
   private music: Music | null = null;
   private ambience: Ambience | null = null;
   private started = false;
+  private musicBus: GainNode | null = null;
+  private sfxBus: GainNode | null = null;
 
   /** 创建并启动音频(须在用户手势事件中调用) */
   start(): void {
@@ -42,6 +44,8 @@ export class GameAudio {
     sfxBus.gain.value = sfx;
     sfxBus.connect(reverb.input);
 
+    this.musicBus = musicBus;
+    this.sfxBus = sfxBus;
     this.sfx = new Sfx(ctx, sfxBus);
     this.music = new Music(ctx, musicBus);
     // 海浪/雨属于背景氛围,归入音乐总线
@@ -76,6 +80,13 @@ export class GameAudio {
   /** 雨声强度 0~1 */
   setRainIntensity(intensity: number): void {
     this.ambience?.setRainIntensity(intensity);
+  }
+
+  /** 设置面板热更新音量(音乐走基准音量之上的比例) */
+  setVolumes(music: number, sfx: number): void {
+    if (!this.ctx) return;
+    this.musicBus!.gain.setTargetAtTime(MUSIC_BASE * music, this.ctx.currentTime, 0.05);
+    this.sfxBus!.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.05);
   }
 
   dispose(): void {

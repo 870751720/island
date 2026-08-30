@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
@@ -20,6 +20,8 @@ import { Notice } from './Notice';
 import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
+import { Minimap, type MinimapSource } from './Minimap';
+import { SettingsPanel } from './SettingsPanel';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -127,6 +129,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const damageIdRef = useRef(0);
   const [damagePops, setDamagePops] = useState<{ id: number; amount: number; x: number; y: number }[]>([]);
   const [gmOpen, setGmOpen] = useState(false);
+  // 游戏内设置面板(音乐音量/返回主界面)
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
@@ -227,13 +231,37 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
     hud.tool === 'hoe' &&
     hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBed);
 
+  // 小地图数据源:稳定引用,rAF 里直接读 Game,不触发 React 重渲染
+  const minimapSource: MinimapSource = useMemo(
+    () => ({
+      getMinimapSnapshot: () =>
+        gameRef.current?.getMinimapSnapshot() ?? {
+          islandSize: 0,
+          player: { x: 0, z: 0 },
+          markers: [],
+          explored: new Uint8Array(0),
+          gridLen: 0,
+        },
+      getGroundKind: (x: number, z: number) => gameRef.current?.getGroundKind(x, z) ?? 'water',
+    }),
+    []
+  );
+
   return (
     <div
       ref={containerRef}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
-      <Hud hud={hud} onHeartTap={handleHeartTap} />
+      <Hud hud={hud} onHeartTap={handleHeartTap} onOpenSettings={() => setSettingsOpen(true)} />
+      {!hud.dead && <Minimap source={minimapSource} />}
+      {settingsOpen && (
+        <SettingsPanel
+          onApply={(s) => gameRef.current?.setAudioSettings(s)}
+          onExit={onExit}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {gmOpen && (
         <GmPanel
           onClose={() => setGmOpen(false)}

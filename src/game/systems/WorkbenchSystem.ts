@@ -73,6 +73,11 @@ export class WorkbenchSystem {
     return this.benches.length > 0;
   }
 
+  /** 场上所有工作台落点(小地图标记用) */
+  get positions(): { x: number; z: number }[] {
+    return this.benches.map((b) => ({ x: b.group.position.x, z: b.group.position.z }));
+  }
+
   /** 玩家身旁最近的工作台(范围内的),无则 null */
   get nearby(): Workbench | null {
     let best: Workbench | null = null;

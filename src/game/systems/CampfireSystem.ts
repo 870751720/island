@@ -91,6 +91,11 @@ export class CampfireSystem {
     return !!this.digTarget;
   }
 
+  /** 场上所有火堆落点(小地图标记用) */
+  get positions(): { x: number; z: number }[] {
+    return this.fires.map((f) => ({ x: f.group.position.x, z: f.group.position.z }));
+  }
+
   /** 玩家身旁最近的火堆(范围内的),无则 null */
   get nearby(): Campfire | null {
     let best: Campfire | null = null;

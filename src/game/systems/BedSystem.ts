@@ -61,6 +61,11 @@ export class BedSystem {
     private isOtherBusy: () => boolean = () => false
   ) {}
 
+  /** 场上所有床落点(小地图标记用) */
+  get positions(): { x: number; z: number }[] {
+    return this.beds.map((b) => ({ x: b.group.position.x, z: b.group.position.z }));
+  }
+
   /** 玩家身旁最近的床(范围内的),无则 null */
   get nearby(): Bed | null {
     let best: Bed | null = null;
