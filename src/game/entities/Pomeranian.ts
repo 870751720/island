@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Player } from './Player';
 import type { DropSystem } from '../systems/DropSystem';
+import type { Particles } from '../fx/Particles';
 
 /** 闻到肉块的半径:在这个距离内的地面肉块会把狗狗吸引过去 */
 const SMELL_RANGE = 9;
@@ -17,8 +18,13 @@ const LAND_MARGIN = 0.05;
 
 /** 表情气泡持续秒数 */
 const EMOJI_TIME = 2.6;
-/** 闲玩状态下随机发表情的间隔(秒),刻意拉长避免刷屏 */
-const PLAY_EMOJI_INTERVAL = 30;
+/** 闲玩随机表情的间隔与持续(秒):刻意拉长避免刷屏 */
+const PLAY_EMOJI_INTERVAL = 60;
+const PLAY_EMOJI_TIME = 2;
+
+/** 睡觉/刨坑再触发前的内置冷却,转圈冷却更短 */
+const DIG_SLEEP_COOLDOWN = 120;
+const SPIN_COOLDOWN = 60;
 
 /** 吃完一块肉的进食动作时长(低头咀嚼) */
 const EAT_DURATION = 1.4;
@@ -153,17 +159,22 @@ export class Pomeranian {
   private wasFollowing = false;
   /** 玩家走远后重新回到身边时发一次「想念你」 */
   private waitingForReturn = false;
-  /** 出场打过招呼没 */
-  private greeted = false;
   /** 睡姿过渡:0 站姿 → 1 完全趴下 */
   private sleepBlend = 0;
   /** 睡觉时冒 💤 的倒计时 */
   private dreamTimer = 0;
+  /** 行为内置冷却:刨坑/睡觉共用 2 分钟,转圈 1 分钟 */
+  private digCd = 0;
+  private sleepCd = 0;
+  private spinCd = 0;
+  /** 刨坑扬尘的粒子和倒计时 */
+  private digDustTimer = 0;
 
   constructor(
     scene: THREE.Scene,
     private terrain: IslandTerrain,
     private player: Player,
+    private fx: Particles,
     /** 围栏等静态阻挡:点在阻挡内时不可走 */
     private isBlocked: (x: number, z: number) => boolean = () => false
   ) {
@@ -182,10 +193,10 @@ export class Pomeranian {
     out.set(this.pos.x, this.pos.y + 0.95, this.pos.z);
   }
 
-  /** 头顶冒一个表情,持续 EMOJI_TIME 秒 */
-  private showEmoji(emoji: string): void {
+  /** 头顶冒一个表情,持续 time 秒 */
+  private showEmoji(emoji: string, time = EMOJI_TIME): void {
     this.emoji = emoji;
-    this.emojiLeft = EMOJI_TIME;
+    this.emojiLeft = time;
   }
 
   /** 某点是否为可站立的干地:以当地水面为基准,避开海和水洼,干沙滩都能踏 */
@@ -239,10 +250,13 @@ export class Pomeranian {
     return false;
   }
 
-  /** 挑下一个闲玩行为:优先围着玩家转圈,偶尔睡觉、刨坑 */
+  /** 挑下一个闲玩行为:优先围着玩家转圈;睡觉/刨坑/转圈受内置冷却限制 */
   private nextPlay(): void {
     if (this.play === 'dig') this.showEmoji(Math.random() < 0.5 ? '❓' : '😮');
-    const pool: Play[] = ['circle', 'circle', 'circle', 'spin', 'sit', 'sleep', 'dig', 'dig'];
+    const pool: Play[] = ['circle', 'circle', 'circle', 'sit'];
+    if (this.spinCd <= 0) pool.push('spin');
+    if (this.sleepCd <= 0) pool.push('sleep');
+    if (this.digCd <= 0) pool.push('dig', 'dig');
     this.play = pool[Math.floor(Math.random() * pool.length)];
     this.playLeft =
       this.play === 'spin'
@@ -253,7 +267,12 @@ export class Pomeranian {
             ? 2.5 + Math.random()
             : 3 + Math.random() * 3;
     if (this.play === 'circle') this.orbitDir = Math.random() < 0.5 ? 1 : -1;
-    if (this.play === 'dig') this.showEmoji('🐾');
+    if (this.play === 'dig') {
+      this.digCd = DIG_SLEEP_COOLDOWN;
+      this.showEmoji('🐾');
+    }
+    if (this.play === 'sleep') this.sleepCd = DIG_SLEEP_COOLDOWN;
+    if (this.play === 'spin') this.spinCd = SPIN_COOLDOWN;
   }
 
   /** 天黑后趴在玩家身边睡长觉,直到被肉香或玩家的脚步叫醒 */
@@ -262,6 +281,7 @@ export class Pomeranian {
     this.play = 'sleep';
     this.playLeft = 20 + Math.random() * 20;
     this.dreamTimer = 2;
+    this.sleepCd = DIG_SLEEP_COOLDOWN;
   }
 
   /** 从睡觉中醒来(有肉吃或要跟人时) */
@@ -295,10 +315,6 @@ export class Pomeranian {
   }
 
   update(delta: number, elapsed: number, drops: DropSystem, isNight = false): void {
-    if (!this.greeted) {
-      this.greeted = true;
-      this.showEmoji('🐶');
-    }
     const p = this.player.group.position;
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     let moving = false;
@@ -332,10 +348,7 @@ export class Pomeranian {
       } else if (playerDist > FOLLOW_RANGE) {
         // 2) 玩家走远:跟上去(玩家下水时追到岸边等待)
         this.wake();
-        if (!this.wasFollowing) {
-          this.wasFollowing = true;
-          this.showEmoji('🐕');
-        }
+        this.wasFollowing = true;
         moving = this.stepTo(p, playerDist > 8 ? RUN_SPEED : TROT_SPEED, delta);
         excited = playerDist > 8;
         if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
@@ -366,14 +379,34 @@ export class Pomeranian {
             this.dreamTimer = 2.5 + Math.random() * 2;
           }
         }
-        // dig:原地刨土(开始时冒 🐾,结束后歪头好奇);sit:趴坐休息只摇尾巴
+        // sit:原地趴坐休息,只摇尾巴
         if (this.play !== 'sleep') {
           this.emojiTimer -= delta;
           if (this.emojiTimer <= 0) {
-            this.showEmoji(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
-            this.emojiTimer = PLAY_EMOJI_INTERVAL / 2 + Math.random() * PLAY_EMOJI_INTERVAL;
+            this.showEmoji(
+              PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)],
+              PLAY_EMOJI_TIME
+            );
+            this.emojiTimer = PLAY_EMOJI_INTERVAL;
           }
         }
+      }
+    }
+
+    // 行为内置冷却推进 + 刨坑扬尘
+    if (this.digCd > 0) this.digCd -= delta;
+    if (this.sleepCd > 0) this.sleepCd -= delta;
+    if (this.spinCd > 0) this.spinCd -= delta;
+    if (this.play === 'dig' && this.eatLeft <= 0) {
+      this.digDustTimer -= delta;
+      if (this.digDustTimer <= 0) {
+        this.digDustTimer = 0.16;
+        const dust = new THREE.Vector3(
+          this.pos.x + Math.cos(this.heading) * 0.28,
+          this.pos.y + 0.08,
+          this.pos.z + Math.sin(this.heading) * 0.28
+        );
+        this.fx.burst(dust, '#c9b382', 3);
       }
     }
 

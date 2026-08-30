@@ -348,6 +348,7 @@ export class Game {
       this.scene,
       terrain,
       this.player,
+      this.fx,
       (x, z) => this.fences.isBlocked(x, z)
     );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
