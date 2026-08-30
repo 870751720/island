@@ -60,7 +60,7 @@ export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => v
           fontVariantNumeric: 'tabular-nums',
         }}
       >
-        <span style={{ fontSize: '1.15em', lineHeight: 1 }}>🌅</span>第 {hud.day} 天
+        第 {hud.day} 天
       </div>
     </div>
   );

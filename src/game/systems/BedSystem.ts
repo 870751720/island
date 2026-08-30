@@ -15,7 +15,7 @@ const DIG_RANGE = 1.6; // 持锄头可开挖床的距离
 const DIG_HITS = 2; // 锄头挖床的命中次数(精致石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const SLEEP_TIME = 4; // 睡觉过渡时长(秒)
-const SNORE_TICK = 1.6; // 打呼声间隔(秒)
+const SNORE_TICK = 1.2; // 打呼声间隔(秒)
 /** 床垫顶面相对床摆点的高度(玩家身体中轴躺上去的高度,含背部半径) */
 const LIE_HEIGHT = 0.56;
 /** 躺平时脚跟相对床中心沿床身方向的偏移(玩家身长约 1.6,中心对齐) */
@@ -136,7 +136,7 @@ export class BedSystem {
     this.onWake = onWake;
     this.onSleepCancel = onSleepCancel;
     this.sleepTimer = 0.001;
-    this.snoreTimer = SNORE_TICK;
+    this.snoreTimer = SNORE_TICK; // 入睡立刻先打一声呼
     return true;
   }
 

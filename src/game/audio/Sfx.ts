@@ -42,7 +42,7 @@ const VOL: Record<SfxName, number> = {
   drop: 0.5,
   success: 0.45,
   hurt: 0.5,
-  snore: 0.5,
+  snore: 0.75,
   death: 0.5,
 };
 
@@ -198,11 +198,14 @@ export class Sfx {
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
       case 'snore': {
-        // 打呼:一口气从鼻腔滚出来的低频哼鸣,音高缓降再收尾,两声错开像呼-噜
+        // 打呼:带谐波的哼鸣从鼻腔滚出,音高缓降,再垫一层中低频带通气声;
+        // 频率刻意保持在手机小喇叭放得出的范围
         for (let i = 0; i < 2; i++) {
-          const st = t + i * 0.42;
-          tone(this.ctx, dest, detune(120 - i * 12), st, { attack: 0.09, decay: 0.3, peak: v * (0.8 - i * 0.2) }, 'sine', 68);
-          noiseBurst(this.ctx, dest, st, { attack: 0.08, decay: 0.3, peak: v * 0.25 }, 'lowpass', 260, 120);
+          const st = t + i * 0.5;
+          const peak = v * (0.9 - i * 0.25);
+          tone(this.ctx, dest, detune(190 - i * 20), st, { attack: 0.1, decay: 0.42, peak }, 'sawtooth', 105);
+          tone(this.ctx, dest, detune(380 - i * 40), st, { attack: 0.1, decay: 0.38, peak: peak * 0.4 }, 'triangle', 210);
+          noiseBurst(this.ctx, dest, st, { attack: 0.09, decay: 0.4, peak: peak * 0.55 }, 'bandpass', 620, 280, 1.2);
         }
         break;
       }

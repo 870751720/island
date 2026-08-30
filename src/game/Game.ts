@@ -1331,18 +1331,14 @@ export class Game {
       this.fishing.getTease()?.color
     );
 
-    // 自言自语气泡挂在作业提示上方,4 秒后消失;睡着时固定显示打呼的 zzz
+    // 自言自语气泡挂在作业提示上方,4 秒后消失
     if (this.mumbleText) {
       this.mumbleTimer -= delta;
       if (this.mumbleTimer <= 0) this.mumbleText = null;
     }
-    const snoring = this.beds.isSleeping
-      ? `💤 ${'z'.repeat(1 + Math.floor((this.beds.getSleepProgress() ?? 0) * 3))}`
-      : null;
-    const bubbleText = this.mumbleText ?? snoring;
     const bubble = new THREE.Vector3(p.x, p.y + 4.3, p.z).project(this.camera);
     this.onMumble(
-      bubbleText,
+      this.mumbleText,
       Math.round(((bubble.x + 1) / 2) * w),
       Math.round(((1 - bubble.y) / 2) * h)
     );
