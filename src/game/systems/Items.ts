@@ -329,7 +329,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'crate',
     name: '木箱',
     icon: '📦',
-    description: '木板钉成的收纳箱。手持木箱站定空地 2 秒即可放到地上,之后靠近可以打开,存取 10 格物品。',
+    description: '木板钉成的收纳箱。点击「使用」把它放到脚下(不能在水里,脚下也不能有别的东西),之后靠近可以打开,存取 10 格物品。',
   },
   berryBush: {
     kind: 'berryBush',

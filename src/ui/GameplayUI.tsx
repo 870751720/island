@@ -40,7 +40,6 @@ const INITIAL_HUD: HudSnapshot = {
   hasBow: false,
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
-  hasCrate: false,
   nearCrate: false,
   crateSlots: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
@@ -209,6 +208,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           }
           if (kind === 'berryBush' || kind === 'shrubBush') {
             gameRef.current?.useBush(kind);
+            setBackpackOpen(false);
+            return;
+          }
+          if (kind === 'crate') {
+            gameRef.current?.useCrate();
             setBackpackOpen(false);
             return;
           }

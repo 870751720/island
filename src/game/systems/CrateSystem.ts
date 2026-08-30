@@ -7,19 +7,16 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
-const PLACE_TIME = 2; // 站定到放下木箱的时长(秒)
-const PLACE_TICK = 0.6; // 放置动作的敲击音效间隔(秒)
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
 
 /**
- * 木箱系统:手持木箱站定空地 2 秒自动放到地上(与播种/摆工作台同一心智),
+ * 木箱系统:背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
+ * (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住)。
  * 木箱自带 10 格收纳,靠近后可整格存入背包物品或取回。
  */
 export class CrateSystem {
-  private timer = 0;
-  private tickTimer = 0;
   private crates: Crate[] = [];
   private scratch = new THREE.Vector3();
 
@@ -30,9 +27,7 @@ export class CrateSystem {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio,
-    /** 其他占用双手的行为(如合成/进食中),为真时放置让位 */
-    private isBusy: () => boolean = () => false
+    private audio: GameAudio
   ) {}
 
   /** 玩家身旁最近的木箱(范围内的),无则 null */
@@ -49,10 +44,6 @@ export class CrateSystem {
       }
     }
     return best;
-  }
-
-  get isPlacing(): boolean {
-    return this.timer > 0;
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他木箱占住) */
@@ -72,43 +63,16 @@ export class CrateSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  update(delta: number): void {
-    const holding =
-      this.player.currentTool === 'crate' && this.inventory.count('crate') > 0;
-    if (
-      !holding ||
-      this.player.isMoving ||
-      this.player.isSwimming ||
-      this.isBusy() ||
-      !this.canPlace()
-    ) {
-      this.timer = 0;
-      this.tickTimer = 0;
-      return;
-    }
-    this.player.setAction('pick');
-    this.timer += delta;
-    this.tickTimer += delta;
-    if (this.tickTimer >= PLACE_TICK) {
-      this.tickTimer -= PLACE_TICK;
-      this.audio.play('knock');
-      const fxPos = this.player.group.position.clone();
-      fxPos.y += 0.4;
-      this.fx.burst(fxPos, '#a97b48', 4);
-    }
-    if (this.timer < PLACE_TIME) return;
-    this.timer = 0;
+  /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下 */
+  use(): boolean {
+    if (this.inventory.count('crate') <= 0 || !this.canPlace()) return false;
     this.inventory.remove('crate', 1);
     this.crates.push(new Crate(this.scene, this.player.group.position));
     this.audio.play('success');
     const fxPos = this.player.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#a97b48', 10);
-  }
-
-  /** 当前放置进度 0-1,未在放置时为 null */
-  getProgress(): number | null {
-    return this.isPlacing ? Math.min(this.timer / PLACE_TIME, 1) : null;
+    return true;
   }
 
   /** 身旁木箱的格子快照(不在木箱旁为 null) */
