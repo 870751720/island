@@ -16,15 +16,17 @@ const RUN_SPEED = 4.6;
 const LAND_MIN = 0.03;
 
 /** 表情气泡持续秒数 */
-const EMOJI_TIME = 2.4;
-/** 闲玩状态下随机发表情的平均间隔(秒) */
-const PLAY_EMOJI_INTERVAL = 9;
+const EMOJI_TIME = 2.6;
+/** 闲玩状态下随机发表情的间隔(秒) */
+const PLAY_EMOJI_INTERVAL = 7;
 
 /** 吃完一块肉的进食动作时长(低头咀嚼) */
 const EAT_DURATION = 1.4;
+/** 吃饱后的开心转圈时长 */
+const HAPPY_DURATION = 2.2;
 
-/** 闲玩行为:原地坐/转圈追尾巴/小跳/围着玩家踱步 */
-type Play = 'sit' | 'spin' | 'hop' | 'prowl';
+/** 闲玩行为:围着玩家转圈 / 原地转圈 / 原地趴坐 */
+type Play = 'circle' | 'spin' | 'sit';
 
 type DogModel = {
   group: THREE.Group;
@@ -50,7 +52,7 @@ function makeLeg(mat: THREE.Material, x: number, y: number, z: number, len: numb
   return leg;
 }
 
-/** 低多边形黑色博美:蓬松黑毛圆身 + 张开的鬃毛、尖耳、卷在背上的羽毛尾与粉舌头 */
+/** 低多边形黑色博美:蓬松黑毛圆身 + 张开的鬃毛、尖耳、平贴短尾与粉舌头 */
 function makePomeranianModel(): DogModel {
   const group = new THREE.Group();
   const fur = clay('#26262e');
@@ -119,7 +121,7 @@ function makePomeranianModel(): DogModel {
   return { group, legs, head: headPivot, tail, body };
 }
 
-/** 头顶表情气泡:一张重绘的 canvas 贴图 Sprite */
+/** 头顶表情气泡:白色圆角气泡 + emoji 的 Canvas 贴图 Sprite,始终盖在场景之上 */
 class EmojiBubble {
   readonly sprite: THREE.Sprite;
   private canvas = document.createElement('canvas');
@@ -127,26 +129,38 @@ class EmojiBubble {
   private left = 0;
 
   constructor() {
-    this.canvas.width = 128;
-    this.canvas.height = 128;
+    this.canvas.width = 160;
+    this.canvas.height = 160;
     this.texture = new THREE.CanvasTexture(this.canvas);
+    this.texture.colorSpace = THREE.SRGBColorSpace;
     this.sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: this.texture, transparent: true, depthTest: false })
     );
-    this.sprite.scale.setScalar(0.7);
-    this.sprite.position.set(0, 1.35, 0);
+    this.sprite.renderOrder = 999;
+    this.sprite.scale.setScalar(1);
+    this.sprite.position.set(0, 1.25, 0);
     this.sprite.visible = false;
   }
 
   show(emoji: string): void {
     const ctx = this.canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 128, 128);
-    ctx.font = '88px serif';
+    ctx.clearRect(0, 0, 160, 160);
+    // 白色圆角气泡衬底,深色描边保证任何背景下都看得清
+    ctx.beginPath();
+    ctx.arc(80, 80, 62, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(60,60,70,0.9)';
+    ctx.stroke();
+    ctx.font = '84px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, 64, 70);
+    ctx.fillStyle = '#333';
+    ctx.fillText(emoji, 80, 88);
     this.texture.needsUpdate = true;
     this.sprite.visible = true;
+    this.sprite.material.opacity = 1;
     this.left = EMOJI_TIME;
   }
 
@@ -159,9 +173,9 @@ class EmojiBubble {
     }
     // 淡出前轻微上飘 + 呼吸缩放
     const t = this.left / EMOJI_TIME;
-    this.sprite.position.y = 1.35 + (1 - t) * 0.25;
-    this.sprite.scale.setScalar(0.7 * (0.9 + Math.sin(elapsed * 5) * 0.05));
-    this.sprite.material.opacity = Math.min(1, t * 2.5);
+    this.sprite.position.y = 1.25 + (1 - t) * 0.3;
+    this.sprite.scale.setScalar(1 * (0.92 + Math.sin(elapsed * 5) * 0.06));
+    this.sprite.material.opacity = Math.min(1, t * 3);
   }
 
   dispose(): void {
@@ -177,7 +191,7 @@ const FOLLOW_EMOJIS = ['🏃', '💨', '❤️'];
 
 /**
  * 黑色博美伴侣:出生在玩家身旁,被附近地面上的肉块吸引,吃完回来继续跟随玩家;
- * 距离玩家够近时不跟了,原地转圈、追尾巴、小跳着自己玩,时不时头顶冒个小表情。
+ * 距离玩家够近时不跟了,围着玩家转圈或原地打转自己玩,时不时头顶冒个小表情。
  */
 export class Pomeranian {
   readonly group = new THREE.Group();
@@ -187,15 +201,21 @@ export class Pomeranian {
   private heading = 0;
   /** 进食动作剩余时间(低头咀嚼,不可移动) */
   private eatLeft = 0;
+  /** 吃饱后的开心转圈剩余时间 */
+  private happyLeft = 0;
   /** 当前闲玩行为与其剩余时长 */
-  private play: Play = 'sit';
+  private play: Play = 'circle';
   private playLeft = 0;
-  /** 闲玩踱步的目标点 */
-  private prowlTarget = new THREE.Vector3();
+  /** 围着玩家转圈的绕行方向(1 逆时针 / -1 顺时针) */
+  private orbitDir = 1;
   /** 闲玩时随机发表情的倒计时 */
-  private emojiTimer = PLAY_EMOJI_INTERVAL / 2;
+  private emojiTimer = 1.5;
+  /** 上一帧是否在跟随:开始跟随时发一次表情 */
+  private wasFollowing = false;
   /** 玩家走远后重新回到身边时发一次「想念你」 */
   private waitingForReturn = false;
+  /** 出场打过招呼没 */
+  private greeted = false;
 
   constructor(
     scene: THREE.Scene,
@@ -241,7 +261,7 @@ export class Pomeranian {
     return { x: this.pos.x, z: this.pos.z };
   }
 
-  /** 朝目标走一步,返回是否仍在途中(前方不可走时停在原地) */
+  /** 朝目标走一步,返回是否仍在途中(前方不可走或已到达时返回 false) */
   private stepTo(target: THREE.Vector3, speed: number, delta: number): boolean {
     const dirX = target.x - this.pos.x;
     const dirZ = target.z - this.pos.z;
@@ -255,31 +275,42 @@ export class Pomeranian {
     return true;
   }
 
-  /** 挑下一个闲玩行为 */
+  /** 挑下一个闲玩行为:优先围着玩家转圈 */
   private nextPlay(): void {
-    const pool: Play[] = ['sit', 'sit', 'spin', 'hop', 'prowl'];
+    const pool: Play[] = ['circle', 'circle', 'circle', 'spin', 'sit'];
     this.play = pool[Math.floor(Math.random() * pool.length)];
-    this.playLeft = this.play === 'spin' ? 1.8 : 2 + Math.random() * 2.5;
-    if (this.play === 'prowl') this.placeProwlTarget();
+    this.playLeft = this.play === 'spin' ? 1.8 : 3 + Math.random() * 3;
+    if (this.play === 'circle') this.orbitDir = Math.random() < 0.5 ? 1 : -1;
   }
 
-  /** 围着玩家附近随机踱步的目标点 */
-  private placeProwlTarget(): void {
+  /** 绕玩家转圈:沿环绕切线方向走一步,路被挡就换方向 */
+  private orbitPlayer(speed: number, delta: number, radius: number): boolean {
     const p = this.player.group.position;
-    for (let i = 0; i < 8; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 1 + Math.random() * (FOLLOW_RANGE - 1);
-      const x = p.x + Math.cos(a) * d;
-      const z = p.z + Math.sin(a) * d;
-      if (this.walkable(x, z)) {
-        this.prowlTarget.set(x, this.terrain.getHeight(x, z), z);
-        return;
-      }
+    const ox = this.pos.x - p.x;
+    const oz = this.pos.z - p.z;
+    const r = Math.hypot(ox, oz) || 0.001;
+    // 切线方向 + 轻微向目标半径回收,走出一条绕着玩家的螺旋圈
+    const tangent = Math.atan2(oz, ox) + this.orbitDir * (Math.PI / 2);
+    const pull = (radius - r) / radius;
+    const dirX = Math.cos(tangent) + (ox / r) * pull;
+    const dirZ = Math.sin(tangent) + (oz / r) * pull;
+    const len = Math.hypot(dirX, dirZ) || 1;
+    const nx = this.pos.x + (dirX / len) * speed * delta;
+    const nz = this.pos.z + (dirZ / len) * speed * delta;
+    if (!this.walkable(nx, nz)) {
+      this.orbitDir *= -1;
+      return false;
     }
-    this.prowlTarget.copy(this.pos);
+    this.heading = Math.atan2(dirZ, dirX);
+    this.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
+    return true;
   }
 
   update(delta: number, elapsed: number, drops: DropSystem): void {
+    if (!this.greeted) {
+      this.greeted = true;
+      this.bubble.show('🐶');
+    }
     const p = this.player.group.position;
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     let moving = false;
@@ -288,6 +319,11 @@ export class Pomeranian {
     if (this.eatLeft > 0) {
       // 进食中:原地低头咀嚼
       this.eatLeft -= delta;
+    } else if (this.happyLeft > 0) {
+      // 吃饱了:原地开心转圈
+      this.happyLeft -= delta;
+      this.heading += delta * 10;
+      excited = true;
     } else {
       // 1) 附近有肉块:优先跑去吃
       const meat = drops.nearestMeat(this.pos, SMELL_RANGE);
@@ -295,42 +331,41 @@ export class Pomeranian {
         if (Math.hypot(meat.x - this.pos.x, meat.z - this.pos.z) <= EAT_RANGE) {
           if (drops.consumeMeatNear(this.pos, EAT_RANGE)) {
             this.eatLeft = EAT_DURATION;
+            this.happyLeft = HAPPY_DURATION;
             this.bubble.show(Math.random() < 0.5 ? '😋' : '🦴');
           }
         } else {
-          // 直路被挡时也允许绕着走:先按原方向停在原地,下一帧重新被吸引
           moving = this.stepTo(meat, RUN_SPEED, delta);
           excited = true;
         }
         this.waitingForReturn = false;
+        this.wasFollowing = false;
       } else if (playerDist > FOLLOW_RANGE) {
         // 2) 玩家走远:跟上去(玩家下水时追到岸边等待)
+        if (!this.wasFollowing) {
+          this.wasFollowing = true;
+          this.bubble.show('🐕');
+        }
         moving = this.stepTo(p, playerDist > 8 ? RUN_SPEED : TROT_SPEED, delta);
         excited = playerDist > 8;
         if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
-        this.emojiTimer -= delta;
-        if (moving && this.emojiTimer <= 0) {
-          this.bubble.show(FOLLOW_EMOJIS[Math.floor(Math.random() * FOLLOW_EMOJIS.length)]);
-          this.emojiTimer = 6 + Math.random() * 6;
-        }
       } else {
         // 3) 玩家在身边:自己玩
+        this.wasFollowing = false;
         if (this.waitingForReturn) {
           this.waitingForReturn = false;
           this.bubble.show('🥰');
         }
         this.playLeft -= delta;
         if (this.playLeft <= 0) this.nextPlay();
-        if (this.play === 'prowl') {
-          moving = this.stepTo(this.prowlTarget, TROT_SPEED * 0.5, delta);
-          if (!moving) this.placeProwlTarget();
+        if (this.play === 'circle') {
+          moving = this.orbitPlayer(TROT_SPEED * 0.55, delta, 1.6 + Math.sin(elapsed * 0.5) * 0.5);
         } else if (this.play === 'spin') {
           // 追尾巴:原地打转
           this.heading += delta * 9;
           excited = true;
-        } else if (this.play === 'hop') {
-          excited = true;
         }
+        // sit:原地趴坐休息,只摇尾巴
         this.emojiTimer -= delta;
         if (this.emojiTimer <= 0) {
           this.bubble.show(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
@@ -339,14 +374,13 @@ export class Pomeranian {
       }
     }
 
-    this.animate(delta, elapsed, moving, excited);
+    this.animate(elapsed, moving, excited);
     this.bubble.update(delta, elapsed);
   }
 
-  /** 应用位置与朝向,跑动摆腿、摇尾巴、闲玩小跳与咀嚼点头 */
-  private animate(delta: number, elapsed: number, moving: boolean, excited: boolean): void {
+  /** 应用位置与朝向,跑动摆腿、摇尾巴与咀嚼点头 */
+  private animate(elapsed: number, moving: boolean, excited: boolean): void {
     const g = this.model.group;
-    // 朝向平滑转向目标方向(打转行为直接改 heading)
     g.position.set(this.pos.x, this.pos.y, this.pos.z);
     g.rotation.y = -this.heading + Math.PI / 2;
 
@@ -357,19 +391,18 @@ export class Pomeranian {
     });
 
     // 尾巴永远在摇,兴奋/追尾巴时摇成残影
-    const wag = this.play === 'spin' ? Math.sin(elapsed * 26) * 0.9 : Math.sin(elapsed * (excited ? 18 : 9)) * (excited ? 0.6 : 0.35);
+    const wag = this.play === 'spin' || this.happyLeft > 0
+      ? Math.sin(elapsed * 26) * 0.9
+      : Math.sin(elapsed * (excited ? 18 : 9)) * (excited ? 0.6 : 0.4);
     this.model.tail.rotation.y = wag;
 
     // 头部:进食时低头,平时随呼吸轻点
     const eating = this.eatLeft > 0;
-    const nod = eating
-      ? 0.7 + Math.sin(elapsed * 12) * 0.12
-      : Math.sin(elapsed * 2.2) * 0.04;
+    const nod = eating ? 0.7 + Math.sin(elapsed * 12) * 0.12 : Math.sin(elapsed * 2.2) * 0.04;
     this.model.head.rotation.x = nod;
 
-    // 小跳:身体周期性离地蹦跶
-    const hopping = this.play === 'hop' && this.eatLeft <= 0;
-    const bounce = hopping ? Math.abs(Math.sin(elapsed * 7)) * 0.18 : moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
+    // 跑动时轻微起伏
+    const bounce = moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
     this.model.body.position.y = 0.21 + bounce;
     this.model.head.position.y = 0.39 + bounce;
   }
