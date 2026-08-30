@@ -24,7 +24,7 @@ const DIG_RANGE = 1.5;
 const DIG_HITS = 2;
 const SWING_TIME = 0.6;
 /** 手持围栏站定自动放置的时长(秒) */
-const PLACE_TIME = 0.8;
+const PLACE_TIME = 2;
 /** 手持围栏门站定自动放置的时长(秒) */
 const GATE_PLACE_TIME = 5;
 /** 放置预览的可用提示色(附近没有可放位置时预览直接隐藏) */
