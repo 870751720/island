@@ -128,12 +128,18 @@ export class WorkbenchSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 是否满足发起条件(材料齐 + 场上没有工作台 + 当前位置可摆放) */
+  /** 是否满足发起条件(材料齐 + 脚下可摆放 + 背包里没有工作台道具,避免做出重复的) */
   canStart(): boolean {
-    if (this.exists || this.isWorking) return false;
+    if (this.isWorking || this.isDigging) return false;
     if (this.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
     if (this.inventory.count('wood') < (WORKBENCH_COST.wood ?? 0)) return false;
+    if (this.hasBenchItem()) return false;
     return this.canPlace();
+  }
+
+  /** 背包里是否已有工作台道具 */
+  private hasBenchItem(): boolean {
+    return Object.values(BENCH_ITEM).some((kind) => this.inventory.count(kind) > 0);
   }
 
   start(): boolean {
@@ -157,7 +163,7 @@ export class WorkbenchSystem {
   update(delta: number): void {
     this.updateDig(delta);
     if (!this.isWorking) return;
-    if (this.mode === 'build' ? this.exists : !this.upgradeTarget) return;
+    if (this.mode === 'upgrade' && !this.upgradeTarget) return;
     if (this.player.isMoving || this.player.isSwimming) {
       this.cancel();
       return;
@@ -172,13 +178,15 @@ export class WorkbenchSystem {
       p.y += 0.6;
       this.fx.burst(p, FX_COLOR, 5);
     }
-    if (this.timer >= CRAFT_TIME) {
-      this.timer = 0;
-      if (this.mode === 'build') {
-        this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
-        this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
-        this.benches.push(new Workbench(this.scene, this.player.group.position));
-      } else {
+      if (this.timer >= CRAFT_TIME) {
+        this.timer = 0;
+        if (this.mode === 'build') {
+          this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
+          this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
+          this.benches.push(new Workbench(this.scene, this.player.group.position));
+          // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
+          if (this.player.currentTool === 'hoe') this.player.setTool('hand');
+        } else {
         this.inventory.remove('stone', WORKBENCH_UPGRADE_STONES);
         this.upgradeTarget!.upgrade();
         this.upgradeTarget = null;

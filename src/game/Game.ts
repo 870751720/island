@@ -865,6 +865,7 @@ export class Game {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
+    this.afterPlaceDiggable();
     return true;
   }
 
@@ -875,7 +876,13 @@ export class Game {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
+    this.afterPlaceDiggable();
     return true;
+  }
+
+  /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
+  private afterPlaceDiggable(): void {
+    if (this.player.currentTool === 'hoe') this.player.setTool('hand');
   }
 
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
@@ -898,8 +905,7 @@ export class Game {
     }
     this.inventory.remove(kind, 1);
     this.props.placeBush(kind === 'berryBush' ? 'berry' : 'shrub', p.x, p.z);
-    // 种下可挖走的丛后收起锄头,避免紧接着把刚种下的丛又挖掉
-    if (this.player.currentTool === 'hoe') this.player.setTool('hand');
+    this.afterPlaceDiggable();
     this.audio.play('success');
     const fxPos = p.clone();
     fxPos.y += 0.5;
