@@ -295,7 +295,7 @@ export class Game {
           Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
         );
       },
-      () => !this.survival.state.dead && !this.player.isSwimming
+      () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping
     );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
@@ -520,6 +520,7 @@ export class Game {
         this.survival.thirstDrainMultiplier =
           this.weather.thirstDrainMultiplier * this.equipment.thirstMultiplier();
         this.survival.swimming = this.player.isSwimming;
+        this.survival.sleeping = this.player.isSleeping;
         this.survival.update(delta);
       // 血量下降(受击/饥饿/溺水)触发角色模型闪红与受伤音(音效带间隔节流,持续掉血不成串响)
       if (this.survival.state.health < this.lastHealth - 0.001) {
@@ -922,8 +923,14 @@ export class Game {
     this.weather.force(type);
   }
 
+  /** 睡觉期间锁交互:一切主动操作入口先检查该状态 */
+  private get asleep(): boolean {
+    return this.player.isSleeping;
+  }
+
   /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下,不满足时给出提示 */
   useCrate(): boolean {
+    if (this.asleep) return false;
     if (!this.crates.use()) {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
@@ -935,7 +942,7 @@ export class Game {
   /** 背包里点击「使用」工作台道具:校验通过后在玩家脚下原地放回对应等级,不满足时给出提示 */
   useWorkbenchItem(kind: ResourceKind): boolean {
     const level = workbenchItemLevel(kind);
-    if (level === null || !this.workbench.placeItem(level)) {
+    if (this.asleep || level === null || !this.workbench.placeItem(level)) {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
@@ -946,7 +953,7 @@ export class Game {
   /** 背包里点击「使用」床道具:校验通过后在玩家脚下原地放下对应等级的床,不满足时给出提示 */
   useBedItem(kind: ResourceKind): boolean {
     const level = bedItemLevel(kind);
-    if (level === null || !this.beds.place(level)) {
+    if (this.asleep || level === null || !this.beds.place(level)) {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
@@ -995,6 +1002,7 @@ export class Game {
 
   /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
   useBush(kind: 'berryBush' | 'shrubBush'): boolean {
+    if (this.asleep) return false;
     if (this.inventory.count(kind) <= 0) return false;
     const p = this.player.group.position;
     if (
@@ -1018,6 +1026,7 @@ export class Game {
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则提示 */
   pickupDrop(): boolean {
+    if (this.asleep) return false;
     const near = this.drops.getNearby();
     if (!near) return false;
     if (!this.inventory.canFit(near.kind)) {
@@ -1036,11 +1045,13 @@ export class Game {
 
   /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftCampfire(): boolean {
+    if (this.asleep) return false;
     return this.campfire.start();
   }
 
   /** 把背包里该种类全部道具存入身旁木箱(整格),失败时给出提示 */
   crateStore(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
     if (!this.crates.store(kind)) {
       this.notify('木箱装不下了');
       return false;
@@ -1050,6 +1061,7 @@ export class Game {
 
   /** 把身旁木箱里该种类全部道具取回背包(整格),失败时给出提示 */
   crateTake(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
     if (!this.crates.take(kind)) {
       this.notify('背包满了,装不下更多东西');
       return false;
@@ -1059,16 +1071,19 @@ export class Game {
 
   /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
   campfireAddFuel(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
     return this.campfire.addFuel(kind) > 0;
   }
 
   /** 在身旁燃烧的火堆上发起烹饪(可选份数,同工作台),返回是否成功开始 */
   campfireCook(kind: ResourceKind, count: number): boolean {
+    if (this.asleep) return false;
     return this.campfire.startCooking(kind, count);
   }
 
   /** 丢弃该种类的全部道具(整格)到玩家附近的地上 */
   dropItem(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
     const count = this.inventory.count(kind);
     if (count <= 0) return false;
     this.inventory.remove(kind, count);
@@ -1088,14 +1103,14 @@ export class Game {
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: CraftId): boolean {
-    if (this.workbench.isWorking || this.workbench.isDigging) return false;
+    if (this.asleep || this.workbench.isWorking || this.workbench.isDigging) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe && recipe.station === 'hand' ? this.crafting.start(recipe) : false;
   }
 
   /** 在工作台发起制作(可选个数,逐个完成),玩家须在的工作范围内,返回是否成功开始 */
   craftAtWorkbench(id: CraftId, count: number): boolean {
-    if (this.workbench.isWorking || this.workbench.isDigging || !this.workbench.isNear) return false;
+    if (this.asleep || this.workbench.isWorking || this.workbench.isDigging || !this.workbench.isNear) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe &&
       recipe.station === 'workbench' &&
@@ -1106,13 +1121,13 @@ export class Game {
 
   /** 发起工作台制作(完成后在原位放置),返回是否成功开始 */
   craftWorkbench(): boolean {
-    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    if (this.asleep || this.crafting.isWorking || this.eating.isWorking) return false;
     return this.workbench.start();
   }
 
   /** 发起工作台升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
   upgradeWorkbench(): boolean {
-    if (this.crafting.isWorking || this.eating.isWorking) return false;
+    if (this.asleep || this.crafting.isWorking || this.eating.isWorking) return false;
     return this.workbench.upgrade();
   }
 

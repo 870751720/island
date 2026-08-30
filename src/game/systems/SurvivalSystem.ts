@@ -29,6 +29,8 @@ export class SurvivalSystem implements Updatable {
   thirstDrainMultiplier = 1;
   /** 当前是否在游泳(由游戏循环每帧同步) */
   swimming = false;
+  /** 当前是否在睡觉(由游戏循环每帧同步):睡着后不会受到任何伤害 */
+  sleeping = false;
   /** 饥饿/口渴掉血的累计结算计时 */
   private starveTimer = 0;
 
@@ -48,7 +50,7 @@ export class SurvivalSystem implements Updatable {
       0,
       s.thirst - THIRST_RATE * this.drainMultiplier * this.thirstDrainMultiplier * delta
     );
-    if (s.hunger <= 0 || s.thirst <= 0) {
+    if ((s.hunger <= 0 || s.thirst <= 0) && !this.sleeping) {
       // 每 2 秒结算一笔累计掉血,吃/喝回补后未结算的部分不再扣
       this.starveTimer += delta;
       if (this.starveTimer >= STARVE_TICK) {
@@ -86,9 +88,9 @@ export class SurvivalSystem implements Updatable {
     this.state.thirst = Math.min(100, this.state.thirst + THIRST_PER_ROUND);
   }
 
-  /** 受到外力伤害(如野兽扑击),死亡判定交给 update 统一处理 */
+  /** 受到外力伤害(如野兽扑击),死亡判定交给 update 统一处理;睡着时免疫 */
   damage(amount: number): void {
-    if (this.state.dead) return;
+    if (this.state.dead || this.sleeping) return;
     this.state.health = Math.max(0, this.state.health - amount);
   }
 }
