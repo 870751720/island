@@ -54,6 +54,9 @@ export type HudSnapshot = {
   berry: number;
   fiber: number;
   fur: number;
+  crabMeat: number;
+  birdMeat: number;
+  gameMeat: number;
   rope: number;
   arrow: number;
   /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
@@ -1060,6 +1063,9 @@ export class Game {
       berry: this.inventory.count('berry'),
       fiber: this.inventory.count('fiber'),
       fur: this.inventory.count('fur'),
+      crabMeat: this.inventory.count('crabMeat'),
+      birdMeat: this.inventory.count('birdMeat'),
+      gameMeat: this.inventory.count('gameMeat'),
       rope: this.inventory.count('rope'),
       arrow: this.inventory.count('arrow'),
       bait: this.inventory.count('bait'),
