@@ -582,7 +582,7 @@ export class Game {
         this.butterflies.update(delta, elapsed);
         this.birds.update(delta, elapsed);
         this.wildlife.update(delta, elapsed);
-        this.dog.update(delta, elapsed, this.drops);
+        this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
         this.props.update(delta, elapsed, this.weather.wind);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);

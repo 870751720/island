@@ -25,8 +25,8 @@ const EAT_DURATION = 1.4;
 /** 吃饱后的开心转圈时长 */
 const HAPPY_DURATION = 2.2;
 
-/** 闲玩行为:围着玩家转圈 / 原地转圈 / 原地趴坐 */
-type Play = 'circle' | 'spin' | 'sit';
+/** 闲玩行为:围着玩家转圈 / 原地转圈 / 原地趴坐 / 趴下睡觉 / 刨坑 */
+type Play = 'circle' | 'spin' | 'sit' | 'sleep' | 'dig';
 
 type DogModel = {
   group: THREE.Group;
@@ -155,6 +155,10 @@ export class Pomeranian {
   private waitingForReturn = false;
   /** 出场打过招呼没 */
   private greeted = false;
+  /** 睡姿过渡:0 站姿 → 1 完全趴下 */
+  private sleepBlend = 0;
+  /** 睡觉时冒 💤 的倒计时 */
+  private dreamTimer = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -235,12 +239,36 @@ export class Pomeranian {
     return false;
   }
 
-  /** 挑下一个闲玩行为:优先围着玩家转圈 */
+  /** 挑下一个闲玩行为:优先围着玩家转圈,偶尔睡觉、刨坑 */
   private nextPlay(): void {
-    const pool: Play[] = ['circle', 'circle', 'circle', 'spin', 'sit'];
+    if (this.play === 'dig') this.showEmoji(Math.random() < 0.5 ? '❓' : '😮');
+    const pool: Play[] = ['circle', 'circle', 'circle', 'spin', 'sit', 'sleep', 'dig', 'dig'];
     this.play = pool[Math.floor(Math.random() * pool.length)];
-    this.playLeft = this.play === 'spin' ? 1.8 : 3 + Math.random() * 3;
+    this.playLeft =
+      this.play === 'spin'
+        ? 1.8
+        : this.play === 'sleep'
+          ? 9 + Math.random() * 6
+          : this.play === 'dig'
+            ? 2.5 + Math.random()
+            : 3 + Math.random() * 3;
     if (this.play === 'circle') this.orbitDir = Math.random() < 0.5 ? 1 : -1;
+    if (this.play === 'dig') this.showEmoji('🐾');
+  }
+
+  /** 天黑后趴在玩家身边睡长觉,直到被肉香或玩家的脚步叫醒 */
+  private startNightSleep(): void {
+    if (this.play === 'sleep') return;
+    this.play = 'sleep';
+    this.playLeft = 20 + Math.random() * 20;
+    this.dreamTimer = 2;
+  }
+
+  /** 从睡觉中醒来(有肉吃或要跟人时) */
+  private wake(): void {
+    if (this.play !== 'sleep') return;
+    this.play = 'circle';
+    this.playLeft = 0.5;
   }
 
   /** 绕玩家转圈:沿环绕切线方向走一步,路被挡就换方向 */
@@ -266,7 +294,7 @@ export class Pomeranian {
     return true;
   }
 
-  update(delta: number, elapsed: number, drops: DropSystem): void {
+  update(delta: number, elapsed: number, drops: DropSystem, isNight = false): void {
     if (!this.greeted) {
       this.greeted = true;
       this.showEmoji('🐶');
@@ -288,6 +316,7 @@ export class Pomeranian {
       // 1) 附近有肉块:优先跑去吃
       const meat = drops.nearestMeat(this.pos, SMELL_RANGE);
       if (meat) {
+        this.wake();
         if (Math.hypot(meat.x - this.pos.x, meat.z - this.pos.z) <= EAT_RANGE) {
           if (drops.consumeMeatNear(this.pos, EAT_RANGE)) {
             this.eatLeft = EAT_DURATION;
@@ -302,6 +331,7 @@ export class Pomeranian {
         this.wasFollowing = false;
       } else if (playerDist > FOLLOW_RANGE) {
         // 2) 玩家走远:跟上去(玩家下水时追到岸边等待)
+        this.wake();
         if (!this.wasFollowing) {
           this.wasFollowing = true;
           this.showEmoji('🐕');
@@ -310,61 +340,92 @@ export class Pomeranian {
         excited = playerDist > 8;
         if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
       } else {
-        // 3) 玩家在身边:自己玩
+        // 3) 玩家在身边:自己玩;夜里没别的事就趴下睡长觉
         this.wasFollowing = false;
         if (this.waitingForReturn) {
           this.waitingForReturn = false;
           this.showEmoji('🥰');
         }
-        this.playLeft -= delta;
-        if (this.playLeft <= 0) this.nextPlay();
+        if (isNight && this.play !== 'sleep') {
+          this.startNightSleep();
+        } else {
+          this.playLeft -= delta;
+          if (this.playLeft <= 0) this.nextPlay();
+        }
         if (this.play === 'circle') {
           moving = this.orbitPlayer(TROT_SPEED * 0.55, delta, 1.6 + Math.sin(elapsed * 0.5) * 0.5);
         } else if (this.play === 'spin') {
           // 追尾巴:原地打转
           this.heading += delta * 9;
           excited = true;
+        } else if (this.play === 'sleep') {
+          // 趴着睡觉,隔一会儿冒个 💤
+          this.dreamTimer -= delta;
+          if (this.dreamTimer <= 0) {
+            this.showEmoji('💤');
+            this.dreamTimer = 2.5 + Math.random() * 2;
+          }
         }
-        // sit:原地趴坐休息,只摇尾巴
-        this.emojiTimer -= delta;
-        if (this.emojiTimer <= 0) {
-          this.showEmoji(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
-          this.emojiTimer = PLAY_EMOJI_INTERVAL / 2 + Math.random() * PLAY_EMOJI_INTERVAL;
+        // dig:原地刨土(开始时冒 🐾,结束后歪头好奇);sit:趴坐休息只摇尾巴
+        if (this.play !== 'sleep') {
+          this.emojiTimer -= delta;
+          if (this.emojiTimer <= 0) {
+            this.showEmoji(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
+            this.emojiTimer = PLAY_EMOJI_INTERVAL / 2 + Math.random() * PLAY_EMOJI_INTERVAL;
+          }
         }
       }
     }
 
-    this.animate(elapsed, moving, excited);
+    this.animate(delta, elapsed, moving, excited);
     if (this.emojiLeft > 0) this.emojiLeft -= delta;
   }
 
-  /** 应用位置与朝向,跑动摆腿、摇尾巴与咀嚼点头 */
-  private animate(elapsed: number, moving: boolean, excited: boolean): void {
+  /** 应用位置与朝向,跑动摆腿、摇尾巴、刨坑扑土、睡觉趴下与咀嚼点头 */
+  private animate(delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = this.model.group;
     g.position.set(this.pos.x, this.pos.y, this.pos.z);
     g.rotation.y = -this.heading + Math.PI / 2;
 
+    // 睡姿平滑过渡
+    const target = this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
+    this.sleepBlend += (target - this.sleepBlend) * Math.min(1, delta * 3);
+    const lie = this.sleepBlend;
+    const up = 1 - lie;
+
+    const digging = this.play === 'dig' && this.eatLeft <= 0;
     const speed = moving ? (excited ? 16 : 10) : 0;
     this.model.legs.forEach((leg, i) => {
-      const swing = moving ? Math.sin(elapsed * speed + i * Math.PI * 0.5) * 0.7 : 0;
-      leg.rotation.x = swing;
+      let swing = moving ? Math.sin(elapsed * speed + i * Math.PI * 0.5) * 0.7 : 0;
+      if (digging && i < 2) {
+        // 刨坑:两条前腿飞快交替扒土
+        swing = Math.sin(elapsed * 18 + i * Math.PI) * 0.65;
+      }
+      // 趴下时四腿向前收折贴地
+      leg.rotation.x = swing * up + lie * (i % 2 === 0 ? 1.25 : -1.25);
     });
 
-    // 尾巴永远在摇,兴奋/追尾巴时摇成残影
-    const wag = this.play === 'spin' || this.happyLeft > 0
-      ? Math.sin(elapsed * 26) * 0.9
-      : Math.sin(elapsed * (excited ? 18 : 9)) * (excited ? 0.6 : 0.4);
+    // 尾巴:睡觉时慢悠悠地摇,其余永远在摇,兴奋/追尾巴时摇成残影
+    const wag =
+      lie > 0.5
+        ? Math.sin(elapsed * 3) * 0.12
+        : this.play === 'spin' || this.happyLeft > 0
+          ? Math.sin(elapsed * 26) * 0.9
+          : Math.sin(elapsed * (excited ? 18 : 9)) * (excited ? 0.6 : 0.4);
     this.model.tail.rotation.y = wag;
 
-    // 头部:进食时低头,平时随呼吸轻点
+    // 头部:进食低头,刨坑凑近地面闻,睡觉把头搁在爪子上,平时随呼吸轻点
     const eating = this.eatLeft > 0;
-    const nod = eating ? 0.7 + Math.sin(elapsed * 12) * 0.12 : Math.sin(elapsed * 2.2) * 0.04;
+    const nod = eating
+      ? 0.7 + Math.sin(elapsed * 12) * 0.12
+      : digging
+        ? 0.5
+        : Math.sin(elapsed * 2.2) * 0.04 * up + lie * (0.32 + Math.sin(elapsed * 1.6) * 0.02);
     this.model.head.rotation.x = nod;
 
-    // 跑动时轻微起伏
+    // 跑动时轻微起伏;趴下时身体和头都沉下来
     const bounce = moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
-    this.model.body.position.y = 0.21 + bounce;
-    this.model.head.position.y = 0.39 + bounce;
+    this.model.body.position.y = 0.21 - lie * 0.06 + bounce;
+    this.model.head.position.y = 0.39 - lie * 0.13 + bounce;
   }
-
 }
