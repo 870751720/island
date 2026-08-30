@@ -17,8 +17,8 @@ const LAND_MARGIN = 0.05;
 
 /** 表情气泡持续秒数 */
 const EMOJI_TIME = 2.6;
-/** 闲玩状态下随机发表情的间隔(秒) */
-const PLAY_EMOJI_INTERVAL = 7;
+/** 闲玩状态下随机发表情的间隔(秒),刻意拉长避免刷屏 */
+const PLAY_EMOJI_INTERVAL = 30;
 
 /** 吃完一块肉的进食动作时长(低头咀嚼) */
 const EAT_DURATION = 1.4;
