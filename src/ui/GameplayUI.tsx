@@ -41,6 +41,7 @@ const INITIAL_HUD: HudSnapshot = {
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
   nearCrate: false,
+  hoeDigTarget: false,
   crateSlots: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
@@ -243,9 +244,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
-              workbench={hud.nearWorkbench && hud.craftId === null}
-              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null}
-              crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null}
+              workbench={hud.nearWorkbench && hud.craftId === null && !hud.hoeDigTarget}
+              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !hud.hoeDigTarget}
+              crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !hud.hoeDigTarget}
               arrowCount={hud.arrow}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
