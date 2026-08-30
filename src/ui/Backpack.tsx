@@ -183,12 +183,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const tools = hud.toolTiers;
   // 背包空但已拥有工具时仍显示背包按钮(工具 tab 在里面)
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
-  // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件);鱼饵卡片只在持竿无饵时弹出
+  // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) =>
-      r.station === 'hand' &&
-      !r.baitPrompt &&
-      recipeVisible(r, hud, tools, hud.equipped, hud.slots)
+    (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped, hud.slots)
   );
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
