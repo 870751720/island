@@ -74,7 +74,7 @@ export function WorkbenchPanel({
             📖 合成图鉴
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={listStyle}>
           {recipes.length === 0 && (
             <div style={{ fontSize: 13, color: '#999', padding: '6px 0' }}>
               材料还不够,先去收集吧
@@ -201,6 +201,19 @@ const panelStyle: CSSProperties = {
   fontSize: 15,
   color: '#333',
   boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+  maxHeight: '90vh',
+  overflowY: 'auto',
+};
+
+// 配方列表内部滚动:高度上限按至少露出 6 行(约 60px/行 + 10px 间距)取值
+const listStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  maxHeight: 'max(416px, 60vh)',
+  minHeight: 0,
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
 };
 
 const rowStyle: CSSProperties = {
