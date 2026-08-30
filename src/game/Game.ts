@@ -65,6 +65,8 @@ export type HudSnapshot = {
   bait: number;
   /** 背包里的床数(工作台面板判断二级床配方可见性) */
   bed1: number;
+  /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
+  heldFenceCount: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -639,6 +641,10 @@ export class Game {
         this.survival.state.dead
     );
         this.drops.update(delta, elapsed);
+        // 手里的种子/围栏用光后自动收起,回到空手
+        if (this.player.currentTool !== 'hand' && !this.hasTool(this.player.currentTool)) {
+          this.player.setTool('hand');
+        }
         this.updateAutoEquip(delta);
         this.mumbles.update(delta, {
           elapsed,
@@ -711,7 +717,7 @@ export class Game {
       if (tier > 0) this.tools[id as ToolId] = tier;
     }
     const tool = save.handTool;
-    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.tools[tool])) {
+    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.hasTool(tool))) {
       this.player.setTool(tool);
     }
     this.dayNight.time = save.dayTime;
@@ -819,9 +825,12 @@ export class Game {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
 
-  /** 手上是否还持有该工具(种子按背包数量判断) */
+  /** 手上是否还持有该工具(种子与围栏按背包数量判断) */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
-    return tool === 'seed' ? this.hasSeed() : !!this.tools[tool];
+    if (tool === 'seed') return this.hasSeed();
+    if (tool === 'fenceWood' || tool === 'fenceStone' || tool === 'fenceGate')
+      return this.inventory.count(tool) > 0;
+    return !!this.tools[tool];
   }
 
   /** 背包里是否还有任意树种种子 */
@@ -833,9 +842,20 @@ export class Game {
     this.player.input.setJoystick(x, z);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 种子(仅已拥有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 种子 → 围栏/门(仅手里还有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'seed'];
+    const order: HandTool[] = [
+      'hand',
+      'axe',
+      'pickaxe',
+      'hoe',
+      'fishingrod',
+      'bow',
+      'seed',
+      'fenceWood',
+      'fenceStone',
+      'fenceGate',
+    ];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
@@ -1256,6 +1276,11 @@ export class Game {
       arrow: this.inventory.count('arrow'),
       bait: this.inventory.count('bait'),
       bed1: this.inventory.count('bed1'),
+      heldFenceCount: (['fenceWood', 'fenceStone', 'fenceGate'] as const).includes(
+        this.player.currentTool as 'fenceWood'
+      )
+        ? this.inventory.count(this.player.currentTool as ResourceKind)
+        : 0,
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       hasAxe: !!this.tools.axe,
@@ -1322,6 +1347,9 @@ export class Game {
     } else if (this.crates.isDigging) {
       label = '挖木箱…';
       progress = this.crates.getDigProgress();
+    } else if (this.fences.isPlacing) {
+      label = this.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
+      progress = this.fences.getPlaceProgress();
     } else if (this.fences.isDigging) {
       label = '拆围栏…';
       progress = this.fences.getDigProgress();

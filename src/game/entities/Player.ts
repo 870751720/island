@@ -46,7 +46,7 @@ export type ActionType =
   | 'shoot'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/种子(用于播种) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/种子(用于播种)/围栏与围栏门(用于沿途立栏) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -54,7 +54,10 @@ export type HandTool =
   | 'hoe'
   | 'fishingrod'
   | 'bow'
-  | 'seed';
+  | 'seed'
+  | 'fenceWood'
+  | 'fenceStone'
+  | 'fenceGate';
 
 function makeFishingRodModel(): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
@@ -155,6 +158,37 @@ function makeSeedPouchModel(): THREE.Group {
   const seed2 = seed1.clone();
   seed2.position.set(-0.03, 0.09, -0.02);
   g.add(pouch, seed1, seed2);
+  return g;
+}
+
+/** 手持围栏/门:一小捆柱子和横杆(按种类区分颜色) */
+function makeFenceBundleModel(color: string, gate: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial(color);
+  if (gate) {
+    // 手持围栏门:迷你门框 + 微开的门扇
+    for (const x of [-0.09, 0.09]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.24, 5), mat);
+      post.position.x = x;
+      post.position.y = 0.1;
+      g.add(post);
+    }
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.016), clayMaterial('#a97b48'));
+    leaf.position.set(0, 0.11, 0.05);
+    leaf.rotation.y = 0.5;
+    g.add(leaf);
+  } else {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.036, 0.26, 5), mat);
+    post.position.y = 0.11;
+    g.add(post);
+    for (const y of [0.06, 0.16]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.024), mat);
+      rail.position.y = y;
+      rail.rotation.z = 0.2;
+      g.add(rail);
+    }
+  }
+  g.rotation.x = Math.PI / 2.4;
   return g;
 }
 
@@ -323,12 +357,15 @@ export class Player implements Updatable {
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
     const seed = makeSeedPouchModel();
-    for (const t of [axe, pickaxe, hoe, fishingrod, bow, seed]) {
+    const fenceWood = makeFenceBundleModel('#a97b48', false);
+    const fenceStone = makeFenceBundleModel('#9a9a9a', false);
+    const fenceGate = makeFenceBundleModel('#8a6239', true);
+    for (const t of [axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, hoe, fishingrod, bow, seed);
-    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, seed };
+    armR.add(axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate);
+    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate };
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();

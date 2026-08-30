@@ -23,6 +23,8 @@ const DIG_RANGE = 1.5;
 /** 锄头挖围栏的命中次数(精致锄 1 次) */
 const DIG_HITS = 2;
 const SWING_TIME = 0.6;
+/** 手持围栏/门站定自动放置的时长(秒) */
+const PLACE_TIME = 0.8;
 
 /** 阻挡线段:XZ 平面上的有向线段(闭合围栏连接与关着的门) */
 type Segment = { ax: number; az: number; bx: number; bz: number };
@@ -48,6 +50,7 @@ export class FenceSystem implements ObstacleSolver {
   private swingTimer = 0;
   private hits = 0;
   private digTarget: { kind: 'fence' | 'gate'; key: string } | null = null;
+  private placeTimer = 0;
 
   constructor(
     private scene: THREE.Scene,
@@ -273,6 +276,56 @@ export class FenceSystem implements ObstacleSolver {
     return true;
   }
 
+  // ---- 手持自动放置 ----
+
+  /** 玩家当前手持的围栏工具对应的场上种类(非围栏工具为 null) */
+  private heldFenceKind(): FenceKind | null {
+    const tool = this.player.currentTool;
+    if (tool === 'fenceWood') return 'wood';
+    if (tool === 'fenceStone') return 'stone';
+    return null;
+  }
+
+  /** 正在手持围栏/门放置中 */
+  get isPlacing(): boolean {
+    return this.placeTimer > 0;
+  }
+
+  /** 当前放置进度 0-1,未在放置时为 null */
+  getPlaceProgress(): number | null {
+    return this.isPlacing ? Math.min(this.placeTimer / PLACE_TIME, 1) : null;
+  }
+
+  /** 手持围栏/门站定自动放到面前的格点(边)上,面前已满或不可放则不打扰 */
+  private updateAutoPlace(delta: number): void {
+    const fenceKind = this.heldFenceKind();
+    const gate = this.player.currentTool === 'fenceGate';
+    const item: ResourceKind | null = fenceKind
+      ? fenceKind === 'wood'
+        ? 'fenceWood'
+        : 'fenceStone'
+      : gate
+        ? 'fenceGate'
+        : null;
+    const placeable =
+      item !== null &&
+      this.inventory.count(item) > 0 &&
+      !this.player.isMoving &&
+      !this.player.isSwimming &&
+      !this.isBusy() &&
+      (fenceKind ? this.canPlaceFence() : this.canPlaceGate());
+    if (!placeable) {
+      this.placeTimer = 0;
+      return;
+    }
+    this.player.setAction('craft');
+    this.placeTimer += delta;
+    if (this.placeTimer < PLACE_TIME) return;
+    this.placeTimer = 0;
+    if (fenceKind) this.useFence(fenceKind);
+    else this.useGate();
+  }
+
   // ---- 挖除 ----
 
   /** 正在挖围栏/门 */
@@ -291,6 +344,9 @@ export class FenceSystem implements ObstacleSolver {
     }
     // 门开合会改变阻挡,统一在帧末重算
     if (this.gates.size > 0) this.rebuildSegments();
+
+    // 手持围栏/门:站定后自动放到面前的格点(边)上
+    this.updateAutoPlace(delta);
 
     const holding = this.player.currentTool === 'hoe';
     let target: { kind: 'fence' | 'gate'; key: string } | null = null;

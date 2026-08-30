@@ -10,6 +10,9 @@ const TOOL_ICONS: Record<HandTool, string> = {
   fishingrod: '🎣',
   bow: '🏹',
   seed: '🌱',
+  fenceWood: '🚧',
+  fenceStone: '🧱',
+  fenceGate: '🪵',
 };
 
 /** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
@@ -23,6 +26,7 @@ export function ToolButton({
   bed = false,
   arrowCount = 0,
   baitCount = 0,
+  fenceCount = 0,
   onCycle,
   onWorkbench,
   onCampfire,
@@ -43,6 +47,8 @@ export function ToolButton({
   arrowCount?: number;
   /** 背包剩余鱼饵数(持鱼竿时角标展示) */
   baitCount?: number;
+  /** 手持围栏/门时背包剩余个数(角标展示) */
+  fenceCount?: number;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
@@ -92,7 +98,15 @@ export function ToolButton({
       }}
     >
       {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : bed ? '🛏️' : TOOL_ICONS[tool]}
-      {!workbench && !campfire && !crate && !bed && (tool === 'bow' || tool === 'fishingrod') && (
+      {!workbench &&
+        !campfire &&
+        !crate &&
+        !bed &&
+        (tool === 'bow' ||
+          tool === 'fishingrod' ||
+          tool === 'fenceWood' ||
+          tool === 'fenceStone' ||
+          tool === 'fenceGate') && (
         <span
           style={{
             position: 'absolute',
@@ -107,7 +121,7 @@ export function ToolButton({
             lineHeight: '18px',
           }}
         >
-          {tool === 'bow' ? arrowCount : baitCount}
+          {tool === 'bow' ? arrowCount : tool === 'fishingrod' ? baitCount : fenceCount}
         </span>
       )}
       <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>

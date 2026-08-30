@@ -78,6 +78,7 @@ const INITIAL_HUD: HudSnapshot = {
   nearDrop: null,
   notice: null,
   day: 1,
+  heldFenceCount: 0,
 };
 
 /**
@@ -313,6 +314,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               }
               arrowCount={hud.arrow}
               baitCount={hud.bait}
+              fenceCount={hud.heldFenceCount}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}
