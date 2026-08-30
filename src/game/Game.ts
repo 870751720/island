@@ -608,6 +608,7 @@ export class Game {
     this.props.applySave(save.props);
     this.campfire.restore(save.campfires);
     if (save.workbenches) this.workbench.restore(save.workbenches);
+    if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
     this.drops.restore(save.drops);
   }
@@ -631,6 +632,7 @@ export class Game {
       props: this.props.snapshot(),
       campfires: this.campfire.snapshot(),
       workbenches: this.workbench.snapshot(),
+      workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       drops: this.drops.snapshot(),
     };

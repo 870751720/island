@@ -44,6 +44,8 @@ export class WorkbenchSystem {
   /** 当前计时流程是搭建新工作台还是升级现有工作台 */
   private mode: 'build' | 'upgrade' = 'build';
   private benches: Workbench[] = [];
+  /** 本局是否已制作过工作台(制作卡片只在这局从未制作过时出现) */
+  private crafted = false;
   /** 升级流程的目标工作台 */
   private upgradeTarget: Workbench | null = null;
   private digTarget: Workbench | null = null;
@@ -128,18 +130,17 @@ export class WorkbenchSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 是否满足发起条件(材料齐 + 脚下可摆放 + 背包里没有工作台道具,避免做出重复的) */
-  canStart(): boolean {
-    if (this.isWorking || this.isDigging) return false;
-    if (this.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
-    if (this.inventory.count('wood') < (WORKBENCH_COST.wood ?? 0)) return false;
-    if (this.hasBenchItem()) return false;
-    return this.canPlace();
+  /** 本局是否已制作过工作台 */
+  get hasCrafted(): boolean {
+    return this.crafted;
   }
 
-  /** 背包里是否已有工作台道具 */
-  private hasBenchItem(): boolean {
-    return Object.values(BENCH_ITEM).some((kind) => this.inventory.count(kind) > 0);
+  /** 是否满足发起条件(本局从未制作过 + 材料齐 + 脚下可摆放) */
+  canStart(): boolean {
+    if (this.crafted || this.isWorking || this.isDigging) return false;
+    if (this.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
+    if (this.inventory.count('wood') < (WORKBENCH_COST.wood ?? 0)) return false;
+    return this.canPlace();
   }
 
   start(): boolean {
@@ -184,6 +185,7 @@ export class WorkbenchSystem {
           this.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
           this.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
           this.benches.push(new Workbench(this.scene, this.player.group.position));
+          this.crafted = true;
           // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
           if (this.player.currentTool === 'hoe') this.player.setTool('hand');
         } else {
@@ -275,6 +277,11 @@ export class WorkbenchSystem {
       const p = bench.group.position;
       return { x: p.x, y: p.y, z: p.z, level: bench.level };
     });
+  }
+
+  /** 从存档恢复本局已制作过工作台的标记 */
+  restoreCrafted(): void {
+    this.crafted = true;
   }
 
   /** 从存档恢复全部工作台(含等级) */
