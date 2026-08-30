@@ -31,6 +31,7 @@ import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
 import { Wind } from './fx/Wind';
+import { PondLife } from './fx/PondLife';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
@@ -149,6 +150,7 @@ export class Game {
   private fx: Particles;
   private audio = new GameAudio();
   private waterFx: WaterFx;
+  private pondLife: PondLife;
   private footprints: Footprints;
   private survival = new SurvivalSystem();
   private inventory = new Inventory();
@@ -269,6 +271,7 @@ export class Game {
 
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
+    this.pondLife = new PondLife(this.scene, terrain);
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
     this.fences = new FenceSystem(
       this.scene,
@@ -571,6 +574,7 @@ export class Game {
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
         this.waterFx.update(delta);
+        this.pondLife.update(delta, elapsed);
         this.footprints.update(delta);
         this.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
         this.survival.thirstDrainMultiplier =
