@@ -41,7 +41,6 @@ const INITIAL_HUD: HudSnapshot = {
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
   nearCrate: false,
-  hoeDigTarget: false,
   crateSlots: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
@@ -70,6 +69,26 @@ const INITIAL_HUD: HudSnapshot = {
   notice: null,
 };
 
+/**
+ * 会劫持工具按钮的东西里,哪些能被锄头挖走:
+ * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
+ * 工作台/火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
+ */
+const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate', boolean>> = {
+  crate: true,
+};
+
+/** 面前劫持按钮的东西是否可被锄头挖走(无劫持时为 false) */
+function hijackerDiggable(
+  nearWorkbench: boolean,
+  nearCampfire: boolean,
+  nearCrate: boolean
+): boolean {
+  if (nearWorkbench) return !!HIJACK_DIGGABLE.workbench;
+  if (nearCampfire) return !!HIJACK_DIGGABLE.campfire;
+  if (nearCrate) return !!HIJACK_DIGGABLE.crate;
+  return false;
+}
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
  * 挂载时创建并启动 Game,卸载时销毁;死亡后显示确认弹窗,确认则整体卸载回到开始界面。
@@ -177,6 +196,10 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
     };
   }, []);
 
+  // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
+  const digHijack =
+    hud.tool === 'hoe' && hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate);
+
   return (
     <div
       ref={containerRef}
@@ -244,9 +267,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
-              workbench={hud.nearWorkbench && hud.craftId === null && !hud.hoeDigTarget}
-              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !hud.hoeDigTarget}
-              crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !hud.hoeDigTarget}
+              workbench={hud.nearWorkbench && hud.craftId === null && !digHijack}
+              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !digHijack}
+              crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !digHijack}
               arrowCount={hud.arrow}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}

@@ -70,8 +70,6 @@ export type HudSnapshot = {
   hasSeed: boolean;
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
   nearCrate: boolean;
-  /** 手持锄头且身旁是可挖的浆果丛/灌木丛(此时木箱等劫持让位,按钮保持锄头) */
-  hoeDigTarget: boolean;
   /** 身旁木箱的 10 格快照(不在木箱旁为 null) */
   crateSlots: InventorySlot[] | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
@@ -1011,11 +1009,6 @@ export class Game {
       toolTiers: { ...this.tools },
       hasSeed: this.hasSeed(),
       nearCrate: !!this.crates.nearby,
-      hoeDigTarget: (() => {
-        if (this.player.currentTool !== 'hoe') return false;
-        const near = this.collect.getNearby();
-        return !!near && (near.kind === 'berry' || near.kind === 'shrub');
-      })(),
       crateSlots: this.crates.nearbySlots(),
       equipped: this.equipment.snapshot(),
       tool: this.player.currentTool,
