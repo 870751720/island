@@ -17,7 +17,7 @@ const PLACE_AHEAD = 0.9;
 /** 围栏落点离资源点的最小距离 */
 const PROP_BLOCK_RANGE = 0.6;
 /** 门自动开合的玩家距离 */
-const GATE_AUTO_RANGE = 1.25;
+const GATE_AUTO_RANGE = 1.6;
 /** 持锄头可开挖围栏的距离 */
 const DIG_RANGE = 1.5;
 /** 锄头挖围栏的命中次数(精致锄 1 次) */
@@ -116,15 +116,15 @@ export class FenceSystem implements ObstacleSolver {
     this.scene.add(this.fencePreview);
 
     this.gatePreview = new THREE.Group();
-    for (const x of [-0.44, 0.44]) {
-      const gatePost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.9, 6), this.previewMat);
-      gatePost.position.set(x, 0.45, 0);
+    for (const x of [-0.92, 0.92]) {
+      const gatePost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), this.previewMat);
+      gatePost.position.set(x, 0.47, 0);
       this.gatePreview.add(gatePost);
     }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.06, 0.06), this.previewMat);
-    beam.position.y = 0.88;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(1.98, 0.07, 0.07), this.previewMat);
+    beam.position.y = 0.92;
     this.gatePreview.add(beam);
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.6, 0.05), this.previewMat);
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 0.05), this.previewMat);
     leaf.position.set(0, 0.45, 0);
     this.gatePreview.add(leaf);
     this.gatePreview.visible = false;
@@ -154,9 +154,14 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 连接与阻挡 ----
 
-  /** 某条边上是否有门 */
+  /** 某条单位边是否被门占据(门跨两格,可能从这条边或前一条边起) */
   private gateAt(gx: number, gz: number, dir: 'x' | 'z'): boolean {
-    return this.gates.has(FenceSystem.edgeKey(gx, gz, dir));
+    const backX = dir === 'x' ? gx - 1 : gx;
+    const backZ = dir === 'z' ? gz - 1 : gz;
+    return (
+      this.gates.has(FenceSystem.edgeKey(gx, gz, dir)) ||
+      this.gates.has(FenceSystem.edgeKey(backX, backZ, dir))
+    );
   }
 
   /** 围栏柱在四个方向上的连接(相邻柱或门) */
@@ -197,11 +202,8 @@ export class FenceSystem implements ObstacleSolver {
     }
     for (const gate of this.gates.values()) {
       if (!gate.isOpen) {
-        const mx = gate.gx + (gate.dir === 'x' ? 0.5 : 0);
-        const mz = gate.gz + (gate.dir === 'z' ? 0.5 : 0);
-        const dx = gate.dir === 'x' ? 0.45 : 0;
-        const dz = gate.dir === 'z' ? 0.45 : 0;
-        list.push({ ax: mx - dx, az: mz - dz, bx: mx + dx, bz: mz + dz });
+        // 两格宽的门带:整条从起点柱到终点柱都是阻挡
+        list.push({ ax: gate.gx, az: gate.gz, bx: gate.endX, bz: gate.endZ });
       }
     }
     this.segments = list;
@@ -307,38 +309,43 @@ export class FenceSystem implements ObstacleSolver {
     return best;
   }
 
-  /** 背包里点击「使用」围栏门:按「就近连接优先」吸附放下 */
+  /** 背包里点击「使用」围栏门:按「就近连接优先」吸附放下(门跨两格,双扇对开) */
   useGate(): boolean {
     const target = this.pickEdge();
     if (this.inventory.count('fenceGate') <= 0 || !target) return false;
     const { gx, gz, dir } = target;
     this.inventory.remove('fenceGate', 1);
-    const y = (this.terrain.getHeight(gx, gz) + this.terrain.getHeight(dir === 'x' ? gx + 1 : gx, dir === 'z' ? gz + 1 : gz)) / 2;
-    this.gates.set(
-      FenceSystem.edgeKey(gx, gz, dir),
-      new FenceGate(this.scene, gx, gz, dir, y, gx + (dir === 'x' ? 0.5 : 0), gz + (dir === 'z' ? 0.5 : 0))
+    const gate = new FenceGate(
+      this.scene,
+      gx,
+      gz,
+      dir,
+      (this.terrain.getHeight(gx, gz) + this.terrain.getHeight(gx + (dir === 'x' ? 2 : 0), gz + (dir === 'z' ? 2 : 0))) / 2
     );
+    this.gates.set(FenceSystem.edgeKey(gx, gz, dir), gate);
     this.refreshAround(gx, gz);
-    if (dir === 'x') this.refreshAround(gx + 1, gz);
-    else this.refreshAround(gx, gz + 1);
+    this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
     this.audio.play('success');
-    this.fx.burst(new THREE.Vector3(gx + (dir === 'x' ? 0.5 : 0), y + 0.5, gz + (dir === 'z' ? 0.5 : 0)), '#8a6239', 10);
+    this.fx.burst(new THREE.Vector3(gate.centerX, this.terrain.getHeight(gate.centerX, gate.centerZ) + 0.5, gate.centerZ), '#8a6239', 12);
     return true;
   }
 
-  /** 某条格点边是否允许放门(无门、未被围栏横杆占满、两端都是干地) */
+  /** 某条两格门带是否允许放门(不与现有门/中间柱重叠,两端是可站立的干地) */
   private edgeValid(gx: number, gz: number, dir: 'x' | 'z'): boolean {
-    if (this.gates.has(FenceSystem.edgeKey(gx, gz, dir))) return false;
-    // 该边已被围栏横杆占据(两端都有柱)时不能再放门
-    const ax = dir === 'x' ? gx + 1 : gx;
-    const az = dir === 'z' ? gz + 1 : gz;
-    if (this.fences.has(FenceSystem.vertexKey(gx, gz)) && this.fences.has(FenceSystem.vertexKey(ax, az))) {
+    // 门带覆盖的两条单位边都不能已被别的门占据
+    if (this.gateAt(gx, gz, dir) || this.gateAt(dir === 'x' ? gx + 1 : gx, dir === 'z' ? gz + 1 : gz, dir)) {
       return false;
     }
+    // 中间格点不能有围栏柱(会立在门框里)
+    const mx = dir === 'x' ? gx + 1 : gx;
+    const mz = dir === 'z' ? gz + 1 : gz;
+    if (this.fences.has(FenceSystem.vertexKey(mx, mz))) return false;
+    const ex = dir === 'x' ? gx + 2 : gx;
+    const ez = dir === 'z' ? gz + 2 : gz;
     for (const [cx, cz] of [
       [gx, gz],
-      [ax, az],
+      [ex, ez],
     ]) {
       const p = new THREE.Vector3(cx, 0, cz);
       if (this.terrain.isNearWater(p, 1)) return false;
@@ -349,8 +356,8 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /**
-   * 手持围栏门时的最佳落边:面前附近的边里打分——
-   * 端点接着现有围栏柱的边优先(把门嵌进玩家身边的围栏线缺口),否则取离面前最近的。
+   * 手持围栏门时的最佳落位:门带中心在玩家面前的候选里打分——
+   * 端点接着现有围栏柱的优先(把门嵌进围栏线的缺口),否则取离面前最近的。
    */
   private pickEdge(): { gx: number; gz: number; dir: 'x' | 'z' } | null {
     const t = this.aheadPoint();
@@ -358,20 +365,20 @@ export class FenceSystem implements ObstacleSolver {
     const bz = Math.round(t.z / FENCE_GRID);
     let best: { gx: number; gz: number; dir: 'x' | 'z' } | null = null;
     let bestScore = Infinity;
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -2; dx <= 1; dx++) {
+      for (let dz = -2; dz <= 1; dz++) {
         for (const dir of ['x', 'z'] as const) {
           const gx = bx + dx;
           const gz = bz + dz;
-          const mx = gx + (dir === 'x' ? 0.5 : 0);
-          const mz = gz + (dir === 'z' ? 0.5 : 0);
+          const mx = gx + (dir === 'x' ? 1 : 0);
+          const mz = gz + (dir === 'z' ? 1 : 0);
           const dist = Math.hypot(mx - t.x, mz - t.z);
-          if (dist > 1.25 || !this.edgeValid(gx, gz, dir)) continue;
-          const ax = dir === 'x' ? gx + 1 : gx;
-          const az = dir === 'z' ? gz + 1 : gz;
+          if (dist > 1.4 || !this.edgeValid(gx, gz, dir)) continue;
+          const ex = dir === 'x' ? gx + 2 : gx;
+          const ez = dir === 'z' ? gz + 2 : gz;
           const touching =
             (this.fences.has(FenceSystem.vertexKey(gx, gz)) ? 1 : 0) +
-            (this.fences.has(FenceSystem.vertexKey(ax, az)) ? 1 : 0);
+            (this.fences.has(FenceSystem.vertexKey(ex, ez)) ? 1 : 0);
           const score = (touching > 0 ? 0 : 10) + dist;
           if (score < bestScore) {
             bestScore = score;
@@ -468,8 +475,8 @@ export class FenceSystem implements ObstacleSolver {
     const target = this.pickEdge();
     if (target) {
       this.setPreviewColor(PREVIEW_OK);
-      const mx = target.gx + (target.dir === 'x' ? 0.5 : 0);
-      const mz = target.gz + (target.dir === 'z' ? 0.5 : 0);
+      const mx = target.gx + (target.dir === 'x' ? 1 : 0);
+      const mz = target.gz + (target.dir === 'z' ? 1 : 0);
       this.gatePreview.position.set(mx, this.terrain.getHeight(mx, mz) - 0.02, mz);
       this.gatePreview.rotation.y = target.dir === 'x' ? 0 : Math.PI / 2;
       this.gatePreview.visible = true;
@@ -495,9 +502,7 @@ export class FenceSystem implements ObstacleSolver {
   update(delta: number): void {
     const p = this.player.group.position;
     for (const gate of this.gates.values()) {
-      const mx = gate.gx + (gate.dir === 'x' ? 0.5 : 0);
-      const mz = gate.gz + (gate.dir === 'z' ? 0.5 : 0);
-      gate.setPlayerNear(Math.hypot(p.x - mx, p.z - mz) < GATE_AUTO_RANGE);
+      gate.setPlayerNear(Math.hypot(p.x - gate.centerX, p.z - gate.centerZ) < GATE_AUTO_RANGE);
       gate.update(delta);
     }
     // 门开合会改变阻挡,统一在帧末重算
@@ -541,9 +546,11 @@ export class FenceSystem implements ObstacleSolver {
       return new THREE.Vector3(fence.gx, this.terrain.getHeight(fence.gx, fence.gz) + 0.4, fence.gz);
     }
     const gate = this.gates.get(target.key)!;
-    const mx = gate.gx + (gate.dir === 'x' ? 0.5 : 0);
-    const mz = gate.gz + (gate.dir === 'z' ? 0.5 : 0);
-    return new THREE.Vector3(mx, this.terrain.getHeight(mx, mz) + 0.4, mz);
+    return new THREE.Vector3(
+      gate.centerX,
+      this.terrain.getHeight(gate.centerX, gate.centerZ) + 0.4,
+      gate.centerZ
+    );
   }
 
   /** 锄头范围内最近的围栏柱或门 */
@@ -559,9 +566,7 @@ export class FenceSystem implements ObstacleSolver {
       }
     }
     for (const [key, gate] of this.gates) {
-      const mx = gate.gx + (gate.dir === 'x' ? 0.5 : 0);
-      const mz = gate.gz + (gate.dir === 'z' ? 0.5 : 0);
-      const d = (mx - p.x) ** 2 + (mz - p.z) ** 2;
+      const d = (gate.centerX - p.x) ** 2 + (gate.centerZ - p.z) ** 2;
       if (d < bestDist) {
         best = { kind: 'gate', key };
         bestDist = d;
@@ -585,11 +590,11 @@ export class FenceSystem implements ObstacleSolver {
       const gate = this.gates.get(key)!;
       gx = gate.gx;
       gz = gate.gz;
-      const ax = gate.dir === 'x' ? gx + 1 : gx;
-      const az = gate.dir === 'z' ? gz + 1 : gz;
+      const ex = gate.endX;
+      const ez = gate.endZ;
       gate.remove(this.scene);
       this.gates.delete(key);
-      this.refreshAround(ax, az);
+      this.refreshAround(ex, ez);
       this.give('fenceGate', 1);
     }
     this.refreshAround(gx, gz);
@@ -630,13 +635,9 @@ export class FenceSystem implements ObstacleSolver {
     for (const g of gates) {
       const key = FenceSystem.edgeKey(g.x, g.z, g.dir);
       if (this.gates.has(key)) continue;
-      const ax = g.dir === 'x' ? g.x + 1 : g.x;
-      const az = g.dir === 'z' ? g.z + 1 : g.z;
-      const y = (this.terrain.getHeight(g.x, g.z) + this.terrain.getHeight(ax, az)) / 2;
-      this.gates.set(
-        key,
-        new FenceGate(this.scene, g.x, g.z, g.dir, y, g.x + (g.dir === 'x' ? 0.5 : 0), g.z + (g.dir === 'z' ? 0.5 : 0))
-      );
+      const y =
+        (this.terrain.getHeight(g.x, g.z) + this.terrain.getHeight(g.x + (g.dir === 'x' ? 2 : 0), g.z + (g.dir === 'z' ? 2 : 0))) / 2;
+      this.gates.set(key, new FenceGate(this.scene, g.x, g.z, g.dir, y));
     }
     for (const fence of this.fences.values()) {
       fence.rebuild(this.connectionsOf(fence.gx, fence.gz));

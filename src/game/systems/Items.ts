@@ -353,7 +353,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fenceGate',
     name: '围栏门',
     icon: '🪵',
-    description: '带转轴的栅栏门。点击「使用」放到面前的围栏边缺口上;靠近自动开门、走远自动关门,动物可不会开门。',
+    description: '两格宽的双扇栅栏门。点击「使用」或拿在手上放到围栏线里,两端正好接上两侧围栏;靠近自动开门、走远自动关门,动物可不会开门。',
   },
   bed1: {
     kind: 'bed1',
