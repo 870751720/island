@@ -45,10 +45,7 @@ export class PlantingSystem {
     if (this.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
     if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
-    return !this.props.list.some((prop) => {
-      this.scratch.copy(prop.position);
-      return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
-    });
+    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
   get isWorking(): boolean {

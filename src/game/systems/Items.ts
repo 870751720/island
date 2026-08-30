@@ -259,6 +259,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '⛏️',
     description: '石镐,开采大石块的必备工具;二级工作台可升级为精致石镐。',
   },
+  hoe: {
+    kind: 'hoe',
+    name: '石锄',
+    icon: '⚒️',
+    description: '石锄刃绑上树枝柄。手持锄头可以把浆果丛、灌木丛整棵挖出来搬走;二级工作台可升级为精致石锄。',
+  },
   fishingrod: {
     kind: 'fishingrod',
     name: '树枝鱼竿',
@@ -324,5 +330,17 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '木箱',
     icon: '📦',
     description: '木板钉成的收纳箱。手持木箱站定空地 2 秒即可放到地上,之后靠近可以打开,存取 10 格物品。',
+  },
+  berryBush: {
+    kind: 'berryBush',
+    name: '浆果丛',
+    icon: '🍓',
+    description: '用锄头挖出来的完整浆果丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),之后还能再结果。',
+  },
+  shrubBush: {
+    kind: 'shrubBush',
+    name: '灌木丛',
+    icon: '🌿',
+    description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),之后还能再长树枝。',
   },
 };

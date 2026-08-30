@@ -45,11 +45,12 @@ export type ActionType =
   | 'fish'
   | 'shoot';
 
-/** 手持工具:空手/斧子/镐子/鱼竿/弓/种子(用于播种)/木箱(用于放置) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/种子(用于播种)/木箱(用于放置) */
 export type HandTool =
   | 'hand'
   | 'axe'
   | 'pickaxe'
+  | 'hoe'
   | 'fishingrod'
   | 'bow'
   | 'seed'
@@ -122,6 +123,21 @@ function makePickaxeModel(): THREE.Group {
   tipR.rotation.z = -Math.PI / 2;
   tipR.position.z = 0.3;
   g.add(handle, head, tipL, tipR);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
+/** 锄头:木柄 + 宽扁石刃,握在右手 */
+function makeHoeModel(): THREE.Group {
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.05, 0.62, 5),
+    clayMaterial('#8a6239')
+  );
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.14), clayMaterial('#8a8266'));
+  blade.position.set(0.05, 0.28, 0.08);
+  blade.rotation.z = 0.35;
+  g.add(handle, blade);
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -317,16 +333,17 @@ export class Player implements Updatable {
     // 工具握在右手(armR)末端
     const axe = makeAxeModel();
     const pickaxe = makePickaxeModel();
+    const hoe = makeHoeModel();
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
     const seed = makeSeedPouchModel();
     const crate = makeCrateModel();
-    for (const t of [axe, pickaxe, fishingrod, bow, seed, crate]) {
+    for (const t of [axe, pickaxe, hoe, fishingrod, bow, seed, crate]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, fishingrod, bow, seed, crate);
-    this.toolModels = { axe, pickaxe, fishingrod, bow, seed, crate };
+    armR.add(axe, pickaxe, hoe, fishingrod, bow, seed, crate);
+    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, seed, crate };
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();

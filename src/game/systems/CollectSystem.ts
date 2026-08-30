@@ -14,6 +14,12 @@ import type { GameAudio } from '../audio/GameAudio';
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
+const DIG_HITS = 2; // 锄头挖丛的命中次数(精致石锄 1 次)
+/** 锄头挖走的丛对应的道具 */
+const DIG_YIELD: Partial<Record<'berry' | 'shrub', 'berryBush' | 'shrubBush'>> = {
+  berry: 'berryBush',
+  shrub: 'shrubBush',
+};
 
 /** 作业对象种类:树桩是成树的第二段、小树是树的幼年段,单独配置 */
 type HarvestKind = Prop['kind'] | 'stump' | 'sapling';
@@ -140,8 +146,18 @@ export class CollectSystem {
     private isBusy: () => boolean = () => false
   ) {}
 
-  /** 该资源点需要命中的总次数:精致斧/镐比基础工具少 1 次 */
-  private hitsFor(kind: HarvestKind): number {
+  /** 手持锄头靠近浆果丛/灌木丛时是在挖整棵丛,而不是徒手采集 */
+  private isDigging(prop: Prop): boolean {
+    return (
+      this.player.currentTool === 'hoe' &&
+      (prop.kind === 'berry' || prop.kind === 'shrub')
+    );
+  }
+
+  /** 该资源点需要命中的总次数:精致斧/镐比基础工具少 1 次,精致锄 1 下挖走 */
+  private hitsFor(prop: Prop): number {
+    const kind = kindOf(prop);
+    if (this.isDigging(prop)) return this.tools.hoe >= 2 ? 1 : DIG_HITS;
     if (!REFINED_HITS[kind]) return HARVEST_CONFIG[kind].hits;
     const refined =
       kind === 'tree' || kind === 'stump'
@@ -168,7 +184,13 @@ export class CollectSystem {
 
     const working =
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
-    this.player.setAction(working ? HARVEST_CONFIG[kindOf(this.nearby!)].action : null);
+    this.player.setAction(
+      working
+        ? this.nearby && this.isDigging(this.nearby)
+          ? 'mine'
+          : HARVEST_CONFIG[kindOf(this.nearby!)].action
+        : null
+    );
     if (!working) {
       this.swingTimer = 0;
       return;
@@ -212,7 +234,7 @@ export class CollectSystem {
     if (!prop || !this.canCollect()) return null;
     const done = this.hitCounts.get(prop) ?? 0;
     const swing = Math.min(this.swingTimer / SWING_TIME, 1);
-    return { progress: Math.min((done + swing) / this.hitsFor(kindOf(prop)), 1) };
+    return { progress: Math.min((done + swing) / this.hitsFor(prop), 1) };
   }
 
   private hit(prop: Prop): void {
@@ -220,13 +242,19 @@ export class CollectSystem {
     this.fx.burst(prop.position, config.fxColor, 6);
     this.props.shake(prop);
     const hits = (this.hitCounts.get(prop) ?? 0) + 1;
-    if (hits < this.hitsFor(kindOf(prop))) {
+    if (hits < this.hitsFor(prop)) {
       this.hitCounts.set(prop, hits);
       return;
     }
     this.hitCounts.delete(prop);
-    this.props.harvest(prop);
-    config.yield(this.inventory, prop);
+    if (this.isDigging(prop)) {
+      // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
+      this.props.removeProp(prop);
+      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub']!, 1);
+    } else {
+      this.props.harvest(prop);
+      config.yield(this.inventory, prop);
+    }
     this.audio.play('pickup');
     this.fx.burst(prop.position, config.fxColor, 14);
     this.nearby = null;

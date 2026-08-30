@@ -15,6 +15,7 @@ const STATION_NAMES: Record<Recipe['station'], string> = {
 const REFINED_EFFECTS: Record<string, string> = {
   'refined-axe': '砍树、砍树桩各少敲 1 下,制作后替换石斧。',
   'refined-pickaxe': '开采大石块、陨石各少敲 1 下,制作后替换石镐。',
+  'refined-hoe': '挖走浆果丛、灌木丛只需 1 下,制作后替换石锄。',
   'refined-fishingrod': '抛竿收竿更快,咬钩反应窗口 ×1.5,制作后替换树枝鱼竿。',
   'refined-bow': '箭矢伤害 2 点,射击冷却 3 秒 → 2 秒,制作后替换粗制弓。',
 };

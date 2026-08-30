@@ -35,9 +35,10 @@ const INITIAL_HUD: HudSnapshot = {
   capacity: 10,
   hasAxe: false,
   hasPickaxe: false,
+  hasHoe: false,
   hasFishingrod: false,
   hasBow: false,
-  toolTiers: { axe: 0, pickaxe: 0, fishingrod: 0, bow: 0 },
+  toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
   hasCrate: false,
   nearCrate: false,
@@ -206,6 +207,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'berryBush' || kind === 'shrubBush') {
+            gameRef.current?.useBush(kind);
+            setBackpackOpen(false);
+            return;
+          }
           gameRef.current?.eatFood(kind);
           setBackpackOpen(false);
         }}
@@ -223,6 +229,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         <>
           {(hud.hasAxe ||
             hud.hasPickaxe ||
+            hud.hasHoe ||
             hud.hasFishingrod ||
             hud.hasBow ||
             hud.hasSeed ||

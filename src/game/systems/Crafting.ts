@@ -2,7 +2,7 @@ import type { InventorySlot, ResourceKind, Inventory } from './Inventory';
 import { EQUIPMENT, isEquipKind, type EquipKind, type EquipSlot } from './Equipment';
 
 /** 可拥有的工具 */
-export type ToolId = 'axe' | 'pickaxe' | 'fishingrod' | 'bow';
+export type ToolId = 'axe' | 'pickaxe' | 'hoe' | 'fishingrod' | 'bow';
 
 /** 精致工具配方 id(refined- 前缀区分基础工具) */
 export type RefinedToolId = `refined-${ToolId}`;
@@ -36,6 +36,7 @@ export type Recipe = {
 const TOOL_NAMES: Record<ToolId, [string, string]> = {
   axe: ['石斧', '精致石斧'],
   pickaxe: ['石镐', '精致石镐'],
+  hoe: ['石锄', '精致石锄'],
   fishingrod: ['树枝鱼竿', '精致鱼竿'],
   bow: ['粗制弓', '精致弓'],
 };
@@ -45,7 +46,7 @@ export function toolName(tool: ToolId, tier: number): string {
 }
 
 /** 全部工具(工具 tab 展示顺序) */
-export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'fishingrod', 'bow'];
+export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow'];
 
 export const RECIPES: Recipe[] = [
   {
@@ -63,6 +64,14 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     tool: 'pickaxe',
+  },
+  {
+    id: 'hoe',
+    name: '石锄',
+    icon: '⚒️',
+    cost: { wood: 1, stone: 1 },
+    station: 'hand',
+    tool: 'hoe',
   },
   {
     id: 'rope',
@@ -105,6 +114,16 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 2, stone: 2 },
     station: 'workbench',
     tool: 'pickaxe',
+    tier: 2,
+    minBenchLevel: 2,
+  },
+  {
+    id: 'refined-hoe',
+    name: '精致石锄',
+    icon: '⚒️',
+    cost: { wood: 2, stone: 2 },
+    station: 'workbench',
+    tool: 'hoe',
     tier: 2,
     minBenchLevel: 2,
   },

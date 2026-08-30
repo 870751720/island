@@ -28,9 +28,14 @@ type Props = {
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
 
-/** 可「使用」的道具:食物(进食)与漂流瓶(读瓶中信) */
+/** 可「使用」的道具:食物(进食)、漂流瓶(读瓶中信)与挖来的丛(原地种回) */
 function isUsable(kind: ResourceKind): boolean {
-  return FOODS.some((f) => f.kind === kind) || kind === 'bottle';
+  return (
+    FOODS.some((f) => f.kind === kind) ||
+    kind === 'bottle' ||
+    kind === 'berryBush' ||
+    kind === 'shrubBush'
+  );
 }
 
 const SLOT_SIZE = 52;

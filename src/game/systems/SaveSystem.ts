@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -17,7 +17,9 @@ export type PropSave = {
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;
-  /** 玩家种下的树的落点坐标;自然生成的资源点没有该字段 */
+  /** 被锄头整棵挖走的资源点(永久消失,不再再生) */
+  dug?: boolean;
+  /** 玩家种下的树/放下的丛的落点坐标;自然生成的资源点没有该字段 */
   x?: number;
   z?: number;
 };

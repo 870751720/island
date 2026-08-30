@@ -39,6 +39,7 @@ export type ResourceKind =
   | 'fruitFruit'
   | 'axe'
   | 'pickaxe'
+  | 'hoe'
   | 'fishingrod'
   | 'bow'
   | 'fur'
@@ -50,7 +51,9 @@ export type ResourceKind =
   | 'furPants'
   | 'furHat'
   | 'furBackpack'
-  | 'crate';
+  | 'crate'
+  | 'berryBush'
+  | 'shrubBush';
 
 /** 一个背包格:道具类型与叠加数量,空格为 null */
 export type InventorySlot = { kind: ResourceKind; count: number } | null;

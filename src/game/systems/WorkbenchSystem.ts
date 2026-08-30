@@ -77,10 +77,7 @@ export class WorkbenchSystem {
     if (this.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
     if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
-    return !this.props.list.some((prop) => {
-      this.scratch.copy(prop.position);
-      return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
-    });
+    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
   /** 是否满足发起条件(材料齐 + 没有工作台 + 当前位置可摆放) */

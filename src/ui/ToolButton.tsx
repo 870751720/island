@@ -6,6 +6,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
   axe: '🪓',
   pickaxe: '⛏️',
+  hoe: '⚒️',
   fishingrod: '🎣',
   bow: '🏹',
   seed: '🌱',

@@ -69,10 +69,7 @@ export class CrateSystem {
     ) {
       return false;
     }
-    return !this.props.list.some((prop) => {
-      this.scratch.copy(prop.position);
-      return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
-    });
+    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
   update(delta: number): void {

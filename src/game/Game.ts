@@ -61,6 +61,7 @@ export type HudSnapshot = {
   capacity: number;
   hasAxe: boolean;
   hasPickaxe: boolean;
+  hasHoe: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
   /** 各工具当前等级(0 未拥有、1 基础、2 精致),用于展示精致名称 */
@@ -137,7 +138,7 @@ export class Game {
   private inventory = new Inventory();
   private equipment = new Equipment();
   /** 已拥有的工具(制作一次永久拥有,不进背包,供 HUD/自言自语/制作判断) */
-  private tools: Tools = { axe: 0, pickaxe: 0, fishingrod: 0, bow: 0 };
+  private tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
@@ -696,9 +697,9 @@ export class Game {
     this.player.input.setJoystick(x, z);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 鱼竿 → 弓 → 种子 → 木箱(仅已拥有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 种子 → 木箱(仅已拥有的) */
   cycleTool(): void {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'fishingrod', 'bow', 'seed', 'crate'];
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'seed', 'crate'];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
     const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
     this.player.setTool(next);
@@ -844,6 +845,28 @@ export class Game {
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
   useBottle(): string | null {
     return openBottle(this.inventory);
+  }
+
+  /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
+  useBush(kind: 'berryBush' | 'shrubBush'): boolean {
+    if (this.inventory.count(kind) <= 0) return false;
+    const p = this.player.group.position;
+    if (
+      this.player.isSwimming ||
+      this.terrain.isNearWater(p, 1) ||
+      this.terrain.getHeight(p.x, p.z) <= 0 ||
+      this.props.isOccupied(p, 1)
+    ) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    this.inventory.remove(kind, 1);
+    this.props.placeBush(kind === 'berryBush' ? 'berry' : 'shrub', p.x, p.z);
+    this.audio.play('success');
+    const fxPos = p.clone();
+    fxPos.y += 0.5;
+    this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : '#6b8f4e', 10);
+    return true;
   }
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则提示 */
@@ -992,6 +1015,7 @@ export class Game {
       capacity: this.inventory.capacity,
       hasAxe: !!this.tools.axe,
       hasPickaxe: !!this.tools.pickaxe,
+      hasHoe: !!this.tools.hoe,
       hasFishingrod: !!this.tools.fishingrod,
       hasBow: !!this.tools.bow,
       toolTiers: { ...this.tools },
@@ -1074,6 +1098,7 @@ export class Game {
       progress = this.fishing.getProgress();
     } else if (nearby && this.collect.canCollect(nearby)) {
       progress = this.collect.getHarvestInfo()?.progress ?? null;
+      const digging = this.player.currentTool === 'hoe';
       label =
         nearby.kind === 'tree'
           ? '砍树'
@@ -1082,10 +1107,14 @@ export class Game {
             : nearby.kind === 'gravel'
               ? '捡石头'
               : nearby.kind === 'shrub'
-                ? '捡树枝'
+                ? digging
+                  ? '挖灌木丛'
+                  : '捡树枝'
                 : nearby.kind === 'grass'
                   ? '采纤维'
-                  : '采浆果';
+                  : digging
+                    ? '挖浆果丛'
+                    : '采浆果';
     } else if (this.water.isActive) {
       label = '喝水';
       progress = this.water.getProgress();

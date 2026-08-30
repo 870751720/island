@@ -44,6 +44,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   fruitFruit: '#c0392b',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
+  hoe: '#8a7a5a',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
   grassShirt: '#5a8a3a',
@@ -55,6 +56,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   strawBackpack: '#c9a56a',
   furBackpack: '#8a5a2b',
   crate: '#a97b48',
+  berryBush: '#5d8a3a',
+  shrubBush: '#6b8f4e',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -523,6 +526,38 @@ function makeBackpack(color: string): THREE.Object3D {
   return g;
 }
 
+/** 锄头:木柄 + 宽扁的石刃 */
+function makeHoe(): THREE.Object3D {
+  const g = new THREE.Group();
+  const handle = toolHandle(clay('#8b6239'));
+  const blade = mesh(new THREE.BoxGeometry(0.22, 0.05, 0.14), clay(DROP_COLORS.hoe));
+  blade.position.set(0.1, 0.66, 0);
+  blade.rotation.z = 0.5;
+  g.add(handle, blade);
+  return g;
+}
+
+/** 可挖走的丛:一团长叶体点缀小果(浆果丛)或纯叶团(灌木丛) */
+function makeBushDrop(color: string, withBerries: boolean): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const body = mesh(new THREE.IcosahedronGeometry(0.2, 0), mat);
+  body.position.y = 0.16;
+  g.add(body);
+  if (withBerries) {
+    for (const [x, z] of [
+      [0.14, 0.08],
+      [-0.12, 0.1],
+      [0.02, -0.15],
+    ]) {
+      const berry = mesh(new THREE.IcosahedronGeometry(0.05, 0), clay('#c0392b'));
+      berry.position.set(x, 0.24, z);
+      g.add(berry);
+    }
+  }
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
   log: makeLog,
@@ -565,6 +600,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fruitFruit: () => makeFruit(DROP_COLORS.fruitFruit),
   axe: makeAxe,
   pickaxe: makePickaxe,
+  hoe: makeHoe,
   fishingrod: makeFishingRod,
   bow: makeBow,
   grassShirt: () => makeShirt(DROP_COLORS.grassShirt),
@@ -590,6 +626,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
     }
     return g;
   },
+  berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
+  shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

@@ -36,7 +36,9 @@ export type PropState = {
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;
-  /** 玩家种下的树的落点坐标;自然生成的资源点没有该字段 */
+  /** 被锄头整棵挖走的资源点(永久消失,不再再生) */
+  dug?: boolean;
+  /** 玩家种下的树/放下的丛的落点坐标;自然生成的资源点没有该字段 */
   x?: number;
   z?: number;
 };
@@ -64,6 +66,8 @@ export type Prop = {
   species?: TreeSpecies;
   /** 树的生长阶段;仅成树可砍 */
   growth?: TreeStage;
+  /** 被锄头整棵挖走(永久消失,不再再生) */
+  dug?: boolean;
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -427,6 +431,47 @@ export class Props implements Updatable {
     return prop;
   }
 
+  /** 玩家放下一株挖来的丛:在落点生成可采集/可再挖的丛并纳入管理 */
+  placeBush(kind: 'berry' | 'shrub', x: number, z: number): Prop {
+    const y = this.terrain.getHeight(x, z);
+    let berries: THREE.Mesh[] | null = null;
+    let group: THREE.Group;
+    if (kind === 'berry') {
+      const made = makeBerryBush();
+      group = made.group;
+      berries = made.berries;
+    } else {
+      group = makeShrub();
+    }
+    group.position.set(x, y - 0.05, z);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    this.scene.add(group);
+    const prop: Prop = {
+      kind,
+      group,
+      position: group.position.clone(),
+      ready: true,
+      regrowLeft: 0,
+    };
+    this.list.push(prop);
+    if (berries) this.berries.set(prop, berries);
+    return prop;
+  }
+
+  /** 锄头整棵挖走资源点:永久从场上消失(不再再生,也不占位) */
+  removeProp(prop: Prop): void {
+    prop.dug = true;
+    prop.ready = false;
+    prop.regrowLeft = 0;
+    prop.group.visible = false;
+    this.berries.delete(prop);
+  }
+
+  /** 落点附近是否有占位的资源点(被挖走的不算) */
+  isOccupied(p: THREE.Vector3, range: number): boolean {
+    return this.list.some((prop) => !prop.dug && prop.position.distanceTo(p) < range);
+  }
+
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
   private applyTreeLook(prop: Prop): void {
     while (prop.group.children.length > 0) prop.group.remove(prop.group.children[0]);
@@ -492,6 +537,7 @@ export class Props implements Updatable {
         ready: prop.ready,
         regrowLeft: prop.regrowLeft,
         stage: prop.stage,
+        dug: prop.dug || undefined,
       };
       if (prop.kind === 'tree') {
         state.species = prop.species;
@@ -518,6 +564,7 @@ export class Props implements Updatable {
       prop.ready = state.ready;
       prop.regrowLeft = state.regrowLeft;
       prop.stage = state.stage;
+      if (state.dug) this.removeProp(prop);
       if (prop.kind === 'tree') {
         prop.species = state.species ?? 'oak';
         prop.growth = state.growth ?? 'mature';
@@ -531,6 +578,13 @@ export class Props implements Updatable {
       if (state.kind === 'meteor') {
         const prop = this.placeMeteor(state.x, state.z);
         prop.ready = state.ready;
+        this.syncAppearance(prop);
+        continue;
+      }
+      if (state.kind === 'berry' || state.kind === 'shrub') {
+        const prop = this.placeBush(state.kind, state.x, state.z);
+        prop.ready = state.ready;
+        prop.regrowLeft = state.regrowLeft;
         this.syncAppearance(prop);
         continue;
       }
