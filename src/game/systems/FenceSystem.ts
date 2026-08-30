@@ -23,8 +23,10 @@ const DIG_RANGE = 1.5;
 /** 锄头挖围栏的命中次数(精致锄 1 次) */
 const DIG_HITS = 2;
 const SWING_TIME = 0.6;
-/** 手持围栏/门站定自动放置的时长(秒) */
+/** 手持围栏站定自动放置的时长(秒) */
 const PLACE_TIME = 0.8;
+/** 手持围栏门站定自动放置的时长(秒) */
+const GATE_PLACE_TIME = 5;
 /** 放置预览的可用提示色(附近没有可放位置时预览直接隐藏) */
 const PREVIEW_OK = '#7fd67f';
 
@@ -407,7 +409,9 @@ export class FenceSystem implements ObstacleSolver {
 
   /** 当前放置进度 0-1,未在放置时为 null */
   getPlaceProgress(): number | null {
-    return this.isPlacing ? Math.min(this.placeTimer / PLACE_TIME, 1) : null;
+    if (!this.isPlacing) return null;
+    const need = this.player.currentTool === 'fenceGate' ? GATE_PLACE_TIME : PLACE_TIME;
+    return Math.min(this.placeTimer / need, 1);
   }
 
   /** 手持围栏/门站定自动放到面前的格点(边)上,面前已满或不可放则不打扰 */
@@ -434,7 +438,8 @@ export class FenceSystem implements ObstacleSolver {
     }
     this.player.setAction('craft');
     this.placeTimer += delta;
-    if (this.placeTimer < PLACE_TIME) return;
+    const need = gate ? GATE_PLACE_TIME : PLACE_TIME;
+    if (this.placeTimer < need) return;
     this.placeTimer = 0;
     if (fenceKind) this.useFence(fenceKind);
     else this.useGate();
