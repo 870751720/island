@@ -16,8 +16,8 @@ type Props = {
   hud: HudSnapshot;
   /** 使用(吃)该食物道具,由外层触发进食并关闭背包 */
   onUseItem: (kind: ResourceKind) => void;
-  /** 丢弃该种类全部道具到地上 */
-  onDropItem: (kind: ResourceKind) => void;
+  /** 丢弃指定数量的道具到地上 */
+  onDropItem: (kind: ResourceKind, count: number) => void;
   /** 在背包里发起手搓制作(站定敲打完成后入包/装备) */
   onCraft: (id: CraftId) => void;
   /** 在背包里发起搭建工作台(全局唯一,材料齐且场上没有时显示) */
@@ -183,6 +183,8 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  /** 待丢弃数量:选中道具时重置为 1 */
+  const [dropCount, setDropCount] = useState(1);
   const [tip, setTip] = useState<TipState | null>(null);
   /** 最近一次点击格子的时间与下标,用于双击判定 */
   const lastTap = useRef<{ index: number; time: number } | null>(null);
@@ -326,6 +328,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             return;
                           }
                           setSelectedIndex(selectedIndex === i ? null : i);
+                          setDropCount(1);
                         }}
                         style={slotStyle(!!slot, selectedIndex === i)}
                       >
@@ -361,10 +364,53 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             onEquip(selectedDef.kind);
                             setSelectedIndex(null);
                           })}
-                        {actionButton(false, '丢弃全部', '#e67e22', () => {
-                          onDropItem(selectedDef.kind);
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                        {/* 丢弃数量步进:- 数量 +,默认 1 */}
+                        {[-1, 1].map((step) => (
+                          <button
+                            key={step}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              setDropCount((c) =>
+                                Math.min(selected.count, Math.max(1, c + step))
+                              );
+                            }}
+                            style={{
+                              width: 44,
+                              borderRadius: 10,
+                              border: 'none',
+                              background: 'rgba(0,0,0,0.08)',
+                              color: '#555',
+                              fontSize: 20,
+                              fontWeight: 700,
+                              touchAction: 'none',
+                              userSelect: 'none',
+                            }}
+                          >
+                            {step < 0 ? '−' : '+'}
+                          </button>
+                        ))}
+                        <span
+                          style={{
+                            minWidth: 40,
+                            textAlign: 'center',
+                            alignSelf: 'center',
+                            fontWeight: 700,
+                            color: '#555',
+                          }}
+                        >
+                          {dropCount}
+                        </span>
+                        {actionButton(false, `丢弃${dropCount > 1 ? ` ${dropCount}` : ''}`, '#e67e22', () => {
+                          onDropItem(selectedDef.kind, dropCount);
                           setSelectedIndex(null);
                         })}
+                        {selected.count > 1 &&
+                          actionButton(false, '全丢', '#c0392d', () => {
+                            onDropItem(selectedDef.kind, selected.count);
+                            setSelectedIndex(null);
+                          })}
                       </div>
                     </>
                   ) : (

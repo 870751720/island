@@ -130,12 +130,13 @@ export class DropSystem {
     return false;
   }
 
-  /** 范围内最近的一块肉(狗狗寻肉用,只比较水平距离——肉块悬浮在空中),没有则 null */
+  /** 范围内最近的一块肉(狗狗寻肉用,只比较水平距离——肉块悬浮在空中),没有则 null。
+   * 只认玩家主动丢弃的肉:狩猎战利品和背包溢出的不抢 */
   nearestMeat(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Drop | null = null;
     let bestDist = range * range;
     for (const drop of this.drops) {
-      if (!MEAT_KINDS.includes(drop.kind)) continue;
+      if (!MEAT_KINDS.includes(drop.kind) || drop.source !== 'discarded') continue;
       const dx = drop.mesh.position.x - origin.x;
       const dz = drop.mesh.position.z - origin.z;
       const d = dx * dx + dz * dz;

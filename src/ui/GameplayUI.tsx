@@ -290,7 +290,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           gameRef.current?.eatFood(kind);
           setBackpackOpen(false);
         }}
-        onDropItem={(kind) => gameRef.current?.dropItem(kind)}
+        onDropItem={(kind, count) => gameRef.current?.dropItem(kind, count)}
         onCraft={(id) => {
           if (gameRef.current?.craftTool(id)) setBackpackOpen(false);
         }}
