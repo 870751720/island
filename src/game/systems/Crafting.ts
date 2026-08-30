@@ -46,6 +46,8 @@ export type Recipe = {
   minBenchLevel?: number;
   /** 鱼饵类手搓配方:只在手持鱼竿且背包没有鱼饵时弹出制作卡片 */
   baitPrompt?: boolean;
+  /** 手搓卡片弹出优先级:数字越小越先弹;同一时刻只显示优先级最高的一张(station 为 hand 的配方必填,见 RECIPES 定义后的校验) */
+  promptPriority?: number;
 };
 
 /** 各工具按等级的名称(工具 tab 与制作面板展示用) */
@@ -71,6 +73,7 @@ export const RECIPES: Recipe[] = [
     icon: '🪓',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
+    promptPriority: 1,
     tool: 'axe',
   },
   {
@@ -79,6 +82,7 @@ export const RECIPES: Recipe[] = [
     icon: '⛏️',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
+    promptPriority: 2,
     tool: 'pickaxe',
   },
   {
@@ -87,6 +91,7 @@ export const RECIPES: Recipe[] = [
     icon: '⚒️',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
+    promptPriority: 3,
     tool: 'hoe',
   },
   {
@@ -231,6 +236,7 @@ export const RECIPES: Recipe[] = [
     icon: '🪱',
     cost: { crabMeat: 1 },
     station: 'hand',
+    promptPriority: 9,
     output: 'bait',
     outputCount: 2,
     baitPrompt: true,
@@ -241,6 +247,7 @@ export const RECIPES: Recipe[] = [
     icon: '🪱',
     cost: { birdMeat: 1 },
     station: 'hand',
+    promptPriority: 10,
     output: 'bait',
     outputCount: 3,
     baitPrompt: true,
@@ -251,6 +258,7 @@ export const RECIPES: Recipe[] = [
     icon: '🪱',
     cost: { gameMeat: 1 },
     station: 'hand',
+    promptPriority: 11,
     output: 'bait',
     outputCount: 10,
     baitPrompt: true,
@@ -261,6 +269,7 @@ export const RECIPES: Recipe[] = [
     icon: '🍃',
     cost: { wood: 1, fiber: 1 },
     station: 'hand',
+    promptPriority: 6,
     output: 'grassShirt',
   },
   {
@@ -269,6 +278,7 @@ export const RECIPES: Recipe[] = [
     icon: '🍂',
     cost: { wood: 1, fiber: 1 },
     station: 'hand',
+    promptPriority: 7,
     output: 'grassPants',
   },
   {
@@ -277,6 +287,7 @@ export const RECIPES: Recipe[] = [
     icon: '👒',
     cost: { fiber: 2 },
     station: 'hand',
+    promptPriority: 8,
     output: 'strawHat',
   },
   {
@@ -321,8 +332,17 @@ export const RECIPES: Recipe[] = [
   },
 ];
 
+for (const r of RECIPES) {
+  if (r.station === 'hand' && r.promptPriority === undefined) {
+    throw new Error(`手搓配方 ${r.id} 缺少 promptPriority`);
+  }
+}
+
 /** 全局唯一工作台的配方:2 石头 + 1 树枝 */
 export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2, wood: 1 };
+
+/** 工作台卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
+export const WORKBENCH_PROMPT_PRIORITY = 4;
 
 /** 工作台每升一级消耗的石头数 */
 export const WORKBENCH_UPGRADE_STONES = 10;

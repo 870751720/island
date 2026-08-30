@@ -2,11 +2,27 @@
 
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
-import { RECIPES, WORKBENCH_COST, hasCost, recipeVisible, type Recipe } from '@/game/systems/Crafting';
-import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
+import {
+  RECIPES,
+  WORKBENCH_COST,
+  WORKBENCH_PROMPT_PRIORITY,
+  hasCost,
+  recipeVisible,
+  type Recipe,
+} from '@/game/systems/Crafting';
+import { CAMPFIRE_COST, CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
 import { costLabel } from './materials';
 
-/** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片(斧/镐 + 工作台) */
+/** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
+type PromptCard = {
+  priority: number;
+  icon: string;
+  title: string;
+  cost: Partial<Record<string, number>>;
+  onCraft: () => void;
+};
+
+/** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片;同一时刻只显示优先级最高的一张 */
 export function CraftPrompt({
   hud,
   onCraft,
@@ -23,17 +39,40 @@ export function CraftPrompt({
   const ownedTools = hud.toolTiers;
   // 鱼饵配方:只在手持鱼竿且背包没有鱼饵时弹出
   const baitCrafting = hud.tool === 'fishingrod' && hud.bait <= 0;
-  const craftable = RECIPES.filter(
+  const cards: PromptCard[] = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, hud) &&
       (!r.baitPrompt || baitCrafting) &&
       recipeVisible(r, hud, ownedTools, hud.equipped, hud.slots)
-  );
-  const showWorkbench = hud.canCraftWorkbench;
-  const showCampfire = hud.canCraftCampfire;
-  if (craftable.length === 0 && !showWorkbench && !showCampfire) return null;
+  ).map((r) => ({
+    priority: r.promptPriority ?? Number.MAX_SAFE_INTEGER,
+    icon: r.icon,
+    title: `手搓${r.name}`,
+    cost: r.cost,
+    onCraft: () => onCraft(r.id),
+  }));
+  if (hud.canCraftWorkbench) {
+    cards.push({
+      priority: WORKBENCH_PROMPT_PRIORITY,
+      icon: '🛠️',
+      title: '手搓工作台',
+      cost: WORKBENCH_COST,
+      onCraft: onCraftWorkbench,
+    });
+  }
+  if (hud.canCraftCampfire) {
+    cards.push({
+      priority: CAMPFIRE_PROMPT_PRIORITY,
+      icon: '🔥',
+      title: '原地搭小火堆',
+      cost: CAMPFIRE_COST,
+      onCraft: onCraftCampfire,
+    });
+  }
+  if (cards.length === 0) return null;
+  const best = cards.reduce((a, b) => (b.priority < a.priority ? b : a));
   return (
     <div
       style={{
@@ -41,65 +80,23 @@ export function CraftPrompt({
         left: 'max(12px, env(safe-area-inset-left))',
         top: '50%',
         transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
         fontFamily: 'sans-serif',
       }}
     >
-      {craftable.map((recipe) => (
-        <button
-          key={recipe.id}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            onCraft(recipe.id);
-          }}
-          style={cardStyle}
-        >
-          <span style={{ fontSize: 26 }}>{recipe.icon}</span>
-          <span>
-            手搓{recipe.name}
-            <br />
-            <span style={{ fontSize: 12, color: '#888' }}>{costLabel(recipe.cost)}</span>
-          </span>
-        </button>
-      ))}
-      {showWorkbench && (
-        <button
-          onPointerDown={(e) => {
-            e.preventDefault();
-            onCraftWorkbench();
-          }}
-          style={cardStyle}
-        >
-          <span style={{ fontSize: 26 }}>🛠️</span>
-          <span>
-            手搓工作台
-            <br />
-            <span style={{ fontSize: 12, color: '#888' }}>
-              {costLabel(WORKBENCH_COST)}
-            </span>
-          </span>
-        </button>
-      )}
-      {showCampfire && (
-        <button
-          onPointerDown={(e) => {
-            e.preventDefault();
-            onCraftCampfire();
-          }}
-          style={cardStyle}
-        >
-          <span style={{ fontSize: 26 }}>🔥</span>
-          <span>
-            原地搭小火堆
-            <br />
-            <span style={{ fontSize: 12, color: '#888' }}>
-              {costLabel(CAMPFIRE_COST)}
-            </span>
-          </span>
-        </button>
-      )}
+      <button
+        onPointerDown={(e) => {
+          e.preventDefault();
+          best.onCraft();
+        }}
+        style={cardStyle}
+      >
+        <span style={{ fontSize: 26 }}>{best.icon}</span>
+        <span>
+          {best.title}
+          <br />
+          <span style={{ fontSize: 12, color: '#888' }}>{costLabel(best.cost)}</span>
+        </span>
+      </button>
     </div>
   );
 }

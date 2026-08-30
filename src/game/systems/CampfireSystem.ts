@@ -16,6 +16,8 @@ const FX_COLOR = '#e0862e';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
 export const CAMPFIRE_COST = { flint: 1, log: 2 };
+/** 火堆卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
+export const CAMPFIRE_PROMPT_PRIORITY = 5;
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
 const DIG_RANGE = 1.6; // 持锄头可开挖熄灭火堆的距离
 const DIG_HITS = 2; // 锄头挖火堆的命中次数(精致石锄 1 次)
