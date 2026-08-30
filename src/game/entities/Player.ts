@@ -46,7 +46,7 @@ export type ActionType =
   | 'shoot'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/种子(用于播种)/围栏与围栏门(用于沿途立栏) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/围栏与围栏门(用于沿途立栏) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -54,7 +54,6 @@ export type HandTool =
   | 'hoe'
   | 'fishingrod'
   | 'bow'
-  | 'seed'
   | 'fenceWood'
   | 'fenceStone'
   | 'fenceGate';
@@ -142,22 +141,6 @@ function makeHoeModel(): THREE.Group {
   blade.rotation.z = 0.35;
   g.add(handle, blade);
   g.rotation.x = Math.PI / 2.4;
-  return g;
-}
-
-/** 种子袋:小布袋装着几粒种子,握在右手 */
-function makeSeedPouchModel(): THREE.Group {
-  const g = new THREE.Group();
-  const pouch = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07, 0.05, 0.14, 6),
-    clayMaterial('#c9a15c')
-  );
-  const seedMat = clayMaterial('#8a6b45');
-  const seed1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), seedMat);
-  seed1.position.set(0.04, 0.09, 0.02);
-  const seed2 = seed1.clone();
-  seed2.position.set(-0.03, 0.09, -0.02);
-  g.add(pouch, seed1, seed2);
   return g;
 }
 
@@ -356,16 +339,15 @@ export class Player implements Updatable {
     const hoe = makeHoeModel();
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
-    const seed = makeSeedPouchModel();
     const fenceWood = makeFenceBundleModel('#a97b48', false);
     const fenceStone = makeFenceBundleModel('#9a9a9a', false);
     const fenceGate = makeFenceBundleModel('#8a6239', true);
-    for (const t of [axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate]) {
+    for (const t of [axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate);
-    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, seed, fenceWood, fenceStone, fenceGate };
+    armR.add(axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate);
+    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate };
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();

@@ -46,7 +46,6 @@ const INITIAL_HUD: HudSnapshot = {
   hasFishingrod: false,
   hasBow: false,
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
-  hasSeed: false,
   nearCrate: false,
   nearBed: false,
   bedSleeping: false,
@@ -263,6 +262,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'oakSeed' || kind === 'pineSeed' || kind === 'fruitSeed') {
+            gameRef.current?.useSeed(kind);
+            setBackpackOpen(false);
+            return;
+          }
           if (kind === 'crate') {
             gameRef.current?.useCrate();
             setBackpackOpen(false);
@@ -303,7 +307,6 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             hud.hasHoe ||
             hud.hasFishingrod ||
             hud.hasBow ||
-            hud.hasSeed ||
             hud.nearWorkbench ||
             hud.nearCampfire ||
             hud.nearCrate ||

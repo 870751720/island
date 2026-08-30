@@ -13,7 +13,6 @@ import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './syst
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
-import { PlantingSystem } from './systems/PlantingSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
@@ -44,7 +43,7 @@ import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
-import { SEED_OF, TREE_SPECIES } from './world/TreeSpecies';
+import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import type { VitalLevels } from '../ui/VitalWarn';
 
@@ -80,7 +79,6 @@ export type HudSnapshot = {
   /** 各工具当前等级(0 未拥有、1 基础、2 精致),用于展示精致名称 */
   toolTiers: Tools;
   /** 背包里是否有种子(可切换到种子播种) */
-  hasSeed: boolean;
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
   nearCrate: boolean;
   /** 玩家在床旁(工具按钮变为床,点击开始睡觉) */
@@ -160,7 +158,6 @@ export class Game {
   private tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
-  private planting: PlantingSystem;
   private crates: CrateSystem;
   private fences: FenceSystem;
   private beds: BedSystem;
@@ -299,7 +296,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.beds.isBusy ||
         this.water.isActive
@@ -373,7 +369,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.beds.isBusy
@@ -410,28 +405,8 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
-        this.water.isActive
-    );
-    this.planting = new PlantingSystem(
-      this.player,
-      this.inventory,
-      this.terrain,
-      this.props,
-      this.fx,
-      this.audio,
-      // 其他占用双手的行为进行中时播种让位
-      () =>
-        this.crafting.isWorking ||
-        this.workbench.isWorking ||
-        this.workbench.isDigging ||
-        this.campfire.isBusy ||
-        this.eating.isWorking ||
-        this.fishing.isWorking ||
-        this.archery.isWorking ||
-        this.beds.isBusy ||
         this.water.isActive
     );
     this.crates = new CrateSystem(
@@ -455,7 +430,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.water.isActive
     );
     this.beds = new BedSystem(
@@ -479,7 +453,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.water.isActive
@@ -514,7 +487,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.water.isActive,
@@ -607,8 +579,7 @@ export class Game {
       }
       this.lastHealth = this.survival.state.health;
         this.collect.update(delta);
-        this.planting.update(delta);
-        this.crates.update(delta);
+            this.crates.update(delta);
         this.fences.update(delta);
         this.beds.update(delta);
         // 睡觉过渡中:天空随进度日夜流转
@@ -636,7 +607,6 @@ export class Game {
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.beds.isBusy ||
@@ -651,7 +621,6 @@ export class Game {
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.beds.isBusy ||
@@ -688,7 +657,6 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking ||
         this.crates.isDigging ||
         this.fences.isDigging ||
         this.beds.isBusy
@@ -735,7 +703,7 @@ export class Game {
       if (tier > 0) this.tools[id as ToolId] = tier;
     }
     const tool = save.handTool;
-    if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : this.hasTool(tool))) {
+    if (tool === 'hand' || this.hasTool(tool)) {
       this.player.setTool(tool);
     }
     this.dayNight.time = save.dayTime;
@@ -845,24 +813,18 @@ export class Game {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
 
-  /** 手上是否还持有该工具(种子与围栏按背包数量判断) */
+  /** 手上是否还持有该工具(围栏按背包数量判断) */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
-    if (tool === 'seed') return this.hasSeed();
     if (tool === 'fenceWood' || tool === 'fenceStone' || tool === 'fenceGate')
       return this.inventory.count(tool) > 0;
     return !!this.tools[tool];
-  }
-
-  /** 背包里是否还有任意树种种子 */
-  private hasSeed(): boolean {
-    return TREE_SPECIES.some((s) => this.inventory.count(SEED_OF[s]) > 0);
   }
 
   setJoystick(x: number, z: number): void {
     this.player.input.setJoystick(x, z);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 种子 → 围栏/门(仅手里还有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 围栏/门(仅手里还有的) */
   cycleTool(): void {
     const order: HandTool[] = [
       'hand',
@@ -871,7 +833,6 @@ export class Game {
       'hoe',
       'fishingrod',
       'bow',
-      'seed',
       'fenceWood',
       'fenceStone',
       'fenceGate',
@@ -899,7 +860,6 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isWorking ||
       this.eating.isWorking ||
-      this.planting.isWorking ||
       this.beds.isBusy ||
       this.survival.state.dead
     ) {
@@ -953,7 +913,6 @@ export class Game {
       this.workbench.isWorking ||
       this.eating.isWorking ||
       this.fishing.isWorking ||
-      this.planting.isWorking ||
       this.beds.isBusy
     ) {
       return false;
@@ -971,7 +930,6 @@ export class Game {
       this.workbench.isWorking ||
       this.workbench.isDigging ||
       this.eating.isWorking ||
-      this.planting.isWorking ||
       this.beds.isBusy ||
       this.water.isActive
     ) {
@@ -1116,6 +1074,30 @@ export class Game {
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
   useBottle(): string | null {
     return openBottle(this.inventory);
+  }
+
+  /** 背包里点击「使用」种子:校验与摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
+  useSeed(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
+    const species = (Object.keys(SEED_OF) as (keyof typeof SEED_OF)[]).find((s) => SEED_OF[s] === kind);
+    if (!species || this.inventory.count(kind) <= 0) return false;
+    const p = this.player.group.position;
+    if (
+      this.player.isSwimming ||
+      this.terrain.isNearWater(p, 1) ||
+      this.terrain.getHeight(p.x, p.z) <= 0 ||
+      this.props.isOccupied(p, 1)
+    ) {
+      this.notify('这里种不了,找个没东西的干地试试');
+      return false;
+    }
+    this.inventory.remove(kind, 1);
+    this.props.plant(species, p.x, p.z);
+    this.audio.play('success');
+    const fxPos = p.clone();
+    fxPos.y += 0.5;
+    this.fx.burst(fxPos, '#7fae55', 10);
+    return true;
   }
 
   /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
@@ -1309,7 +1291,6 @@ export class Game {
       hasFishingrod: !!this.tools.fishingrod,
       hasBow: !!this.tools.bow,
       toolTiers: { ...this.tools },
-      hasSeed: this.hasSeed(),
       nearCrate: !!this.crates.nearby,
       nearBed: !!this.beds.nearby,
       bedSleeping: this.beds.isSleeping,
@@ -1361,9 +1342,6 @@ export class Game {
     } else if (this.workbench.isDigging) {
       label = '挖工作台…';
       progress = this.workbench.getDigProgress();
-    } else if (this.planting.isWorking) {
-      label = '播种中…';
-      progress = this.planting.getProgress();
     } else if (this.crates.isDigging) {
       label = '挖木箱…';
       progress = this.crates.getDigProgress();
