@@ -12,8 +12,8 @@ const FOLLOW_RANGE = 3.2;
 /** 平时小跑与追肉/追人时的奔跑速度 */
 const TROT_SPEED = 2.4;
 const RUN_SPEED = 4.6;
-/** 只避开真正的水面(海/水洼),沙滩湿沙都能踏 */
-const LAND_MIN = 0.005;
+/** 干地余量:地面高出当地水面(海/水洼)这么多才算可站立的干沙 */
+const LAND_MARGIN = 0.05;
 
 /** 表情气泡持续秒数 */
 const EMOJI_TIME = 2.6;
@@ -188,10 +188,10 @@ export class Pomeranian {
     this.emojiLeft = EMOJI_TIME;
   }
 
-  /** 某点是否为可站立的干地 */
+  /** 某点是否为可站立的干地:以当地水面为基准,避开海和水洼,干沙滩都能踏 */
   private walkable(x: number, z: number): boolean {
     if (this.isBlocked(x, z)) return false;
-    return this.terrain.getHeight(x, z) > LAND_MIN;
+    return this.terrain.getHeight(x, z) > this.terrain.getWaterLevel(x, z) + LAND_MARGIN;
   }
 
   /** 在 anchor 附近找一块干地落脚 */
