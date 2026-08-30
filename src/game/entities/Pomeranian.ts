@@ -12,8 +12,8 @@ const FOLLOW_RANGE = 3.2;
 /** 平时小跑与追肉/追人时的奔跑速度 */
 const TROT_SPEED = 2.4;
 const RUN_SPEED = 4.6;
-/** 只在干地上活动:低于该地形高度视为水面/湿沙,不踏入 */
-const LAND_MIN = 0.03;
+/** 只避开真正的水面(海/水洼),沙滩湿沙都能踏 */
+const LAND_MIN = 0.005;
 
 /** 表情气泡持续秒数 */
 const EMOJI_TIME = 2.6;
@@ -215,18 +215,24 @@ export class Pomeranian {
     return { x: this.pos.x, z: this.pos.z };
   }
 
-  /** 朝目标走一步,返回是否仍在途中(前方不可走或已到达时返回 false) */
+  /** 朝目标走一步,返回是否仍在途中;直路被挡时沿切线方向绕行(参考螃蟹的兜底策略) */
   private stepTo(target: THREE.Vector3, speed: number, delta: number): boolean {
     const dirX = target.x - this.pos.x;
     const dirZ = target.z - this.pos.z;
     const dist = Math.hypot(dirX, dirZ);
     if (dist < 0.15) return false;
-    const nx = this.pos.x + (dirX / dist) * speed * delta;
-    const nz = this.pos.z + (dirZ / dist) * speed * delta;
-    this.heading = Math.atan2(dirZ, dirX);
-    if (!this.walkable(nx, nz)) return false;
-    this.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
-    return true;
+    const angle = Math.atan2(dirZ, dirX);
+    for (const a of [angle, angle + Math.PI / 4, angle - Math.PI / 4, angle + Math.PI / 2, angle - Math.PI / 2]) {
+      const nx = this.pos.x + Math.cos(a) * speed * delta;
+      const nz = this.pos.z + Math.sin(a) * speed * delta;
+      if (!this.walkable(nx, nz)) continue;
+      this.heading = a;
+      this.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
+      return true;
+    }
+    // 四周都走不通(被围栏圈住或目标在水里):留在原地面向目标
+    this.heading = angle;
+    return false;
   }
 
   /** 挑下一个闲玩行为:优先围着玩家转圈 */
