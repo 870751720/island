@@ -130,13 +130,15 @@ export class DropSystem {
     return false;
   }
 
-  /** 范围内最近的一块肉(狗狗寻肉用),没有则 null */
+  /** 范围内最近的一块肉(狗狗寻肉用,只比较水平距离——肉块悬浮在空中),没有则 null */
   nearestMeat(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Drop | null = null;
     let bestDist = range * range;
     for (const drop of this.drops) {
       if (!MEAT_KINDS.includes(drop.kind)) continue;
-      const d = drop.mesh.position.distanceToSquared(origin);
+      const dx = drop.mesh.position.x - origin.x;
+      const dz = drop.mesh.position.z - origin.z;
+      const d = dx * dx + dz * dz;
       if (d < bestDist) {
         best = drop;
         bestDist = d;
@@ -152,7 +154,9 @@ export class DropSystem {
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
       if (!MEAT_KINDS.includes(drop.kind)) continue;
-      const d = drop.mesh.position.distanceToSquared(origin);
+      const dx = drop.mesh.position.x - origin.x;
+      const dz = drop.mesh.position.z - origin.z;
+      const d = dx * dx + dz * dz;
       if (d < bestDist) {
         best = i;
         bestDist = d;

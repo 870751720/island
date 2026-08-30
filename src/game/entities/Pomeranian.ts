@@ -57,16 +57,16 @@ function makePomeranianModel(): DogModel {
   const mane = clay('#33333d');
   const dark = clay('#101014');
 
-  // 躯干:圆润的毛球,胸前略挺
+  // 躯干:圆润的毛球,腿短身低,几乎贴地一团黑毛
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), fur);
   body.scale.set(0.95, 1, 1.3);
-  body.position.y = 0.34;
+  body.position.y = 0.21;
   body.castShadow = true;
   group.add(body);
 
   // 头颈:鬃毛大盘 + 略小的头,博美标志性的「狮子脸」
   const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.52, 0.18);
+  headPivot.position.set(0, 0.39, 0.18);
   const ruff = new THREE.Mesh(new THREE.SphereGeometry(0.17, 7, 6), mane);
   ruff.scale.set(1.1, 0.95, 1);
   ruff.castShadow = true;
@@ -82,7 +82,7 @@ function makePomeranianModel(): DogModel {
     ear.rotation.z = -side * 0.25;
     headPivot.add(ear);
   }
-  // 黑鼻头 + 粉舌头 + 亮晶晶的眼睛
+  // 黑鼻头 + 粉舌头 + 两个白色像素点眼睛
   const nose = new THREE.Mesh(new THREE.SphereGeometry(0.028, 5, 4), dark);
   nose.position.set(0, -0.02, 0.21);
   headPivot.add(nose);
@@ -90,31 +90,27 @@ function makePomeranianModel(): DogModel {
   tongue.position.set(0, -0.06, 0.19);
   headPivot.add(tongue);
   for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 5, 4), dark);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 4, 3), clay('#f5f5f5'));
     eye.position.set(side * 0.06, 0.04, 0.18);
     headPivot.add(eye);
-    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.007, 4, 3), clay('#f2f2f2'));
-    glint.position.set(side * 0.065, 0.05, 0.196);
-    headPivot.add(glint);
   }
   group.add(headPivot);
 
-  // 四条小短腿
+  // 四条小短腿:短到几乎藏进毛里
   const legs = [
-    makeLeg(fur, -0.09, 0.3, 0.14, 0.24),
-    makeLeg(fur, 0.09, 0.3, 0.14, 0.24),
-    makeLeg(fur, -0.09, 0.32, -0.14, 0.26),
-    makeLeg(fur, 0.09, 0.32, -0.14, 0.26),
+    makeLeg(fur, -0.09, 0.17, 0.14, 0.14),
+    makeLeg(fur, 0.09, 0.17, 0.14, 0.14),
+    makeLeg(fur, -0.09, 0.18, -0.14, 0.15),
+    makeLeg(fur, 0.09, 0.18, -0.14, 0.15),
   ];
   legs.forEach((l) => group.add(l));
 
-  // 尾巴:一串渐小的毛球卷到背上,摇成一片残影
+  // 尾巴:不翘起,一短串毛球平贴在身后,略微下垂
   const tail = new THREE.Group();
-  tail.position.set(0, 0.44, -0.2);
-  for (let i = 0; i < 4; i++) {
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.062 - i * 0.008, 5, 4), i === 0 ? fur : mane);
-    const t = i / 3;
-    ball.position.set(0, t * 0.24, -t * 0.16 + 0.04);
+  tail.position.set(0, 0.22, -0.22);
+  for (let i = 0; i < 3; i++) {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.055 - i * 0.012, 5, 4), i === 0 ? fur : mane);
+    ball.position.set(0, -i * 0.015, -i * 0.07);
     ball.castShadow = true;
     tail.add(ball);
   }
@@ -374,8 +370,8 @@ export class Pomeranian {
     // 小跳:身体周期性离地蹦跶
     const hopping = this.play === 'hop' && this.eatLeft <= 0;
     const bounce = hopping ? Math.abs(Math.sin(elapsed * 7)) * 0.18 : moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
-    this.model.body.position.y = 0.34 + bounce;
-    this.model.head.position.y = 0.52 + bounce;
+    this.model.body.position.y = 0.21 + bounce;
+    this.model.head.position.y = 0.39 + bounce;
   }
 
   dispose(): void {
