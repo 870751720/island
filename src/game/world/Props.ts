@@ -695,6 +695,24 @@ export class Props implements Updatable {
     this.updateSway(delta, wind);
   }
 
+  /** 时间快进(睡觉跳到第二天):推进资源点再生与种下的树生长,不做击打/摇摆等表现 */
+  advance(seconds: number): void {
+    for (const prop of this.list) {
+      if (prop.ready || prop.regrowLeft <= 0) continue;
+      prop.regrowLeft = Math.max(0, prop.regrowLeft - seconds);
+      if (prop.regrowLeft > 0) continue;
+      prop.ready = true;
+      if (prop.kind === 'berry') {
+        for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
+      } else if (prop.kind === 'grass') {
+        prop.group.visible = true;
+      } else if (prop.kind === 'shrub') {
+        prop.group.scale.setScalar(1);
+      }
+    }
+    this.updateTreeGrowth(seconds);
+  }
+
   /** 植被随风摇摆:按位置沿风向的相位差形成波浪扫过感,被击晃动时跳过 */
   private updateSway(delta: number, wind?: WindParams): void {
     const intensity = wind?.intensity ?? 0;

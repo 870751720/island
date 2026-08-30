@@ -14,6 +14,7 @@ import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { PlantingSystem } from './systems/PlantingSystem';
 import { CrateSystem } from './systems/CrateSystem';
+import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -61,6 +62,8 @@ export type HudSnapshot = {
   arrow: number;
   /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
   bait: number;
+  /** 背包里的床数(工作台面板判断二级床配方可见性) */
+  bed1: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -75,6 +78,11 @@ export type HudSnapshot = {
   hasSeed: boolean;
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
   nearCrate: boolean;
+  /** 玩家在床旁(工具按钮变为床,点击开始睡觉) */
+  nearBed: boolean;
+  /** 睡觉过渡进行中与进度 */
+  bedSleeping: boolean;
+  bedSleepProgress: number;
   /** 身旁木箱的 10 格快照(不在木箱旁为 null) */
   crateSlots: InventorySlot[] | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
@@ -146,6 +154,7 @@ export class Game {
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
   private crates: CrateSystem;
+  private beds: BedSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private eating: EatingSystem;
@@ -309,7 +318,8 @@ export class Game {
         this.fishing.isWorking ||
         this.archery.isWorking ||
         this.planting.isWorking ||
-        this.crates.isDigging
+        this.crates.isDigging ||
+        this.beds.isBusy
     );
     this.crafting = new CraftingSystem(
       this.player,
@@ -363,6 +373,7 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
+        this.beds.isBusy ||
         this.water.isActive
     );
     this.crates = new CrateSystem(
@@ -387,6 +398,31 @@ export class Game {
         this.fishing.isWorking ||
         this.archery.isWorking ||
         this.planting.isWorking ||
+        this.water.isActive
+    );
+    this.beds = new BedSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      this.tools,
+      // 挖走床时道具入包,背包放不下的部分掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count),
+      // 其他占用双手的行为进行中时挖掘让位
+      () =>
+        this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.workbench.isDigging ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
+        this.crates.isDigging ||
         this.water.isActive
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
@@ -496,6 +532,7 @@ export class Game {
         this.collect.update(delta);
         this.planting.update(delta);
         this.crates.update(delta);
+        this.beds.update(delta);
         this.crafting.update(delta);
         // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
         if (
@@ -519,6 +556,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.beds.isBusy ||
         this.water.isActive
     );
     this.archery.update(
@@ -532,6 +570,7 @@ export class Game {
         this.fishing.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.beds.isBusy ||
         this.water.isActive ||
         this.survival.state.dead
     );
@@ -562,7 +601,8 @@ export class Game {
         this.fishing.isWorking ||
         this.archery.isWorking ||
         this.planting.isWorking ||
-        this.crates.isDigging
+        this.crates.isDigging ||
+        this.beds.isBusy
     );
         this.updateIndicator(delta);
         this.updateCamera(delta);
@@ -615,6 +655,7 @@ export class Game {
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
+    this.beds.restore(save.beds ?? []);
     this.drops.restore(save.drops);
   }
 
@@ -639,6 +680,7 @@ export class Game {
       workbenches: this.workbench.snapshot(),
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
+      beds: this.beds.snapshot(),
       drops: this.drops.snapshot(),
     };
   }
@@ -748,6 +790,7 @@ export class Game {
       this.workbench.isWorking ||
       this.eating.isWorking ||
       this.planting.isWorking ||
+      this.beds.isBusy ||
       this.survival.state.dead
     ) {
       return null;
@@ -800,7 +843,8 @@ export class Game {
       this.workbench.isWorking ||
       this.eating.isWorking ||
       this.fishing.isWorking ||
-      this.planting.isWorking
+      this.planting.isWorking ||
+      this.beds.isBusy
     ) {
       return false;
     }
@@ -818,6 +862,7 @@ export class Game {
       this.workbench.isDigging ||
       this.eating.isWorking ||
       this.planting.isWorking ||
+      this.beds.isBusy ||
       this.water.isActive
     ) {
       return false;
@@ -888,6 +933,43 @@ export class Game {
     }
     this.afterPlaceDiggable();
     return true;
+  }
+
+  /** 背包里点击「使用」床道具:校验通过后在玩家脚下原地放下对应等级的床,不满足时给出提示 */
+  useBedItem(kind: ResourceKind): boolean {
+    const level = bedItemLevel(kind);
+    if (level === null || !this.beds.place(level)) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    this.afterPlaceDiggable();
+    return true;
+  }
+
+  /** 睡觉消耗/恢复的固定数值 */
+  private static readonly SLEEP_COST = 20;
+
+  /** 靠近床发起睡觉:过渡片刻后一觉跳到第二天清晨(时间/再生/火堆一并结算) */
+  sleep(): boolean {
+    if (this.beds.isBusy || !this.beds.nearby || this.survival.state.dead) return false;
+    const s = this.survival.state;
+    if (s.hunger < Game.SLEEP_COST || s.thirst < Game.SLEEP_COST) {
+      this.notify('又饿又渴睡不着,先吃点喝点再睡吧');
+      return false;
+    }
+    return this.beds.startSleep(() => {
+      const skipped = this.dayNight.sleepUntilMorning();
+      this.props.advance(skipped);
+      this.campfire.passTime(skipped, performance.now() / 1000);
+      s.hunger -= Game.SLEEP_COST;
+      s.thirst -= Game.SLEEP_COST;
+      s.health = Math.min(100, s.health + Game.SLEEP_COST);
+      this.audio.play('success');
+      const p = this.player.group.position.clone();
+      p.y += 0.8;
+      this.fx.burst(p, '#cfe8ff', 14);
+      this.notify('一觉睡到了第二天清晨');
+    });
   }
 
   /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
@@ -1069,6 +1151,7 @@ export class Game {
       rope: this.inventory.count('rope'),
       arrow: this.inventory.count('arrow'),
       bait: this.inventory.count('bait'),
+      bed1: this.inventory.count('bed1'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       hasAxe: !!this.tools.axe,
@@ -1079,6 +1162,9 @@ export class Game {
       toolTiers: { ...this.tools },
       hasSeed: this.hasSeed(),
       nearCrate: !!this.crates.nearby,
+      nearBed: !!this.beds.nearby,
+      bedSleeping: this.beds.isSleeping,
+      bedSleepProgress: this.beds.getSleepProgress() ?? 0,
       crateSlots: this.crates.nearbySlots(),
       equipped: this.equipment.snapshot(),
       tool: this.player.currentTool,
@@ -1131,6 +1217,12 @@ export class Game {
     } else if (this.crates.isDigging) {
       label = '挖木箱…';
       progress = this.crates.getDigProgress();
+    } else if (this.beds.isSleeping) {
+      label = '睡觉中…';
+      progress = this.beds.getSleepProgress();
+    } else if (this.beds.isDigging) {
+      label = '挖床…';
+      progress = this.beds.getDigProgress();
     } else if (this.campfire.isCooking) {
       const { total, current } = this.campfire.cookInfo;
       const food = ITEMS[this.campfire.cookingKind!];

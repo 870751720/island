@@ -255,6 +255,19 @@ export class CampfireSystem {
     return this.cookKind;
   }
 
+  /** 时间快进(睡觉跳到第二天):火堆按跳过的秒数继续烧,烧完的正常化灰 */
+  passTime(seconds: number, elapsed: number): void {
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const fire = this.fires[i];
+      fire.update(seconds, elapsed);
+      if (fire.spent) {
+        this.scene.remove(fire.group);
+        fire.dispose();
+        this.fires.splice(i, 1);
+      }
+    }
+  }
+
   /** 当前所有火堆的存档快照 */
   snapshot(): { x: number; y: number; z: number; fuel: number }[] {
     return this.fires

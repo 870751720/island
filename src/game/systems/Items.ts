@@ -337,6 +337,20 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '📦',
     description: '木板钉成的收纳箱。点击「使用」把它放到脚下(不能在水里,脚下也不能有别的东西),之后靠近可以打开,存取 10 格物品。',
   },
+  bed1: {
+    kind: 'bed1',
+    name: '床',
+    icon: '🛏️',
+    description:
+      '木框稻草垫拼成的床。点击「使用」放到脚下(不能在水里,脚下也不能有别的东西);靠近点床的图标可以睡觉,一觉跳到第二天清晨(饥饿/口渴各 -20,健康 +20,不够睡不踏实)。',
+  },
+  bed2: {
+    kind: 'bed2',
+    name: '二级床',
+    icon: '🛏️',
+    description:
+      '石头床架垫上柔软皮毛的舒服床。点击「使用」放到脚下;睡觉效果与一级床相同,睡相更体面。',
+  },
   berryBush: {
     kind: 'berryBush',
     name: '浆果丛',

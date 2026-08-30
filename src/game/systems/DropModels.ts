@@ -63,6 +63,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   workbench2: '#8d99a6',
   workbench3: '#8a6239',
   workbench4: '#c9a15c',
+  bed1: '#c9a15c',
+  bed2: '#d8c3a5',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -685,7 +687,38 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   workbench2: () => makeWorkbenchDrop(2),
   workbench3: () => makeWorkbenchDrop(3),
   workbench4: () => makeWorkbenchDrop(4),
+  bed1: () => makeBedDrop(1),
+  bed2: () => makeBedDrop(2),
 };
+
+/** 床掉落物:微型床架 + 床垫 + 枕头(按等级区分床架材质) */
+function makeBedDrop(level: number): THREE.Object3D {
+  const g = new THREE.Group();
+  const frame = clay(level >= 2 ? '#8d99a6' : '#8a6239');
+  const mattress = clay(DROP_COLORS[level >= 2 ? 'bed2' : 'bed1']);
+  const base = mesh(new THREE.BoxGeometry(0.44, 0.06, 0.24), frame);
+  base.position.y = 0.08;
+  g.add(base);
+  if (level < 2) {
+    for (const [x, z] of [
+      [-0.18, -0.08],
+      [0.18, -0.08],
+      [-0.18, 0.08],
+      [0.18, 0.08],
+    ]) {
+      const leg = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 5), frame);
+      leg.position.set(x, 0.04, z);
+      g.add(leg);
+    }
+  }
+  const pad = mesh(new THREE.BoxGeometry(0.4, 0.05, 0.2), mattress);
+  pad.position.y = 0.14;
+  g.add(pad);
+  const pillow = mesh(new THREE.BoxGeometry(0.1, 0.04, 0.14), clay('#efe3d0'));
+  pillow.position.set(-0.13, 0.18, 0);
+  g.add(pillow);
+  return g;
+}
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */
 export function makeDropModel(kind: ResourceKind): THREE.Object3D {

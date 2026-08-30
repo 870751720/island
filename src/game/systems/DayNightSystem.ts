@@ -52,6 +52,22 @@ export class DayNightSystem implements Updatable {
     return Math.sin(this.t * Math.PI * 2);
   }
 
+  /** 清晨时刻(新一天的起点,太阳刚升起不久) */
+  private static readonly MORNING_T = 0.05;
+
+  /**
+   * 一觉睡到第二天清晨:把时刻直接跳到清晨,返回按白天流速折算的
+   * 跳过秒数,供外层推进资源再生等按时间结算的逻辑。
+   */
+  sleepUntilMorning(): number {
+    if (GmSystem.lockDaytime) return 0;
+    const morning = DayNightSystem.MORNING_T;
+    const dt = this.t < morning ? morning - this.t : 1 - this.t + morning;
+    this.t = morning;
+    this.apply();
+    return dt * DAY_LENGTH;
+  }
+
   update(delta: number): void {
     if (GmSystem.lockDaytime) {
       // 锁定白天:时间停在正午,若当前在夜里先拉回白天

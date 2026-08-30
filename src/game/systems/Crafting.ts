@@ -17,6 +17,8 @@ export type CraftId =
   | 'rope'
   | 'arrow'
   | 'crate'
+  | 'bed'
+  | 'bed2'
   | 'baitCrab'
   | 'baitBird'
   | 'baitGame'
@@ -174,6 +176,22 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 4 },
     station: 'workbench',
     output: 'crate',
+  },
+  {
+    id: 'bed',
+    name: '床',
+    icon: '🛏️',
+    cost: { wood: 8, stone: 2, rope: 2 },
+    station: 'workbench',
+    output: 'bed1',
+  },
+  {
+    id: 'bed2',
+    name: '二级床',
+    icon: '🛏️',
+    cost: { bed1: 1, stone: 10 },
+    station: 'workbench',
+    output: 'bed2',
   },
   {
     id: 'baitCrab',

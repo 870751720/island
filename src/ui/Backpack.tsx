@@ -8,6 +8,7 @@ import { FOODS } from '@/game/systems/Food';
 import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
+import { bedItemLevel } from '@/game/systems/BedSystem';
 
 type Props = {
   open: boolean;
@@ -37,7 +38,8 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'berryBush' ||
     kind === 'shrubBush' ||
     kind === 'crate' ||
-    workbenchItemLevel(kind) !== null
+    workbenchItemLevel(kind) !== null ||
+    bedItemLevel(kind) !== null
   );
 }
 

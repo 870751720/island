@@ -20,12 +20,14 @@ export function ToolButton({
   workbench,
   campfire = false,
   crate = false,
+  bed = false,
   arrowCount = 0,
   baitCount = 0,
   onCycle,
   onWorkbench,
   onCampfire,
   onCrate,
+  onBed,
 }: {
   tool: HandTool;
   pulse: boolean;
@@ -35,6 +37,8 @@ export function ToolButton({
   campfire?: boolean;
   /** 是否显示为木箱模式(靠近木箱) */
   crate?: boolean;
+  /** 是否显示为床模式(靠近床,点击开始睡觉) */
+  bed?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
   arrowCount?: number;
   /** 背包剩余鱼饵数(持鱼竿时角标展示) */
@@ -43,12 +47,21 @@ export function ToolButton({
   onWorkbench: () => void;
   onCampfire: () => void;
   onCrate: () => void;
+  onBed: () => void;
 }) {
   return (
     <button
       onPointerDown={(e) => {
         e.preventDefault();
-        workbench ? onWorkbench() : campfire ? onCampfire() : crate ? onCrate() : onCycle();
+        workbench
+          ? onWorkbench()
+          : campfire
+            ? onCampfire()
+            : crate
+              ? onCrate()
+              : bed
+                ? onBed()
+                : onCycle();
       }}
       style={{
         position: 'absolute',
@@ -65,19 +78,21 @@ export function ToolButton({
             ? 'rgba(214, 92, 44, 0.9)'
             : crate
               ? 'rgba(154, 118, 62, 0.9)'
-              : 'rgba(90, 110, 140, 0.8)',
+              : bed
+                ? 'rgba(106, 110, 160, 0.9)'
+                : 'rgba(90, 110, 140, 0.8)',
         fontSize: 30,
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire || crate
+          pulse || workbench || campfire || crate || bed
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : TOOL_ICONS[tool]}
-      {!workbench && !campfire && !crate && (tool === 'bow' || tool === 'fishingrod') && (
+      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : bed ? '🛏️' : TOOL_ICONS[tool]}
+      {!workbench && !campfire && !crate && !bed && (tool === 'bow' || tool === 'fishingrod') && (
         <span
           style={{
             position: 'absolute',

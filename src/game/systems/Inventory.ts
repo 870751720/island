@@ -53,6 +53,8 @@ export type ResourceKind =
   | 'furHat'
   | 'furBackpack'
   | 'crate'
+  | 'bed1'
+  | 'bed2'
   | 'berryBush'
   | 'shrubBush'
   | 'workbench1'

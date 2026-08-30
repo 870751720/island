@@ -10,6 +10,7 @@ import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
+import { bedItemLevel } from '@/game/systems/BedSystem';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { EatPrompt } from './EatPrompt';
@@ -36,6 +37,7 @@ const INITIAL_HUD: HudSnapshot = {
   rope: 0,
   arrow: 0,
   bait: 0,
+  bed1: 0,
   slots: [],
   capacity: 10,
   hasAxe: false,
@@ -46,6 +48,9 @@ const INITIAL_HUD: HudSnapshot = {
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
   nearCrate: false,
+  nearBed: false,
+  bedSleeping: false,
+  bedSleepProgress: 0,
   crateSlots: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
@@ -79,20 +84,23 @@ const INITIAL_HUD: HudSnapshot = {
  * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
  * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
  */
-const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate', boolean>> = {
+const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'bed', boolean>> = {
   crate: true,
   workbench: true,
+  bed: true,
 };
 
 /** 面前劫持按钮的东西是否可被锄头挖走(无劫持时为 false) */
 function hijackerDiggable(
   nearWorkbench: boolean,
   nearCampfire: boolean,
-  nearCrate: boolean
+  nearCrate: boolean,
+  nearBed: boolean
 ): boolean {
   if (nearWorkbench) return !!HIJACK_DIGGABLE.workbench;
   if (nearCampfire) return !!HIJACK_DIGGABLE.campfire;
   if (nearCrate) return !!HIJACK_DIGGABLE.crate;
+  if (nearBed) return !!HIJACK_DIGGABLE.bed;
   return false;
 }
 /**
@@ -204,7 +212,8 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
 
   // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
-    hud.tool === 'hoe' && hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate);
+    hud.tool === 'hoe' &&
+    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBed);
 
   return (
     <div
@@ -251,6 +260,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setBackpackOpen(false);
             return;
           }
+          if (bedItemLevel(kind) !== null) {
+            gameRef.current?.useBedItem(kind);
+            setBackpackOpen(false);
+            return;
+          }
           gameRef.current?.eatFood(kind);
           setBackpackOpen(false);
         }}
@@ -274,19 +288,30 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             hud.hasSeed ||
             hud.nearWorkbench ||
             hud.nearCampfire ||
-            hud.nearCrate) && (
+            hud.nearCrate ||
+            hud.nearBed) && (
             <ToolButton
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
               workbench={hud.nearWorkbench && hud.craftId === null && !digHijack}
               campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !digHijack}
               crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !digHijack}
+              bed={
+                hud.nearBed &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                hud.craftId === null &&
+                !hud.bedSleeping &&
+                !digHijack
+              }
               arrowCount={hud.arrow}
               baitCount={hud.bait}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}
               onCrate={() => setCrateOpen(true)}
+              onBed={() => gameRef.current?.sleep()}
             />
           )}
           {workbenchOpen && (
