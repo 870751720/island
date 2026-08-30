@@ -63,6 +63,7 @@ const INITIAL_HUD: HudSnapshot = {
   workbenchLevel: 0,
   nearWorkbench: false,
   canCraftCampfire: false,
+  canBuildCampfire: false,
   campfireCrafting: false,
   campfireProgress: 0,
   nearCampfire: false,
@@ -324,6 +325,9 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
         }}
         onCraftWorkbench={() => {
           if (gameRef.current?.craftWorkbench()) setBackpackOpen(false);
+        }}
+        onCraftCampfire={() => {
+          if (gameRef.current?.craftCampfire()) setBackpackOpen(false);
         }}
         onEquip={(kind) => gameRef.current?.equipItem(kind)}
         onUnequip={(slot) => gameRef.current?.unequipItem(slot)}

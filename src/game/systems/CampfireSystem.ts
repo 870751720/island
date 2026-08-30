@@ -131,18 +131,21 @@ export class CampfireSystem {
     });
   }
 
-  /** 是否满足发起条件(材料齐 + 位置可摆放 + 全场没有火堆) */
-  canStart(): boolean {
+  /** 是否满足制作条件(不忙 + 材料齐 + 位置可摆放),火堆数量不限 */
+  canBuild(): boolean {
     if (this.isBusy) return false;
-    // 已有火堆(燃着或熄灭)时不再弹搭建卡片,想换位置先挖掉旧火堆
-    if (this.fires.length > 0) return false;
     if (this.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (this.inventory.count('log') < CAMPFIRE_COST.log) return false;
     return this.canPlace();
   }
 
+  /** 场景手搓卡片的弹出条件:可制作且场上还没有火堆(避免已造后反复弹卡) */
+  canStart(): boolean {
+    return this.canBuild() && this.fires.length === 0;
+  }
+
   start(): boolean {
-    if (!this.canStart()) return false;
+    if (!this.canBuild()) return false;
     this.timer = 0.001;
     this.tickTimer = 0;
     return true;

@@ -104,6 +104,8 @@ export type HudSnapshot = {
   nearWorkbench: boolean;
   /** 火堆卡片与搭建进度 */
   canCraftCampfire: boolean;
+  /** 背包制作页的火堆入口条件(可制作,与卡片弹出条件无关:火堆数量不限) */
+  canBuildCampfire: boolean;
   campfireCrafting: boolean;
   campfireProgress: number;
   /** 玩家在火堆旁(工具按钮变为火堆,点击打开火堆面板) */
@@ -1349,6 +1351,7 @@ export class Game {
       workbenchLevel: this.workbench.level,
       nearWorkbench: this.workbench.isNear,
       canCraftCampfire: this.campfire.canStart(),
+      canBuildCampfire: this.campfire.canBuild(),
       campfireCrafting: this.campfire.isBusy,
       campfireProgress: this.campfire.getProgress() ?? 0,
       nearCampfire: !!this.campfire.nearby,
