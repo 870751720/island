@@ -26,6 +26,8 @@ type Props = {
   onEquip: (kind: ResourceKind) => void;
   /** 卸下某栏位装备放回背包 */
   onUnequip: (slot: EquipSlot) => void;
+  /** 拖拽背包格:把 from 格道具移到 to 格(同类合并,异类互换) */
+  onMoveItem: (from: number, to: number) => void;
 };
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
@@ -56,6 +58,8 @@ const TAB_LABELS: Record<Tab, string> = { items: '物品', craft: '制作', tool
 const TABS = Object.keys(TAB_LABELS) as Tab[];
 /** 双击判定窗口(毫秒):同一格两次点击间隔小于该值视为双击 */
 const DOUBLE_TAP_MS = 350;
+/** 拖拽判定阈值(像素):按住后位移超过该值才进入拖动 */
+const DRAG_THRESHOLD = 12;
 
 /** 物品详情区固定最小高度:与选中道具时(标题行+两行描述+按钮行)等高,空态不塌陷 */
 const DETAIL_AREA_STYLE: React.CSSProperties = {
@@ -180,7 +184,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip }: Props) {
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onEquip, onUnequip, onMoveItem }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -188,6 +192,11 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const [tip, setTip] = useState<TipState | null>(null);
   /** 最近一次点击格子的时间与下标,用于双击判定 */
   const lastTap = useRef<{ index: number; time: number } | null>(null);
+  /** 格子拖拽:按住并移动超过阈值后进入拖动,松手落在目标格 */
+  const gridRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ from: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const [drag, setDrag] = useState<{ from: number; x: number; y: number } | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
   const tools = hud.toolTiers;
@@ -208,6 +217,24 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
     setTab(t);
     setSelectedIndex(null);
     setTip(null);
+  };
+
+  /** 由指针屏幕坐标换算命中的格子下标(格子尺寸/间距固定,按网格几何计算,触屏指针捕获时依然有效) */
+  const slotIndexAt = (clientX: number, clientY: number): number | null => {
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const pitch = SLOT_SIZE + SLOT_GAP;
+    const col = Math.floor((clientX - rect.left - SLOT_GAP / 2) / pitch);
+    const row = Math.floor((clientY - rect.top - SLOT_GAP / 2) / pitch);
+    if (col < 0 || col >= COLUMNS || row < 0) return null;
+    const index = row * COLUMNS + col;
+    return index < hud.capacity ? index : null;
+  };
+
+  const cancelDrag = () => {
+    dragRef.current = null;
+    setDrag(null);
+    setHoverIndex(null);
   };
 
   return (
@@ -300,6 +327,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               <>
                 <div style={{ fontWeight: 700, margin: '10px 2px 8px' }}>背包</div>
                 <div
+                  ref={gridRef}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
@@ -314,6 +342,34 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         key={i}
                         onPointerDown={(e) => {
                           e.preventDefault();
+                          if (!slot) return;
+                          // 捕获指针:移动/抬起事件始终回到起始格,触屏与鼠标行为一致
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                          dragRef.current = { from: i, startX: e.clientX, startY: e.clientY, moved: false };
+                        }}
+                        onPointerMove={(e) => {
+                          const d = dragRef.current;
+                          if (!d || d.from !== i) return;
+                          if (!d.moved) {
+                            if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
+                            d.moved = true;
+                          }
+                          setDrag({ from: d.from, x: e.clientX, y: e.clientY });
+                          setHoverIndex(slotIndexAt(e.clientX, e.clientY));
+                        }}
+                        onPointerUp={(e) => {
+                          const d = dragRef.current;
+                          if (!d || d.from !== i) return;
+                          if (d.moved) {
+                            const target = slotIndexAt(e.clientX, e.clientY);
+                            cancelDrag();
+                            if (target !== null && target !== d.from) {
+                              setSelectedIndex(null);
+                              onMoveItem(d.from, target);
+                            }
+                            return;
+                          }
+                          cancelDrag();
                           if (!slot) return;
                           // 双击同一格:可直接使用(食物/漂流瓶)或装备
                           const now = Date.now();
@@ -330,11 +386,12 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           setSelectedIndex(selectedIndex === i ? null : i);
                           setDropCount(1);
                         }}
-                        style={slotStyle(!!slot, selectedIndex === i)}
+                        onPointerCancel={cancelDrag}
+                        style={slotStyle(!!slot, selectedIndex === i || (drag !== null && hoverIndex === i))}
                       >
                         {slot && (
                           <>
-                            <span>{ITEMS[slot.kind].icon}</span>
+                            <span style={drag?.from === i ? { opacity: 0.3 } : undefined}>{ITEMS[slot.kind].icon}</span>
                             {countBadge(slot.count)}
                           </>
                         )}
@@ -415,7 +472,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </>
                   ) : (
                     <div style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>
-                      点击选中物品,双击可直接使用或装备
+                      点击选中物品,双击可直接使用或装备;长按拖动可交换位置
                     </div>
                   )}
                 </div>
@@ -565,6 +622,28 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
         </div>
       )}
       {tip && <Tip tip={tip} onClose={() => setTip(null)} />}
+      {drag && hud.slots[drag.from] && (
+        <div
+          style={{
+            position: 'fixed',
+            left: drag.x - SLOT_SIZE / 2,
+            top: drag.y - SLOT_SIZE / 2,
+            width: SLOT_SIZE,
+            height: SLOT_SIZE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 24,
+            borderRadius: 10,
+            background: 'rgba(255,255,255,0.95)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            pointerEvents: 'none',
+            zIndex: 70,
+          }}
+        >
+          {ITEMS[hud.slots[drag.from]!.kind].icon}
+        </div>
+      )}
     </>
   );
 }

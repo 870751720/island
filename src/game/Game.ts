@@ -1228,6 +1228,11 @@ export class Game {
     return true;
   }
 
+  /** 背包格之间移动道具(拖拽交换/合并),返回是否成功 */
+  moveItem(from: number, to: number): boolean {
+    return this.inventory.move(from, to);
+  }
+
   /** 从背包装备一件道具(物品详情点击「装备」),返回是否成功 */
   equipItem(kind: ResourceKind): boolean {
     return isEquipKind(kind) ? this.equipment.equip(kind, this.inventory, true) : false;

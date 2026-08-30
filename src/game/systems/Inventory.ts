@@ -152,6 +152,25 @@ export class Inventory {
     return true;
   }
 
+  /** 把 from 格道具移到 to 格:同类合并进 to,否则互换位置;下标非法或源格为空时不动作 */
+  move(from: number, to: number): boolean {
+    if (from === to) return false;
+    const source = this.slots[from];
+    const target = this.slots[to];
+    if (!source || to < 0 || to >= this.slots.length) return false;
+    if (!target) {
+      this.slots[to] = source;
+      this.slots[from] = null;
+    } else if (target.kind === source.kind) {
+      target.count += source.count;
+      this.slots[from] = null;
+    } else {
+      this.slots[from] = target;
+      this.slots[to] = source;
+    }
+    return true;
+  }
+
   /** 剩余空格数 */
   get freeSlots(): number {
     return this.slots.filter((slot) => slot === null).length;
