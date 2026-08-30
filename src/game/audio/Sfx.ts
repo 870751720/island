@@ -198,14 +198,14 @@ export class Sfx {
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
       case 'snore': {
-        // 打呼:带谐波的哼鸣从鼻腔滚出,音高缓降,再垫一层中低频带通气声;
-        // 频率刻意保持在手机小喇叭放得出的范围
+        // 打呼:低频正弦垫底 + 喉腔滚动的带通噪声(软腭颤动),一声「呼——噜」
+        // 缓起缓收,绝不用锯齿/方波,避免电子蚊鸣感
         for (let i = 0; i < 2; i++) {
-          const st = t + i * 0.5;
+          const st = t + i * 0.55;
           const peak = v * (0.9 - i * 0.25);
-          tone(this.ctx, dest, detune(190 - i * 20), st, { attack: 0.1, decay: 0.42, peak }, 'sawtooth', 105);
-          tone(this.ctx, dest, detune(380 - i * 40), st, { attack: 0.1, decay: 0.38, peak: peak * 0.4 }, 'triangle', 210);
-          noiseBurst(this.ctx, dest, st, { attack: 0.09, decay: 0.4, peak: peak * 0.55 }, 'bandpass', 620, 280, 1.2);
+          tone(this.ctx, dest, detune(88 - i * 8), st, { attack: 0.18, decay: 0.55, peak }, 'sine', 56);
+          noiseBurst(this.ctx, dest, st, { attack: 0.16, decay: 0.5, peak: peak * 0.7 }, 'bandpass', 300 - i * 40, 130, 2.2);
+          noiseBurst(this.ctx, dest, st + 0.24, { attack: 0.05, decay: 0.3, peak: peak * 0.4 }, 'bandpass', 500, 220, 1.5);
         }
         break;
       }
