@@ -343,4 +343,28 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🌿',
     description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后会继续长树枝。',
   },
+  workbench1: {
+    kind: 'workbench1',
+    name: '一级工作台',
+    icon: '🛠️',
+    description: '挖工作台搬来的一级工作台。点击「使用」放到脚下(不能在水里,脚下也不能有别的东西),放在原地即可制作基础物品。',
+  },
+  workbench2: {
+    kind: 'workbench2',
+    name: '二级工作台',
+    icon: '🛠️',
+    description: '挖工作台搬来的二级工作台。点击「使用」放到脚下;二级起可制作精致工具等高级配方。',
+  },
+  workbench3: {
+    kind: 'workbench3',
+    name: '三级工作台',
+    icon: '🛠️',
+    description: '挖工作台搬来的三级工作台。点击「使用」放到脚下即可继续使用。',
+  },
+  workbench4: {
+    kind: 'workbench4',
+    name: '四级工作台',
+    icon: '🛠️',
+    description: '挖工作台搬来的满级工作台。点击「使用」放到脚下即可继续使用。',
+  },
 };

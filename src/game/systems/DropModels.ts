@@ -58,6 +58,10 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   crate: '#a97b48',
   berryBush: '#5d8a3a',
   shrubBush: '#6b8f4e',
+  workbench1: '#8a6239',
+  workbench2: '#8d99a6',
+  workbench3: '#8a6239',
+  workbench4: '#c9a15c',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -558,6 +562,39 @@ function makeBushDrop(color: string, withBerries: boolean): THREE.Object3D {
   return g;
 }
 
+/** 工作台道具:小桌面 + 四条腿,等级越高桌面材质与点缀越讲究 */
+function makeWorkbenchDrop(level: number): THREE.Object3D {
+  const g = new THREE.Group();
+  const top = mesh(
+    new THREE.BoxGeometry(0.36, 0.06, 0.26),
+    clay(level >= 2 ? DROP_COLORS.workbench2 : DROP_COLORS.workbench1)
+  );
+  top.position.y = 0.22;
+  g.add(top);
+  for (const [x, z] of [
+    [-0.14, -0.09],
+    [0.14, -0.09],
+    [-0.14, 0.09],
+    [0.14, 0.09],
+  ]) {
+    const leg = mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.2, 4), clay('#8a6239'));
+    leg.position.set(x, 0.1, z);
+    g.add(leg);
+  }
+  if (level >= 3) {
+    const anvil = mesh(new THREE.DodecahedronGeometry(0.05, 0), clay('#5f6b78'));
+    anvil.position.set(0.08, 0.28, 0);
+    g.add(anvil);
+  }
+  if (level >= 4) {
+    const roof = mesh(new THREE.BoxGeometry(0.42, 0.02, 0.14), clay(DROP_COLORS.workbench4));
+    roof.position.set(0, 0.42, -0.06);
+    roof.rotation.x = -0.12;
+    g.add(roof);
+  }
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wood: makeWood,
   log: makeLog,
@@ -628,6 +665,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   },
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
+  workbench1: () => makeWorkbenchDrop(1),
+  workbench2: () => makeWorkbenchDrop(2),
+  workbench3: () => makeWorkbenchDrop(3),
+  workbench4: () => makeWorkbenchDrop(4),
 };
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */

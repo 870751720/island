@@ -7,6 +7,7 @@ import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
 import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
+import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 
 type Props = {
   open: boolean;
@@ -28,14 +29,15 @@ type Props = {
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
 
-/** 可「使用」的道具:食物(进食)、漂流瓶(读瓶中信)、挖来的丛与木箱(原地放下) */
+/** 可「使用」的道具:食物(进食)、漂流瓶(读瓶中信)、挖来的丛/木箱/工作台(原地放下) */
 function isUsable(kind: ResourceKind): boolean {
   return (
     FOODS.some((f) => f.kind === kind) ||
     kind === 'bottle' ||
     kind === 'berryBush' ||
     kind === 'shrubBush' ||
-    kind === 'crate'
+    kind === 'crate' ||
+    workbenchItemLevel(kind) !== null
   );
 }
 

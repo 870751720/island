@@ -11,7 +11,7 @@ import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
-import { WorkbenchSystem } from './systems/WorkbenchSystem';
+import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { PlantingSystem } from './systems/PlantingSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
@@ -298,6 +298,7 @@ export class Game {
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
@@ -325,7 +326,21 @@ export class Game {
       this.terrain,
       this.props,
       this.fx,
-      this.audio
+      this.audio,
+      this.tools,
+      // 挖走工作台道具入包,背包放不下的部分掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count),
+      // 其他占用双手的行为进行中时挖掘让位
+      () =>
+        this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
+        this.crates.isDigging ||
+        this.water.isActive
     );
     this.planting = new PlantingSystem(
       this.player,
@@ -338,6 +353,7 @@ export class Game {
       () =>
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
@@ -360,6 +376,7 @@ export class Game {
         this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
@@ -491,6 +508,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.archery.isWorking ||
@@ -503,6 +521,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
@@ -532,6 +551,7 @@ export class Game {
       this.collect.isWorking ||
         this.crafting.isWorking ||
         this.workbench.isWorking ||
+        this.workbench.isDigging ||
         this.campfire.isBusy ||
         this.eating.isWorking ||
         this.fishing.isWorking ||
@@ -587,7 +607,7 @@ export class Game {
     this.dayNight.time = save.dayTime;
     this.props.applySave(save.props);
     this.campfire.restore(save.campfires);
-    if (save.workbench) this.workbench.restore(save.workbench);
+    if (save.workbenches) this.workbench.restore(save.workbenches);
     this.crates.restore(save.crates);
     this.drops.restore(save.drops);
   }
@@ -610,7 +630,7 @@ export class Game {
       dayTime: this.dayNight.time,
       props: this.props.snapshot(),
       campfires: this.campfire.snapshot(),
-      workbench: this.workbench.snapshot(),
+      workbenches: this.workbench.snapshot(),
       crates: this.crates.snapshot(),
       drops: this.drops.snapshot(),
     };
@@ -785,6 +805,7 @@ export class Game {
     if (
       this.crafting.isWorking ||
       this.workbench.isWorking ||
+      this.workbench.isDigging ||
       this.eating.isWorking ||
       this.planting.isWorking ||
       this.water.isActive
@@ -841,6 +862,16 @@ export class Game {
   /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下,不满足时给出提示 */
   useCrate(): boolean {
     if (!this.crates.use()) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    return true;
+  }
+
+  /** 背包里点击「使用」工作台道具:校验通过后在玩家脚下原地放回对应等级,不满足时给出提示 */
+  useWorkbenchItem(kind: ResourceKind): boolean {
+    const level = workbenchItemLevel(kind);
+    if (level === null || !this.workbench.placeItem(level)) {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
@@ -948,14 +979,14 @@ export class Game {
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: CraftId): boolean {
-    if (this.workbench.isWorking) return false;
+    if (this.workbench.isWorking || this.workbench.isDigging) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe && recipe.station === 'hand' ? this.crafting.start(recipe) : false;
   }
 
   /** 在工作台发起制作(可选个数,逐个完成),玩家须在的工作范围内,返回是否成功开始 */
   craftAtWorkbench(id: CraftId, count: number): boolean {
-    if (this.workbench.isWorking || !this.workbench.isNear) return false;
+    if (this.workbench.isWorking || this.workbench.isDigging || !this.workbench.isNear) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe &&
       recipe.station === 'workbench' &&
@@ -1071,6 +1102,9 @@ export class Game {
     } else if (this.workbench.isWorking) {
       label = this.workbench.isUpgrading ? '升级中:工作台' : '制作中:工作台';
       progress = this.workbench.getProgress();
+    } else if (this.workbench.isDigging) {
+      label = '挖工作台…';
+      progress = this.workbench.getDigProgress();
     } else if (this.planting.isWorking) {
       label = '播种中…';
       progress = this.planting.getProgress();

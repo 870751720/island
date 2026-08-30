@@ -9,6 +9,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
+import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { EatPrompt } from './EatPrompt';
@@ -72,10 +73,11 @@ const INITIAL_HUD: HudSnapshot = {
 /**
  * 会劫持工具按钮的东西里,哪些能被锄头挖走:
  * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
- * 工作台/火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
+ * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
  */
 const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate', boolean>> = {
   crate: true,
+  workbench: true,
 };
 
 /** 面前劫持按钮的东西是否可被锄头挖走(无劫持时为 false) */
@@ -237,6 +239,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           }
           if (kind === 'crate') {
             gameRef.current?.useCrate();
+            setBackpackOpen(false);
+            return;
+          }
+          if (workbenchItemLevel(kind) !== null) {
+            gameRef.current?.useWorkbenchItem(kind);
             setBackpackOpen(false);
             return;
           }
