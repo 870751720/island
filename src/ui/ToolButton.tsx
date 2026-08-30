@@ -1,6 +1,7 @@
 'use client';
 
 import type { HandTool } from '@/game/entities/Player';
+import { fadeStyle } from './fade';
 
 const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
@@ -25,6 +26,7 @@ export function ToolButton({
   arrowCount = 0,
   baitCount = 0,
   fenceCount = 0,
+  dimmed = false,
   onCycle,
   onWorkbench,
   onCampfire,
@@ -47,6 +49,8 @@ export function ToolButton({
   baitCount?: number;
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
+  /** 玩家移动/交互中:按钮淡出且不可点 */
+  dimmed?: boolean;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
@@ -93,6 +97,7 @@ export function ToolButton({
           pulse || workbench || campfire || crate || bed
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
+        ...fadeStyle(dimmed),
       }}
     >
       {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : bed ? '🛏️' : TOOL_ICONS[tool]}

@@ -22,6 +22,7 @@ import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
 import { Minimap, type MinimapSource } from './Minimap';
 import { SettingsPanel } from './SettingsPanel';
+import { fadeStyle } from './fade';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -81,6 +82,7 @@ const INITIAL_HUD: HudSnapshot = {
   notice: null,
   day: 1,
   heldFenceCount: 0,
+  busy: false,
 };
 
 /**
@@ -254,8 +256,40 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
-      <Hud hud={hud} onHeartTap={handleHeartTap} onOpenSettings={() => setSettingsOpen(true)} />
-      {!hud.dead && <Minimap source={minimapSource} />}
+      <Hud hud={hud} onHeartTap={handleHeartTap} />
+      {/* 右上角:设置按钮在小地图按钮左边,玩家移动/交互中一起淡出 */}
+      {!hud.dead && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'max(10px, env(safe-area-inset-top))',
+            right: 'max(10px, env(safe-area-inset-right))',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            zIndex: 20,
+          }}
+        >
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="设置"
+            style={{
+              width: 38,
+              height: 38,
+              fontSize: 17,
+              lineHeight: 1,
+              border: 'none',
+              borderRadius: 10,
+              background: 'rgba(255,255,255,0.75)',
+              cursor: 'pointer',
+              ...fadeStyle(hud.busy),
+            }}
+          >
+            ⚙️
+          </button>
+          <Minimap source={minimapSource} dimmed={hud.busy} />
+        </div>
+      )}
       {settingsOpen && (
         <SettingsPanel
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
@@ -362,6 +396,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               arrowCount={hud.arrow}
               baitCount={hud.bait}
               fenceCount={hud.heldFenceCount}
+              dimmed={hud.busy}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}

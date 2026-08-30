@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { GroundKind, MinimapSnapshot } from '@/game/systems/MinimapSystem';
+import { fadeStyle } from './fade';
 
 /** 小地图从 Game 拉取数据所需的最小接口 */
 export type MinimapSource = {
@@ -28,12 +29,13 @@ const BASE_RES = 128;
 const FOG_COLOR = [16, 24, 36, 235] as const;
 
 /**
- * 右上角小地图:
+ * 右上角小地图(定位由外层容器负责):
  * - 战争迷雾——只有玩家走过(周围一圈)的区域可见,地形与标记都不透出;
  * - 点击地图放大查看,放大后有文字标注(工作台/火堆/床);
- * - 地图左上角有折叠按钮,可收起只留按钮。
+ * - 地图左上角有折叠按钮,可收起只留按钮;
+ * - 玩家移动/交互中(busy)折叠按钮淡出。
  */
-export function Minimap({ source }: { source: MinimapSource | null }) {
+export function Minimap({ source, dimmed = false }: { source: MinimapSource | null; dimmed?: boolean }) {
   // 默认收起,只留右上角小按钮,点开才显示地图
   const [folded, setFolded] = useState(true);
   const [enlarged, setEnlarged] = useState(false);
@@ -65,16 +67,13 @@ export function Minimap({ source }: { source: MinimapSource | null }) {
 
   if (!source) return null;
 
-  // 折叠后只留右上角一个小按钮
+  // 折叠后只留一个小按钮
   if (folded) {
     return (
       <button
         onClick={() => setFolded(false)}
         aria-label="展开小地图"
         style={{
-          position: 'absolute',
-          top: 'max(10px, env(safe-area-inset-top))',
-          right: 'max(10px, env(safe-area-inset-right))',
           width: 38,
           height: 38,
           fontSize: 17,
@@ -83,7 +82,7 @@ export function Minimap({ source }: { source: MinimapSource | null }) {
           borderRadius: 10,
           background: 'rgba(255,255,255,0.75)',
           cursor: 'pointer',
-          zIndex: 20,
+          ...fadeStyle(dimmed),
         }}
       >
         🗺️
@@ -95,14 +94,7 @@ export function Minimap({ source }: { source: MinimapSource | null }) {
 
   return (
     <>
-      <div
-        style={{
-          position: 'absolute',
-          top: 'max(10px, env(safe-area-inset-top))',
-          right: 'max(10px, env(safe-area-inset-right))',
-          zIndex: 20,
-        }}
-      >
+      <div>
         <div style={{ position: 'relative' }}>
           <canvas
             ref={smallRef}
@@ -147,9 +139,9 @@ export function Minimap({ source }: { source: MinimapSource | null }) {
       {enlarged && (
         <div
           onClick={() => setEnlarged(false)}
-          style={{
-            position: 'absolute',
-            inset: 0,
+        style={{
+          position: 'fixed',
+          inset: 0,
             background: 'rgba(0,0,0,0.5)',
             display: 'flex',
             alignItems: 'center',

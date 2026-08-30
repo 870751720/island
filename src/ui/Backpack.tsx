@@ -10,6 +10,7 @@ import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
+import { fadeStyle } from './fade';
 
 type Props = {
   open: boolean;
@@ -261,6 +262,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
           fontSize: 24,
           touchAction: 'none',
           userSelect: 'none',
+          ...fadeStyle(hud.busy),
         }}
       >
         🎒

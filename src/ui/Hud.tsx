@@ -12,18 +12,10 @@ function StatRow({ icon, value, color }: { icon: string; value: number; color: s
 }
 
 /**
- * 左上角状态区:生命/饥饿/口渴 + 天数在状态栏下方;右侧并排一个设置按钮。
+ * 左上角状态区:生命/饥饿/口渴 + 天数在状态栏下方。
  * 红心为 GM 面板的隐藏入口。
  */
-export function Hud({
-  hud,
-  onHeartTap,
-  onOpenSettings,
-}: {
-  hud: HudSnapshot;
-  onHeartTap: () => void;
-  onOpenSettings: () => void;
-}) {
+export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => void }) {
   return (
     <div
       style={{
@@ -73,22 +65,6 @@ export function Hud({
           第 {hud.day} 天
         </div>
       </div>
-      <button
-        onClick={onOpenSettings}
-        aria-label="设置"
-        style={{
-          width: 'clamp(38px, 10vw, 44px)',
-          height: 'clamp(38px, 10vw, 44px)',
-          fontSize: 'clamp(18px, 5vw, 22px)',
-          lineHeight: 1,
-          border: 'none',
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.75)',
-          cursor: 'pointer',
-        }}
-      >
-        ⚙️
-      </button>
     </div>
   );
 }

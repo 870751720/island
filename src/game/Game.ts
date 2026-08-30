@@ -131,6 +131,8 @@ export type HudSnapshot = {
   notice: { id: number; text: string } | null;
   /** 当前是第几天(跨过正午计一天,睡觉跳夜也会推进) */
   day: number;
+  /** 玩家正在移动或处于任一交互进行中(用于淡化非必要 HUD 按钮) */
+  busy: boolean;
 };
 
 const VIEW_SIZE = 18;
@@ -169,6 +171,8 @@ export class Game {
   private campfire: CampfireSystem;
   private eating: EatingSystem;
   private lastFishingState: FishingState | null = null;
+  /** 上次推送的 busy 状态,变化时立即推送让按钮淡出更跟手 */
+  private lastBusy = false;
   private lastBiteClicks = 0;
   private fishing: FishingSystem;
   private archery: BowSystem;
@@ -1306,7 +1310,10 @@ export class Game {
       fishingState === 'bite' && this.fishing.biteClicks !== this.lastBiteClicks;
     this.lastFishingState = fishingState;
     this.lastBiteClicks = this.fishing.biteClicks;
-    if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged) return;
+    const busy = this.isPlayerBusy;
+    const busyChanged = busy !== this.lastBusy;
+    this.lastBusy = busy;
+    if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged) return;
     this.hudTimer = 0;
     this.onHud({
       ...this.survival.state,
@@ -1368,7 +1375,28 @@ export class Game {
       nearDrop: this.drops.getNearby(),
       notice: this.notice,
       day: this.dayNight.day,
+      busy: this.isPlayerBusy,
     });
+  }
+
+  /** 玩家正在移动或处于任一交互进行中:HUD 据此淡出设置/地图/背包/工具按钮 */
+  private get isPlayerBusy(): boolean {
+    return (
+      this.player.isMoving ||
+      this.crafting.isWorking ||
+      this.workbench.isWorking ||
+      this.workbench.isDigging ||
+      this.crates.isDigging ||
+      this.fences.isPlacing ||
+      this.fences.isDigging ||
+      this.beds.isBusy ||
+      this.campfire.isBusy ||
+      this.campfire.isDigging ||
+      this.campfire.isCooking ||
+      this.eating.isWorking ||
+      this.fishing.currentState !== null ||
+      this.archery.isWorking
+    );
   }
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
