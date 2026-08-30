@@ -506,10 +506,9 @@ export class Player implements Updatable {
     }
   }
 
-  /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;仍读取摇杆以便外层察觉移动并唤醒 */
+  /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;睡下后输入被忽略,直到睡满 */
   private updateSleep(delta: number, elapsed: number): void {
-    this.input.getVector(this.moveVec);
-    this.moving = this.moveVec.lengthSq() > 0.001;
+    this.moving = false;
     const pose = this.sleepPose!;
     const k = 1 - Math.pow(0.002, delta);
     this.group.position.lerp(pose.pos, k);

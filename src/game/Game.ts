@@ -979,9 +979,7 @@ export class Game {
         p.y += 0.8;
         this.fx.burst(p, '#cfe8ff', 14);
         this.notify('一觉睡到了第二天清晨');
-      },
-      // 中途起床:时间退回入睡前
-      () => this.dayNight.cancelSleep()
+      }
     );
   }
 

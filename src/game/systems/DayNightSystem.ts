@@ -102,15 +102,6 @@ export class DayNightSystem implements Updatable {
     this.apply();
   }
 
-  /** 睡觉被打断:时刻退回入睡前的位置,天数不计 */
-  cancelSleep(): void {
-    if (this.sleepFrom === null) return;
-    const from = this.sleepFrom;
-    this.sleepFrom = null;
-    if (from >= DayNightSystem.MORNING_T) this.dayCount -= 1;
-    this.time = from;
-  }
-
   update(delta: number): void {
     if (GmSystem.lockDaytime) {
       // 锁定白天:时间停在正午,若当前在夜里先拉回白天

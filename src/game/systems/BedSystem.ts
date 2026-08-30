@@ -45,7 +45,6 @@ export class BedSystem {
   private sleepTimer = 0;
   private snoreTimer = 0;
   private onWake: (() => void) | null = null;
-  private onSleepCancel: (() => void) | null = null;
 
   constructor(
     private scene: THREE.Scene,
@@ -122,8 +121,8 @@ export class BedSystem {
     return true;
   }
 
-  /** 靠近床发起睡觉:玩家躺上床打呼,过渡中天空日夜流转;完成后回调 onWake 由外层结算(时间落定与状态变化),中途移动则回调 onSleepCancel 取消 */
-  startSleep(onWake: () => void, onSleepCancel: () => void): boolean {
+  /** 靠近床发起睡觉:玩家躺上床打呼,过渡中天空日夜流转;一旦睡下不可打断,睡满后回调 onWake 由外层结算 */
+  startSleep(onWake: () => void): boolean {
     if (this.isBusy || !this.nearby) return false;
     const bed = this.nearby;
     // 躺平朝向:身体(头朝枕头,即床身 -X 方向)与床身对齐
@@ -134,7 +133,6 @@ export class BedSystem {
     feet.y += LIE_HEIGHT;
     this.player.setSleeping(feet, beta + Math.PI / 2);
     this.onWake = onWake;
-    this.onSleepCancel = onSleepCancel;
     this.sleepTimer = 0.001;
     this.snoreTimer = SNORE_TICK; // 入睡立刻先打一声呼
     return true;
@@ -143,11 +141,7 @@ export class BedSystem {
   update(delta: number): void {
     this.updateDig(delta);
     if (!this.isSleeping) return;
-    // 睡着后乱动就醒(不结算)
-    if (this.player.isMoving || this.player.isSwimming) {
-      this.cancelSleep();
-      return;
-    }
+    // 一旦睡着就必须睡满,移动不会打断(睡觉期间输入被忽略)
     this.sleepTimer += delta;
     this.snoreTimer += delta;
     if (this.snoreTimer >= SNORE_TICK) {
@@ -157,20 +151,9 @@ export class BedSystem {
     if (this.sleepTimer < SLEEP_TIME) return;
     this.sleepTimer = 0;
     this.player.wakeUp();
-    this.onSleepCancel = null;
     const wake = this.onWake;
     this.onWake = null;
     wake?.();
-  }
-
-  /** 打断睡觉:玩家回到床边站起,时间与结算一并回退 */
-  private cancelSleep(): void {
-    this.sleepTimer = 0;
-    this.player.wakeUp();
-    this.onWake = null;
-    const cancel = this.onSleepCancel;
-    this.onSleepCancel = null;
-    cancel?.();
   }
 
   /** 手持锄头站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */
