@@ -464,7 +464,7 @@ export class Props implements Updatable {
   }
 
   /** 玩家放下一株挖来的丛:在落点生成可采集/可再挖的丛并纳入管理 */
-  placeBush(kind: 'berry' | 'shrub', x: number, z: number): Prop {
+  placeBush(kind: 'berry' | 'shrub' | 'grass', x: number, z: number): Prop {
     const y = this.terrain.getHeight(x, z);
     let berries: THREE.Mesh[] | null = null;
     let group: THREE.Group;
@@ -472,6 +472,8 @@ export class Props implements Updatable {
       const made = makeBerryBush();
       group = made.group;
       berries = made.berries;
+    } else if (kind === 'grass') {
+      group = makeGrassTuft();
     } else {
       group = makeShrub();
     }
@@ -549,13 +551,16 @@ export class Props implements Updatable {
       case 'rock':
       case 'meteor':
       case 'gravel':
-      case 'grass':
       case 'worm':
         prop.group.visible = prop.ready;
         break;
       case 'berry':
         // 浆果丛保留,只藏起果子
         for (const berry of this.berries.get(prop) ?? []) berry.visible = prop.ready;
+        break;
+      case 'grass':
+        // 草丛被采后缩成一小茬,表示草还在
+        prop.group.scale.setScalar(prop.ready ? 1 : 0.3);
         break;
       case 'shrub':
         // 灌木丛被割后缩成小桩
@@ -616,7 +621,7 @@ export class Props implements Updatable {
         this.syncAppearance(prop);
         continue;
       }
-      if (state.kind === 'berry' || state.kind === 'shrub') {
+      if (state.kind === 'berry' || state.kind === 'shrub' || state.kind === 'grass') {
         const prop = this.placeBush(state.kind, state.x, state.z);
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft;
@@ -673,7 +678,7 @@ export class Props implements Updatable {
       if (prop.kind === 'berry') {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
       } else if (prop.kind === 'grass') {
-        prop.group.visible = true;
+        prop.group.scale.setScalar(1);
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
       }
@@ -705,7 +710,7 @@ export class Props implements Updatable {
       if (prop.kind === 'berry') {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
       } else if (prop.kind === 'grass') {
-        prop.group.visible = true;
+        prop.group.scale.setScalar(1);
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
       }

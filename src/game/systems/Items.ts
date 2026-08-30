@@ -269,7 +269,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'hoe',
     name: '石锄',
     icon: '⚒️',
-    description: '石锄刃绑上树枝柄。手持锄头可以把浆果丛、灌木丛整棵挖出来搬走;二级工作台可升级为精致石锄。',
+    description: '石锄刃绑上树枝柄。手持锄头可以把浆果丛、灌木丛、草丛整棵挖出来搬走;二级工作台可升级为精致石锄。',
   },
   fishingrod: {
     kind: 'fishingrod',
@@ -380,6 +380,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '灌木丛',
     icon: '🌿',
     description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后会继续长树枝。',
+  },
+  grassTuft: {
+    kind: 'grassTuft',
+    name: '草丛',
+    icon: '🌱',
+    description: '用锄头挖出来的完整草丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后又可以采集纤维。',
   },
   workbench1: {
     kind: 'workbench1',

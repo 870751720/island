@@ -1144,7 +1144,7 @@ export class Game {
   }
 
   /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
-  useBush(kind: 'berryBush' | 'shrubBush'): boolean {
+  useBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft'): boolean {
     if (this.asleep) return false;
     if (this.inventory.count(kind) <= 0) return false;
     const p = this.player.group.position;
@@ -1158,12 +1158,13 @@ export class Game {
       return false;
     }
     this.inventory.remove(kind, 1);
-    this.props.placeBush(kind === 'berryBush' ? 'berry' : 'shrub', p.x, p.z);
+    const bushKind = kind === 'berryBush' ? 'berry' : kind === 'grassTuft' ? 'grass' : 'shrub';
+    this.props.placeBush(bushKind, p.x, p.z);
     this.afterPlaceDiggable();
     this.audio.play('success');
     const fxPos = p.clone();
     fxPos.y += 0.5;
-    this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : '#6b8f4e', 10);
+    this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : kind === 'grassTuft' ? '#a4c46a' : '#6b8f4e', 10);
     return true;
   }
 
@@ -1379,23 +1380,14 @@ export class Game {
     });
   }
 
-  /** 玩家正在移动或处于任一交互进行中:HUD 据此淡出设置/地图/背包/工具按钮 */
+  /** 玩家正在移动或处于任一交互进行中:HUD 据此淡出设置/地图/背包/工具按钮
+   * 各交互(采集/制作/挖除/吃喝/钓鱼/拉弓等)都会设置玩家的作业动画,统一用 isActing 判定 */
   private get isPlayerBusy(): boolean {
     return (
       this.player.isMoving ||
-      this.crafting.isWorking ||
-      this.workbench.isWorking ||
-      this.workbench.isDigging ||
-      this.crates.isDigging ||
-      this.fences.isPlacing ||
-      this.fences.isDigging ||
+      this.player.isActing ||
       this.beds.isBusy ||
-      this.campfire.isBusy ||
-      this.campfire.isDigging ||
-      this.campfire.isCooking ||
-      this.eating.isWorking ||
-      this.fishing.currentState !== null ||
-      this.archery.isWorking
+      this.fishing.currentState !== null
     );
   }
 
@@ -1474,7 +1466,9 @@ export class Game {
                   ? '挖灌木丛'
                   : '捡树枝'
                 : nearby.kind === 'grass'
-                  ? '采纤维'
+                  ? digging
+                    ? '挖草丛'
+                    : '采纤维'
                   : nearby.kind === 'worm'
                     ? '挖蚯蚓'
                     : digging

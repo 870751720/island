@@ -60,6 +60,7 @@ export type ResourceKind =
   | 'bed2'
   | 'berryBush'
   | 'shrubBush'
+  | 'grassTuft'
   | 'workbench1'
   | 'workbench2'
   | 'workbench3'

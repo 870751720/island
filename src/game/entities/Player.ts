@@ -417,6 +417,11 @@ export class Player implements Updatable {
     this.action = action;
   }
 
+  /** 是否处于作业动画中(砍树/凿石/制作/吃喝/钓鱼等交互动作) */
+  get isActing(): boolean {
+    return this.action !== null;
+  }
+
   get isSleeping(): boolean {
     return this.sleepPose !== null;
   }

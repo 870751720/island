@@ -62,6 +62,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   fenceGate: '#8a6239',
   berryBush: '#5d8a3a',
   shrubBush: '#6b8f4e',
+  grassTuft: '#a4c46a',
   workbench1: '#8a6239',
   workbench2: '#8d99a6',
   workbench3: '#8a6239',
@@ -689,6 +690,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fenceGate: () => makeGateDrop(),
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
+  grassTuft: () => makeGrassTuftDrop(),
   workbench1: () => makeWorkbenchDrop(1),
   workbench2: () => makeWorkbenchDrop(2),
   workbench3: () => makeWorkbenchDrop(3),
@@ -733,6 +735,19 @@ function makeGateDrop(): THREE.Object3D {
   door.position.set(0.12, 0.14, 0);
   leaf.add(door);
   g.add(leaf);
+  return g;
+}
+
+/** 草丛掉落物:一小束交叉的草叶 */
+function makeGrassTuftDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const blade = mesh(new THREE.ConeGeometry(0.04, 0.24, 3), clay(i % 2 === 0 ? DROP_COLORS.grassTuft : '#7fae55'));
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    blade.position.set(Math.cos(a) * 0.07, 0.12, Math.sin(a) * 0.07);
+    blade.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
+    g.add(blade);
+  }
   return g;
 }
 

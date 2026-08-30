@@ -320,7 +320,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'berryBush' || kind === 'shrubBush') {
+          if (kind === 'berryBush' || kind === 'shrubBush' || kind === 'grassTuft') {
             gameRef.current?.useBush(kind);
             setBackpackOpen(false);
             return;

@@ -11,6 +11,6 @@ export function fadeStyle(hidden: boolean): {
   return {
     opacity: hidden ? 0 : 1,
     pointerEvents: hidden ? 'none' : 'auto',
-    transition: 'opacity 0.25s ease',
+    transition: 'opacity 0.5s ease',
   };
 }

@@ -16,9 +16,12 @@ const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 const DIG_HITS = 2; // 锄头挖丛的命中次数(精致石锄 1 次)
 /** 锄头挖走的丛对应的道具 */
-const DIG_YIELD: Partial<Record<'berry' | 'shrub', 'berryBush' | 'shrubBush'>> = {
+const DIG_YIELD: Partial<
+  Record<'berry' | 'shrub' | 'grass', 'berryBush' | 'shrubBush' | 'grassTuft'>
+> = {
   berry: 'berryBush',
   shrub: 'shrubBush',
+  grass: 'grassTuft',
 };
 
 /** 作业对象种类:树桩是成树的第二段、小树是树的幼年段,单独配置 */
@@ -152,11 +155,11 @@ export class CollectSystem {
     private isBusy: () => boolean = () => false
   ) {}
 
-  /** 手持锄头靠近浆果丛/灌木丛时是在挖整棵丛,而不是徒手采集 */
+  /** 手持锄头靠近浆果丛/灌木丛/草丛时是在挖整棵丛,而不是徒手采集 */
   private isDigging(prop: Prop): boolean {
     return (
       this.player.currentTool === 'hoe' &&
-      (prop.kind === 'berry' || prop.kind === 'shrub')
+      (prop.kind === 'berry' || prop.kind === 'shrub' || prop.kind === 'grass')
     );
   }
 
@@ -260,7 +263,7 @@ export class CollectSystem {
     if (this.isDigging(prop)) {
       // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
-      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub']!, 1);
+      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass']!, 1);
     } else {
       this.props.harvest(prop);
       config.yield(this.inventory, prop);
