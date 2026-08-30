@@ -446,6 +446,20 @@ export class Game {
       this.props,
       this.fx,
       this.audio,
+      this.tools,
+      // 其他占用双手的行为进行中时挖掘让位
+      () =>
+        this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.workbench.isDigging ||
+        this.beds.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
+        this.crates.isDigging ||
+        this.water.isActive,
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count) => this.giveItem(kind, count)
     );
@@ -1250,6 +1264,9 @@ export class Game {
     } else if (this.beds.isDigging) {
       label = '挖床…';
       progress = this.beds.getDigProgress();
+    } else if (this.campfire.isDigging) {
+      label = '挖火堆…';
+      progress = this.campfire.getDigProgress();
     } else if (this.campfire.isCooking) {
       const { total, current } = this.campfire.cookInfo;
       const food = ITEMS[this.campfire.cookingKind!];

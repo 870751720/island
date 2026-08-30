@@ -8,6 +8,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import type { Tools } from './Crafting';
 
 const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -16,6 +17,9 @@ const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚�
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
 export const CAMPFIRE_COST = { flint: 1, log: 2 };
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
+const DIG_RANGE = 1.6; // 持锄头可开挖熄灭火堆的距离
+const DIG_HITS = 2; // 锄头挖火堆的命中次数(精致石锄 1 次)
+const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const COOK_TIME = 1.6; // 每份食物的烹饪时长(秒)
 const COOK_TICK = 0.8; // 烹饪翻动特效间隔(秒)
 
@@ -30,14 +34,18 @@ export type CampfireInfo = {
 /**
  * 火堆系统:材料满足且位置可摆放时通过卡片发起搭建,站定敲打完成后
  * 在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,可反复添柴续命(无上限),
- * 燃尽后化为灰烬并倒计时消失。烹饪在燃烧的火堆上批量进行,一次烤完
- * 背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
+ * 燃尽后熄灭留在原地(不能再烹饪,添柴可复燃),手持锄头可把熄灭的火堆
+ * 整座挖掉(直接消失)。烹饪在燃烧的火堆上批量进行,一次烤完背包里同种
+ * 食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
  */
 export class CampfireSystem {
   private timer = 0;
   private tickTimer = 0;
   private fires: Campfire[] = [];
   private scratch = new THREE.Vector3();
+  private swingTimer = 0;
+  private hits = 0;
+  private digTarget: Campfire | null = null;
   // 批量烹饪:食材先收走,逐份烤熟入包;走开或火灭则退回剩余食材
   private cookKind: ResourceKind | null = null;
   private cookFire: Campfire | null = null;
@@ -54,6 +62,9 @@ export class CampfireSystem {
     private props: Props,
     private fx: Particles,
     private audio: GameAudio,
+    private tools: Tools,
+    /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
+    private isOtherBusy: () => boolean = () => false,
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n)
   ) {}
@@ -68,9 +79,14 @@ export class CampfireSystem {
     return this.cookKind !== null;
   }
 
-  /** 搭建或烹饪中(占用双手) */
+  /** 搭建、烹饪或挖掘中(占用双手) */
   get isBusy(): boolean {
-    return this.isWorking || this.isCooking;
+    return this.isWorking || this.isCooking || this.isDigging;
+  }
+
+  /** 正在挖火堆 */
+  get isDigging(): boolean {
+    return !!this.digTarget;
   }
 
   /** 玩家身旁最近的火堆(范围内的),无则 null */
@@ -78,8 +94,6 @@ export class CampfireSystem {
     let best: Campfire | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const fire of this.fires) {
-      // 灰烬无火堆逻辑:燃尽后的残堆不参与交互,等倒计时消失
-      if (fire.spent || fire.ashLeft !== null) continue;
       this.scratch.copy(fire.group.position);
       this.scratch.y = this.player.group.position.y;
       const d = this.scratch.distanceToSquared(this.player.group.position);
@@ -113,8 +127,8 @@ export class CampfireSystem {
   /** 是否满足发起条件(材料齐 + 位置可摆放 + 全场没有火堆) */
   canStart(): boolean {
     if (this.isBusy) return false;
-    // 已有火堆(含燃着/熄灭未清场)时不再弹搭建卡片;灰烬不算
-    if (this.fires.some((f) => f.ashLeft === null)) return false;
+    // 已有火堆(燃着或熄灭)时不再弹搭建卡片,想换位置先挖掉旧火堆
+    if (this.fires.length > 0) return false;
     if (this.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (this.inventory.count('log') < CAMPFIRE_COST.log) return false;
     return this.canPlace();
@@ -128,15 +142,8 @@ export class CampfireSystem {
   }
 
   update(delta: number, elapsed: number): void {
-    for (let i = this.fires.length - 1; i >= 0; i--) {
-      const fire = this.fires[i];
-      fire.update(delta, elapsed);
-      if (fire.spent) {
-        this.scene.remove(fire.group);
-        fire.dispose();
-        this.fires.splice(i, 1);
-      }
-    }
+    for (const fire of this.fires) fire.update(delta, elapsed);
+    this.updateDig(delta);
     if (!this.isWorking) return this.updateCooking(delta);
     if (this.player.isMoving || this.player.isSwimming) {
       this.timer = 0;
@@ -172,12 +179,14 @@ export class CampfireSystem {
     return this.isWorking ? Math.min(this.timer / CRAFT_TIME, 1) : null;
   }
 
-  /** 向身旁火堆添加 1 个可燃物(树枝/木头等),返回增加的燃烧秒数,失败为 0 */
+  /** 向身旁火堆添加 1 个可燃物(树枝/木头等),熄灭的火堆添柴后复燃,返回增加的燃烧秒数,失败为 0 */
   addFuel(kind: ResourceKind): number {
     const fire = this.nearby;
     const burnTime = ITEMS[kind].burnTime;
     if (!fire || !burnTime || !this.inventory.remove(kind, 1)) return 0;
+    const wasLit = fire.isLit;
     fire.fuel += burnTime;
+    if (!wasLit) fire.relight();
     this.audio.play('stoke');
     const p = fire.group.position.clone();
     p.y += 0.5;
@@ -207,7 +216,7 @@ export class CampfireSystem {
     const kind = this.cookKind;
     const fire = this.cookFire;
     if (!kind || !fire) return;
-    const fireGone = fire.spent || fire.ashLeft !== null || !fire.isLit || this.nearby !== fire;
+    const fireGone = !fire.isLit || this.nearby !== fire;
     if (this.player.isMoving || this.player.isSwimming || fireGone) {
       // 中断:剩余食材原样退回
       this.inventory.add(kind, this.cookQueue);
@@ -255,35 +264,74 @@ export class CampfireSystem {
     return this.cookKind;
   }
 
-  /** 时间快进(睡觉跳到第二天):火堆按跳过的秒数继续烧,烧完的正常化灰 */
+  /** 时间快进(睡觉跳到第二天):火堆按跳过的秒数继续烧,烧完的熄灭留场 */
   passTime(seconds: number, elapsed: number): void {
-    for (let i = this.fires.length - 1; i >= 0; i--) {
-      const fire = this.fires[i];
-      fire.update(seconds, elapsed);
-      if (fire.spent) {
-        this.scene.remove(fire.group);
-        fire.dispose();
-        this.fires.splice(i, 1);
+    for (const fire of this.fires) fire.update(seconds, elapsed);
+  }
+
+  /** 手持锄头站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(直接消失,无返还) */
+  private updateDig(delta: number): void {
+    const p = this.player.group.position;
+    let target: Campfire | null = null;
+    if (
+      this.player.currentTool === 'hoe' &&
+      !this.player.isSwimming &&
+      !this.isWorking &&
+      !this.isCooking &&
+      !this.isOtherBusy()
+    ) {
+      for (const fire of this.fires) {
+        if (fire.isLit) continue;
+        this.scratch.copy(fire.group.position);
+        this.scratch.y = p.y;
+        if (this.scratch.distanceTo(p) < DIG_RANGE) {
+          target = fire;
+          break;
+        }
       }
     }
+    if (!target || this.player.isMoving) {
+      this.digTarget = null;
+      this.swingTimer = 0;
+      this.hits = 0;
+      return;
+    }
+    this.digTarget = target;
+    this.player.setAction('mine');
+    this.swingTimer += delta;
+    if (this.swingTimer < SWING_TIME) return;
+    this.swingTimer = 0;
+    this.fx.burst(target.group.position, FX_COLOR, 6);
+    this.hits += 1;
+    if (this.hits < (this.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    this.hits = 0;
+    this.digTarget = null;
+    this.fires.splice(this.fires.indexOf(target), 1);
+    this.scene.remove(target.group);
+    target.dispose();
+    this.audio.play('pickup');
+    this.fx.burst(target.group.position, FX_COLOR, 14);
   }
 
-  /** 当前所有火堆的存档快照 */
+  /** 当前挖火堆进度 0-1,未在挖掘时为 null */
+  getDigProgress(): number | null {
+    if (!this.digTarget) return null;
+    const need = this.tools.hoe >= 2 ? 1 : DIG_HITS;
+    return Math.min((this.hits + this.swingTimer / SWING_TIME) / need, 1);
+  }
+
+  /** 当前所有火堆的存档快照(熄灭的也保存,燃料 0) */
   snapshot(): { x: number; y: number; z: number; fuel: number }[] {
-    return this.fires
-      .filter((fire) => fire.ashLeft === null)
-      .map((fire) => {
-        const p = fire.group.position;
-        return { x: p.x, y: p.y, z: p.z, fuel: fire.fuel };
-      });
+    return this.fires.map((fire) => {
+      const p = fire.group.position;
+      return { x: p.x, y: p.y, z: p.z, fuel: fire.fuel };
+    });
   }
 
-  /** 从存档恢复火堆(灰烬不保存,燃料至少 1 秒) */
+  /** 从存档恢复火堆(含熄灭的) */
   restore(list: { x: number; y: number; z: number; fuel: number }[]): void {
     for (const f of list) {
-      this.fires.push(
-        new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), Math.max(f.fuel, 1))
-      );
+      this.fires.push(new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), f.fuel));
     }
   }
 }

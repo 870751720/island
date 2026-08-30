@@ -67,7 +67,7 @@ export function CampfirePanel({
         <div style={{ fontSize: 13, color: lit ? '#e0862e' : '#999', marginBottom: 12 }}>
           {lit
             ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,添柴或烤点吃的吧`
-            : '火已经熄了,只剩灰烬……'}
+            : '火已经熄了,添柴可以重新点燃,也可以用锄头挖掉'}
         </div>
 
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>添柴</div>
