@@ -221,19 +221,19 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'oakSeed',
     name: '橡树种子',
     icon: '🌰',
-    description: '砍橡树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵橡树,结出的橡果可以食用。',
+    description: '砍橡树偶尔掉落的种子,点击「使用」在脚下空地种下一棵橡树,结出的橡果可以食用。',
   },
   pineSeed: {
     kind: 'pineSeed',
     name: '松树种子',
     icon: '🌱',
-    description: '砍松树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵松树,结出的松果可以食用。',
+    description: '砍松树偶尔掉落的种子,点击「使用」在脚下空地种下一棵松树,结出的松果可以食用。',
   },
   fruitSeed: {
     kind: 'fruitSeed',
     name: '果树种子',
     icon: '🍏',
-    description: '砍果树偶尔掉落的种子,手持种子站定空地 2 秒即可种下一棵果树,结出的红果可以食用。',
+    description: '砍果树偶尔掉落的种子,点击「使用」在脚下空地种下一棵果树,结出的红果可以食用。',
   },
   oakFruit: {
     kind: 'oakFruit',
@@ -341,13 +341,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fenceWood',
     name: '木围栏',
     icon: '🚧',
-    description: '木栅栏段。点击「使用」立到面前的格点上,相邻的围栏会自动连成整片;沿边一圈圈放就能围出没有缝隙的围栏场。',
+    description: '木栅栏段。点击「使用」立到面前的格点上,或手持「围栏」站定自动立栏;相邻的围栏会自动连成整片,沿边一圈圈放就能围出没有缝隙的围栏场。',
   },
   fenceStone: {
     kind: 'fenceStone',
     name: '石围栏',
     icon: '🧱',
-    description: '石块垒的围栏段。用法与木围栏相同,更结实的石墙外观。',
+    description: '石块垒的围栏段。用法与木围栏相同,手持「围栏」时与木围栏一起按背包顺序消耗,外观为石墙。',
   },
   fenceGate: {
     kind: 'fenceGate',

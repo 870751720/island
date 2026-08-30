@@ -813,10 +813,11 @@ export class Game {
     if (e.key.toLowerCase() === 'q') this.cycleTool();
   };
 
-  /** 手上是否还持有该工具(围栏按背包数量判断) */
+  /** 手上是否还持有该工具(围栏/门按背包数量判断) */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
-    if (tool === 'fenceWood' || tool === 'fenceStone' || tool === 'fenceGate')
-      return this.inventory.count(tool) > 0;
+    if (tool === 'fence')
+      return this.inventory.count('fenceWood') + this.inventory.count('fenceStone') > 0;
+    if (tool === 'fenceGate') return this.inventory.count('fenceGate') > 0;
     return !!this.tools[tool];
   }
 
@@ -833,8 +834,7 @@ export class Game {
       'hoe',
       'fishingrod',
       'bow',
-      'fenceWood',
-      'fenceStone',
+      'fence',
       'fenceGate',
     ];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
@@ -1278,11 +1278,12 @@ export class Game {
       arrow: this.inventory.count('arrow'),
       bait: this.inventory.count('bait'),
       bed1: this.inventory.count('bed1'),
-      heldFenceCount: (['fenceWood', 'fenceStone', 'fenceGate'] as const).includes(
-        this.player.currentTool as 'fenceWood'
-      )
-        ? this.inventory.count(this.player.currentTool as ResourceKind)
-        : 0,
+      heldFenceCount:
+        this.player.currentTool === 'fence'
+          ? this.inventory.count('fenceWood') + this.inventory.count('fenceStone')
+          : this.player.currentTool === 'fenceGate'
+            ? this.inventory.count('fenceGate')
+            : 0,
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       hasAxe: !!this.tools.axe,

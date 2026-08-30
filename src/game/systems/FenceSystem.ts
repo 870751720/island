@@ -394,12 +394,13 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 手持自动放置 ----
 
-  /** 玩家当前手持的围栏工具对应的场上种类(非围栏工具为 null) */
+  /** 手持围栏时背包里排最前面的围栏道具对应的场上种类(没围栏道具或非手持为 null) */
   private heldFenceKind(): FenceKind | null {
-    const tool = this.player.currentTool;
-    if (tool === 'fenceWood') return 'wood';
-    if (tool === 'fenceStone') return 'stone';
-    return null;
+    if (this.player.currentTool !== 'fence') return null;
+    const slot = this.inventory
+      .snapshot()
+      .find((s) => s?.kind === 'fenceWood' || s?.kind === 'fenceStone');
+    return slot ? fenceKindOfItem(slot.kind) : null;
   }
 
   /** 正在手持围栏/门放置中 */
@@ -427,7 +428,6 @@ export class FenceSystem implements ObstacleSolver {
         : null;
     const placeable =
       item !== null &&
-      this.inventory.count(item) > 0 &&
       !this.player.isMoving &&
       !this.player.isSwimming &&
       !this.isBusy() &&

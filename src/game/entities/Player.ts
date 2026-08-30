@@ -46,7 +46,7 @@ export type ActionType =
   | 'shoot'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/围栏与围栏门(用于沿途立栏) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/围栏(木/石通用)与围栏门(用于沿途立栏) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -54,8 +54,7 @@ export type HandTool =
   | 'hoe'
   | 'fishingrod'
   | 'bow'
-  | 'fenceWood'
-  | 'fenceStone'
+  | 'fence'
   | 'fenceGate';
 
 function makeFishingRodModel(): THREE.Group {
@@ -339,15 +338,14 @@ export class Player implements Updatable {
     const hoe = makeHoeModel();
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
-    const fenceWood = makeFenceBundleModel('#a97b48', false);
-    const fenceStone = makeFenceBundleModel('#9a9a9a', false);
+    const fence = makeFenceBundleModel('#a97b48', false);
     const fenceGate = makeFenceBundleModel('#8a6239', true);
-    for (const t of [axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate]) {
+    for (const t of [axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate);
-    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, fenceWood, fenceStone, fenceGate };
+    armR.add(axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate);
+    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate };
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();

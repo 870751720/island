@@ -9,8 +9,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   hoe: '⚒️',
   fishingrod: '🎣',
   bow: '🏹',
-  fenceWood: '🚧',
-  fenceStone: '🧱',
+  fence: '🚧',
   fenceGate: '🪵',
 };
 
@@ -103,8 +102,7 @@ export function ToolButton({
         !bed &&
         (tool === 'bow' ||
           tool === 'fishingrod' ||
-          tool === 'fenceWood' ||
-          tool === 'fenceStone' ||
+          tool === 'fence' ||
           tool === 'fenceGate') && (
         <span
           style={{
