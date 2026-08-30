@@ -26,7 +26,15 @@ const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
   meteor: 0.6,
 };
 
-export type PropKind = 'tree' | 'rock' | 'gravel' | 'berry' | 'shrub' | 'grass' | 'meteor';
+export type PropKind =
+  | 'tree'
+  | 'rock'
+  | 'gravel'
+  | 'berry'
+  | 'shrub'
+  | 'grass'
+  | 'meteor'
+  | 'worm';
 
 /** 资源点的可序列化状态(存档用,自然生成的布局由种子保证可复现;玩家种下的树带坐标) */
 export type PropState = {
@@ -52,6 +60,7 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   berry: { regrow: 60 },
   shrub: { regrow: 90 },
   grass: { regrow: 60 },
+  worm: { regrow: 60 },
 };
 
 export type Prop = {
@@ -321,6 +330,27 @@ function makeShrub(): THREE.Group {
   return g;
 }
 
+/** 蚯蚓土坑:一小堆深色松土,可挖时探出一截粉色蚯蚓 */
+function makeWormMound(): THREE.Group {
+  const g = new THREE.Group();
+  const mound = new THREE.Mesh(
+    new THREE.ConeGeometry(0.3, 0.16, 6),
+    clayMaterial('#6b4f35')
+  );
+  mound.scale.y = 0.7;
+  mound.position.y = 0.06;
+  mound.castShadow = true;
+  g.add(mound);
+  const worm = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.035, 0.14, 2, 5),
+    clayMaterial('#d98a8a')
+  );
+  worm.rotation.set(Math.PI / 2, 0, 0.5);
+  worm.position.y = 0.16;
+  g.add(worm);
+  return g;
+}
+
 /** 岛上散布的资源点,管理采集后的外观变化、再生与树的生长 */
 export class Props implements Updatable {
   readonly list: Prop[] = [];
@@ -358,6 +388,7 @@ export class Props implements Updatable {
         else if (kind === 'gravel') group = makeGravel();
         else if (kind === 'shrub') group = makeShrub();
         else if (kind === 'grass') group = makeGrassTuft();
+        else if (kind === 'worm') group = makeWormMound();
         else {
           const made = makeBerryBush();
           group = made.group;
@@ -389,6 +420,7 @@ export class Props implements Updatable {
     spawn('berry', 20);
     spawn('shrub', 30);
     spawn('grass', 26);
+    spawn('worm', 12);
     this.naturalCount = this.list.length;
   }
 
@@ -518,6 +550,7 @@ export class Props implements Updatable {
       case 'meteor':
       case 'gravel':
       case 'grass':
+      case 'worm':
         prop.group.visible = prop.ready;
         break;
       case 'berry':

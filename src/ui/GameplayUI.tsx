@@ -32,6 +32,7 @@ const INITIAL_HUD: HudSnapshot = {
   fur: 0,
   rope: 0,
   arrow: 0,
+  bait: 0,
   slots: [],
   capacity: 10,
   hasAxe: false,
@@ -278,6 +279,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
               campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !digHijack}
               crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !digHijack}
               arrowCount={hud.arrow}
+              baitCount={hud.bait}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}

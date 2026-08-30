@@ -21,11 +21,14 @@ export function CraftPrompt({
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting) return null;
   const ownedTools = hud.toolTiers;
+  // 鱼饵配方:只在手持鱼竿且背包没有鱼饵时弹出
+  const baitCrafting = hud.tool === 'fishingrod' && hud.bait <= 0;
   const craftable = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, hud) &&
+      (!r.baitPrompt || baitCrafting) &&
       recipeVisible(r, hud, ownedTools, hud.equipped, hud.slots)
   );
   const showWorkbench = hud.canCraftWorkbench;

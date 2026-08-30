@@ -31,6 +31,7 @@ export type ResourceKind =
   | 'cookedBirdMeat'
   | 'cookedGameMeat'
   | 'arrow'
+  | 'bait'
   | 'oakSeed'
   | 'pineSeed'
   | 'fruitSeed'

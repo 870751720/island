@@ -56,6 +56,8 @@ export type HudSnapshot = {
   fur: number;
   rope: number;
   arrow: number;
+  /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
+  bait: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -759,6 +761,9 @@ export class Game {
       ) {
         return 'pickaxe';
       }
+      if (nearby.kind === 'worm' && this.tools.hoe && this.player.currentTool !== 'hoe') {
+        return 'hoe';
+      }
       return null;
     }
     if (
@@ -1057,6 +1062,7 @@ export class Game {
       fur: this.inventory.count('fur'),
       rope: this.inventory.count('rope'),
       arrow: this.inventory.count('arrow'),
+      bait: this.inventory.count('bait'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
       hasAxe: !!this.tools.axe,
@@ -1160,9 +1166,11 @@ export class Game {
                   : '捡树枝'
                 : nearby.kind === 'grass'
                   ? '采纤维'
-                  : digging
-                    ? '挖浆果丛'
-                    : '采浆果';
+                  : nearby.kind === 'worm'
+                    ? '挖蚯蚓'
+                    : digging
+                      ? '挖浆果丛'
+                      : '采浆果';
     } else if (this.water.isActive) {
       label = '喝水';
       progress = this.water.getProgress();
@@ -1184,7 +1192,13 @@ export class Game {
               : this.tools.pickaxe
                 ? '需要手持镐子'
                 : '需要镐子'
-            : null;
+            : nearby.kind === 'worm'
+              ? switching
+                ? '切换锄头…'
+                : this.tools.hoe
+                  ? '需要手持锄头'
+                  : '需要锄头'
+              : null;
       if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
     }
     const p = this.player.group.position;

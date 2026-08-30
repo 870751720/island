@@ -11,7 +11,16 @@ export type RefinedToolId = `refined-${ToolId}`;
 export type Tools = Record<ToolId, number>;
 
 /** 配方 id:工具与其同名,材料类与装备类为产物入口 */
-export type CraftId = ToolId | RefinedToolId | 'rope' | 'arrow' | 'crate' | EquipKind;
+export type CraftId =
+  | ToolId
+  | RefinedToolId
+  | 'rope'
+  | 'arrow'
+  | 'crate'
+  | 'baitCrab'
+  | 'baitBird'
+  | 'baitGame'
+  | EquipKind;
 
 export type Recipe = {
   id: CraftId;
@@ -30,6 +39,8 @@ export type Recipe = {
   outputCount?: number;
   /** 需要的工作台等级(缺省 1 级即可,精致工具需 2 级) */
   minBenchLevel?: number;
+  /** 鱼饵类手搓配方:只在手持鱼竿且背包没有鱼饵时弹出制作卡片 */
+  baitPrompt?: boolean;
 };
 
 /** 各工具按等级的名称(工具 tab 与制作面板展示用) */
@@ -163,6 +174,36 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 4 },
     station: 'workbench',
     output: 'crate',
+  },
+  {
+    id: 'baitCrab',
+    name: '鱼饵 ×2',
+    icon: '🪱',
+    cost: { crabMeat: 1 },
+    station: 'hand',
+    output: 'bait',
+    outputCount: 2,
+    baitPrompt: true,
+  },
+  {
+    id: 'baitBird',
+    name: '鱼饵 ×3',
+    icon: '🪱',
+    cost: { birdMeat: 1 },
+    station: 'hand',
+    output: 'bait',
+    outputCount: 3,
+    baitPrompt: true,
+  },
+  {
+    id: 'baitGame',
+    name: '鱼饵 ×10',
+    icon: '🪱',
+    cost: { gameMeat: 1 },
+    station: 'hand',
+    output: 'bait',
+    outputCount: 10,
+    baitPrompt: true,
   },
   {
     id: 'grassShirt',

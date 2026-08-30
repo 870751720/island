@@ -36,6 +36,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedBirdMeat: '#b5722f',
   cookedGameMeat: '#9c4a2f',
   arrow: '#a97c50',
+  bait: '#c98a7a',
   oakSeed: '#b5813f',
   pineSeed: '#8a6b45',
   fruitSeed: '#a0784e',
@@ -629,6 +630,21 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   cookedGameMeat: () => makeRoast(DROP_COLORS.cookedGameMeat),
   arrow: makeArrows,
+  bait: () => {
+    // 鱼饵:一小串蜷曲的粉色肉团
+    const g = new THREE.Group();
+    const mat = clay(DROP_COLORS.bait);
+    for (const [x, r] of [
+      [0, 0.07],
+      [0.1, 0.05],
+      [-0.09, 0.05],
+    ] as const) {
+      const ball = mesh(new THREE.IcosahedronGeometry(r, 0), mat);
+      ball.position.set(x, 0.05, 0);
+      g.add(ball);
+    }
+    return g;
+  },
   oakSeed: () => makeSeed(DROP_COLORS.oakSeed),
   pineSeed: () => makeSeed(DROP_COLORS.pineSeed),
   fruitSeed: () => makeSeed(DROP_COLORS.fruitSeed),

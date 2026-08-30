@@ -13,7 +13,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
 };
 
 /** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
- * 靠近工作台/火堆时切换为对应图标并持续缩放提示,点击打开制作/火堆面板;持弓时角标显示剩余箭数 */
+ * 靠近工作台/火堆时切换为对应图标并持续缩放提示,点击打开制作/火堆面板;持弓/持鱼竿时角标显示剩余箭数/鱼饵数 */
 export function ToolButton({
   tool,
   pulse,
@@ -21,6 +21,7 @@ export function ToolButton({
   campfire = false,
   crate = false,
   arrowCount = 0,
+  baitCount = 0,
   onCycle,
   onWorkbench,
   onCampfire,
@@ -36,6 +37,8 @@ export function ToolButton({
   crate?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
   arrowCount?: number;
+  /** 背包剩余鱼饵数(持鱼竿时角标展示) */
+  baitCount?: number;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
@@ -74,7 +77,7 @@ export function ToolButton({
       }}
     >
       {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : TOOL_ICONS[tool]}
-      {!workbench && !campfire && !crate && tool === 'bow' && (
+      {!workbench && !campfire && !crate && (tool === 'bow' || tool === 'fishingrod') && (
         <span
           style={{
             position: 'absolute',
@@ -89,7 +92,7 @@ export function ToolButton({
             lineHeight: '18px',
           }}
         >
-          {arrowCount}
+          {tool === 'bow' ? arrowCount : baitCount}
         </span>
       )}
       <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>

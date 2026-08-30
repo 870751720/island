@@ -211,6 +211,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏹',
     description: '用树枝削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
   },
+  bait: {
+    kind: 'bait',
+    name: '鱼饵',
+    icon: '🪱',
+    description: '用肉搓成的小鱼饵,也可以用锄头从蚯蚓土坑里挖。每次抛竿消耗 1 个;没有鱼饵时很难钓到好东西。',
+  },
   oakSeed: {
     kind: 'oakSeed',
     name: '橡树种子',

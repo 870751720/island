@@ -218,7 +218,10 @@ export class FishingSystem {
     this.state = 'casting';
     this.audio.play('whoosh');
     this.timer = 0;
-    this.tier = rollTier();
+    // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低)
+    const baited = this.inventory.count('bait') > 0;
+    if (baited) this.inventory.remove('bait', 1);
+    this.tier = rollTier(baited);
     this.loot = rollLoot(this.tier);
     this.tease = null;
     this.teaseStageDone = null;
