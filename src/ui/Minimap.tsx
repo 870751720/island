@@ -34,7 +34,8 @@ const FOG_COLOR = [16, 24, 36, 235] as const;
  * - 地图左上角有折叠按钮,可收起只留按钮。
  */
 export function Minimap({ source }: { source: MinimapSource | null }) {
-  const [folded, setFolded] = useState(false);
+  // 默认收起,只留右上角小按钮,点开才显示地图
+  const [folded, setFolded] = useState(true);
   const [enlarged, setEnlarged] = useState(false);
   const smallRef = useRef<HTMLCanvasElement>(null);
   const bigRef = useRef<HTMLCanvasElement>(null);

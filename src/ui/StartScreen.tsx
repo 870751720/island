@@ -1,24 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  loadAudioSettings,
-  saveAudioSettings,
-  type AudioSettings,
-} from '@/game/audio/AudioSettings';
+import { SaveSystem } from '@/game/systems/SaveSystem';
 
-export function StartScreen({ onStart }: { onStart: () => void }) {
-  const [settings, setSettings] = useState<AudioSettings>(loadAudioSettings);
-  const [showSettings, setShowSettings] = useState(false);
+/** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
+export type StartMode = 'continue' | 'new';
+
+export function StartScreen({ onStart }: { onStart: (mode: StartMode) => void }) {
+  const [hasSave] = useState(() => !!SaveSystem.load());
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,先禁用避免「点了没反应」
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-
-  const update = (patch: Partial<AudioSettings>) => {
-    const next = { ...settings, ...patch };
-    setSettings(next);
-    saveAudioSettings(next);
-  };
 
   return (
     <div className="start-screen">
@@ -33,40 +25,22 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
       <div className="start-panel">
         <h1 className="start-title">荒岛求生</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
-        <button className="start-button" disabled={!ready} onClick={onStart}>
-          {ready ? '开始游戏' : '加载中…'}
-        </button>
-        <button className="settings-toggle" onClick={() => setShowSettings((v) => !v)}>
-          ⚙️ 声音设置
-        </button>
-        {showSettings && (
-          <div className="settings-box">
-            <label className="settings-row">
-              <span>🎵 音乐</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.music}
-                onChange={(e) => update({ music: Number(e.target.value) })}
-              />
-            </label>
-            <label className="settings-row">
-              <span>🔊 音效</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.sfx}
-                onChange={(e) => update({ sfx: Number(e.target.value) })}
-              />
-            </label>
-            <p className="settings-tip">设置即时保存,下次进入仍然生效</p>
-          </div>
+        {hasSave && (
+          <button
+            className="start-button"
+            disabled={!ready}
+            onClick={() => onStart('continue')}
+          >
+            {ready ? '继续游戏' : '加载中…'}
+          </button>
         )}
-        <p className="start-tip">左侧摇杆移动 · 右侧按钮切换工具 · 注意饥饿与口渴</p>
+        <button
+          className={hasSave ? 'new-game-button' : 'start-button'}
+          disabled={!ready}
+          onClick={() => onStart('new')}
+        >
+          {ready ? (hasSave ? '开新档' : '开始游戏') : '加载中…'}
+        </button>
       </div>
     </div>
   );
@@ -183,7 +157,7 @@ const css = `
   box-shadow: 0 6px 0 #8a8272;
   cursor: wait;
 }
-.settings-toggle {
+.new-game-button {
   margin-top: 14px;
   width: 100%;
   min-height: 44px;
@@ -194,40 +168,5 @@ const css = `
   font-size: clamp(14px, 4vw, 16px);
   letter-spacing: 0.08em;
   cursor: pointer;
-}
-.settings-box {
-  margin-top: 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(44, 95, 45, 0.06);
-  text-align: left;
-}
-.settings-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: clamp(13px, 3.8vw, 15px);
-  color: #4a5a44;
-  min-height: 44px;
-}
-.settings-row span {
-  width: 4.5em;
-  flex: none;
-}
-.settings-row input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  height: 44px;
-}
-.settings-tip {
-  margin: 6px 0 0;
-  font-size: clamp(11px, 3.2vw, 12px);
-  color: #93a08a;
-}
-.start-tip {
-  margin: 18px 0 0;
-  font-size: clamp(11px, 3.2vw, 13px);
-  color: #93a08a;
-  line-height: 1.6;
 }
 `;
