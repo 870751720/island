@@ -335,12 +335,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'berryBush',
     name: '浆果丛',
     icon: '🍓',
-    description: '用锄头挖出来的完整浆果丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),之后还能再结果。',
+    description: '用锄头挖出来的完整浆果丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后会继续结果。',
   },
   shrubBush: {
     kind: 'shrubBush',
     name: '灌木丛',
     icon: '🌿',
-    description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),之后还能再长树枝。',
+    description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后会继续长树枝。',
   },
 };

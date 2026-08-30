@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import { Crate } from '../entities/Crate';
 import type { Inventory, InventorySlot, ResourceKind } from './Inventory';
+import type { Tools } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -10,15 +11,23 @@ import type { GameAudio } from '../audio/GameAudio';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
+const DIG_RANGE = 1.6; // 持锄头可开挖木箱的距离
+const DIG_HITS = 2; // 锄头挖木箱的命中次数(精致石锄 1 次)
+const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /**
- * 木箱系统:背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
- * (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住)。
+ * 木箱系统:
+ * - 背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
+ *   (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住);
+ * - 手持锄头靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
  * 木箱自带 10 格收纳,靠近后可整格存入背包物品或取回。
  */
 export class CrateSystem {
   private crates: Crate[] = [];
   private scratch = new THREE.Vector3();
+  private swingTimer = 0;
+  private hits = 0;
+  private digTarget: Crate | null = null;
 
   constructor(
     private scene: THREE.Scene,
@@ -27,7 +36,12 @@ export class CrateSystem {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    private tools: Tools,
+    /** 挖走木箱时箱内物品入包(背包放不下的部分由该函数掉到地上) */
+    private give: (kind: ResourceKind, count: number) => number,
+    /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
+    private isBusy: () => boolean = () => false
   ) {}
 
   /** 玩家身旁最近的木箱(范围内的),无则 null */
@@ -73,6 +87,59 @@ export class CrateSystem {
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#a97b48', 10);
     return true;
+  }
+
+  /** 正在挖木箱 */
+  get isDigging(): boolean {
+    return !!this.digTarget;
+  }
+
+  /** 手持锄头站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落) */
+  update(delta: number): void {
+    const p = this.player.group.position;
+    const holding = this.player.currentTool === 'hoe';
+    let target: Crate | null = null;
+    if (holding && !this.player.isSwimming && !this.isBusy()) {
+      for (const crate of this.crates) {
+        this.scratch.copy(crate.group.position);
+        this.scratch.y = p.y;
+        if (this.scratch.distanceTo(p) < DIG_RANGE) {
+          target = crate;
+          break;
+        }
+      }
+    }
+    if (!target || this.player.isMoving) {
+      this.digTarget = null;
+      this.swingTimer = 0;
+      this.hits = 0;
+      return;
+    }
+    this.digTarget = target;
+    this.player.setAction('mine');
+    this.swingTimer += delta;
+    if (this.swingTimer < SWING_TIME) return;
+    this.swingTimer = 0;
+    this.fx.burst(target.group.position, '#a97b48', 6);
+    this.hits += 1;
+    if (this.hits < (this.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    this.hits = 0;
+    this.digTarget = null;
+    this.crates.splice(this.crates.indexOf(target), 1);
+    this.scene.remove(target.group);
+    this.give('crate', 1);
+    for (const slot of target.storage.snapshot()) {
+      if (slot) this.give(slot.kind, slot.count);
+    }
+    this.audio.play('pickup');
+    this.fx.burst(target.group.position, '#a97b48', 14);
+  }
+
+  /** 当前挖掘进度 0-1,未在挖掘时为 null */
+  getDigProgress(): number | null {
+    if (!this.digTarget) return null;
+    const need = this.tools.hoe >= 2 ? 1 : DIG_HITS;
+    return Math.min((this.hits + this.swingTimer / SWING_TIME) / need, 1);
   }
 
   /** 身旁木箱的格子快照(不在木箱旁为 null) */

@@ -302,7 +302,8 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking
+        this.planting.isWorking ||
+        this.crates.isDigging
     );
     this.crafting = new CraftingSystem(
       this.player,
@@ -350,7 +351,21 @@ export class Game {
       this.terrain,
       this.props,
       this.fx,
-      this.audio
+      this.audio,
+      this.tools,
+      // 挖走木箱与箱内物品入包,背包放不下的部分掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count),
+      // 其他占用双手的行为进行中时挖掘让位
+      () =>
+        this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
+        this.water.isActive
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
     this.fishing = new FishingSystem(
@@ -458,6 +473,7 @@ export class Game {
       this.lastHealth = this.survival.state.health;
         this.collect.update(delta);
         this.planting.update(delta);
+        this.crates.update(delta);
         this.crafting.update(delta);
         // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
         if (
@@ -479,6 +495,7 @@ export class Game {
         this.eating.isWorking ||
         this.archery.isWorking ||
         this.planting.isWorking ||
+        this.crates.isDigging ||
         this.water.isActive
     );
     this.archery.update(
@@ -490,6 +507,7 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.planting.isWorking ||
+        this.crates.isDigging ||
         this.water.isActive ||
         this.survival.state.dead
     );
@@ -518,7 +536,8 @@ export class Game {
         this.eating.isWorking ||
         this.fishing.isWorking ||
         this.archery.isWorking ||
-        this.planting.isWorking
+        this.planting.isWorking ||
+        this.crates.isDigging
     );
         this.updateIndicator(delta);
         this.updateCamera(delta);
@@ -1055,6 +1074,9 @@ export class Game {
     } else if (this.planting.isWorking) {
       label = '播种中…';
       progress = this.planting.getProgress();
+    } else if (this.crates.isDigging) {
+      label = '挖木箱…';
+      progress = this.crates.getDigProgress();
     } else if (this.campfire.isCooking) {
       const { total, current } = this.campfire.cookInfo;
       const food = ITEMS[this.campfire.cookingKind!];

@@ -450,11 +450,13 @@ export class Props implements Updatable {
       kind,
       group,
       position: group.position.clone(),
-      ready: true,
-      regrowLeft: 0,
+      // 刚种下的丛不处于可采集状态,需过一个再生周期恢复
+      ready: false,
+      regrowLeft: PROP_CONFIG[kind].regrow,
     };
     this.list.push(prop);
     if (berries) this.berries.set(prop, berries);
+    this.syncAppearance(prop);
     return prop;
   }
 
