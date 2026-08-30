@@ -31,7 +31,7 @@ export class CraftingSystem {
   start(recipe: Recipe, count = 1): boolean {
     if (
       this.recipe ||
-      (recipe.tool && this.tools[recipe.tool]) ||
+      (recipe.tool && this.tools[recipe.tool] >= (recipe.tier ?? 1)) ||
       count < 1 ||
       !this.canAfford(recipe, count)
     ) {

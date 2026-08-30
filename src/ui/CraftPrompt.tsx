@@ -20,12 +20,7 @@ export function CraftPrompt({
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting) return null;
-  const ownedTools = {
-    axe: hud.hasAxe,
-    pickaxe: hud.hasPickaxe,
-    fishingrod: hud.hasFishingrod,
-    bow: hud.hasBow,
-  };
+  const ownedTools = hud.toolTiers;
   const craftable = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&

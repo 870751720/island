@@ -7,11 +7,16 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Inventory, ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import type { Tools } from './Crafting';
 
 /** 攻击范围:玩家到目标不超过这个距离才会开弓 */
 const RANGE = 9;
-/** 每次射箭的冷却(秒) */
+/** 每次射箭的冷却(秒,精致弓更短) */
 const COOLDOWN = 3;
+const REFINED_COOLDOWN = 2;
+/** 每支箭对野生动物的伤害(精致弓更高) */
+const ARROW_DAMAGE = 1;
+const REFINED_ARROW_DAMAGE = 2;
 /** 开弓瞄准时间(秒),期间播拉弓动作 */
 const DRAW_TIME = 0.45;
 /** 箭矢飞行速度 */
@@ -81,6 +86,7 @@ export class BowSystem {
     private wildlife: Wildlife,
     private fx: Particles,
     private audio: GameAudio,
+    private tools: Tools,
     /** 击杀掉落战利品(在击杀位置附近散落多种道具) */
     private onLoot: (
       items: { kind: ResourceKind; count: number }[],
@@ -141,7 +147,7 @@ export class BowSystem {
   /** 放箭:扣一支箭,生成飞行箭矢,进入冷却 */
   private launch(): void {
     if (!this.inventory.remove('arrow', 1)) return;
-    this.cooldown = COOLDOWN;
+    this.cooldown = this.tools.bow >= 2 ? REFINED_COOLDOWN : COOLDOWN;
     this.audio.play('shoot');
     const group = makeArrowModel();
     this.from.copy(this.player.group.position);
@@ -189,7 +195,11 @@ export class BowSystem {
   /** 到达目标点:命中范围内的螃蟹/小鸟/野生动物即结算;未命中则插在地上 */
   private resolveHit(arrow: Arrow, index: number): void {
     const p = arrow.group.position;
-    const beast = this.wildlife.damageNearby(p, HIT_RANGE);
+    const beast = this.wildlife.damageNearby(
+      p,
+      HIT_RANGE,
+      this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE
+    );
     const hitCrab = !beast && this.crabs.killNearby(p, HIT_RANGE);
     const hitBird = !beast && !hitCrab && this.birds.killNearby(p, HIT_RANGE);
     if (beast || hitCrab || hitBird) {

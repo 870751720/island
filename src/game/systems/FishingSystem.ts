@@ -5,6 +5,7 @@ import type { Inventory } from './Inventory';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import type { Tools } from './Crafting';
 import {
   pickTease,
   rollLoot,
@@ -18,8 +19,12 @@ import {
   type TeaseStage,
 } from './FishTable';
 
-const CAST_TIME = 0.7; // 抛竿(秒)
-const CATCH_TIME = 0.9; // 收竿把鱼拉回(秒)
+const CAST_TIME = 0.7; // 抛竿(秒,精致鱼竿更快)
+const REFINED_CAST_TIME = 0.5;
+const CATCH_TIME = 0.9; // 收竿把鱼拉回(秒,精致鱼竿更快)
+const REFINED_CATCH_TIME = 0.6;
+/** 精致鱼竿咬钩反应窗口的放大倍数 */
+const REFINED_BITE_WINDOW = 1.5;
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边判定:站在海平面以上不高的滩地上即可下竿 */
 const BEACH_BAND = 0.55;
@@ -132,8 +137,26 @@ export class FishingSystem {
     private inventory: Inventory,
     private waterFx: WaterFx,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    private tools: Tools
   ) {}
+
+  private get refined(): boolean {
+    return this.tools.fishingrod >= 2;
+  }
+
+  private get castTime(): number {
+    return this.refined ? REFINED_CAST_TIME : CAST_TIME;
+  }
+
+  private get catchTime(): number {
+    return this.refined ? REFINED_CATCH_TIME : CATCH_TIME;
+  }
+
+  /** 咬钩反应窗口(精致鱼竿更宽裕) */
+  private get biteWindow(): number {
+    return TIER_BITE[this.tier].window * (this.refined ? REFINED_BITE_WINDOW : 1);
+  }
 
   /** 当前是否在钓鱼(其他系统让位用) */
   get isWorking(): boolean {
@@ -155,11 +178,11 @@ export class FishingSystem {
 
   /** 进度 0-1:抛竿/咬钩倒计时/收竿,等待与空闲为 null */
   getProgress(): number | null {
-    if (this.state === 'casting') return Math.min(this.timer / CAST_TIME, 1);
+    if (this.state === 'casting') return Math.min(this.timer / this.castTime, 1);
     if (this.state === 'bite') {
-      return 1 - Math.max(this.timer, 0) / TIER_BITE[this.tier].window;
+      return 1 - Math.max(this.timer, 0) / this.biteWindow;
     }
-    if (this.state === 'catching') return Math.min(this.timer / CATCH_TIME, 1);
+    if (this.state === 'catching') return Math.min(this.timer / this.catchTime, 1);
     return null;
   }
 
@@ -252,7 +275,7 @@ export class FishingSystem {
         this.bobber!.visible = true;
         this.bobber!.position.lerpVectors(from, this.bobberTarget, t);
         this.bobber!.position.y += Math.sin(t * Math.PI) * 1.2;
-        if (this.timer >= CAST_TIME) {
+        if (this.timer >= this.castTime) {
           this.state = 'waiting';
           this.audio.play('splash');
           this.waitTotal = rollWait(this.tier);
@@ -294,7 +317,7 @@ export class FishingSystem {
       case 'bite': {
         this.bobber!.position.y =
           this.bobberTarget.y - 0.15 + Math.sin(this.timer * 25) * 0.05;
-        if (this.timer >= TIER_BITE[this.tier].window) {
+        if (this.timer >= this.biteWindow) {
           // 超时鱼跑:涟漪散开,收竿结束
           this.waterFx.ripple(this.bobberTarget.x, this.bobberTarget.y, this.bobberTarget.z);
           this.stop();
@@ -303,13 +326,13 @@ export class FishingSystem {
       }
       case 'catching': {
         // 鱼被拉出水面,抛物线飞向玩家
-        const t = Math.min(this.timer / CATCH_TIME, 1);
+        const t = Math.min(this.timer / this.catchTime, 1);
         const to = this.player.group.position.clone();
         to.y += 1.1;
         this.fish!.position.lerpVectors(this.bobberTarget, to, t);
         this.fish!.position.y += Math.sin(t * Math.PI) * 1.4;
         this.fish!.rotation.z = t * Math.PI * 4;
-        if (this.timer >= CATCH_TIME) {
+        if (this.timer >= this.catchTime) {
           const added = this.inventory.add(this.loot!.kind, 1);
           this.audio.play(added > 0 ? 'pickup' : 'drop');
           const p = to.clone();

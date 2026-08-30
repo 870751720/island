@@ -5,7 +5,7 @@ import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 
 type Props = {
@@ -172,7 +172,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const lastTap = useRef<{ index: number; time: number } | null>(null);
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
-  const tools = { axe: hud.hasAxe, pickaxe: hud.hasPickaxe, fishingrod: hud.hasFishingrod, bow: hud.hasBow };
+  const tools = hud.toolTiers;
   // 背包空但已拥有工具时仍显示背包按钮(工具 tab 在里面)
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
@@ -400,7 +400,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               <div style={CONTENT_STYLE}>
                 {TOOL_IDS.map((id) => {
                   const def = ITEMS[id];
-                  const owned = tools[id];
+                  const tier = hud.toolTiers[id];
+                  const owned = tier > 0;
+                  const name = toolName(id, tier);
                   return (
                     <div
                       key={id}
@@ -411,9 +413,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontSize: 20 }}>{def.icon}</span>
-                              <span style={{ fontWeight: 700, flex: 1 }}>{def.name}</span>
+                              <span style={{ fontWeight: 700, flex: 1 }}>{name}</span>
                               <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
-                                {owned ? '已拥有' : '未拥有'}
+                                {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
                               </span>
                             </div>
                             <div style={{ marginTop: 4 }}>{def.description}</div>
@@ -431,9 +433,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       }}
                     >
                       <span style={{ fontSize: 22 }}>{def.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>{def.name}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>{name}</div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
-                        {owned ? '已拥有' : '未拥有'}
+                        {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
                       </span>
                     </div>
                   );

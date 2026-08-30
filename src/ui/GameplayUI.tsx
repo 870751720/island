@@ -37,6 +37,7 @@ const INITIAL_HUD: HudSnapshot = {
   hasPickaxe: false,
   hasFishingrod: false,
   hasBow: false,
+  toolTiers: { axe: 0, pickaxe: 0, fishingrod: 0, bow: 0 },
   hasSeed: false,
   hasCrate: false,
   nearCrate: false,

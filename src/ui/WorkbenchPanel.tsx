@@ -28,7 +28,18 @@ export function WorkbenchPanel({
 }) {
   // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件),做不出的不占位置
   const recipes = RECIPES.filter(
-    (r) => r.station === 'workbench' && recipeVisible(r, hud, toolsOf(hud), hud.equipped, hud.slots)
+    (r) =>
+      r.station === 'workbench' &&
+      (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
+      recipeVisible(r, hud, toolsOf(hud), hud.equipped, hud.slots)
+  );
+  // 工作台等级不够的精致工具:灰显提示解锁条件(尚未升级过的才展示)
+  const locked = RECIPES.filter(
+    (r) =>
+      r.station === 'workbench' &&
+      (r.minBenchLevel ?? 1) > hud.workbenchLevel &&
+      r.tool &&
+      hud.toolTiers[r.tool] < (r.tier ?? 1)
   );
   const [bookOpen, setBookOpen] = useState(false);
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
@@ -72,7 +83,7 @@ export function WorkbenchPanel({
           </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {recipes.length === 0 && (
+          {recipes.length === 0 && locked.length === 0 && (
             <div style={{ fontSize: 13, color: '#999', padding: '6px 0' }}>
               材料还不够,先去收集吧
             </div>
@@ -135,6 +146,18 @@ export function WorkbenchPanel({
               </div>
             );
           })}
+          {locked.map((r) => (
+            <div key={r.id} style={{ ...rowStyle, opacity: 0.55 }}>
+              <span style={{ fontSize: 26 }}>{r.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div>{r.name}</div>
+                <div style={{ fontSize: 12, color: '#888' }}>{costLabel(r.cost)}</div>
+              </div>
+              <span style={{ fontSize: 12, color: '#e67e22', fontWeight: 700 }}>
+                需二级工作台
+              </span>
+            </div>
+          ))}
         </div>
         {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
           <div style={{ ...rowStyle, marginTop: 10, background: 'rgba(76,175,80,0.08)' }}>
@@ -172,12 +195,7 @@ export function WorkbenchPanel({
 }
 
 function toolsOf(hud: HudSnapshot) {
-  return {
-    axe: hud.hasAxe,
-    pickaxe: hud.hasPickaxe,
-    fishingrod: hud.hasFishingrod,
-    bow: hud.hasBow,
-  };
+  return hud.toolTiers;
 }
 
 function maxCount(recipe: Recipe, hud: HudSnapshot): number {

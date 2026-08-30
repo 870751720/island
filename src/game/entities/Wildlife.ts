@@ -326,10 +326,14 @@ export class Wildlife implements Updatable {
   }
 
   /**
-   * 箭矢命中判定:对范围内最近的活动物造成 1 点伤害。
+   * 箭矢命中判定:对范围内最近的活动物造成指定伤害(精致弓伤害更高)。
    * 返回被击倒物种的对象(应掉落战利品)、'hit'(受伤未死)或 null(未命中)。
    */
-  damageNearby(pos: THREE.Vector3, range: number): { species: AnimalSpecies } | 'hit' | null {
+  damageNearby(
+    pos: THREE.Vector3,
+    range: number,
+    damage = 1
+  ): { species: AnimalSpecies } | 'hit' | null {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
@@ -341,7 +345,7 @@ export class Wildlife implements Updatable {
       }
     }
     if (!best) return null;
-    best.hp -= 1;
+    best.hp -= damage;
     if (best.hp > 0) return 'hit';
     const species = best.species;
     best.alive = false;

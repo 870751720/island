@@ -63,6 +63,8 @@ export type HudSnapshot = {
   hasPickaxe: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
+  /** 各工具当前等级(0 未拥有、1 基础、2 精致),用于展示精致名称 */
+  toolTiers: Tools;
   /** 背包里是否有种子(可切换到种子播种) */
   hasSeed: boolean;
   /** 背包里是否有木箱(可切换到木箱放置) */
@@ -135,7 +137,7 @@ export class Game {
   private inventory = new Inventory();
   private equipment = new Equipment();
   /** 已拥有的工具(制作一次永久拥有,不进背包,供 HUD/自言自语/制作判断) */
-  private tools: Tools = { axe: false, pickaxe: false, fishingrod: false, bow: false };
+  private tools: Tools = { axe: 0, pickaxe: 0, fishingrod: 0, bow: 0 };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
@@ -290,6 +292,7 @@ export class Game {
       this.player,
       this.props,
       this.inventory,
+      this.tools,
       this.fx,
       this.audio,
       // 合成/进食/钓鱼/播种/放箱占用双手,期间采集让位
@@ -370,7 +373,8 @@ export class Game {
       this.inventory,
       this.waterFx,
       this.fx,
-      this.audio
+      this.audio,
+      this.tools
     );
     this.campfire = new CampfireSystem(
       this.scene,
@@ -393,6 +397,7 @@ export class Game {
       this.wildlife,
       this.fx,
       this.audio,
+      this.tools,
       // 击杀的战利品散落在击杀位置周围,走近后点「捡回」拾取
       (items: { kind: ResourceKind; count: number }[], x: number, z: number) => {
         items.forEach((item, i) => {
@@ -569,9 +574,9 @@ export class Game {
     this.survival.state.dead = false;
     this.inventory.load(save.slots, save.capacity);
     this.equipment.restore(save.equipped, this.inventory);
-    // 恢复已拥有的工具
-    if (Array.isArray(save.tools)) {
-      for (const id of save.tools) this.tools[id] = true;
+    // 恢复已拥有的工具(含等级)
+    for (const [id, tier] of Object.entries(save.tools)) {
+      if (tier > 0) this.tools[id as ToolId] = tier;
     }
     const tool = save.handTool;
     if (tool === 'hand' || (tool === 'seed' ? this.hasSeed() : tool === 'crate' ? this.inventory.count('crate') > 0 : this.tools[tool])) {
@@ -597,7 +602,7 @@ export class Game {
       survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
-      tools: TOOL_IDS.filter((id) => this.tools[id]),
+      tools: { ...this.tools },
       equipped: this.equipment.snapshotForSave(),
       handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
@@ -800,7 +805,7 @@ export class Game {
   /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */
   gmGiveItem(kind: ResourceKind, count: number): void {
     if ((TOOL_IDS as string[]).includes(kind)) {
-      this.tools[kind as ToolId] = true;
+      this.tools[kind as ToolId] = 1;
       return;
     }
     this.giveItem(kind, count);
@@ -917,7 +922,9 @@ export class Game {
   craftAtWorkbench(id: CraftId, count: number): boolean {
     if (this.workbench.isWorking || !this.workbench.isNear) return false;
     const recipe = RECIPES.find((r) => r.id === id);
-    return recipe && recipe.station === 'workbench'
+    return recipe &&
+      recipe.station === 'workbench' &&
+      (recipe.minBenchLevel ?? 1) <= this.workbench.level
       ? this.crafting.start(recipe, count)
       : false;
   }
@@ -978,10 +985,11 @@ export class Game {
       arrow: this.inventory.count('arrow'),
       slots: this.inventory.snapshot(),
       capacity: this.inventory.capacity,
-      hasAxe: this.tools.axe,
-      hasPickaxe: this.tools.pickaxe,
-      hasFishingrod: this.tools.fishingrod,
-      hasBow: this.tools.bow,
+      hasAxe: !!this.tools.axe,
+      hasPickaxe: !!this.tools.pickaxe,
+      hasFishingrod: !!this.tools.fishingrod,
+      hasBow: !!this.tools.bow,
+      toolTiers: { ...this.tools },
       hasSeed: this.hasSeed(),
       hasCrate: this.inventory.count('crate') > 0,
       nearCrate: !!this.crates.nearby,

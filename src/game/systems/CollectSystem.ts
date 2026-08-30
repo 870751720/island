@@ -7,6 +7,7 @@ import {
   SEED_OF,
 } from '../world/TreeSpecies';
 import { Inventory } from './Inventory';
+import type { Tools } from './Crafting';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -113,6 +114,14 @@ const HARVEST_CONFIG: Record<
 
 export type HarvestInfo = { progress: number };
 
+/** 精致斧/镐对应的各资源点命中次数(比基础工具少敲几下) */
+const REFINED_HITS: Partial<Record<HarvestKind, number>> = {
+  tree: 2,
+  stump: 1,
+  rock: 3,
+  meteor: 3,
+};
+
 /** 站定在资源点范围内自动作业:播放动画、逐次命中推进进度,树/石需多次命中;移动即中断 */
 export class CollectSystem {
   private nearby: Prop | null = null;
@@ -124,11 +133,22 @@ export class CollectSystem {
     private player: Player,
     private props: Props,
     private inventory: Inventory,
+    private tools: Tools,
     private fx: Particles,
     private audio: GameAudio,
     /** 其他占用双手的行为(如合成中),为真时采集让位 */
     private isBusy: () => boolean = () => false
   ) {}
+
+  /** 该资源点需要命中的总次数:精致斧/镐比基础工具少 1 次 */
+  private hitsFor(kind: HarvestKind): number {
+    if (!REFINED_HITS[kind]) return HARVEST_CONFIG[kind].hits;
+    const refined =
+      kind === 'tree' || kind === 'stump'
+        ? this.tools.axe >= 2
+        : this.tools.pickaxe >= 2;
+    return refined ? REFINED_HITS[kind]! : HARVEST_CONFIG[kind].hits;
+  }
 
   update(delta: number): void {
     // 范围内优先选中当前可交互的资源点,避免被不可交互的挡住
@@ -190,10 +210,9 @@ export class CollectSystem {
   getHarvestInfo(): HarvestInfo | null {
     const prop = this.nearby;
     if (!prop || !this.canCollect()) return null;
-    const { hits } = HARVEST_CONFIG[kindOf(prop)];
     const done = this.hitCounts.get(prop) ?? 0;
     const swing = Math.min(this.swingTimer / SWING_TIME, 1);
-    return { progress: Math.min((done + swing) / hits, 1) };
+    return { progress: Math.min((done + swing) / this.hitsFor(kindOf(prop)), 1) };
   }
 
   private hit(prop: Prop): void {
@@ -201,7 +220,7 @@ export class CollectSystem {
     this.fx.burst(prop.position, config.fxColor, 6);
     this.props.shake(prop);
     const hits = (this.hitCounts.get(prop) ?? 0) + 1;
-    if (hits < config.hits) {
+    if (hits < this.hitsFor(kindOf(prop))) {
       this.hitCounts.set(prop, hits);
       return;
     }

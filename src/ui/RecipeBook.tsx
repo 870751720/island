@@ -11,6 +11,14 @@ const STATION_NAMES: Record<Recipe['station'], string> = {
   workbench: '工作台',
 };
 
+/** 精致工具的增益说明 */
+const REFINED_EFFECTS: Record<string, string> = {
+  'refined-axe': '砍树、砍树桩各少敲 1 下,制作后替换石斧。',
+  'refined-pickaxe': '开采大石块、陨石各少敲 1 下,制作后替换石镐。',
+  'refined-fishingrod': '抛竿收竿更快,咬钩反应窗口 ×1.5,制作后替换树枝鱼竿。',
+  'refined-bow': '箭矢伤害 2 点,射击冷却 3 秒 → 2 秒,制作后替换粗制弓。',
+};
+
 /** 单条配方的产物说明:装备评分/背包扩容,其他道具用道具描述首句 */
 function effectText(recipe: Recipe): string | null {
   if (recipe.output && isEquipKind(recipe.output)) {
@@ -19,6 +27,7 @@ function effectText(recipe: Recipe): string | null {
     if (def.capacity) parts.push(`背包 ${def.capacity} 格`);
     return parts.join(' · ');
   }
+  if (recipe.tool && recipe.tier === 2) return REFINED_EFFECTS[recipe.id] ?? null;
   if (recipe.output) {
     const desc = ITEMS[recipe.output].description;
     return desc.split('。')[0] + '。';
@@ -45,7 +54,10 @@ export function RecipeBook({ onClose }: { onClose: () => void }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span>{r.name}</span>
-                  <span style={tagStyle}>{STATION_NAMES[r.station]}</span>
+                  <span style={tagStyle}>
+                    {STATION_NAMES[r.station]}
+                    {r.minBenchLevel && r.minBenchLevel > 1 ? `·Lv${r.minBenchLevel}` : ''}
+                  </span>
                 </div>
                 <div style={{ fontSize: 12, color: '#888' }}>
                   {costLabel(r.cost, ' + ')}

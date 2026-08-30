@@ -61,17 +61,17 @@ const TRIGGER_RULES: TriggerRule[] = [
   {
     id: 'chopWood',
     cooldown: 150,
-    test: (c) => c.tools.axe && c.wood < 2 && !c.collecting,
+    test: (c) => c.tools.axe > 0 && c.wood < 2 && !c.collecting,
   },
   {
     id: 'craftPickaxe',
     cooldown: 240,
-    test: (c) => c.tools.axe && !c.tools.pickaxe,
+    test: (c) => c.tools.axe > 0 && !c.tools.pickaxe,
   },
   {
     id: 'mineStone',
     cooldown: 150,
-    test: (c) => c.tools.pickaxe && c.stone < 1 && !c.collecting,
+    test: (c) => c.tools.pickaxe > 0 && c.stone < 1 && !c.collecting,
   },
   {
     id: 'opening',
