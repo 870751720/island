@@ -149,16 +149,16 @@ export function pickTease(stage: TeaseStage): Tease {
   return { text: pool[Math.floor(Math.random() * pool.length)], color: TEASE_COLOR[stage] };
 }
 
-/** 按 GM 权重随机档位;无鱼饵时二三四档权重削 90%,削掉的部分全归一档 */
+/** 按 GM 权重随机档位;无鱼饵时二三四档权重削 80%,削掉的部分全归一档 */
 export function rollTier(baited = true): FishTier {
   const base = GmSystem.fishingTierWeights;
   const w = baited
     ? base
     : [
-        base[0] + (base[1] + base[2] + base[3]) * 0.9,
-        base[1] * 0.1,
-        base[2] * 0.1,
-        base[3] * 0.1,
+        base[0] + (base[1] + base[2] + base[3]) * 0.8,
+        base[1] * 0.2,
+        base[2] * 0.2,
+        base[3] * 0.2,
       ];
   const total = w[0] + w[1] + w[2] + w[3];
   if (total <= 0) return 1;
