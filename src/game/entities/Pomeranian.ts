@@ -121,69 +121,6 @@ function makePomeranianModel(): DogModel {
   return { group, legs, head: headPivot, tail, body };
 }
 
-/** 头顶表情气泡:白色圆角气泡 + emoji 的 Canvas 贴图 Sprite,始终盖在场景之上 */
-class EmojiBubble {
-  readonly sprite: THREE.Sprite;
-  private canvas = document.createElement('canvas');
-  private texture: THREE.CanvasTexture;
-  private left = 0;
-
-  constructor() {
-    this.canvas.width = 160;
-    this.canvas.height = 160;
-    this.texture = new THREE.CanvasTexture(this.canvas);
-    this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: this.texture, transparent: true, depthTest: false })
-    );
-    this.sprite.renderOrder = 999;
-    this.sprite.scale.setScalar(1);
-    this.sprite.position.set(0, 1.25, 0);
-    this.sprite.visible = false;
-  }
-
-  show(emoji: string): void {
-    const ctx = this.canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 160, 160);
-    // 白色圆角气泡衬底,深色描边保证任何背景下都看得清
-    ctx.beginPath();
-    ctx.arc(80, 80, 62, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.fill();
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = 'rgba(60,60,70,0.9)';
-    ctx.stroke();
-    ctx.font = '84px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#333';
-    ctx.fillText(emoji, 80, 88);
-    this.texture.needsUpdate = true;
-    this.sprite.visible = true;
-    this.sprite.material.opacity = 1;
-    this.left = EMOJI_TIME;
-  }
-
-  update(delta: number, elapsed: number): void {
-    if (!this.sprite.visible) return;
-    this.left -= delta;
-    if (this.left <= 0) {
-      this.sprite.visible = false;
-      return;
-    }
-    // 淡出前轻微上飘 + 呼吸缩放
-    const t = this.left / EMOJI_TIME;
-    this.sprite.position.y = 1.25 + (1 - t) * 0.3;
-    this.sprite.scale.setScalar(1 * (0.92 + Math.sin(elapsed * 5) * 0.06));
-    this.sprite.material.opacity = Math.min(1, t * 3);
-  }
-
-  dispose(): void {
-    this.texture.dispose();
-    this.sprite.material.dispose();
-  }
-}
-
 /** 闲玩时随机冒的表情池 */
 const PLAY_EMOJIS = ['🐕', '❤️', '✨', '🐾', '🎾', '😊', '🥰'];
 /** 跟随路上偶尔冒的表情池 */
@@ -196,13 +133,15 @@ const FOLLOW_EMOJIS = ['🏃', '💨', '❤️'];
 export class Pomeranian {
   readonly group = new THREE.Group();
   private model: DogModel;
-  private bubble = new EmojiBubble();
   private pos = new THREE.Vector3();
   private heading = 0;
   /** 进食动作剩余时间(低头咀嚼,不可移动) */
   private eatLeft = 0;
   /** 吃饱后的开心转圈剩余时间 */
   private happyLeft = 0;
+  /** 当前头顶表情与剩余显示时间(由 Game 投影到屏幕,交给 React 气泡渲染) */
+  private emoji: string | null = null;
+  private emojiLeft = 0;
   /** 当前闲玩行为与其剩余时长 */
   private play: Play = 'circle';
   private playLeft = 0;
@@ -225,9 +164,24 @@ export class Pomeranian {
     private isBlocked: (x: number, z: number) => boolean = () => false
   ) {
     this.model = makePomeranianModel();
-    this.group.add(this.model.group, this.bubble.sprite);
+    this.group.add(this.model.group);
     this.placeNear(player.group.position, 1.5);
     scene.add(this.group);
+  }
+
+  /** 当前正在展示的表情(无则 null),以及头顶气泡锚点的世界坐标 */
+  get activeEmoji(): string | null {
+    return this.emojiLeft > 0 ? this.emoji : null;
+  }
+
+  fillEmojiAnchor(out: THREE.Vector3): void {
+    out.set(this.pos.x, this.pos.y + 0.95, this.pos.z);
+  }
+
+  /** 头顶冒一个表情,持续 EMOJI_TIME 秒 */
+  private showEmoji(emoji: string): void {
+    this.emoji = emoji;
+    this.emojiLeft = EMOJI_TIME;
   }
 
   /** 某点是否为可站立的干地 */
@@ -309,7 +263,7 @@ export class Pomeranian {
   update(delta: number, elapsed: number, drops: DropSystem): void {
     if (!this.greeted) {
       this.greeted = true;
-      this.bubble.show('🐶');
+      this.showEmoji('🐶');
     }
     const p = this.player.group.position;
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
@@ -332,7 +286,7 @@ export class Pomeranian {
           if (drops.consumeMeatNear(this.pos, EAT_RANGE)) {
             this.eatLeft = EAT_DURATION;
             this.happyLeft = HAPPY_DURATION;
-            this.bubble.show(Math.random() < 0.5 ? '😋' : '🦴');
+            this.showEmoji(Math.random() < 0.5 ? '😋' : '🦴');
           }
         } else {
           moving = this.stepTo(meat, RUN_SPEED, delta);
@@ -344,7 +298,7 @@ export class Pomeranian {
         // 2) 玩家走远:跟上去(玩家下水时追到岸边等待)
         if (!this.wasFollowing) {
           this.wasFollowing = true;
-          this.bubble.show('🐕');
+          this.showEmoji('🐕');
         }
         moving = this.stepTo(p, playerDist > 8 ? RUN_SPEED : TROT_SPEED, delta);
         excited = playerDist > 8;
@@ -354,7 +308,7 @@ export class Pomeranian {
         this.wasFollowing = false;
         if (this.waitingForReturn) {
           this.waitingForReturn = false;
-          this.bubble.show('🥰');
+          this.showEmoji('🥰');
         }
         this.playLeft -= delta;
         if (this.playLeft <= 0) this.nextPlay();
@@ -368,14 +322,14 @@ export class Pomeranian {
         // sit:原地趴坐休息,只摇尾巴
         this.emojiTimer -= delta;
         if (this.emojiTimer <= 0) {
-          this.bubble.show(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
+          this.showEmoji(PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)]);
           this.emojiTimer = PLAY_EMOJI_INTERVAL / 2 + Math.random() * PLAY_EMOJI_INTERVAL;
         }
       }
     }
 
     this.animate(elapsed, moving, excited);
-    this.bubble.update(delta, elapsed);
+    if (this.emojiLeft > 0) this.emojiLeft -= delta;
   }
 
   /** 应用位置与朝向,跑动摆腿、摇尾巴与咀嚼点头 */
@@ -407,7 +361,4 @@ export class Pomeranian {
     this.model.head.position.y = 0.39 + bounce;
   }
 
-  dispose(): void {
-    this.bubble.dispose();
-  }
 }

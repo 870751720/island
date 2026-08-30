@@ -119,6 +119,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
   const [campfireOpen, setCampfireOpen] = useState(false);
   const [crateOpen, setCrateOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
+  const dogEmojiRef = useRef<HTMLDivElement>(null);
   const vitalWarnRef = useRef<VitalWarnHandle>(null);
   // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
   const pickupIdRef = useRef(0);
@@ -201,7 +202,17 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       (amount, x, y) => {
         const id = ++damageIdRef.current;
         setDamagePops((list) => [...list, { id, amount, x, y }]);
-        setTimeout(() => setDamagePops((list) => list.filter((t) => t.id !== id)), 1000);
+        setTimeout(() => setDamagePops((list) => list.filter((d) => d.id !== id)), 1000);
+      },
+      // 博美头顶的小表情,同样每帧直写 DOM
+      (emoji, x, y) => {
+        const el = dogEmojiRef.current;
+        if (!el) return;
+        el.style.display = emoji ? 'block' : 'none';
+        if (emoji) {
+          el.textContent = emoji;
+          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+        }
       }
     );
     gameRef.current = game;
@@ -425,6 +436,25 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           userSelect: 'none',
           // 气泡小尾巴
           clipPath: 'polygon(0 0, 100% 0, 100% 100%, 55% 100%, 50% calc(100% + 6px), 45% 100%, 0 100%)',
+        }}
+      />
+      <div
+        ref={dogEmojiRef}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          display: 'none',
+          padding: '4px 12px',
+          background: 'rgba(255,255,255,0.94)',
+          borderRadius: 999,
+          fontFamily: 'sans-serif',
+          fontSize: 24,
+          lineHeight: 1.2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 30,
         }}
       />
       <VitalWarn ref={vitalWarnRef} />

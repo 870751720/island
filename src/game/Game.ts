@@ -192,6 +192,7 @@ export class Game {
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private onDamage: (amount: number, x: number, y: number) => void;
+  private onDogEmoji: (emoji: string | null, x: number, y: number) => void;
   private terrainSeed: number;
   private propsSeed: number;
   private autosaveTimer = 0;
@@ -215,7 +216,8 @@ export class Game {
     onMumble: (text: string | null, x: number, y: number) => void,
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
-    onDamage: (amount: number, x: number, y: number) => void
+    onDamage: (amount: number, x: number, y: number) => void,
+    onDogEmoji: (emoji: string | null, x: number, y: number) => void
   ) {
     this.container = container;
     this.onHud = onHud;
@@ -224,6 +226,7 @@ export class Game {
     this.onVitals = onVitals;
     this.onPickup = onPickup;
     this.onDamage = onDamage;
+    this.onDogEmoji = onDogEmoji;
 
     // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛
     const save = SaveSystem.load();
@@ -1259,7 +1262,6 @@ export class Game {
     window.removeEventListener('keydown', this.onKeyDown);
     this.player.dispose();
     this.drops.dispose();
-    this.dog.dispose();
     this.rain.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
@@ -1483,6 +1485,16 @@ export class Game {
       this.mumbleText,
       Math.round(((bubble.x + 1) / 2) * w),
       Math.round(((1 - bubble.y) / 2) * h)
+    );
+
+    // 博美的头顶表情同样投影为屏幕坐标,交给 React 气泡渲染
+    const dogAnchor = new THREE.Vector3();
+    this.dog.fillEmojiAnchor(dogAnchor);
+    dogAnchor.project(this.camera);
+    this.onDogEmoji(
+      this.dog.activeEmoji,
+      Math.round(((dogAnchor.x + 1) / 2) * w),
+      Math.round(((1 - dogAnchor.y) / 2) * h)
     );
 
     // 低数值提醒挂在头顶(作业提示下方),任一数值 ≤20% 时 UI 层显示对应图标+剩余条
