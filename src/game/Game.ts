@@ -862,6 +862,8 @@ export class Game {
     }
     this.inventory.remove(kind, 1);
     this.props.placeBush(kind === 'berryBush' ? 'berry' : 'shrub', p.x, p.z);
+    // 种下可挖走的丛后收起锄头,避免紧接着把刚种下的丛又挖掉
+    if (this.player.currentTool === 'hoe') this.player.setTool('hand');
     this.audio.play('success');
     const fxPos = p.clone();
     fxPos.y += 0.5;
