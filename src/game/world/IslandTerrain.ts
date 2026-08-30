@@ -175,6 +175,20 @@ export class IslandTerrain {
     );
   }
 
+  /** 玩家是否处于海面水平 range 米范围内(只看海,不含水洼) */
+  isNearSea(pos: THREE.Vector3, range: number): boolean {
+    const steps = 12;
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      for (let r = 0.75; r <= range + 0.001; r += 0.75) {
+        const x = pos.x + Math.cos(a) * r;
+        const z = pos.z + Math.sin(a) * r;
+        if (this.getHeight(x, z) < this.seaLevel) return true;
+      }
+    }
+    return false;
+  }
+
   /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);边界对齐可见水面圆盘 */
   isInWater(pos: THREE.Vector3): boolean {
     return this.waterAreas.some(

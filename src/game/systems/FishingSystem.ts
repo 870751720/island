@@ -26,8 +26,8 @@ const REFINED_CATCH_TIME = 0.6;
 /** 精致鱼竿咬钩反应窗口的放大倍数 */
 const REFINED_BITE_WINDOW = 1.5;
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
-/** 海边判定:站在海平面以上不高的滩地上即可下竿 */
-const BEACH_BAND = 0.55;
+/** 海边可下竿的水线水平距离(米) */
+const SEA_FISH_RANGE = 1.5;
 /** 从脚下向水面方向探测浮漂落点的最远距离 */
 const CAST_RANGE = 4.2;
 /** 水洼落点:洼中心 0.5 米半径内随机 */
@@ -197,8 +197,8 @@ export class FishingSystem {
     if (this.player.isSwimming || this.terrain.isInWater(p)) return false;
     if (this.terrain.getHeight(p.x, p.z) <= this.terrain.getWaterLevel(p.x, p.z)) return false;
     const nearPond = this.terrain.isNearWater(p, 1.2);
-    const onBeach = this.terrain.getHeight(p.x, p.z) - this.terrain.seaLevel < BEACH_BAND;
-    return nearPond || onBeach;
+    const nearSea = this.terrain.isNearSea(p, SEA_FISH_RANGE);
+    return nearPond || nearSea;
   }
 
   /** 是否满足发起条件(可钓点 + 手持鱼竿 + 站定 + 空闲) */
