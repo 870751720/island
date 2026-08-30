@@ -116,6 +116,8 @@ export class Crabs implements Updatable {
     scene: THREE.Scene,
     private terrain: IslandTerrain,
     private player: { group: THREE.Group },
+    /** 围栏等静态阻挡:点在阻挡内时螃蟹不可走 */
+    private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random
   ) {
     const size = terrain.size;
@@ -143,6 +145,7 @@ export class Crabs implements Updatable {
 
   /** 某点是否在沙滩带内(可站立) */
   private isSand(x: number, z: number): boolean {
+    if (this.isBlocked(x, z)) return false;
     const y = this.terrain.getHeight(x, z);
     return y >= SAND_MIN && y <= SAND_MAX;
   }

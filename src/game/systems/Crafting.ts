@@ -17,6 +17,9 @@ export type CraftId =
   | 'rope'
   | 'arrow'
   | 'crate'
+  | 'fenceWood'
+  | 'fenceStone'
+  | 'fenceGate'
   | 'bed'
   | 'bed2'
   | 'baitCrab'
@@ -176,6 +179,35 @@ export const RECIPES: Recipe[] = [
     cost: { wood: 4 },
     station: 'workbench',
     output: 'crate',
+  },
+  {
+    id: 'fenceWood',
+    name: '木围栏 ×2',
+    icon: '🚧',
+    cost: { wood: 1 },
+    station: 'workbench',
+    output: 'fenceWood',
+    outputCount: 2,
+    minBenchLevel: 2,
+  },
+  {
+    id: 'fenceStone',
+    name: '石围栏 ×2',
+    icon: '🧱',
+    cost: { stone: 1 },
+    station: 'workbench',
+    output: 'fenceStone',
+    outputCount: 2,
+    minBenchLevel: 2,
+  },
+  {
+    id: 'fenceGate',
+    name: '围栏门',
+    icon: '🚪',
+    cost: { wood: 2 },
+    station: 'workbench',
+    output: 'fenceGate',
+    minBenchLevel: 2,
   },
   {
     id: 'bed',

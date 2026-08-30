@@ -38,6 +38,9 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'berryBush' ||
     kind === 'shrubBush' ||
     kind === 'crate' ||
+    kind === 'fenceWood' ||
+    kind === 'fenceStone' ||
+    kind === 'fenceGate' ||
     workbenchItemLevel(kind) !== null ||
     bedItemLevel(kind) !== null
   );

@@ -261,7 +261,7 @@ export class Player implements Updatable {
   private hurtFlash = 0;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
-  private obstacles: ObstacleSolver | null = null;
+  private obstacles: ObstacleSolver[] = [];
   /** 躺床睡觉的目标姿态(非空表示睡着:位置/朝向由睡眠姿态接管) */
   private sleepPose: { pos: THREE.Vector3; rotY: number; returnPos: THREE.Vector3 } | null = null;
   /** 衣服/裤子各占一个独立材质,装备时改色 */
@@ -270,8 +270,8 @@ export class Player implements Updatable {
   private hatModels: Partial<Record<EquipKind, THREE.Group>> = {};
   private backpackModels: Partial<Record<EquipKind, THREE.Group>> = {};
 
-  /** 注入静态阻挡(树、大石等),移动时被推出不可穿越的物件 */
-  setObstacles(obstacles: ObstacleSolver): void {
+  /** 注入静态阻挡(树、大石、围栏等),移动时被推出不可穿越的物件 */
+  setObstacles(...obstacles: ObstacleSolver[]): void {
     this.obstacles = obstacles;
   }
 
@@ -463,7 +463,7 @@ export class Player implements Updatable {
       p.x = THREE.MathUtils.clamp(p.x, -half, half);
       p.z = THREE.MathUtils.clamp(p.z, -half, half);
       // 静态阻挡:被推出树、大石等不可穿越的物件(游泳时不管)
-      if (!this.swimming) this.obstacles?.resolveCollision(p, PLAYER_RADIUS);
+      if (!this.swimming) for (const o of this.obstacles) o.resolveCollision(p, PLAYER_RADIUS);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
       // 陆地上行走按步距交替留脚印,水中不留
       if (!this.swimming && !this.wading) {

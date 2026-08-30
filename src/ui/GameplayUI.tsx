@@ -256,6 +256,11 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'fenceWood' || kind === 'fenceStone' || kind === 'fenceGate') {
+            gameRef.current?.useFenceItem(kind);
+            setBackpackOpen(false);
+            return;
+          }
           if (workbenchItemLevel(kind) !== null) {
             gameRef.current?.useWorkbenchItem(kind);
             setBackpackOpen(false);

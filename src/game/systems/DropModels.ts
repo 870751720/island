@@ -57,6 +57,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   strawBackpack: '#c9a56a',
   furBackpack: '#8a5a2b',
   crate: '#a97b48',
+  fenceWood: '#a97b48',
+  fenceStone: '#9a9a9a',
+  fenceGate: '#8a6239',
   berryBush: '#5d8a3a',
   shrubBush: '#6b8f4e',
   workbench1: '#8a6239',
@@ -681,6 +684,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
     }
     return g;
   },
+  fenceWood: () => makeFenceDrop('wood'),
+  fenceStone: () => makeFenceDrop('stone'),
+  fenceGate: () => makeGateDrop(),
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
   workbench1: () => makeWorkbenchDrop(1),
@@ -691,8 +697,46 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   bed2: () => makeBedDrop(2),
 };
 
-/** 床掉落物:微型床架 + 床垫 + 枕头(按等级区分床架材质) */
-function makeBedDrop(level: number): THREE.Object3D {
+/** 围栏道具掉落物:一段柱 + 两根横杆 */
+function makeFenceDrop(kind: 'wood' | 'stone'): THREE.Object3D {
+  const g = new THREE.Group();
+  const color = DROP_COLORS[kind === 'wood' ? 'fenceWood' : 'fenceStone'];
+  const post = mesh(
+    kind === 'wood'
+      ? new THREE.CylinderGeometry(0.035, 0.045, 0.28, 6)
+      : new THREE.BoxGeometry(0.09, 0.28, 0.09),
+    clay(color)
+  );
+  post.position.y = 0.14;
+  g.add(post);
+  for (const y of [0.08, 0.2]) {
+    const rail = mesh(new THREE.BoxGeometry(0.3, kind === 'wood' ? 0.04 : 0.06, 0.03), clay(color));
+    rail.position.y = y;
+    g.add(rail);
+  }
+  return g;
+}
+
+/** 围栏门道具掉落物:小门框 + 微开的门扇 */
+function makeGateDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const frame = clay(DROP_COLORS.fenceGate);
+  for (const x of [-0.14, 0.14]) {
+    const post = mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.3, 6), frame);
+    post.position.set(x, 0.15, 0);
+    g.add(post);
+  }
+  const leaf = new THREE.Group();
+  leaf.position.set(-0.13, 0, 0);
+  leaf.rotation.y = -0.5;
+  const door = mesh(new THREE.BoxGeometry(0.24, 0.16, 0.02), clay('#a97b48'));
+  door.position.set(0.12, 0.14, 0);
+  leaf.add(door);
+  g.add(leaf);
+  return g;
+}
+
+/** 床掉落物:微型床架 + 床垫 + 枕头(按等级区分床架材质) */function makeBedDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
   const frame = clay(level >= 2 ? '#8d99a6' : '#8a6239');
   const mattress = clay(DROP_COLORS[level >= 2 ? 'bed2' : 'bed1']);

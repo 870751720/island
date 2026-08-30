@@ -142,6 +142,8 @@ export class Wildlife implements Updatable {
     private onPlayerHit: (damage: number) => void,
     /** 玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: () => boolean,
+    /** 围栏等静态阻挡:点在阻挡内时动物不可走(围栏闭合即被圈住) */
+    private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random
   ) {
     for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
@@ -180,6 +182,7 @@ export class Wildlife implements Updatable {
     const y = this.terrain.getHeight(x, z);
     if (y < GRASS_MIN) return false;
     // 池塘处地形被挖到水面之下,陆地处水面高度即地形高度
+    if (this.isBlocked(x, z)) return false;
     return y >= this.terrain.getWaterLevel(x, z) - 0.02;
   }
 

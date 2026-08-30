@@ -14,6 +14,7 @@ import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { PlantingSystem } from './systems/PlantingSystem';
 import { CrateSystem } from './systems/CrateSystem';
+import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
@@ -156,6 +157,7 @@ export class Game {
   private workbench: WorkbenchSystem;
   private planting: PlantingSystem;
   private crates: CrateSystem;
+  private fences: FenceSystem;
   private beds: BedSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
@@ -266,7 +268,33 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
-    this.player.setObstacles(this.props);
+    this.fences = new FenceSystem(
+      this.scene,
+      this.player,
+      this.inventory,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      this.tools,
+      // 挖走围栏/门时道具入包,背包放不下的部分掉在玩家身旁
+      (kind, count) => this.giveItem(kind, count),
+      // 其他占用双手的行为进行中时挖掘让位
+      () =>
+        this.collect.isWorking ||
+        this.crafting.isWorking ||
+        this.workbench.isWorking ||
+        this.workbench.isDigging ||
+        this.campfire.isBusy ||
+        this.eating.isWorking ||
+        this.fishing.isWorking ||
+        this.archery.isWorking ||
+        this.planting.isWorking ||
+        this.crates.isDigging ||
+        this.beds.isBusy ||
+        this.water.isActive
+    );
+    this.player.setObstacles(this.props, this.fences);
     this.scene.add(this.player.group);
     // 穿戴变化即时反映到玩家模型;背包类装备同时扩容背包
     this.equipment.onChange = (slot, kind) => {
@@ -274,7 +302,13 @@ export class Game {
       const cap = kind ? EQUIPMENT[kind].capacity : undefined;
       if (cap) this.inventory.setCapacity(cap);
     };
-    this.crabs = new Crabs(this.scene, terrain, this.player);
+    this.crabs = new Crabs(
+      this.scene,
+      terrain,
+      this.player,
+      // 围栏挡蟹:围栏闭合时螃蟹也出不去
+      (x, z) => this.fences.isBlocked(x, z)
+    );
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
     this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
     // 熊扑击玩家的结算:装备防御减伤(至少 1 点)+ 头顶伤害数字 + 泛红特效与音效
@@ -295,7 +329,9 @@ export class Game {
           Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
         );
       },
-      () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping
+      () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping,
+      // 围栏挡动物:围栏闭合时兔/羊/鹿/熊被圈住出不去
+      (x, z) => this.fences.isBlocked(x, z)
     );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
@@ -321,6 +357,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.beds.isBusy
     );
     this.crafting = new CraftingSystem(
@@ -357,6 +394,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.water.isActive
     );
     this.planting = new PlantingSystem(
@@ -425,6 +463,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.water.isActive
     );
     this.eating = new EatingSystem(this.player, this.inventory, this.survival, this.fx, this.audio);
@@ -459,6 +498,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.water.isActive,
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count) => this.giveItem(kind, count)
@@ -549,6 +589,7 @@ export class Game {
         this.collect.update(delta);
         this.planting.update(delta);
         this.crates.update(delta);
+        this.fences.update(delta);
         this.beds.update(delta);
         // 睡觉过渡中:天空随进度日夜流转
         if (this.beds.isSleeping) {
@@ -577,6 +618,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.beds.isBusy ||
         this.water.isActive
     );
@@ -591,6 +633,7 @@ export class Game {
         this.fishing.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.beds.isBusy ||
         this.water.isActive ||
         this.survival.state.dead
@@ -623,6 +666,7 @@ export class Game {
         this.archery.isWorking ||
         this.planting.isWorking ||
         this.crates.isDigging ||
+        this.fences.isDigging ||
         this.beds.isBusy
     );
         this.updateIndicator(delta);
@@ -677,6 +721,7 @@ export class Game {
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
+    this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
     this.drops.restore(save.drops);
   }
@@ -703,6 +748,8 @@ export class Game {
       workbenches: this.workbench.snapshot(),
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
+      fences: this.fences.snapshotFences(),
+      fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
       drops: this.drops.snapshot(),
     };
@@ -1004,6 +1051,23 @@ export class Game {
     );
   }
 
+  /** 背包里点击「使用」围栏/围栏门:吸附到面前的格点(边)放下,不满足时给出提示 */
+  useFenceItem(kind: ResourceKind): boolean {
+    if (this.asleep) return false;
+    const fenceKind = fenceKindOfItem(kind);
+    const ok = fenceKind
+      ? this.fences.useFence(fenceKind)
+      : kind === 'fenceGate'
+        ? this.fences.useGate()
+        : false;
+    if (!ok) {
+      this.notify('这里放不下,找块没东西的干地正对着要围的方向试试');
+      return false;
+    }
+    this.afterPlaceDiggable();
+    return true;
+  }
+
   /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
   private afterPlaceDiggable(): void {
     if (this.player.currentTool === 'hoe') this.player.setTool('hand');
@@ -1258,6 +1322,9 @@ export class Game {
     } else if (this.crates.isDigging) {
       label = '挖木箱…';
       progress = this.crates.getDigProgress();
+    } else if (this.fences.isDigging) {
+      label = '拆围栏…';
+      progress = this.fences.getDigProgress();
     } else if (this.beds.isSleeping) {
       label = '睡觉中…';
       progress = this.beds.getSleepProgress();

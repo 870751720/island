@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 21;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -54,6 +54,10 @@ export type SaveData = {
   beds: (PlacementSave & { level: number })[];
   /** 场上所有木箱(落点与箱内格子) */
   crates: (PlacementSave & { slots: InventorySlot[] })[];
+  /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
+  fences: { x: number; z: number; kind: 'wood' | 'stone' }[];
+  /** 场上所有围栏门(所占格点边的起点与方向) */
+  fenceGates: { x: number; z: number; dir: 'x' | 'z' }[];
   drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
 };
 

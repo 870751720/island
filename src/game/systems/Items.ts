@@ -337,6 +337,24 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '📦',
     description: '木板钉成的收纳箱。点击「使用」把它放到脚下(不能在水里,脚下也不能有别的东西),之后靠近可以打开,存取 10 格物品。',
   },
+  fenceWood: {
+    kind: 'fenceWood',
+    name: '木围栏',
+    icon: '🚧',
+    description: '木栅栏段。点击「使用」立到面前的格点上,相邻的围栏会自动连成整片;沿边一圈圈放就能围出没有缝隙的围栏场。',
+  },
+  fenceStone: {
+    kind: 'fenceStone',
+    name: '石围栏',
+    icon: '🧱',
+    description: '石块垒的围栏段。用法与木围栏相同,更结实的石墙外观。',
+  },
+  fenceGate: {
+    kind: 'fenceGate',
+    name: '围栏门',
+    icon: '🪵',
+    description: '带转轴的栅栏门。点击「使用」放到面前的围栏边缺口上;靠近自动开门、走远自动关门,动物可不会开门。',
+  },
   bed1: {
     kind: 'bed1',
     name: '床',
