@@ -33,7 +33,9 @@ const FISH_GEOMETRY = new THREE.CircleGeometry(0.22, 8);
 export class PondLife {
   private bubbles: Bubble[] = [];
   private fishes: Fish[] = [];
-  private bubbleTimer = 0;
+  private ponds: PondArea[] = [];
+  /** 每个水洼独立的冒泡计时器 */
+  private bubbleTimers: number[] = [];
   private readonly bubbleMaterial = new THREE.MeshBasicMaterial({
     color: '#eaf7ff',
     transparent: true,
@@ -57,6 +59,8 @@ export class PondLife {
       for (let i = 0; i < count; i++) {
         this.fishes.push(this.createFish(pond, i));
       }
+      this.ponds.push(pond);
+      this.bubbleTimers.push(Math.random() * 6);
     }
   }
 
@@ -88,22 +92,21 @@ export class PondLife {
     this.updateFishes(delta, elapsed);
   }
 
-  /** 每隔几秒在随机水洼底部冒一串小泡泡,浮到水面即消散 */
+  /** 每个水洼各自每 2~6 秒在底部冒一小串泡泡,浮到水面即消散 */
   private updateBubbles(delta: number): void {
-    this.bubbleTimer -= delta;
-    if (this.bubbleTimer <= 0) {
-      this.bubbleTimer = 2 + Math.random() * 4;
-      const pond = this.randomPond();
-      if (pond) {
-        for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
-          const mesh = new THREE.Mesh(BUBBLE_GEOMETRY, this.bubbleMaterial.clone());
-          const a = Math.random() * Math.PI * 2;
-          const r = Math.random() * pond.radius * 0.6;
-          mesh.position.set(pond.x + Math.cos(a) * r, pond.waterY - 0.8 - Math.random() * 0.4, pond.z + Math.sin(a) * r);
-          mesh.scale.setScalar(0.5 + Math.random() * 0.7);
-          this.scene.add(mesh);
-          this.bubbles.push({ mesh, pond, speed: 0.25 + Math.random() * 0.15 });
-        }
+    for (let p = 0; p < this.ponds.length; p++) {
+      this.bubbleTimers[p] -= delta;
+      if (this.bubbleTimers[p] > 0) continue;
+      this.bubbleTimers[p] = 2 + Math.random() * 4;
+      const pond = this.ponds[p];
+      for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
+        const mesh = new THREE.Mesh(BUBBLE_GEOMETRY, this.bubbleMaterial.clone());
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * pond.radius * 0.6;
+        mesh.position.set(pond.x + Math.cos(a) * r, pond.waterY - 0.8 - Math.random() * 0.4, pond.z + Math.sin(a) * r);
+        mesh.scale.setScalar(0.5 + Math.random() * 0.7);
+        this.scene.add(mesh);
+        this.bubbles.push({ mesh, pond, speed: 0.25 + Math.random() * 0.15 });
       }
     }
 
@@ -133,11 +136,6 @@ export class PondLife {
       // 身体轻微摆尾
       f.body.rotation.y = Math.sin(elapsed * 6 + f.bobPhase) * 0.25;
     }
-  }
-
-  private randomPond(): PondArea | undefined {
-    if (this.fishes.length === 0) return undefined;
-    return this.fishes[Math.floor(Math.random() * this.fishes.length)].pond;
   }
 
   dispose(): void {
