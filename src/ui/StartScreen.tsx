@@ -17,13 +17,17 @@ export function StartScreen({ onStart }: { onStart: (mode: StartMode) => void })
       <style>{css}</style>
       <div className="start-screen-bg">
         <div className="start-sun" />
-        <div className="start-cloud" style={{ top: '14%', animationDelay: '0s', animationDuration: '38s' }} />
-        <div className="start-cloud" style={{ top: '26%', animationDelay: '-14s', animationDuration: '52s' }} />
+        <div className="start-cloud" style={{ top: '10%', animationDelay: '0s', animationDuration: '42s' }} />
+        <div className="start-cloud" style={{ top: '22%', animationDelay: '-18s', animationDuration: '58s' }} />
+        <div className="start-birds">🕊️</div>
         <div className="start-sea" />
+        <div className="start-wave start-wave-back" />
+        <div className="start-wave start-wave-front" />
         <div className="start-island">🏝️</div>
       </div>
       <div className="start-panel">
-        <h1 className="start-title">荒岛求生</h1>
+        <div className="start-panel-deco">🌴</div>
+        <h1 className="start-title">去你的岛</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
         {hasSave && (
           <button
@@ -41,6 +45,7 @@ export function StartScreen({ onStart }: { onStart: (mode: StartMode) => void })
         >
           {ready ? (hasSave ? '开新档' : '开始游戏') : '加载中…'}
         </button>
+        <p className="start-hint">🍎 采集 · 🎣 钓鱼 · 🔥 生存</p>
       </div>
     </div>
   );
@@ -56,12 +61,12 @@ const css = `
 .start-screen-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(#7ec8f0 0%, #a8dcf5 55%, #d8f0fb 100%);
+  background: linear-gradient(#6fc3ee 0%, #9dd9f4 50%, #cfeefb 78%, #f3e2b8 100%);
 }
 .start-sun {
   position: absolute;
-  top: 8%;
-  right: 14%;
+  top: 7%;
+  right: 12%;
   width: clamp(70px, 22vw, 120px);
   height: clamp(70px, 22vw, 120px);
   border-radius: 50%;
@@ -87,19 +92,45 @@ const css = `
   from { transform: translateX(0); }
   to { transform: translateX(160vw); }
 }
+.start-birds {
+  position: absolute;
+  top: 16%;
+  left: 14%;
+  font-size: clamp(18px, 5vw, 26px);
+  opacity: 0.85;
+  animation: birds-fly 26s linear infinite;
+}
+@keyframes birds-fly {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(30vw, 4vh); }
+  100% { transform: translate(70vw, -2vh); opacity: 0; }
+}
 .start-sea {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 32%;
-  background: linear-gradient(#4db3e6, #2a7fb8);
+  height: 34%;
+  background: linear-gradient(#57bbe8, #2a7fb8 70%, #1d6399);
+}
+.start-wave {
+  position: absolute;
+  left: -50%;
+  width: 200%;
+  height: clamp(18px, 5vw, 28px);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.35);
+}
+.start-wave-back { bottom: 31%; animation: wave-roll 7s ease-in-out infinite; }
+.start-wave-front { bottom: 25%; background: rgba(255,255,255,0.5); animation: wave-roll 5s ease-in-out infinite reverse; }
+@keyframes wave-roll {
+  0%, 100% { transform: translateX(-2%); }
+  50% { transform: translateX(2%); }
 }
 .start-island {
   position: absolute;
-  bottom: 22%;
+  bottom: 20%;
   left: 50%;
-  transform: translateX(-50%);
   font-size: clamp(90px, 30vw, 170px);
   line-height: 1;
   animation: island-bob 4s ease-in-out infinite;
@@ -115,18 +146,32 @@ const css = `
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(84vw, 360px);
-  padding: clamp(24px, 6vw, 40px) clamp(20px, 5vw, 32px);
+  padding: clamp(20px, 5vw, 32px) clamp(20px, 5vw, 32px) clamp(24px, 5vw, 32px);
   text-align: center;
-  background: rgba(255,252,240,0.92);
-  border-radius: 22px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  background: linear-gradient(rgba(255,253,245,0.96), rgba(255,248,232,0.94));
+  border: 2px solid rgba(255,255,255,0.85);
+  border-radius: 26px;
+  box-shadow: 0 16px 48px rgba(20,60,90,0.35), inset 0 1px 0 rgba(255,255,255,0.9);
+  animation: panel-in 0.6s ease-out;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translate(-50%, -46%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+.start-panel-deco {
+  font-size: clamp(28px, 8vw, 38px);
+  line-height: 1;
 }
 .start-title {
-  margin: 0;
-  font-size: clamp(34px, 10vw, 52px);
-  letter-spacing: 0.12em;
-  color: #2c5f2d;
-  text-shadow: 0 2px 0 rgba(255,255,255,0.8);
+  margin: 6px 0 0;
+  font-size: clamp(38px, 11vw, 56px);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #2c5f2d 20%, #4d9e4f 60%, #2c5f2d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255,255,255,0.8));
 }
 .start-subtitle {
   margin: 10px 0 0;
@@ -134,17 +179,18 @@ const css = `
   color: #6b7a5e;
 }
 .start-button {
-  margin-top: clamp(20px, 5vw, 30px);
+  margin-top: clamp(20px, 5vw, 28px);
   width: 100%;
   min-height: 56px;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(#ffb84d, #f59a1f);
+  background: linear-gradient(#ffbe5c, #f59a1f);
   color: #fff;
   font-size: clamp(18px, 5vw, 22px);
   font-weight: 700;
   letter-spacing: 0.2em;
-  box-shadow: 0 6px 0 #c97c12;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 0 #c97c12, 0 10px 20px rgba(245,154,31,0.35);
   cursor: pointer;
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
@@ -161,12 +207,18 @@ const css = `
   margin-top: 14px;
   width: 100%;
   min-height: 44px;
-  border: none;
+  border: 1.5px solid rgba(44,95,45,0.25);
   border-radius: 12px;
-  background: rgba(44, 95, 45, 0.08);
+  background: rgba(44, 95, 45, 0.06);
   color: #2c5f2d;
   font-size: clamp(14px, 4vw, 16px);
   letter-spacing: 0.08em;
   cursor: pointer;
+}
+.start-hint {
+  margin: clamp(14px, 4vw, 20px) 0 0;
+  font-size: clamp(11px, 3vw, 13px);
+  color: #9aa58a;
+  letter-spacing: 0.06em;
 }
 `;

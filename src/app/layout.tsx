@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '荒岛求生',
+  title: '去你的岛',
   description: '2.5D 荒岛求生游戏',
 };
 
