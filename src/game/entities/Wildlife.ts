@@ -601,6 +601,31 @@ export class Wildlife implements Updatable {
     return SPECIES[species].loot;
   }
 
+  /** 联机快照:各动物的位置朝向与存活(房主侧收集) */
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+    return this.animals.map((a) => ({
+      id: a.id,
+      x: a.pos.x,
+      z: a.pos.z,
+      h: a.heading,
+      alive: a.alive,
+    }));
+  }
+
+  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活状态同步可见性 */
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean }[]): void {
+    const map = new Map(poses.map((p) => [p.id, p]));
+    for (const a of this.animals) {
+      const p = map.get(a.id);
+      if (!p) continue;
+      a.pos.x = p.x;
+      a.pos.z = p.z;
+      a.heading = p.h;
+      a.alive = p.alive;
+      a.model.group.visible = p.alive;
+    }
+  }
+
   private respawn(animal: Animal): void {
     const spot = this.findGrassSpot(Math.random);
     if (!spot) {

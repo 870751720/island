@@ -305,11 +305,12 @@ export class Player implements Updatable {
     spawn: THREE.Vector3,
     private waterFx: WaterFx,
     private footprints: Footprints,
-    options: { remote?: boolean } = {}
+    options: { remote?: boolean; keyboard?: boolean } = {}
   ) {
     this.terrain = terrain;
     this.remote = !!options.remote;
-    this.input = new MoveInput(!this.remote);
+    // 遥控玩家不读输入;房主端的远程会话保留本地物理但要屏蔽键盘,只吃网络摇杆
+    this.input = new MoveInput(options.keyboard ?? !this.remote);
 
     // 默认上身赤裸(肉色躯干),下身是深色平角裤,穿上衣服/裤子后换色
     const skin = clayMaterial(SKIN_COLOR);

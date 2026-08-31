@@ -372,6 +372,15 @@ export class CampfireSystem {
     });
   }
 
+  /** 清空场上全部火堆(客人侧重放世界快照前调用) */
+  clear(): void {
+    for (const fire of this.fires) {
+      this.scene.remove(fire.group);
+      fire.dispose();
+    }
+    this.fires = [];
+  }
+
   /** 从存档恢复火堆(含熄灭的) */
   restore(list: { x: number; y: number; z: number; fuel: number }[]): void {
     for (const f of list) {

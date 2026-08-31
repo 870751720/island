@@ -5,8 +5,16 @@ import { SaveSystem } from '@/game/systems/SaveSystem';
 
 /** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
 export type StartMode = 'continue' | 'new';
+/** 联机角色:创建房间(房主)或加入房间(客人) */
+export type MultiplayerRole = 'host' | 'guest';
 
-export function StartScreen({ onStart }: { onStart: (mode: StartMode) => void }) {
+export function StartScreen({
+  onStart,
+  onMultiplayer,
+}: {
+  onStart: (mode: StartMode) => void;
+  onMultiplayer: (role: MultiplayerRole) => void;
+}) {
   const [hasSave] = useState(() => !!SaveSystem.load());
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,先禁用避免「点了没反应」
   const [ready, setReady] = useState(false);
@@ -45,6 +53,14 @@ export function StartScreen({ onStart }: { onStart: (mode: StartMode) => void })
         >
           {ready ? (hasSave ? '开新档' : '开始游戏') : '加载中…'}
         </button>
+        <div className="start-mp">
+          <button className="mp-button" disabled={!ready} onClick={() => onMultiplayer('host')}>
+            🏠 创建房间
+          </button>
+          <button className="mp-button" disabled={!ready} onClick={() => onMultiplayer('guest')}>
+            🤝 加入房间
+          </button>
+        </div>
         <p className="start-hint">🍎 采集 · 🎣 钓鱼 · 🔥 生存</p>
       </div>
     </div>
@@ -214,6 +230,26 @@ const css = `
   font-size: clamp(14px, 4vw, 16px);
   letter-spacing: 0.08em;
   cursor: pointer;
+}
+.start-mp {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+.mp-button {
+  flex: 1;
+  min-height: 42px;
+  border: 1.5px solid rgba(44,95,45,0.25);
+  border-radius: 12px;
+  background: rgba(44, 95, 45, 0.06);
+  color: #2c5f2d;
+  font-size: clamp(13px, 3.6vw, 15px);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.mp-button:disabled {
+  color: #9aa58a;
+  cursor: wait;
 }
 .start-hint {
   margin: clamp(14px, 4vw, 20px) 0 0;

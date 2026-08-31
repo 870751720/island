@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
+import type { NetHost } from './net/NetHost';
+import type { NetGuest } from './net/NetGuest';
+import type { AnimalPose, PlayerState } from './net/Protocol';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
@@ -50,6 +53,18 @@ import { openBottle } from './systems/BottleMessages';
 import { MinimapSystem, type GroundKind, type MinimapMarker, type MinimapSnapshot } from './systems/MinimapSystem';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { VitalLevels } from '../ui/VitalWarn';
+
+/** Game 构造选项:联机时由 UI 传入网络会话与种子/初始存档 */
+export type GameOptions = {
+  /** 房主侧网络会话(提供种子,游戏创建后自动挂接) */
+  host?: NetHost;
+  /** 客人侧网络会话(welcome 已到达,Game 以 guest 模式运行) */
+  guest?: NetGuest;
+  /** 指定世界种子(房主大厅生成,与本地存档无关) */
+  seeds?: { terrainSeed: number; propsSeed: number };
+  /** 指定初始存档(null 表示开新档;缺省读 localStorage) */
+  save?: SaveData | null;
+};
 
 export type HudSnapshot = {
   hunger: number;
@@ -256,6 +271,11 @@ export class Game {
   private autoEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
+  private readonly hostRef: NetHost | null;
+  private readonly guestNet: NetGuest | null;
+  private readonly guestMode: boolean;
+  /** 客人自己在房主会话列表中的下标 */
+  private readonly youIndex = 0;
 
   constructor(
     container: HTMLElement,
@@ -265,9 +285,13 @@ export class Game {
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void,
-    onDogEmoji: (emoji: string | null, x: number, y: number) => void
+    onDogEmoji: (emoji: string | null, x: number, y: number) => void,
+    options: GameOptions = {}
   ) {
     this.container = container;
+    this.hostRef = options.host ?? null;
+    this.guestNet = options.guest ?? null;
+    this.guestMode = !!options.guest;
     this.onHud = onHud;
     this.onLabel = onLabel;
     this.onMumble = onMumble;
@@ -276,10 +300,17 @@ export class Game {
     this.onDamage = onDamage;
     this.onDogEmoji = onDogEmoji;
 
-    // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛
-    const save = SaveSystem.load();
-    this.terrainSeed = save?.terrainSeed ?? Math.random() * 1000;
-    this.propsSeed = save?.propsSeed ?? Math.floor(Math.random() * 0xffffffff);
+    // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛;
+    // 联机时种子与初始状态来自网络(房主大厅的种子 / 客人的欢迎包),客人不读写本地存档
+    const welcome = this.guestNet?.welcome ?? null;
+    const seeds = welcome?.seeds ?? options.seeds;
+    const save = this.guestMode
+      ? (welcome?.state ?? null)
+      : options.save !== undefined
+        ? options.save
+        : SaveSystem.load();
+    this.terrainSeed = seeds?.terrainSeed ?? save?.terrainSeed ?? Math.random() * 1000;
+    this.propsSeed = seeds?.propsSeed ?? save?.propsSeed ?? Math.floor(Math.random() * 0xffffffff);
     this.mumbles = new MumbleSystem((_trigger, text) => {
       this.mumbleText = text;
       this.mumbleTimer = 4;
@@ -492,8 +523,9 @@ export class Game {
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
         this.footprints.update(delta);
-        // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建)
-        for (const s of this.sessions) {
+        // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
+        // 客人端不跑权威模拟,全部由房主快照驱动
+        for (const s of this.guestMode ? [] : this.sessions) {
           s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier();
@@ -547,6 +579,21 @@ export class Game {
         this.fences.update(delta);
         this.campfire.update(delta, elapsed);
         this.drops.update(delta, elapsed);
+        if (!this.guestMode) this.updateAutoEquip(delta);
+        this.mumbles.update(delta, {
+          elapsed,
+          dead: this.survival.state.dead,
+          hunger: this.survival.state.hunger,
+          thirst: this.survival.state.thirst,
+          health: this.survival.state.health,
+          phase: this.dayNight.state.phase,
+          rainIntensity: this.weather.rainIntensity,
+          freeSlots: this.inventory.freeSlots,
+          wood: this.inventory.count('wood'),
+          stone: this.inventory.count('stone'),
+          tools: this.tools,
+          collecting: this.collect.isWorking,
+        });
         this.updateIndicator(delta);
         this.updateCamera(delta);
         this.renderer.render(this.scene, this.camera);
@@ -555,35 +602,153 @@ export class Game {
             s.player.setDead();
             if (s === this.local) {
               this.audio.play('death');
-              // 本地玩家死亡即清档:下次进入从新岛重新开始(联机规则后续迭代)
-              SaveSystem.clear();
+              // 本地玩家死亡即清档:下次进入从新岛重新开始(客人不清房主的档)
+              if (!this.guestMode) SaveSystem.clear();
             }
           }
           s.lastDead = s.survival.state.dead;
         }
-        if (!this.survival.state.dead) {
+        if (!this.guestMode && !this.survival.state.dead) {
           this.autosaveTimer += delta;
           if (this.autosaveTimer >= AUTOSAVE_INTERVAL) {
             this.autosaveTimer = 0;
             SaveSystem.save(this.collectSave());
           }
         }
-        this.pushHud(delta);
-        this.flushPickups();
+        if (!this.guestMode) {
+          this.updateAutoEquip(delta);
+          this.pushHud(delta);
+          this.flushPickups();
+        }
       },
     });
 
     this.applySave(save);
+    if (this.hostRef) this.hostRef.attach(this);
+    if (this.guestNet) {
+      this.guestNet.onPlayers = (m) => this.netApplyPlayers(m.time, m.day, m.weather, m.list);
+      this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
+      this.guestNet.onWorld = (state) => this.netApplyWorld(state);
+      this.guestNet.onHud = (snap) => this.netApplyHud(snap);
+      this.guestNet.begin();
+    }
+  }
+
+  /** 房主侧:会话在 sessions 中的下标(欢迎包里告诉客人自己的编号) */
+  sessionIndexOf(session: PlayerSession): number {
+    return this.sessions.indexOf(session);
+  }
+
+  /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
+  netPlayersMsg(): { t: 'players'; time: number; day: number; weather: 'sunny' | 'rain'; list: PlayerState[] } {
+    return {
+      t: 'players',
+      time: this.dayNight.time,
+      day: this.dayNight.day,
+      weather: this.weather.rainIntensity > 0.05 ? 'rain' : 'sunny',
+      list: this.sessions.map((s, index) => {
+        const p = s.player.group.position;
+        const sv = s.survival.state;
+        return {
+          index,
+          x: p.x,
+          y: p.y,
+          z: p.z,
+          rotY: s.player.group.rotation.y,
+          tool: s.player.currentTool as string,
+          hunger: sv.hunger,
+          thirst: sv.thirst,
+          health: sv.health,
+          stamina: sv.stamina,
+          dead: sv.dead,
+        };
+      }),
+    };
+  }
+
+  /** 房主侧:动物快照消息 */
+  netAnimalsMsg(): { t: 'animals'; list: AnimalPose[] } {
+    return { t: 'animals', list: this.wildlife.netPoses() };
+  }
+
+  /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
+  netApplyPlayers(
+    time: number,
+    day: number,
+    weather: 'sunny' | 'rain',
+    list: PlayerState[]
+  ): void {
+    this.dayNight.time = time;
+    if (day) this.dayNight.day = day;
+    this.weather.force(weather);
+    for (const p of list) {
+      const s = this.sessions[p.index];
+      if (!s) continue;
+      if (s === this.local) {
+        const pos = s.player.group.position;
+        if (Math.hypot(pos.x - p.x, pos.z - p.z) > 3) pos.set(p.x, p.y, p.z);
+        continue;
+      }
+      s.player.setNetPose(p.x, p.y, p.z, p.rotY);
+      s.player.setTool(p.tool as HandTool);
+      s.survival.state.hunger = p.hunger;
+      s.survival.state.thirst = p.thirst;
+      s.survival.state.health = p.health;
+      s.survival.state.stamina = p.stamina;
+      if (p.dead && !s.lastDead) s.player.setDead();
+      s.lastDead = p.dead;
+    }
+  }
+
+  /** 客人侧:应用房主的动物快照 */
+  netApplyAnimals(list: AnimalPose[]): void {
+    this.wildlife.netApply(list);
+  }
+
+  /** 客人侧:应用房主的世界快照(重放摆件与掉落物,资源点原地更新) */
+  netApplyWorld(state: SaveData): void {
+    this.props.applySave(state.props);
+    this.campfire.clear();
+    this.campfire.restore(state.campfires);
+    this.workbench.clear();
+    this.workbench.restore(state.workbenches);
+    this.crates.clear();
+    this.crates.restore(state.crates);
+    this.fences.clear();
+    this.fences.restore(state.fences ?? [], state.fenceGates ?? []);
+    this.beds.clear();
+    this.beds.restore(state.beds ?? []);
+    this.drops.dispose();
+    this.drops.restore(state.drops);
+  }
+
+  /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
+  netApplyHud(snap: HudSnapshot): void {
+    this.local.inventory.load(snap.slots, snap.capacity);
+    this.onHud(snap);
   }
 
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
   private applySave(save: SaveData | null): void {
     if (!save) return;
-    this.applyPlayerSave(this.local, save);
-    // 联机存档:按接入顺序恢复房主保存的远程玩家会话
-    for (const other of save.others ?? []) {
-      this.applyPlayerSave(this.addRemoteSession(), other);
+    if (this.guestMode) {
+      // 客人:按房主会话顺序重放,自己的那份落到本地会话(其余建为遥控玩家)
+      const all = [save as SessionSave, ...(save.others ?? [])];
+      for (let i = 0; i < all.length; i++) {
+        this.applyPlayerSave(i === this.youIndex ? this.local : this.addRemoteSession(true), all[i]);
+      }
+    } else {
+      this.applyPlayerSave(this.local, save);
+      // 联机存档:按接入顺序恢复房主保存的远程玩家会话
+      for (const other of save.others ?? []) {
+        this.applyPlayerSave(this.addRemoteSession(), other);
+      }
     }
+    this.applyWorldSave(save);
+  }
+
+  /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗/迷雾),客人收到世界快照时复用 */
+  private applyWorldSave(save: SaveData): void {
     this.dayNight.time = save.dayTime;
     if (save.day) this.dayNight.day = save.day;
     this.props.applySave(save.props);
@@ -635,7 +800,7 @@ export class Game {
   }
 
   /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存) */
-  private collectSave(): SaveData {
+  collectSave(): SaveData {
     return {
       ...this.collectPlayerSave(this.local),
       others: this.sessions.slice(1).map((s) => this.collectPlayerSave(s)),
@@ -765,10 +930,22 @@ export class Game {
 
   setJoystick(x: number, z: number): void {
     this.player.input.setJoystick(x, z);
+    this.guestNet?.sendInput(x, z);
+  }
+
+  /** 切换手持工具:客人本地先切(预测表现)并上行给房主 */
+  selectTool(tool: HandTool): void {
+    this.player.setTool(tool);
+    this.guestNet?.action('tool', [tool]);
   }
 
   /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 围栏/门(仅手里还有的) */
   cycleTool(): void {
+    this.selectTool(this.nextToolInCycle());
+  }
+
+  /** 循环顺序里当前工具的下一个(仅手里还有的) */
+  private nextToolInCycle(): HandTool {
     const order: HandTool[] = [
       'hand',
       'axe',
@@ -780,8 +957,7 @@ export class Game {
       'fenceGate',
     ];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
-    const next = owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
-    this.player.setTool(next);
+    return owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
   }
 
   /** 工具按钮点击:场景有明确需要的工具时直接切过去,否则循环切换 */
@@ -789,7 +965,7 @@ export class Game {
     const need = this.wantedTool();
     if (need) {
       this.autoEquipTimer = 0;
-      this.player.setTool(need);
+      this.selectTool(need);
     } else {
       this.cycleTool();
     }
@@ -850,6 +1026,9 @@ export class Game {
 
   /** 吃食物(定时进食动作):指定种类则吃该种,否则吃背包里最前面的,返回是否成功开始 */
   eatFood(kind?: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('eatFood', [kind]);
+
     const a = actor;
     if (
       a.crafting.isWorking ||
@@ -866,6 +1045,9 @@ export class Game {
 
   /** 发起钓鱼(屏幕中心按钮),返回是否成功开始 */
   startFishing(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('startFishing', []);
+
     const a = actor;
     if (
       a.crafting.isWorking ||
@@ -882,11 +1064,20 @@ export class Game {
 
   /** 咬钩窗口内点击屏幕任意处收竿 */
   hookFish(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('hookFish', []);
+
     return actor.fishing.hook();
   }
 
   /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */
   gmGiveItem(kind: ResourceKind, count: number, actor: Actor = this.local): void {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) {
+      this.guestNet.action('gmGiveItem', [kind, count]);
+      return;
+    }
+
     if ((TOOL_IDS as string[]).includes(kind)) {
       actor.tools[kind as ToolId] = 1;
       return;
@@ -895,8 +1086,14 @@ export class Game {
   }
 
   /** GM 直接把工具点亮到指定等级(1 基础 / 2 精致) */
-  gmGiveTool(tool: ToolId, tier: 1 | 2): void {
-    this.tools[tool] = Math.max(this.tools[tool], tier);
+  gmGiveTool(tool: ToolId, tier: 1 | 2, actor: PlayerSession = this.local): void {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) {
+      this.guestNet.action('gmGiveTool', [tool, tier]);
+      return;
+    }
+
+    actor.tools[tool] = Math.max(actor.tools[tool], tier);
   }
 
   /** 产物入包,背包放不下的部分掉在玩家身旁地上 */
@@ -908,8 +1105,14 @@ export class Game {
   }
 
   /** GM 生存状态回满并复活 */
-  gmRestoreStatus(): void {
-    const s = this.survival.state;
+  gmRestoreStatus(actor: PlayerSession = this.local): void {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) {
+      this.guestNet.action('gmRestoreStatus', []);
+      return;
+    }
+
+    const s = actor.survival.state;
     s.hunger = s.thirst = s.health = s.stamina = 100;
     s.dead = false;
   }
@@ -931,6 +1134,9 @@ export class Game {
 
   /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下,不满足时给出提示 */
   useCrate(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useCrate', []);
+
     if (this.asleepFor(actor)) return false;
     if (!this.crates.use(actor)) {
       this.notify('这里放不下,找个没东西的干地试试');
@@ -942,6 +1148,9 @@ export class Game {
 
   /** 背包里点击「使用」工作台道具:校验通过后在玩家脚下原地放回对应等级,不满足时给出提示 */
   useWorkbenchItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useWorkbenchItem', [kind]);
+
     const level = workbenchItemLevel(kind);
     if (this.asleepFor(actor) || level === null || !this.workbench.placeItem(actor, level)) {
       this.notify('这里放不下,找个没东西的干地试试');
@@ -953,6 +1162,9 @@ export class Game {
 
   /** 背包里点击「使用」床道具:校验通过后在玩家脚下原地放下对应等级的床,不满足时给出提示 */
   useBedItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useBedItem', [kind]);
+
     const level = bedItemLevel(kind);
     if (this.asleepFor(actor) || level === null || !this.beds.place(actor, level)) {
       this.notify('这里放不下,找个没东西的干地试试');
@@ -967,6 +1179,9 @@ export class Game {
 
   /** 靠近床发起睡觉:玩家躺上床,天空在过渡中日夜流转,醒来后统一结算 */
   sleep(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('sleep', []);
+
     const a = actor;
     if (this.beds.isBusy(a) || !this.beds.nearby(a) || a.survival.state.dead) return false;
     const s = a.survival.state;
@@ -995,6 +1210,9 @@ export class Game {
 
   /** 背包里点击「使用」围栏/围栏门:吸附到面前的格点(边)放下,不满足时给出提示 */
   useFenceItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useFenceItem', [kind]);
+
     const a = actor;
     if (this.asleepFor(a)) return false;
     const fenceKind = fenceKindOfItem(kind);
@@ -1018,11 +1236,16 @@ export class Game {
 
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
   useBottle(actor: PlayerSession = this.local): string | null {
+    if (this.guestNet) return null;
+
     return openBottle(actor.inventory);
   }
 
   /** 背包里点击「使用」种子:校验与摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
   useSeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useSeed', [kind]);
+
     const a = actor;
     if (this.asleepFor(a)) return false;
     const species = (Object.keys(SEED_OF) as (keyof typeof SEED_OF)[]).find((s) => SEED_OF[s] === kind);
@@ -1048,6 +1271,9 @@ export class Game {
 
   /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
   useBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft', actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useBush', [kind]);
+
     const a = actor;
     if (this.asleepFor(a)) return false;
     if (a.inventory.count(kind) <= 0) return false;
@@ -1074,6 +1300,9 @@ export class Game {
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则提示 */
   pickupDrop(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('pickupDrop', []);
+
     const a = actor;
     if (this.asleepFor(a)) return false;
     const near = this.drops.getNearby(a);
@@ -1094,12 +1323,18 @@ export class Game {
 
   /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftCampfire(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('craftCampfire', []);
+
     if (this.asleepFor(actor)) return false;
     return this.campfire.start(actor);
   }
 
   /** 把背包里该种类全部道具存入身旁木箱(整格),失败时给出提示 */
   crateStore(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('crateStore', [kind]);
+
     if (this.asleepFor(actor)) return false;
     if (!this.crates.store(actor, kind)) {
       this.notify('木箱装不下了');
@@ -1110,6 +1345,9 @@ export class Game {
 
   /** 把身旁木箱里该种类全部道具取回背包(整格),失败时给出提示 */
   crateTake(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('crateTake', [kind]);
+
     if (this.asleepFor(actor)) return false;
     if (!this.crates.take(actor, kind)) {
       this.notify('背包满了,装不下更多东西');
@@ -1120,18 +1358,27 @@ export class Game {
 
   /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
   campfireAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('campfireAddFuel', [kind]);
+
     if (this.asleepFor(actor)) return false;
     return this.campfire.addFuel(actor, kind) > 0;
   }
 
   /** 在身旁燃烧的火堆上发起烹饪(可选份数,同工作台),返回是否成功开始 */
   campfireCook(kind: ResourceKind, count: number, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('campfireCook', [kind, count]);
+
     if (this.asleepFor(actor)) return false;
     return this.campfire.startCooking(actor, kind, count);
   }
 
   /** 丢弃道具到玩家附近的地上(可指定数量,超出持有数按实际丢弃) */
   dropItem(kind: ResourceKind, count = 1, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('dropItem', [kind, count]);
+
     const a = actor;
     if (this.asleepFor(a)) return false;
     const n = Math.min(count, a.inventory.count(kind));
@@ -1143,21 +1390,33 @@ export class Game {
 
   /** 背包格之间移动道具(拖拽交换/合并),返回是否成功 */
   moveItem(from: number, to: number, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('moveItem', [from, to]);
+
     return actor.inventory.move(from, to);
   }
 
   /** 从背包装备一件道具(物品详情点击「装备」),返回是否成功 */
   equipItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('equipItem', [kind]);
+
     return isEquipKind(kind) ? actor.equipment.equip(kind, actor.inventory, true) : false;
   }
 
   /** 卸下某栏位的装备放回背包,背包放不下则失败 */
   unequipItem(slot: EquipSlot, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('unequipItem', [slot]);
+
     return actor.equipment.unequip(slot, actor.inventory);
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: CraftId, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('craftTool', [id]);
+
     const a = actor;
     if (this.asleepFor(a) || this.workbench.isWorking(a) || this.workbench.isDigging(a)) return false;
     const recipe = RECIPES.find((r) => r.id === id);
@@ -1166,6 +1425,9 @@ export class Game {
 
   /** 在工作台发起制作(可选个数,逐个完成),玩家须在的工作范围内,返回是否成功开始 */
   craftAtWorkbench(id: CraftId, count: number, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('craftAtWorkbench', [id, count]);
+
     const a = actor;
     if (
       this.asleepFor(a) ||
@@ -1185,12 +1447,18 @@ export class Game {
 
   /** 发起工作台制作(完成后在原位放置),返回是否成功开始 */
   craftWorkbench(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('craftWorkbench', []);
+
     if (this.asleepFor(actor) || actor.crafting.isWorking || actor.eating.isWorking) return false;
     return this.workbench.start(actor);
   }
 
   /** 发起工作台升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
   upgradeWorkbench(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('upgradeWorkbench', []);
+
     if (this.asleepFor(actor) || actor.crafting.isWorking || actor.eating.isWorking) return false;
     return this.workbench.upgrade(actor);
   }
@@ -1202,12 +1470,13 @@ export class Game {
   }
 
   /** 联机(房主侧)接入一名远程玩家:出生点同本地玩家,参与物理与动物判定 */
-  addRemoteSession(): PlayerSession {
+  addRemoteSession(remote = false): PlayerSession {
     const player = new Player(
       this.terrain,
       this.terrain.findSpawnPoint(),
       this.waterFx,
-      this.footprints
+      this.footprints,
+      remote ? { remote: true } : { keyboard: false }
     );
     player.setObstacles(this.props, this.fences);
     this.scene.add(player.group);
@@ -1331,8 +1600,10 @@ export class Game {
 
   dispose(): void {
     this.loop.stop();
-    // 退出前再存一次,保证最近进度不丢;已死亡则存档已清
-    if (!this.survival.state.dead) SaveSystem.save(this.collectSave());
+    this.hostRef?.detach();
+    this.guestNet?.dispose();
+    // 退出前再存一次,保证最近进度不丢;已死亡则存档已清(客人不写本地档)
+    if (!this.guestMode && !this.survival.state.dead) SaveSystem.save(this.collectSave());
     this.resizeObserver.disconnect();
     window.removeEventListener('keydown', this.onKeyDown);
     for (const s of this.sessions) s.player.dispose();
@@ -1362,70 +1633,78 @@ export class Game {
     this.lastBusy = busy;
     if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged) return;
     this.hudTimer = 0;
-    this.onHud({
-      ...this.survival.state,
-      wood: this.inventory.count('wood'),
-      stone: this.inventory.count('stone'),
-      berry: this.inventory.count('berry'),
-      fiber: this.inventory.count('fiber'),
-      fur: this.inventory.count('fur'),
-      crabMeat: this.inventory.count('crabMeat'),
-      birdMeat: this.inventory.count('birdMeat'),
-      gameMeat: this.inventory.count('gameMeat'),
-      rope: this.inventory.count('rope'),
-      arrow: this.inventory.count('arrow'),
-      bait: this.inventory.count('bait'),
-      bed1: this.inventory.count('bed1'),
+    this.onHud(this.snapshotHud(this.local, busy));
+  }
+
+  /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发) */
+  hudFor(s: PlayerSession): HudSnapshot {
+    return this.snapshotHud(s, false);
+  }
+
+  private snapshotHud(s: PlayerSession, busy: boolean): HudSnapshot {
+    return {
+      ...s.survival.state,
+      wood: s.inventory.count('wood'),
+      stone: s.inventory.count('stone'),
+      berry: s.inventory.count('berry'),
+      fiber: s.inventory.count('fiber'),
+      fur: s.inventory.count('fur'),
+      crabMeat: s.inventory.count('crabMeat'),
+      birdMeat: s.inventory.count('birdMeat'),
+      gameMeat: s.inventory.count('gameMeat'),
+      rope: s.inventory.count('rope'),
+      arrow: s.inventory.count('arrow'),
+      bait: s.inventory.count('bait'),
+      bed1: s.inventory.count('bed1'),
       heldFenceCount:
-        this.player.currentTool === 'fence'
-          ? this.inventory.count('fenceWood') + this.inventory.count('fenceStone')
-          : this.player.currentTool === 'fenceGate'
-            ? this.inventory.count('fenceGate')
+        s.player.currentTool === 'fence'
+          ? s.inventory.count('fenceWood') + s.inventory.count('fenceStone')
+          : s.player.currentTool === 'fenceGate'
+            ? s.inventory.count('fenceGate')
             : 0,
-      slots: this.inventory.snapshot(),
-      capacity: this.inventory.capacity,
-      hasAxe: !!this.tools.axe,
-      hasPickaxe: !!this.tools.pickaxe,
-      hasHoe: !!this.tools.hoe,
-      hasFishingrod: !!this.tools.fishingrod,
-      hasBow: !!this.tools.bow,
-      toolTiers: { ...this.tools },
-      nearCrate: !!this.crates.nearby(this.local),
-      nearBed: !!this.beds.nearby(this.local),
-      bedSleeping: this.beds.isSleeping(this.local),
-      bedSleepProgress: this.beds.getSleepProgress(this.local) ?? 0,
-      crateSlots: this.crates.nearbySlots(this.local),
-      equipped: this.equipment.snapshot(),
-      tool: this.player.currentTool,
-      craftId: this.crafting.currentRecipe?.id ?? null,
-      craftProgress: this.crafting.getProgress() ?? 0,
-      canCraftWorkbench: this.workbench.canStart(this.local),
-      workbenchCrafting: this.workbench.isWorking(this.local),
-      workbenchProgress: this.workbench.getProgress(this.local) ?? 0,
-      workbenchLevel: this.workbench.level(this.local),
-      nearWorkbench: this.workbench.isNear(this.local),
-      canCraftCampfire: this.campfire.canStart(this.local),
-      canBuildCampfire: this.campfire.canBuild(this.local),
-      campfireCrafting: this.campfire.isBusy(this.local),
-      campfireProgress: this.campfire.getProgress(this.local) ?? 0,
-      nearCampfire: !!this.campfire.nearby(this.local),
-      campfireInfo: this.campfire.getCampfireInfo(this.local),
-      eatName: this.eating.currentFood?.name ?? null,
-      eatProgress: this.eating.getProgress() ?? 0,
+      slots: s.inventory.snapshot(),
+      capacity: s.inventory.capacity,
+      hasAxe: !!s.tools.axe,
+      hasPickaxe: !!s.tools.pickaxe,
+      hasHoe: !!s.tools.hoe,
+      hasFishingrod: !!s.tools.fishingrod,
+      hasBow: !!s.tools.bow,
+      toolTiers: { ...s.tools },
+      nearCrate: !!this.crates.nearby(s),
+      nearBed: !!this.beds.nearby(s),
+      bedSleeping: this.beds.isSleeping(s),
+      bedSleepProgress: this.beds.getSleepProgress(s) ?? 0,
+      crateSlots: this.crates.nearbySlots(s),
+      equipped: s.equipment.snapshot(),
+      tool: s.player.currentTool,
+      craftId: s.crafting.currentRecipe?.id ?? null,
+      craftProgress: s.crafting.getProgress() ?? 0,
+      canCraftWorkbench: this.workbench.canStart(s),
+      workbenchCrafting: this.workbench.isWorking(s),
+      workbenchProgress: this.workbench.getProgress(s) ?? 0,
+      workbenchLevel: this.workbench.level(s),
+      nearWorkbench: this.workbench.isNear(s),
+      canCraftCampfire: this.campfire.canStart(s),
+      canBuildCampfire: this.campfire.canBuild(s),
+      campfireCrafting: this.campfire.isBusy(s),
+      campfireProgress: this.campfire.getProgress(s) ?? 0,
+      nearCampfire: !!this.campfire.nearby(s),
+      campfireInfo: this.campfire.getCampfireInfo(s),
+      eatName: s.eating.currentFood?.name ?? null,
+      eatProgress: s.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
-      canFish: this.fishing.canStart(),
-      fishingState: this.fishing.currentState,
-      fishingProgress: this.fishing.getProgress() ?? 0,
-      biteActive: this.fishing.currentState === 'bite',
-      biteClicks: this.fishing.biteClicks,
-      biteNeed: this.fishing.biteNeed,
-      nearDrop: this.drops.getNearby(this.local),
+      canFish: s.fishing.canStart(),
+      fishingState: s.fishing.currentState,
+      fishingProgress: s.fishing.getProgress() ?? 0,
+      biteActive: s.fishing.currentState === 'bite',
+      biteClicks: s.fishing.biteClicks,
+      biteNeed: s.fishing.biteNeed,
+      nearDrop: this.drops.getNearby(s),
       notice: this.notice,
       day: this.dayNight.day,
       busy,
-    });
+};
   }
-
   /** 玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
    * 各交互(采集/制作/挖除/吃喝/钓鱼/拉弓等)都会设置玩家的作业动画,统一用 isActing 判定 */
   private get isPlayerBusy(): boolean {

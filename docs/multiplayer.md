@@ -52,3 +52,12 @@
 - 存档:`SAVE_VERSION` 升至 26(不兼容旧档,遵守无兼容约定);新增 `SessionSave` 结构,`SaveData.others` 保存联机时房主持有的远程玩家会话,恢复时按接入顺序重建远程会话。
 - 同步 id:掉落物(`DropSystem` 内 `nextId`)与野生动物(`Wildlife` 内 `nextId`,重生复用同一 id)补短 id;放置物(火堆/工作台/木箱/床/围栏)以落点坐标天然可对应,不加 id。
 - `WorldSync` 增量结构与权威随机收敛移至 M3(与 NetSession 消费方一起落地,避免先写无消费者的死代码);螃蟹/博美/蝴蝶/鸟仍跟随本地玩家,留待后续里程碑。
+
+### M3+M4 网络层与房间流程(2026-08-31)
+
+- 新增 `src/game/net/`:`Protocol`(消息判别联合:hello/welcome/start/input/action/players/animals/world/hud)、`RoomCode`(SDP 邀请码/回传码编解码,JSON→base64url)、`PeerNet`(单条 WebRTC DataChannel 直连,Google 公共 STUN,ICE 收集完成或 4s 超时后出码)、`Actions`(客人动作→Game 方法的参数化分发表,以该客人的会话为 actor)、`NetHost`(房主侧:多连接管理、10s 无消息判断线、100ms 一拍广播玩家/动物快照、200ms 一拍按会话下发 HUD、1s 检查世界脏并全量重放)、`NetGuest`(客人侧:20Hz 摇杆上行、动作上行、下行数据交给 Game)。
+- `Game` 增加 `GameOptions`(host/guest/seeds/save):房主开新岛(seeds 来自大厅,不读旧档)、客人用欢迎包的种子与全量初始状态重建世界,不读写 localStorage;guest 模式跳过全部权威模拟(生存结算/交互推进/自动换工具/HUD 推送/存档),新增 `netApplyPlayers/netApplyAnimals/netApplyWorld/netApplyHud` 应用下行数据;自己的移动本地预测(完整物理),偏差超 3 格才校正;其他玩家走遥控插值。约 30 个动作方法在 guest 模式下转发给房主(`selectTool` 同步本地预测)。
+- `pushHud` 拆出 `snapshotHud(session)`,房主为每个客人各算一份 HUD 下发;世界系统(火堆/工作台/木箱/床/围栏/掉落物)补 `clear()`,客人收到世界快照时清场重放;资源点 `applySave` 原地更新。`Wildlife` 补 `netPoses/netApply`。房主端远程玩家 `keyboard:false`(只吃网络摇杆,屏蔽本机键盘)。
+- 新增 `src/ui/RoomLobby.tsx` 大厅:房主逐个朋友「生成邀请码→粘贴回传码」(最多可继续邀请,开始后也可中途加入);客人「粘贴邀请码→回传码发回→等待房主开始」。`StartScreen` 增加「创建房间/加入房间」入口,`GameCanvas` 阶段路由扩展,退出时断开联机会话。
+- 修复 M2 引入的两处回归:主循环丢失 `updateAutoEquip` 与 `mumbles.update` 调用。
+- 已知留待 M5:客人端无动作音效/特效事件、瓶中信在客人端不可用、围栏门对客人不自动开、死亡规则仍为「本地死亡即清档」(客人不清档)、名字标签未做。

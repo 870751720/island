@@ -640,6 +640,15 @@ export class FenceSystem implements ObstacleSolver {
     return [...this.gates.values()].map((g) => ({ x: g.gx, z: g.gz, dir: g.dir }));
   }
 
+  /** 清空场上全部围栏与门,阻挡线段一并重置(客人侧重放世界快照前调用) */
+  clear(): void {
+    for (const fence of this.fences.values()) fence.remove(this.scene);
+    for (const gate of this.gates.values()) gate.remove(this.scene);
+    this.fences.clear();
+    this.gates.clear();
+    this.segments = [];
+  }
+
   /** 从存档恢复围栏与门(连接与阻挡统一重建) */
   restore(
     fences: { x: number; z: number; kind: FenceKind }[],

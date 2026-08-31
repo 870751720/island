@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
+import type { NetHost } from '@/game/net/NetHost';
+import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
@@ -114,7 +116,14 @@ function hijackerDiggable(
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
  * 挂载时创建并启动 Game,卸载时销毁;死亡后显示确认弹窗,确认则整体卸载回到开始界面。
  */
-export function GameplayUI({ onExit }: { onExit: () => void }) {
+export function GameplayUI({
+  net,
+  onExit,
+}: {
+  /** 联机会话(房主或客人);缺省为单机 */
+  net?: { host?: NetHost; guest?: NetGuest };
+  onExit: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -220,6 +229,14 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
           el.textContent = emoji;
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
+      },
+      {
+        host: net?.host,
+        guest: net?.guest,
+        // 房主开的是新房间的岛,不用本地旧档
+        ...(net?.host
+          ? { seeds: { terrainSeed: net.host.terrainSeed, propsSeed: net.host.propsSeed }, save: null }
+          : {}),
       }
     );
     gameRef.current = game;

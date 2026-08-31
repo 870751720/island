@@ -190,6 +190,12 @@ export class CrateSystem {
     });
   }
 
+  /** 清空场上全部木箱(客人侧重放世界快照前调用) */
+  clear(): void {
+    for (const crate of this.crates) this.scene.remove(crate.group);
+    this.crates = [];
+  }
+
   /** 从存档恢复木箱(含箱内物品) */
   restore(
     list: { x: number; y: number; z: number; slots: InventorySlot[] }[]

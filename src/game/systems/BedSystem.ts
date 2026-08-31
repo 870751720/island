@@ -243,6 +243,12 @@ export class BedSystem {
     });
   }
 
+  /** 清空场上全部床(客人侧重放世界快照前调用) */
+  clear(): void {
+    for (const bed of this.beds) this.scene.remove(bed.group);
+    this.beds = [];
+  }
+
   /** 从存档恢复全部床(含等级) */
   restore(list: { x: number; y: number; z: number; level: number }[]): void {
     for (const b of list) {

@@ -306,6 +306,12 @@ export class WorkbenchSystem {
     });
   }
 
+  /** 清空场上全部工作台(客人侧重放世界快照前调用,制作标记保留) */
+  clear(): void {
+    for (const bench of this.benches) this.scene.remove(bench.group);
+    this.benches = [];
+  }
+
   /** 从存档恢复本局已制作过工作台的标记 */
   restoreCrafted(): void {
     this.crafted = true;
