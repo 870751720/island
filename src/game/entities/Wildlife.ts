@@ -140,6 +140,8 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
 };
 
 type Animal = {
+  /** 同步用短 id(房主递增分配,状态快照按 id 对应) */
+  id: number;
   species: AnimalSpecies;
   config: SpeciesConfig;
   model: ReturnType<(typeof ANIMAL_BUILDERS)[AnimalSpecies]>;
@@ -183,6 +185,7 @@ type Animal = {
 export class Wildlife implements Updatable {
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
+  private nextId = 1;
 
   constructor(
     scene: THREE.Scene,
@@ -211,6 +214,7 @@ export class Wildlife implements Updatable {
         this.group.add(model.group);
         const heading = rng() * Math.PI * 2;
         this.animals.push({
+          id: this.nextId++,
           species,
           config,
           model,

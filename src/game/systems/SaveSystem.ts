@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 25;
+export const SAVE_VERSION = 26;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -22,6 +22,17 @@ export type PropSave = {
   /** 玩家种下的树/放下的丛的落点坐标;自然生成的资源点没有该字段 */
   x?: number;
   z?: number;
+};
+
+/** 一名玩家的会话进度(位置/生存/背包/工具/穿戴);联机时房主为每个远程玩家各存一份 */
+export type SessionSave = {
+  player: { x: number; y: number; z: number };
+  survival: { hunger: number; thirst: number; health: number; stamina: number };
+  slots: InventorySlot[];
+  capacity: number;
+  tools: Partial<Record<ToolId, number>>;
+  equipped: Partial<Record<EquipSlot, EquipKind>>;
+  handTool: HandTool;
 };
 
 /** 火堆/工作台/掉落物等摆件的落点 */
@@ -63,6 +74,8 @@ export type SaveData = {
   dog?: { x: number; z: number };
   /** 小地图探索迷雾网格(按行展开的 0/1 数组,缺省视为全新探索) */
   fog?: number[];
+  /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */
+  others?: SessionSave[];
 };
 
 /** localStorage 存档:定期自动写入,死亡清档,下次进入恢复 */

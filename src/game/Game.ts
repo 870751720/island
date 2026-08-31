@@ -38,7 +38,7 @@ import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, type EquipKind, type EquipSlot } from './systems/Equipment';
-import { SaveSystem, SAVE_VERSION, type SaveData } from './systems/SaveSystem';
+import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -579,23 +579,10 @@ export class Game {
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
   private applySave(save: SaveData | null): void {
     if (!save) return;
-    const p = this.player.group.position;
-    p.set(save.player.x, save.player.y, save.player.z);
-    this.survival.state.hunger = save.survival.hunger;
-    this.survival.state.thirst = save.survival.thirst;
-    this.survival.state.health = save.survival.health;
-    this.survival.state.stamina = save.survival.stamina;
-    this.local.lastHealth = save.survival.health;
-    this.survival.state.dead = false;
-    this.inventory.load(save.slots, save.capacity);
-    this.equipment.restore(save.equipped, this.inventory);
-    // 恢复已拥有的工具(含等级)
-    for (const [id, tier] of Object.entries(save.tools)) {
-      if (tier > 0) this.tools[id as ToolId] = tier;
-    }
-    const tool = save.handTool;
-    if (tool === 'hand' || this.hasTool(tool)) {
-      this.player.setTool(tool);
+    this.applyPlayerSave(this.local, save);
+    // 联机存档:按接入顺序恢复房主保存的远程玩家会话
+    for (const other of save.others ?? []) {
+      this.applyPlayerSave(this.addRemoteSession(), other);
     }
     this.dayNight.time = save.dayTime;
     if (save.day) this.dayNight.day = save.day;
@@ -611,21 +598,50 @@ export class Game {
     if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
   }
 
-  /** 汇总当前进度为存档数据 */
-  private collectSave(): SaveData {
-    const p = this.player.group.position;
-    const s = this.survival.state;
+  /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */
+  private applyPlayerSave(session: PlayerSession, data: SessionSave): void {
+    const p = session.player.group.position;
+    p.set(data.player.x, data.player.y, data.player.z);
+    session.survival.state.hunger = data.survival.hunger;
+    session.survival.state.thirst = data.survival.thirst;
+    session.survival.state.health = data.survival.health;
+    session.survival.state.stamina = data.survival.stamina;
+    session.lastHealth = data.survival.health;
+    session.survival.state.dead = false;
+    session.inventory.load(data.slots, data.capacity);
+    session.equipment.restore(data.equipped, session.inventory);
+    // 恢复已拥有的工具(含等级)
+    for (const [id, tier] of Object.entries(data.tools)) {
+      if (tier > 0) session.tools[id as ToolId] = tier;
+    }
+    if (data.handTool === 'hand' || this.hasToolFor(session, data.handTool)) {
+      session.player.setTool(data.handTool);
+    }
+  }
+
+  /** 汇总一名玩家的会话进度为存档数据 */
+  private collectPlayerSave(session: PlayerSession): SessionSave {
+    const p = session.player.group.position;
+    const sv = session.survival.state;
     return {
+      player: { x: p.x, y: p.y, z: p.z },
+      survival: { hunger: sv.hunger, thirst: sv.thirst, health: sv.health, stamina: sv.stamina },
+      slots: session.inventory.snapshot(),
+      capacity: session.inventory.capacity,
+      tools: { ...session.tools },
+      equipped: session.equipment.snapshotForSave(),
+      handTool: session.player.currentTool,
+    };
+  }
+
+  /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存) */
+  private collectSave(): SaveData {
+    return {
+      ...this.collectPlayerSave(this.local),
+      others: this.sessions.slice(1).map((s) => this.collectPlayerSave(s)),
       version: SAVE_VERSION,
       terrainSeed: this.terrainSeed,
       propsSeed: this.propsSeed,
-      player: { x: p.x, y: p.y, z: p.z },
-      survival: { hunger: s.hunger, thirst: s.thirst, health: s.health, stamina: s.stamina },
-      slots: this.inventory.snapshot(),
-      capacity: this.inventory.capacity,
-      tools: { ...this.tools },
-      equipped: this.equipment.snapshotForSave(),
-      handTool: this.player.currentTool,
       dayTime: this.dayNight.time,
       day: this.dayNight.day,
       props: this.props.snapshot(),
