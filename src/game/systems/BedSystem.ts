@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import type { Player } from '../entities/Player';
 import { Bed, BED_MAX_LEVEL } from '../entities/Bed';
-import type { Inventory, ResourceKind } from './Inventory';
-import type { Tools } from './Crafting';
+import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import type { PlayerSession } from '../mp/PlayerSession';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const BED_BLOCK_RANGE = 1.1; // 与其他床重叠距离小于该值时无处摆放
@@ -30,8 +29,18 @@ export function bedItemLevel(kind: string): number | null {
   return level >= 1 && level <= BED_MAX_LEVEL ? level : null;
 }
 
+/** 每玩家的挖掘与睡觉进度(床是世界共享的,进度各自算) */
+type PlayerSessionState = {
+  swingTimer: number;
+  hits: number;
+  digTarget: Bed | null;
+  sleepTimer: number;
+  snoreTimer: number;
+  onWake: (() => void) | null;
+};
+
 /**
- * 床系统(可放置多个):
+ * 床系统(世界单实例,按发起者 actor 结算,可放置多个):
  * - 床在工作台制作(树枝×8 + 石头×2 + 绳线×2),背包里点「使用」放到脚下;
  * - 手持锄头靠近床站定可整张挖走,变成对应等级的床道具;
  * - 靠近床点工具按钮发起睡觉,过渡片刻后一觉跳到第二天清晨(结算由回调交给外层)。
@@ -39,27 +48,33 @@ export function bedItemLevel(kind: string): number | null {
 export class BedSystem {
   private beds: Bed[] = [];
   private scratch = new THREE.Vector3();
-  private swingTimer = 0;
-  private hits = 0;
-  private digTarget: Bed | null = null;
-  private sleepTimer = 0;
-  private snoreTimer = 0;
-  private onWake: (() => void) | null = null;
+  private states = new Map<PlayerSession, PlayerSessionState>();
 
   constructor(
     private scene: THREE.Scene,
-    private player: Player,
-    private inventory: Inventory,
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
     private audio: GameAudio,
-    private tools: Tools,
     /** 挖走床时道具入包(背包放不下的部分由该函数掉到地上) */
-    private give: (kind: ResourceKind, count: number) => number,
+    private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
-    private isOtherBusy: () => boolean = () => false
+    private isOtherBusy: (actor: PlayerSession) => boolean = () => false
   ) {}
+
+  private st(actor: PlayerSession): PlayerSessionState {
+    let st = this.states.get(actor);
+    if (!st) {
+      st = { swingTimer: 0, hits: 0, digTarget: null, sleepTimer: 0, snoreTimer: 0, onWake: null };
+      this.states.set(actor, st);
+    }
+    return st;
+  }
+
+  /** 移除会话时清理其个人进度;睡到一半断线由外层复活逻辑兜底 */
+  detach(actor: PlayerSession): void {
+    this.states.delete(actor);
+  }
 
   /** 场上所有床落点(小地图标记用) */
   get positions(): { x: number; z: number }[] {
@@ -67,13 +82,13 @@ export class BedSystem {
   }
 
   /** 玩家身旁最近的床(范围内的),无则 null */
-  get nearby(): Bed | null {
+  nearby(actor: PlayerSession): Bed | null {
     let best: Bed | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const bed of this.beds) {
       this.scratch.copy(bed.group.position);
-      this.scratch.y = this.player.group.position.y;
-      const d = this.scratch.distanceToSquared(this.player.group.position);
+      this.scratch.y = actor.player.group.position.y;
+      const d = this.scratch.distanceToSquared(actor.player.group.position);
       if (d < bestDist) {
         best = bed;
         bestDist = d;
@@ -83,24 +98,24 @@ export class BedSystem {
   }
 
   /** 正在睡觉(过渡阶段) */
-  get isSleeping(): boolean {
-    return this.sleepTimer > 0;
+  isSleeping(actor: PlayerSession): boolean {
+    return (this.states.get(actor)?.sleepTimer ?? 0) > 0;
   }
 
   /** 正在挖床 */
-  get isDigging(): boolean {
-    return !!this.digTarget;
+  isDigging(actor: PlayerSession): boolean {
+    return !!this.states.get(actor)?.digTarget;
   }
 
   /** 睡觉或挖掘中(占用,其他双手行为让位) */
-  get isBusy(): boolean {
-    return this.isSleeping || this.isDigging;
+  isBusy(actor: PlayerSession): boolean {
+    return this.isSleeping(actor) || this.isDigging(actor);
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他床占住) */
-  private canPlace(): boolean {
-    const p = this.player.group.position;
-    if (this.player.isSwimming) return false;
+  private canPlace(actor: PlayerSession): boolean {
+    const p = actor.player.group.position;
+    if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
     if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
     if (
@@ -115,61 +130,64 @@ export class BedSystem {
   }
 
   /** 背包里点击「使用」床道具:校验通过后在玩家脚下原地放下该等级的床 */
-  place(level: number): boolean {
-    if (this.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlace()) return false;
-    this.inventory.remove(BED_ITEM[level], 1);
-    this.beds.push(new Bed(this.scene, this.player.group.position, level));
+  place(actor: PlayerSession, level: number): boolean {
+    if (actor.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlace(actor)) return false;
+    actor.inventory.remove(BED_ITEM[level], 1);
+    this.beds.push(new Bed(this.scene, actor.player.group.position, level));
     this.audio.play('success');
-    const fxPos = this.player.group.position.clone();
+    const fxPos = actor.player.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#c9a15c', 10);
     return true;
   }
 
   /** 靠近床发起睡觉:玩家躺上床打呼,过渡中天空日夜流转;一旦睡下不可打断,睡满后回调 onWake 由外层结算 */
-  startSleep(onWake: () => void): boolean {
-    if (this.isBusy || !this.nearby) return false;
-    const bed = this.nearby;
+  startSleep(actor: PlayerSession, onWake: () => void): boolean {
+    if (this.isBusy(actor) || !this.nearby(actor)) return false;
+    const bed = this.nearby(actor)!;
+    const st = this.st(actor);
     // 躺平朝向:身体(头朝枕头,即床身 -X 方向)与床身对齐
     const beta = bed.group.rotation.y;
     const feet = bed.group.position.clone();
     feet.x += Math.cos(beta) * LIE_FEET_OFFSET;
     feet.z -= Math.sin(beta) * LIE_FEET_OFFSET;
     feet.y += LIE_HEIGHT;
-    this.player.setSleeping(feet, beta + Math.PI / 2);
-    this.onWake = onWake;
-    this.sleepTimer = 0.001;
-    this.snoreTimer = SNORE_TICK; // 入睡立刻先打一声呼
+    actor.player.setSleeping(feet, beta + Math.PI / 2);
+    st.onWake = onWake;
+    st.sleepTimer = 0.001;
+    st.snoreTimer = SNORE_TICK; // 入睡立刻先打一声呼
     return true;
   }
 
-  update(delta: number): void {
-    this.updateDig(delta);
-    if (!this.isSleeping) return;
+  /** 每帧推进该玩家的挖掘与睡觉 */
+  updateActor(actor: PlayerSession, delta: number): void {
+    const st = this.st(actor);
+    this.updateDig(actor, st, delta);
+    if (st.sleepTimer <= 0) return;
     // 一旦睡着就必须睡满,移动不会打断(睡觉期间输入被忽略)
-    this.sleepTimer += delta;
-    this.snoreTimer += delta;
-    if (this.snoreTimer >= SNORE_TICK) {
-      this.snoreTimer = 0;
+    st.sleepTimer += delta;
+    st.snoreTimer += delta;
+    if (st.snoreTimer >= SNORE_TICK) {
+      st.snoreTimer = 0;
       this.audio.play('snore');
     }
-    if (this.sleepTimer < SLEEP_TIME) return;
-    this.sleepTimer = 0;
-    this.player.wakeUp();
-    const wake = this.onWake;
-    this.onWake = null;
+    if (st.sleepTimer < SLEEP_TIME) return;
+    st.sleepTimer = 0;
+    actor.player.wakeUp();
+    const wake = st.onWake;
+    st.onWake = null;
     wake?.();
   }
 
   /** 手持锄头站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */
-  private updateDig(delta: number): void {
-    const p = this.player.group.position;
+  private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
+    const p = actor.player.group.position;
     let target: Bed | null = null;
     if (
-      this.player.currentTool === 'hoe' &&
-      !this.player.isSwimming &&
-      !this.isSleeping &&
-      !this.isOtherBusy()
+      actor.player.currentTool === 'hoe' &&
+      !actor.player.isSwimming &&
+      st.sleepTimer <= 0 &&
+      !this.isOtherBusy(actor)
     ) {
       for (const bed of this.beds) {
         this.scratch.copy(bed.group.position);
@@ -180,39 +198,41 @@ export class BedSystem {
         }
       }
     }
-    if (!target || this.player.isMoving) {
-      this.digTarget = null;
-      this.swingTimer = 0;
-      this.hits = 0;
+    if (!target || actor.player.isMoving) {
+      st.digTarget = null;
+      st.swingTimer = 0;
+      st.hits = 0;
       return;
     }
-    this.digTarget = target;
-    this.player.setAction('mine');
-    this.swingTimer += delta;
-    if (this.swingTimer < SWING_TIME) return;
-    this.swingTimer = 0;
+    st.digTarget = target;
+    actor.player.setAction('mine');
+    st.swingTimer += delta;
+    if (st.swingTimer < SWING_TIME) return;
+    st.swingTimer = 0;
     this.fx.burst(target.group.position, '#c9a15c', 6);
-    this.hits += 1;
-    if (this.hits < (this.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
-    this.hits = 0;
-    this.digTarget = null;
+    st.hits += 1;
+    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    st.hits = 0;
+    st.digTarget = null;
     this.beds.splice(this.beds.indexOf(target), 1);
     this.scene.remove(target.group);
-    this.give(BED_ITEM[target.level], 1);
+    this.give(BED_ITEM[target.level], 1, actor);
     this.audio.play('pickup');
     this.fx.burst(target.group.position, '#c9a15c', 14);
   }
 
   /** 当前挖床进度 0-1,未在挖掘时为 null */
-  getDigProgress(): number | null {
-    if (!this.digTarget) return null;
-    const need = this.tools.hoe >= 2 ? 1 : DIG_HITS;
-    return Math.min((this.hits + this.swingTimer / SWING_TIME) / need, 1);
+  getDigProgress(actor: PlayerSession): number | null {
+    const st = this.states.get(actor);
+    if (!st?.digTarget) return null;
+    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 
   /** 当前睡觉进度 0-1,未在睡觉时为 null */
-  getSleepProgress(): number | null {
-    return this.isSleeping ? Math.min(this.sleepTimer / SLEEP_TIME, 1) : null;
+  getSleepProgress(actor: PlayerSession): number | null {
+    const st = this.states.get(actor);
+    return st && st.sleepTimer > 0 ? Math.min(st.sleepTimer / SLEEP_TIME, 1) : null;
   }
 
   /** 当前所有床的存档快照(落点与等级) */

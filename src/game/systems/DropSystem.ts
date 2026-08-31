@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import type { Player } from '../entities/Player';
-import type { ResourceKind, Inventory } from './Inventory';
+import type { ResourceKind } from './Inventory';
+import type { Actor } from '../mp/Actor';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -27,6 +27,8 @@ export type DropSource = 'discarded' | 'loot' | 'overflow';
 export type DropInfo = { kind: ResourceKind; count: number; source: DropSource };
 
 type Drop = {
+  /** 同步用短 id(房主递增分配,拾取时按 id 通知客人移除) */
+  id: number;
   kind: ResourceKind;
   count: number;
   source: DropSource;
@@ -40,20 +42,20 @@ export class DropSystem {
   private drops: Drop[] = [];
   private scratch = new THREE.Vector3();
 
+  private nextId = 1;
+
   constructor(
     private scene: THREE.Scene,
-    private player: Player,
-    private inventory: Inventory,
     private terrain: IslandTerrain,
     private fx: Particles,
     private audio: GameAudio
   ) {}
 
   /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下) */
-  drop(kind: ResourceKind, count: number): void {
+  drop(kind: ResourceKind, count: number, actor: Actor): void {
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
-    const p = this.player.group.position;
+    const p = actor.player.group.position;
     this.spawn(
       kind,
       count,
@@ -64,10 +66,10 @@ export class DropSystem {
   }
 
   /** 背包放不下溢出到玩家附近(与主动丢弃区分来源) */
-  dropOverflow(kind: ResourceKind, count: number): void {
+  dropOverflow(kind: ResourceKind, count: number, actor: Actor): void {
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
-    const p = this.player.group.position;
+    const p = actor.player.group.position;
     this.spawn(
       kind,
       count,
@@ -87,7 +89,7 @@ export class DropSystem {
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
-    this.drops.push({ kind, count, source, mesh, age: 0, baseY });
+    this.drops.push({ id: this.nextId++, kind, count, source, mesh, age: 0, baseY });
     this.audio.play('drop');
   }
 
@@ -101,8 +103,8 @@ export class DropSystem {
   }
 
   /** 玩家附近可捡回的掉落物(丢弃后马上不可见,避免刚丢就提示) */
-  getNearby(): DropInfo | null {
-    const p = this.player.group.position;
+  getNearby(actor: Actor): DropInfo | null {
+    const p = actor.player.group.position;
     let nearest: Drop | null = null;
     for (const drop of this.drops) {
       if (drop.age < PICKUP_DELAY) continue;
@@ -114,14 +116,14 @@ export class DropSystem {
   }
 
   /** 捡回附近掉落物;背包放不下时返回 false(掉落物留在地上) */
-  pickupNearby(): boolean {
-    const p = this.player.group.position;
+  pickupNearby(actor: Actor): boolean {
+    const p = actor.player.group.position;
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
       if (drop.age < PICKUP_DELAY) continue;
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
-      if (this.inventory.add(drop.kind, drop.count) < drop.count) return false;
+      if (actor.inventory.add(drop.kind, drop.count) < drop.count) return false;
       this.audio.play('pickup');
       this.fx.burst(drop.mesh.position, DROP_COLORS[drop.kind], 8);
       this.remove(i);
@@ -203,7 +205,7 @@ export class DropSystem {
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
-      this.drops.push({ kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
+      this.drops.push({ id: this.nextId++, kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
     }
   }
 
