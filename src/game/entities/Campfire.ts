@@ -80,7 +80,7 @@ export class Campfire {
       this.fireRoot.add(flame);
     }
     this.group.add(this.fireRoot);
-    this.light = new THREE.PointLight('#ff9d2e', 1.4, 6, 1.5);
+    this.light = new THREE.PointLight('#ff9d2e', 1.4, 6, 1.2);
     this.light.position.y = 0.7;
     this.group.add(this.light);
 
@@ -122,9 +122,9 @@ export class Campfire {
     }
     // 灯光亮度与照射范围随燃料伸缩,濒熄时剧烈明灭
     const k = Math.min(this.fuel / FULL_FUEL, 1);
-    const wobble = low ? Math.sin(elapsed * 18) * 0.5 : Math.sin(elapsed * 10) * 0.15;
-    this.light.intensity = Math.max(0.3 + k * 1.7 + wobble, 0.1);
-    this.light.distance = 3.5 + k * 5.5;
+    const wobble = low ? Math.sin(elapsed * 18) * 0.9 : Math.sin(elapsed * 10) * 0.25;
+    this.light.intensity = Math.max(1.2 + k * 4.5 + wobble, 0.3);
+    this.light.distance = 4 + k * 8;
     this.updateSmoke(elapsed);
     if (this.fuel <= 0) this.extinguish();
     else this.applyStage();
