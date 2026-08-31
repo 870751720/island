@@ -43,3 +43,12 @@
 - `Game` 持有 `sessions[]`(下标 0 为 `local`),原 `player/survival/inventory/equipment/tools` 字段改为委托到本地会话的 getter,单机路径全部不变;新增 `addRemoteSession/removeRemoteSession/sessionOf`。
 - 帧循环遍历所有会话更新玩家实体;`Wildlife` 改为对最近玩家反应(感知/追击/扑击),熊命中按目标玩家所属会话结算(减伤、掉血、减速),伤害数字仅飘在本地玩家头顶。
 - 采集/制作/火堆等交互系统仍绑定本地玩家,按会话结算留待 M2;螃蟹/博美/蝴蝶/鸟仍跟随本地玩家,留待后续里程碑。
+
+### M2 状态收拢与实体 id(2026-08-31)
+
+- 新增 `src/game/mp/Actor.ts`(`Actor` 接口:player/inventory/survival/tools),`PlayerSession` 实现该接口,并挂上每会话独立的玩家侧交互系统实例(采集/制作/进食/钓鱼/弓/喝水,由 Game 的 `attachSessionSystems` 装配);受击音节流、死亡沿等个人计时也移入会话。
+- 世界侧系统(掉落物/木箱/床/火堆/工作台/围栏)保持世界单实例,但全部交互方法改为接收发起者 `PlayerSession` 参数,每玩家的搭建/烹饪/挖掘/睡觉/放置进度存系统内 `Map<PlayerSession, State>`;`updateActor` 按会话推进,`update` 只推进世界部分(火堆燃烧、门开合);围栏落点预览改为按会话各持一份;`detach` 在移除会话时清理。
+- `Game`:新增统一的 `isSessionBusy(session, exclude)` 占用判定(排除询问方自身);主循环按会话结算生存值/受击/死亡/交互;全部 HUD 按钮方法增加可选 `actor` 参数(默认本地会话),为 M3 房主代客人发起动作铺路;HUD/相机/头顶指示仍绑定本地会话。
+- 存档:`SAVE_VERSION` 升至 26(不兼容旧档,遵守无兼容约定);新增 `SessionSave` 结构,`SaveData.others` 保存联机时房主持有的远程玩家会话,恢复时按接入顺序重建远程会话。
+- 同步 id:掉落物(`DropSystem` 内 `nextId`)与野生动物(`Wildlife` 内 `nextId`,重生复用同一 id)补短 id;放置物(火堆/工作台/木箱/床/围栏)以落点坐标天然可对应,不加 id。
+- `WorldSync` 增量结构与权威随机收敛移至 M3(与 NetSession 消费方一起落地,避免先写无消费者的死代码);螃蟹/博美/蝴蝶/鸟仍跟随本地玩家,留待后续里程碑。
