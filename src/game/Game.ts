@@ -322,8 +322,8 @@ export class Game {
       this.scene,
       terrain,
       this.player,
-      // 围栏挡蟹:围栏闭合时螃蟹也出不去
-      (x, z) => this.fences.isBlocked(x, z)
+      // 挡玩家的物件也挡地上的动物(成树/树桩/大石/围栏),鸟和蝴蝶会飞不受限
+      (x, z) => this.isGroundBlocked(x, z)
     );
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
     this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
@@ -346,8 +346,8 @@ export class Game {
         );
       },
       () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping,
-      // 围栏挡动物:围栏闭合时兔/羊/鹿/熊被圈住出不去
-      (x, z) => this.fences.isBlocked(x, z)
+      // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走
+      (x, z) => this.isGroundBlocked(x, z)
     );
     // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
     this.dog = new Pomeranian(
@@ -355,7 +355,7 @@ export class Game {
       terrain,
       this.player,
       this.fx,
-      (x, z) => this.fences.isBlocked(x, z)
+      (x, z) => this.isGroundBlocked(x, z)
     );
     this.water = new WaterSystem(this.player, terrain, this.survival, this.audio);
     this.indicator = new PlayerIndicator(this.camera, this.scene);
@@ -831,6 +831,11 @@ export class Game {
       this.camera.bottom = -VIEW_SIZE;
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  /** 地上生物的不可走判定:围栏与所有会挡玩家的物件(成树/树桩/大石) */
+  private isGroundBlocked(x: number, z: number): boolean {
+    return this.fences.isBlocked(x, z) || this.props.isBlocked(x, z);
   }
 
   /** 相机以固定偏移跟随角色 */

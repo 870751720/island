@@ -24,7 +24,7 @@ type SpeciesConfig = {
   rushSpeed: number;
   /** 玩家靠到这个距离内触发逃跑/追击 */
   senseRange: number;
-  /** 熊追击丢失玩家后回到游荡的距离 */
+  /** 警戒平息距离:玩家离到这个距离外才恢复游荡(应大于 senseRange,形成迟滞) */
   deaggroRange: number;
   /** 熊的扑击距离与伤害 */
   attackRange: number;
@@ -44,7 +44,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     walkSpeed: 1.2,
     rushSpeed: 3.4,
     senseRange: 2.6,
-    deaggroRange: 0,
+    deaggroRange: 3.6,
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
@@ -61,7 +61,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     walkSpeed: 0.9,
     rushSpeed: 2.4,
     senseRange: 3,
-    deaggroRange: 0,
+    deaggroRange: 4.2,
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
@@ -78,7 +78,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     walkSpeed: 1.4,
     rushSpeed: 3.6,
     senseRange: 3.4,
-    deaggroRange: 0,
+    deaggroRange: 4.8,
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
@@ -124,6 +124,10 @@ type Animal = {
   attackLeft: number;
   /** 扑击动画计时(>0 时头部前顶) */
   lungeLeft: number;
+  /** 草食动物的受惊状态(带迟滞,避免在警戒边界反复切换) */
+  alerted: boolean;
+  /** 展示朝向(向逻辑朝向平滑过渡,避免状态切换时硬切) */
+  viewHeading: number;
 };
 
 /**
@@ -154,13 +158,14 @@ export class Wildlife implements Updatable {
         const model = ANIMAL_BUILDERS[species]();
         model.group.position.copy(spawn);
         this.group.add(model.group);
+        const heading = rng() * Math.PI * 2;
         this.animals.push({
           species,
           config,
           model,
           pos: spawn.clone(),
           target: spawn.clone(),
-          heading: rng() * Math.PI * 2,
+          heading,
           walkTime: 0,
           idleTime: rng() * 4,
           phase: rng() * Math.PI * 2,
@@ -169,6 +174,8 @@ export class Wildlife implements Updatable {
           respawnLeft: 0,
           attackLeft: 0,
           lungeLeft: 0,
+          alerted: false,
+          viewHeading: heading,
         });
       }
     }
@@ -245,9 +252,14 @@ export class Wildlife implements Updatable {
       }
       const dist = Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z);
       const hostile = animal.species === 'bear';
-      const rushed = hostile
-        ? dist < animal.config.deaggroRange && (dist < animal.config.senseRange || animal.hp < animal.config.hp) && vulnerable
-        : dist < animal.config.senseRange;
+      // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动
+      if (dist < animal.config.senseRange) animal.alerted = true;
+      else if (dist > animal.config.deaggroRange) animal.alerted = false;
+      // 受伤的熊即使玩家超出感知半径也会记仇反扑
+      if (hostile && animal.hp < animal.config.hp && dist < animal.config.deaggroRange) {
+        animal.alerted = true;
+      }
+      const rushed = animal.alerted && vulnerable;
 
       animal.walkTime += delta;
       animal.attackLeft = Math.max(0, animal.attackLeft - delta);
@@ -263,7 +275,10 @@ export class Wildlife implements Updatable {
           this.onPlayerHit(animal.config.damage);
         }
       } else if (rushed) {
-        // 逃跑(草食)/ 追击(熊):沿与玩家相对方向全速移动
+        // 逃跑(草食)/ 追击(熊):沿与玩家相对方向全速移动;清掉游荡目标,平息后重新选路
+        animal.target.copy(animal.pos);
+        animal.idleTime = 0;
+        animal.walkTime = 0;
         const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
         const angle = hostile ? away + Math.PI : away;
         moving = this.step(animal, angle, animal.config.rushSpeed, delta);
@@ -282,12 +297,12 @@ export class Wildlife implements Updatable {
         if (!moving) animal.walkTime = 9;
       }
 
-      this.animate(animal, elapsed, moving, rushed);
+      this.animate(animal, delta, elapsed, moving, rushed);
     }
   }
 
-  /** 应用位置朝向;移动时对角迈腿,受惊/追击时加快频率,熊扑击时头部前顶 */
-  private animate(animal: Animal, elapsed: number, moving: boolean, excited: boolean): void {
+  /** 应用位置朝向;朝向平滑转向目标角,移动时对角迈腿,受惊/追击时加快频率,熊扑击时头部前顶 */
+  private animate(animal: Animal, delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
     // 兔子蹦着走:移动时整体做抛物线小跳,四腿收起
@@ -295,8 +310,13 @@ export class Wildlife implements Updatable {
     if (hop && moving) {
       g.position.y += Math.abs(Math.sin(elapsed * (excited ? 13 : 8) + animal.phase)) * 0.24;
     }
-    // 模型面朝 +Z,朝向按移动方向角换算
-    g.rotation.y = Math.PI / 2 - animal.heading;
+    // 模型面朝 +Z,朝向按移动方向角换算;沿最短弧平滑转向,避免状态切换时硬切
+    const diff = Math.atan2(
+      Math.sin(animal.heading - animal.viewHeading),
+      Math.cos(animal.heading - animal.viewHeading)
+    );
+    animal.viewHeading += diff * Math.min(1, delta * 12);
+    g.rotation.y = Math.PI / 2 - animal.viewHeading;
 
     const speed = moving ? (excited ? 12 : 6) : 0;
     animal.model.legs.forEach((leg, i) => {
@@ -373,6 +393,8 @@ export class Wildlife implements Updatable {
     animal.target.copy(spot);
     animal.idleTime = 0;
     animal.walkTime = 0;
+    animal.alerted = false;
+    animal.viewHeading = animal.heading;
     animal.alive = true;
     animal.model.group.visible = true;
   }

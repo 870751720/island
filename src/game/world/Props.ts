@@ -645,13 +645,20 @@ export class Props implements Updatable {
     }
   }
 
+  /** 物件的阻挡半径(成树、树桩与大石),不阻挡的返回 0 */
+  private blockRadiusOf(prop: Prop): number {
+    const blockR = BLOCK_RADIUS[prop.kind];
+    // 幼树不阻挡;树被砍倒(整体隐藏)或大石被采空后不再阻挡;树桩仍阻挡
+    if (prop.kind === 'tree' && prop.growth !== 'mature' && prop.stage !== 'stump') return 0;
+    if (!blockR || !prop.group.visible) return 0;
+    return blockR;
+  }
+
   /** 将圆形实体沿 XZ 推出有阻挡的物件(成树、树桩与大石),原地修改位置 */
   resolveCollision(p: THREE.Vector3, radius: number): void {
     for (const prop of this.list) {
-      const blockR = BLOCK_RADIUS[prop.kind];
-      // 幼树不阻挡;树被砍倒(整体隐藏)或大石被采空后不再阻挡;树桩仍阻挡
-      if (prop.kind === 'tree' && prop.growth !== 'mature' && prop.stage !== 'stump') continue;
-      if (!blockR || !prop.group.visible) continue;
+      const blockR = this.blockRadiusOf(prop);
+      if (!blockR) continue;
       const dx = p.x - prop.position.x;
       const dz = p.z - prop.position.z;
       const min = blockR + radius;
@@ -661,6 +668,19 @@ export class Props implements Updatable {
       p.x += dx * push;
       p.z += dz * push;
     }
+  }
+
+  /** 动物绕行判定:点在任一有阻挡物件的半径内即视为不可走 */
+  isBlocked(x: number, z: number, radius = 0.3): boolean {
+    for (const prop of this.list) {
+      const blockR = this.blockRadiusOf(prop);
+      if (!blockR) continue;
+      const dx = x - prop.position.x;
+      const dz = z - prop.position.z;
+      const min = blockR + radius;
+      if (dx * dx + dz * dz < min * min) return true;
+    }
+    return false;
   }
 
   /** 命中时的受击晃动,持续衰减 */
