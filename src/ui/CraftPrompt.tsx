@@ -12,6 +12,7 @@ import {
 } from '@/game/systems/Crafting';
 import { CAMPFIRE_COST, CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
 import { costLabel } from './materials';
+import { fadeStyle } from './fade';
 
 /** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
 type PromptCard = {
@@ -81,6 +82,7 @@ export function CraftPrompt({
         top: '50%',
         transform: 'translateY(-50%)',
         fontFamily: 'sans-serif',
+        ...fadeStyle(hud.busy),
       }}
     >
       <button

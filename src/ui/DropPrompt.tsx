@@ -2,6 +2,7 @@
 
 import type { HudSnapshot } from '@/game/Game';
 import { ITEMS } from '@/game/systems/Items';
+import { fadeStyle } from './fade';
 
 /** 玩家靠近地面掉落物时在左侧弹出的「捡回」卡片,点击后拾回背包 */
 export function DropPrompt({ hud, onPickup }: { hud: HudSnapshot; onPickup: () => void }) {
@@ -34,6 +35,7 @@ export function DropPrompt({ hud, onPickup }: { hud: HudSnapshot; onPickup: () =
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+        ...fadeStyle(hud.busy),
       }}
     >
       <span style={{ fontSize: 26 }}>{item.icon}</span>

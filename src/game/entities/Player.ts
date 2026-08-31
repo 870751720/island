@@ -282,6 +282,8 @@ export class Player implements Updatable {
   private obstacles: ObstacleSolver[] = [];
   /** 躺床睡觉的目标姿态(非空表示睡着:位置/朝向由睡眠姿态接管) */
   private sleepPose: { pos: THREE.Vector3; rotY: number; returnPos: THREE.Vector3 } | null = null;
+  /** 已死亡:倒地姿态接管,忽略一切输入 */
+  private dead = false;
   /** 衣服/裤子各占一个独立材质,装备时改色 */
   private torsoMaterial!: THREE.MeshStandardMaterial;
   private legMaterial!: THREE.MeshStandardMaterial;
@@ -449,6 +451,14 @@ export class Player implements Updatable {
     this.hurtFlash = HURT_FLASH_TIME;
   }
 
+  /** 死亡:取消作业/睡眠姿态并倒地,之后不再响应输入 */
+  setDead(): void {
+    this.dead = true;
+    this.action = null;
+    this.sleepPose = null;
+    for (const model of Object.values(this.toolModels)) model!.visible = false;
+  }
+
   /** 减速 debuff:被熊扑中时施加,期间移动速度减半 */
   applySlow(duration: number): void {
     this.slowLeft = Math.max(this.slowLeft, duration);
@@ -463,6 +473,10 @@ export class Player implements Updatable {
         const mat = (o as THREE.Mesh).material;
         if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setRGB(0.9 * k, 0.05 * k, 0.03 * k);
       });
+    }
+    if (this.dead) {
+      this.updateDead(delta);
+      return;
     }
     if (this.sleepPose) {
       this.updateSleep(delta, elapsed);
@@ -536,6 +550,17 @@ export class Player implements Updatable {
         }
       }
     }
+  }
+
+  /** 死亡姿态:原地向前扑倒侧躺,四肢摊开,之后每帧只保持贴地 */
+  private updateDead(delta: number): void {
+    this.moving = false;
+    const k = 1 - Math.pow(0.002, delta);
+    this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, Math.PI / 2, k);
+    this.group.rotation.z = THREE.MathUtils.lerp(this.group.rotation.z, 0.3, k);
+    const p = this.group.position;
+    p.y = this.terrain.getHeight(p.x, p.z);
+    for (const arm of this.arms) arm.rotation.x = THREE.MathUtils.lerp(arm.rotation.x, 0.5, k);
   }
 
   /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;睡下后输入被忽略,直到睡满 */

@@ -2,6 +2,7 @@
 
 import type { HudSnapshot } from '@/game/Game';
 import { firstFoodIn } from '@/game/systems/Food';
+import { fadeStyle } from './fade';
 
 /** 饥饿低于 50% 且背包有食物时弹出的进食卡片,点击吃背包里最前面的食物 */
 export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void }) {
@@ -34,6 +35,7 @@ export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void 
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+        ...fadeStyle(hud.busy),
       }}
     >
       <span style={{ fontSize: 26 }}>{food.icon}</span>
