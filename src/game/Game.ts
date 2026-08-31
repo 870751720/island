@@ -142,7 +142,6 @@ export type PickupToast = { items: { icon: string; count: number }[]; x: number;
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
-const IDLE_FADE_DELAY = 0.5; // 停止移动/交互多久后 HUD 才开始淡入(秒)
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -175,8 +174,6 @@ export class Game {
   /** 上次推送的 busy 状态,变化时立即推送让按钮淡出更跟手 */
   private lastBusy = false;
   private lastBiteClicks = 0;
-  /** 连续静止且无交互的时长:HUD 淡入要等它达到 IDLE_FADE_DELAY */
-  private idleTime = 0;
   private fishing: FishingSystem;
   private archery: BowSystem;
   private drops: DropSystem;
@@ -1333,10 +1330,7 @@ export class Game {
       fishingState === 'bite' && this.fishing.biteClicks !== this.lastBiteClicks;
     this.lastFishingState = fishingState;
     this.lastBiteClicks = this.fishing.biteClicks;
-    // 淡出跟随迟滞:交互/移动中立刻视为 busy,停下后需连续空闲 0.5s 才解除
-    const active = this.isPlayerBusy;
-    this.idleTime = active ? 0 : this.idleTime + delta;
-    const busy = active || this.idleTime < IDLE_FADE_DELAY;
+    const busy = this.isPlayerBusy;
     const busyChanged = busy !== this.lastBusy;
     this.lastBusy = busy;
     if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged) return;
@@ -1405,11 +1399,10 @@ export class Game {
     });
   }
 
-  /** 玩家正在移动或处于任一交互进行中:HUD 据此淡出设置/地图/背包/工具按钮与弹出卡片
+  /** 玩家处于任一交互进行中:HUD 据此淡出设置/地图/背包/工具按钮与弹出卡片(仅移动不淡出)
    * 各交互(采集/制作/挖除/吃喝/钓鱼/拉弓等)都会设置玩家的作业动画,统一用 isActing 判定 */
   private get isPlayerBusy(): boolean {
     return (
-      this.player.isMoving ||
       this.player.isActing ||
       this.beds.isBusy ||
       this.fishing.currentState !== null
