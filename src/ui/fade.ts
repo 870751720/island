@@ -2,7 +2,7 @@
  * HUD 按钮/弹出卡片「忙碌时淡出」的共享过渡样式:
  * 只用透明度过渡(不加位移/缩放,避免与按钮自身的 transform 冲突),
  * 淡出后同时禁用点击,避免半透明按钮误触。
- * busy 仅由交互(作业/钓鱼等)触发,纯移动不淡出(见 Game.isPlayerBusy)。
+ * 玩家移动/交互中 HUD 立即显示,连续闲置 5s 后才淡出(见 Game.pushHud)。
  */
 export function fadeStyle(hidden: boolean): {
   opacity: number;
