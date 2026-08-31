@@ -4,12 +4,13 @@ function clay(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
 
-/** 四足动物模型的动画部件:腿根在髋部(绕 X 轴摆动),头颈可点动 */
+/** 四足动物模型的动画部件:腿根在髋部(绕 X 轴摆动),头颈可点动;eyes 供熊暴怒变红眼 */
 export type AnimalModel = {
   group: THREE.Group;
   legs: THREE.Mesh[];
   head: THREE.Object3D;
   tail: THREE.Object3D;
+  eyes?: THREE.Mesh[];
 };
 
 /** 一条腿:锥形杆从髋部垂下,根部落在一端以便摆动;thickness 调整粗细(鹿等纤腿动物 < 1) */
@@ -219,10 +220,16 @@ function makeBearModel(): AnimalModel {
   const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), dark);
   nose.position.set(0, 0, 0.29);
   headPivot.add(nose);
+  const eyes: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
     const ear = new THREE.Mesh(new THREE.SphereGeometry(0.07, 5, 4), fur);
     ear.position.set(side * 0.15, 0.18, 0);
     headPivot.add(ear);
+    // 独立材质的眼睛:暴怒时整副换成红色发光
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), clay('#2a2018'));
+    eye.position.set(side * 0.12, 0.06, 0.17);
+    headPivot.add(eye);
+    eyes.push(eye);
   }
   group.add(headPivot);
 
@@ -239,7 +246,7 @@ function makeBearModel(): AnimalModel {
   tail.position.set(0, 0.62, -0.58);
   group.add(tail);
 
-  return { group, legs, head: headPivot, tail };
+  return { group, legs, head: headPivot, tail, eyes };
 }
 
 export const ANIMAL_BUILDERS = {

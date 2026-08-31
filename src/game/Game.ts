@@ -346,9 +346,19 @@ export class Game {
         );
       },
       () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping,
+      // 熊的咆哮/扑击扬尘等粒子与音效
+      this.fx,
+      (name) => this.audio.play(name),
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走
       (x, z) => this.isGroundBlocked(x, z)
     );
+    // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
+    this.audio.onSfx = (name) => {
+      if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
+        const pos = this.player.group.position;
+        this.wildlife.startle(pos.x, pos.z);
+      }
+    };
     // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
     this.dog = new Pomeranian(
       this.scene,

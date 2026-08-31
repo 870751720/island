@@ -3,6 +3,8 @@ import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from '../world/IslandTerrain';
 import { ANIMAL_BUILDERS } from './WildlifeModels';
 import type { ResourceKind } from '../systems/Inventory';
+import type { Particles } from '../fx/Particles';
+import type { SfxName } from '../audio/Sfx';
 
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'bear';
 
@@ -14,6 +16,31 @@ const GRASS_MIN = 0.16;
 /** 玩家死后 / 游泳时不再触发受击与追击 */
 const DAY_RESPAWN = 40;
 const BEAR_RESPAWN = 90;
+
+// —— 熊的威胁行为参数 ——
+/** 力竭后的追击速度:明显慢于玩家步行,给玩家拉开距离的窗口 */
+const BEAR_TIRED_SPEED = 1.1;
+/** 冲刺体力上限(秒):追击时按秒耗,耗尽力竭掉速 */
+const BEAR_SPRINT_TIME = 4.5;
+/** 非追击时的体力恢复速率(倍) */
+const BEAR_STAMINA_REGEN = 1.5;
+/** 中箭后的暴怒时长与速度加成:远程偷袭会立刻招致反扑 */
+const BEAR_RAGE_TIME = 5;
+const BEAR_RAGE_BONUS = 0.5;
+/** 扑击窗口:玩家进入该距离内且冷却好则人立蓄力后腾跃扑击 */
+const BEAR_POUNCE_MAX = 3.4;
+const BEAR_POUNCE_WINDUP = 0.38;
+const BEAR_POUNCE_LEAP = 0.32;
+const BEAR_POUNCE_SPEED = 9;
+const BEAR_POUNCE_RECOVER = 0.9;
+const BEAR_POUNCE_LAND_RANGE = 1.6;
+/** 玩家劳作/放箭的噪音惊动半径 */
+const NOISE_RANGE = 9;
+/** 落地尘土 / 冲刺扬尘的颜色 */
+const DUST_COLOR = '#b3a284';
+
+/** 熊扑击的三段状态:人立蓄力 → 腾跃 → 落地硬直 */
+type BearPounce = { phase: 'windup' | 'leap' | 'recover'; left: number; dir: number };
 
 type SpeciesConfig = {
   label: string;
@@ -93,9 +120,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     label: '熊',
     count: 1,
     walkSpeed: 0.8,
-    rushSpeed: 2.4,
-    senseRange: 5,
-    deaggroRange: 12,
+    /** 追击冲刺速度:略快于玩家步行,必须靠耐力机制给出喘息窗口 */
+    rushSpeed: 3.9,
+    senseRange: 7,
+    deaggroRange: 13,
     attackRange: 1.3,
     damage: 15,
     attackCooldown: 1.6,
@@ -128,6 +156,19 @@ type Animal = {
   alerted: boolean;
   /** 展示朝向(向逻辑朝向平滑过渡,避免状态切换时硬切) */
   viewHeading: number;
+  // —— 熊专属状态(其他物种恒为初始值) ——
+  /** 追击冲刺的剩余体力(秒),耗尽力竭掉速,非追击时恢复 */
+  stamina: number;
+  /** 中箭后的暴怒剩余时长:加速追击 + 红眼 */
+  rageLeft: number;
+  /** 咆哮动画与音效的剩余时长(进入警戒/暴怒时触发) */
+  roarLeft: number;
+  /** 是否已播放过本次警戒的咆哮(上升沿检测) */
+  roared: boolean;
+  /** 扑击进行中的状态(未扑击时为 null) */
+  pounce: BearPounce | null;
+  /** 冲刺扬尘的发射计时 */
+  dustLeft: number;
 };
 
 /**
@@ -146,6 +187,10 @@ export class Wildlife implements Updatable {
     private onPlayerHit: (damage: number) => void,
     /** 玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: () => boolean,
+    /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
+    private fx: Particles,
+    /** 播放音效(熊咆哮/扑击破空) */
+    private playSound: (name: SfxName) => void,
     /** 围栏等静态阻挡:点在阻挡内时动物不可走(围栏闭合即被圈住) */
     private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random
@@ -176,6 +221,12 @@ export class Wildlife implements Updatable {
           lungeLeft: 0,
           alerted: false,
           viewHeading: heading,
+          stamina: BEAR_SPRINT_TIME,
+          rageLeft: 0,
+          roarLeft: 0,
+          roared: false,
+          pounce: null,
+          dustLeft: 0,
         });
       }
     }
@@ -264,10 +315,46 @@ export class Wildlife implements Updatable {
       animal.walkTime += delta;
       animal.attackLeft = Math.max(0, animal.attackLeft - delta);
       animal.lungeLeft = Math.max(0, animal.lungeLeft - delta);
+      animal.rageLeft = Math.max(0, animal.rageLeft - delta);
+      animal.roarLeft = Math.max(0, animal.roarLeft - delta);
+      // 进入警戒的上升沿:熊仰头咆哮警告(吼声 + 口鼻扬尘),食草动物无声逃窜
+      if (hostile && animal.alerted && !animal.roared) this.roar(animal);
+      if (!animal.alerted) animal.roared = false;
+      // 玩家脱离追击(死亡/游泳/平息)时中止进行中的扑击
+      if (!rushed) animal.pounce = null;
 
       let moving = false;
-      if (rushed && hostile && dist <= animal.config.attackRange) {
-        // 扑击:面向玩家原地挥击,冷却好才真正造成伤害
+      if (hostile && animal.pounce) {
+        // 扑击三段:人立蓄力(留侧闪窗口)→ 朝锁定方向腾跃 → 落地结算伤害并硬直
+        const pounce = animal.pounce;
+        pounce.left -= delta;
+        animal.target.copy(animal.pos);
+        animal.idleTime = 0;
+        animal.walkTime = 0;
+        if (pounce.phase === 'windup') {
+          animal.heading = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
+          if (pounce.left <= 0) {
+            pounce.phase = 'leap';
+            pounce.left = BEAR_POUNCE_LEAP;
+            pounce.dir = animal.heading;
+            this.playSound('whoosh');
+          }
+        } else if (pounce.phase === 'leap') {
+          moving = this.step(animal, pounce.dir, BEAR_POUNCE_SPEED, delta);
+          if (pounce.left <= 0 || !moving) {
+            this.fx.burst(animal.pos.clone(), DUST_COLOR, 10);
+            if (vulnerable && Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) <= BEAR_POUNCE_LAND_RANGE) {
+              animal.lungeLeft = 0.35;
+              this.onPlayerHit(animal.config.damage);
+            }
+            pounce.phase = 'recover';
+            pounce.left = BEAR_POUNCE_RECOVER;
+          }
+        } else if (pounce.left <= 0) {
+          animal.pounce = null;
+        }
+      } else if (rushed && hostile && dist <= animal.config.attackRange) {
+        // 近身挥击:面向玩家原地挥击,冷却好才真正造成伤害
         animal.heading = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
         if (animal.attackLeft <= 0) {
           animal.attackLeft = animal.config.attackCooldown;
@@ -275,26 +362,53 @@ export class Wildlife implements Updatable {
           this.onPlayerHit(animal.config.damage);
         }
       } else if (rushed) {
-        // 逃跑(草食)/ 追击(熊):沿与玩家相对方向全速移动;清掉游荡目标,平息后重新选路
+        // 逃跑(草食)/ 追击(熊):清掉游荡目标,平息后重新选路
         animal.target.copy(animal.pos);
         animal.idleTime = 0;
         animal.walkTime = 0;
         const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
         const angle = hostile ? away + Math.PI : away;
-        moving = this.step(animal, angle, animal.config.rushSpeed, delta);
-      } else if (animal.idleTime > 0) {
-        animal.idleTime -= delta;
-      } else if (animal.walkTime > 8 || animal.pos.distanceToSquared(animal.target) < 0.04) {
-        animal.idleTime = 1 + Math.random() * 4;
-        animal.walkTime = 0;
-        if (!this.pickTarget(animal, Math.random)) animal.walkTime = 9;
+        let speed = animal.config.rushSpeed;
+        if (hostile) {
+          if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
+            // 扑击窗口:中距离人立蓄力后腾跃,伴随咆哮威慑
+            animal.attackLeft = animal.config.attackCooldown;
+            animal.pounce = { phase: 'windup', left: BEAR_POUNCE_WINDUP, dir: 0 };
+            this.roar(animal);
+          } else {
+            // 冲刺体力按秒耗,耗尽力竭掉速喘息;暴怒期额外加速;冲刺身后扬尘
+            animal.stamina -= delta;
+            if (animal.stamina <= 0) {
+              speed = BEAR_TIRED_SPEED;
+            } else {
+              if (animal.rageLeft > 0) speed += BEAR_RAGE_BONUS;
+              animal.dustLeft -= delta;
+              if (animal.dustLeft <= 0) {
+                animal.dustLeft = 0.22;
+                this.fx.burst(animal.pos.clone(), DUST_COLOR, 2);
+              }
+            }
+            moving = this.step(animal, angle, speed, delta);
+          }
+        } else {
+          moving = this.step(animal, angle, speed, delta);
+        }
       } else {
-        const angle = Math.atan2(
-          animal.target.z - animal.pos.z,
-          animal.target.x - animal.pos.x
-        );
-        moving = this.step(animal, angle, animal.config.walkSpeed, delta);
-        if (!moving) animal.walkTime = 9;
+        animal.stamina = Math.min(BEAR_SPRINT_TIME, animal.stamina + delta * BEAR_STAMINA_REGEN);
+        if (animal.idleTime > 0) {
+          animal.idleTime -= delta;
+        } else if (animal.walkTime > 8 || animal.pos.distanceToSquared(animal.target) < 0.04) {
+          animal.idleTime = 1 + Math.random() * 4;
+          animal.walkTime = 0;
+          if (!this.pickTarget(animal, Math.random)) animal.walkTime = 9;
+        } else {
+          const angle = Math.atan2(
+            animal.target.z - animal.pos.z,
+            animal.target.x - animal.pos.x
+          );
+          moving = this.step(animal, angle, animal.config.walkSpeed, delta);
+          if (!moving) animal.walkTime = 9;
+        }
       }
 
       this.animate(animal, delta, elapsed, moving, rushed);
@@ -325,12 +439,71 @@ export class Wildlife implements Updatable {
       const swing = Math.sin(elapsed * speed + animal.phase + pair);
       leg.rotation.x = moving && !hop ? swing * 0.6 : 0;
     });
-    // 头颈:平时轻晃,熊扑击瞬间向前顶
-    const bob = animal.lungeLeft > 0 ? 0.28 : Math.sin(elapsed * 2 + animal.phase) * 0.04;
+    // 头颈:平时轻晃,近身挥击瞬间向前顶
+    let bob = animal.lungeLeft > 0 ? 0.28 : Math.sin(elapsed * 2 + animal.phase) * 0.04;
+    let headPitch = animal.lungeLeft > 0 ? -0.4 : 0;
+    if (animal.species === 'bear') {
+      // 身体俯仰:扑击蓄力人立后仰 → 腾跃前倾 → 落地硬直低伏 → 冲刺轻前倾 → 力竭喘息下沉
+      const pounce = animal.pounce;
+      let pitch = 0;
+      if (pounce?.phase === 'windup') {
+        pitch = -0.45;
+        headPitch = 0.35;
+        bob = 0.06;
+        // 人立蓄力:前肢扬起
+        animal.model.legs[0].rotation.x = -1.1;
+        animal.model.legs[1].rotation.x = -1.1;
+      } else if (pounce?.phase === 'leap') {
+        pitch = 0.35;
+        headPitch = -0.5;
+      } else if (pounce?.phase === 'recover') {
+        pitch = 0.12;
+        headPitch = 0.3;
+        bob = -0.08;
+      } else if (animal.roarLeft > 0) {
+        // 咆哮:昂首上仰
+        headPitch = 0.5;
+        bob = 0.1;
+      } else if (excited && animal.stamina <= 0) {
+        // 力竭:垂头喘气,身体随呼吸起伏
+        headPitch = 0.32;
+        pitch = 0.08 + Math.sin(elapsed * 6) * 0.02;
+      } else if (excited && moving && animal.stamina > 0) {
+        pitch = 0.12;
+      }
+      g.rotation.x = pitch;
+      // 暴怒红眼(发亮),平时深色小眼
+      const rage = animal.rageLeft > 0;
+      animal.model.eyes?.forEach((eye) => {
+        const mat = eye.material as THREE.MeshStandardMaterial;
+        mat.color.set(rage ? '#ff4438' : '#2a2018');
+        mat.emissive.set(rage ? '#8c1a10' : '#000000');
+      });
+    }
     animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : 0.4) + bob;
-    animal.model.head.rotation.x = animal.lungeLeft > 0 ? -0.4 : 0;
+    animal.model.head.rotation.x = headPitch;
     // 尾巴轻摆
     animal.model.tail.rotation.y = Math.sin(elapsed * 3 + animal.phase) * 0.3;
+  }
+
+  /** 熊咆哮:吼声 + 口鼻扬尘 + 昂首动画(警戒/暴怒/扑击蓄力时触发) */
+  private roar(animal: Animal): void {
+    animal.roared = true;
+    animal.roarLeft = 0.6;
+    const head = animal.pos.clone();
+    head.x += Math.cos(animal.heading) * 0.6;
+    head.z += Math.sin(animal.heading) * 0.6;
+    head.y += 1.1;
+    this.fx.burst(head, '#a08b6f', 6);
+    this.playSound('roar');
+  }
+
+  /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离) */
+  startle(x: number, z: number, range = NOISE_RANGE): void {
+    for (const animal of this.animals) {
+      if (!animal.alive) continue;
+      if (Math.hypot(x - animal.pos.x, z - animal.pos.z) < range) animal.alerted = true;
+    }
   }
 
   /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌 */
@@ -369,7 +542,15 @@ export class Wildlife implements Updatable {
     }
     if (!best) return null;
     best.hp -= damage;
-    if (best.hp > 0) return 'hit';
+    if (best.hp > 0) {
+      // 熊中箭未死:立刻无视距离锁定玩家并暴怒(加速 + 红眼 + 咆哮),远程偷袭有代价
+      if (best.species === 'bear') {
+        best.alerted = true;
+        best.rageLeft = BEAR_RAGE_TIME;
+        this.roar(best);
+      }
+      return 'hit';
+    }
     const species = best.species;
     best.alive = false;
     best.respawnLeft = best.config.respawn;
@@ -395,6 +576,11 @@ export class Wildlife implements Updatable {
     animal.walkTime = 0;
     animal.alerted = false;
     animal.viewHeading = animal.heading;
+    animal.stamina = BEAR_SPRINT_TIME;
+    animal.rageLeft = 0;
+    animal.roarLeft = 0;
+    animal.roared = false;
+    animal.pounce = null;
     animal.alive = true;
     animal.model.group.visible = true;
   }

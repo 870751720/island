@@ -20,6 +20,7 @@ export type SfxName =
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
   | 'hurt' // 受伤闷哼
+  | 'roar' // 熊咆哮(警戒/中箭暴怒/扑击前摇)
   | 'snore' // 睡觉打呼
   | 'death'; // 死亡
 
@@ -42,6 +43,7 @@ const VOL: Record<SfxName, number> = {
   drop: 0.5,
   success: 0.45,
   hurt: 0.5,
+  roar: 0.55,
   snore: 0.75,
   death: 0.5,
 };
@@ -196,6 +198,12 @@ export class Sfx {
         // 受伤闷哼:急速下坠的低频滑音 + 短噪声冲击
         tone(this.ctx, dest, detune(300), t, { attack: 0.003, decay: 0.18, peak: v }, 'sine', 90);
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
+        break;
+      case 'roar':
+        // 熊吼:两声失谐低频嘶吼先后下坠 + 喉腔噪声滚压,粗粝压迫感
+        tone(this.ctx, dest, detune(165), t, { attack: 0.03, decay: 0.55, peak: v }, 'sawtooth', 72);
+        tone(this.ctx, dest, detune(112), t + 0.05, { attack: 0.04, decay: 0.5, peak: v * 0.8 }, 'sawtooth', 52);
+        noiseBurst(this.ctx, dest, t, { attack: 0.03, decay: 0.48, peak: v * 0.65 }, 'bandpass', 420, 190, 1.6);
         break;
       case 'snore': {
         // 打呼:低频正弦垫底 + 喉腔滚动的带通噪声(软腭颤动),一声「呼——噜」
