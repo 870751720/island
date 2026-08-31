@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { IslandTerrain } from '../world/IslandTerrain';
-import type { Player } from './Player';
 import { ANIMAL_BUILDERS } from './WildlifeModels';
 import type { ResourceKind } from '../systems/Inventory';
 import type { Particles } from '../fx/Particles';
@@ -187,12 +186,11 @@ export class Wildlife implements Updatable {
   constructor(
     scene: THREE.Scene,
     private terrain: IslandTerrain,
-    /** 全部玩家(联机时多人,动物对最近的一名做出反应) */
-    private players: () => Player[],
-    /** 熊扑击命中玩家时对该玩家造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
-    private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => void,
-    /** 某玩家当前是否可被攻击(死亡时不追击) */
-    private isPlayerVulnerable: (player: Player) => boolean,
+    private player: { group: THREE.Group },
+    /** 熊扑击命中玩家时造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
+    private onPlayerHit: (damage: number, pounce?: boolean) => void,
+    /** 玩家当前是否可被攻击(死亡时不追击) */
+    private isPlayerVulnerable: () => boolean,
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
     private fx: Particles,
     /** 播放音效(熊咆哮/扑击破空) */
@@ -251,36 +249,17 @@ export class Wildlife implements Updatable {
     return y >= this.terrain.getWaterLevel(x, z) - 0.02;
   }
 
-  /** 距某点最近的玩家(无玩家在场返回 null) */
-  private nearestPlayer(x: number, z: number): Player | null {
-    let best: Player | null = null;
-    let bestDist = Infinity;
-    for (const t of this.players()) {
-      const p = t.group.position;
-      const d = Math.hypot(x - p.x, z - p.z);
-      if (d < bestDist) {
-        best = t;
-        bestDist = d;
-      }
-    }
-    return best;
-  }
-
-  /** 在岛上随机撒点找一处草地(离所有玩家远一点,避免刷新在脸上) */
+  /** 在岛上随机撒点找一处草地(离玩家远一点,避免刷新在脸上) */
   private findGrassSpot(rng: () => number): THREE.Vector3 | null {
     const maxR = this.terrain.size / 2 - 3;
+    const p = this.player.group.position;
     for (let i = 0; i < 40; i++) {
       const a = rng() * Math.PI * 2;
       const r = 4 + rng() * (maxR - 4);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       if (!this.isGrass(x, z)) continue;
-      let near = false;
-      for (const t of this.players()) {
-        const p = t.group.position;
-        if (Math.hypot(x - p.x, z - p.z) < 8) near = true;
-      }
-      if (near) continue;
+      if (Math.hypot(x - p.x, z - p.z) < 8) continue;
       return new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     }
     return null;
@@ -319,17 +298,15 @@ export class Wildlife implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    const p = this.player.group.position;
+    const vulnerable = this.isPlayerVulnerable();
     for (const animal of this.animals) {
       if (!animal.alive) {
         animal.respawnLeft -= delta;
         if (animal.respawnLeft <= 0) this.respawn(animal);
         continue;
       }
-      // 对最近的一名玩家做出反应(联机时熊追离得最近的那个人)
-      const target = this.nearestPlayer(animal.pos.x, animal.pos.z);
-      const p = target ? target.group.position : animal.pos;
-      const vulnerable = target ? this.isPlayerVulnerable(target) : false;
-      const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
+      const dist = Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z);
       const hostile = animal.species === 'bear';
       // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动
       if (dist < animal.config.senseRange) animal.alerted = true;
@@ -373,7 +350,7 @@ export class Wildlife implements Updatable {
             this.fx.burst(animal.pos.clone(), DUST_COLOR, 10);
             if (vulnerable && Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) <= BEAR_POUNCE_LAND_RANGE) {
               animal.lungeLeft = 0.35;
-              this.onPlayerHit(target!, animal.config.damage, true);
+              this.onPlayerHit(animal.config.damage, true);
             }
             pounce.phase = 'recover';
             pounce.left = BEAR_POUNCE_RECOVER;
@@ -387,7 +364,7 @@ export class Wildlife implements Updatable {
         if (animal.attackLeft <= 0) {
           animal.attackLeft = animal.config.attackCooldown;
           animal.lungeLeft = 0.35;
-          this.onPlayerHit(target!, animal.config.damage);
+          this.onPlayerHit(animal.config.damage);
         }
       } else if (rushed) {
         // 逃跑(草食)/ 追击(熊):清掉游荡目标,平息后重新选路

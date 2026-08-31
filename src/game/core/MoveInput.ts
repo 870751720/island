@@ -2,16 +2,14 @@ import * as THREE from 'three';
 
 export type MoveVector = { x: number; z: number };
 
-/** 合并键盘与虚拟摇杆的移动输入(非本地玩家的实例不挂键盘监听) */
+/** 合并键盘与虚拟摇杆的移动输入 */
 export class MoveInput {
   private keys = new Set<string>();
   private joystick: MoveVector = { x: 0, z: 0 };
 
-  constructor(attach = true) {
-    if (attach) {
-      window.addEventListener('keydown', this.onKeyDown);
-      window.addEventListener('keyup', this.onKeyUp);
-    }
+  constructor() {
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
   }
 
   private onKeyDown = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());

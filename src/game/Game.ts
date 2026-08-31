@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
-import { PlayerSession } from './mp/PlayerSession';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
@@ -150,9 +149,7 @@ export class Game {
   private scene = new THREE.Scene();
   private camera: THREE.OrthographicCamera;
   private loop = new GameLoop();
-  /** 全部玩家会话(下标 0 为本地玩家;联机时由房主持有远程会话) */
-  private sessions: PlayerSession[] = [];
-  private local: PlayerSession;
+  private player: Player;
   private collect: CollectSystem;
   private water: WaterSystem;
   private props: Props;
@@ -161,23 +158,11 @@ export class Game {
   private waterFx: WaterFx;
   private pondLife: PondLife;
   private footprints: Footprints;
-  /** 单机/本地玩家专用入口:HUD、相机与本地交互都绑定在本地会话上 */
-  private get player(): Player {
-    return this.local.player;
-  }
-  private get survival(): SurvivalSystem {
-    return this.local.survival;
-  }
-  private get inventory(): Inventory {
-    return this.local.inventory;
-  }
-  private get equipment(): Equipment {
-    return this.local.equipment;
-  }
+  private survival = new SurvivalSystem();
+  private inventory = new Inventory();
+  private equipment = new Equipment();
   /** 已拥有的工具(制作一次永久拥有,不进背包,供 HUD/自言自语/制作判断) */
-  private get tools(): Tools {
-    return this.local.tools;
-  }
+  private tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 };
   private crafting: CraftingSystem;
   private workbench: WorkbenchSystem;
   private crates: CrateSystem;
@@ -302,10 +287,7 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
-    this.local = new PlayerSession(
-      new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints)
-    );
-    this.sessions.push(this.local);
+    this.player = new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints);
     this.fences = new FenceSystem(
       this.scene,
       this.player,
@@ -352,17 +334,15 @@ export class Game {
     this.wildlife = new Wildlife(
       this.scene,
       terrain,
-      () => this.sessions.map((s) => s.player),
-      (player: Player, damage: number, pounce?: boolean) => {
-        const session = this.sessionOf(player);
-        const final = Math.max(1, damage - session.equipment.totalDefense());
-        session.survival.damage(final);
+      this.player,
+      (damage: number, pounce?: boolean) => {
+        const final = Math.max(1, damage - this.equipment.totalDefense());
+        this.survival.damage(final);
         // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
-        if (pounce) player.applySlow(3);
-        const p = player.group.position;
+        if (pounce) this.player.applySlow(3);
+        const p = this.player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
         this.audio.play('chop');
-        if (session !== this.local) return; // 伤害数字只飘在本地玩家头顶
         const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
         this.onDamage(
           final,
@@ -370,10 +350,7 @@ export class Game {
           Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
         );
       },
-      (player: Player) => {
-        const session = this.sessionOf(player);
-        return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
-      },
+      () => !this.survival.state.dead && !this.player.isSwimming && !this.player.isSleeping,
       // 熊的咆哮/扑击扬尘等粒子与音效
       this.fx,
       (name) => this.audio.play(name),
@@ -589,7 +566,7 @@ export class Game {
 
     this.loop.add({
       update: (delta, elapsed) => {
-        for (const session of this.sessions) session.player.update(delta, elapsed);
+        this.player.update(delta, elapsed);
         this.minimap.update(this.player.group.position.x, this.player.group.position.z);
         this.dayNight.update(delta);
         this.meteor.update(delta);
@@ -1329,33 +1306,6 @@ export class Game {
     // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
     this.audio.start();
     this.loop.start();
-  }
-
-  /** 联机(房主侧)接入一名远程玩家:出生点同本地玩家,参与物理与动物判定 */
-  addRemoteSession(): PlayerSession {
-    const player = new Player(
-      this.terrain,
-      this.terrain.findSpawnPoint(),
-      this.waterFx,
-      this.footprints
-    );
-    player.setObstacles(this.props, this.fences);
-    this.scene.add(player.group);
-    const session = new PlayerSession(player);
-    this.sessions.push(session);
-    return session;
-  }
-
-  /** 联机(房主侧)移除一名远程玩家(断线超时) */
-  removeRemoteSession(session: PlayerSession): void {
-    this.sessions = this.sessions.filter((s) => s !== session);
-    this.scene.remove(session.player.group);
-    session.player.dispose();
-  }
-
-  /** 找到某玩家实体所属的会话(本地玩家恒为 local) */
-  private sessionOf(player: Player): PlayerSession {
-    return this.sessions.find((s) => s.player === player) ?? this.local;
   }
 
   dispose(): void {
