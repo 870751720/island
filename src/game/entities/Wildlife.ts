@@ -22,6 +22,8 @@ const BEAR_RESPAWN = 90;
 const BEAR_TIRED_SPEED = 1.1;
 /** 冲刺体力上限(秒):追击时按秒耗,耗尽力竭掉速 */
 const BEAR_SPRINT_TIME = 4.5;
+/** 力竭喘息时长:喘完立刻回满体力再冲刺,形成「冲刺—喘息—再冲刺」的节奏 */
+const BEAR_TIRED_TIME = 1.6;
 /** 非追击时的体力恢复速率(倍) */
 const BEAR_STAMINA_REGEN = 1.5;
 /** 中箭后的暴怒时长与速度加成:远程偷袭会立刻招致反扑 */
@@ -29,7 +31,7 @@ const BEAR_RAGE_TIME = 5;
 const BEAR_RAGE_BONUS = 0.5;
 /** 扑击窗口:玩家进入该距离内且冷却好则人立蓄力后腾跃扑击 */
 const BEAR_POUNCE_MAX = 3.4;
-const BEAR_POUNCE_WINDUP = 0.38;
+const BEAR_POUNCE_WINDUP = 0.19;
 const BEAR_POUNCE_LEAP = 0.32;
 const BEAR_POUNCE_SPEED = 9;
 const BEAR_POUNCE_RECOVER = 0.9;
@@ -125,7 +127,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     senseRange: 7,
     deaggroRange: 13,
     attackRange: 1.3,
-    damage: 15,
+    damage: 45,
     attackCooldown: 1.6,
     hp: 3,
     loot: [
@@ -159,6 +161,8 @@ type Animal = {
   // —— 熊专属状态(其他物种恒为初始值) ——
   /** 追击冲刺的剩余体力(秒),耗尽力竭掉速,非追击时恢复 */
   stamina: number;
+  /** 力竭喘息的剩余时长:喘完体力回满,恢复冲刺 */
+  tiredLeft: number;
   /** 中箭后的暴怒剩余时长:加速追击 + 红眼 */
   rageLeft: number;
   /** 咆哮动画与音效的剩余时长(进入警戒/暴怒时触发) */
@@ -183,8 +187,8 @@ export class Wildlife implements Updatable {
     scene: THREE.Scene,
     private terrain: IslandTerrain,
     private player: { group: THREE.Group },
-    /** 熊扑击命中玩家时造成伤害(游戏侧负责掉血与特效) */
-    private onPlayerHit: (damage: number) => void,
+    /** 熊扑击命中玩家时造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
+    private onPlayerHit: (damage: number, pounce?: boolean) => void,
     /** 玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: () => boolean,
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
@@ -222,6 +226,7 @@ export class Wildlife implements Updatable {
           alerted: false,
           viewHeading: heading,
           stamina: BEAR_SPRINT_TIME,
+          tiredLeft: 0,
           rageLeft: 0,
           roarLeft: 0,
           roared: false,
@@ -345,7 +350,7 @@ export class Wildlife implements Updatable {
             this.fx.burst(animal.pos.clone(), DUST_COLOR, 10);
             if (vulnerable && Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) <= BEAR_POUNCE_LAND_RANGE) {
               animal.lungeLeft = 0.35;
-              this.onPlayerHit(animal.config.damage);
+              this.onPlayerHit(animal.config.damage, true);
             }
             pounce.phase = 'recover';
             pounce.left = BEAR_POUNCE_RECOVER;
@@ -376,17 +381,21 @@ export class Wildlife implements Updatable {
             animal.pounce = { phase: 'windup', left: BEAR_POUNCE_WINDUP, dir: 0 };
             this.roar(animal);
           } else {
-            // 冲刺体力按秒耗,耗尽力竭掉速喘息;暴怒期额外加速;冲刺身后扬尘
-            animal.stamina -= delta;
-            if (animal.stamina <= 0) {
-              speed = BEAR_TIRED_SPEED;
-            } else {
+            if (animal.stamina > 0) {
+              // 冲刺:体力按秒耗,耗尽转入喘息;暴怒期额外加速;身后扬尘
+              animal.stamina -= delta;
+              if (animal.stamina <= 0) animal.tiredLeft = BEAR_TIRED_TIME;
               if (animal.rageLeft > 0) speed += BEAR_RAGE_BONUS;
               animal.dustLeft -= delta;
               if (animal.dustLeft <= 0) {
                 animal.dustLeft = 0.22;
                 this.fx.burst(animal.pos.clone(), DUST_COLOR, 2);
               }
+            } else {
+              // 力竭喘息:短暂掉速后体力回满,开始下一轮冲刺
+              animal.tiredLeft -= delta;
+              if (animal.tiredLeft <= 0) animal.stamina = BEAR_SPRINT_TIME;
+              speed = BEAR_TIRED_SPEED;
             }
             moving = this.step(animal, angle, speed, delta);
           }
@@ -395,6 +404,7 @@ export class Wildlife implements Updatable {
         }
       } else {
         animal.stamina = Math.min(BEAR_SPRINT_TIME, animal.stamina + delta * BEAR_STAMINA_REGEN);
+        animal.tiredLeft = 0;
         if (animal.idleTime > 0) {
           animal.idleTime -= delta;
         } else if (animal.walkTime > 8 || animal.pos.distanceToSquared(animal.target) < 0.04) {
@@ -577,6 +587,7 @@ export class Wildlife implements Updatable {
     animal.alerted = false;
     animal.viewHeading = animal.heading;
     animal.stamina = BEAR_SPRINT_TIME;
+    animal.tiredLeft = 0;
     animal.rageLeft = 0;
     animal.roarLeft = 0;
     animal.roared = false;

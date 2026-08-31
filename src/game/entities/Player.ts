@@ -275,6 +275,8 @@ export class Player implements Updatable {
   private wading = false;
   private action: ActionType | null = null;
   private hurtFlash = 0;
+  /** 减速 debuff 剩余时长(熊扑击命中时施加) */
+  private slowLeft = 0;
   private handTool: HandTool = 'hand';
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
   private obstacles: ObstacleSolver[] = [];
@@ -447,6 +449,11 @@ export class Player implements Updatable {
     this.hurtFlash = HURT_FLASH_TIME;
   }
 
+  /** 减速 debuff:被熊扑中时施加,期间移动速度减半 */
+  applySlow(duration: number): void {
+    this.slowLeft = Math.max(this.slowLeft, duration);
+  }
+
   update(delta: number, elapsed: number): void {
     // 受击泛红:每帧按剩余时间衰减,结束后归零还原
     if (this.hurtFlash > 0) {
@@ -475,9 +482,12 @@ export class Player implements Updatable {
     this.wading = !this.swimming && groundY < waterY - 0.1;
     if (this.wading !== wasWading) this.waterFx.splash(p);
 
+    if (this.slowLeft > 0) this.slowLeft = Math.max(0, this.slowLeft - delta);
+
     if (this.moving) {
       const len = this.moveVec.length();
-      const speed = this.swimming ? SWIM_SPEED : MOVE_SPEED;
+      const base = this.swimming ? SWIM_SPEED : MOVE_SPEED;
+      const speed = this.slowLeft > 0 ? base * 0.5 : base;
       const step = speed * delta;
       p.x += (this.moveVec.x / len) * step;
       p.z += (this.moveVec.y / len) * step;

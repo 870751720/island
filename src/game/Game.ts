@@ -332,9 +332,11 @@ export class Game {
       this.scene,
       terrain,
       this.player,
-      (damage) => {
+      (damage: number, pounce?: boolean) => {
         const final = Math.max(1, damage - this.equipment.totalDefense());
         this.survival.damage(final);
+        // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
+        if (pounce) this.player.applySlow(3);
         const p = this.player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
         this.audio.play('chop');
