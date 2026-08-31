@@ -854,12 +854,13 @@ export class Game {
     return this.fences.isBlocked(x, z) || this.props.isBlocked(x, z);
   }
 
-  /** 相机以固定偏移跟随角色 */
+  /** 相机以固定偏移跟随角色:从正南上方看向玩家,屏幕「上」即世界 -Z,
+   * 与键盘 W/摇杆上推的移动语义一致(俯角与旧版对角视角相同,只改水平朝向) */
   private updateCamera(delta: number): void {
     const target = this.player.group.position;
-    const desiredX = target.x + 20;
+    const desiredX = target.x;
     const desiredY = target.y + 24;
-    const desiredZ = target.z + 20;
+    const desiredZ = target.z + Math.hypot(20, 20);
     const k = 1 - Math.pow(0.001, delta);
     this.camera.position.x += (desiredX - this.camera.position.x) * k;
     this.camera.position.y += (desiredY - this.camera.position.y) * k;
