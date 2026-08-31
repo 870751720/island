@@ -262,7 +262,7 @@ function makeFurBackpackModel(): THREE.Group {
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
-  readonly input = new MoveInput();
+  readonly input: MoveInput;
   private terrain: IslandTerrain;
   private limbs: { mesh: THREE.Mesh; phase: number }[] = [];
   private arms: THREE.Mesh[] = [];
@@ -284,6 +284,11 @@ export class Player implements Updatable {
   private sleepPose: { pos: THREE.Vector3; rotY: number; returnPos: THREE.Vector3 } | null = null;
   /** 已死亡:倒地姿态接管,忽略一切输入 */
   private dead = false;
+  /** 遥控玩家(联机时的其他玩家):不读本地输入,姿态由网络快照驱动 */
+  private readonly remote: boolean;
+  /** 遥控目标姿态:位置向它插值,移动感由距离推出(用于走路动画) */
+  private netPos = new THREE.Vector3();
+  private netRotY = 0;
   /** 衣服/裤子各占一个独立材质,装备时改色 */
   private torsoMaterial!: THREE.MeshStandardMaterial;
   private legMaterial!: THREE.MeshStandardMaterial;
@@ -299,9 +304,12 @@ export class Player implements Updatable {
     terrain: IslandTerrain,
     spawn: THREE.Vector3,
     private waterFx: WaterFx,
-    private footprints: Footprints
+    private footprints: Footprints,
+    options: { remote?: boolean } = {}
   ) {
     this.terrain = terrain;
+    this.remote = !!options.remote;
+    this.input = new MoveInput(!this.remote);
 
     // 默认上身赤裸(肉色躯干),下身是深色平角裤,穿上衣服/裤子后换色
     const skin = clayMaterial(SKIN_COLOR);
@@ -464,6 +472,13 @@ export class Player implements Updatable {
     this.slowLeft = Math.max(this.slowLeft, duration);
   }
 
+  /** 遥控玩家:写入网络快照给出的目标姿态(本地玩家忽略) */
+  setNetPose(x: number, y: number, z: number, rotY: number): void {
+    if (!this.remote) return;
+    this.netPos.set(x, y, z);
+    this.netRotY = rotY;
+  }
+
   update(delta: number, elapsed: number): void {
     // 受击泛红:每帧按剩余时间衰减,结束后归零还原
     if (this.hurtFlash > 0) {
@@ -482,8 +497,10 @@ export class Player implements Updatable {
       this.updateSleep(delta, elapsed);
       return;
     }
-    this.input.getVector(this.moveVec);
-    this.moving = this.moveVec.lengthSq() > 0.001;
+    if (!this.remote) {
+      this.input.getVector(this.moveVec);
+      this.moving = this.moveVec.lengthSq() > 0.001;
+    }
 
     const p = this.group.position;
     const groundY = this.terrain.getHeight(p.x, p.z);
@@ -498,7 +515,17 @@ export class Player implements Updatable {
 
     if (this.slowLeft > 0) this.slowLeft = Math.max(0, this.slowLeft - delta);
 
-    if (this.moving) {
+    if (this.remote) {
+      // 遥控玩家:向网络快照姿态插值(朝向沿最短弧转),移动感由剩余距离推出以驱动走路动画
+      const k = 1 - Math.pow(0.0001, delta);
+      this.moving = p.distanceTo(this.netPos) > 0.05;
+      p.lerp(this.netPos, k);
+      const diff = Math.atan2(
+        Math.sin(this.netRotY - this.group.rotation.y),
+        Math.cos(this.netRotY - this.group.rotation.y)
+      );
+      this.group.rotation.y += diff * k;
+    } else if (this.moving) {
       const len = this.moveVec.length();
       const base = this.swimming ? SWIM_SPEED : MOVE_SPEED;
       const speed = this.slowLeft > 0 ? base * 0.5 : base;
