@@ -6,6 +6,7 @@ import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
+import { FpsOverlay } from './FpsOverlay';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
@@ -256,6 +257,7 @@ export function GameplayUI({ onExit }: { onExit: () => void }) {
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
+      <FpsOverlay />
       <Hud hud={hud} onHeartTap={handleHeartTap} />
       {/* 右上角:设置按钮在小地图按钮左边,玩家移动/交互中一起淡出 */}
       {!hud.dead && (

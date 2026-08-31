@@ -10,4 +10,6 @@ export const GmSystem = {
   wind: 'auto' as 'auto' | 'on' | 'off',
   /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */
   fishingTierWeights: [45, 40, 12, 3],
+  /** 是否显示帧率浮层(FpsOverlay 轮询此标记) */
+  showFps: false,
 };

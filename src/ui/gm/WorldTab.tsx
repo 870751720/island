@@ -25,9 +25,18 @@ export function WorldTab({
 }) {
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
   const [wind, setWind] = useState(GmSystem.wind);
+  const [showFps, setShowFps] = useState(GmSystem.showFps);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <ToggleRow
+        label="显示帧率"
+        value={showFps}
+        onChange={(v) => {
+          GmSystem.showFps = v;
+          setShowFps(v);
+        }}
+      />
       <ToggleRow
         label="锁定白天"
         value={lockDaytime}
