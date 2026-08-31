@@ -142,7 +142,7 @@ export type PickupToast = { items: { icon: string; count: number }[]; x: number;
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
-const IDLE_FADE_DELAY = 1.5; // 停止移动/交互多久后 HUD 才开始淡入(秒)
+const IDLE_FADE_DELAY = 0.5; // 停止移动/交互多久后 HUD 才开始淡入(秒)
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -1333,7 +1333,7 @@ export class Game {
       fishingState === 'bite' && this.fishing.biteClicks !== this.lastBiteClicks;
     this.lastFishingState = fishingState;
     this.lastBiteClicks = this.fishing.biteClicks;
-    // 淡出跟随迟滞:交互/移动中立刻视为 busy,停下后需连续空闲 1.5s 才解除
+    // 淡出跟随迟滞:交互/移动中立刻视为 busy,停下后需连续空闲 0.5s 才解除
     const active = this.isPlayerBusy;
     this.idleTime = active ? 0 : this.idleTime + delta;
     const busy = active || this.idleTime < IDLE_FADE_DELAY;

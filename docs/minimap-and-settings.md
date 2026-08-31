@@ -58,6 +58,6 @@
 
 ### 2026-08-31 四版
 
-- 淡出加迟滞:进入交互/移动时立刻淡出;停止后需连续空闲 1.5s 才开始淡入(新增常量 `IDLE_FADE_DELAY`,`Game.pushHud` 里累计 `idleTime` 实现)。
+- 淡出加迟滞:进入交互/移动时立刻淡出;停止后需连续空闲 0.5s 才开始淡入(新增常量 `IDLE_FADE_DELAY`,`Game.pushHud` 里累计 `idleTime` 实现)。
 - 淡出范围扩展到弹出卡片:手搓合成(CraftPrompt)、进食(EatPrompt)、捡回(DropPrompt)卡片同样用 `fadeStyle(hud.busy)` 淡出并禁点。钓鱼拉竿按钮因必须在钓鱼(忙碌)中操作,不参与淡出。
 - 玩家死亡后不再可操控:`Player.setDead()` 让角色原地向前扑倒侧躺(取消作业/睡眠姿态、收起手持工具),此后忽略一切输入;死亡触发点在 `Game` 主循环检测到 `dead` 置位时调用。
