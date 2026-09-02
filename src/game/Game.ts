@@ -274,8 +274,8 @@ export class Game {
   private readonly hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
   private readonly guestMode: boolean;
-  /** 客人自己在房主会话列表中的下标 */
-  private readonly youIndex = 0;
+  /** 客人自己在房主侧的稳定玩家标识。 */
+  private readonly youId: string | null;
 
   constructor(
     container: HTMLElement,
@@ -303,6 +303,7 @@ export class Game {
     // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛;
     // 联机时种子与初始状态来自网络(房主大厅的种子 / 客人的欢迎包),客人不读写本地存档
     const welcome = this.guestNet?.welcome ?? null;
+    this.youId = welcome?.you ?? null;
     const seeds = welcome?.seeds ?? options.seeds;
     const save = this.guestMode
       ? (welcome?.state ?? null)
@@ -357,7 +358,8 @@ export class Game {
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
     this.local = new PlayerSession(
-      new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints)
+      new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
+      this.youId ?? undefined
     );
     this.sessions.push(this.local);
     this.fences = new FenceSystem(
@@ -634,9 +636,9 @@ export class Game {
     }
   }
 
-  /** 房主侧:会话在 sessions 中的下标(欢迎包里告诉客人自己的编号) */
-  sessionIndexOf(session: PlayerSession): number {
-    return this.sessions.indexOf(session);
+  /** 房主侧当前玩家顺序，欢迎包用它对应初始存档。 */
+  sessionIds(): string[] {
+    return this.sessions.map((session) => session.id);
   }
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
@@ -646,11 +648,11 @@ export class Game {
       time: this.dayNight.time,
       day: this.dayNight.day,
       weather: this.weather.rainIntensity > 0.05 ? 'rain' : 'sunny',
-      list: this.sessions.map((s, index) => {
+      list: this.sessions.map((s) => {
         const p = s.player.group.position;
         const sv = s.survival.state;
         return {
-          index,
+          id: s.id,
           x: p.x,
           y: p.y,
           z: p.z,
@@ -681,9 +683,13 @@ export class Game {
     this.dayNight.time = time;
     if (day) this.dayNight.day = day;
     this.weather.force(weather);
+    const liveIds = new Set(list.map((p) => p.id));
+    for (const session of [...this.sessions]) {
+      if (session !== this.local && !liveIds.has(session.id)) this.removeRemoteSession(session);
+    }
     for (const p of list) {
-      const s = this.sessions[p.index];
-      if (!s) continue;
+      let s = this.sessions.find((session) => session.id === p.id);
+      if (!s) s = this.addRemoteSession(true, p.id);
       if (s === this.local) {
         const pos = s.player.group.position;
         if (Math.hypot(pos.x - p.x, pos.z - p.z) > 3) pos.set(p.x, p.y, p.z);
@@ -734,8 +740,10 @@ export class Game {
     if (this.guestMode) {
       // 客人:按房主会话顺序重放,自己的那份落到本地会话(其余建为遥控玩家)
       const all = [save as SessionSave, ...(save.others ?? [])];
+      const roster = this.guestNet?.welcome?.roster ?? [];
       for (let i = 0; i < all.length; i++) {
-        this.applyPlayerSave(i === this.youIndex ? this.local : this.addRemoteSession(true), all[i]);
+        const id = roster[i];
+        this.applyPlayerSave(id === this.youId ? this.local : this.addRemoteSession(true, id), all[i]);
       }
     } else {
       this.applyPlayerSave(this.local, save);
@@ -1470,7 +1478,7 @@ export class Game {
   }
 
   /** 联机(房主侧)接入一名远程玩家:出生点同本地玩家,参与物理与动物判定 */
-  addRemoteSession(remote = false): PlayerSession {
+  addRemoteSession(remote = false, id?: string): PlayerSession {
     const player = new Player(
       this.terrain,
       this.terrain.findSpawnPoint(),
@@ -1480,7 +1488,7 @@ export class Game {
     );
     player.setObstacles(this.props, this.fences);
     this.scene.add(player.group);
-    const session = new PlayerSession(player);
+    const session = new PlayerSession(player, id);
     this.attachSessionSystems(session);
     this.sessions.push(session);
     return session;

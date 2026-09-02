@@ -11,9 +11,11 @@ export type MultiplayerRole = 'host' | 'guest';
 export function StartScreen({
   onStart,
   onMultiplayer,
+  notice,
 }: {
   onStart: (mode: StartMode) => void;
   onMultiplayer: (role: MultiplayerRole) => void;
+  notice?: string;
 }) {
   const [hasSave] = useState(() => !!SaveSystem.load());
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,先禁用避免「点了没反应」
@@ -37,6 +39,7 @@ export function StartScreen({
         <div className="start-panel-deco">🌴</div>
         <h1 className="start-title">去你的岛</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
+        {notice && <p className="start-notice">{notice}</p>}
         {hasSave && (
           <button
             className="start-button"
@@ -194,6 +197,7 @@ const css = `
   font-size: clamp(13px, 3.8vw, 15px);
   color: #6b7a5e;
 }
+.start-notice { margin: 10px 0 0; color: #b34a3c; font-size: 13px; font-weight: 700; }
 .start-button {
   margin-top: clamp(20px, 5vw, 28px);
   width: 100%;

@@ -13,12 +13,18 @@ export class PeerNet {
   private channel?: RTCDataChannel;
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
+  onOpen: () => void = () => {};
+  private queue: string[] = [];
+  private closeNotified = false;
 
   constructor() {
     this.pc = new RTCPeerConnection(RTC_CONFIG);
     this.pc.onconnectionstatechange = () => {
       const s = this.pc.connectionState;
-      if (s === 'failed' || s === 'disconnected' || s === 'closed') this.onClose();
+      if ((s === 'failed' || s === 'disconnected' || s === 'closed') && !this.closeNotified) {
+        this.closeNotified = true;
+        this.onClose();
+      }
     };
   }
 
@@ -52,6 +58,10 @@ export class PeerNet {
 
   private bindChannel(dc: RTCDataChannel): void {
     this.channel = dc;
+    dc.onopen = () => {
+      for (const data of this.queue.splice(0)) dc.send(data);
+      this.onOpen();
+    };
     dc.onmessage = (e) => {
       try {
         this.onMessage(JSON.parse(e.data as string));
@@ -59,7 +69,11 @@ export class PeerNet {
         // 坏包忽略
       }
     };
-    dc.onclose = () => this.onClose();
+    dc.onclose = () => {
+      if (this.closeNotified) return;
+      this.closeNotified = true;
+      this.onClose();
+    };
   }
 
   /** 等 ICE 候选收集完成(部分网络收不满,4 秒超时用已有候选连线) */
@@ -78,7 +92,9 @@ export class PeerNet {
   }
 
   send(msg: unknown): void {
-    if (this.connected) this.channel!.send(JSON.stringify(msg));
+    const data = JSON.stringify(msg);
+    if (this.connected) this.channel!.send(data);
+    else this.queue.push(data);
   }
 
   close(): void {

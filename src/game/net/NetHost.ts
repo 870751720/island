@@ -39,12 +39,19 @@ export class NetHost {
 
   /** 为下一个朋友生成邀请码 */
   async createInvite(): Promise<string> {
+    if (this.guests.length >= 3) throw new Error('房间最多 4 人');
     const net = new PeerNet();
     const guest: Guest = { net, session: null, name: '', lastSeen: performance.now() };
     this.guests.push(guest);
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
     net.onClose = () => this.dropGuest(guest);
-    return net.createInvite();
+    try {
+      return await net.createInvite();
+    } catch (error) {
+      this.guests = this.guests.filter((g) => g !== guest);
+      net.close();
+      throw error;
+    }
   }
 
   /** 粘贴客人的回传码,完成该连接的握手 */
@@ -96,7 +103,8 @@ export class NetHost {
       t: 'welcome',
       seeds: { terrainSeed: this.terrainSeed, propsSeed: this.propsSeed },
       state: this.game.collectSave(),
-      you: this.game.sessionIndexOf(guest.session),
+      roster: this.game.sessionIds(),
+      you: guest.session.id,
     });
     guest.net.send({ t: 'start' });
   }
@@ -116,26 +124,28 @@ export class NetHost {
     if (!game) return;
     this.ticks++;
     const now = performance.now();
+    const active: Guest[] = [];
     for (const guest of [...this.guests]) {
       if (now - guest.lastSeen > INPUT_TIMEOUT) {
         this.dropGuest(guest);
         continue;
       }
       if (!guest.net.connected || !guest.session) continue;
+      active.push(guest);
       guest.net.send(game.netPlayersMsg());
       guest.net.send(game.netAnimalsMsg());
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
-      if (this.ticks % 10 === 0) this.maybeSendWorld(guest);
     }
+    if (this.ticks % 10 === 0) this.maybeBroadcastWorld(active);
   }
 
-  private maybeSendWorld(guest: Guest): void {
+  private maybeBroadcastWorld(guests: Guest[]): void {
     const game = this.game!;
     const state = game.collectSave();
     // 昼夜时刻单独随玩家快照走,不参与脏比较
     const json = JSON.stringify({ ...state, dayTime: 0, day: 0 });
     if (json === this.lastWorldJson) return;
     this.lastWorldJson = json;
-    guest.net.send({ t: 'world', state });
+    for (const guest of guests) guest.net.send({ t: 'world', state });
   }
 }

@@ -15,8 +15,10 @@ export function GameCanvas() {
   const [phase, setPhase] = useState<Phase>('start');
   const [host, setHost] = useState<NetHost | null>(null);
   const [guest, setGuest] = useState<NetGuest | null>(null);
+  const [notice, setNotice] = useState('');
 
   const start = (mode: StartMode) => {
+    setNotice('');
     if (mode === 'new') SaveSystem.clear();
     setPhase('playing');
   };
@@ -27,6 +29,12 @@ export function GameCanvas() {
     guest?.dispose();
     setHost(null);
     setGuest(null);
+    setPhase('start');
+  };
+
+  const guestDisconnected = () => {
+    setGuest(null);
+    setNotice('与房主的连接已断开，房间已结束');
     setPhase('start');
   };
 
@@ -50,7 +58,9 @@ export function GameCanvas() {
       <RoomLobby
         mode="guest"
         onBegin={(net) => {
-          setGuest(net as NetGuest);
+          const nextGuest = net as NetGuest;
+          nextGuest.onClosed = guestDisconnected;
+          setGuest(nextGuest);
           setPhase('playing');
         }}
         onBack={() => setPhase('start')}
@@ -60,7 +70,11 @@ export function GameCanvas() {
   return (
     <StartScreen
       onStart={start}
-      onMultiplayer={(role: MultiplayerRole) => setPhase(role)}
+      onMultiplayer={(role: MultiplayerRole) => {
+        setNotice('');
+        setPhase(role);
+      }}
+      notice={notice}
     />
   );
 }

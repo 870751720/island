@@ -12,8 +12,9 @@ export class NetGuest {
   private inputZ = 0;
   private inputTimer: ReturnType<typeof setInterval> | null = null;
   private lastInputSent = 0;
-  /** 房主发来的欢迎包(种子 + 全量初始状态 + 自己的会话下标),开始游戏时交给 Game */
-  welcome: { seeds: { terrainSeed: number; propsSeed: number }; state: SaveData; you: number } | null =
+  private disposed = false;
+  /** 房主发来的欢迎包(种子 + 全量初始状态 + 稳定玩家标识),开始游戏时交给 Game */
+  welcome: { seeds: { terrainSeed: number; propsSeed: number }; state: SaveData; roster: string[]; you: string } | null =
     null;
 
   onStarted: () => void = () => {};
@@ -26,12 +27,12 @@ export class NetGuest {
 
   /** 粘贴房主的邀请码,返回回传码发给房主 */
   async join(code: string, name: string): Promise<string> {
-    const answer = await this.net.joinWithInvite(code);
-    this.net.onMessage = (raw) => this.onMessage(raw as NetMsg, name);
+    this.net.onMessage = (raw) => this.onMessage(raw as NetMsg);
     this.net.onClose = () => {
       this.stopInput();
-      this.onClosed();
+      if (!this.disposed) this.onClosed();
     };
+    const answer = await this.net.joinWithInvite(code);
     this.net.send({ t: 'hello', name });
     return answer;
   }
@@ -42,14 +43,15 @@ export class NetGuest {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.stopInput();
     this.net.close();
   }
 
-  private onMessage(msg: NetMsg, name: string): void {
+  private onMessage(msg: NetMsg): void {
     switch (msg.t) {
       case 'welcome':
-        this.welcome = { seeds: msg.seeds, state: msg.state, you: msg.you };
+        this.welcome = { seeds: msg.seeds, state: msg.state, roster: msg.roster, you: msg.you };
         break;
       case 'start':
         this.onStarted();
@@ -67,7 +69,7 @@ export class NetGuest {
         this.onHud(msg.snap);
         break;
       default:
-        void name;
+        break;
     }
   }
 

@@ -3,7 +3,7 @@ import type { HudSnapshot } from '../Game';
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
-  index: number;
+  id: string;
   x: number;
   y: number;
   z: number;
@@ -26,8 +26,9 @@ export type NetMsg =
       t: 'welcome';
       seeds: { terrainSeed: number; propsSeed: number };
       state: SaveData;
-      /** 该客人在房主 sessions 里的下标 */
-      you: number;
+      /** 当前玩家顺序与稳定 id，顺序对应 state 的本地玩家及 others。 */
+      roster: string[];
+      you: string;
     }
   | { t: 'start' }
   | { t: 'input'; x: number; z: number }
