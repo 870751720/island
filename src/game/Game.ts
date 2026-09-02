@@ -152,6 +152,8 @@ export type HudSnapshot = {
   day: number;
   /** 玩家正在移动或处于任一交互进行中(用于淡化非必要 HUD 按钮) */
   busy: boolean;
+  /** 房主权威计算的头顶交互提示；联机客人不在本地推进交互系统。 */
+  indicator: { label: string | null; progress: number | null; color?: string };
 };
 
 const VIEW_SIZE = 18;
@@ -270,6 +272,7 @@ export class Game {
   private hudTimer = 0;
   private noticeId = 0;
   private notice: { id: number; text: string } | null = null;
+  private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
   private autoEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
@@ -835,6 +838,7 @@ export class Game {
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
     this.local.inventory.load(snap.slots, snap.capacity);
+    this.netIndicator = snap.indicator;
     this.onHud(snap);
   }
 
@@ -1829,6 +1833,7 @@ export class Game {
       notice: this.notice,
       day: this.dayNight.day,
       busy,
+      indicator: this.indicatorFor(s),
 };
   }
   /** 玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
@@ -1844,117 +1849,8 @@ export class Game {
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
   private updateIndicator(delta: number): void {
-    const nearby = this.collect.getNearby();
-    let label: string | null = null;
-    let progress: number | null = null;
-    if (this.survival.state.dead) {
-      // 死亡时不显示
-    } else if (this.crafting.isWorking) {
-      const { total, current } = this.crafting.queueInfo;
-      label = `制作中:${this.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;
-      progress = this.crafting.getProgress();
-    } else if (this.workbench.isWorking(this.local)) {
-      label = this.workbench.isUpgrading(this.local) ? '升级中:工作台' : '制作中:工作台';
-      progress = this.workbench.getProgress(this.local);
-    } else if (this.workbench.isDigging(this.local)) {
-      label = '挖工作台…';
-      progress = this.workbench.getDigProgress(this.local);
-    } else if (this.crates.isDigging(this.local)) {
-      label = '挖木箱…';
-      progress = this.crates.getDigProgress(this.local);
-    } else if (this.fences.isPlacing(this.local)) {
-      label = this.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
-      progress = this.fences.getPlaceProgress(this.local);
-    } else if (this.fences.isDigging(this.local)) {
-      label = '拆围栏…';
-      progress = this.fences.getDigProgress(this.local);
-    } else if (this.beds.isSleeping(this.local)) {
-      label = '睡觉中…';
-      progress = this.beds.getSleepProgress(this.local);
-    } else if (this.beds.isDigging(this.local)) {
-      label = '挖床…';
-      progress = this.beds.getDigProgress(this.local);
-    } else if (this.campfire.isDigging(this.local)) {
-      label = '挖火堆…';
-      progress = this.campfire.getDigProgress(this.local);
-    } else if (this.campfire.isCooking(this.local)) {
-      const { total, current } = this.campfire.cookInfo(this.local);
-      const food = ITEMS[this.campfire.cookingKind(this.local)!];
-      label = `烹饪中:${food.icon} ${food.name} ${current}/${total}`;
-      progress = this.campfire.getProgress(this.local);
-    } else if (this.campfire.isWorking(this.local)) {
-      label = '搭建中:小火堆';
-      progress = this.campfire.getProgress(this.local);
-    } else if (this.eating.isWorking) {
-      label = `${this.eating.currentFood!.icon} 吃${this.eating.currentFood!.name}`;
-      progress = this.eating.getProgress();
-    } else if (this.fishing.isWorking) {
-      const s = this.fishing.currentState!;
-      const tease = this.fishing.getTease();
-      label =
-        s === 'casting'
-          ? '抛竿…'
-          : s === 'waiting'
-            ? tease?.text ?? '等待上钩…'
-            : s === 'bite'
-              ? this.fishing.biteNeed > 1
-                ? `咬钩了!快连点屏幕!${this.fishing.biteClicks}/${this.fishing.biteNeed}`
-                : '咬钩了!快点击屏幕!'
-              : '收竿!';
-      progress = this.fishing.getProgress();
-    } else if (nearby && this.collect.canCollect(nearby)) {
-      progress = this.collect.getHarvestInfo()?.progress ?? null;
-      const digging = this.player.currentTool === 'hoe';
-      label =
-        nearby.kind === 'tree'
-          ? '砍树'
-          : nearby.kind === 'rock' || nearby.kind === 'meteor'
-            ? '采石'
-            : nearby.kind === 'gravel'
-              ? '捡石头'
-              : nearby.kind === 'shrub'
-                ? digging
-                  ? '挖灌木丛'
-                  : '捡树枝'
-                : nearby.kind === 'grass'
-                  ? digging
-                    ? '挖草丛'
-                    : '采纤维'
-                  : nearby.kind === 'worm'
-                    ? '挖蚯蚓'
-                    : digging
-                      ? '挖浆果丛'
-                      : '采浆果';
-    } else if (this.water.isActive) {
-      label = '喝水';
-      progress = this.water.getProgress();
-    } else if (this.autoEquipTimer > 0 && !nearby) {
-      label = '切换鱼竿…';
-      progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
-    } else if (nearby) {
-      const switching = this.autoEquipTimer > 0;
-      label =
-        nearby.kind === 'tree'
-          ? switching
-            ? '切换斧子…'
-            : this.tools.axe
-              ? '需要手持斧子'
-              : '需要斧子'
-          : nearby.kind === 'rock' || nearby.kind === 'meteor'
-            ? switching
-              ? '切换镐子…'
-              : this.tools.pickaxe
-                ? '需要手持镐子'
-                : '需要镐子'
-            : nearby.kind === 'worm'
-              ? switching
-                ? '切换锄头…'
-                : this.tools.hoe
-                  ? '需要手持锄头'
-                  : '需要锄头'
-              : null;
-      if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
-    }
+    const indicator = this.guestMode ? this.netIndicator : this.indicatorFor(this.local);
+    const { label, progress, color } = indicator;
     const p = this.player.group.position;
     this.indicator.group.position.copy(p);
     this.indicator.setProgress(progress);
@@ -1970,7 +1866,7 @@ export class Game {
       label,
       Math.round(((head.x + 1) / 2) * w),
       Math.round(((1 - head.y) / 2) * h),
-      this.fishing.getTease()?.color
+      color
     );
 
     // 自言自语气泡挂在作业提示上方,4 秒后消失
@@ -2003,5 +1899,123 @@ export class Game {
       Math.round(((warnAnchor.x + 1) / 2) * w),
       Math.round(((1 - warnAnchor.y) / 2) * h)
     );
+  }
+
+  /** 为指定会话计算头顶交互反馈，房主借 HUD 快照定向同步给每名客人。 */
+  private indicatorFor(session: PlayerSession): HudSnapshot['indicator'] {
+    const nearby = session.collect.getNearby();
+    let label: string | null = null;
+    let progress: number | null = null;
+    let color: string | undefined;
+    if (session.survival.state.dead) {
+      // 死亡时不显示
+    } else if (session.crafting.isWorking) {
+      const { total, current } = session.crafting.queueInfo;
+      label = `制作中:${session.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;
+      progress = session.crafting.getProgress();
+    } else if (this.workbench.isWorking(session)) {
+      label = this.workbench.isUpgrading(session) ? '升级中:工作台' : '制作中:工作台';
+      progress = this.workbench.getProgress(session);
+    } else if (this.workbench.isDigging(session)) {
+      label = '挖工作台…';
+      progress = this.workbench.getDigProgress(session);
+    } else if (this.crates.isDigging(session)) {
+      label = '挖木箱…';
+      progress = this.crates.getDigProgress(session);
+    } else if (this.fences.isPlacing(session)) {
+      label = session.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
+      progress = this.fences.getPlaceProgress(session);
+    } else if (this.fences.isDigging(session)) {
+      label = '拆围栏…';
+      progress = this.fences.getDigProgress(session);
+    } else if (this.beds.isSleeping(session)) {
+      label = '睡觉中…';
+      progress = this.beds.getSleepProgress(session);
+    } else if (this.beds.isDigging(session)) {
+      label = '挖床…';
+      progress = this.beds.getDigProgress(session);
+    } else if (this.campfire.isDigging(session)) {
+      label = '挖火堆…';
+      progress = this.campfire.getDigProgress(session);
+    } else if (this.campfire.isCooking(session)) {
+      const { total, current } = this.campfire.cookInfo(session);
+      const food = ITEMS[this.campfire.cookingKind(session)!];
+      label = `烹饪中:${food.icon} ${food.name} ${current}/${total}`;
+      progress = this.campfire.getProgress(session);
+    } else if (this.campfire.isWorking(session)) {
+      label = '搭建中:小火堆';
+      progress = this.campfire.getProgress(session);
+    } else if (session.eating.isWorking) {
+      label = `${session.eating.currentFood!.icon} 吃${session.eating.currentFood!.name}`;
+      progress = session.eating.getProgress();
+    } else if (session.fishing.isWorking) {
+      const s = session.fishing.currentState!;
+      const tease = session.fishing.getTease();
+      label =
+        s === 'casting'
+          ? '抛竿…'
+          : s === 'waiting'
+            ? tease?.text ?? '等待上钩…'
+            : s === 'bite'
+              ? session.fishing.biteNeed > 1
+                ? `咬钩了!快连点屏幕!${session.fishing.biteClicks}/${session.fishing.biteNeed}`
+                : '咬钩了!快点击屏幕!'
+              : '收竿!';
+      progress = session.fishing.getProgress();
+      color = tease?.color;
+    } else if (nearby && session.collect.canCollect(nearby)) {
+      progress = session.collect.getHarvestInfo()?.progress ?? null;
+      const digging = session.player.currentTool === 'hoe';
+      label =
+        nearby.kind === 'tree'
+          ? '砍树'
+          : nearby.kind === 'rock' || nearby.kind === 'meteor'
+            ? '采石'
+            : nearby.kind === 'gravel'
+              ? '捡石头'
+              : nearby.kind === 'shrub'
+                ? digging
+                  ? '挖灌木丛'
+                  : '捡树枝'
+                : nearby.kind === 'grass'
+                  ? digging
+                    ? '挖草丛'
+                    : '采纤维'
+                  : nearby.kind === 'worm'
+                    ? '挖蚯蚓'
+                    : digging
+                      ? '挖浆果丛'
+                      : '采浆果';
+    } else if (session.water.isActive) {
+      label = '喝水';
+      progress = session.water.getProgress();
+    } else if (session === this.local && this.autoEquipTimer > 0 && !nearby) {
+      label = '切换鱼竿…';
+      progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
+    } else if (nearby) {
+      const switching = session === this.local && this.autoEquipTimer > 0;
+      label =
+        nearby.kind === 'tree'
+          ? switching
+            ? '切换斧子…'
+            : session.tools.axe
+              ? '需要手持斧子'
+              : '需要斧子'
+          : nearby.kind === 'rock' || nearby.kind === 'meteor'
+            ? switching
+              ? '切换镐子…'
+              : session.tools.pickaxe
+                ? '需要手持镐子'
+                : '需要镐子'
+            : nearby.kind === 'worm'
+              ? switching
+                ? '切换锄头…'
+                : session.tools.hoe
+                  ? '需要手持锄头'
+                  : '需要锄头'
+              : null;
+      if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
+    }
+    return { label, progress, color };
   }
 }

@@ -86,6 +86,7 @@ const INITIAL_HUD: HudSnapshot = {
   day: 1,
   heldFenceCount: 0,
   busy: false,
+  indicator: { label: null, progress: null },
 };
 
 /**
