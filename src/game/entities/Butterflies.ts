@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import type { Props } from '../world/Props';
+import type { AmbientPose } from '../net/Protocol';
 
 /** 玩家靠到这个距离内,蝴蝶会振翅飞走并消失 */
 const FLEE_RANGE = 2.6;
@@ -192,6 +193,31 @@ export class Butterflies implements Updatable {
       }
 
       this.animate(bf, elapsed);
+    }
+  }
+
+  netPoses(): AmbientPose[] {
+    return this.butterflies.map((bf, id) => ({
+      id,
+      x: bf.pos.x,
+      y: bf.pos.y,
+      z: bf.pos.z,
+      h: bf.heading,
+      visible: bf.visible,
+      state: bf.fleeTime > 0 ? 'flee' : 'hover',
+    }));
+  }
+
+  netApply(poses: AmbientPose[], elapsed: number): void {
+    for (const pose of poses) {
+      const bf = this.butterflies[pose.id];
+      if (!bf) continue;
+      bf.pos.set(pose.x, pose.y, pose.z);
+      bf.heading = pose.h;
+      bf.visible = pose.visible;
+      bf.fleeTime = pose.state === 'flee' ? 0.001 : 0;
+      bf.model.group.visible = pose.visible;
+      if (pose.visible) this.animate(bf, elapsed);
     }
   }
 

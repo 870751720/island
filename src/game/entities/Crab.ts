@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import type { AmbientPose } from '../net/Protocol';
 import { IslandTerrain } from '../world/IslandTerrain';
 
 /** 沙滩高度带:低于该值为海/湿沙,高于该值为草地;螃蟹只在带内活动 */
@@ -245,6 +246,30 @@ export class Crabs implements Updatable {
       }
 
       this.animate(crab, elapsed, moving, flee);
+    }
+  }
+
+  netPoses(): AmbientPose[] {
+    return this.crabs.map((crab, id) => ({
+      id,
+      x: crab.pos.x,
+      y: crab.pos.y,
+      z: crab.pos.z,
+      h: crab.heading,
+      visible: crab.alive,
+    }));
+  }
+
+  netApply(poses: AmbientPose[], elapsed: number): void {
+    for (const pose of poses) {
+      const crab = this.crabs[pose.id];
+      if (!crab) continue;
+      const moving = crab.pos.distanceToSquared(new THREE.Vector3(pose.x, pose.y, pose.z)) > 0.001;
+      crab.pos.set(pose.x, pose.y, pose.z);
+      crab.heading = pose.h;
+      crab.alive = pose.visible;
+      crab.model.group.visible = pose.visible;
+      if (pose.visible) this.animate(crab, elapsed, moving, false);
     }
   }
 

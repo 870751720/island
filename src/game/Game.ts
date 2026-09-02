@@ -4,7 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
-import type { AnimalPose, PlayerState } from './net/Protocol';
+import type { AmbientState, AnimalPose, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
@@ -530,11 +530,13 @@ export class Game {
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
-        this.crabs.update(delta, elapsed);
-        this.butterflies.update(delta, elapsed);
-        this.birds.update(delta, elapsed);
-        this.wildlife.update(delta, elapsed);
-        this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
+        if (!this.guestMode) {
+          this.crabs.update(delta, elapsed);
+          this.butterflies.update(delta, elapsed);
+          this.birds.update(delta, elapsed);
+          this.wildlife.update(delta, elapsed);
+          this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
+        }
         this.props.update(delta, elapsed, this.weather.wind);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
@@ -648,6 +650,7 @@ export class Game {
     if (this.guestNet) {
       this.guestNet.onPlayers = (m) => this.netApplyPlayers(m.time, m.day, m.weather, m.list);
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
+      this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
       this.guestNet.onWorld = (state) => this.netApplyWorld(state);
       this.guestNet.onHud = (snap) => this.netApplyHud(snap);
       this.guestNet.onEvent = (event) => this.netApplyEvent(event);
@@ -691,6 +694,18 @@ export class Game {
   /** 房主侧:动物快照消息 */
   netAnimalsMsg(): { t: 'animals'; list: AnimalPose[] } {
     return { t: 'animals', list: this.wildlife.netPoses() };
+  }
+
+  netAmbientMsg(): { t: 'ambient'; state: AmbientState } {
+    return {
+      t: 'ambient',
+      state: {
+        crabs: this.crabs.netPoses(),
+        birds: this.birds.netPoses(),
+        butterflies: this.butterflies.netPoses(),
+        dog: this.dog.netPose(),
+      },
+    };
   }
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
@@ -767,21 +782,41 @@ export class Game {
     this.wildlife.netApply(list);
   }
 
+  netApplyAmbient(state: AmbientState): void {
+    const elapsed = performance.now() / 1000;
+    this.crabs.netApply(state.crabs, elapsed);
+    this.birds.netApply(state.birds, elapsed);
+    this.butterflies.netApply(state.butterflies, elapsed);
+    this.dog.netApply(state.dog, elapsed);
+  }
+
   /** 客人侧:应用房主的世界快照(重放摆件与掉落物,资源点原地更新) */
-  netApplyWorld(state: SaveData): void {
-    this.props.applySave(state.props);
-    this.campfire.clear();
-    this.campfire.restore(state.campfires);
-    this.workbench.clear();
-    this.workbench.restore(state.workbenches);
-    this.crates.clear();
-    this.crates.restore(state.crates);
-    this.fences.clear();
-    this.fences.restore(state.fences ?? [], state.fenceGates ?? []);
-    this.beds.clear();
-    this.beds.restore(state.beds ?? []);
-    this.drops.dispose();
-    this.drops.restore(state.drops);
+  netApplyWorld(state: WorldPatch): void {
+    if (state.props) this.props.applySave(state.props);
+    if (state.campfires) {
+      this.campfire.clear();
+      this.campfire.restore(state.campfires);
+    }
+    if (state.workbenches) {
+      this.workbench.clear();
+      this.workbench.restore(state.workbenches);
+    }
+    if (state.crates) {
+      this.crates.clear();
+      this.crates.restore(state.crates);
+    }
+    if (state.fences || state.fenceGates) {
+      this.fences.clear();
+      this.fences.restore(state.fences ?? [], state.fenceGates ?? []);
+    }
+    if (state.beds) {
+      this.beds.clear();
+      this.beds.restore(state.beds);
+    }
+    if (state.drops) {
+      this.drops.dispose();
+      this.drops.restore(state.drops);
+    }
   }
 
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */

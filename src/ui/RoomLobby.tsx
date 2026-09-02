@@ -75,7 +75,13 @@ export function RoomLobby({
 
   // 客人:收到房主的开始消息即进入游戏
   useEffect(() => {
-    if (guest) guest.onStarted = () => onBegin(guest);
+    if (guest) {
+      guest.onStarted = () => onBegin(guest);
+      guest.onRejected = (reason) => {
+        setBusy(false);
+        setStatus(reason);
+      };
+    }
   }, [guest, onBegin]);
 
   const genInvite = async () => {

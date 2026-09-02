@@ -1,9 +1,10 @@
 import { PeerNet } from './PeerNet';
-import type { NetMsg, AnimalPose, NetEvent } from './Protocol';
+import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
 
 const INPUT_HZ = 20; // 摇杆上行频率
+const RESUME_KEY = 'island.multiplayer.resume';
 
 /** 客人侧联机会话:单条 DataChannel,上行摇杆/动作,下行世界与快照交给 Game 的 guest 模式应用 */
 export class NetGuest {
@@ -19,10 +20,12 @@ export class NetGuest {
 
   onStarted: () => void = () => {};
   onClosed: () => void = () => {};
+  onRejected: (reason: string) => void = () => {};
   /** 由 Game(guest 模式)注册的数据应用回调 */
   onPlayers: (msg: Extract<NetMsg, { t: 'players' }>) => void = () => {};
   onAnimals: (list: AnimalPose[]) => void = () => {};
-  onWorld: (state: SaveData) => void = () => {};
+  onAmbient: (state: AmbientState) => void = () => {};
+  onWorld: (state: WorldPatch) => void = () => {};
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
 
@@ -34,7 +37,11 @@ export class NetGuest {
       if (!this.disposed) this.onClosed();
     };
     const answer = await this.net.joinWithInvite(code);
-    this.net.send({ t: 'hello', name });
+    let resumeToken: string | undefined;
+    try {
+      resumeToken = localStorage.getItem(RESUME_KEY) || undefined;
+    } catch {}
+    this.net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
     return answer;
   }
 
@@ -52,7 +59,19 @@ export class NetGuest {
   private onMessage(msg: NetMsg): void {
     switch (msg.t) {
       case 'welcome':
+        if (msg.protocol !== NET_PROTOCOL_VERSION) {
+          this.onRejected('双方游戏版本不一致，请刷新页面后重试');
+          this.dispose();
+          break;
+        }
         this.welcome = { seeds: msg.seeds, state: msg.state, roster: msg.roster, you: msg.you };
+        try {
+          localStorage.setItem(RESUME_KEY, msg.resumeToken);
+        } catch {}
+        break;
+      case 'reject':
+        this.onRejected(msg.reason);
+        this.dispose();
         break;
       case 'start':
         this.onStarted();
@@ -63,8 +82,11 @@ export class NetGuest {
       case 'animals':
         this.onAnimals(msg.list);
         break;
+      case 'ambient':
+        this.onAmbient(msg.state);
+        break;
       case 'world':
-        this.onWorld(msg.state);
+        this.onWorld(msg.patch);
         break;
       case 'hud':
         this.onHud(msg.snap);

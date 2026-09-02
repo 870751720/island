@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import type { AmbientPose } from '../net/Protocol';
 import type { Props } from '../world/Props';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import { TREE_SPECIES, type TreeSpecies } from '../world/TreeSpecies';
@@ -350,6 +351,33 @@ export class Birds implements Updatable {
       }
 
       this.animate(bird, elapsed);
+    }
+  }
+
+  netPoses(): AmbientPose[] {
+    return this.birds.map((bird, id) => ({
+      id,
+      x: bird.pos.x,
+      y: bird.pos.y,
+      z: bird.pos.z,
+      h: bird.heading,
+      visible: bird.alive,
+      state: bird.state,
+    }));
+  }
+
+  netApply(poses: AmbientPose[], elapsed: number): void {
+    for (const pose of poses) {
+      const bird = this.birds[pose.id];
+      if (!bird) continue;
+      bird.pos.set(pose.x, pose.y, pose.z);
+      bird.heading = pose.h;
+      if (pose.state === 'walk' || pose.state === 'fly' || pose.state === 'flee' || pose.state === 'land') {
+        bird.state = pose.state;
+      }
+      bird.alive = pose.visible;
+      bird.model.group.visible = pose.visible;
+      if (pose.visible) this.animate(bird, elapsed);
     }
   }
 

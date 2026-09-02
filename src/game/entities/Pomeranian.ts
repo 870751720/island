@@ -3,6 +3,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Player } from './Player';
 import type { DropSystem } from '../systems/DropSystem';
 import type { Particles } from '../fx/Particles';
+import type { AmbientPose } from '../net/Protocol';
 
 /** 闻到肉块的半径:在这个距离内的地面肉块会把狗狗吸引过去 */
 const SMELL_RANGE = 9;
@@ -228,6 +229,21 @@ export class Pomeranian {
 
   snapshot(): { x: number; z: number } {
     return { x: this.pos.x, z: this.pos.z };
+  }
+
+  netPose(): AmbientPose {
+    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.play };
+  }
+
+  netApply(pose: AmbientPose, elapsed: number): void {
+    const moving = Math.hypot(this.pos.x - pose.x, this.pos.z - pose.z) > 0.02;
+    this.pos.set(pose.x, pose.y, pose.z);
+    this.heading = pose.h;
+    if (pose.state === 'circle' || pose.state === 'spin' || pose.state === 'sit' || pose.state === 'sleep' || pose.state === 'dig') {
+      this.play = pose.state;
+    }
+    this.group.visible = pose.visible;
+    this.animate(0.1, elapsed, moving, pose.state === 'spin');
   }
 
   /** 朝目标走一步,返回是否仍在途中;直路被挡时沿切线方向绕行(参考螃蟹的兜底策略) */

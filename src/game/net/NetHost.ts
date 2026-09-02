@@ -2,9 +2,10 @@ import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { PeerNet } from './PeerNet';
 import { ACTIONS } from './Actions';
-import type { NetEvent, NetMsg } from './Protocol';
+import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
+const RESUME_GRACE = 60_000;
 
 /** 一名已接入的客人 */
 type Guest = {
@@ -12,7 +13,10 @@ type Guest = {
   session: PlayerSession | null;
   name: string;
   lastSeen: number;
+  resumeToken: string;
 };
+
+type Resumable = { session: PlayerSession; name: string; expires: number };
 
 /** 房主侧联机会话总管:管理多条 DataChannel、接入/断线、输入写入、动作分发与快照广播 */
 export class NetHost {
@@ -22,7 +26,8 @@ export class NetHost {
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticks = 0;
-  private lastWorldJson = '';
+  private worldHashes = new Map<keyof WorldPatch, string>();
+  private resumable = new Map<string, Resumable>();
 
   onGuestJoined: (name: string) => void = () => {};
   onGuestLeft: (name: string) => void = () => {};
@@ -39,9 +44,10 @@ export class NetHost {
 
   /** 为下一个朋友生成邀请码 */
   async createInvite(): Promise<string> {
+    this.purgeResumable();
     if (this.guests.length >= 3) throw new Error('房间最多 4 人');
     const net = new PeerNet();
-    const guest: Guest = { net, session: null, name: '', lastSeen: performance.now() };
+    const guest: Guest = { net, session: null, name: '', lastSeen: performance.now(), resumeToken: crypto.randomUUID() };
     this.guests.push(guest);
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
     net.onClose = () => this.dropGuest(guest);
@@ -86,12 +92,34 @@ export class NetHost {
   private onMessage(guest: Guest, msg: NetMsg): void {
     guest.lastSeen = performance.now();
     if (msg.t === 'hello') {
-      guest.name = msg.name?.trim() || '朋友';
+      if (msg.protocol !== NET_PROTOCOL_VERSION) {
+        guest.net.send({ t: 'reject', reason: '双方游戏版本不一致，请刷新页面后重试' });
+        setTimeout(() => this.dropGuest(guest), 100);
+        return;
+      }
+      const resume = msg.resumeToken ? this.resumable.get(msg.resumeToken) : undefined;
+      if (resume && resume.expires > performance.now()) {
+        this.resumable.delete(msg.resumeToken!);
+        guest.session = resume.session;
+        guest.name = resume.name;
+        guest.resumeToken = msg.resumeToken!;
+      } else {
+        if (this.guests.filter((item) => item !== guest && item.session).length + this.resumable.size >= 3) {
+          guest.net.send({ t: 'reject', reason: '房间已满（断线玩家的席位会保留 1 分钟）' });
+          setTimeout(() => this.dropGuest(guest), 100);
+          return;
+        }
+        guest.name = msg.name?.trim().slice(0, 16) || '朋友';
+      }
       if (this.game && !guest.session) this.welcome(guest);
+      else if (this.game) this.sendWelcome(guest);
       this.onGuestJoined(guest.name);
     } else if (msg.t === 'input' && guest.session) {
-      guest.session.player.input.setJoystick(msg.x, msg.z);
+      const x = Number.isFinite(msg.x) ? Math.max(-1, Math.min(1, msg.x)) : 0;
+      const z = Number.isFinite(msg.z) ? Math.max(-1, Math.min(1, msg.z)) : 0;
+      guest.session.player.input.setJoystick(x, z);
     } else if (msg.t === 'action' && guest.session && this.game) {
+      if (typeof msg.name !== 'string' || !Array.isArray(msg.args) || msg.args.length > 8) return;
       const game = this.game;
       const session = guest.session;
       game.runNetAction(session, () => ACTIONS[msg.name]?.(game, session, msg.args));
@@ -101,12 +129,19 @@ export class NetHost {
   private welcome(guest: Guest): void {
     if (!this.game || guest.session) return;
     guest.session = this.game.addRemoteSession(false, undefined, guest.name);
+    this.sendWelcome(guest);
+  }
+
+  private sendWelcome(guest: Guest): void {
+    if (!this.game || !guest.session) return;
     guest.net.send({
       t: 'welcome',
       seeds: { terrainSeed: this.terrainSeed, propsSeed: this.propsSeed },
       state: this.game.collectSave(),
       roster: this.game.sessionIds(),
       you: guest.session.id,
+      protocol: NET_PROTOCOL_VERSION,
+      resumeToken: guest.resumeToken,
     });
     guest.net.send({ t: 'start' });
   }
@@ -121,7 +156,14 @@ export class NetHost {
     const index = this.guests.indexOf(guest);
     if (index < 0) return;
     this.guests.splice(index, 1);
-    if (guest.session && this.game) this.game.removeRemoteSession(guest.session);
+    if (guest.session && this.game) {
+      guest.session.player.input.setJoystick(0, 0);
+      this.resumable.set(guest.resumeToken, {
+        session: guest.session,
+        name: guest.name,
+        expires: performance.now() + RESUME_GRACE,
+      });
+    }
     guest.net.close();
     this.onGuestLeft(guest.name || '朋友');
   }
@@ -130,6 +172,7 @@ export class NetHost {
   private tick(): void {
     const game = this.game;
     if (!game) return;
+    this.purgeResumable();
     this.ticks++;
     const now = performance.now();
     const active: Guest[] = [];
@@ -142,6 +185,7 @@ export class NetHost {
       active.push(guest);
       guest.net.send(game.netPlayersMsg());
       guest.net.send(game.netAnimalsMsg());
+      guest.net.send(game.netAmbientMsg());
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
     }
     if (this.ticks % 10 === 0) this.maybeBroadcastWorld(active);
@@ -149,11 +193,41 @@ export class NetHost {
 
   private maybeBroadcastWorld(guests: Guest[]): void {
     const game = this.game!;
-    const state = game.collectSave();
-    // 昼夜时刻单独随玩家快照走,不参与脏比较
-    const json = JSON.stringify({ ...state, dayTime: 0, day: 0 });
-    if (json === this.lastWorldJson) return;
-    this.lastWorldJson = json;
-    for (const guest of guests) guest.net.send({ t: 'world', state });
+    const save = game.collectSave();
+    const sections: WorldPatch = {
+      props: save.props,
+      campfires: save.campfires,
+      workbenches: save.workbenches,
+      workbenchCrafted: save.workbenchCrafted,
+      crates: save.crates,
+      fences: save.fences,
+      fenceGates: save.fenceGates,
+      beds: save.beds,
+      drops: save.drops,
+    };
+    const patch: WorldPatch = {};
+    for (const key of Object.keys(sections) as (keyof WorldPatch)[]) {
+      const value = sections[key];
+      const json = JSON.stringify(value);
+      if (this.worldHashes.get(key) === json) continue;
+      this.worldHashes.set(key, json);
+      Object.assign(patch, { [key]: value });
+    }
+    // 围栏柱和门由同一个场景系统重建，任一变化时必须成对下发。
+    if (patch.fences !== undefined || patch.fenceGates !== undefined) {
+      patch.fences = save.fences;
+      patch.fenceGates = save.fenceGates;
+    }
+    if (Object.keys(patch).length === 0) return;
+    for (const guest of guests) guest.net.send({ t: 'world', patch });
+  }
+
+  private purgeResumable(): void {
+    const now = performance.now();
+    for (const [token, entry] of this.resumable) {
+      if (entry.expires > now) continue;
+      if (this.game) this.game.removeRemoteSession(entry.session);
+      this.resumable.delete(token);
+    }
   }
 }
