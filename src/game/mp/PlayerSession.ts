@@ -10,6 +10,7 @@ import type { FishingSystem } from '../systems/FishingSystem';
 import type { BowSystem } from '../systems/BowSystem';
 import type { WaterSystem } from '../systems/WaterSystem';
 import type { Actor } from './Actor';
+import { PlayerNameTag } from './PlayerNameTag';
 
 /** 一名玩家(本地或远程)在权威端拥有的全部个人状态。
  * 世界状态(地形/资源点/掉落物/放置物/动物)由 Game 层共享,不在此列。
@@ -17,6 +18,8 @@ import type { Actor } from './Actor';
 export class PlayerSession implements Actor {
   /** 联机生命周期内稳定的玩家标识；不随其他玩家加入或离开而变化。 */
   readonly id: string;
+  name: string;
+  readonly nameTag: PlayerNameTag;
   readonly player: Player;
   readonly survival = new SurvivalSystem();
   readonly inventory = new Inventory();
@@ -35,8 +38,15 @@ export class PlayerSession implements Actor {
   /** 上次记录的死亡状态(检测死亡沿触发倒地与清档) */
   lastDead = false;
 
-  constructor(player: Player, id = crypto.randomUUID()) {
+  constructor(player: Player, id = crypto.randomUUID(), name = '岛友') {
     this.player = player;
     this.id = id;
+    this.name = name;
+    this.nameTag = new PlayerNameTag(player.group, name);
+  }
+
+  setName(name: string): void {
+    this.name = name.trim().slice(0, 8) || '岛友';
+    this.nameTag.setName(this.name);
   }
 }

@@ -1,5 +1,5 @@
 import { PeerNet } from './PeerNet';
-import type { NetMsg, AnimalPose } from './Protocol';
+import type { NetMsg, AnimalPose, NetEvent } from './Protocol';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
 
@@ -24,6 +24,7 @@ export class NetGuest {
   onAnimals: (list: AnimalPose[]) => void = () => {};
   onWorld: (state: SaveData) => void = () => {};
   onHud: (snap: HudSnapshot) => void = () => {};
+  onEvent: (event: NetEvent) => void = () => {};
 
   /** 粘贴房主的邀请码,返回回传码发给房主 */
   async join(code: string, name: string): Promise<string> {
@@ -67,6 +68,9 @@ export class NetGuest {
         break;
       case 'hud':
         this.onHud(msg.snap);
+        break;
+      case 'event':
+        this.onEvent(msg.event);
         break;
       default:
         break;

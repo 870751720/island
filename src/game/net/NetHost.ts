@@ -2,7 +2,7 @@ import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { PeerNet } from './PeerNet';
 import { ACTIONS } from './Actions';
-import type { NetMsg } from './Protocol';
+import type { NetEvent, NetMsg } from './Protocol';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 
@@ -92,13 +92,15 @@ export class NetHost {
     } else if (msg.t === 'input' && guest.session) {
       guest.session.player.input.setJoystick(msg.x, msg.z);
     } else if (msg.t === 'action' && guest.session && this.game) {
-      ACTIONS[msg.name]?.(this.game, guest.session, msg.args);
+      const game = this.game;
+      const session = guest.session;
+      game.runNetAction(session, () => ACTIONS[msg.name]?.(game, session, msg.args));
     }
   }
 
   private welcome(guest: Guest): void {
     if (!this.game || guest.session) return;
-    guest.session = this.game.addRemoteSession();
+    guest.session = this.game.addRemoteSession(false, undefined, guest.name);
     guest.net.send({
       t: 'welcome',
       seeds: { terrainSeed: this.terrainSeed, propsSeed: this.propsSeed },
@@ -107,6 +109,12 @@ export class NetHost {
       you: guest.session.id,
     });
     guest.net.send({ t: 'start' });
+  }
+
+  broadcastEvent(event: NetEvent): void {
+    for (const guest of this.guests) {
+      if (guest.net.connected && guest.session) guest.net.send({ t: 'event', event });
+    }
   }
 
   private dropGuest(guest: Guest): void {

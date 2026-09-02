@@ -1,9 +1,11 @@
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
+import type { SfxName } from '../audio/Sfx';
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
   id: string;
+  name: string;
   x: number;
   y: number;
   z: number;
@@ -18,6 +20,10 @@ export type PlayerState = {
 
 /** 一只动物的实时姿态(快照用) */
 export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean };
+
+export type NetEvent =
+  | { kind: 'feedback'; sfx: SfxName; x: number; y: number; z: number }
+  | { kind: 'bottle'; target: string; text: string };
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */
 export type NetMsg =
@@ -36,4 +42,5 @@ export type NetMsg =
   | { t: 'players'; time: number; day: number; weather: 'sunny' | 'rain'; list: PlayerState[] }
   | { t: 'animals'; list: AnimalPose[] }
   | { t: 'world'; state: SaveData }
-  | { t: 'hud'; snap: HudSnapshot };
+  | { t: 'hud'; snap: HudSnapshot }
+  | { t: 'event'; event: NetEvent };

@@ -5,6 +5,7 @@ import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
 import type { AnimalPose, PlayerState } from './net/Protocol';
+import type { NetEvent } from './net/Protocol';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
@@ -32,6 +33,7 @@ import { BowSystem } from './systems/BowSystem';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
+import type { SfxName } from './audio/Sfx';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
@@ -276,6 +278,8 @@ export class Game {
   private readonly guestMode: boolean;
   /** 客人自己在房主侧的稳定玩家标识。 */
   private readonly youId: string | null;
+  private activeNetActor: PlayerSession | null = null;
+  private onBottleMessage: (text: string) => void;
 
   constructor(
     container: HTMLElement,
@@ -286,6 +290,7 @@ export class Game {
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void,
     onDogEmoji: (emoji: string | null, x: number, y: number) => void,
+    onBottleMessage: (text: string) => void,
     options: GameOptions = {}
   ) {
     this.container = container;
@@ -299,6 +304,7 @@ export class Game {
     this.onPickup = onPickup;
     this.onDamage = onDamage;
     this.onDogEmoji = onDogEmoji;
+    this.onBottleMessage = onBottleMessage;
 
     // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛;
     // 联机时种子与初始状态来自网络(房主大厅的种子 / 客人的欢迎包),客人不读写本地存档
@@ -359,8 +365,11 @@ export class Game {
     this.pondLife = new PondLife(this.scene, terrain);
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
-      this.youId ?? undefined
+      this.youId ?? undefined,
+      this.guestMode ? '我' : this.hostRef ? '房主' : '我'
     );
+    // 自己的头顶不显示名牌，避免与作业提示和自言自语重叠。
+    this.local.nameTag.sprite.visible = false;
     this.sessions.push(this.local);
     this.fences = new FenceSystem(
       this.scene,
@@ -397,7 +406,10 @@ export class Game {
         if (pounce) player.applySlow(3);
         const p = player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
+        const previousActor = this.activeNetActor;
+        this.activeNetActor = session;
         this.audio.play('chop');
+        this.activeNetActor = previousActor;
         if (session !== this.local) return; // 伤害数字只飘在本地玩家头顶
         const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
         this.onDamage(
@@ -421,6 +433,10 @@ export class Game {
       if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
         const pos = this.player.group.position;
         this.wildlife.startle(pos.x, pos.z);
+      }
+      if (this.hostRef) {
+        const p = (this.activeNetActor ?? this.local).player.group.position;
+        this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, x: p.x, y: p.y + 1, z: p.z });
       }
     };
     // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
@@ -528,6 +544,7 @@ export class Game {
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
+          this.activeNetActor = s;
           s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier();
@@ -570,6 +587,7 @@ export class Game {
             s.player.setTool('hand');
           }
         }
+        this.activeNetActor = null;
         // 睡觉过渡中:天空随进度日夜流转(多人同时睡取最先入睡者的进度)
         for (const s of this.sessions) {
           const sleepProgress = this.beds.getSleepProgress(s);
@@ -578,7 +596,7 @@ export class Game {
             break;
           }
         }
-        this.fences.update(delta);
+        this.fences.update(delta, this.sessions.map((s) => s.player.group.position));
         this.campfire.update(delta, elapsed);
         this.drops.update(delta, elapsed);
         if (!this.guestMode) this.updateAutoEquip(delta);
@@ -604,13 +622,13 @@ export class Game {
             s.player.setDead();
             if (s === this.local) {
               this.audio.play('death');
-              // 本地玩家死亡即清档:下次进入从新岛重新开始(客人不清房主的档)
-              if (!this.guestMode) SaveSystem.clear();
+              // 单机死亡清档；联机个人死亡只退出本人，房主档保留其余队友进度。
+              if (!this.hostRef && !this.guestMode) SaveSystem.clear();
             }
           }
           s.lastDead = s.survival.state.dead;
         }
-        if (!this.guestMode && !this.survival.state.dead) {
+        if (!this.guestMode && this.sessions.some((s) => !s.survival.state.dead)) {
           this.autosaveTimer += delta;
           if (this.autosaveTimer >= AUTOSAVE_INTERVAL) {
             this.autosaveTimer = 0;
@@ -632,6 +650,7 @@ export class Game {
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onWorld = (state) => this.netApplyWorld(state);
       this.guestNet.onHud = (snap) => this.netApplyHud(snap);
+      this.guestNet.onEvent = (event) => this.netApplyEvent(event);
       this.guestNet.begin();
     }
   }
@@ -653,6 +672,7 @@ export class Game {
         const sv = s.survival.state;
         return {
           id: s.id,
+          name: s.name,
           x: p.x,
           y: p.y,
           z: p.z,
@@ -689,20 +709,56 @@ export class Game {
     }
     for (const p of list) {
       let s = this.sessions.find((session) => session.id === p.id);
-      if (!s) s = this.addRemoteSession(true, p.id);
+      if (!s) s = this.addRemoteSession(true, p.id, p.name);
+      s.setName(s === this.local ? '我' : p.name);
       if (s === this.local) {
         const pos = s.player.group.position;
         if (Math.hypot(pos.x - p.x, pos.z - p.z) > 3) pos.set(p.x, p.y, p.z);
-        continue;
+      } else {
+        s.player.setNetPose(p.x, p.y, p.z, p.rotY);
+        s.player.setTool(p.tool as HandTool);
       }
-      s.player.setNetPose(p.x, p.y, p.z, p.rotY);
-      s.player.setTool(p.tool as HandTool);
       s.survival.state.hunger = p.hunger;
       s.survival.state.thirst = p.thirst;
       s.survival.state.health = p.health;
       s.survival.state.stamina = p.stamina;
       if (p.dead && !s.lastDead) s.player.setDead();
       s.lastDead = p.dead;
+    }
+  }
+
+  /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
+  netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'bottle') {
+      if (event.target === this.local.id) this.onBottleMessage(event.text);
+      return;
+    }
+    this.audio.play(event.sfx);
+    const colors: Partial<Record<SfxName, string>> = {
+      chop: '#a97b48',
+      mine: '#9a9a9a',
+      pick: '#7fae55',
+      pickStone: '#aaa69d',
+      knock: '#c99a5c',
+      pickup: '#f5d76e',
+      success: '#fff0a8',
+      hurt: '#c0392d',
+      shoot: '#d8c69a',
+      arrowHit: '#8d6e63',
+      splash: '#cfe8ff',
+      death: '#7d3c3c',
+    };
+    const color = colors[event.sfx];
+    if (color) this.fx.burst(new THREE.Vector3(event.x, event.y, event.z), color, 8);
+  }
+
+  /** 网络动作执行期间标记发起者，让随后产生的反馈事件带上正确玩家坐标。 */
+  runNetAction<T>(actor: PlayerSession, action: () => T): T {
+    this.activeNetActor = actor;
+    try {
+      return action();
+    } finally {
+      this.activeNetActor = null;
     }
   }
 
@@ -1244,9 +1300,13 @@ export class Game {
 
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
   useBottle(actor: PlayerSession = this.local): string | null {
-    if (this.guestNet) return null;
-
-    return openBottle(actor.inventory);
+    if (this.guestNet) {
+      this.guestNet.action('useBottle', []);
+      return null;
+    }
+    const text = openBottle(actor.inventory);
+    if (text && actor !== this.local) this.hostRef?.broadcastEvent({ kind: 'bottle', target: actor.id, text });
+    return text;
   }
 
   /** 背包里点击「使用」种子:校验与摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
@@ -1478,7 +1538,7 @@ export class Game {
   }
 
   /** 联机(房主侧)接入一名远程玩家:出生点同本地玩家,参与物理与动物判定 */
-  addRemoteSession(remote = false, id?: string): PlayerSession {
+  addRemoteSession(remote = false, id?: string, name = '岛友'): PlayerSession {
     const player = new Player(
       this.terrain,
       this.terrain.findSpawnPoint(),
@@ -1488,7 +1548,8 @@ export class Game {
     );
     player.setObstacles(this.props, this.fences);
     this.scene.add(player.group);
-    const session = new PlayerSession(player, id);
+    const session = new PlayerSession(player, id, name);
+    session.nameTag.sprite.visible = true;
     this.attachSessionSystems(session);
     this.sessions.push(session);
     return session;
@@ -1503,6 +1564,7 @@ export class Game {
     this.fences.detach(session);
     this.beds.detach(session);
     this.scene.remove(session.player.group);
+    session.nameTag.dispose();
     session.player.dispose();
   }
 
@@ -1611,10 +1673,13 @@ export class Game {
     this.hostRef?.detach();
     this.guestNet?.dispose();
     // 退出前再存一次,保证最近进度不丢;已死亡则存档已清(客人不写本地档)
-    if (!this.guestMode && !this.survival.state.dead) SaveSystem.save(this.collectSave());
+    if (!this.guestMode && this.sessions.some((s) => !s.survival.state.dead)) SaveSystem.save(this.collectSave());
     this.resizeObserver.disconnect();
     window.removeEventListener('keydown', this.onKeyDown);
-    for (const s of this.sessions) s.player.dispose();
+    for (const s of this.sessions) {
+      s.nameTag.dispose();
+      s.player.dispose();
+    }
     this.drops.dispose();
     this.rain.dispose();
     this.windFx.dispose();

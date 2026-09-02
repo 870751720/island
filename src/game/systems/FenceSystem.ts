@@ -515,8 +515,7 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /** 世界侧每帧更新:门对任一玩家的靠近自动开合;各玩家的放置/挖掘由 updateActor 推进 */
-  update(delta: number): void {
-    const players = [...this.states.keys()].map((actor) => actor.player.group.position);
+  update(delta: number, players = [...this.states.keys()].map((actor) => actor.player.group.position)): void {
     for (const gate of this.gates.values()) {
       gate.setPlayerNear(players.some((p) => Math.hypot(p.x - gate.centerX, p.z - gate.centerZ) < GATE_AUTO_RANGE));
       gate.update(delta);

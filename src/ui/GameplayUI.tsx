@@ -230,6 +230,7 @@ export function GameplayUI({
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
         }
       },
+      setBottleMsg,
       {
         host: net?.host,
         guest: net?.guest,
