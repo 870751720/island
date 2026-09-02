@@ -7,7 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 /** 资源点可恢复状态(自然生成的与 Props.list 前段一一对应,布局由种子保证一致;玩家种下的树带坐标) */
 export type PropSave = {
@@ -26,6 +26,8 @@ export type PropSave = {
 
 /** 一名玩家的会话进度(位置/生存/背包/工具/穿戴);联机时房主为每个远程玩家各存一份 */
 export type SessionSave = {
+  id: string;
+  name: string;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
@@ -41,6 +43,8 @@ export type PlacementSave = { x: number; y: number; z: number };
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {
   version: number;
+  id: string;
+  name: string;
   terrainSeed: number;
   propsSeed: number;
   player: { x: number; y: number; z: number };

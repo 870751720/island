@@ -234,9 +234,12 @@ export function GameplayUI({
       {
         host: net?.host,
         guest: net?.guest,
-        // 房主开的是新房间的岛,不用本地旧档
+        // 房主可在大厅选择新岛或恢复上一次由房主持有的联机存档。
         ...(net?.host
-          ? { seeds: { terrainSeed: net.host.terrainSeed, propsSeed: net.host.propsSeed }, save: null }
+          ? {
+              seeds: { terrainSeed: net.host.terrainSeed, propsSeed: net.host.propsSeed },
+              save: net.host.initialSave,
+            }
           : {}),
       }
     );

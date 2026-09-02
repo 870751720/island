@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
+import { SaveSystem } from '@/game/systems/SaveSystem';
 
 /** 联机大厅:房主逐个朋友「生成邀请码 → 粘贴回传码」,客人「粘贴邀请码 → 回传码发回房主」。
  * 手动复制粘贴三次即可集齐最多 4 人,不需要任何第三方服务器。 */
@@ -24,6 +25,7 @@ export function RoomLobby({
   const [players, setPlayers] = useState<string[]>([]);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
 
   const back = () => {
     host?.dispose();
@@ -89,6 +91,7 @@ export function RoomLobby({
     setBusy(true);
     setStatus('正在生成邀请码…');
     try {
+      host.useSavedWorld(resume ? SaveSystem.load() : null);
       setInvite(await host.createInvite());
       setStatus('把邀请码发给朋友,等他回传');
     } catch {
@@ -137,6 +140,12 @@ export function RoomLobby({
         </p>
         {mode === 'host' ? (
           <>
+            {SaveSystem.load() && players.length === 0 && !invite && (
+              <label className="room-resume">
+                <input type="checkbox" checked={resume} onChange={(event) => setResume(event.target.checked)} />
+                <span>继续上次保存的岛和队友进度</span>
+              </label>
+            )}
             {!invite && (
               <button className="room-button" disabled={busy || players.length >= 3} onClick={genInvite}>
                 {players.length >= 3 ? '房间已满' : players.length ? '邀请下一位朋友' : '邀请朋友'}
@@ -244,6 +253,8 @@ const css = `
 .room-subtitle { margin: -6px 0 14px; color: #6b7a5e; font-size: 13px; }
 .room-step { display: flex; align-items: center; gap: 8px; margin: 14px 0 7px; text-align: left; color: #44513a; font-size: 14px; }
 .room-step b { display: grid; place-items: center; flex: 0 0 26px; height: 26px; border-radius: 50%; background: #4d9e4f; color: white; }
+.room-resume { min-height: 44px; display: flex; align-items: center; gap: 10px; margin: 0 0 12px; text-align: left; color: #35452f; font-size: 14px; }
+.room-resume input { width: 22px; height: 22px; accent-color: #4d9e4f; }
 .room-tip {
   margin: 10px 0 6px;
   font-size: 13px;

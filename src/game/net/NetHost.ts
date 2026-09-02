@@ -1,5 +1,6 @@
 import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
+import type { SaveData } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
 import { ACTIONS } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
@@ -20,8 +21,9 @@ type Resumable = { session: PlayerSession; name: string; expires: number };
 
 /** 房主侧联机会话总管:管理多条 DataChannel、接入/断线、输入写入、动作分发与快照广播 */
 export class NetHost {
-  readonly terrainSeed: number;
-  readonly propsSeed: number;
+  terrainSeed: number;
+  propsSeed: number;
+  initialSave: SaveData | null = null;
   private guests: Guest[] = [];
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -35,6 +37,14 @@ export class NetHost {
   constructor() {
     this.terrainSeed = Math.random() * 1000;
     this.propsSeed = Math.floor(Math.random() * 0xffffffff);
+  }
+
+  useSavedWorld(save: SaveData | null): void {
+    this.initialSave = save;
+    if (save) {
+      this.terrainSeed = save.terrainSeed;
+      this.propsSeed = save.propsSeed;
+    }
   }
 
   /** 已接入的客人名字(含未开始的) */
@@ -128,7 +138,7 @@ export class NetHost {
 
   private welcome(guest: Guest): void {
     if (!this.game || guest.session) return;
-    guest.session = this.game.addRemoteSession(false, undefined, guest.name);
+    guest.session = this.game.claimSavedRemoteSession(guest.name) ?? this.game.addRemoteSession(false, undefined, guest.name);
     this.sendWelcome(guest);
   }
 
@@ -137,7 +147,7 @@ export class NetHost {
     guest.net.send({
       t: 'welcome',
       seeds: { terrainSeed: this.terrainSeed, propsSeed: this.propsSeed },
-      state: this.game.collectSave(),
+      state: this.game.collectSave(true),
       roster: this.game.sessionIds(),
       you: guest.session.id,
       protocol: NET_PROTOCOL_VERSION,
@@ -193,7 +203,7 @@ export class NetHost {
 
   private maybeBroadcastWorld(guests: Guest[]): void {
     const game = this.game!;
-    const save = game.collectSave();
+    const save = game.collectSave(true);
     const sections: WorldPatch = {
       props: save.props,
       campfires: save.campfires,

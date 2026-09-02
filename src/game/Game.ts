@@ -275,6 +275,7 @@ export class Game {
   private container: HTMLElement;
   private readonly hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
+  private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
   /** 客人自己在房主侧的稳定玩家标识。 */
   private readonly youId: string | null;
@@ -663,6 +664,18 @@ export class Game {
     return this.sessions.map((session) => session.id);
   }
 
+  /** 房主恢复旧联机岛后，按昵称优先认领此前保存的队友角色。 */
+  claimSavedRemoteSession(name: string): PlayerSession | null {
+    const exact = this.savedRemoteSessions.findIndex((session) => session.name === name);
+    const index = exact >= 0 ? exact : this.savedRemoteSessions.length ? 0 : -1;
+    if (index < 0) return null;
+    const [saved] = this.savedRemoteSessions.splice(index, 1);
+    const session = this.addRemoteSession(false, saved.id, name);
+    this.applyPlayerSave(session, saved);
+    session.setName(name);
+    return session;
+  }
+
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
   netPlayersMsg(): { t: 'players'; time: number; day: number; weather: 'sunny' | 'rain'; list: PlayerState[] } {
     return {
@@ -838,9 +851,9 @@ export class Game {
       }
     } else {
       this.applyPlayerSave(this.local, save);
-      // 联机存档:按接入顺序恢复房主保存的远程玩家会话
-      for (const other of save.others ?? []) {
-        this.applyPlayerSave(this.addRemoteSession(), other);
+      // 只有房主继续联机岛时恢复队友；单机继续不生成无人控制的远程角色。
+      for (const other of this.hostRef ? (save.others ?? []) : []) {
+        this.savedRemoteSessions.push(other);
       }
     }
     this.applyWorldSave(save);
@@ -888,6 +901,8 @@ export class Game {
     const p = session.player.group.position;
     const sv = session.survival.state;
     return {
+      id: session.id,
+      name: session.name,
       player: { x: p.x, y: p.y, z: p.z },
       survival: { hunger: sv.hunger, thirst: sv.thirst, health: sv.health, stamina: sv.stamina },
       slots: session.inventory.snapshot(),
@@ -899,10 +914,13 @@ export class Game {
   }
 
   /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存) */
-  collectSave(): SaveData {
+  collectSave(forNetwork = false): SaveData {
     return {
       ...this.collectPlayerSave(this.local),
-      others: this.sessions.slice(1).map((s) => this.collectPlayerSave(s)),
+      others: [
+        ...this.sessions.slice(1).map((s) => this.collectPlayerSave(s)),
+        ...(forNetwork ? [] : this.savedRemoteSessions),
+      ],
       version: SAVE_VERSION,
       terrainSeed: this.terrainSeed,
       propsSeed: this.propsSeed,
