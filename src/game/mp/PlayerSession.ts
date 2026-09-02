@@ -37,6 +37,8 @@ export class PlayerSession implements Actor {
   hurtSoundTimer = 0;
   /** 上次记录的死亡状态(检测死亡沿触发倒地与清档) */
   lastDead = false;
+  /** 联机死亡后的重生倒计时（秒）；0 表示无需重生。 */
+  respawnLeft = 0;
 
   constructor(player: Player, id = crypto.randomUUID(), name = '岛友') {
     this.player = player;

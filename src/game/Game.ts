@@ -164,6 +164,7 @@ export type PickupToast = { items: { icon: string; count: number }[]; x: number;
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
+const MULTIPLAYER_RESPAWN_DELAY = 3;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -569,6 +570,13 @@ export class Game {
             }
           }
           s.lastHealth = s.survival.state.health;
+          if (s.survival.state.dead) {
+            if (this.hostRef && s.respawnLeft > 0) {
+              s.respawnLeft = Math.max(0, s.respawnLeft - delta);
+              if (s.respawnLeft === 0) this.respawnMultiplayerSession(s);
+            }
+            continue;
+          }
           s.collect.update(delta);
           s.crafting.update(delta);
           // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
@@ -626,9 +634,10 @@ export class Game {
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
             s.player.setDead();
+            if (this.hostRef) s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
             if (s === this.local) {
               this.audio.play('death');
-              // 单机死亡清档；联机个人死亡只退出本人，房主档保留其余队友进度。
+              // 单机死亡清档；联机玩家由房主在倒计时结束后重生。
               if (!this.hostRef && !this.guestMode) SaveSystem.clear();
             }
           }
@@ -754,6 +763,8 @@ export class Game {
       s.survival.state.health = p.health;
       s.survival.state.stamina = p.stamina;
       if (p.dead && !s.lastDead) s.player.setDead();
+      if (!p.dead && s.lastDead) s.player.respawn(new THREE.Vector3(p.x, p.y, p.z));
+      s.survival.state.dead = p.dead;
       s.lastDead = p.dead;
     }
   }
@@ -1236,6 +1247,20 @@ export class Game {
     const s = actor.survival.state;
     s.hunger = s.thirst = s.health = s.stamina = 100;
     s.dead = false;
+  }
+
+  /** 房主权威执行联机重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
+  private respawnMultiplayerSession(session: PlayerSession): void {
+    session.inventory.reset();
+    session.equipment.reset();
+    for (const id of TOOL_IDS) session.tools[id] = 0;
+    const survival = session.survival.state;
+    survival.hunger = survival.thirst = survival.health = survival.stamina = 100;
+    survival.dead = false;
+    session.lastHealth = 100;
+    session.lastDead = false;
+    session.player.input.setJoystick(0, 0);
+    session.player.respawn(this.terrain.findSpawnPoint());
   }
 
   /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午 */

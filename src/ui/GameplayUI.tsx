@@ -476,7 +476,7 @@ export function GameplayUI({
         </>
       )}
       {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}
-      {hud.dead && <DeathScreen onConfirm={onExit} />}
+      {hud.dead && <DeathScreen onConfirm={onExit} autoRespawn={!!(net?.host || net?.guest)} />}
       {pickups.map((t) => (
         <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>
           {t.items.map((item, i) => (

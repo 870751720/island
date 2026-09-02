@@ -468,6 +468,24 @@ export class Player implements Updatable {
     for (const model of Object.values(this.toolModels)) model!.visible = false;
   }
 
+  /** 从死亡姿态恢复站立，并传送到出生点。 */
+  respawn(spawn: THREE.Vector3): void {
+    this.dead = false;
+    this.action = null;
+    this.sleepPose = null;
+    this.moving = false;
+    this.swimming = false;
+    this.wading = false;
+    this.slowLeft = 0;
+    this.group.position.copy(spawn);
+    this.group.rotation.set(0, 0, 0);
+    for (const limb of this.limbs) {
+      limb.mesh.rotation.x = 0;
+      limb.mesh.rotation.z = 0;
+    }
+    this.setTool('hand');
+  }
+
   /** 减速 debuff:被熊扑中时施加,期间移动速度减半 */
   applySlow(duration: number): void {
     this.slowLeft = Math.max(this.slowLeft, duration);

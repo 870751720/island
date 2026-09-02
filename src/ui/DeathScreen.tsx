@@ -1,6 +1,6 @@
 'use client';
 
-export function DeathScreen({ onConfirm }: { onConfirm: () => void }) {
+export function DeathScreen({ onConfirm, autoRespawn = false }: { onConfirm: () => void; autoRespawn?: boolean }) {
   return (
     <div
       style={{
@@ -19,9 +19,11 @@ export function DeathScreen({ onConfirm }: { onConfirm: () => void }) {
       <style>{`@keyframes death-fade { from { opacity: 0; } to { opacity: 1; } }`}</style>
       <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}>💀</div>
       <div style={{ color: '#fff', fontSize: 'clamp(22px, 6.5vw, 32px)', letterSpacing: '0.1em' }}>
-        你没能活下来…
+        {autoRespawn ? '你倒下了…' : '你没能活下来…'}
       </div>
-      <button
+      {autoRespawn ? (
+        <div style={{ color: '#dce8df', fontSize: 'clamp(15px, 4vw, 18px)' }}>3 秒后在出生点复活</div>
+      ) : <button
         onClick={onConfirm}
         style={{
           minWidth: 'min(60vw, 220px)',
@@ -38,7 +40,7 @@ export function DeathScreen({ onConfirm }: { onConfirm: () => void }) {
         }}
       >
         确 认
-      </button>
+      </button>}
     </div>
   );
 }

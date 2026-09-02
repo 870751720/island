@@ -64,6 +64,12 @@ export class Equipment {
     return this.equipped[slot] ?? null;
   }
 
+  /** 清空全部穿戴并立即刷新角色外观。 */
+  reset(): void {
+    this.equipped = {};
+    for (const slot of SLOT_ORDER) this.onChange?.(slot, null);
+  }
+
   /** 全身防御力:各栏位叠加,受伤时按此扣减伤害 */
   totalDefense(): number {
     return SLOT_ORDER.reduce(

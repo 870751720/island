@@ -83,6 +83,11 @@ export class Inventory {
     return this.slots.length;
   }
 
+  /** 丢弃全部物品并恢复初始背包容量。 */
+  reset(): void {
+    this.slots = Array.from({ length: DEFAULT_CAPACITY }, () => null);
+  }
+
   /** 扩容(装备背包道具)或保持不变;只允许扩容,不缩小 */
   setCapacity(capacity: number): void {
     if (capacity <= this.slots.length) return;
