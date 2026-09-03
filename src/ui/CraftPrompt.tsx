@@ -43,6 +43,7 @@ export function CraftPrompt({
   const cards: PromptCard[] = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&
+      !r.hidePrompt &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, hud) &&
       (!r.baitPrompt || baitCrafting) &&

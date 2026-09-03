@@ -46,6 +46,8 @@ export type Recipe = {
   minBenchLevel?: number;
   /** 鱼饵类手搓配方:只在手持鱼竿且背包没有鱼饵时弹出制作卡片 */
   baitPrompt?: boolean;
+  /** 仅允许从背包制作页发起,不在场景中弹出快捷制作卡片 */
+  hidePrompt?: boolean;
   /** 手搓卡片弹出优先级:数字越小越先弹;同一时刻只显示优先级最高的一张(station 为 hand 的配方必填,见 RECIPES 定义后的校验) */
   promptPriority?: number;
 };
@@ -93,6 +95,7 @@ export const RECIPES: Recipe[] = [
     station: 'hand',
     promptPriority: 3,
     tool: 'hoe',
+    hidePrompt: true,
   },
   {
     id: 'rope',
