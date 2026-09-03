@@ -396,7 +396,8 @@ export class Game {
     this.crabs = new Crabs(
       this.scene,
       terrain,
-      this.player,
+      // 螃蟹躲着所有玩家跑,联机时客人靠近同样会惊跑
+      () => this.sessions.map((s) => s.player.group.position),
       // 挡玩家的物件也挡地上的动物(成树/树桩/大石/围栏),鸟和蝴蝶会飞不受限
       (x, z) => this.isGroundBlocked(x, z)
     );

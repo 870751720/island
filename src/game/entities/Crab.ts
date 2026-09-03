@@ -116,7 +116,8 @@ export class Crabs implements Updatable {
   constructor(
     scene: THREE.Scene,
     private terrain: IslandTerrain,
-    private player: { group: THREE.Group },
+    /** 所有会威胁螃蟹的玩家位置(联机时含全部玩家,任一靠近都会逃) */
+    private playerPositions: () => THREE.Vector3[],
     /** 围栏等静态阻挡:点在阻挡内时螃蟹不可走 */
     private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random
@@ -185,14 +186,25 @@ export class Crabs implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
-    const p = this.player.group.position;
+    const players = this.playerPositions();
     for (const crab of this.crabs) {
       if (!crab.alive) {
         crab.respawnLeft -= delta;
         if (crab.respawnLeft <= 0) this.respawn(crab);
         continue;
       }
-      const flee = Math.hypot(p.x - crab.pos.x, p.z - crab.pos.z) < FLEE_RANGE;
+      // 找出范围内最近的玩家,背其方向逃跑
+      let threat: THREE.Vector3 | null = null;
+      let threatDist = FLEE_RANGE;
+      for (const p of players) {
+        const d = Math.hypot(p.x - crab.pos.x, p.z - crab.pos.z);
+        if (d < threatDist) {
+          threatDist = d;
+          threat = p;
+        }
+      }
+      const flee = threat !== null;
+      const p = threat!;
       crab.walkTime += delta;
 
       let moving = false;
