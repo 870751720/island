@@ -1,6 +1,16 @@
 'use client';
 
-export function DeathScreen({ onConfirm, autoRespawn = false }: { onConfirm: () => void; autoRespawn?: boolean }) {
+export function DeathScreen({
+  onConfirm,
+  autoRespawn = false,
+  respawnLeft = null,
+}: {
+  onConfirm: () => void;
+  autoRespawn?: boolean;
+  /** 联机复活倒计时剩余秒数(房主权威下发),驱动倒计时数字动态变化 */
+  respawnLeft?: number | null;
+}) {
+  const seconds = Math.max(1, Math.ceil(respawnLeft ?? 3));
   return (
     <div
       style={{
@@ -16,13 +26,25 @@ export function DeathScreen({ onConfirm, autoRespawn = false }: { onConfirm: () 
         animation: 'death-fade 0.6s ease',
       }}
     >
-      <style>{`@keyframes death-fade { from { opacity: 0; } to { opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes death-fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes death-count { from { transform: scale(1.3); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+      `}</style>
       <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}>💀</div>
       <div style={{ color: '#fff', fontSize: 'clamp(22px, 6.5vw, 32px)', letterSpacing: '0.1em' }}>
         {autoRespawn ? '你倒下了…' : '你没能活下来…'}
       </div>
       {autoRespawn ? (
-        <div style={{ color: '#dce8df', fontSize: 'clamp(15px, 4vw, 18px)' }}>3 秒后在出生点复活</div>
+        <div
+          key={seconds}
+          style={{
+            color: '#dce8df',
+            fontSize: 'clamp(15px, 4vw, 18px)',
+            animation: 'death-count 1s ease',
+          }}
+        >
+          {seconds} 秒后在出生点复活
+        </div>
       ) : <button
         onClick={onConfirm}
         style={{

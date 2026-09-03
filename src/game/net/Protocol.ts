@@ -60,6 +60,7 @@ export type WorldPatch = Partial<
 
 export type NetEvent =
   | { kind: 'feedback'; sfx: SfxName; actor: string; x: number; y: number; z: number }
+  | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'gm'; config: GmConfig }
   | { kind: 'bottle'; target: string; text: string };

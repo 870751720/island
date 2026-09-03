@@ -136,6 +136,8 @@ export type HudSnapshot = {
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
   autoEquipProgress: number;
+  /** 联机死亡后的复活倒计时剩余秒数(房主权威),未在倒计时时为 null */
+  respawnLeft: number | null;
   /** 站在可钓点且手持鱼竿时出现钓鱼按钮 */
   canFish: boolean;
   /** 钓鱼进行中的阶段,空闲为 null */
@@ -166,6 +168,8 @@ const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
+/** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
+const BEAR_SFX_RANGE = 20;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -449,9 +453,19 @@ export class Game {
         const session = this.sessionOf(player);
         return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
       },
-      // 熊的咆哮/扑击扬尘等粒子与音效
+      // 熊的咆哮/扑击扬尘等粒子与音效;吼声按声源位置判定:任意存活玩家 20 米内才本地播放,
+      // 并广播给客人各自按自己位置判定(距离过滤在接收端做)
       this.fx,
-      (name) => this.audio.play(name),
+      (name, x, z) => {
+        const audible = this.sessions.some(
+          (s) =>
+            !s.survival.state.dead &&
+            Math.hypot(s.player.group.position.x - x, s.player.group.position.z - z) <=
+              BEAR_SFX_RANGE
+        );
+        if (audible) this.audio.play(name);
+        this.hostRef?.broadcastEvent({ kind: 'sfxAt', sfx: name, x, y: 1, z });
+      },
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走
       (x, z) => this.isGroundBlocked(x, z)
     );
@@ -843,6 +857,14 @@ export class Game {
         event.color,
         Math.max(1, Math.min(24, Math.round(event.count)))
       );
+      return;
+    }
+    // 定位音效(熊吼/扑击等):声源距本地玩家 20 米内才播放,与房主判定一致
+    if (event.kind === 'sfxAt') {
+      const p = this.player.group.position;
+      if (Math.hypot(p.x - event.x, p.z - event.z) <= BEAR_SFX_RANGE) {
+        this.audio.play(event.sfx);
+      }
       return;
     }
     if (event.kind === 'gm') {
@@ -2001,6 +2023,7 @@ export class Game {
       eatName: s.eating.currentFood?.name ?? null,
       eatProgress: s.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
+      respawnLeft: s.survival.state.dead && this.hostRef ? s.respawnLeft : null,
       canFish: s.fishing.canStart(),
       fishingState: s.fishing.currentState,
       fishingProgress: s.fishing.getProgress() ?? 0,

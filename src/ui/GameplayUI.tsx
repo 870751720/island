@@ -76,6 +76,7 @@ const INITIAL_HUD: HudSnapshot = {
   eatName: null,
   eatProgress: 0,
   autoEquipProgress: 0,
+  respawnLeft: null,
   canFish: false,
   fishingState: null,
   fishingProgress: 0,
@@ -479,7 +480,13 @@ export function GameplayUI({
         </>
       )}
       {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}
-      {hud.dead && <DeathScreen onConfirm={onExit} autoRespawn={!!(net?.host || net?.guest)} />}
+      {hud.dead && (
+        <DeathScreen
+          onConfirm={onExit}
+          autoRespawn={!!(net?.host || net?.guest)}
+          respawnLeft={hud.respawnLeft}
+        />
+      )}
       {pickups.map((t) => (
         <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>
           {t.items.map((item, i) => (

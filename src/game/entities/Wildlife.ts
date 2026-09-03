@@ -201,7 +201,7 @@ export class Wildlife implements Updatable {
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
     private fx: Particles,
     /** 播放音效(熊咆哮/扑击破空) */
-    private playSound: (name: SfxName) => void,
+    private playSound: (name: SfxName, x: number, z: number) => void,
     /** 围栏等静态阻挡:点在阻挡内时动物不可走(围栏闭合即被圈住) */
     private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random
@@ -374,7 +374,7 @@ export class Wildlife implements Updatable {
             pounce.phase = 'leap';
             pounce.left = BEAR_POUNCE_LEAP;
             pounce.dir = animal.heading;
-            this.playSound('whoosh');
+            this.playSound('whoosh', animal.pos.x, animal.pos.z);
           }
         } else if (pounce.phase === 'leap') {
           moving = this.step(animal, pounce.dir, BEAR_POUNCE_SPEED, delta);
@@ -537,7 +537,7 @@ export class Wildlife implements Updatable {
     head.z += Math.sin(animal.heading) * 0.6;
     head.y += 1.1;
     this.fx.burst(head, '#a08b6f', 6);
-    this.playSound('roar');
+    this.playSound('roar', animal.pos.x, animal.pos.z);
   }
 
   /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离) */

@@ -13,6 +13,8 @@ import type { PlayerSession } from '../mp/PlayerSession';
 const FENCE_GRID = 1;
 /** 玩家面前放置围栏的距离(放置点再吸附到最近格点) */
 const PLACE_AHEAD = 0.9;
+/** 原地连续放置时,落点可沿面朝方向延伸的最远格距 */
+const CHAIN_RANGE = 4;
 /** 围栏落点离资源点的最小距离 */
 const PROP_BLOCK_RANGE = 0.6;
 /** 门自动开合的玩家距离 */
@@ -105,14 +107,15 @@ export class FenceSystem implements ObstacleSolver {
         px: [], nx: [], pz: [], nz: [],
       };
       const railOffsets: Record<'px' | 'nx' | 'pz' | 'nz', [number, number]> = {
-        px: [0.27, 0],
-        nx: [-0.27, 0],
-        pz: [0, 0.27],
-        nz: [0, -0.27],
+        px: [0.5, 0],
+        nx: [-0.5, 0],
+        pz: [0, 0.5],
+        nz: [0, -0.5],
       };
       for (const dir of ['px', 'nx', 'pz', 'nz'] as const) {
         for (const y of [0.3, 0.6]) {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.05), this.previewMat);
+          // 横杆跨满相邻两柱(与实际围栏一致),只在对应方向有邻居时显示
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.09, 0.05), this.previewMat);
           rail.position.set(railOffsets[dir][0], y, railOffsets[dir][1]);
           if (dir === 'pz' || dir === 'nz') rail.rotation.y = Math.PI / 2;
           fencePreview.add(rail);
@@ -302,21 +305,32 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /**
-   * 手持围栏时的最佳落点:面前附近一圈格点里打分——
+   * 手持围栏时的最佳落点:面前附近格点里打分——
    * 能与现有围栏/门相连的格点优先(接上玩家身边的围栏线),否则取离面前最近的。
+   * 脚边格点放满后允许沿面朝方向向前延伸(连续放置不用挪步)。
    */
   private pickVertex(actor: PlayerSession): { gx: number; gz: number } | null {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
+    const p = actor.player.group.position;
+    const faceLen = Math.hypot(t.x - p.x, t.z - p.z) || 1;
+    const fx = (t.x - p.x) / faceLen;
+    const fz = (t.z - p.z) / faceLen;
     let best: { gx: number; gz: number } | null = null;
     let bestScore = Infinity;
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -CHAIN_RANGE; dx <= CHAIN_RANGE; dx++) {
+      for (let dz = -CHAIN_RANGE; dz <= CHAIN_RANGE; dz++) {
         const gx = bx + dx;
         const gz = bz + dz;
         const dist = Math.hypot(gx - t.x, gz - t.z);
-        if (dist > 1.15 || !this.vertexValid(gx, gz)) continue;
+        // 脚边一圈始终可选;更远的只取大致正前方(面朝方向走廊),保证原地连续向前放
+        const ahead = ((gx - t.x) * fx + (gz - t.z) * fz) / (dist || 1);
+        if (
+          !((dist <= 1.15 || (dist <= CHAIN_RANGE && ahead > 0.7)) && this.vertexValid(gx, gz))
+        ) {
+          continue;
+        }
         const conns = this.connectionsOf(gx, gz);
         const adjacent = conns.px || conns.nx || conns.pz || conns.nz;
         const score = (adjacent ? 0 : 10) + dist;
@@ -383,6 +397,10 @@ export class FenceSystem implements ObstacleSolver {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
+    const p = actor.player.group.position;
+    const faceLen = Math.hypot(t.x - p.x, t.z - p.z) || 1;
+    const fx = (t.x - p.x) / faceLen;
+    const fz = (t.z - p.z) / faceLen;
     let best: { gx: number; gz: number; dir: 'x' | 'z' } | null = null;
     let bestScore = Infinity;
     for (let dx = -2; dx <= 1; dx++) {
@@ -393,7 +411,14 @@ export class FenceSystem implements ObstacleSolver {
           const mx = gx + (dir === 'x' ? 1 : 0);
           const mz = gz + (dir === 'z' ? 1 : 0);
           const dist = Math.hypot(mx - t.x, mz - t.z);
-          if (dist > 1.4 || !this.edgeValid(gx, gz, dir)) continue;
+          // 近处始终可选;更远的只取面朝方向走廊,保证原地连续向前安门
+          const ahead = ((mx - t.x) * fx + (mz - t.z) * fz) / (dist || 1);
+          if (
+            !((dist <= 1.4 || (dist <= CHAIN_RANGE + 1 && ahead > 0.7)) &&
+              this.edgeValid(gx, gz, dir))
+          ) {
+            continue;
+          }
           const ex = dir === 'x' ? gx + 2 : gx;
           const ez = dir === 'z' ? gz + 2 : gz;
           const touching =
