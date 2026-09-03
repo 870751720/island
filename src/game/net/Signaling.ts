@@ -1,126 +1,160 @@
+import mqtt, { type MqttClient } from 'mqtt';
 import type { PeerSignal } from './PeerNet';
 
-const SIGNAL_URL =
-  process.env.NEXT_PUBLIC_SIGNAL_URL ?? 'https://island-signal.island-870751720.workers.dev';
+const BROKER_URL = 'wss://broker-cn.emqx.io:8084/mqtt';
+const TOPIC_PREFIX = 'island-game/v1';
+const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CONNECT_TIMEOUT = 10_000;
 
-type ServerMessage =
-  | { type: 'ready' }
-  | { type: 'peer-joined'; peer: string }
-  | { type: 'peer-left'; peer: string }
-  | { type: 'signal'; from: string; data: PeerSignal }
-  | { type: 'error'; message: string };
+type UplinkMessage =
+  | { type: 'join'; peer: string }
+  | { type: 'signal'; peer: string; data: PeerSignal };
 
-function endpoint(path: string): string {
-  if (!SIGNAL_URL) throw new Error('联机服务尚未配置');
-  return `${SIGNAL_URL.replace(/\/$/, '')}${path}`;
+type DownlinkMessage = { type: 'ready' } | { type: 'signal'; data: PeerSignal };
+
+function randomId(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(bytes, (byte) => ROOM_CHARS[byte % ROOM_CHARS.length]).join('');
 }
 
-function socketUrl(path: string): string {
-  return endpoint(path).replace(/^http/, 'ws');
+function uplinkTopic(code: string): string {
+  return `${TOPIC_PREFIX}/${code}/up`;
 }
 
-class SignalSocket {
-  private socket: WebSocket | null = null;
-  private opened = false;
-  private queue: string[] = [];
+function downlinkTopic(code: string, peer: string): string {
+  return `${TOPIC_PREFIX}/${code}/down/${peer}`;
+}
 
-  onMessage: (message: ServerMessage) => void = () => {};
-  onClose: () => void = () => {};
+function parseMessage(payload: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder().decode(payload));
+  } catch {
+    return null;
+  }
+}
 
-  async connect(path: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(socketUrl(path));
-      this.socket = socket;
-      const timer = window.setTimeout(() => reject(new Error('连接房间超时')), 10_000);
-      socket.onopen = () => {
-        window.clearTimeout(timer);
-        this.opened = true;
-        for (const data of this.queue.splice(0)) socket.send(data);
-        resolve();
-      };
-      socket.onerror = () => {
-        window.clearTimeout(timer);
-        if (!this.opened) reject(new Error('无法连接联机服务'));
-      };
-      socket.onclose = () => this.onClose();
-      socket.onmessage = (event) => {
-        try {
-          this.onMessage(JSON.parse(event.data as string) as ServerMessage);
-        } catch {
-          // 无效信令忽略。
-        }
-      };
+/** 连接国内公共 MQTT；它只传递 WebRTC 握手信息，不承载游戏数据。 */
+function connectBroker(role: 'host' | 'guest'): Promise<MqttClient> {
+  return new Promise((resolve, reject) => {
+    const client = mqtt.connect(BROKER_URL, {
+      clean: true,
+      clientId: `island_${role}_${randomId(12)}`,
+      connectTimeout: CONNECT_TIMEOUT,
+      keepalive: 30,
+      reconnectPeriod: 0,
+      protocolVersion: 4,
     });
-  }
+    const timer = window.setTimeout(() => {
+      client.end(true);
+      reject(new Error('连接国内联机服务超时'));
+    }, CONNECT_TIMEOUT);
+    client.once('connect', () => {
+      window.clearTimeout(timer);
+      resolve(client);
+    });
+    client.once('error', (error) => {
+      window.clearTimeout(timer);
+      client.end(true);
+      reject(new Error(`无法连接国内联机服务：${error.message}`));
+    });
+  });
+}
 
-  send(message: unknown): void {
-    const data = JSON.stringify(message);
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(data);
-    else this.queue.push(data);
-  }
+function subscribe(client: MqttClient, topic: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    client.subscribe(topic, { qos: 0 }, (error) => {
+      if (error) reject(new Error('订阅房间失败'));
+      else resolve();
+    });
+  });
+}
 
-  close(): void {
-    this.socket?.close(1000, 'leave');
-    this.socket = null;
-  }
+function publish(client: MqttClient | null, topic: string, message: unknown): void {
+  if (!client?.connected) return;
+  client.publish(topic, JSON.stringify(message), { qos: 0, retain: false });
 }
 
 export class HostSignal {
-  private readonly socket = new SignalSocket();
+  private client: MqttClient | null = null;
+  private code = '';
   onPeerJoined: (peer: string) => void = () => {};
-  onPeerLeft: (peer: string) => void = () => {};
   onSignal: (peer: string, signal: PeerSignal) => void = () => {};
   onClose: () => void = () => {};
 
   static async create(): Promise<{ roomCode: string; signal: HostSignal }> {
-    const response = await fetch(endpoint('/rooms'), { method: 'POST' });
-    if (!response.ok) throw new Error('创建房间失败');
-    const room = (await response.json()) as { code: string; token: string };
     const signal = new HostSignal();
-    await signal.connect(room.code, room.token);
-    return { roomCode: room.code, signal };
+    signal.code = randomId(6);
+    signal.client = await connectBroker('host');
+    await subscribe(signal.client, uplinkTopic(signal.code));
+    signal.client.on('message', (_topic, payload) => signal.receive(parseMessage(payload)));
+    signal.client.once('close', () => signal.onClose());
+    return { roomCode: signal.code, signal };
   }
 
-  private async connect(code: string, token: string): Promise<void> {
-    this.socket.onMessage = (message) => {
-      if (message.type === 'peer-joined') this.onPeerJoined(message.peer);
-      else if (message.type === 'peer-left') this.onPeerLeft(message.peer);
-      else if (message.type === 'signal') this.onSignal(message.from, message.data);
-    };
-    this.socket.onClose = () => this.onClose();
-    await this.socket.connect(`/rooms/${code}/ws?role=host&token=${encodeURIComponent(token)}`);
+  private receive(raw: unknown): void {
+    if (!raw || typeof raw !== 'object') return;
+    const message = raw as Partial<UplinkMessage>;
+    if (message.type === 'join' && typeof message.peer === 'string') {
+      publish(this.client, downlinkTopic(this.code, message.peer), { type: 'ready' } satisfies DownlinkMessage);
+      this.onPeerJoined(message.peer);
+    } else if (message.type === 'signal' && typeof message.peer === 'string' && message.data) {
+      this.onSignal(message.peer, message.data);
+    }
   }
 
   send(peer: string, data: PeerSignal): void {
-    this.socket.send({ type: 'signal', target: peer, data });
+    publish(this.client, downlinkTopic(this.code, peer), { type: 'signal', data } satisfies DownlinkMessage);
   }
 
   close(): void {
-    this.socket.close();
+    this.client?.end(true);
+    this.client = null;
   }
 }
 
 export class GuestSignal {
-  private readonly socket = new SignalSocket();
-  readonly peer = crypto.randomUUID();
+  private client: MqttClient | null = null;
+  private code = '';
+  readonly peer = `${crypto.randomUUID()}-${randomId(6)}`;
   onSignal: (signal: PeerSignal) => void = () => {};
   onClose: () => void = () => {};
 
   async connect(code: string): Promise<void> {
-    this.socket.onMessage = (message) => {
-      if (message.type === 'signal') this.onSignal(message.data);
-      else if (message.type === 'error') this.onClose();
-    };
-    this.socket.onClose = () => this.onClose();
-    await this.socket.connect(`/rooms/${code}/ws?role=guest&peer=${encodeURIComponent(this.peer)}`);
+    this.code = code;
+    this.client = await connectBroker('guest');
+    await subscribe(this.client, downlinkTopic(code, this.peer));
+    let markReady: (() => void) | null = null;
+    const ready = new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error('房间不存在或房主已离开')), CONNECT_TIMEOUT);
+      markReady = () => {
+        window.clearTimeout(timer);
+        resolve();
+      };
+    });
+    this.client.on('message', (_topic, payload) => {
+      const raw = parseMessage(payload);
+      if (!raw || typeof raw !== 'object') return;
+      const message = raw as { type?: string; data?: PeerSignal };
+      if (message.type === 'ready') markReady?.();
+      else if (message.type === 'signal' && message.data) this.onSignal(message.data);
+    });
+    this.client.once('close', () => this.onClose());
+    publish(this.client, uplinkTopic(code), { type: 'join', peer: this.peer } satisfies UplinkMessage);
+    try {
+      await ready;
+    } catch (error) {
+      this.close();
+      throw error;
+    }
   }
 
   send(data: PeerSignal): void {
-    this.socket.send({ type: 'signal', data });
+    publish(this.client, uplinkTopic(this.code), { type: 'signal', peer: this.peer, data } satisfies UplinkMessage);
   }
 
   close(): void {
-    this.socket.close();
+    this.client?.end(true);
+    this.client = null;
   }
 }
 

@@ -42,7 +42,7 @@ export function GameCanvas() {
 
   const guestDisconnected = () => {
     setGuest(null);
-    setNotice('连接已断开。请用原房间码再次加入，1 分钟内会恢复原角色进度');
+    setNotice('连接已断开。正式游戏不保留信令连接，请让房主重新开房');
     setPhase('start');
   };
 

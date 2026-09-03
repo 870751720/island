@@ -7,8 +7,8 @@
 ## 需求描述
 
 - 四人(2–4 人,2 人即可开玩)在同一个种子生成的岛上共同生存。
-- 传输:WebRTC DataChannel 玩家直连(房主星形拓扑),无第三方服务器。
-- 信令:手动房间码——房主为每个朋友生成加入码,朋友粘贴后回传应答码完成握手。
+- 传输:WebRTC DataChannel 玩家直连(房主星形拓扑),第三方服务不承载游戏数据。
+- 信令:六位房间码或二维码,通过国内公共 MQTT 自动交换 WebRTC 握手信息。
 - 权威模型:房主客户端跑完整玩法模拟;客人只跑表现层 + 自身移动预测。
 - 存档:联机时房主持档;单机模式保持现状;存档结构变化时 SAVE_VERSION +1。
 - 断线:房主退出即全房解散;客人断线由房主按超时移除该会话。
@@ -110,3 +110,10 @@
 - 新增 `signaling/` Cloudflare Worker + Durable Object 信令服务。每个房间为一个临时 Durable Object，使用休眠 WebSocket，仅中转握手信息，不承载游戏状态和存档；房间十二小时自动过期，房主令牌禁止他人冒充房主。
 - `PeerNet` 改为 trickle ICE，不再等待最多四秒收集完整 SDP；游戏消息仍使用原有房主权威 WebRTC DataChannel 直连，GitHub Pages 仍只托管静态前端。
 - 默认信令地址为 `https://island-signal.island-870751720.workers.dev`，也可通过构建变量 `NEXT_PUBLIC_SIGNAL_URL` 覆盖。Cloudflare 免费额度用尽时服务拒绝请求，不启用付费计划；STUN 打洞失败的严格网络暂不提供收费 TURN 中继。
+
+### M7.1 国内直连信令(2026-09-03)
+
+- 删除 Cloudflare Worker、Durable Object 及其部署依赖，信令改为浏览器直接连接 EMQX 位于腾讯云上海的国内公共 MQTT WebSocket 节点；不设置境外备用服务。
+- 房主随机生成六位码并监听该房间的临时上行主题；客人使用随机 peer id 监听自己的下行主题。消息使用 QoS 0 且不保留，只中转 WebRTC offer、answer 与 ICE candidate，不上传游戏状态或存档。
+- 客人 DataChannel 建立后立即退出 MQTT；房主在大厅期间保持监听，以便最多三名朋友陆续加入，点击开始游戏后退出 MQTT。正式游戏仅使用房主星形 WebRTC P2P，掉线后需要重新开房，不再支持游戏中途加入。
+- STUN 从 Google 切换为国内可直连的腾讯与小米公共节点。严格 NAT 下仍可能无法打洞；项目不提供收费 TURN 中继。

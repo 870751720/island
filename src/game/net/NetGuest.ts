@@ -38,6 +38,10 @@ export class NetGuest {
     this.signal = signal;
     this.net = net;
     net.onMessage = (raw) => this.onMessage(raw as NetMsg);
+    net.onOpen = () => {
+      signal.close();
+      this.signal = null;
+    };
     net.onClose = () => {
       this.stopInput();
       if (!this.disposed) this.onClosed();

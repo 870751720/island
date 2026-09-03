@@ -1,6 +1,6 @@
-/** 免费公共 STUN；信令仅负责交换连接信息，游戏数据仍通过 DataChannel 直连。 */
+/** 国内可直连的免费公共 STUN；游戏数据通过 DataChannel 直连。 */
 const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }],
 };
 
 export type PeerSignal =

@@ -63,10 +63,6 @@ export class NetHost {
     this.signal = room.signal;
     this.roomCode = room.roomCode;
     room.signal.onPeerJoined = (peer) => void this.addPeer(peer);
-    room.signal.onPeerLeft = (peer) => {
-      const guest = this.guests.find((item) => item.peer === peer);
-      if (guest) this.dropGuest(guest);
-    };
     room.signal.onSignal = (peer, data) => {
       const guest = this.guests.find((item) => item.peer === peer);
       if (guest) void guest.net.receiveSignal(data).catch(() => this.dropGuest(guest));
@@ -100,6 +96,9 @@ export class NetHost {
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
   attach(game: Game): void {
     this.game = game;
+    // 已加入玩家的 DataChannel 均已建立，正式游戏不再依赖信令服务。
+    this.signal?.close();
+    this.signal = null;
     for (const guest of this.guests) {
       if (guest.net.connected && !guest.session) this.welcome(guest);
     }

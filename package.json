@@ -5,11 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "check:signal": "tsc -p signaling/tsconfig.json",
-    "deploy:signal": "wrangler deploy --config signaling/wrangler.jsonc"
+    "start": "next start"
   },
   "dependencies": {
+    "mqtt": "^5.15.2",
     "next": "^15.3.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
@@ -22,7 +21,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.171.0",
-    "typescript": "^5",
-    "wrangler": "^4.128.0"
+    "typescript": "^5"
   }
 }
