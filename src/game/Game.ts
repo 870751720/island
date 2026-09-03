@@ -635,7 +635,6 @@ export class Game {
         this.fences.update(delta, this.sessions.map((s) => s.player.group.position));
         this.campfire.update(delta, elapsed);
         this.drops.update(delta, elapsed);
-        if (!this.guestMode) this.updateAutoEquip(delta);
         this.mumbles.update(delta, {
           elapsed,
           dead: this.survival.state.dead,
@@ -673,10 +672,12 @@ export class Game {
           }
         }
         if (!this.guestMode) {
-          this.updateAutoEquip(delta);
           this.pushHud(delta);
           this.flushPickups();
         }
+        // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
+        if (this.guestMode) this.collect.scanNearby();
+        this.updateAutoEquip(delta);
       },
     });
 
@@ -912,7 +913,8 @@ export class Game {
     }
     this.netIndicator = snap.indicator;
     this.netIndicatorAt = now;
-    this.onHud(snap);
+    // 自动切工具进度由客人本地计时(房主不知道客人端该值),覆盖后再下发 UI
+    this.onHud({ ...snap, autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY });
   }
 
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
@@ -1169,6 +1171,7 @@ export class Game {
   private wantedTool(): HandTool | null {
     if (
       this.player.isMoving ||
+      (this.guestMode && this.player.isActing) ||
       this.crafting.isWorking ||
       this.workbench.isWorking(this.local) ||
       this.eating.isWorking ||
@@ -1214,7 +1217,8 @@ export class Game {
     this.autoEquipTimer += delta;
     if (this.autoEquipTimer >= AUTO_EQUIP_DELAY) {
       this.autoEquipTimer = 0;
-      this.player.setTool(need);
+      // 客人端走 selectTool:本地先切做预测表现,并上行 tool 动作由房主权威结算
+      this.selectTool(need);
     }
   }
 

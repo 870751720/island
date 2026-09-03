@@ -178,7 +178,8 @@ export class CollectSystem {
     return refined ? REFINED_HITS[kind]! : HARVEST_CONFIG[kind].hits;
   }
 
-  update(delta: number): void {
+  /** 扫描范围内可交互的资源点,刷新 nearby(客人端也跑,用于自动切工具等本地判定) */
+  scanNearby(): void {
     // 范围内优先选中当前可交互的资源点,避免被不可交互的挡住
     this.nearby = null;
     let fallback: Prop | null = null;
@@ -195,6 +196,10 @@ export class CollectSystem {
       fallback ??= prop;
     }
     this.nearby ??= fallback;
+  }
+
+  update(delta: number): void {
+    this.scanNearby();
 
     const working =
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();

@@ -177,3 +177,13 @@
   - 移除上一版「网络动作结算后立即广播」的特例(周期检查已覆盖)。
   - `PropState.regrowLeft` / `PropSave.regrowLeft` 改为可选,本地存档仍始终写入,存档结构无语义变化(不升 SAVE_VERSION)。
 - 客人端 `Campfire.netApplyFuel` 原地同步与 `CampfireSystem.netApply` 按落点匹配保持不变,配合量化燃料继续避免模型重建。
+
+### M9 客人端靠近交互物自动切换工具(2026-09-04)
+
+- 问题:非房主玩家空手站在树/大石/蚯蚓旁站定后不会自动切换到对应工具。原因有二:①主循环里 `updateAutoEquip` 被 `if (!this.guestMode)` 跳过;②客人端不跑权威采集模拟,`CollectSystem.getNearby()` 恒为 null,`wantedTool` 判定无从谈起。
+- 修复:
+  - `CollectSystem` 把「扫描范围内可交互资源点」从 `update` 抽为 `scanNearby()`,客人端每帧只跑扫描不做权威结算,`getNearby()` 恢复可用。
+  - `updateAutoEquip` 改为主循环统一调用(不再区分房主/客人),切换动作走 `Game.selectTool`:客人本地先切做预测表现,并上行 `tool` 动作由房主权威结算后经 HUD 快照回流。
+  - 客人端忙碌判定:本地制作/进食等系统在客人端不跑,改用 `player.isActing`(房主经 `netApplyPlayers` 下发的作业动作)兜底,作业中不触发自动切换。
+  - `netApplyHud` 在下发 UI 前用客人本地 `autoEquipTimer` 覆盖快照中的 `autoEquipProgress`(房主不知道客人端该值),保证工具按钮脉动提示正常。
+- 顺带修复:主循环原先对 `updateAutoEquip` 调用了两次(638/676 两处),房主实际等待时间只有 `AUTO_EQUIP_DELAY` 的一半,去重后恢复为 1 秒。
