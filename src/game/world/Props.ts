@@ -40,7 +40,8 @@ export type PropKind =
 export type PropState = {
   kind: PropKind;
   ready: boolean;
-  regrowLeft: number;
+  /** 再生剩余秒数;联机增量快照不含该字段(客人不模拟再生,由房主在再生完成时翻转 ready 同步) */
+  regrowLeft?: number;
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;
@@ -602,7 +603,7 @@ export class Props implements Updatable {
       const state = natural[i];
       if (!state || state.kind !== prop.kind) return;
       prop.ready = state.ready;
-      prop.regrowLeft = state.regrowLeft;
+      prop.regrowLeft = state.regrowLeft ?? 0;
       prop.stage = state.stage;
       if (state.dug) this.removeProp(prop);
       if (prop.kind === 'tree') {
@@ -624,14 +625,14 @@ export class Props implements Updatable {
       if (state.kind === 'berry' || state.kind === 'shrub' || state.kind === 'grass') {
         const prop = this.placeBush(state.kind, state.x, state.z);
         prop.ready = state.ready;
-        prop.regrowLeft = state.regrowLeft;
+        prop.regrowLeft = state.regrowLeft ?? 0;
         this.syncAppearance(prop);
         continue;
       }
       if (state.kind !== 'tree') continue;
       const prop = this.plant(state.species ?? 'oak', state.x, state.z);
       prop.ready = state.ready;
-      prop.regrowLeft = state.regrowLeft;
+      prop.regrowLeft = state.regrowLeft ?? 0;
       prop.stage = state.stage;
       prop.growth = state.growth ?? 'sprout';
       this.syncAppearance(prop);

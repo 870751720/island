@@ -13,7 +13,8 @@ export const SAVE_VERSION = 27;
 export type PropSave = {
   kind: PropKind;
   ready: boolean;
-  regrowLeft: number;
+  /** 联机增量快照省略该字段(连续递减的数值不下发,客人不模拟再生) */
+  regrowLeft?: number;
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;

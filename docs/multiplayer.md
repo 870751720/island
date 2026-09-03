@@ -167,3 +167,13 @@
 - 根因:火堆快照含 `fuel`,燃烧时每秒递减 → 房主每秒广播一次 campfires section → 客人 `clear()` + `restore()` 全量销毁/重建火堆模型,持续的 GPU 资源销毁重建最终触发上下文丢失(仅客人发生,房主本地只改数值)。
 - 治本:`Campfire.netApplyFuel` 原地更新燃料并在燃/灭切换时调整表现;`CampfireSystem.netApply` 按落点键匹配,火堆集合无增删时只原地同步,有增删才整体重放。`Game.netApplyWorld` 的 campfires 分支改走 `netApply`。
 - 兜底:`Game` 构造时对 `renderer.domElement` 监听 `webglcontextlost` 并 `preventDefault`,允许浏览器异步恢复上下文;恢复事件由 Three.js 内部处理并重传资源,画面自愈,不再永久白屏。
+
+### M8 世界同步机制重构:连续数值本地模拟,网络只同步离散事件(2026-09-04)
+
+- 背景:此前世界快照按 section 整体哈希对比、每 1 秒检查一次,且哈希里包含每秒递减的 `regrowLeft`(资源点再生倒计时)与 `fuel`(篝火燃料)——只要有灌木在再生或篝火在烧,props 全量数组(数百项)每秒重播一次,既造成约 50KB/s 的下行流量,也让交互物状态变化最多延迟 1 秒才到客人端。
+- 新机制:
+  - 连续递减的数值不入增量快照:`props` 下发时剥离 `regrowLeft`(客人在房主再生完成翻转 `ready` 时收增量,≤200ms);`campfires.fuel` 按 15 秒量化,只在跨档或添柴跳变时触发同步,燃尽熄灭由客人本地递减自行得出。
+  - 世界快照检查周期从 10 拍(1s)缩短为 2 拍(200ms):剥离漂移数值后哈希只在真实离散变化(采伐/挖除/种植/摆放/掉落)时改变,状态变化自动在 200ms 内同步,无需在各个结算点手动触发广播。
+  - 移除上一版「网络动作结算后立即广播」的特例(周期检查已覆盖)。
+  - `PropState.regrowLeft` / `PropSave.regrowLeft` 改为可选,本地存档仍始终写入,存档结构无语义变化(不升 SAVE_VERSION)。
+- 客人端 `Campfire.netApplyFuel` 原地同步与 `CampfireSystem.netApply` 按落点匹配保持不变,配合量化燃料继续避免模型重建。

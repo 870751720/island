@@ -152,8 +152,6 @@ export class NetHost {
       const game = this.game;
       const session = guest.session;
       game.runNetAction(session, () => ACTIONS[msg.name]?.(game, session, msg.args));
-      // 交互会立刻改写交互物状态(灌木变空、篝火熄灭等),不等 10 拍周期快照,立即下发
-      this.maybeBroadcastWorld(this.activeGuests());
     }
   }
 
@@ -199,7 +197,7 @@ export class NetHost {
     this.onGuestLeft(guest.name || '朋友');
   }
 
-  /** 100ms 一拍:玩家/动物快照每拍,HUD 每 2 拍,世界状态每 10 拍且仅在变化时 */
+  /** 100ms 一拍:玩家/动物快照每拍,HUD 每 2 拍,世界状态每 2 拍且仅在变化时 */
   private tick(): void {
     const game = this.game;
     if (!game) return;
@@ -219,20 +217,18 @@ export class NetHost {
       guest.net.send(game.netAmbientMsg());
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
     }
-    if (this.ticks % 10 === 0) this.maybeBroadcastWorld(active);
-  }
-
-  /** 已完成接入、可接收快照的客人 */
-  private activeGuests(): Guest[] {
-    return this.guests.filter((g) => g.net.connected && g.session);
+    if (this.ticks % 2 === 0) this.maybeBroadcastWorld(active);
   }
 
   private maybeBroadcastWorld(guests: Guest[]): void {
     const game = this.game!;
     const save = game.collectSave(true);
     const sections: WorldPatch = {
-      props: save.props,
-      campfires: save.campfires,
+      // 再生倒计时与燃料这类连续递减的数值不入增量快照(客人端本地模拟),
+      // 否则它们每秒都改变哈希,导致全量 section 每秒重播;燃料按 15 秒量化,
+      // 只在跨档或添柴跳变时才触发同步
+      props: save.props.map(({ regrowLeft: _, ...p }) => p),
+      campfires: save.campfires.map((c) => ({ ...c, fuel: Math.round(c.fuel / 15) * 15 })),
       workbenches: save.workbenches,
       workbenchCrafted: save.workbenchCrafted,
       crates: save.crates,
