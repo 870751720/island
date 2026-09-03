@@ -52,9 +52,8 @@ type PlayerSessionState = {
   hits: number;
   digTarget: { kind: 'fence' | 'gate'; key: string } | null;
   placeTimer: number;
-  /** 上次自动放置时玩家所在位置;原地不动只放一次,挪步后才允许再放 */
+  /** 原地自动放置是否可用:null 表示可放,放置后记位,移动即复位 */
   lastPlaceX: number | null;
-  lastPlaceZ: number;
   fencePreview: THREE.Group;
   previewRails: Record<'px' | 'nx' | 'pz' | 'nz', THREE.Object3D[]>;
   gatePreview: THREE.Group;
@@ -141,7 +140,7 @@ export class FenceSystem implements ObstacleSolver {
       gatePreview.visible = false;
       this.scene.add(gatePreview);
 
-      st = { swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, lastPlaceZ: 0, fencePreview, previewRails, gatePreview };
+      st = { swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
       this.states.set(actor, st);
     }
     return st;
@@ -442,6 +441,8 @@ export class FenceSystem implements ObstacleSolver {
 
   /** 手持围栏/门站定自动放到面前的格点(边)上,面前已满或不可放则不打扰 */
   private updateAutoPlace(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
+    // 移动即恢复自动放置资格(原地只放一次;挪过步再回来也能放)
+    if (actor.player.isMoving) st.lastPlaceX = null;
     const fenceKind = this.heldFenceKind(actor);
     const gate = actor.player.currentTool === 'fenceGate';
     const item: ResourceKind | null = fenceKind
@@ -456,12 +457,7 @@ export class FenceSystem implements ObstacleSolver {
       !actor.player.isMoving &&
       !actor.player.isSwimming &&
       !this.isBusy(actor) &&
-      // 原地只放一次:上次放置后挪步超过半格才允许自动放置下一个
-      (st.lastPlaceX === null ||
-        Math.hypot(
-          actor.player.group.position.x - st.lastPlaceX,
-          actor.player.group.position.z - st.lastPlaceZ
-        ) > 0.5) &&
+      st.lastPlaceX === null &&
       (fenceKind ? this.pickVertex(actor) !== null : this.pickEdge(actor) !== null);
     if (!placeable) {
       st.placeTimer = 0;
@@ -541,12 +537,9 @@ export class FenceSystem implements ObstacleSolver {
     this.updatePreview(actor, this.st(actor));
   }
 
-  /** 记录本次放置时玩家位置:原地只放一次,挪步半格以上才恢复自动放置 */
+  /** 记录本回合已放置:原地不再自动放置,移动一下即恢复 */
   private markPlaced(actor: PlayerSession): void {
-    const st = this.st(actor);
-    const p = actor.player.group.position;
-    st.lastPlaceX = p.x;
-    st.lastPlaceZ = p.z;
+    this.st(actor).lastPlaceX = actor.player.group.position.x;
   }
 
   /** 每帧推进该玩家的落点预览、自动放置与自动挖掘 */

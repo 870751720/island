@@ -170,6 +170,8 @@ const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(�
 const MULTIPLAYER_RESPAWN_DELAY = 3;
 /** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
 const BEAR_SFX_RANGE = 20;
+/** 联机时客人端熊击伤害的延迟结算秒数(等客人画面上熊扑到再掉血) */
+const WILDLIFE_HIT_DELAY = 0.25;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -283,6 +285,10 @@ export class Game {
   private netDrift = new THREE.Vector2();
   /** 客人端进食特效已播放到的快照进度档(0~3) */
   private netEatTick = 0;
+  /** 待延迟结算的熊击(联机客人,等画面命中后再掉血) */
+  private pendingWildlifeHits: { session: PlayerSession; damage: number; pounce: boolean; at: number }[] = [];
+  /** 游戏循环累计时间(延迟队列用) */
+  private loopElapsed = 0;
   private netIndicatorProgress: number | null = null;
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
@@ -431,23 +437,18 @@ export class Game {
       () => this.sessions.map((s) => s.player),
       (player: Player, damage: number, pounce?: boolean) => {
         const session = this.sessionOf(player);
-        const final = Math.max(1, damage - session.equipment.totalDefense());
-        session.survival.damage(final);
-        // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
-        if (pounce) player.applySlow(3);
-        const p = player.group.position;
-        this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
-        const previousActor = this.activeNetActor;
-        this.activeNetActor = session;
-        this.audio.play('chop');
-        this.activeNetActor = previousActor;
-        if (session !== this.local) return; // 伤害数字只飘在本地玩家头顶
-        const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
-        this.onDamage(
-          final,
-          Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),
-          Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
-        );
+        if (this.hostRef && session !== this.local) {
+          // 客人端熊的位置画面比房主权威模拟滞后约 1~2 拍快照 + 插值;
+          // 伤害延迟到画面上熊扑到时再结算,避免"人先掉血、熊还没到"
+          this.pendingWildlifeHits.push({
+            session,
+            damage,
+            pounce: !!pounce,
+            at: this.loopElapsed + WILDLIFE_HIT_DELAY,
+          });
+          return;
+        }
+        this.applyWildlifeHit(session, damage, !!pounce);
       },
       (player: Player) => {
         const session = this.sessionOf(player);
@@ -556,6 +557,17 @@ export class Game {
 
     this.loop.add({
       update: (delta, elapsed) => {
+        this.loopElapsed = elapsed;
+        // 到点的延迟熊击结算(联机客人:等画面上熊扑到再掉血)
+        if (this.pendingWildlifeHits.length > 0) {
+          this.pendingWildlifeHits = this.pendingWildlifeHits.filter((hit) => {
+            if (hit.at > elapsed) return true;
+            if (!hit.session.survival.state.dead) {
+              this.applyWildlifeHit(hit.session, hit.damage, hit.pounce);
+            }
+            return false;
+          });
+        }
         for (const session of this.sessions) session.player.update(delta, elapsed);
         this.minimap.update(this.player.group.position.x, this.player.group.position.z);
         this.dayNight.update(delta);
@@ -676,6 +688,8 @@ export class Game {
             if (this.hostRef) s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
             if (s === this.local) {
               this.audio.play('death');
+              // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
+              this.setJoystick(0, 0);
               // 单机死亡清档；联机玩家由房主在倒计时结束后重生。
               if (!this.hostRef && !this.guestMode) SaveSystem.clear();
             }
@@ -987,6 +1001,28 @@ export class Game {
     }
     // 自动切工具进度由客人本地计时(房主不知道客人端该值),覆盖后再下发 UI
     this.onHud({ ...snap, autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY });
+  }
+
+  /** 熊击某玩家的最终结算:减伤掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
+  private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
+    const player = session.player;
+    const final = Math.max(1, damage - session.equipment.totalDefense());
+    session.survival.damage(final);
+    // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
+    if (pounce) player.applySlow(3);
+    const p = player.group.position;
+    this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
+    const previousActor = this.activeNetActor;
+    this.activeNetActor = session;
+    this.audio.play('chop');
+    this.activeNetActor = previousActor;
+    if (session !== this.local) return; // 伤害数字只飘在本地玩家头顶
+    const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
+    this.onDamage(
+      final,
+      Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),
+      Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
+    );
   }
 
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
