@@ -6,6 +6,26 @@ import type { HudSnapshot } from '../Game';
 
 const INPUT_HZ = 20; // 摇杆上行频率
 const RESUME_KEY = 'island.multiplayer.resume';
+const LAST_ROOM_KEY = 'island.multiplayer.lastRoom';
+
+/** 记住最近加入的房间(码+昵称):断线后回到加入页自动带出,一键重进 */
+export function saveLastRoom(code: string, name: string): void {
+  try {
+    window.localStorage.setItem(LAST_ROOM_KEY, JSON.stringify({ code: normalizeRoomCode(code), name }));
+  } catch {}
+}
+
+export function loadLastRoom(): { code: string; name: string } | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_ROOM_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { code?: string; name?: string };
+    if (!saved.code) return null;
+    return { code: saved.code, name: saved.name ?? '' };
+  } catch {
+    return null;
+  }
+}
 
 /** 客人侧联机会话:单条 DataChannel,上行摇杆/动作,下行世界与快照交给 Game 的 guest 模式应用 */
 export class NetGuest {
@@ -55,6 +75,7 @@ export class NetGuest {
       resumeToken = localStorage.getItem(RESUME_KEY) || undefined;
     } catch {}
     net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
+    saveLastRoom(code, name);
     await signal.connect(normalizeRoomCode(code));
   }
 

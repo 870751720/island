@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { NetHost } from '@/game/net/NetHost';
-import { NetGuest } from '@/game/net/NetGuest';
+import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
@@ -14,20 +14,25 @@ const NICKNAME_KEY = 'island.nickname';
 export function RoomLobby({
   mode,
   initialRoomCode = '',
+  initialStatus = '',
   onBegin,
   onBack,
 }: {
   mode: 'host' | 'guest';
   initialRoomCode?: string;
+  initialStatus?: string;
   onBegin: (net: NetHost | NetGuest) => void;
   onBack: () => void;
 }) {
   const [host] = useState(() => (mode === 'host' ? new NetHost() : null));
   const [guest] = useState(() => (mode === 'guest' ? new NetGuest() : null));
   const [name, setName] = useState(() => (typeof window === 'undefined' ? '' : window.localStorage.getItem(NICKNAME_KEY) ?? ''));
-  const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(initialRoomCode));
+  const [roomCode, setRoomCode] = useState(() => {
+    if (initialRoomCode) return normalizeRoomCode(initialRoomCode);
+    return mode === 'guest' ? (loadLastRoom()?.code ?? '') : '';
+  });
   const [players, setPlayers] = useState<string[]>([]);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
   const [qr, setQr] = useState('');

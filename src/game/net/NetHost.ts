@@ -7,7 +7,7 @@ import { ACTIONS } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
-const RESUME_GRACE = 60_000;
+const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
 
 /** 一名已接入的客人 */
 type Guest = {
@@ -96,9 +96,7 @@ export class NetHost {
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
   attach(game: Game): void {
     this.game = game;
-    // 已加入玩家的 DataChannel 均已建立，正式游戏不再依赖信令服务。
-    this.signal?.close();
-    this.signal = null;
+    // 信令保持在线:断线客人需要它重新握手,用原房间码回来即可恢复席位
     for (const guest of this.guests) {
       if (guest.net.connected && !guest.session) this.welcome(guest);
     }
@@ -136,7 +134,7 @@ export class NetHost {
         guest.resumeToken = msg.resumeToken!;
       } else {
         if (this.guests.filter((item) => item !== guest && item.session).length + this.resumable.size >= 3) {
-          guest.net.send({ t: 'reject', reason: '房间已满（断线玩家的席位会保留 1 分钟）' });
+          guest.net.send({ t: 'reject', reason: '房间已满（断线玩家的席位会保留 5 分钟）' });
           setTimeout(() => this.dropGuest(guest), 100);
           return;
         }

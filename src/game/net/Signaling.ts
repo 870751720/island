@@ -34,14 +34,14 @@ function parseMessage(payload: Uint8Array): unknown {
 }
 
 /** 连接国内公共 MQTT；它只传递 WebRTC 握手信息，不承载游戏数据。 */
-function connectBroker(role: 'host' | 'guest'): Promise<MqttClient> {
+function connectBroker(role: 'host' | 'guest', reconnectPeriod = 0): Promise<MqttClient> {
   return new Promise((resolve, reject) => {
     const client = mqtt.connect(BROKER_URL, {
       clean: true,
       clientId: `island_${role}_${randomId(12)}`,
       connectTimeout: CONNECT_TIMEOUT,
       keepalive: 30,
-      reconnectPeriod: 0,
+      reconnectPeriod,
       protocolVersion: 4,
     });
     const timer = window.setTimeout(() => {
@@ -84,10 +84,16 @@ export class HostSignal {
   static async create(): Promise<{ roomCode: string; signal: HostSignal }> {
     const signal = new HostSignal();
     signal.code = randomId(6);
-    signal.client = await connectBroker('host');
+    signal.client = await connectBroker('host', 5000);
     await subscribe(signal.client, uplinkTopic(signal.code));
     signal.client.on('message', (_topic, payload) => signal.receive(parseMessage(payload)));
     signal.client.once('close', () => signal.onClose());
+    // 游戏全程保持信令在线供断线客人重连:公共 broker 可能掐掉空闲连接,
+    // 断开后自动重连并重新订阅房间主题
+    signal.client.on('connect', () => {
+      void subscribe(signal.client!, uplinkTopic(signal.code)).catch(() => {});
+    });
+    signal.client.on('error', () => {});
     return { roomCode: signal.code, signal };
   }
 

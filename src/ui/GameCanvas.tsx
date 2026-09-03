@@ -16,6 +16,7 @@ export function GameCanvas() {
   const [host, setHost] = useState<NetHost | null>(null);
   const [guest, setGuest] = useState<NetGuest | null>(null);
   const [notice, setNotice] = useState('');
+  const [disconnectNotice, setDisconnectNotice] = useState('');
   const [invitedRoom, setInvitedRoom] = useState('');
 
   useEffect(() => {
@@ -41,9 +42,12 @@ export function GameCanvas() {
   };
 
   const guestDisconnected = () => {
+    // 断线不清席位:回到加入页,房间码与昵称自动带出,重新点「加入房间」即可恢复原角色
+    guest?.dispose();
     setGuest(null);
-    setNotice('连接已断开。正式游戏不保留信令连接，请让房主重新开房');
-    setPhase('start');
+    setNotice('连接已断开。重新加入上次的房间即可恢复角色（席位保留 5 分钟）');
+    setDisconnectNotice('连接已断开。直接点「加入房间」即可恢复角色（席位保留 5 分钟）');
+    setPhase('guest');
   };
 
   if (phase === 'playing') {
@@ -66,13 +70,18 @@ export function GameCanvas() {
       <RoomLobby
         mode="guest"
         initialRoomCode={invitedRoom}
+        initialStatus={disconnectNotice}
         onBegin={(net) => {
           const nextGuest = net as NetGuest;
           nextGuest.onClosed = guestDisconnected;
           setGuest(nextGuest);
+          setDisconnectNotice('');
           setPhase('playing');
         }}
-        onBack={() => setPhase('start')}
+        onBack={() => {
+          setDisconnectNotice('');
+          setPhase('start');
+        }}
       />
     );
   }
