@@ -7,6 +7,9 @@ import { NetGuest } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
+/** 昵称持久化键:输入即记住,下次进入自动带出,想改直接改 */
+const NICKNAME_KEY = 'island.nickname';
+
 /** 自动信令大厅：房主分享六位码或二维码，客人输入昵称即可直接连接。 */
 export function RoomLobby({
   mode,
@@ -21,7 +24,7 @@ export function RoomLobby({
 }) {
   const [host] = useState(() => (mode === 'host' ? new NetHost() : null));
   const [guest] = useState(() => (mode === 'guest' ? new NetGuest() : null));
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => (typeof window === 'undefined' ? '' : window.localStorage.getItem(NICKNAME_KEY) ?? ''));
   const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(initialRoomCode));
   const [players, setPlayers] = useState<string[]>([]);
   const [status, setStatus] = useState('');
@@ -171,7 +174,10 @@ export function RoomLobby({
               placeholder="请输入昵称"
               maxLength={8}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (event.target.value.trim()) window.localStorage.setItem(NICKNAME_KEY, event.target.value);
+              }}
             />
             <button
               className="room-button"
