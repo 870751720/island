@@ -81,7 +81,18 @@ export type NetMsg =
   | { t: 'start' }
   | { t: 'input'; x: number; z: number }
   | { t: 'action'; name: string; args: unknown[] }
-  | { t: 'players'; time: number; day: number; weather: 'sunny' | 'rain'; list: PlayerState[] }
+  | {
+      t: 'players';
+      time: number;
+      day: number;
+      weather: 'sunny' | 'rain';
+      /** 房主权威天气连续值(客人端驱动画表现,不再本地随机轮换) */
+      rain: number;
+      windAmount: number;
+      windDirX: number;
+      windDirZ: number;
+      list: PlayerState[];
+    }
   | { t: 'animals'; list: AnimalPose[] }
   | { t: 'ambient'; state: AmbientState }
   | { t: 'world'; patch: WorldPatch }

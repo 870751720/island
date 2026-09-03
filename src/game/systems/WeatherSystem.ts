@@ -38,6 +38,10 @@ export class WeatherSystem {
   private windAmount = 0;
   private windPhase = 0;
   private windDir = Math.random() * Math.PI * 2;
+  /** 客人端:天气与风由房主快照驱动,本地不再随机轮换 */
+  private net = false;
+  private netRain = this.type === 'rain' ? 1 : 0;
+  private netWind = 0;
 
   constructor(
     private sun: THREE.DirectionalLight,
@@ -49,6 +53,14 @@ export class WeatherSystem {
   }
 
   update(delta: number): void {
+    if (this.net) {
+      // 客人端:向房主权威值短时常数插值,保证 100ms 快照间隔内平滑无跳变
+      this.rainAmount = THREE.MathUtils.lerp(this.rainAmount, this.netRain, delta / 0.3);
+      this.windAmount = THREE.MathUtils.lerp(this.windAmount, this.netWind, delta / 0.3);
+      this.windPhase += delta;
+      this.modulate();
+      return;
+    }
     this.timer -= delta;
     if (this.timer <= 0) this.switchWeather();
     const k = delta / TRANSITION;
@@ -65,8 +77,11 @@ export class WeatherSystem {
       delta / WIND_TRANSITION
     );
     this.windPhase += delta;
+    this.modulate();
+  }
 
-    // 雨天明显压暗并去饱和:天空偏深灰蓝,阳光变冷
+  /** 雨天压暗并去饱和:天空偏深灰蓝,阳光变冷 */
+  private modulate(): void {
     const sky = this.scene.background as THREE.Color;
     const a = this.rainAmount;
     sky.lerp(RAIN_SKY, a * 0.75);
@@ -104,6 +119,18 @@ export class WeatherSystem {
   force(type: WeatherType): void {
     this.applyType(type);
     this.timer = this.pickDuration();
+  }
+
+  /** 客人端:采用房主权威的天气/风状态(强度 + 风向),本地只做表现插值 */
+  netSync(rainAmount: number, windAmount: number, dirX: number, dirZ: number): void {
+    this.net = true;
+    this.netRain = rainAmount;
+    this.netWind = windAmount;
+    this.windDir = Math.atan2(dirZ, dirX);
+    const type: WeatherType = rainAmount >= 0.5 ? 'rain' : 'sunny';
+    this.type = type;
+    this.state.type = type;
+    this.state.label = type === 'rain' ? '🌧️ 雨' : '☀️ 晴';
   }
 
   private switchWeather(): void {

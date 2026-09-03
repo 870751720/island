@@ -108,7 +108,7 @@ export class Butterflies implements Updatable {
   constructor(
     scene: THREE.Scene,
     private props: Props,
-    private player: { group: THREE.Group },
+    private players: () => { group: THREE.Group }[],
     rng: () => number = Math.random
   ) {
     const count = 6;
@@ -147,7 +147,6 @@ export class Butterflies implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
-    const p = this.player.group.position;
     for (const bf of this.butterflies) {
       if (!bf.visible) {
         bf.respawnLeft -= delta;
@@ -157,8 +156,19 @@ export class Butterflies implements Updatable {
 
       const prevX = bf.pos.x;
       const prevZ = bf.pos.z;
-      const dist = Math.hypot(p.x - bf.pos.x, p.z - bf.pos.z);
-      if (bf.fleeTime > 0 || dist < FLEE_RANGE) {
+      // 惊飞判定对场上所有玩家生效(联机时客人靠近同样惊飞),取最近者定逃向
+      let nearest: THREE.Vector3 | null = null;
+      let nearestDist = Infinity;
+      for (const { group } of this.players()) {
+        const p = group.position;
+        const d = Math.hypot(p.x - bf.pos.x, p.z - bf.pos.z);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearest = p;
+        }
+      }
+      if (bf.fleeTime > 0 || nearestDist < FLEE_RANGE) {
+        const p = nearest!;
         if (bf.fleeTime <= 0) {
           // 被惊起:背离玩家方向直线飞升
           bf.fleeHeading = Math.atan2(bf.pos.z - p.z, bf.pos.x - p.x);

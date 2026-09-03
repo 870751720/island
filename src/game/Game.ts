@@ -4,7 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
-import type { AmbientState, AnimalPose, PlayerState, WorldPatch } from './net/Protocol';
+import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
@@ -406,7 +406,12 @@ export class Game {
       // 挡玩家的物件也挡地上的动物(成树/树桩/大石/围栏),鸟和蝴蝶会飞不受限
       (x, z) => this.isGroundBlocked(x, z)
     );
-    this.butterflies = new Butterflies(this.scene, this.props, this.player);
+    // 蝴蝶会被场上任意玩家惊飞(联机时客人靠近同样惊飞)
+    this.butterflies = new Butterflies(
+      this.scene,
+      this.props,
+      () => this.sessions.filter((s) => !s.survival.state.dead).map((s) => s.player)
+    );
     this.birds = new Birds(
       this.scene,
       this.terrain,
@@ -693,7 +698,7 @@ export class Game {
     this.applySave(save);
     if (this.hostRef) this.hostRef.attach(this);
     if (this.guestNet) {
-      this.guestNet.onPlayers = (m) => this.netApplyPlayers(m.time, m.day, m.weather, m.list);
+      this.guestNet.onPlayers = (m) => this.netApplyPlayers(m);
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
       this.guestNet.onWorld = (state) => this.netApplyWorld(state);
@@ -721,12 +726,17 @@ export class Game {
   }
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
-  netPlayersMsg(): { t: 'players'; time: number; day: number; weather: 'sunny' | 'rain'; list: PlayerState[] } {
+  netPlayersMsg(): Extract<NetMsg, { t: 'players' }> {
+    const wind = this.weather.wind;
     return {
       t: 'players',
       time: this.dayNight.time,
       day: this.dayNight.day,
       weather: this.weather.rainIntensity > 0.05 ? 'rain' : 'sunny',
+      rain: this.weather.rainIntensity,
+      windAmount: this.weather.windIntensity,
+      windDirX: wind.dirX,
+      windDirZ: wind.dirZ,
       list: this.sessions.map((s) => {
         const p = s.player.group.position;
         const sv = s.survival.state;
@@ -767,15 +777,12 @@ export class Game {
   }
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
-  netApplyPlayers(
-    time: number,
-    day: number,
-    weather: 'sunny' | 'rain',
-    list: PlayerState[]
-  ): void {
+  netApplyPlayers(msg: Extract<NetMsg, { t: 'players' }>): void {
+    const { time, day, list } = msg;
     this.dayNight.time = time;
     if (day) this.dayNight.day = day;
-    this.weather.force(weather);
+    // 天气与风采用房主权威值,本地只做表现插值(不再随机轮换/重掷风向)
+    this.weather.netSync(msg.rain, msg.windAmount, msg.windDirX, msg.windDirZ);
     const liveIds = new Set(list.map((p) => p.id));
     for (const session of [...this.sessions]) {
       if (session !== this.local && !liveIds.has(session.id)) this.removeRemoteSession(session);
@@ -2004,6 +2011,23 @@ export class Game {
         1 - Math.exp(-18 * delta)
       );
       indicator = { ...indicator, progress: this.netIndicatorProgress };
+    }
+    // 客人端自动切工具的等待提示无法来自房主快照(计时在客人本地),这里本地补上
+    if (this.guestMode && this.autoEquipTimer > 0) {
+      const nearby = this.collect.getNearby();
+      const tool =
+        nearby?.kind === 'tree'
+          ? '斧子'
+          : nearby?.kind === 'rock' || nearby?.kind === 'meteor'
+            ? '镐子'
+            : nearby?.kind === 'worm'
+              ? '锄头'
+              : '鱼竿';
+      indicator = {
+        ...indicator,
+        label: `切换${tool}…`,
+        progress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
+      };
     }
     const { label, progress, color } = indicator;
     const p = this.player.group.position;
