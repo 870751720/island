@@ -453,17 +453,12 @@ export class Game {
         const session = this.sessionOf(player);
         return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
       },
-      // 熊的咆哮/扑击扬尘等粒子与音效;吼声按声源位置判定:任意存活玩家 20 米内才本地播放,
-      // 并广播给客人各自按自己位置判定(距离过滤在接收端做)
+      // 熊的咆哮/扑击扬尘等粒子与音效;吼声按声源位置判定:本地(房主)玩家距声源 20 米内才播放,
+      // 并广播给客人各自按自己位置判定——每个端只听自己 20 米内的熊声
       this.fx,
       (name, x, z) => {
-        const audible = this.sessions.some(
-          (s) =>
-            !s.survival.state.dead &&
-            Math.hypot(s.player.group.position.x - x, s.player.group.position.z - z) <=
-              BEAR_SFX_RANGE
-        );
-        if (audible) this.audio.play(name);
+        const p = this.player.group.position;
+        if (Math.hypot(p.x - x, p.z - z) <= BEAR_SFX_RANGE) this.audio.play(name);
         this.hostRef?.broadcastEvent({ kind: 'sfxAt', sfx: name, x, y: 1, z });
       },
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走

@@ -13,8 +13,6 @@ import type { PlayerSession } from '../mp/PlayerSession';
 const FENCE_GRID = 1;
 /** 玩家面前放置围栏的距离(放置点再吸附到最近格点) */
 const PLACE_AHEAD = 0.9;
-/** 原地连续放置时,落点可沿面朝方向延伸的最远格距 */
-const CHAIN_RANGE = 4;
 /** 围栏落点离资源点的最小距离 */
 const PROP_BLOCK_RANGE = 0.6;
 /** 门自动开合的玩家距离 */
@@ -54,6 +52,9 @@ type PlayerSessionState = {
   hits: number;
   digTarget: { kind: 'fence' | 'gate'; key: string } | null;
   placeTimer: number;
+  /** 上次自动放置时玩家所在位置;原地不动只放一次,挪步后才允许再放 */
+  lastPlaceX: number | null;
+  lastPlaceZ: number;
   fencePreview: THREE.Group;
   previewRails: Record<'px' | 'nx' | 'pz' | 'nz', THREE.Object3D[]>;
   gatePreview: THREE.Group;
@@ -140,7 +141,7 @@ export class FenceSystem implements ObstacleSolver {
       gatePreview.visible = false;
       this.scene.add(gatePreview);
 
-      st = { swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, fencePreview, previewRails, gatePreview };
+      st = { swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, lastPlaceZ: 0, fencePreview, previewRails, gatePreview };
       this.states.set(actor, st);
     }
     return st;
@@ -289,6 +290,7 @@ export class FenceSystem implements ObstacleSolver {
     this.fences.set(FenceSystem.vertexKey(gx, gz), new Fence(this.scene, gx, gz, kind, y));
     this.refreshAround(gx, gz);
     this.rebuildSegments();
+    this.markPlaced(actor);
     this.audio.play('success');
     const fxPos = new THREE.Vector3(gx, y + 0.5, gz);
     this.fx.burst(fxPos, kind === 'wood' ? '#a97b48' : '#9a9a9a', 10);
@@ -305,32 +307,21 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /**
-   * 手持围栏时的最佳落点:面前附近格点里打分——
+   * 手持围栏时的最佳落点:面前附近一圈格点里打分——
    * 能与现有围栏/门相连的格点优先(接上玩家身边的围栏线),否则取离面前最近的。
-   * 脚边格点放满后允许沿面朝方向向前延伸(连续放置不用挪步)。
    */
   private pickVertex(actor: PlayerSession): { gx: number; gz: number } | null {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
-    const p = actor.player.group.position;
-    const faceLen = Math.hypot(t.x - p.x, t.z - p.z) || 1;
-    const fx = (t.x - p.x) / faceLen;
-    const fz = (t.z - p.z) / faceLen;
     let best: { gx: number; gz: number } | null = null;
     let bestScore = Infinity;
-    for (let dx = -CHAIN_RANGE; dx <= CHAIN_RANGE; dx++) {
-      for (let dz = -CHAIN_RANGE; dz <= CHAIN_RANGE; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
         const gx = bx + dx;
         const gz = bz + dz;
         const dist = Math.hypot(gx - t.x, gz - t.z);
-        // 脚边一圈始终可选;更远的只取大致正前方(面朝方向走廊),保证原地连续向前放
-        const ahead = ((gx - t.x) * fx + (gz - t.z) * fz) / (dist || 1);
-        if (
-          !((dist <= 1.15 || (dist <= CHAIN_RANGE && ahead > 0.7)) && this.vertexValid(gx, gz))
-        ) {
-          continue;
-        }
+        if (dist > 1.15 || !this.vertexValid(gx, gz)) continue;
         const conns = this.connectionsOf(gx, gz);
         const adjacent = conns.px || conns.nx || conns.pz || conns.nz;
         const score = (adjacent ? 0 : 10) + dist;
@@ -360,6 +351,7 @@ export class FenceSystem implements ObstacleSolver {
     this.refreshAround(gx, gz);
     this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
+    this.markPlaced(actor);
     this.audio.play('success');
     this.fx.burst(new THREE.Vector3(gate.centerX, this.terrain.getHeight(gate.centerX, gate.centerZ) + 0.5, gate.centerZ), '#8a6239', 12);
     return true;
@@ -397,10 +389,6 @@ export class FenceSystem implements ObstacleSolver {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
-    const p = actor.player.group.position;
-    const faceLen = Math.hypot(t.x - p.x, t.z - p.z) || 1;
-    const fx = (t.x - p.x) / faceLen;
-    const fz = (t.z - p.z) / faceLen;
     let best: { gx: number; gz: number; dir: 'x' | 'z' } | null = null;
     let bestScore = Infinity;
     for (let dx = -2; dx <= 1; dx++) {
@@ -411,14 +399,7 @@ export class FenceSystem implements ObstacleSolver {
           const mx = gx + (dir === 'x' ? 1 : 0);
           const mz = gz + (dir === 'z' ? 1 : 0);
           const dist = Math.hypot(mx - t.x, mz - t.z);
-          // 近处始终可选;更远的只取面朝方向走廊,保证原地连续向前安门
-          const ahead = ((mx - t.x) * fx + (mz - t.z) * fz) / (dist || 1);
-          if (
-            !((dist <= 1.4 || (dist <= CHAIN_RANGE + 1 && ahead > 0.7)) &&
-              this.edgeValid(gx, gz, dir))
-          ) {
-            continue;
-          }
+          if (dist > 1.4 || !this.edgeValid(gx, gz, dir)) continue;
           const ex = dir === 'x' ? gx + 2 : gx;
           const ez = dir === 'z' ? gz + 2 : gz;
           const touching =
@@ -475,6 +456,12 @@ export class FenceSystem implements ObstacleSolver {
       !actor.player.isMoving &&
       !actor.player.isSwimming &&
       !this.isBusy(actor) &&
+      // 原地只放一次:上次放置后挪步超过半格才允许自动放置下一个
+      (st.lastPlaceX === null ||
+        Math.hypot(
+          actor.player.group.position.x - st.lastPlaceX,
+          actor.player.group.position.z - st.lastPlaceZ
+        ) > 0.5) &&
       (fenceKind ? this.pickVertex(actor) !== null : this.pickEdge(actor) !== null);
     if (!placeable) {
       st.placeTimer = 0;
@@ -552,6 +539,14 @@ export class FenceSystem implements ObstacleSolver {
   /** 客人端表现驱动:只刷新该玩家的落点预览,放置/挖掘仍由房主权威结算 */
   updatePreviewFor(actor: PlayerSession): void {
     this.updatePreview(actor, this.st(actor));
+  }
+
+  /** 记录本次放置时玩家位置:原地只放一次,挪步半格以上才恢复自动放置 */
+  private markPlaced(actor: PlayerSession): void {
+    const st = this.st(actor);
+    const p = actor.player.group.position;
+    st.lastPlaceX = p.x;
+    st.lastPlaceZ = p.z;
   }
 
   /** 每帧推进该玩家的落点预览、自动放置与自动挖掘 */
