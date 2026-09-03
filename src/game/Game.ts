@@ -553,6 +553,7 @@ export class Game {
           this.wildlife.update(delta, elapsed);
           this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
         } else {
+          this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
@@ -846,7 +847,7 @@ export class Game {
 
   netApplyAmbient(state: AmbientState): void {
     const elapsed = performance.now() / 1000;
-    this.crabs.netApply(state.crabs, elapsed);
+    this.crabs.netApply(state.crabs);
     this.birds.netApply(state.birds, elapsed);
     this.butterflies.netApply(state.butterflies, elapsed);
     this.dog.netApply(state.dog, elapsed);

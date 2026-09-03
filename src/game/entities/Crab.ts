@@ -100,6 +100,9 @@ type Crab = {
   pos: THREE.Vector3;
   target: THREE.Vector3;
   heading: number;
+  /** 联机时房主快照下发的目标位姿,客人端逐帧向其插值 */
+  netPos: THREE.Vector3;
+  netHeading: number;
   /** 当前段已走时间,超过时限强制换目标,防止在带边缘卡住 */
   walkTime: number;
   idleTime: number;
@@ -135,6 +138,8 @@ export class Crabs implements Updatable {
         pos: spawn.clone(),
         target: spawn.clone(),
         heading: rng() * Math.PI * 2,
+        netPos: spawn.clone(),
+        netHeading: 0,
         walkTime: 0,
         idleTime: rng() * 4,
         phase: rng() * Math.PI * 2,
@@ -272,16 +277,32 @@ export class Crabs implements Updatable {
     }));
   }
 
-  netApply(poses: AmbientPose[], elapsed: number): void {
+  netApply(poses: AmbientPose[]): void {
     for (const pose of poses) {
       const crab = this.crabs[pose.id];
       if (!crab) continue;
-      const moving = crab.pos.distanceToSquared(new THREE.Vector3(pose.x, pose.y, pose.z)) > 0.001;
-      crab.pos.set(pose.x, pose.y, pose.z);
-      crab.heading = pose.h;
+      // 从死亡到重生直接落位,活着的只更新插值目标,由 netUpdate 逐帧逼近
+      if (pose.visible && !crab.alive) {
+        crab.pos.set(pose.x, pose.y, pose.z);
+        crab.heading = pose.h;
+      }
+      crab.netPos.set(pose.x, pose.y, pose.z);
+      crab.netHeading = pose.h;
       crab.alive = pose.visible;
       crab.model.group.visible = pose.visible;
-      if (pose.visible) this.animate(crab, elapsed, moving, false);
+    }
+  }
+
+  /** 客人端:朝房主快照的目标位姿平滑插值,并保持腿部/钳子动画 */
+  netUpdate(delta: number, elapsed: number): void {
+    const k = 1 - Math.exp(-14 * delta);
+    for (const crab of this.crabs) {
+      if (!crab.alive) continue;
+      crab.pos.lerp(crab.netPos, k);
+      const diff = Math.atan2(Math.sin(crab.netHeading - crab.heading), Math.cos(crab.netHeading - crab.heading));
+      crab.heading += diff * k;
+      const moving = crab.pos.distanceToSquared(crab.netPos) > 0.001;
+      this.animate(crab, elapsed, moving, false);
     }
   }
 
