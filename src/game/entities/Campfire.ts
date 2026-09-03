@@ -81,7 +81,7 @@ export class Campfire {
     }
     this.group.add(this.fireRoot);
     this.light = new THREE.PointLight('#ff9d2e', 1.4, 6, 1.2);
-    this.light.position.y = 0.7;
+    this.light.position.y = 0.85;
     this.group.add(this.light);
 
     // 炊烟:三个错相循环上升并消散的烟团
@@ -120,11 +120,11 @@ export class Campfire {
       const flicker = 1 + Math.sin(elapsed * flickerSpeed + i * 2.4) * (low ? 0.28 : 0.12);
       this.flames[i].scale.set(flicker, 1 + Math.sin(elapsed * 12 + i) * 0.18, flicker);
     }
-    // 灯光亮度与照射范围随燃料伸缩,濒熄时剧烈明灭
+    // 灯光亮度随燃料连续伸缩、濒熄时剧烈明灭;照射范围按燃料档次(簇数)分档
     const k = Math.min(this.fuel / FULL_FUEL, 1);
     const wobble = low ? Math.sin(elapsed * 18) * 0.9 : Math.sin(elapsed * 10) * 0.25;
     this.light.intensity = Math.max(1.2 + k * 4.5 + wobble, 0.3);
-    this.light.distance = 4 + k * 8;
+    this.light.distance = this.fuel > 210 ? 13 : this.fuel > 150 ? 10.5 : this.fuel > 30 ? 7.5 : 5;
     this.updateSmoke(elapsed);
     if (this.fuel <= 0) this.extinguish();
     else this.applyStage();

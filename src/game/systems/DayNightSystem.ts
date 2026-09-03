@@ -156,7 +156,7 @@ export class DayNightSystem implements Updatable {
       sky.lerpColors(SKY_DUSK, SKY_NIGHT, k);
       sunColor.copy(MOON_LIGHT);
       this.sun.intensity = THREE.MathUtils.lerp(0.5, 0.3, k);
-      this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.22, k);
+      this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.25, k);
       this.state.phase = 'night';
     }
 
