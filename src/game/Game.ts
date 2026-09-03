@@ -723,6 +723,7 @@ export class Game {
           health: sv.health,
           stamina: sv.stamina,
           dead: sv.dead,
+          action: s.player.currentAction,
         };
       }),
     };
@@ -770,6 +771,7 @@ export class Game {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
       }
+      s.player.setAction(p.action);
       s.survival.state.hunger = p.hunger;
       s.survival.state.thirst = p.thirst;
       s.survival.state.health = p.health;
@@ -785,6 +787,14 @@ export class Game {
   netApplyEvent(event: NetEvent): void {
     if (event.kind === 'bottle') {
       if (event.target === this.local.id) this.onBottleMessage(event.text);
+      return;
+    }
+    if (event.kind === 'collectFx') {
+      this.fx.burst(
+        new THREE.Vector3(event.x, event.y, event.z),
+        event.color,
+        Math.max(1, Math.min(24, Math.round(event.count)))
+      );
       return;
     }
     this.audio.play(event.sfx);
@@ -1725,7 +1735,18 @@ export class Game {
       this.fx,
       this.audio,
       // 合成/进食/钓鱼/播种占用双手,期间采集让位
-      () => this.isSessionBusy(s, 'collect')
+      () => this.isSessionBusy(s, 'collect'),
+      (position, color, count) => {
+        if (!this.hostRef) return;
+        this.hostRef.broadcastEvent({
+          kind: 'collectFx',
+          x: position.x,
+          y: position.y,
+          z: position.z,
+          color,
+          count,
+        });
+      }
     );
     s.crafting = new CraftingSystem(
       s.player,

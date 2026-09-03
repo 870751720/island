@@ -1,8 +1,9 @@
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
+import type { ActionType } from '../entities/Player';
 
-export const NET_PROTOCOL_VERSION = 4;
+export const NET_PROTOCOL_VERSION = 5;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -18,6 +19,7 @@ export type PlayerState = {
   health: number;
   stamina: number;
   dead: boolean;
+  action: ActionType | null;
 };
 
 /** 一只动物的实时姿态(快照用) */
@@ -57,6 +59,7 @@ export type WorldPatch = Partial<
 
 export type NetEvent =
   | { kind: 'feedback'; sfx: SfxName; x: number; y: number; z: number }
+  | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'bottle'; target: string; text: string };
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */

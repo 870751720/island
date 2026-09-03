@@ -1,3 +1,4 @@
+import type { Vector3 } from 'three';
 import type { Player, ActionType } from '../entities/Player';
 import type { Prop, Props } from '../world/Props';
 import {
@@ -152,7 +153,9 @@ export class CollectSystem {
     private fx: Particles,
     private audio: GameAudio,
     /** 其他占用双手的行为(如合成中),为真时采集让位 */
-    private isBusy: () => boolean = () => false
+    private isBusy: () => boolean = () => false,
+    /** 将资源点处的命中/完成粒子同步给联机客人。 */
+    private onFx: (position: Vector3, color: string, count: number) => void = () => {}
   ) {}
 
   /** 手持锄头靠近浆果丛/灌木丛/草丛时是在挖整棵丛,而不是徒手采集 */
@@ -253,6 +256,7 @@ export class CollectSystem {
   private hit(prop: Prop): void {
     const config = HARVEST_CONFIG[kindOf(prop)];
     this.fx.burst(prop.position, config.fxColor, 6);
+    this.onFx(prop.position, config.fxColor, 6);
     this.props.shake(prop);
     const hits = (this.hitCounts.get(prop) ?? 0) + 1;
     if (hits < this.hitsFor(prop)) {
@@ -270,6 +274,7 @@ export class CollectSystem {
     }
     this.audio.play('pickup');
     this.fx.burst(prop.position, config.fxColor, 14);
+    this.onFx(prop.position, config.fxColor, 14);
     this.nearby = null;
   }
 }

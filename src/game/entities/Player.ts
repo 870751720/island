@@ -435,6 +435,11 @@ export class Player implements Updatable {
     return this.action !== null;
   }
 
+  /** 当前作业动作，供联机姿态快照同步。 */
+  get currentAction(): ActionType | null {
+    return this.action;
+  }
+
   get isSleeping(): boolean {
     return this.sleepPose !== null;
   }
