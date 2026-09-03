@@ -165,6 +165,9 @@ const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
+/** 队友音效的听觉范围:超出直接不播;范围内从全音量距离线性衰减到零 */
+const NET_SFX_HEARING_RANGE = 20;
+const NET_SFX_FULL_VOLUME_RANGE = 6;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -797,7 +800,12 @@ export class Game {
       );
       return;
     }
-    this.audio.play(event.sfx);
+    // 队友音效按与本地玩家的距离衰减:近处全音量,超过听觉范围直接不播
+    const dist = this.local.player.group.position.distanceTo(new THREE.Vector3(event.x, event.y, event.z));
+    if (dist <= NET_SFX_HEARING_RANGE) {
+      const gain = Math.min(1, Math.max(0, (NET_SFX_HEARING_RANGE - dist) / (NET_SFX_HEARING_RANGE - NET_SFX_FULL_VOLUME_RANGE)));
+      this.audio.play(event.sfx, gain);
+    }
     const colors: Partial<Record<SfxName, string>> = {
       chop: '#a97b48',
       mine: '#9a9a9a',

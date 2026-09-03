@@ -65,9 +65,10 @@ export class Sfx {
     cut.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.05);
   }
 
-  play(name: SfxName): void {
+  /** gainScale 为整体音量系数(1 全音量),用于队友音效按距离衰减 */
+  play(name: SfxName, gainScale = 1): void {
     const t = this.ctx.currentTime + 0.01;
-    const v = VOL[name];
+    const v = VOL[name] * gainScale;
     const detune = (pitch: number) => pitch * (0.92 + Math.random() * 0.16);
 
     // 随交互持续的长音效走独立通道,便于 stop 切断

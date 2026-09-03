@@ -66,9 +66,9 @@ export class GameAudio {
   /** 音效播出通知:砍树/放箭等玩法声响当作「噪音」传给外界(如惊动附近的熊) */
   onSfx?: (name: SfxName) => void;
 
-  play(name: SfxName): void {
+  play(name: SfxName, gainScale = 1): void {
     this.onSfx?.(name);
-    this.sfx?.play(name);
+    this.sfx?.play(name, gainScale);
   }
 
   /** 中途切断仍在播的长音效(交互取消时用) */
