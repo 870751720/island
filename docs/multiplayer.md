@@ -160,3 +160,10 @@
 - 客人交互后音效即时但交互物状态(灌木变空等)最多延迟约 1 秒:原因是音效走即时 `event` 通道而状态只依赖 10 拍(1s)一次的世界快照。现房主在 `runNetAction` 结算完每个网络动作后立即调用 `maybeBroadcastWorld` 下发一次世界快照(哈希去重,无变化不发包),周期快照照旧兜底。
 - 新增 `src/game/net/NetTraffic.ts` 全局流量统计:`PeerNet` 在收发统一入口累加字节数;每条 DataChannel 建立后每秒互发通道层 `{t:'ping'/'pong'}`(在 PeerNet 内拦截,不进入游戏消息处理)测往返延迟,按通道 id 记录、断线移除。
 - GM 世界 tab 新增「显示网络流量与延迟」开关(GmSystem.showTraffic):`src/ui/TrafficOverlay.tsx` 每秒采样字节差值显示上行/下行速率,延迟取各通道 RTT 最大值(房主多客人时取最差一条),按 <100ms 绿 / <250ms 黄 / 其余红 着色;浮层位于帧率浮层下方。开关随 GM 配置全房间同步,统计只统计本机 DataChannel 收发。
+
+### M7.7 客人端偶现白屏修复:火堆燃料原地同步(2026-09-04)
+
+- 现象:客人端偶现 3D 画面变白,React UI 与游戏逻辑照常,左上角出现浏览器内核给丢失上下文 canvas 的占位图标——即 WebGL 上下文被移动端浏览器因 GPU 内存压力回收。
+- 根因:火堆快照含 `fuel`,燃烧时每秒递减 → 房主每秒广播一次 campfires section → 客人 `clear()` + `restore()` 全量销毁/重建火堆模型,持续的 GPU 资源销毁重建最终触发上下文丢失(仅客人发生,房主本地只改数值)。
+- 治本:`Campfire.netApplyFuel` 原地更新燃料并在燃/灭切换时调整表现;`CampfireSystem.netApply` 按落点键匹配,火堆集合无增删时只原地同步,有增删才整体重放。`Game.netApplyWorld` 的 campfires 分支改走 `netApply`。
+- 兜底:`Game` 构造时对 `renderer.domElement` 监听 `webglcontextlost` 并 `preventDefault`,允许浏览器异步恢复上下文;恢复事件由 Three.js 内部处理并重传资源,画面自愈,不再永久白屏。

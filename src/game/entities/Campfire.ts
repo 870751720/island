@@ -173,6 +173,18 @@ export class Campfire {
     this.applyStage();
   }
 
+  /** 客人端同步剩余燃料:数值原地更新,只在燃/灭切换时调整表现,不重建模型 */
+  netApplyFuel(fuel: number): void {
+    const wasLit = this.isLit;
+    this.fuel = Math.max(0, fuel);
+    if (!this.isLit) {
+      if (wasLit) this.extinguish();
+      return;
+    }
+    if (wasLit) this.applyStage();
+    else this.relight();
+  }
+
   dispose(): void {
     this.charredMat.dispose();
     this.group.traverse((obj) => {

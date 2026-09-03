@@ -381,6 +381,23 @@ export class CampfireSystem {
     this.fires = [];
   }
 
+  /**
+   * 客人端应用火堆快照:火堆集合没变时只原地同步燃料(燃料每秒递减,
+   * 若随之重建模型会造成持续的 GPU 资源销毁/重建,足以触发移动端 WebGL 上下文丢失),
+   * 有增删(新搭/挖掉)才整体重放。
+   */
+  netApply(list: { x: number; y: number; z: number; fuel: number }[]): void {
+    const key = (f: { x: number; y: number; z: number }) => `${f.x},${f.y},${f.z}`;
+    const current = new Map(this.fires.map((f) => [key(f.group.position), f] as const));
+    const same = list.length === current.size && list.every((f) => current.has(key(f)));
+    if (!same) {
+      this.clear();
+      this.restore(list);
+      return;
+    }
+    for (const f of list) current.get(key(f))!.netApplyFuel(f.fuel);
+  }
+
   /** 从存档恢复火堆(含熄灭的) */
   restore(list: { x: number; y: number; z: number; fuel: number }[]): void {
     for (const f of list) {

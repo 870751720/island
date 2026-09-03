@@ -333,6 +333,9 @@ export class Game {
     });
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // 兜底:GPU 内存压力下浏览器可能回收 WebGL 上下文(画面变白、UI 与逻辑仍在),
+    // preventDefault 允许浏览器异步恢复;恢复事件由 Three 内部处理并重传资源,画面自愈
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.resize();
@@ -856,10 +859,7 @@ export class Game {
   /** 客人侧:应用房主的世界快照(重放摆件与掉落物,资源点原地更新) */
   netApplyWorld(state: WorldPatch): void {
     if (state.props) this.props.applySave(state.props);
-    if (state.campfires) {
-      this.campfire.clear();
-      this.campfire.restore(state.campfires);
-    }
+    if (state.campfires) this.campfire.netApply(state.campfires);
     if (state.workbenches) {
       this.workbench.clear();
       this.workbench.restore(state.workbenches);
