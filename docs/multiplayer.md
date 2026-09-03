@@ -144,3 +144,8 @@
   - `GmSystem` 新增 `GmConfig` 快照类型与 `gmSnapshot()` / `gmApply()`(字段级校验)。
   - 新增网络动作 `gmConfig` / `gmSetTime` / `gmSetWeather`:客人调整 GM 开关或时刻/天气时上行房主权威结算;房主应用后以新 `event: { kind: 'gm', config }` 广播,全体玩家收敛到同一份 GM 配置(无敌/允许死亡/锁白天/风/钓鱼权重/帧率浮层)。
   - `Protocol` 协议版本升至 6;UI 各 GM tab 的开关改为经 `Game.gmSetConfig(patch)` 下发,不再直接改本地 `GmSystem`。
+
+### M7.4 音效归属补全 + 客人自身装备外观回流(2026-09-04)
+
+- 音效只给本人听的补全:此前只在 `runNetAction` 结算期间静音,持续型交互音(砍树/钓鱼/弓箭/吃喝/敲打等)在每帧会话模拟循环里触发,房主仍会听到队友的声音。现房主跑远程会话的模拟时统一置 `GameAudio.silent`(噪音广播照常),只有本地会话出声。
+- 客人自身装备外观:HUD 快照本就携带 `equipped`,客人端 `netApplyHud` 现在对比差异后经 `Equipment.restore` 回流应用,自己换装后模型(衣服/裤子颜色、帽子、背包)立即切换,并与房主侧保持一致。

@@ -26,6 +26,7 @@ export function WorldTab({
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
+  const [lockNighttime, setLockNighttime] = useState(GmSystem.lockNighttime);
   const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
 
@@ -45,6 +46,16 @@ export function WorldTab({
         onChange={(v) => {
           onSetConfig({ lockDaytime: v });
           setLockDaytime(v);
+          if (v) setLockNighttime(false);
+        }}
+      />
+      <ToggleRow
+        label="锁定夜晚"
+        value={lockNighttime}
+        onChange={(v) => {
+          onSetConfig({ lockNighttime: v });
+          setLockNighttime(v);
+          if (v) setLockDaytime(false);
         }}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -54,8 +65,9 @@ export function WorldTab({
             <button
               key={p.label}
               onClick={() => {
-                onSetConfig({ lockDaytime: false });
+                onSetConfig({ lockDaytime: false, lockNighttime: false });
                 setLockDaytime(false);
+                setLockNighttime(false);
                 onSetTime(p.t);
               }}
               style={presetStyle}

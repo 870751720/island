@@ -35,3 +35,4 @@
 - 2026-08-30:世界 tab 新增风表现三态(自动/强制风/无风),对应 GmSystem.wind。
 - 2026-08-31:世界 tab 新增「显示帧率」开关(GmSystem.showFps);`src/ui/FpsOverlay.tsx` 自跑 rAF 统计帧率,每 0.5s 更新屏幕顶部浮层,按帧率着色(≥50 绿 / ≥30 黄 / 其余红),不侵入游戏循环。
 - 2026-09-03:GM 开关与时刻/天气调整支持联机全房间生效(含非房主):配置经 `Game.gmSetConfig` 上行房主结算并广播统一(详见 docs/multiplayer.md M7.3);UI 开关不再直改本地 GmSystem。
+- 2026-09-04:世界 tab 新增「锁定夜晚」开关(GmSystem.lockNighttime,时间停在午夜),与锁定白天互斥(后设置者生效自动解除另一个);跳转时刻会同时解除两种锁定。

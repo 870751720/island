@@ -74,7 +74,7 @@ export class DayNightSystem implements Updatable {
    * setSleepProgress 逐帧推向清晨,最后 endSleep 落定。
    */
   beginSleep(): number {
-    if (GmSystem.lockDaytime) return 0;
+    if (GmSystem.lockDaytime || GmSystem.lockNighttime) return 0;
     this.sleepFrom = this.t;
     const dt = this.t < DayNightSystem.MORNING_T
       ? DayNightSystem.MORNING_T - this.t
@@ -104,9 +104,17 @@ export class DayNightSystem implements Updatable {
 
   update(delta: number): void {
     if (GmSystem.lockDaytime) {
-      // 锁定白天:时间停在正午,若当前在夜里先拉回白天
+      // 锁定白天:时间停在正午,若当前不在白天先拉回白天
       if (this.sunElevation() < 0.25) {
         this.t = 0.25;
+        this.apply();
+      }
+      return;
+    }
+    if (GmSystem.lockNighttime) {
+      // 锁定夜晚:时间停在午夜,若当前不在深夜先拉回夜晚
+      if (this.sunElevation() > -0.05) {
+        this.t = 0.75;
         this.apply();
       }
       return;

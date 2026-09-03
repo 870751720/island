@@ -42,7 +42,7 @@ import { PondLife } from './fx/PondLife';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
-import { EQUIPMENT, Equipment, isEquipKind, type EquipKind, type EquipSlot } from './systems/Equipment';
+import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -566,6 +566,8 @@ export class Game {
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
           this.activeNetActor = s;
+          // 交互音效只给发起者本人听:远程会话的模拟音效本地静音,只广播给对应客人补播
+          this.audio.silent = s !== this.local;
           s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier();
@@ -616,6 +618,7 @@ export class Game {
           }
         }
         this.activeNetActor = null;
+        this.audio.silent = false;
         // 睡觉过渡中:天空随进度日夜流转(多人同时睡取最先入睡者的进度)
         for (const s of this.sessions) {
           const sleepProgress = this.beds.getSleepProgress(s);
@@ -882,6 +885,11 @@ export class Game {
     this.local.inventory.load(snap.slots, snap.capacity);
     Object.assign(this.local.tools, snap.toolTiers);
     this.local.player.setTool(snap.tool);
+    // 装备穿戴由房主权威结算:快照回流后同步本地装备状态,触发外观/背包容量刷新
+    const equipChanged = SLOT_ORDER.some(
+      (slot) => this.local.equipment.getEquipped(slot) !== snap.equipped[slot]
+    );
+    if (equipChanged) this.local.equipment.restore(snap.equipped, this.local.inventory);
     const now = performance.now() / 1000;
     const previous = this.netIndicator;
     if (
