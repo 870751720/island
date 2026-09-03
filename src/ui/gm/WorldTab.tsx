@@ -29,6 +29,7 @@ export function WorldTab({
   const [lockNighttime, setLockNighttime] = useState(GmSystem.lockNighttime);
   const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
+  const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -38,6 +39,14 @@ export function WorldTab({
         onChange={(v) => {
           onSetConfig({ showFps: v });
           setShowFps(v);
+        }}
+      />
+      <ToggleRow
+        label="显示网络流量与延迟"
+        value={showTraffic}
+        onChange={(v) => {
+          onSetConfig({ showTraffic: v });
+          setShowTraffic(v);
         }}
       />
       <ToggleRow

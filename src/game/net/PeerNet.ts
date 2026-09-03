@@ -1,7 +1,12 @@
+import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
+
 /** 国内可直连的免费公共 STUN；游戏数据通过 DataChannel 直连。 */
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }],
 };
+
+/** 延迟探测间隔:对端收到 {t:'ping'} 原样回 pong,由发起方算往返耗时 */
+const PING_INTERVAL = 1000;
 
 export type PeerSignal =
   | { description: RTCSessionDescriptionInit }
@@ -14,6 +19,8 @@ export class PeerNet {
   private readonly pendingCandidates: RTCIceCandidateInit[] = [];
   private queue: string[] = [];
   private closeNotified = false;
+  private readonly channelId = allocChannelId();
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
 
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -68,11 +75,18 @@ export class PeerNet {
     this.channel = channel;
     channel.onopen = () => {
       for (const data of this.queue.splice(0)) channel.send(data);
+      this.pingTimer = setInterval(() => this.send({ t: 'ping', ts: performance.now() }), PING_INTERVAL);
       this.onOpen();
     };
     channel.onmessage = (event) => {
+      const data = event.data as string;
+      NetTraffic.recvBytes += data.length;
       try {
-        this.onMessage(JSON.parse(event.data as string));
+        const msg = JSON.parse(data) as { t?: string; ts?: number };
+        // 延迟探测在通道层拦截,不进入游戏消息处理
+        if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
+        else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
+        else this.onMessage(msg);
       } catch {
         // 坏包忽略。
       }
@@ -82,11 +96,14 @@ export class PeerNet {
 
   send(msg: unknown): void {
     const data = JSON.stringify(msg);
+    NetTraffic.sentBytes += data.length;
     if (this.connected) this.channel!.send(data);
     else this.queue.push(data);
   }
 
   close(): void {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    dropRtt(this.channelId);
     this.channel?.close();
     this.pc.close();
   }

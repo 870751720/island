@@ -14,6 +14,8 @@ export const GmSystem = {
   fishingTierWeights: [45, 40, 12, 3],
   /** 是否显示帧率浮层(FpsOverlay 轮询此标记) */
   showFps: false,
+  /** 是否显示网络流量浮层(TrafficOverlay 轮询此标记,仅本机显示) */
+  showTraffic: false,
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
@@ -29,6 +31,7 @@ export function gmSnapshot(): GmConfig {
     wind: GmSystem.wind,
     fishingTierWeights: [...GmSystem.fishingTierWeights],
     showFps: GmSystem.showFps,
+    showTraffic: GmSystem.showTraffic,
   };
 }
 
@@ -49,4 +52,5 @@ export function gmApply(config: Partial<GmConfig>): void {
     GmSystem.fishingTierWeights = [...config.fishingTierWeights] as GmConfig['fishingTierWeights'];
   }
   if (typeof config.showFps === 'boolean') GmSystem.showFps = config.showFps;
+  if (typeof config.showTraffic === 'boolean') GmSystem.showTraffic = config.showTraffic;
 }

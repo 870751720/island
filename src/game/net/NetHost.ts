@@ -152,6 +152,8 @@ export class NetHost {
       const game = this.game;
       const session = guest.session;
       game.runNetAction(session, () => ACTIONS[msg.name]?.(game, session, msg.args));
+      // 交互会立刻改写交互物状态(灌木变空、篝火熄灭等),不等 10 拍周期快照,立即下发
+      this.maybeBroadcastWorld(this.activeGuests());
     }
   }
 
@@ -218,6 +220,11 @@ export class NetHost {
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
     }
     if (this.ticks % 10 === 0) this.maybeBroadcastWorld(active);
+  }
+
+  /** 已完成接入、可接收快照的客人 */
+  private activeGuests(): Guest[] {
+    return this.guests.filter((g) => g.net.connected && g.session);
   }
 
   private maybeBroadcastWorld(guests: Guest[]): void {
