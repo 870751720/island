@@ -5,19 +5,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:signal": "tsc -p signaling/tsconfig.json",
+    "deploy:signal": "wrangler deploy --config signaling/wrangler.jsonc"
   },
   "dependencies": {
     "next": "^15.3.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.171.0"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.171.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.128.0"
   }
 }

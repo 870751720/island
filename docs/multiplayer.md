@@ -17,7 +17,7 @@
 
 ### 模块划分
 
-- `src/game/net/`:消息协议(`Protocol`)、WebRTC 连接(`PeerNet`)、房间码编解码(`RoomCode`)、联机会话总管(`NetSession`)。
+- `src/game/net/`:消息协议(`Protocol`)、WebRTC 连接(`PeerNet`)、在线房间信令(`Signaling`)、房主与客人会话总管。
 - `src/game/mp/`:每玩家会话(`PlayerSession`:player + survival + inventory + equipment + tools)、远程玩家驱动(`RemoteDriver`)、世界状态同步(`WorldSync`)。
 
 ### 权威与同步
@@ -102,3 +102,11 @@
 - 鸟在房主端对最近的任意玩家作出惊飞反应，不再只识别房主。
 - 客人端依据相邻 HUD 快照估算交互进度变化，并逐帧平滑进度环，降低 5Hz HUD 快照造成的卡顿感。
 - 联机姿态行为发生变化，协议版本升至 4，避免新旧页面混连。
+
+### M7 自动房间信令(2026-09-03)
+
+- 联机大厅由手动交换 SDP 邀请码/回传码改为六位房间码：房主只需创建一次房间，最多三名朋友可同时通过房间码加入，WebRTC offer、answer 与 ICE candidate 由信令服务自动转发。
+- 邀请界面针对手机增加二维码、系统分享和可点击邀请链接；邀请链接携带 `room` 查询参数，打开后会自动进入加入房间页并填好房间码，玩家只需输入昵称。
+- 新增 `signaling/` Cloudflare Worker + Durable Object 信令服务。每个房间为一个临时 Durable Object，使用休眠 WebSocket，仅中转握手信息，不承载游戏状态和存档；房间十二小时自动过期，房主令牌禁止他人冒充房主。
+- `PeerNet` 改为 trickle ICE，不再等待最多四秒收集完整 SDP；游戏消息仍使用原有房主权威 WebRTC DataChannel 直连，GitHub Pages 仍只托管静态前端。
+- 默认信令地址为 `https://island-signal.island-870751720.workers.dev`，也可通过构建变量 `NEXT_PUBLIC_SIGNAL_URL` 覆盖。Cloudflare 免费额度用尽时服务拒绝请求，不启用付费计划；STUN 打洞失败的严格网络暂不提供收费 TURN 中继。

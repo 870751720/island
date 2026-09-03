@@ -1,94 +1,83 @@
-import { decodeCode, encodeCode } from './RoomCode';
-
-/** 免费公共 STUN,帮助两端穿透 NAT 打洞;打不通直连时即失败(首版不部署 TURN) */
+/** 免费公共 STUN；信令仅负责交换连接信息，游戏数据仍通过 DataChannel 直连。 */
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
 
-/** 一条 WebRTC DataChannel 直连:
- * 房主侧先用 createInvite 生成邀请码,等朋友回传码后 acceptAnswer 完成握手;
- * 客人侧 joinWithInvite 粘贴邀请码、返回回传码。消息为 JSON 文本。 */
+export type PeerSignal =
+  | { description: RTCSessionDescriptionInit }
+  | { candidate: RTCIceCandidateInit };
+
+/** 一条房主到客人的 WebRTC DataChannel。连接信息通过在线信令自动交换。 */
 export class PeerNet {
-  private pc: RTCPeerConnection;
+  private readonly pc = new RTCPeerConnection(RTC_CONFIG);
   private channel?: RTCDataChannel;
-  onMessage: (msg: unknown) => void = () => {};
-  onClose: () => void = () => {};
-  onOpen: () => void = () => {};
+  private readonly pendingCandidates: RTCIceCandidateInit[] = [];
   private queue: string[] = [];
   private closeNotified = false;
 
-  constructor() {
-    this.pc = new RTCPeerConnection(RTC_CONFIG);
-    this.pc.onconnectionstatechange = () => {
-      const s = this.pc.connectionState;
-      if ((s === 'failed' || s === 'disconnected' || s === 'closed') && !this.closeNotified) {
-        this.closeNotified = true;
-        this.onClose();
-      }
+  onMessage: (msg: unknown) => void = () => {};
+  onClose: () => void = () => {};
+  onOpen: () => void = () => {};
+
+  constructor(
+    private readonly side: 'host' | 'guest',
+    private readonly signal: (signal: PeerSignal) => void,
+  ) {
+    this.pc.onicecandidate = (event) => {
+      if (event.candidate) this.signal({ candidate: event.candidate.toJSON() });
     };
+    this.pc.onconnectionstatechange = () => {
+      const state = this.pc.connectionState;
+      if (state === 'failed' || state === 'disconnected' || state === 'closed') this.notifyClosed();
+    };
+    if (side === 'host') this.bindChannel(this.pc.createDataChannel('game'));
+    else this.pc.ondatachannel = (event) => this.bindChannel(event.channel);
   }
 
   get connected(): boolean {
     return this.channel?.readyState === 'open';
   }
 
-  /** 房主:生成邀请码(SDP offer,等 ICE 候选收集完成或超时) */
-  async createInvite(): Promise<string> {
-    this.bindChannel(this.pc.createDataChannel('game'));
+  async start(): Promise<void> {
+    if (this.side !== 'host') return;
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
-    await this.waitIce();
-    return encodeCode({ role: 'invite', sdp: this.pc.localDescription!.sdp });
+    this.signal({ description: offer });
   }
 
-  /** 客人:粘贴邀请码,返回回传码(SDP answer)发给房主 */
-  async joinWithInvite(code: string): Promise<string> {
-    this.pc.ondatachannel = (e) => this.bindChannel(e.channel);
-    await this.pc.setRemoteDescription({ type: 'offer', sdp: decodeCode(code).sdp });
-    const answer = await this.pc.createAnswer();
-    await this.pc.setLocalDescription(answer);
-    await this.waitIce();
-    return encodeCode({ role: 'answer', sdp: this.pc.localDescription!.sdp });
+  async receiveSignal(signal: PeerSignal): Promise<void> {
+    if ('description' in signal) {
+      await this.pc.setRemoteDescription(signal.description);
+      await this.flushCandidates();
+      if (signal.description.type === 'offer') {
+        const answer = await this.pc.createAnswer();
+        await this.pc.setLocalDescription(answer);
+        this.signal({ description: answer });
+      }
+      return;
+    }
+    if (!this.pc.remoteDescription) this.pendingCandidates.push(signal.candidate);
+    else await this.pc.addIceCandidate(signal.candidate);
   }
 
-  /** 房主:粘贴客人的回传码,完成握手 */
-  async acceptAnswer(code: string): Promise<void> {
-    await this.pc.setRemoteDescription({ type: 'answer', sdp: decodeCode(code).sdp });
+  private async flushCandidates(): Promise<void> {
+    for (const candidate of this.pendingCandidates.splice(0)) await this.pc.addIceCandidate(candidate);
   }
 
-  private bindChannel(dc: RTCDataChannel): void {
-    this.channel = dc;
-    dc.onopen = () => {
-      for (const data of this.queue.splice(0)) dc.send(data);
+  private bindChannel(channel: RTCDataChannel): void {
+    this.channel = channel;
+    channel.onopen = () => {
+      for (const data of this.queue.splice(0)) channel.send(data);
       this.onOpen();
     };
-    dc.onmessage = (e) => {
+    channel.onmessage = (event) => {
       try {
-        this.onMessage(JSON.parse(e.data as string));
+        this.onMessage(JSON.parse(event.data as string));
       } catch {
-        // 坏包忽略
+        // 坏包忽略。
       }
     };
-    dc.onclose = () => {
-      if (this.closeNotified) return;
-      this.closeNotified = true;
-      this.onClose();
-    };
-  }
-
-  /** 等 ICE 候选收集完成(部分网络收不满,4 秒超时用已有候选连线) */
-  private waitIce(): Promise<void> {
-    if (this.pc.iceGatheringState === 'complete') return Promise.resolve();
-    return new Promise((resolve) => {
-      const done = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(done, 4000);
-      this.pc.addEventListener('icegatheringstatechange', () => {
-        if (this.pc.iceGatheringState === 'complete') done();
-      });
-    });
+    channel.onclose = () => this.notifyClosed();
   }
 
   send(msg: unknown): void {
@@ -100,5 +89,11 @@ export class PeerNet {
   close(): void {
     this.channel?.close();
     this.pc.close();
+  }
+
+  private notifyClosed(): void {
+    if (this.closeNotified) return;
+    this.closeNotified = true;
+    this.onClose();
   }
 }

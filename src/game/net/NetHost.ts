@@ -2,6 +2,7 @@ import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { SaveData } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
+import { HostSignal } from './Signaling';
 import { ACTIONS } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
 
@@ -10,6 +11,7 @@ const RESUME_GRACE = 60_000;
 
 /** 一名已接入的客人 */
 type Guest = {
+  peer: string;
   net: PeerNet;
   session: PlayerSession | null;
   name: string;
@@ -30,6 +32,8 @@ export class NetHost {
   private ticks = 0;
   private worldHashes = new Map<keyof WorldPatch, string>();
   private resumable = new Map<string, Resumable>();
+  private signal: HostSignal | null = null;
+  roomCode = '';
 
   onGuestJoined: (name: string) => void = () => {};
   onGuestLeft: (name: string) => void = () => {};
@@ -52,29 +56,45 @@ export class NetHost {
     return this.guests.filter((g) => g.net.connected || g.session).map((g) => g.name || '朋友');
   }
 
-  /** 为下一个朋友生成邀请码 */
-  async createInvite(): Promise<string> {
+  /** 创建六位码房间；之后加入者由信令服务自动接入。 */
+  async createRoom(): Promise<string> {
     this.purgeResumable();
-    if (this.guests.length >= 3) throw new Error('房间最多 4 人');
-    const net = new PeerNet();
-    const guest: Guest = { net, session: null, name: '', lastSeen: performance.now(), resumeToken: crypto.randomUUID() };
+    const room = await HostSignal.create();
+    this.signal = room.signal;
+    this.roomCode = room.roomCode;
+    room.signal.onPeerJoined = (peer) => void this.addPeer(peer);
+    room.signal.onPeerLeft = (peer) => {
+      const guest = this.guests.find((item) => item.peer === peer);
+      if (guest) this.dropGuest(guest);
+    };
+    room.signal.onSignal = (peer, data) => {
+      const guest = this.guests.find((item) => item.peer === peer);
+      if (guest) void guest.net.receiveSignal(data).catch(() => this.dropGuest(guest));
+    };
+    return room.roomCode;
+  }
+
+  private async addPeer(peer: string): Promise<void> {
+    if (!this.signal || this.guests.some((guest) => guest.peer === peer)) return;
+    this.purgeResumable();
+    if (this.guests.length >= 3) return;
+    const net = new PeerNet('host', (data) => this.signal?.send(peer, data));
+    const guest: Guest = {
+      peer,
+      net,
+      session: null,
+      name: '',
+      lastSeen: performance.now(),
+      resumeToken: crypto.randomUUID(),
+    };
     this.guests.push(guest);
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
     net.onClose = () => this.dropGuest(guest);
     try {
-      return await net.createInvite();
-    } catch (error) {
-      this.guests = this.guests.filter((g) => g !== guest);
-      net.close();
-      throw error;
+      await net.start();
+    } catch {
+      this.dropGuest(guest);
     }
-  }
-
-  /** 粘贴客人的回传码,完成该连接的握手 */
-  async acceptAnswer(code: string): Promise<void> {
-    const guest = this.guests.find((g) => !g.net.connected && !g.session);
-    if (!guest) throw new Error('请先生成新的邀请码');
-    await guest.net.acceptAnswer(code);
   }
 
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
@@ -97,6 +117,8 @@ export class NetHost {
     this.detach();
     for (const guest of this.guests) guest.net.close();
     this.guests = [];
+    this.signal?.close();
+    this.signal = null;
   }
 
   private onMessage(guest: Guest, msg: NetMsg): void {

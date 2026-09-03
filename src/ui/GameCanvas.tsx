@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StartScreen, type StartMode, type MultiplayerRole } from './StartScreen';
 import { RoomLobby } from './RoomLobby';
 import { GameplayUI } from './GameplayUI';
@@ -16,6 +16,14 @@ export function GameCanvas() {
   const [host, setHost] = useState<NetHost | null>(null);
   const [guest, setGuest] = useState<NetGuest | null>(null);
   const [notice, setNotice] = useState('');
+  const [invitedRoom, setInvitedRoom] = useState('');
+
+  useEffect(() => {
+    const room = new URLSearchParams(window.location.search).get('room');
+    if (!room) return;
+    setInvitedRoom(room);
+    setPhase('guest');
+  }, []);
 
   const start = (mode: StartMode) => {
     setNotice('');
@@ -34,7 +42,7 @@ export function GameCanvas() {
 
   const guestDisconnected = () => {
     setGuest(null);
-    setNotice('连接已断开。请让房主重新生成邀请码并再次加入，1 分钟内会恢复原角色进度');
+    setNotice('连接已断开。请用原房间码再次加入，1 分钟内会恢复原角色进度');
     setPhase('start');
   };
 
@@ -57,6 +65,7 @@ export function GameCanvas() {
     return (
       <RoomLobby
         mode="guest"
+        initialRoomCode={invitedRoom}
         onBegin={(net) => {
           const nextGuest = net as NetGuest;
           nextGuest.onClosed = guestDisconnected;

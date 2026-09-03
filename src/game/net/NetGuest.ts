@@ -1,4 +1,5 @@
 import { PeerNet } from './PeerNet';
+import { GuestSignal, normalizeRoomCode } from './Signaling';
 import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
@@ -8,7 +9,8 @@ const RESUME_KEY = 'island.multiplayer.resume';
 
 /** 客人侧联机会话:单条 DataChannel,上行摇杆/动作,下行世界与快照交给 Game 的 guest 模式应用 */
 export class NetGuest {
-  private net = new PeerNet();
+  private net: PeerNet | null = null;
+  private signal: GuestSignal | null = null;
   private inputX = 0;
   private inputZ = 0;
   private inputTimer: ReturnType<typeof setInterval> | null = null;
@@ -29,20 +31,27 @@ export class NetGuest {
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
 
-  /** 粘贴房主的邀请码,返回回传码发给房主 */
-  async join(code: string, name: string): Promise<string> {
-    this.net.onMessage = (raw) => this.onMessage(raw as NetMsg);
-    this.net.onClose = () => {
+  /** 输入六位房间码，信令服务会自动完成 WebRTC 握手。 */
+  async join(code: string, name: string): Promise<void> {
+    const signal = new GuestSignal();
+    const net = new PeerNet('guest', (data) => signal.send(data));
+    this.signal = signal;
+    this.net = net;
+    net.onMessage = (raw) => this.onMessage(raw as NetMsg);
+    net.onClose = () => {
       this.stopInput();
       if (!this.disposed) this.onClosed();
     };
-    const answer = await this.net.joinWithInvite(code);
+    signal.onSignal = (data) => void net.receiveSignal(data).catch(() => this.onClosed());
+    signal.onClose = () => {
+      if (!this.disposed && !net.connected) this.onClosed();
+    };
     let resumeToken: string | undefined;
     try {
       resumeToken = localStorage.getItem(RESUME_KEY) || undefined;
     } catch {}
-    this.net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
-    return answer;
+    net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
+    await signal.connect(normalizeRoomCode(code));
   }
 
   /** 收到 start 后由 Game 调用:开始按频率上行摇杆并应用下行数据 */
@@ -53,7 +62,8 @@ export class NetGuest {
   dispose(): void {
     this.disposed = true;
     this.stopInput();
-    this.net.close();
+    this.net?.close();
+    this.signal?.close();
   }
 
   private onMessage(msg: NetMsg): void {
@@ -111,7 +121,7 @@ export class NetGuest {
       const now = performance.now();
       if (now - this.lastInputSent < 1000 / INPUT_HZ) return;
       this.lastInputSent = now;
-      this.net.send({ t: 'input', x: this.inputX, z: this.inputZ });
+      this.net?.send({ t: 'input', x: this.inputX, z: this.inputZ });
     }, 1000 / INPUT_HZ / 2);
   }
 
@@ -122,7 +132,7 @@ export class NetGuest {
 
   /** 把一次按钮动作发给房主权威结算(返回值仅表示已发出) */
   action(name: string, args: unknown[]): boolean {
-    this.net.send({ t: 'action', name, args });
+    this.net?.send({ t: 'action', name, args });
     return true;
   }
 }
