@@ -871,6 +871,8 @@ export class Game {
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
     this.local.inventory.load(snap.slots, snap.capacity);
+    Object.assign(this.local.tools, snap.toolTiers);
+    this.local.player.setTool(snap.tool);
     const now = performance.now() / 1000;
     const previous = this.netIndicator;
     if (
