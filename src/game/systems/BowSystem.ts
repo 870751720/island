@@ -75,6 +75,8 @@ export class BowSystem {
   private target = new THREE.Vector3();
   private dir = new THREE.Vector3();
   private up = new THREE.Vector3(0, 1, 0);
+  /** 客人端纯表现模式:自动开弓放箭的视觉照跑,但不做命中/消耗等权威结算 */
+  private visualOnly = false;
 
   constructor(
     private scene: THREE.Scene,
@@ -98,6 +100,12 @@ export class BowSystem {
   /** 拉弓期间占用双手(其他系统让位用) */
   get isWorking(): boolean {
     return this.drawLeft > 0;
+  }
+
+  /** 客人端表现驱动:箭矢命中/掉落由房主权威结算,本地只复现开弓与飞箭画面 */
+  netUpdate(delta: number, busy: boolean): void {
+    this.visualOnly = true;
+    this.update(delta, busy);
   }
 
   update(delta: number, busy: boolean): void {
@@ -146,7 +154,7 @@ export class BowSystem {
 
   /** 放箭:扣一支箭,生成飞行箭矢,进入冷却 */
   private launch(): void {
-    if (!this.inventory.remove('arrow', 1)) return;
+    if (!this.visualOnly && !this.inventory.remove('arrow', 1)) return;
     this.cooldown = this.tools.bow >= 2 ? REFINED_COOLDOWN : COOLDOWN;
     this.audio.play('shoot');
     const group = makeArrowModel();
@@ -195,6 +203,13 @@ export class BowSystem {
   /** 到达目标点:命中范围内的螃蟹/小鸟/野生动物即结算;未命中则插在地上 */
   private resolveHit(arrow: Arrow, index: number): void {
     const p = arrow.group.position;
+    // 纯表现模式:命中与掉落由房主结算,箭到点即插地
+    if (this.visualOnly) {
+      arrow.stuck = STICK_TIME;
+      arrow.group.position.y = this.terrain.getHeight(p.x, p.z) + 0.2;
+      arrow.group.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+      return;
+    }
     const beast = this.wildlife.damageNearby(
       p,
       HIT_RANGE,

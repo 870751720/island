@@ -524,6 +524,11 @@ export class FenceSystem implements ObstacleSolver {
     if (this.gates.size > 0) this.rebuildSegments();
   }
 
+  /** 客人端表现驱动:只刷新该玩家的落点预览,放置/挖掘仍由房主权威结算 */
+  updatePreviewFor(actor: PlayerSession): void {
+    this.updatePreview(actor, this.st(actor));
+  }
+
   /** 每帧推进该玩家的落点预览、自动放置与自动挖掘 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);

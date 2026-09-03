@@ -13,7 +13,8 @@ export function Notice({ notice }: { notice: { id: number; text: string } | null
     setVisibleId(notice.id);
     const timer = setTimeout(() => setVisibleId(null), NOTICE_MS);
     return () => clearTimeout(timer);
-  }, [notice]);
+    // 按提示 id 计时:客人端 HUD 快照每帧都是新对象,不能按对象身份做依赖
+  }, [notice?.id]);
 
   if (!notice || visibleId !== notice.id) return null;
   return (

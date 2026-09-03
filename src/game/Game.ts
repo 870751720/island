@@ -277,6 +277,8 @@ export class Game {
   private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
   /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
   private netDrift = new THREE.Vector2();
+  /** 客人端进食特效已播放到的快照进度档(0~3) */
+  private netEatTick = 0;
   private netIndicatorProgress: number | null = null;
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
@@ -683,7 +685,15 @@ export class Game {
           this.flushPickups();
         }
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
-        if (this.guestMode) this.collect.scanNearby();
+        if (this.guestMode) {
+          this.collect.scanNearby();
+          for (const s of this.sessions) {
+            // 纯表现:箭矢/钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面
+            s.archery.netUpdate(delta, s.survival.state.dead);
+            s.fishing.update(delta, false);
+            this.fences.updatePreviewFor(s);
+          }
+        }
         // 客人静止期间把本地预测位置的残留偏差向房主快照柔和抹平(移动中不干预,避免和输入打架)
         if (this.guestMode && !this.player.isMoving && this.netDrift.lengthSq() > 1e-8) {
           const k = 1 - Math.exp(-3 * delta);
@@ -805,6 +815,9 @@ export class Game {
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
+        // 远程玩家钓鱼表现:作业动作出现即本地起播浮漂钓线,动作消失即收线
+        if (p.action === 'cast' || p.action === 'fish') s.fishing.netEnter();
+        else s.fishing.netStop();
       }
       s.player.setAction(p.action);
       s.survival.state.hunger = p.hunger;
@@ -937,6 +950,24 @@ export class Game {
     }
     this.netIndicator = snap.indicator;
     this.netIndicatorAt = now;
+    // 钓鱼阶段纠正本地表现(起播/咬钩收竿/结束)
+    this.fishing.netSyncState(snap.fishingState);
+    // 客人端本地复现进食特效(权威结算在房主):快照进度每过 1/3 触发一次咀嚼声与掉渣
+    const food = snap.eatName ? FOODS.find((f) => f.name === snap.eatName) : null;
+    if (food) {
+      const tick = Math.floor(snap.eatProgress * 3);
+      if (tick !== this.netEatTick) {
+        this.netEatTick = tick;
+        if (tick >= 1) {
+          this.audio.play('munch');
+          const p = this.player.group.position.clone();
+          p.y += 2;
+          this.fx.burst(p, food.fxColor, 3);
+        }
+      }
+    } else {
+      this.netEatTick = 0;
+    }
     // 自动切工具进度由客人本地计时(房主不知道客人端该值),覆盖后再下发 UI
     this.onHud({ ...snap, autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY });
   }
