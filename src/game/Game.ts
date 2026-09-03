@@ -275,6 +275,8 @@ export class Game {
   private noticeId = 0;
   private notice: { id: number; text: string } | null = null;
   private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
+  /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
+  private netDrift = new THREE.Vector2();
   private netIndicatorProgress: number | null = null;
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
@@ -677,6 +679,13 @@ export class Game {
         }
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
         if (this.guestMode) this.collect.scanNearby();
+        // 客人静止期间把本地预测位置的残留偏差向房主快照柔和抹平(移动中不干预,避免和输入打架)
+        if (this.guestMode && !this.player.isMoving && this.netDrift.lengthSq() > 1e-8) {
+          const k = 1 - Math.exp(-3 * delta);
+          this.player.group.position.x += this.netDrift.x * k;
+          this.player.group.position.z += this.netDrift.y * k;
+          this.netDrift.multiplyScalar(1 - k);
+        }
         this.updateAutoEquip(delta);
       },
     });
@@ -777,7 +786,15 @@ export class Game {
       s.setName(s === this.local ? '我' : p.name);
       if (s === this.local) {
         const pos = s.player.group.position;
-        if (Math.hypot(pos.x - p.x, pos.z - p.z) > 3) pos.set(p.x, p.y, p.z);
+        const dx = p.x - pos.x;
+        const dz = p.z - pos.z;
+        if (Math.hypot(dx, dz) > 3) {
+          pos.set(p.x, p.y, p.z);
+          this.netDrift.set(0, 0);
+        } else {
+          // 小偏差不硬拉:记下差值,等玩家静止期间柔和抹平(本地预测对账)
+          this.netDrift.set(dx, dz);
+        }
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
