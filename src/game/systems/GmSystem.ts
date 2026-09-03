@@ -13,3 +13,31 @@ export const GmSystem = {
   /** 是否显示帧率浮层(FpsOverlay 轮询此标记) */
   showFps: false,
 };
+
+/** GM 配置快照类型:联机时全房间同步这一份 */
+export type GmConfig = typeof GmSystem;
+
+/** 读取当前 GM 配置快照 */
+export function gmSnapshot(): GmConfig {
+  return {
+    allowDeath: GmSystem.allowDeath,
+    godMode: GmSystem.godMode,
+    lockDaytime: GmSystem.lockDaytime,
+    wind: GmSystem.wind,
+    fishingTierWeights: [...GmSystem.fishingTierWeights],
+    showFps: GmSystem.showFps,
+  };
+}
+
+/** 按 snapshot 覆盖 GM 配置(字段级校验,非法值忽略) */
+export function gmApply(config: Partial<GmConfig>): void {
+  if (typeof config.allowDeath === 'boolean') GmSystem.allowDeath = config.allowDeath;
+  if (typeof config.godMode === 'boolean') GmSystem.godMode = config.godMode;
+  if (typeof config.lockDaytime === 'boolean') GmSystem.lockDaytime = config.lockDaytime;
+  if (config.wind === 'auto' || config.wind === 'on' || config.wind === 'off') GmSystem.wind = config.wind;
+  if (Array.isArray(config.fishingTierWeights) && config.fishingTierWeights.length === 4
+    && config.fishingTierWeights.every((w) => Number.isFinite(w) && w >= 0)) {
+    GmSystem.fishingTierWeights = [...config.fishingTierWeights] as GmConfig['fishingTierWeights'];
+  }
+  if (typeof config.showFps === 'boolean') GmSystem.showFps = config.showFps;
+}

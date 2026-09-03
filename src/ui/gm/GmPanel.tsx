@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import type { ToolId } from '@/game/systems/Crafting';
+import type { GmConfig } from '@/game/systems/GmSystem';
 import { PlayerTab } from './PlayerTab';
 import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
@@ -13,6 +14,7 @@ export type GmActions = {
   restoreStatus: () => void;
   setTime: (t: number) => void;
   setWeather: (type: 'sunny' | 'rain') => void;
+  setConfig: (patch: Partial<GmConfig>) => void;
   giveItem: (kind: ResourceKind, count: number) => void;
   giveTool: (tool: ToolId, tier: 1 | 2) => void;
 };
@@ -49,9 +51,9 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
             </button>
           ))}
         </div>
-        {tab === 'player' && <PlayerTab onRestoreStatus={actions.restoreStatus} />}
-        {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetWeather={actions.setWeather} />}
-        {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} />}
+        {tab === 'player' && <PlayerTab onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
+        {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
+        {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         <button onClick={onClose} style={closeStyle}>
           关闭

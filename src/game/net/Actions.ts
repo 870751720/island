@@ -50,4 +50,16 @@ export const ACTIONS: Record<string, NetAction> = {
     g.gmRestoreStatus(a);
     return true;
   },
+  gmSetTime: (g, a, [t]) => {
+    g.gmSetTime(t as number);
+    return true;
+  },
+  gmSetWeather: (g, a, [type]) => {
+    g.gmSetWeather(type as 'sunny' | 'rain');
+    return true;
+  },
+  gmConfig: (g, a, [config]) => {
+    g.gmApplyNetConfig(config);
+    return true;
+  },
 };

@@ -8,7 +8,7 @@ const NIGHT_CLOCK_RATE = 2.9;
 
 const SKY_DAY = new THREE.Color('#a8d8ea');
 const SKY_DUSK = new THREE.Color('#e8a06a');
-const SKY_NIGHT = new THREE.Color('#1a2744');
+const SKY_NIGHT = new THREE.Color('#2b3d63');
 
 const SUN_DAY = new THREE.Color('#fff3d6');
 const SUN_DUSK = new THREE.Color('#ffb36b');
@@ -155,8 +155,8 @@ export class DayNightSystem implements Updatable {
       const k = THREE.MathUtils.smoothstep(-elev, 0, 0.15);
       sky.lerpColors(SKY_DUSK, SKY_NIGHT, k);
       sunColor.copy(MOON_LIGHT);
-      this.sun.intensity = THREE.MathUtils.lerp(0.5, 0.1, k);
-      this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.08, k);
+      this.sun.intensity = THREE.MathUtils.lerp(0.5, 0.3, k);
+      this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.22, k);
       this.state.phase = 'night';
     }
 

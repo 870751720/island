@@ -1,11 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { GmSystem } from '@/game/systems/GmSystem';
+import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 
 /** 玩家 tab:无敌/死亡开关与状态回满 */
-export function PlayerTab({ onRestoreStatus }: { onRestoreStatus: () => void }) {
+export function PlayerTab({
+  onRestoreStatus,
+  onSetConfig,
+}: {
+  onRestoreStatus: () => void;
+  onSetConfig: (patch: Partial<GmConfig>) => void;
+}) {
   const [godMode, setGodMode] = useState(GmSystem.godMode);
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
 
@@ -15,7 +21,7 @@ export function PlayerTab({ onRestoreStatus }: { onRestoreStatus: () => void }) 
         label="无敌模式"
         value={godMode}
         onChange={(v) => {
-          GmSystem.godMode = v;
+          onSetConfig({ godMode: v });
           setGodMode(v);
         }}
       />
@@ -23,7 +29,7 @@ export function PlayerTab({ onRestoreStatus }: { onRestoreStatus: () => void }) 
         label="允许死亡"
         value={allowDeath}
         onChange={(v) => {
-          GmSystem.allowDeath = v;
+          onSetConfig({ allowDeath: v });
           setAllowDeath(v);
         }}
       />

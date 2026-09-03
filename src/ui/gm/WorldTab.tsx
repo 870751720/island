@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GmSystem } from '@/game/systems/GmSystem';
+import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 
 /** 风表现三态标签:auto 走自然概率,on/off 强制 */
@@ -19,9 +19,11 @@ const TIME_PRESETS: { label: string; t: number }[] = [
 export function WorldTab({
   onSetTime,
   onSetWeather,
+  onSetConfig,
 }: {
   onSetTime: (t: number) => void;
   onSetWeather: (type: 'sunny' | 'rain') => void;
+  onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
   const [wind, setWind] = useState(GmSystem.wind);
@@ -33,7 +35,7 @@ export function WorldTab({
         label="显示帧率"
         value={showFps}
         onChange={(v) => {
-          GmSystem.showFps = v;
+          onSetConfig({ showFps: v });
           setShowFps(v);
         }}
       />
@@ -41,7 +43,7 @@ export function WorldTab({
         label="锁定白天"
         value={lockDaytime}
         onChange={(v) => {
-          GmSystem.lockDaytime = v;
+          onSetConfig({ lockDaytime: v });
           setLockDaytime(v);
         }}
       />
@@ -52,7 +54,7 @@ export function WorldTab({
             <button
               key={p.label}
               onClick={() => {
-                GmSystem.lockDaytime = false;
+                onSetConfig({ lockDaytime: false });
                 setLockDaytime(false);
                 onSetTime(p.t);
               }}
@@ -77,7 +79,7 @@ export function WorldTab({
             <button
               key={mode}
               onClick={() => {
-                GmSystem.wind = mode;
+                onSetConfig({ wind: mode });
                 setWind(mode);
               }}
               style={{ ...presetStyle, background: wind === mode ? '#a8823f' : '#8a6f4b' }}

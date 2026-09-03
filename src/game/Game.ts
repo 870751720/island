@@ -46,6 +46,7 @@ import { EQUIPMENT, Equipment, isEquipKind, type EquipKind, type EquipSlot } fro
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
+import { gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { Clouds } from './world/Clouds';
@@ -165,9 +166,6 @@ const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
-/** 队友音效的听觉范围:超出直接不播;范围内从全音量距离线性衰减到零 */
-const NET_SFX_HEARING_RANGE = 20;
-const NET_SFX_FULL_VOLUME_RANGE = 6;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -451,8 +449,9 @@ export class Game {
         this.wildlife.startle(pos.x, pos.z);
       }
       if (this.hostRef) {
-        const p = (this.activeNetActor ?? this.local).player.group.position;
-        this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, x: p.x, y: p.y + 1, z: p.z });
+        const actor = this.activeNetActor ?? this.local;
+        const p = actor.player.group.position;
+        this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, actor: actor.id, x: p.x, y: p.y + 1, z: p.z });
       }
     };
     // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
@@ -800,12 +799,12 @@ export class Game {
       );
       return;
     }
-    // 队友音效按与本地玩家的距离衰减:近处全音量,超过听觉范围直接不播
-    const dist = this.local.player.group.position.distanceTo(new THREE.Vector3(event.x, event.y, event.z));
-    if (dist <= NET_SFX_HEARING_RANGE) {
-      const gain = Math.min(1, Math.max(0, (NET_SFX_HEARING_RANGE - dist) / (NET_SFX_HEARING_RANGE - NET_SFX_FULL_VOLUME_RANGE)));
-      this.audio.play(event.sfx, gain);
+    if (event.kind === 'gm') {
+      gmApply(event.config);
+      return;
     }
+    // 交互音效只给发起者自己听:只有事件属于本地玩家时补播,其余只保留轻量粒子反馈
+    if (event.actor === this.local.id) this.audio.play(event.sfx);
     const colors: Partial<Record<SfxName, string>> = {
       chop: '#a97b48',
       mine: '#9a9a9a',
@@ -824,13 +823,15 @@ export class Game {
     if (color) this.fx.burst(new THREE.Vector3(event.x, event.y, event.z), color, 8);
   }
 
-  /** 网络动作执行期间标记发起者，让随后产生的反馈事件带上正确玩家坐标。 */
+  /** 网络动作执行期间标记发起者,让随后产生的反馈事件带上正确玩家坐标;交互音效只给本人听,结算期间本地静音。 */
   runNetAction<T>(actor: PlayerSession, action: () => T): T {
     this.activeNetActor = actor;
+    this.audio.silent = true;
     try {
       return action();
     } finally {
       this.activeNetActor = null;
+      this.audio.silent = false;
     }
   }
 
@@ -1314,14 +1315,35 @@ export class Game {
     session.player.respawn(this.terrain.findSpawnPoint());
   }
 
-  /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午 */
+  /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午;客人端上行车主权威结算,时刻随快照回流 */
   gmSetTime(t: number): void {
+    if (this.guestNet) {
+      this.guestNet.action('gmSetTime', [t]);
+      return;
+    }
     this.dayNight.time = t;
   }
 
-  /** GM 强制切换天气 */
+  /** GM 强制切换天气;客人端上行车主权威结算,天气随快照回流 */
   gmSetWeather(type: 'sunny' | 'rain'): void {
+    if (this.guestNet) {
+      this.guestNet.action('gmSetWeather', [type]);
+      return;
+    }
     this.weather.force(type);
+  }
+
+  /** GM 开关调整:本地立即生效;联机时全房间同步同一份配置 */
+  gmSetConfig(patch: Partial<GmConfig>): void {
+    gmApply(patch);
+    if (this.guestNet) this.guestNet.action('gmConfig', [gmSnapshot()]);
+    else this.hostRef?.broadcastEvent({ kind: 'gm', config: gmSnapshot() });
+  }
+
+  /** 房主收到客人上行/本地触发后的 GM 配置落盘:应用并广播给所有客人 */
+  gmApplyNetConfig(config: unknown): void {
+    gmApply(config as Partial<GmConfig>);
+    this.hostRef?.broadcastEvent({ kind: 'gm', config: gmSnapshot() });
   }
 
   /** 睡觉期间锁交互:一切主动操作入口先检查该状态 */
