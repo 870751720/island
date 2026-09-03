@@ -111,6 +111,8 @@ type Bird = {
   model: BirdModel;
   pos: THREE.Vector3;
   heading: number;
+  netPos: THREE.Vector3;
+  netHeading: number;
   state: BirdState;
   /** 当前飞行/降落/踱步的目标点 */
   target: THREE.Vector3;
@@ -137,13 +139,13 @@ export class Birds implements Updatable {
     scene: THREE.Scene,
     private terrain: IslandTerrain,
     private props: Props,
-    private player: { group: THREE.Group },
+    private players: () => { group: THREE.Group }[],
     rng: () => number = Math.random
   ) {
     const count = 3;
     for (let i = 0; i < count; i++) {
       const model = makeBirdModel(BODY_COLORS[Math.floor(rng() * BODY_COLORS.length)]);
-      const p = this.player.group.position;
+      const p = this.players()[0]?.group.position ?? new THREE.Vector3();
       const pos = new THREE.Vector3(
         p.x + (rng() * 2 - 1) * WANDER_MAX,
         0,
@@ -152,10 +154,13 @@ export class Birds implements Updatable {
       const alt = 4 + rng() * 5;
       pos.y = this.terrain.getHeight(pos.x, pos.z) + alt;
       this.group.add(model.group);
+      const heading = rng() * Math.PI * 2;
       this.birds.push({
         model,
         pos,
-        heading: rng() * Math.PI * 2,
+        heading,
+        netPos: pos.clone(),
+        netHeading: heading,
         state: 'fly',
         target: this.pickWanderTarget(rng),
         alt,
@@ -173,7 +178,7 @@ export class Birds implements Updatable {
 
   /** 巡航目标:玩家周围环内随机一点的高空 */
   private pickWanderTarget(rng: () => number): THREE.Vector3 {
-    const p = this.player.group.position;
+    const p = this.players()[0]?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
     const half = this.terrain.size / 2;
     for (let tries = 0; tries < 10; tries++) {
       const a = rng() * Math.PI * 2;
@@ -210,7 +215,7 @@ export class Birds implements Updatable {
       return new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     }
     // 空地:玩家周围环内找一块离水稍远的干地
-    const p = this.player.group.position;
+    const p = this.players()[0]?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
     const half = this.terrain.size / 2;
     for (let tries = 0; tries < 12; tries++) {
       const a = rng() * Math.PI * 2;
@@ -228,7 +233,6 @@ export class Birds implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
-    const p = this.player.group.position;
     for (const bird of this.birds) {
       if (!bird.alive) {
         bird.respawnLeft -= delta;
@@ -236,7 +240,16 @@ export class Birds implements Updatable {
         continue;
       }
       bird.stateTime += delta;
-      const dist = Math.hypot(p.x - bird.pos.x, p.z - bird.pos.z);
+      let p = bird.pos;
+      let dist = Infinity;
+      for (const player of this.players()) {
+        const candidate = player.group.position;
+        const candidateDist = Math.hypot(candidate.x - bird.pos.x, candidate.z - bird.pos.z);
+        if (candidateDist < dist) {
+          p = candidate;
+          dist = candidateDist;
+        }
+      }
 
       if (bird.state === 'walk' && dist < FLEE_RANGE) {
         // 被惊起:背离玩家方向直线飞升
@@ -370,14 +383,30 @@ export class Birds implements Updatable {
     for (const pose of poses) {
       const bird = this.birds[pose.id];
       if (!bird) continue;
-      bird.pos.set(pose.x, pose.y, pose.z);
-      bird.heading = pose.h;
+      const wasAlive = bird.alive;
+      bird.netPos.set(pose.x, pose.y, pose.z);
+      bird.netHeading = pose.h;
+      if (!wasAlive || bird.pos.distanceToSquared(bird.netPos) > 100) {
+        bird.pos.copy(bird.netPos);
+        bird.heading = pose.h;
+      }
       if (pose.state === 'walk' || pose.state === 'fly' || pose.state === 'flee' || pose.state === 'land') {
         bird.state = pose.state;
       }
       bird.alive = pose.visible;
       bird.model.group.visible = pose.visible;
-      if (pose.visible) this.animate(bird, elapsed);
+    }
+  }
+
+  /** 客人端逐帧平滑 10Hz 权威快照。 */
+  netUpdate(delta: number, elapsed: number): void {
+    const k = 1 - Math.exp(-14 * delta);
+    for (const bird of this.birds) {
+      if (!bird.alive) continue;
+      bird.pos.lerp(bird.netPos, k);
+      const diff = Math.atan2(Math.sin(bird.netHeading - bird.heading), Math.cos(bird.netHeading - bird.heading));
+      bird.heading += diff * k;
+      this.animate(bird, elapsed);
     }
   }
 

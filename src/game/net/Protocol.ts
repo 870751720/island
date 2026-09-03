@@ -2,7 +2,7 @@ import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
 
-export const NET_PROTOCOL_VERSION = 3;
+export const NET_PROTOCOL_VERSION = 4;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {

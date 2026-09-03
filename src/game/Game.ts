@@ -274,6 +274,9 @@ export class Game {
   private noticeId = 0;
   private notice: { id: number; text: string } | null = null;
   private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
+  private netIndicatorProgress: number | null = null;
+  private netIndicatorVelocity = 0;
+  private netIndicatorAt = 0;
   private autoEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
@@ -397,7 +400,12 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z)
     );
     this.butterflies = new Butterflies(this.scene, this.props, this.player);
-    this.birds = new Birds(this.scene, this.terrain, this.props, this.player);
+    this.birds = new Birds(
+      this.scene,
+      this.terrain,
+      this.props,
+      () => this.sessions.filter((s) => !s.survival.state.dead).map((s) => s.player)
+    );
     // 熊扑击玩家的结算:装备防御减伤(至少 1 点)+ 头顶伤害数字 + 泛红特效与音效
     this.wildlife = new Wildlife(
       this.scene,
@@ -541,6 +549,10 @@ export class Game {
           this.birds.update(delta, elapsed);
           this.wildlife.update(delta, elapsed);
           this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
+        } else {
+          this.birds.netUpdate(delta, elapsed);
+          this.wildlife.netUpdate(delta, elapsed);
+          this.dog.netUpdate(delta, elapsed);
         }
         this.props.update(delta, elapsed, this.weather.wind);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
@@ -849,7 +861,26 @@ export class Game {
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
     this.local.inventory.load(snap.slots, snap.capacity);
+    const now = performance.now() / 1000;
+    const previous = this.netIndicator;
+    if (
+      previous.label === snap.indicator.label &&
+      previous.progress !== null &&
+      snap.indicator.progress !== null &&
+      this.netIndicatorAt > 0
+    ) {
+      const dt = Math.max(0.05, now - this.netIndicatorAt);
+      this.netIndicatorVelocity = THREE.MathUtils.clamp(
+        (snap.indicator.progress - previous.progress) / dt,
+        -2,
+        2
+      );
+    } else {
+      this.netIndicatorVelocity = 0;
+      this.netIndicatorProgress = snap.indicator.progress;
+    }
     this.netIndicator = snap.indicator;
+    this.netIndicatorAt = now;
     this.onHud(snap);
   }
 
@@ -1874,7 +1905,22 @@ export class Game {
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
   private updateIndicator(delta: number): void {
-    const indicator = this.guestMode ? this.netIndicator : this.indicatorFor(this.local);
+    let indicator = this.guestMode ? this.netIndicator : this.indicatorFor(this.local);
+    if (this.guestMode && indicator.progress !== null) {
+      const age = Math.min(0.25, performance.now() / 1000 - this.netIndicatorAt);
+      const estimated = THREE.MathUtils.clamp(
+        indicator.progress + this.netIndicatorVelocity * age,
+        0,
+        1
+      );
+      const current = this.netIndicatorProgress ?? estimated;
+      this.netIndicatorProgress = THREE.MathUtils.lerp(
+        current,
+        estimated,
+        1 - Math.exp(-18 * delta)
+      );
+      indicator = { ...indicator, progress: this.netIndicatorProgress };
+    }
     const { label, progress, color } = indicator;
     const p = this.player.group.position;
     this.indicator.group.position.copy(p);

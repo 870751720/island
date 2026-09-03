@@ -148,6 +148,8 @@ type Animal = {
   pos: THREE.Vector3;
   target: THREE.Vector3;
   heading: number;
+  netPos: THREE.Vector3;
+  netHeading: number;
   walkTime: number;
   idleTime: number;
   phase: number;
@@ -221,6 +223,8 @@ export class Wildlife implements Updatable {
           pos: spawn.clone(),
           target: spawn.clone(),
           heading,
+          netPos: spawn.clone(),
+          netHeading: heading,
           walkTime: 0,
           idleTime: rng() * 4,
           phase: rng() * Math.PI * 2,
@@ -260,6 +264,7 @@ export class Wildlife implements Updatable {
     let best: Player | null = null;
     let bestDist = Infinity;
     for (const t of this.players()) {
+      if (!this.isPlayerVulnerable(t)) continue;
       const p = t.group.position;
       const d = Math.hypot(x - p.x, z - p.z);
       if (d < bestDist) {
@@ -618,11 +623,31 @@ export class Wildlife implements Updatable {
     for (const a of this.animals) {
       const p = map.get(a.id);
       if (!p) continue;
-      a.pos.x = p.x;
-      a.pos.z = p.z;
-      a.heading = p.h;
+      const wasAlive = a.alive;
+      a.netPos.set(p.x, this.terrain.getHeight(p.x, p.z), p.z);
+      a.netHeading = p.h;
+      if (!wasAlive || a.pos.distanceToSquared(a.netPos) > 64) {
+        a.pos.copy(a.netPos);
+        a.heading = p.h;
+        a.viewHeading = p.h;
+      }
       a.alive = p.alive;
       a.model.group.visible = p.alive;
+    }
+  }
+
+  /** 客人端只平滑权威姿态并播放视觉动画，不运行 AI 或伤害结算。 */
+  netUpdate(delta: number, elapsed: number): void {
+    const k = 1 - Math.exp(-14 * delta);
+    for (const a of this.animals) {
+      if (!a.alive) continue;
+      const beforeX = a.pos.x;
+      const beforeZ = a.pos.z;
+      a.pos.lerp(a.netPos, k);
+      const diff = Math.atan2(Math.sin(a.netHeading - a.heading), Math.cos(a.netHeading - a.heading));
+      a.heading += diff * k;
+      const moving = Math.hypot(a.pos.x - beforeX, a.pos.z - beforeZ) > 0.0001;
+      this.animate(a, delta, elapsed, moving, false);
     }
   }
 

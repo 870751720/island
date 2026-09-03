@@ -142,6 +142,8 @@ export class Pomeranian {
   private model: DogModel;
   private pos = new THREE.Vector3();
   private heading = 0;
+  private readonly netPos = new THREE.Vector3();
+  private netHeading = 0;
   /** 进食动作剩余时间(低头咀嚼,不可移动) */
   private eatLeft = 0;
   /** 吃饱后的开心转圈剩余时间 */
@@ -235,15 +237,28 @@ export class Pomeranian {
     return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.play };
   }
 
-  netApply(pose: AmbientPose, elapsed: number): void {
-    const moving = Math.hypot(this.pos.x - pose.x, this.pos.z - pose.z) > 0.02;
-    this.pos.set(pose.x, pose.y, pose.z);
-    this.heading = pose.h;
+  netApply(pose: AmbientPose, _elapsed: number): void {
+    this.netPos.set(pose.x, pose.y, pose.z);
+    this.netHeading = pose.h;
+    if (this.pos.distanceToSquared(this.netPos) > 64) {
+      this.pos.copy(this.netPos);
+      this.heading = pose.h;
+    }
     if (pose.state === 'circle' || pose.state === 'spin' || pose.state === 'sit' || pose.state === 'sleep' || pose.state === 'dig') {
       this.play = pose.state;
     }
     this.group.visible = pose.visible;
-    this.animate(0.1, elapsed, moving, pose.state === 'spin');
+  }
+
+  /** 客人端逐帧平滑权威快照并播放纯视觉动作。 */
+  netUpdate(delta: number, elapsed: number): void {
+    if (!this.group.visible) return;
+    const k = 1 - Math.exp(-14 * delta);
+    const moving = this.pos.distanceToSquared(this.netPos) > 0.0004;
+    this.pos.lerp(this.netPos, k);
+    const diff = Math.atan2(Math.sin(this.netHeading - this.heading), Math.cos(this.netHeading - this.heading));
+    this.heading += diff * k;
+    this.animate(delta, elapsed, moving, this.play === 'spin');
   }
 
   /** 朝目标走一步,返回是否仍在途中;直路被挡时沿切线方向绕行(参考螃蟹的兜底策略) */
