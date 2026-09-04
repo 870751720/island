@@ -92,7 +92,7 @@ export class PeerNet {
     channel.bufferedAmountLowThreshold = CONTROL_LOW_WATER;
     channel.onopen = () => { this.flushControl(); this.notifyOpenIfReady(); };
     channel.onbufferedamountlow = () => this.flushControl();
-    channel.onmessage = (event) => this.receive(event.data);
+    channel.onmessage = (event) => this.receive(event.data, 'control');
     channel.onclose = () => this.notifyClosed();
   }
 
@@ -101,7 +101,7 @@ export class PeerNet {
     channel.bufferedAmountLowThreshold = STATE_LOW_WATER;
     channel.onopen = () => { this.flushLatestState(); this.notifyOpenIfReady(); };
     channel.onbufferedamountlow = () => this.flushLatestState();
-    channel.onmessage = (event) => this.receive(event.data);
+    channel.onmessage = (event) => this.receive(event.data, 'state');
     channel.onclose = () => this.notifyClosed();
   }
 
@@ -114,11 +114,13 @@ export class PeerNet {
     this.onOpen();
   }
 
-  private receive(raw: unknown): void {
+  private receive(raw: unknown, channel: 'control' | 'state'): void {
     if (typeof raw !== 'string') return;
-    NetTraffic.recvBytes += NetTraffic.byteLength(raw);
+    const bytes = NetTraffic.byteLength(raw);
+    NetTraffic.recvBytes += bytes;
     try {
       const msg = JSON.parse(raw) as { t?: string; ts?: number };
+      NetTraffic.record('down', channel, typeof msg.t === 'string' ? msg.t : 'unknown', bytes);
       if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
       else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
       else this.onMessage(msg);
@@ -181,7 +183,10 @@ export class PeerNet {
   private sendNow(channel: RTCDataChannel, data: string): boolean {
     try {
       channel.send(data);
-      NetTraffic.sentBytes += NetTraffic.byteLength(data);
+      const bytes = NetTraffic.byteLength(data);
+      NetTraffic.sentBytes += bytes;
+      const type = /"t":"([^"]+)"/.exec(data)?.[1] ?? 'unknown';
+      NetTraffic.record('up', channel === this.stateChannel ? 'state' : 'control', type, bytes);
       return true;
     } catch { return false; }
   }

@@ -37,3 +37,4 @@
 - 2026-09-03:GM 开关与时刻/天气调整支持联机全房间生效(含非房主):配置经 `Game.gmSetConfig` 上行房主结算并广播统一(详见 docs/multiplayer.md M7.3);UI 开关不再直改本地 GmSystem。
 - 2026-09-04:世界 tab 新增「锁定夜晚」开关(GmSystem.lockNighttime,时间停在午夜),与锁定白天互斥(后设置者生效自动解除另一个);跳转时刻会同时解除两种锁定。
 - 2026-09-04:世界 tab 新增「显示网络流量与延迟」开关(GmSystem.showTraffic);`src/ui/TrafficOverlay.tsx` 显示每秒上行/下行速率与 RTT(各通道最大值,着色阈值 100/250ms),数据来自 `src/game/net/NetTraffic.ts`(PeerNet 收发字节累计 + 通道层每秒 ping/pong)。
+- 2026-09-05:网络浮层增加按方向、消息类型和 DataChannel 的每秒速率明细，按流量从高到低显示前 8 项；实时状态通道标为蓝色“实时”，可靠控制通道标为黄色“可靠”，可直接定位玩家姿态、动物、环境生物、HUD、世界增量等各自占用。
