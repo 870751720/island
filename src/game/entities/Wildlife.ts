@@ -617,6 +617,16 @@ export class Wildlife implements Updatable {
     }));
   }
 
+  /** 具有主动攻击能力的动物（当前为熊），联机侧用更高频率同步。 */
+  netCombatPoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+    return this.netPoses().filter((pose) => this.animals.find((animal) => animal.id === pose.id)?.config.damage);
+  }
+
+  /** 无主动攻击能力的动物，保持普通姿态同步频率。 */
+  netPassivePoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+    return this.netPoses().filter((pose) => !this.animals.find((animal) => animal.id === pose.id)?.config.damage);
+  }
+
   /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活状态同步可见性 */
   netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));

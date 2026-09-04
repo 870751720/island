@@ -809,6 +809,14 @@ export class Game {
     return this.wildlife.netPoses();
   }
 
+  netCombatAnimalsState(): AnimalPose[] {
+    return this.wildlife.netCombatPoses();
+  }
+
+  netPassiveAnimalsState(): AnimalPose[] {
+    return this.wildlife.netPassivePoses();
+  }
+
   netAmbientState(): AmbientState {
     return {
         crabs: this.crabs.netPoses(),

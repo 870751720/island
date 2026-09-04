@@ -13,6 +13,10 @@ import type { HudSnapshot } from '../Game';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
+const FAST_TICK_MS = 40; // 玩家与战斗动物 25Hz
+const NORMAL_TICK_MS = 100; // 普通动物与环境生物 10Hz
+const HUD_TICK_MS = 200;
+const RECOVERY_MS = 5000;
 
 /** 一名已接入的客人 */
 type Guest = {
@@ -24,7 +28,8 @@ type Guest = {
   resumeToken: string;
   lastInputSeq: number;
   players: Map<string | number, PlayerState>;
-  animals: Map<string | number, AnimalPose>;
+  combatAnimals: Map<string | number, AnimalPose>;
+  passiveAnimals: Map<string | number, AnimalPose>;
   crabs: Map<string | number, AmbientPose>;
   birds: Map<string | number, AmbientPose>;
   butterflies: Map<string | number, AmbientPose>;
@@ -42,7 +47,9 @@ export class NetHost {
   private guests: Guest[] = [];
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
-  private ticks = 0;
+  private normalElapsed = NORMAL_TICK_MS;
+  private hudElapsed = HUD_TICK_MS;
+  private recoveryElapsed = RECOVERY_MS;
   private worldRevision = 0;
   private resumable = new Map<string, Resumable>();
   private signal: HostSignal | null = null;
@@ -94,7 +101,7 @@ export class NetHost {
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
       lastInputSeq: 0,
-      players: new Map(), animals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
+      players: new Map(), combatAnimals: new Map(), passiveAnimals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
       dog: null, hud: null, climate: '',
     };
     this.guests.push(guest);
@@ -114,7 +121,7 @@ export class NetHost {
     for (const guest of this.guests) {
       if (guest.net.connected && !guest.session) this.welcome(guest);
     }
-    if (!this.timer) this.timer = setInterval(() => this.tick(), 100);
+    if (!this.timer) this.timer = setInterval(() => this.tick(), FAST_TICK_MS);
   }
 
   /** 退出游戏时停止广播 */
@@ -231,14 +238,21 @@ export class NetHost {
     this.onGuestLeft(guest.name || '朋友');
   }
 
-  /** 100ms 一拍:玩家/动物快照每拍,HUD 每 2 拍；世界状态由系统事件即时推送。 */
+  /** 40ms 一拍：玩家与战斗动物 25Hz；普通动物/环境 10Hz；HUD 5Hz 检查。 */
   private tick(): void {
     const game = this.game;
     if (!game) return;
     this.purgeResumable();
-    this.ticks++;
+    this.normalElapsed += FAST_TICK_MS;
+    this.hudElapsed += FAST_TICK_MS;
+    this.recoveryElapsed += FAST_TICK_MS;
     // 实时通道允许丢包：低频全量关键帧只用于自动修复漏掉的增量，不承担日常同步。
-    const recoveryFrame = this.ticks % 50 === 1;
+    const recoveryFrame = this.recoveryElapsed >= RECOVERY_MS;
+    const normalFrame = this.normalElapsed >= NORMAL_TICK_MS;
+    const hudFrame = this.hudElapsed >= HUD_TICK_MS;
+    if (recoveryFrame) this.recoveryElapsed %= RECOVERY_MS;
+    if (normalFrame) this.normalElapsed %= NORMAL_TICK_MS;
+    if (hudFrame) this.hudElapsed %= HUD_TICK_MS;
     const now = performance.now();
     for (const guest of [...this.guests]) {
       if (now - guest.lastSeen > INPUT_TIMEOUT) {
@@ -257,10 +271,19 @@ export class NetHost {
         guest.net.send({ t: 'players', ...(climateChanged ? climate : {}), ackInputSeq: guest.lastInputSeq, players: players ?? {} });
       }
 
-      const animalsNow = game.netAnimalsState().map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
-      const animals = diffEntities(animalsNow, guest.animals, recoveryFrame);
-      if (animals) guest.net.send({ t: 'animals', animals });
+      const quantizeAnimals = (list: AnimalPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
+      if (recoveryFrame) guest.combatAnimals.clear();
+      const combatAnimals = diffEntities(quantizeAnimals(game.netCombatAnimalsState()), guest.combatAnimals);
+      let passiveAnimals = null;
+      if (normalFrame || recoveryFrame) {
+        if (recoveryFrame) guest.passiveAnimals.clear();
+        passiveAnimals = diffEntities(quantizeAnimals(game.netPassiveAnimalsState()), guest.passiveAnimals);
+      }
+      const animalSets = [...(combatAnimals?.set ?? []), ...(passiveAnimals?.set ?? [])];
+      const animalRemoves = [...(combatAnimals?.remove ?? []), ...(passiveAnimals?.remove ?? [])];
+      if (animalSets.length || animalRemoves.length) guest.net.send({ t: 'animals', animals: { set: animalSets.length ? animalSets : undefined, remove: animalRemoves.length ? animalRemoves : undefined } });
 
+      if (normalFrame || recoveryFrame) {
       const ambient = game.netAmbientState();
       const qAmbient = (list: AmbientPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .05), y: quantize(p.y, .05), z: quantize(p.z, .05), h: quantize(p.h, .03) }));
       const crabs = diffEntities(qAmbient(ambient.crabs), guest.crabs, recoveryFrame);
@@ -270,8 +293,9 @@ export class NetHost {
       const dog = recoveryFrame ? dogNow : diffObject(dogNow, guest.dog);
       guest.dog = dogNow;
       if (crabs || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
+      }
 
-      if (this.ticks % 2 === 0) {
+      if (hudFrame) {
         const hud = game.hudFor(guest.session);
         const snap = diffObject(hud, guest.hud);
         const full = !guest.hud;
