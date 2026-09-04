@@ -31,6 +31,7 @@ import { firstFoodIn, FOODS, type Food } from './systems/Food';
 import { ITEMS } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
+import type { FishTier } from './systems/FishTable';
 import { BowSystem } from './systems/BowSystem';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { Particles } from './fx/Particles';
@@ -145,6 +146,9 @@ export type HudSnapshot = {
   /** 钓鱼进行中的阶段,空闲为 null */
   fishingState: FishingState | null;
   fishingProgress: number;
+  /** 本轮奖池档位与等待期剩余秒数(客人端以此对齐咬钩时刻),非等待态为 null */
+  fishingTier: number;
+  fishingWaitLeft: number | null;
   /** 咬钩反应窗口进行中(点/连点屏幕收竿)与连点进度 */
   biteActive: boolean;
   biteClicks: number;
@@ -1140,8 +1144,8 @@ export class Game {
     }
     this.netIndicator = snap.indicator;
     this.netIndicatorAt = now;
-    // 钓鱼阶段纠正本地表现(起播/中鱼收线/结束)
-    this.fishing.netSyncState(snap.fishingState);
+    // 钓鱼阶段与等待时长对齐本地表现(起播/咬钩时刻/中鱼收线/结束)
+    this.fishing.netSyncState(snap.fishingState, snap.biteClicks, snap.fishingTier as FishTier, snap.fishingWaitLeft);
     // 客人端本地复现进食特效(权威结算在房主):快照进度每过 1/3 触发一次咀嚼声与掉渣
     const food = snap.eatName ? FOODS.find((f) => f.name === snap.eatName) : null;
     if (food) {
@@ -2275,6 +2279,8 @@ export class Game {
       canFish: s.fishing.canStart(),
       fishingState: s.fishing.currentState,
       fishingProgress: s.fishing.getProgress() ?? 0,
+      fishingTier: s.fishing.lootTier,
+      fishingWaitLeft: s.fishing.waitLeft,
       biteActive: s.fishing.currentState === 'bite',
       biteClicks: s.fishing.biteClicks,
       biteNeed: s.fishing.biteNeed,

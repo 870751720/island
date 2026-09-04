@@ -65,6 +65,8 @@ export class FishingSystem {
   private loot: LootEntry | null = null;
   private tease: Tease | null = null;
   private teaseStageDone: TeaseStage | null = null;
+  /** 客人端:本地还在抛竿时房主已进入等待,暂存的房主剩余等待时长(抛竿结束即采用) */
+  private pendingWait: number | null = null;
   private clicks = 0;
   private bobber: THREE.Group | null = null;
   private line: THREE.Mesh | null = null;
@@ -116,6 +118,16 @@ export class FishingSystem {
     return TIER_BITE[this.tier].clicks;
   }
 
+  /** 等待期剩余秒数(供快照下发,客人端以此对齐咬钩时刻),非等待态为 null */
+  get waitLeft(): number | null {
+    return this.state === 'waiting' ? Math.max(this.waitTotal - this.timer, 0) : null;
+  }
+
+  /** 本轮奖池档位(供快照下发,客人端对齐预告与咬钩窗口) */
+  get lootTier(): FishTier {
+    return this.tier;
+  }
+
   /** 进度 0-1:抛竿/咬钩倒计时,等待/收线/空闲为 null */
   getProgress(): number | null {
     if (this.state === 'casting') return Math.min(this.timer / this.castTime, 1);
@@ -164,6 +176,7 @@ export class FishingSystem {
     this.loot = rollLoot(this.tier);
     this.tease = null;
     this.teaseStageDone = null;
+    this.pendingWait = null;
     this.clicks = 0;
     this.bobber = makeBobber();
     this.bobber.visible = false;
@@ -223,7 +236,9 @@ export class FishingSystem {
         if (this.timer >= this.castTime) {
           this.state = 'waiting';
           this.audio.play('splash');
-          this.waitTotal = rollWait(this.tier);
+          // 客人端若已收到房主的剩余等待时长则直接采用,否则(房主端)本地随机
+          this.waitTotal = this.pendingWait ?? rollWait(this.tier);
+          this.pendingWait = null;
           this.timer = 0;
           this.rippleTimer = 0;
           this.bobber!.position.copy(this.bobberTarget);
@@ -307,6 +322,7 @@ export class FishingSystem {
     this.timer = 0;
     this.tease = null;
     this.teaseStageDone = null;
+    this.pendingWait = null;
     this.clicks = 0;
     this.bobber = makeBobber();
     this.bobber.visible = false;
@@ -324,17 +340,39 @@ export class FishingSystem {
     this.stop();
   }
 
-  /** 客人端:按房主快照的钓鱼阶段纠正本地表现(起播/中鱼收线/结束) */
-  netSyncState(state: FishingState | null): void {
+  /** 客人端:按房主快照对齐钓鱼阶段与等待时长(咬钩时刻以房主剩余时间为锚,阶段纠正仅作兜底) */
+  netSyncState(state: FishingState | null, clicks = 0, tier: FishTier = 1, waitLeft: number | null = null): void {
     if (state === null) {
       this.stop();
       return;
     }
-    if (state === 'casting') {
-      this.netEnter();
+    if (state === 'waiting') {
+      // 档位跟随房主(预告文字与咬钩窗口都依赖它);等待剩余时间以房主为锚重设总额
+      this.tier = tier;
+      if (waitLeft !== null) {
+        if (this.state === 'waiting') this.waitTotal = this.timer + waitLeft;
+        else if (this.state === 'casting') this.pendingWait = waitLeft;
+      }
       return;
     }
-    if (state === 'reeling' && this.state === 'bite') {
+    // 房主仍在钓鱼而本地表现已断(中断误伤/窗口时长出入导致本地先超时):重新起播再对齐
+    if (this.state === null) this.netEnter();
+    if (state === 'bite') {
+      this.tier = tier;
+      if (this.state === 'bite') {
+        this.clicks = clicks;
+      } else if (this.state !== 'reeling') {
+        this.state = 'bite';
+        this.timer = 0;
+        this.clicks = clicks;
+        this.tease = null;
+        this.audio.play('bite');
+        this.bobber!.position.y = this.bobberTarget.y - 0.15;
+        this.waterFx.splash(this.bobberTarget);
+      }
+      return;
+    }
+    if (state === 'reeling' && this.state !== 'reeling') {
       // 房主已结算中鱼:本地转入收线表现,入包飞行起点交代在浮漂处(入包由 HUD 快照回流驱动)
       this.state = 'reeling';
       this.timer = 0;

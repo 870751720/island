@@ -82,6 +82,8 @@ const INITIAL_HUD: HudSnapshot = {
   canFish: false,
   fishingState: null,
   fishingProgress: 0,
+  fishingTier: 1,
+  fishingWaitLeft: null,
   biteActive: false,
   biteClicks: 0,
   biteNeed: 1,
