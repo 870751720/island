@@ -198,6 +198,8 @@ export class Wildlife implements Updatable {
     private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => void,
     /** 熊开始普通挥击时通知联机层；这是短时动作，走可靠事件而不是姿态采样。 */
     private onAttack: (animalId: number) => void,
+    /** 熊扑击落地时把权威落点交给联机层补播扬尘。 */
+    private onPounceLand: (x: number, y: number, z: number) => void,
     /** 某玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: (player: Player) => boolean,
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
@@ -382,6 +384,7 @@ export class Wildlife implements Updatable {
           moving = this.step(animal, pounce.dir, BEAR_POUNCE_SPEED, delta);
           if (pounce.left <= 0 || !moving) {
             this.fx.burst(animal.pos.clone(), DUST_COLOR, 10);
+            this.onPounceLand(animal.pos.x, animal.pos.y, animal.pos.z);
             if (vulnerable && Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) <= BEAR_POUNCE_LAND_RANGE) {
               animal.lungeLeft = 0.35;
               this.onPlayerHit(target!, animal.config.damage, true);

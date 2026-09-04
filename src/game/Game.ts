@@ -456,6 +456,7 @@ export class Game {
         this.applyWildlifeHit(session, damage, !!pounce);
       },
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
+      (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'collectFx', x, y, z, color: '#b3a284', count: 10 }),
       (player: Player) => {
         const session = this.sessionOf(player);
         return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
