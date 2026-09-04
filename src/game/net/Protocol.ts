@@ -4,7 +4,7 @@ import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
 import type { GmConfig } from '../systems/GmSystem';
 
-export const NET_PROTOCOL_VERSION = 6;
+export const NET_PROTOCOL_VERSION = 7;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -71,7 +71,7 @@ export type NetMsg =
   | { t: 'hello'; name: string; protocol: number; resumeToken?: string }
   | {
       t: 'welcome';
-      seeds: { terrainSeed: number; propsSeed: number };
+      seeds: { terrainSeed: number };
       state: SaveData;
       /** 当前玩家顺序与稳定 id，顺序对应 state 的本地玩家及 others。 */
       roster: string[];

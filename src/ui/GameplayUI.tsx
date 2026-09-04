@@ -241,7 +241,7 @@ export function GameplayUI({
         // 房主可在大厅选择新岛或恢复上一次由房主持有的联机存档。
         ...(net?.host
           ? {
-              seeds: { terrainSeed: net.host.terrainSeed, propsSeed: net.host.propsSeed },
+              seeds: { terrainSeed: net.host.terrainSeed },
               save: net.host.initialSave,
             }
           : {}),

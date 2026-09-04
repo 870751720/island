@@ -44,7 +44,6 @@ import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
-import { mulberry32 } from './core/rng';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -64,7 +63,7 @@ export type GameOptions = {
   /** 客人侧网络会话(welcome 已到达,Game 以 guest 模式运行) */
   guest?: NetGuest;
   /** 指定世界种子(房主大厅生成,与本地存档无关) */
-  seeds?: { terrainSeed: number; propsSeed: number };
+  seeds?: { terrainSeed: number };
   /** 指定初始存档(null 表示开新档;缺省读 localStorage) */
   save?: SaveData | null;
 };
@@ -272,7 +271,6 @@ export class Game {
   private onDamage: (amount: number, x: number, y: number) => void;
   private onDogEmoji: (emoji: string | null, x: number, y: number) => void;
   private terrainSeed: number;
-  private propsSeed: number;
   private autosaveTimer = 0;
   private mumbles: MumbleSystem;
   private mumbleText: string | null = null;
@@ -341,7 +339,6 @@ export class Game {
         ? options.save
         : SaveSystem.load();
     this.terrainSeed = seeds?.terrainSeed ?? save?.terrainSeed ?? Math.random() * 1000;
-    this.propsSeed = seeds?.propsSeed ?? save?.propsSeed ?? Math.floor(Math.random() * 0xffffffff);
     this.mumbles = new MumbleSystem((_trigger, text) => {
       this.mumbleText = text;
       this.mumbleTimer = 4;
@@ -383,7 +380,7 @@ export class Game {
     this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
     this.scene.add(this.clouds.group);
-    this.props = new Props(this.scene, terrain, mulberry32(this.propsSeed));
+    this.props = new Props(this.scene, terrain, !save);
     this.fx = new Particles(this.scene);
     this.waterFx = new WaterFx(this.scene, this.fx);
 
@@ -1156,7 +1153,6 @@ export class Game {
       ],
       version: SAVE_VERSION,
       terrainSeed: this.terrainSeed,
-      propsSeed: this.propsSeed,
       dayTime: this.dayNight.time,
       day: this.dayNight.day,
       props: this.props.snapshot(),

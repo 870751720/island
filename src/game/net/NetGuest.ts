@@ -37,7 +37,7 @@ export class NetGuest {
   private lastInputSent = 0;
   private disposed = false;
   /** 房主发来的欢迎包(种子 + 全量初始状态 + 稳定玩家标识),开始游戏时交给 Game */
-  welcome: { seeds: { terrainSeed: number; propsSeed: number }; state: SaveData; roster: string[]; you: string } | null =
+  welcome: { seeds: { terrainSeed: number }; state: SaveData; roster: string[]; you: string } | null =
     null;
 
   onStarted: () => void = () => {};

@@ -17,10 +17,10 @@
 - `Player.ts`:`HandTool` 增加 `hoe`,新增程序化锄头模型(木柄 + 宽扁石刃)。
 - `CollectSystem.ts`:新增 `isDigging(prop)` 判定(手持锄头且目标是 berry/shrub);挖掘走 `mine` 动作与音效,命中数走独立 `DIG_HITS`(精致 1 下);命中结算改为调用 `Props.removeProp` 并给对应丛道具,不走再生逻辑。
 - `Props.ts`:
-  - `Prop`/`PropState` 增加 `dug` 标记;`removeProp` 把资源点置为永久消失(隐藏、不再占位);
-  - `placeBush(kind, x, z)` 在落点生成完整丛并入列表(排在自然生成之后,存档带坐标);
-  - 新增 `isOccupied(p, range)` 统一占位判定(忽略被挖走的资源点),工作台/播种/木箱三个放置系统与 `Game.useBush` 共用;
-  - 存档:自然段恢复时应用 `dug`,玩家放置段支持 berry/shrub;`SAVE_VERSION` 13 → 14。
+  - `removeProp` 将资源点从场景和世界列表直接删除，不保留隐藏占位或删除标记；
+  - `placeBush(kind, x, z)` 在落点生成完整丛并纳入世界资源列表；
+  - 新增 `isOccupied(p, range)` 统一占位判定，工作台/播种/木箱三个放置系统与 `Game.useBush` 共用；
+  - 所有资源点都以完整坐标状态入档，玩家放置的 berry/shrub 与自然资源采用同一数据模型。
 - `Inventory.ts`/`Items.ts`/`DropModels.ts`:新增道具 `berryBush`、`shrubBush`(名称/图标/描述/掉落模型)与 `hoe` 条目。
 - `Game.ts`:`useBush(kind)` 负责校验+扣除+放置+反馈;工具循环顺序加入锄头;HUD 增加 `hasHoe`;头顶提示在持锄挖掘时显示「挖灌木丛/挖浆果丛」。
 - UI:`Backpack.isUsable` 放行两个丛;`GameplayUI.onUseItem` 派发到 `useBush`;`ToolButton` 增加锄头图标(⚒️);`RecipeBook` 增加精致石锄增益说明。
@@ -30,6 +30,7 @@
 ## 迭代记录
 
 - 2026-09-03:石锄不再出现场景快捷制作卡片,仍可从背包「制作」页正常制作。
+- 2026-09-05:资源点挖除改为从世界列表直接删除，移除 `dug` 墓碑字段；联机和读档均按完整资源列表重建。
 
 - 2026-08-30:首次实现。
 - 2026-08-30:种下丛时若手持锄头自动切回空手。

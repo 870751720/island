@@ -36,7 +36,7 @@ export type PropKind =
   | 'meteor'
   | 'worm';
 
-/** 资源点的可序列化状态(存档用,自然生成的布局由种子保证可复现;玩家种下的树带坐标) */
+/** 资源点的完整可序列化状态；布局由房主/存档直接持有。 */
 export type PropState = {
   kind: PropKind;
   ready: boolean;
@@ -45,11 +45,9 @@ export type PropState = {
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;
-  /** 被锄头整棵挖走的资源点(永久消失,不再再生) */
-  dug?: boolean;
-  /** 玩家种下的树/放下的丛的落点坐标;自然生成的资源点没有该字段 */
-  x?: number;
-  z?: number;
+  x: number;
+  z: number;
+  rotationY: number;
 };
 
 /** 各类资源点的采集产出与再生时间(秒);regrow 为 0 表示不可再生 */
@@ -76,8 +74,6 @@ export type Prop = {
   species?: TreeSpecies;
   /** 树的生长阶段;仅成树可砍 */
   growth?: TreeStage;
-  /** 被锄头整棵挖走(永久消失,不再再生) */
-  dug?: boolean;
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -355,8 +351,6 @@ function makeWormMound(): THREE.Group {
 /** 岛上散布的资源点,管理采集后的外观变化、再生与树的生长 */
 export class Props implements Updatable {
   readonly list: Prop[] = [];
-  /** 自然生成的资源点数量(种下的树追加在其后,存档时需带坐标单独恢复) */
-  private naturalCount = 0;
   private berries = new Map<Prop, THREE.Mesh[]>();
   private shakes = new Map<Prop, number>();
   private growthTimer = 0;
@@ -365,8 +359,10 @@ export class Props implements Updatable {
   constructor(
     private scene: THREE.Scene,
     private terrain: IslandTerrain,
+    generate = true,
     rng: () => number = Math.random
   ) {
+    if (!generate) return;
     const half = terrain.size / 2;
     const spawn = (kind: PropKind, count: number) => {
       for (let i = 0; i < count; i++) {
@@ -422,7 +418,6 @@ export class Props implements Updatable {
     spawn('shrub', 30);
     spawn('grass', 26);
     spawn('worm', 12);
-    this.naturalCount = this.list.length;
   }
 
   /** 玩家种下一棵树:在落点生成发芽阶段的树并纳入管理 */
@@ -497,16 +492,16 @@ export class Props implements Updatable {
 
   /** 锄头整棵挖走资源点:永久从场上消失(不再再生,也不占位) */
   removeProp(prop: Prop): void {
-    prop.dug = true;
-    prop.ready = false;
-    prop.regrowLeft = 0;
-    prop.group.visible = false;
+    const index = this.list.indexOf(prop);
+    if (index >= 0) this.list.splice(index, 1);
+    this.scene.remove(prop.group);
     this.berries.delete(prop);
+    this.shakes.delete(prop);
   }
 
   /** 落点附近是否有占位的资源点(被挖走的不算) */
   isOccupied(p: THREE.Vector3, range: number): boolean {
-    return this.list.some((prop) => !prop.dug && prop.position.distanceTo(p) < range);
+    return this.list.some((prop) => prop.position.distanceTo(p) < range);
   }
 
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
@@ -570,55 +565,34 @@ export class Props implements Updatable {
     }
   }
 
-  /** 当前全部资源点状态快照(存档用,自然生成在前、种下的树带坐标在后) */
+  /** 当前全部资源点完整快照；自然资源和玩家放置资源一律带落点。 */
   snapshot(): PropState[] {
-    return this.list.map((prop, i) => {
+    return this.list.map((prop) => {
       const state: PropState = {
         kind: prop.kind,
         ready: prop.ready,
         regrowLeft: prop.regrowLeft,
         stage: prop.stage,
-        dug: prop.dug || undefined,
+        x: prop.position.x,
+        z: prop.position.z,
+        rotationY: prop.group.rotation.y,
       };
       if (prop.kind === 'tree') {
         state.species = prop.species;
         state.growth = prop.growth;
       }
-      if (i >= this.naturalCount) {
-        state.x = prop.position.x;
-        state.z = prop.position.z;
-      }
       return state;
     });
   }
 
-  /** 从存档恢复各资源点状态;自然部分长度或种类对不上时跳过(布局已变) */
+  /** 从房主快照/存档恢复：清空现有资源并按完整列表重建。 */
   applySave(states: PropState[]): void {
-    const natural = states.filter((s) => s.x === undefined);
-    const planted = states.filter((s) => s.x !== undefined);
-    if (natural.length !== this.naturalCount) return;
-    this.removePlanted();
-    for (let i = 0; i < natural.length; i++) {
-      const prop = this.list[i];
-      const state = natural[i];
-      if (!state || state.kind !== prop.kind) return;
-      prop.ready = state.ready;
-      prop.regrowLeft = state.regrowLeft ?? 0;
-      prop.stage = state.stage;
-      if (state.dug) this.removeProp(prop);
-      if (prop.kind === 'tree') {
-        prop.species = state.species ?? 'oak';
-        prop.growth = state.growth ?? 'mature';
-        // 小树随时可砍(只出树枝)
-        if (prop.growth === 'sapling') prop.ready = true;
-      }
-      this.syncAppearance(prop);
-    }
-    for (const state of planted) {
-      if (state.x === undefined || state.z === undefined) continue;
+    this.clear();
+    for (const state of states) {
       if (state.kind === 'meteor') {
         const prop = this.placeMeteor(state.x, state.z);
         prop.ready = state.ready;
+        prop.group.rotation.y = state.rotationY;
         this.syncAppearance(prop);
         continue;
       }
@@ -626,24 +600,44 @@ export class Props implements Updatable {
         const prop = this.placeBush(state.kind, state.x, state.z);
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
+        prop.group.rotation.y = state.rotationY;
         this.syncAppearance(prop);
         continue;
       }
-      if (state.kind !== 'tree') continue;
-      const prop = this.plant(state.species ?? 'oak', state.x, state.z);
-      prop.ready = state.ready;
-      prop.regrowLeft = state.regrowLeft ?? 0;
-      prop.stage = state.stage;
-      prop.growth = state.growth ?? 'sprout';
+      if (state.kind === 'tree') {
+        const prop = this.plant(state.species ?? 'oak', state.x, state.z);
+        prop.ready = state.ready;
+        prop.regrowLeft = state.regrowLeft ?? 0;
+        prop.stage = state.stage;
+        prop.growth = state.growth ?? 'mature';
+        prop.group.rotation.y = state.rotationY;
+        if (prop.growth === 'sapling') prop.ready = true;
+        this.syncAppearance(prop);
+        continue;
+      }
+      const y = this.terrain.getHeight(state.x, state.z);
+      const group = state.kind === 'rock' ? makeRock() : state.kind === 'gravel' ? makeGravel() : makeWormMound();
+      group.position.set(state.x, y - 0.05, state.z);
+      group.rotation.y = state.rotationY;
+      this.scene.add(group);
+      const prop: Prop = {
+        kind: state.kind,
+        group,
+        position: group.position.clone(),
+        ready: state.ready,
+        regrowLeft: state.regrowLeft ?? 0,
+      };
+      this.list.push(prop);
       this.syncAppearance(prop);
     }
   }
 
-  /** 移除玩家种下的树(读档恢复前清理) */
-  private removePlanted(): void {
-    for (const prop of this.list.splice(this.naturalCount)) {
+  private clear(): void {
+    for (const prop of this.list.splice(0)) {
       this.scene.remove(prop.group);
     }
+    this.berries.clear();
+    this.shakes.clear();
   }
 
   /** 物件的阻挡半径(成树、树桩与大石),不阻挡的返回 0 */

@@ -24,7 +24,6 @@ type Resumable = { session: PlayerSession; name: string; expires: number };
 /** 房主侧联机会话总管:管理多条 DataChannel、接入/断线、输入写入、动作分发与快照广播 */
 export class NetHost {
   terrainSeed: number;
-  propsSeed: number;
   initialSave: SaveData | null = null;
   private guests: Guest[] = [];
   private game: Game | null = null;
@@ -40,14 +39,12 @@ export class NetHost {
 
   constructor() {
     this.terrainSeed = Math.random() * 1000;
-    this.propsSeed = Math.floor(Math.random() * 0xffffffff);
   }
 
   useSavedWorld(save: SaveData | null): void {
     this.initialSave = save;
     if (save) {
       this.terrainSeed = save.terrainSeed;
-      this.propsSeed = save.propsSeed;
     }
   }
 
@@ -165,7 +162,7 @@ export class NetHost {
     if (!this.game || !guest.session) return;
     guest.net.send({
       t: 'welcome',
-      seeds: { terrainSeed: this.terrainSeed, propsSeed: this.propsSeed },
+      seeds: { terrainSeed: this.terrainSeed },
       state: this.game.collectSave(true),
       roster: this.game.sessionIds(),
       you: guest.session.id,
