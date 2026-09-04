@@ -1,12 +1,15 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { ItemIcon } from './ItemIcon';
+import type { CSSProperties, ReactNode } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import {
   RECIPES,
   WORKBENCH_COST,
   WORKBENCH_PROMPT_PRIORITY,
   hasCost,
+  recipeIconKind,
+  recipeIconLevel,
   recipeVisible,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -17,7 +20,7 @@ import { fadeStyle } from './fade';
 /** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
 type PromptCard = {
   priority: number;
-  icon: string;
+  icon: ReactNode;
   title: string;
   cost: Partial<Record<string, number>>;
   onCraft: () => void;
@@ -50,7 +53,7 @@ export function CraftPrompt({
       recipeVisible(r, hud, ownedTools, hud.equipped, hud.slots)
   ).map((r) => ({
     priority: r.promptPriority ?? Number.MAX_SAFE_INTEGER,
-    icon: r.icon,
+    icon: <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />,
     title: `手搓${r.name}`,
     cost: r.cost,
     onCraft: () => onCraft(r.id),
@@ -58,7 +61,7 @@ export function CraftPrompt({
   if (hud.canCraftWorkbench) {
     cards.push({
       priority: WORKBENCH_PROMPT_PRIORITY,
-      icon: '🛠️',
+      icon: <span style={{ fontSize: 26 }}>🛠️</span>,
       title: '手搓工作台',
       cost: WORKBENCH_COST,
       onCraft: onCraftWorkbench,
@@ -67,7 +70,7 @@ export function CraftPrompt({
   if (hud.canCraftCampfire) {
     cards.push({
       priority: CAMPFIRE_PROMPT_PRIORITY,
-      icon: '🔥',
+      icon: <span style={{ fontSize: 26 }}>🔥</span>,
       title: '原地搭小火堆',
       cost: CAMPFIRE_COST,
       onCraft: onCraftCampfire,
@@ -93,7 +96,7 @@ export function CraftPrompt({
         }}
         style={cardStyle}
       >
-        <span style={{ fontSize: 26 }}>{best.icon}</span>
+        {best.icon}
         <span>
           {best.title}
           <br />

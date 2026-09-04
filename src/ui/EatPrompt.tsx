@@ -1,5 +1,6 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/Game';
 import { firstFoodIn } from '@/game/systems/Food';
 import { fadeStyle } from './fade';
@@ -38,7 +39,7 @@ export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void 
         ...fadeStyle(hud.busy),
       }}
     >
-      <span style={{ fontSize: 26 }}>{food.icon}</span>
+      <ItemIcon kind={food.kind} size={28} />
       <span>
         吃{food.name}
         <br />

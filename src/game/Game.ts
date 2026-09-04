@@ -161,8 +161,8 @@ export type HudSnapshot = {
 
 const VIEW_SIZE = 18;
 
-/** 拾取提示(玩家头顶飘图标):图标、数量与诞生时的屏幕坐标 */
-export type PickupToast = { items: { icon: string; count: number }[]; x: number; y: number };
+/** 拾取提示(玩家头顶飘图标):道具、数量与诞生时的屏幕坐标 */
+export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: number; y: number };
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
@@ -1196,13 +1196,12 @@ export class Game {
 
   /** 背包入包时在玩家头顶飘出图标与数量 */
   /** 本帧入包待合并的拾取项(同帧多种道具合并为一条提示) */
-  private pendingPickups: { icon: string; count: number }[] = [];
+  private pendingPickups: { kind: ResourceKind; count: number }[] = [];
 
   private emitPickup(kind: ResourceKind, count: number): void {
-    const icon = ITEMS[kind].icon;
-    const existing = this.pendingPickups.find((p) => p.icon === icon);
+    const existing = this.pendingPickups.find((p) => p.kind === kind);
     if (existing) existing.count += count;
-    else this.pendingPickups.push({ icon, count });
+    else this.pendingPickups.push({ kind, count });
   }
 
   /** 帧末统一发出本帧的拾取提示:同一瞬间获得的多种道具合并为一条,避免重叠 */

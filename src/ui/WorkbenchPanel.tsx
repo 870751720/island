@@ -1,11 +1,14 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import {
   RECIPES,
   maxCraftCount,
+  recipeIconKind,
+  recipeIconLevel,
   recipeVisible,
   WORKBENCH_UPGRADE_STONES,
   type CraftId,
@@ -86,7 +89,7 @@ export function WorkbenchPanel({
             const ownedTools = toolsOf(hud);
             return (
               <div key={r.id} style={rowStyle}>
-                <span style={{ fontSize: 26 }}>{r.icon}</span>
+                <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div>{r.name}</div>
                   <div style={{ fontSize: 12, color: '#888' }}>

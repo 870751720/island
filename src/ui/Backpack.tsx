@@ -5,11 +5,12 @@ import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
+import { ItemIcon } from './ItemIcon';
 import { fadeStyle } from './fade';
 
 type Props = {
@@ -397,7 +398,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       >
                         {slot && (
                           <>
-                            <span style={drag?.from === i ? { opacity: 0.3 } : undefined}>{ITEMS[slot.kind].icon}</span>
+                            <span style={drag?.from === i ? { opacity: 0.3 } : undefined}>
+                              <ItemIcon kind={slot.kind} size={26} />
+                            </span>
                             {countBadge(slot.count)}
                           </>
                         )}
@@ -409,7 +412,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                   {selected && selectedDef ? (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 24 }}>{selectedDef.icon}</span>
+                        <ItemIcon kind={selectedDef.kind} size={26} />
                         <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
                         <span style={{ color: '#888' }}>×{selected.count}</span>
                       </div>
@@ -522,7 +525,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                 )}
                 {craftables.map((r) => (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px' }}>
-                    <span style={{ fontSize: 22 }}>{r.icon}</span>
+                    <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={22} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div>{r.name}</div>
                       <div style={{ fontSize: 12, color: '#888' }}>
@@ -552,7 +555,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           e,
                           <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 20 }}>{def.icon}</span>
+                              <ItemIcon kind={id} level={tier >= 2 ? 2 : undefined} size={20} />
                               <span style={{ fontWeight: 700, flex: 1 }}>{name}</span>
                               <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
                                 {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
@@ -572,7 +575,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         userSelect: 'none',
                       }}
                     >
-                      <span style={{ fontSize: 22 }}>{def.icon}</span>
+                      <ItemIcon kind={id} level={tier >= 2 ? 2 : undefined} size={22} />
                       <div style={{ flex: 1, minWidth: 0 }}>{name}</div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
                         {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
@@ -597,7 +600,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             def && kind ? (
                               <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ fontSize: 20 }}>{def.icon}</span>
+                                  <ItemIcon kind={kind} size={20} />
                                   <span style={{ fontWeight: 700, flex: 1 }}>{def.name}</span>
                                   <span style={{ fontSize: 12, color: '#888' }}>评分 {EQUIPMENT[kind].score}</span>
                                 </div>
@@ -620,7 +623,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           userSelect: 'none',
                         }}
                       >
-                        <span style={{ fontSize: 20 }}>{def ? def.icon : '➖'}</span>
+                        {kind ? <ItemIcon kind={kind} size={22} /> : '➖'}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
                           <div style={{ fontWeight: 700 }}>
@@ -662,7 +665,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             zIndex: 70,
           }}
         >
-          {ITEMS[hud.slots[drag.from]!.kind].icon}
+          <ItemIcon kind={hud.slots[drag.from]!.kind} size={28} />
         </div>
       )}
     </>

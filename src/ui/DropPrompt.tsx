@@ -1,5 +1,6 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/Game';
 import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
@@ -38,7 +39,7 @@ export function DropPrompt({ hud, onPickup }: { hud: HudSnapshot; onPickup: () =
         ...fadeStyle(hud.busy),
       }}
     >
-      <span style={{ fontSize: 26 }}>{item.icon}</span>
+      <ItemIcon kind={item.kind} size={28} />
       <span>
         捡回{item.name}
         {drop.count > 1 ? `×${drop.count}` : ''}

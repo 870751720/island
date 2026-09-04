@@ -30,7 +30,6 @@ export type CraftId =
 export type Recipe = {
   id: CraftId;
   name: string;
-  icon: string;
   cost: Partial<Record<ResourceKind, number>>;
   /** 制作站点:hand 为手搓卡片,workbench 为只能在靠近工作台时制作 */
   station: 'hand' | 'workbench';
@@ -68,11 +67,20 @@ export function toolName(tool: ToolId, tier: number): string {
 /** 全部工具(工具 tab 展示顺序) */
 export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow'];
 
+/** 配方图标对应的道具(工具类即工具本身,材料/装备类为产物) */
+export function recipeIconKind(recipe: Recipe): ResourceKind {
+  return recipe.tool ?? recipe.output!;
+}
+
+/** 配方图标的级别角标(精致工具为 2,其余无) */
+export function recipeIconLevel(recipe: Recipe): number | undefined {
+  return recipe.tier;
+}
+
 export const RECIPES: Recipe[] = [
   {
     id: 'axe',
     name: '石斧',
-    icon: '🪓',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     promptPriority: 1,
@@ -81,7 +89,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'pickaxe',
     name: '石镐',
-    icon: '⛏️',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     promptPriority: 2,
@@ -90,7 +97,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'hoe',
     name: '石锄',
-    icon: '⚒️',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     promptPriority: 3,
@@ -100,7 +106,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rope',
     name: '绳线',
-    icon: '🧵',
     cost: { fiber: 3 },
     station: 'workbench',
     output: 'rope',
@@ -108,7 +113,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'fishingrod',
     name: '树枝鱼竿',
-    icon: '🎣',
     cost: { wood: 1, rope: 1 },
     station: 'workbench',
     tool: 'fishingrod',
@@ -116,7 +120,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bow',
     name: '粗制弓',
-    icon: '🏹',
     cost: { wood: 1, rope: 1 },
     station: 'workbench',
     tool: 'bow',
@@ -124,7 +127,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-axe',
     name: '精致石斧',
-    icon: '🪓',
     cost: { wood: 2, stone: 2 },
     station: 'workbench',
     tool: 'axe',
@@ -134,7 +136,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-pickaxe',
     name: '精致石镐',
-    icon: '⛏️',
     cost: { wood: 2, stone: 2 },
     station: 'workbench',
     tool: 'pickaxe',
@@ -144,7 +145,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-hoe',
     name: '精致石锄',
-    icon: '⚒️',
     cost: { wood: 2, stone: 2 },
     station: 'workbench',
     tool: 'hoe',
@@ -154,7 +154,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-fishingrod',
     name: '精致鱼竿',
-    icon: '🎣',
     cost: { wood: 2, rope: 2 },
     station: 'workbench',
     tool: 'fishingrod',
@@ -164,7 +163,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-bow',
     name: '精致弓',
-    icon: '🏹',
     cost: { wood: 2, rope: 2 },
     station: 'workbench',
     tool: 'bow',
@@ -174,7 +172,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'arrow',
     name: '箭 ×10',
-    icon: '🏹',
     cost: { wood: 1 },
     station: 'workbench',
     output: 'arrow',
@@ -183,7 +180,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'crate',
     name: '木箱',
-    icon: '📦',
     cost: { wood: 4 },
     station: 'workbench',
     output: 'crate',
@@ -191,7 +187,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'fenceWood',
     name: '木围栏 ×2',
-    icon: '🚧',
     cost: { wood: 1 },
     station: 'workbench',
     output: 'fenceWood',
@@ -201,7 +196,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'fenceStone',
     name: '石围栏 ×2',
-    icon: '🧱',
     cost: { stone: 1 },
     station: 'workbench',
     output: 'fenceStone',
@@ -211,7 +205,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'fenceGate',
     name: '围栏门',
-    icon: '🚪',
     cost: { wood: 2 },
     station: 'workbench',
     output: 'fenceGate',
@@ -220,7 +213,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed',
     name: '床',
-    icon: '🛏️',
     cost: { wood: 8, stone: 2, rope: 2 },
     station: 'workbench',
     output: 'bed1',
@@ -228,7 +220,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed2',
     name: '二级床',
-    icon: '🛏️',
     cost: { bed1: 1, stone: 10 },
     station: 'workbench',
     output: 'bed2',
@@ -236,7 +227,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'baitCrab',
     name: '鱼饵 ×2',
-    icon: '🪱',
     cost: { crabMeat: 1 },
     station: 'hand',
     promptPriority: 9,
@@ -247,7 +237,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'baitBird',
     name: '鱼饵 ×3',
-    icon: '🪱',
     cost: { birdMeat: 1 },
     station: 'hand',
     promptPriority: 10,
@@ -258,7 +247,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'baitGame',
     name: '鱼饵 ×10',
-    icon: '🪱',
     cost: { gameMeat: 1 },
     station: 'hand',
     promptPriority: 11,
@@ -269,7 +257,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'grassShirt',
     name: '草衣',
-    icon: '🍃',
     cost: { wood: 1, fiber: 1 },
     station: 'hand',
     promptPriority: 6,
@@ -278,7 +265,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'grassPants',
     name: '草裤',
-    icon: '🍂',
     cost: { wood: 1, fiber: 1 },
     station: 'hand',
     promptPriority: 7,
@@ -287,7 +273,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'strawHat',
     name: '草帽',
-    icon: '👒',
     cost: { fiber: 2 },
     station: 'hand',
     promptPriority: 8,
@@ -296,7 +281,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'strawBackpack',
     name: '草包',
-    icon: '🎒',
     cost: { fiber: 4 },
     station: 'workbench',
     output: 'strawBackpack',
@@ -304,7 +288,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furShirt',
     name: '皮衣',
-    icon: '👕',
     cost: { fur: 2, rope: 3 },
     station: 'workbench',
     output: 'furShirt',
@@ -312,7 +295,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furPants',
     name: '皮裤',
-    icon: '👖',
     cost: { fur: 2, rope: 2 },
     station: 'workbench',
     output: 'furPants',
@@ -320,7 +302,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furHat',
     name: '皮帽',
-    icon: '🎩',
     cost: { fur: 1, rope: 1 },
     station: 'workbench',
     output: 'furHat',
@@ -328,7 +309,6 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furBackpack',
     name: '皮包',
-    icon: '🧺',
     cost: { fur: 4, rope: 4 },
     station: 'workbench',
     output: 'furBackpack',

@@ -1,5 +1,6 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
@@ -84,7 +85,7 @@ export function CampfirePanel({
               }}
               style={chipStyle}
             >
-              {ITEMS[kind].icon} {ITEMS[kind].name} ×{count(kind)}
+              <ItemIcon kind={kind} size={20} /> {ITEMS[kind].name} ×{count(kind)}
               <span style={{ fontSize: 11, color: '#999' }}>+{ITEMS[kind].burnTime}秒</span>
             </button>
           ))}
@@ -103,10 +104,10 @@ export function CampfirePanel({
               <div key={food.kind} style={rowStyle}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14 }}>
-                    {food.icon} {food.name} ×{max}
+                    <ItemIcon kind={food.kind} size={18} /> {food.name} ×{max}
                   </div>
                   <div style={{ fontSize: 11, color: '#e0862e' }}>
-                    → {cooked.icon} {cooked.name}
+                    → <ItemIcon kind={cooked.kind} size={18} /> {cooked.name}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

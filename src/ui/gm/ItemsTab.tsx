@@ -1,5 +1,6 @@
 'use client';
 
+import { ItemIcon } from '../ItemIcon';
 import { useMemo, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import { TOOL_IDS, toolName, type ToolId } from '@/game/systems/Crafting';
@@ -47,8 +48,8 @@ export function ItemsTab({
       <div style={{ maxHeight: '42vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tools.map((id) => (
           <div key={id} style={rowStyle}>
-            <span>
-              {ITEMS[id].icon} {toolName(id, 1)} / {toolName(id, 2)}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <ItemIcon kind={id} size={20} /> {toolName(id, 1)} / {toolName(id, 2)}
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => onGiveTool(id, 1)} style={giveStyle}>
@@ -64,8 +65,8 @@ export function ItemsTab({
           const item = ITEMS[kind];
           return (
             <div key={kind} style={rowStyle}>
-              <span>
-                {item.icon} {item.name}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <ItemIcon kind={kind} size={20} /> {item.name}
               </span>
               <span style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => onGiveItem(kind, 1)} style={giveStyle}>

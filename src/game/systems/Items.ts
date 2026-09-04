@@ -14,7 +14,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   wood: {
     kind: 'wood',
     name: '树枝',
-    icon: '🌿',
+    icon: '🪾',
     description: '砍树、捡灌木丛获得,细而易燃,是制作工具的基础材料,也可以当火堆的柴。',
     burnTime: 20,
   },
@@ -46,7 +46,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   fiber: {
     kind: 'fiber',
     name: '植物纤维',
-    icon: '🌿',
+    icon: '🌾',
     description: '从草丛里采来的坚韧纤维,可以搓成绳线,是制作绳类道具的基础材料。',
   },
   rope: {
@@ -238,7 +238,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   oakFruit: {
     kind: 'oakFruit',
     name: '橡果',
-    icon: '🥜',
+    icon: '🌰',
     description: '砍橡树偶尔掉落的果实,可以直接食用,恢复少量饥饿和口渴。',
   },
   pineFruit: {
@@ -352,7 +352,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   fenceGate: {
     kind: 'fenceGate',
     name: '围栏门',
-    icon: '🪵',
+    icon: '🚪',
     description: '两格宽的双扇栅栏门。点击「使用」或拿在手上放到围栏线里,两端正好接上两侧围栏;靠近自动开门、走远自动关门,动物可不会开门。',
   },
   bed1: {
@@ -378,7 +378,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   shrubBush: {
     kind: 'shrubBush',
     name: '灌木丛',
-    icon: '🌿',
+    icon: '🌳',
     description: '用锄头挖出来的完整灌木丛。点击「使用」把它种回脚下(不能在水里,脚下也不能有别的东西),恢复一段时间后会继续长树枝。',
   },
   grassTuft: {

@@ -1,7 +1,8 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import type { CSSProperties } from 'react';
-import { RECIPES, type Recipe } from '@/game/systems/Crafting';
+import { RECIPES, recipeIconKind, recipeIconLevel, type Recipe } from '@/game/systems/Crafting';
 import { ITEMS } from '@/game/systems/Items';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { costLabel } from './materials';
@@ -51,7 +52,7 @@ export function RecipeBook({ onClose }: { onClose: () => void }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {RECIPES.map((r) => (
             <div key={r.id} style={rowStyle}>
-              <span style={{ fontSize: 26 }}>{r.icon}</span>
+              <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span>{r.name}</span>

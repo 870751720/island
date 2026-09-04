@@ -1,5 +1,6 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
@@ -82,7 +83,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
           >
             {slot && (
               <>
-                <span>{ITEMS[slot.kind].icon}</span>
+                <ItemIcon kind={slot.kind} size={26} />
                 {countBadge(slot.count)}
               </>
             )}
