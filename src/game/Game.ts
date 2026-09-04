@@ -171,7 +171,7 @@ const VIEW_SIZE = 18;
 export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: number; y: number };
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
-const AUTO_EQUIP_DELAY = 1; // 站定不动多久后自动切换到需要的工具(秒)
+const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
 /** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
