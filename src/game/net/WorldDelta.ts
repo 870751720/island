@@ -17,6 +17,7 @@ function n(value: unknown): string {
 /** 坐标是现有存档实体的稳定身份；类型/方向用于区分可能共点的实体。 */
 export function worldEntityKey(section: WorldSection, raw: unknown): string {
   const value = raw as WorldEntity;
+  if (typeof value.id === 'string' && value.id) return value.id;
   switch (section) {
     case 'props':
       return `${value.kind}:${n(value.x)}:${n(value.z)}`;
@@ -29,6 +30,20 @@ export function worldEntityKey(section: WorldSection, raw: unknown): string {
     default:
       return `${n(value.x)}:${n(value.y)}:${n(value.z)}`;
   }
+}
+
+function setFieldPath(target: WorldEntity, path: string, value: unknown): void {
+  const parts = path.split('.');
+  let cursor: Record<string, unknown> | unknown[] = target;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    const next = Array.isArray(cursor) ? cursor[Number(part)] : cursor[part];
+    if (!next || typeof next !== 'object') return;
+    cursor = next as Record<string, unknown> | unknown[];
+  }
+  const last = parts.at(-1)!;
+  if (Array.isArray(cursor)) cursor[Number(last)] = value;
+  else cursor[last] = value;
 }
 
 function equal(a: unknown, b: unknown): boolean {
@@ -82,7 +97,9 @@ export function applyWorldDelta(state: WorldPatch, ops: readonly WorldDeltaOp[])
     } else if (item.op === 'add') {
       if (index < 0) list.push(item.value);
     } else if (index >= 0) {
-      list[index] = { ...(list[index] as WorldEntity), ...item.fields };
+      const entity = { ...(list[index] as WorldEntity) };
+      for (const [path, value] of Object.entries(item.fields)) setFieldPath(entity, path, value);
+      list[index] = entity;
     }
     Object.assign(state, { [item.section]: list });
   }

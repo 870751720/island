@@ -1,24 +1,32 @@
 import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
 
-/** 国内可直连的免费公共 STUN；游戏数据通过 DataChannel 直连。 */
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }],
 };
 
-/** 延迟探测间隔:对端收到 {t:'ping'} 原样回 pong,由发起方算往返耗时 */
 const PING_INTERVAL = 1000;
+const CONTROL_LABEL = 'game-control';
+const STATE_LABEL = 'game-state';
+const STATE_HIGH_WATER = 128 * 1024;
+const STATE_LOW_WATER = 32 * 1024;
+const CONTROL_HIGH_WATER = 512 * 1024;
+const CONTROL_LOW_WATER = 128 * 1024;
+const STATE_TYPES = new Set(['input', 'players', 'animals', 'ambient']);
 
 export type PeerSignal =
   | { description: RTCSessionDescriptionInit }
   | { candidate: RTCIceCandidateInit };
 
-/** 一条房主到客人的 WebRTC DataChannel。连接信息通过在线信令自动交换。 */
+/** 关键消息走可靠有序通道；可淘汰的实时状态走无序、不重传通道。 */
 export class PeerNet {
   private readonly pc = new RTCPeerConnection(RTC_CONFIG);
-  private channel?: RTCDataChannel;
+  private controlChannel?: RTCDataChannel;
+  private stateChannel?: RTCDataChannel;
   private readonly pendingCandidates: RTCIceCandidateInit[] = [];
-  private queue: string[] = [];
+  private readonly controlQueue: string[] = [];
+  private readonly latestState = new Map<string, string>();
   private closeNotified = false;
+  private openNotified = false;
   private readonly channelId = allocChannelId();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -37,12 +45,20 @@ export class PeerNet {
       const state = this.pc.connectionState;
       if (state === 'failed' || state === 'disconnected' || state === 'closed') this.notifyClosed();
     };
-    if (side === 'host') this.bindChannel(this.pc.createDataChannel('game'));
-    else this.pc.ondatachannel = (event) => this.bindChannel(event.channel);
+    if (side === 'host') {
+      this.bindControlChannel(this.pc.createDataChannel(CONTROL_LABEL));
+      this.bindStateChannel(this.pc.createDataChannel(STATE_LABEL, { ordered: false, maxRetransmits: 0 }));
+    } else {
+      this.pc.ondatachannel = (event) => {
+        if (event.channel.label === CONTROL_LABEL) this.bindControlChannel(event.channel);
+        else if (event.channel.label === STATE_LABEL) this.bindStateChannel(event.channel);
+        else event.channel.close();
+      };
+    }
   }
 
   get connected(): boolean {
-    return this.channel?.readyState === 'open';
+    return this.controlChannel?.readyState === 'open' && this.stateChannel?.readyState === 'open';
   }
 
   async start(): Promise<void> {
@@ -71,46 +87,118 @@ export class PeerNet {
     for (const candidate of this.pendingCandidates.splice(0)) await this.pc.addIceCandidate(candidate);
   }
 
-  private bindChannel(channel: RTCDataChannel): void {
-    this.channel = channel;
-    channel.onopen = () => {
-      for (const data of this.queue.splice(0)) channel.send(data);
-      this.pingTimer = setInterval(() => this.send({ t: 'ping', ts: performance.now() }), PING_INTERVAL);
-      this.onOpen();
-    };
-    channel.onmessage = (event) => {
-      const data = event.data as string;
-      NetTraffic.recvBytes += data.length;
-      try {
-        const msg = JSON.parse(data) as { t?: string; ts?: number };
-        // 延迟探测在通道层拦截,不进入游戏消息处理
-        if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
-        else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
-        else this.onMessage(msg);
-      } catch {
-        // 坏包忽略。
-      }
-    };
+  private bindControlChannel(channel: RTCDataChannel): void {
+    this.controlChannel = channel;
+    channel.bufferedAmountLowThreshold = CONTROL_LOW_WATER;
+    channel.onopen = () => { this.flushControl(); this.notifyOpenIfReady(); };
+    channel.onbufferedamountlow = () => this.flushControl();
+    channel.onmessage = (event) => this.receive(event.data);
     channel.onclose = () => this.notifyClosed();
   }
 
+  private bindStateChannel(channel: RTCDataChannel): void {
+    this.stateChannel = channel;
+    channel.bufferedAmountLowThreshold = STATE_LOW_WATER;
+    channel.onopen = () => { this.flushLatestState(); this.notifyOpenIfReady(); };
+    channel.onbufferedamountlow = () => this.flushLatestState();
+    channel.onmessage = (event) => this.receive(event.data);
+    channel.onclose = () => this.notifyClosed();
+  }
+
+  private notifyOpenIfReady(): void {
+    if (!this.connected || this.openNotified) return;
+    this.openNotified = true;
+    this.flushControl();
+    this.flushLatestState();
+    this.pingTimer = setInterval(() => this.send({ t: 'ping', ts: performance.now() }), PING_INTERVAL);
+    this.onOpen();
+  }
+
+  private receive(raw: unknown): void {
+    if (typeof raw !== 'string') return;
+    NetTraffic.recvBytes += NetTraffic.byteLength(raw);
+    try {
+      const msg = JSON.parse(raw) as { t?: string; ts?: number };
+      if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
+      else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
+      else this.onMessage(msg);
+    } catch { /* 坏包忽略。 */ }
+  }
+
   send(msg: unknown): void {
+    const type = this.messageType(msg);
     const data = JSON.stringify(msg);
-    NetTraffic.sentBytes += data.length;
-    if (this.connected) this.channel!.send(data);
-    else this.queue.push(data);
+    if (STATE_TYPES.has(type)) this.sendState(type, data);
+    else this.sendControl(data);
+  }
+
+  private messageType(msg: unknown): string {
+    if (!msg || typeof msg !== 'object' || !('t' in msg)) return '';
+    const type = (msg as { t?: unknown }).t;
+    return typeof type === 'string' ? type : '';
+  }
+
+  private sendControl(data: string): void {
+    const channel = this.controlChannel;
+    if (!channel || channel.readyState !== 'open' || this.controlQueue.length > 0 || channel.bufferedAmount >= CONTROL_HIGH_WATER) {
+      this.controlQueue.push(data);
+      this.flushControl();
+      return;
+    }
+    if (!this.sendNow(channel, data)) this.controlQueue.push(data);
+  }
+
+  private flushControl(): void {
+    const channel = this.controlChannel;
+    if (!channel || channel.readyState !== 'open') return;
+    while (this.controlQueue.length && channel.bufferedAmount < CONTROL_HIGH_WATER) {
+      const data = this.controlQueue.shift()!;
+      if (!this.sendNow(channel, data)) { this.controlQueue.unshift(data); return; }
+    }
+  }
+
+  private sendState(type: string, data: string): void {
+    const channel = this.stateChannel;
+    if (!channel || channel.readyState !== 'open' || channel.bufferedAmount >= STATE_HIGH_WATER) {
+      this.latestState.set(type, data);
+      return;
+    }
+    // 若应用层还留有同类旧状态，新状态直接取代它，避免稍后倒序补发。
+    this.latestState.delete(type);
+    if (!this.sendNow(channel, data)) this.latestState.set(type, data);
+  }
+
+  private flushLatestState(): void {
+    const channel = this.stateChannel;
+    if (!channel || channel.readyState !== 'open') return;
+    for (const [type, data] of this.latestState) {
+      if (channel.bufferedAmount >= STATE_HIGH_WATER) return;
+      if (!this.sendNow(channel, data)) return;
+      this.latestState.delete(type);
+    }
+  }
+
+  private sendNow(channel: RTCDataChannel, data: string): boolean {
+    try {
+      channel.send(data);
+      NetTraffic.sentBytes += NetTraffic.byteLength(data);
+      return true;
+    } catch { return false; }
   }
 
   close(): void {
     if (this.pingTimer) clearInterval(this.pingTimer);
     dropRtt(this.channelId);
-    this.channel?.close();
+    this.controlChannel?.close();
+    this.stateChannel?.close();
     this.pc.close();
   }
 
   private notifyClosed(): void {
     if (this.closeNotified) return;
     this.closeNotified = true;
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    dropRtt(this.channelId);
     this.onClose();
   }
 }

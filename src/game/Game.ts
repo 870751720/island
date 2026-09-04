@@ -282,6 +282,9 @@ export class Game {
   private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
   /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
   private netDrift = new THREE.Vector2();
+  /** 每个已发送输入对应的本地预测位置，用于按房主 ack 重放尚未确认的位移。 */
+  private netInputHistory: { seq: number; x: number; z: number }[] = [];
+  private netAckInputSeq = 0;
   /** 客人端进食特效已播放到的快照进度档(0~3) */
   private netEatTick = 0;
   /** 待延迟结算的熊击(联机客人,等画面命中后再掉血) */
@@ -299,6 +302,7 @@ export class Game {
   private readonly guestNet: NetGuest | null;
   private netWorldRevision = 0;
   private netWorldMirror: WorldPatch | null = null;
+  private netWorldResyncPending = false;
   private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
   /** 客人自己在房主侧的稳定玩家标识。 */
@@ -725,19 +729,25 @@ export class Game {
           this.netDrift.multiplyScalar(1 - k);
         }
         this.updateAutoEquip(delta);
-        // 权威帧完成后立即检测离散世界变化；无变化零网络包，变化时发送字段级增量。
-        this.hostRef?.syncWorldNow();
       },
     });
 
     this.applySave(save);
+    if (this.hostRef) this.bindWorldChangeSinks();
     if (this.hostRef) this.hostRef.attach(this);
     if (this.guestNet) {
       this.guestNet.onPlayers = (m) => this.netApplyPlayers(m);
+      this.guestNet.onInputSent = (seq) => {
+        const pos = this.player.group.position;
+        this.netInputHistory.push({ seq, x: pos.x, z: pos.z });
+        if (this.netInputHistory.length > 256) this.netInputHistory.shift();
+      };
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
       this.netWorldMirror = this.netWorldState();
+      this.netWorldRevision = this.guestNet.welcome?.worldRevision ?? 0;
       this.guestNet.onWorldDelta = (revision, ops) => this.netApplyWorldDelta(revision, ops);
+      this.guestNet.onWorldFull = (revision, state) => this.netApplyWorldFull(revision, state);
       this.guestNet.onHud = (snap) => this.netApplyHud(snap);
       this.guestNet.onEvent = (event) => this.netApplyEvent(event);
       this.guestNet.begin();
@@ -762,7 +772,7 @@ export class Game {
   }
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
-  netPlayersMsg(): Extract<NetMsg, { t: 'players' }> {
+  netPlayersMsg(ackInputSeq = 0): Extract<NetMsg, { t: 'players' }> {
     const wind = this.weather.wind;
     return {
       t: 'players',
@@ -773,6 +783,7 @@ export class Game {
       windAmount: this.weather.windIntensity,
       windDirX: wind.dirX,
       windDirZ: wind.dirZ,
+      ackInputSeq,
       list: this.sessions.map((s) => {
         const p = s.player.group.position;
         const sv = s.survival.state;
@@ -816,7 +827,7 @@ export class Game {
   netWorldState(): WorldPatch {
     return {
       props: this.props.snapshot().map(({ regrowLeft: _, ...prop }) => prop),
-      campfires: this.campfire.snapshot().map((fire) => ({ ...fire, fuel: Math.round(fire.fuel / 15) * 15 })),
+      campfires: this.campfire.snapshot(),
       workbenches: this.workbench.snapshot(),
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
@@ -827,8 +838,30 @@ export class Game {
     };
   }
 
+  private bindWorldChangeSinks(): void {
+    const send = (section: keyof WorldPatch) =>
+      (change: import('./systems/WorldEntityId').EntityChange) => this.hostRef?.broadcastWorldChange(section, change);
+    this.props.setChangeSink(send('props'));
+    this.campfire.setChangeSink(send('campfires'));
+    this.workbench.setChangeSink((change) => {
+      send('workbenches')(change);
+      if (change.op === 'add' && this.workbench.hasCrafted) {
+        send('workbenchCrafted')({ op: 'set', id: '', fields: { value: true } });
+      }
+    });
+    this.crates.setChangeSink(send('crates'));
+    this.fences.setChangeSinks(send('fences'), send('fenceGates'));
+    this.beds.setChangeSink(send('beds'));
+    this.drops.setChangeSink(send('drops'));
+  }
+
   private netApplyWorldDelta(revision: number, ops: WorldDeltaOp[]): void {
-    if (!this.netWorldMirror || revision <= this.netWorldRevision) return;
+    if (!this.netWorldMirror || revision <= this.netWorldRevision || this.netWorldResyncPending) return;
+    if (revision !== this.netWorldRevision + 1) {
+      this.netWorldResyncPending = true;
+      this.guestNet?.requestWorldResync(this.netWorldRevision);
+      return;
+    }
     this.netWorldRevision = revision;
     const changed = applyWorldDelta(this.netWorldMirror, ops);
     const propOps = ops.filter((op) => op.section === 'props');
@@ -844,6 +877,13 @@ export class Game {
       patch.fenceGates = this.netWorldMirror.fenceGates;
     }
     this.netApplyWorld(patch);
+  }
+
+  private netApplyWorldFull(revision: number, state: WorldPatch): void {
+    this.netWorldMirror = state;
+    this.netWorldRevision = revision;
+    this.netWorldResyncPending = false;
+    this.netApplyWorld(state);
   }
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
@@ -863,13 +903,30 @@ export class Game {
       s.setName(s === this.local ? '我' : p.name);
       if (s === this.local) {
         const pos = s.player.group.position;
-        const dx = p.x - pos.x;
-        const dz = p.z - pos.z;
+        let targetX = p.x;
+        let targetZ = p.z;
+        if (msg.ackInputSeq >= this.netAckInputSeq) {
+          this.netInputHistory = this.netInputHistory.filter((sample) => sample.seq > msg.ackInputSeq);
+          this.netAckInputSeq = msg.ackInputSeq;
+          // 房主位置只包含 ack 以前的输入；保留首个未确认输入发出以后客户端实际预测出的位移。
+          // 该位移已经经过本地碰撞约束，比脱离 Player 系统按速度重新积分更贴近真实运动。
+          const firstPending = this.netInputHistory[0];
+          if (firstPending) {
+            targetX += pos.x - firstPending.x;
+            targetZ += pos.z - firstPending.z;
+          }
+        } else {
+          // 姿态通道允许丢包/乱序时，旧 ack 不得把本地玩家拉回更早的权威位置。
+          targetX = pos.x;
+          targetZ = pos.z;
+        }
+        const dx = targetX - pos.x;
+        const dz = targetZ - pos.z;
         if (Math.hypot(dx, dz) > 3) {
-          pos.set(p.x, p.y, p.z);
+          pos.set(targetX, p.y, targetZ);
           this.netDrift.set(0, 0);
         } else {
-          // 小偏差不硬拉:记下差值,等玩家静止期间柔和抹平(本地预测对账)
+          // 小偏差保留为渲染误差，静止后柔和收敛，避免移动手感被快照拖拽。
           this.netDrift.set(dx, dz);
         }
       } else {
@@ -993,25 +1050,20 @@ export class Game {
     if (state.props) this.props.applySave(state.props);
     if (state.campfires) this.campfire.netApply(state.campfires);
     if (state.workbenches) {
-      this.workbench.clear();
-      this.workbench.restore(state.workbenches);
+      this.workbench.netApply(state.workbenches);
     }
     if (state.workbenchCrafted) this.workbench.restoreCrafted();
     if (state.crates) {
-      this.crates.clear();
-      this.crates.restore(state.crates);
+      this.crates.netApply(state.crates);
     }
     if (state.fences || state.fenceGates) {
-      this.fences.clear();
-      this.fences.restore(state.fences ?? [], state.fenceGates ?? []);
+      this.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
     }
     if (state.beds) {
-      this.beds.clear();
-      this.beds.restore(state.beds);
+      this.beds.netApply(state.beds);
     }
     if (state.drops) {
-      this.drops.dispose();
-      this.drops.restore(state.drops);
+      this.drops.netApply(state.drops);
     }
   }
 

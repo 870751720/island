@@ -9,6 +9,7 @@ import {
   type TreeStage,
 } from './TreeSpecies';
 import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
+import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 
 const SHAKE_TIME = 0.4;
 
@@ -39,6 +40,7 @@ export type PropKind =
 
 /** 资源点的完整可序列化状态；布局由房主/存档直接持有。 */
 export type PropState = {
+  id?: string;
   kind: PropKind;
   ready: boolean;
   /** 再生剩余秒数;联机增量快照不含该字段(客人不模拟再生,由房主在再生完成时翻转 ready 同步) */
@@ -64,6 +66,7 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
 };
 
 export type Prop = {
+  id: string;
   kind: PropKind;
   group: THREE.Group;
   position: THREE.Vector3;
@@ -356,6 +359,9 @@ export class Props implements Updatable {
   private shakes = new Map<Prop, number>();
   private growthTimer = 0;
   private swayTime = 0;
+  private onChanged?: EntityChangeSink;
+
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     private scene: THREE.Scene,
@@ -396,6 +402,7 @@ export class Props implements Updatable {
         group.rotation.y = rng() * Math.PI * 2;
         scene.add(group);
         const prop: Prop = {
+          id: createWorldEntityId('prop'),
           kind,
           group,
           position: group.position.clone(),
@@ -429,6 +436,7 @@ export class Props implements Updatable {
     group.rotation.y = Math.random() * Math.PI * 2;
     this.scene.add(group);
     const prop: Prop = {
+      id: createWorldEntityId('prop'),
       kind: 'tree',
       group,
       position: group.position.clone(),
@@ -440,6 +448,7 @@ export class Props implements Updatable {
     };
     this.applyTreeLook(prop);
     this.list.push(prop);
+    this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
     return prop;
   }
 
@@ -450,6 +459,7 @@ export class Props implements Updatable {
     group.position.set(x, y - 0.05, z);
     this.scene.add(group);
     const prop: Prop = {
+      id: createWorldEntityId('prop'),
       kind: 'meteor',
       group,
       position: group.position.clone(),
@@ -457,6 +467,7 @@ export class Props implements Updatable {
       regrowLeft: 0,
     };
     this.list.push(prop);
+    this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
     return prop;
   }
 
@@ -478,6 +489,7 @@ export class Props implements Updatable {
     group.rotation.y = Math.random() * Math.PI * 2;
     this.scene.add(group);
     const prop: Prop = {
+      id: createWorldEntityId('prop'),
       kind,
       group,
       position: group.position.clone(),
@@ -488,6 +500,7 @@ export class Props implements Updatable {
     this.list.push(prop);
     if (berries) this.berries.set(prop, berries);
     this.syncAppearance(prop);
+    this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
     return prop;
   }
 
@@ -498,6 +511,7 @@ export class Props implements Updatable {
     this.scene.remove(prop.group);
     this.berries.delete(prop);
     this.shakes.delete(prop);
+    this.onChanged?.({ op: 'remove', id: prop.id });
   }
 
   /** 落点附近是否有占位的资源点(被挖走的不算) */
@@ -535,6 +549,7 @@ export class Props implements Updatable {
       prop.ready = true;
     }
     this.syncAppearance(prop);
+    this.onChanged?.({ op: 'set', id: prop.id, fields: { ready: prop.ready, stage: prop.stage } });
   }
 
   /** 依据 ready/stage/growth 同步采集后的外观(树桩保留,其余隐藏或缩形) */
@@ -568,8 +583,12 @@ export class Props implements Updatable {
 
   /** 当前全部资源点完整快照；自然资源和玩家放置资源一律带落点。 */
   snapshot(): PropState[] {
-    return this.list.map((prop) => {
+    return this.list.map((prop) => this.stateOf(prop));
+  }
+
+  private stateOf(prop: Prop): PropState {
       const state: PropState = {
+        id: prop.id,
         kind: prop.kind,
         ready: prop.ready,
         regrowLeft: prop.regrowLeft,
@@ -583,7 +602,6 @@ export class Props implements Updatable {
         state.growth = prop.growth;
       }
       return state;
-    });
   }
 
   /** 从房主快照/存档恢复：清空现有资源并按完整列表重建。 */
@@ -592,6 +610,7 @@ export class Props implements Updatable {
     for (const state of states) {
       if (state.kind === 'meteor') {
         const prop = this.placeMeteor(state.x, state.z);
+        prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.group.rotation.y = state.rotationY;
         this.syncAppearance(prop);
@@ -599,6 +618,7 @@ export class Props implements Updatable {
       }
       if (state.kind === 'berry' || state.kind === 'shrub' || state.kind === 'grass') {
         const prop = this.placeBush(state.kind, state.x, state.z);
+        prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
         prop.group.rotation.y = state.rotationY;
@@ -607,6 +627,7 @@ export class Props implements Updatable {
       }
       if (state.kind === 'tree') {
         const prop = this.plant(state.species ?? 'oak', state.x, state.z);
+        prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
         prop.stage = state.stage;
@@ -622,6 +643,7 @@ export class Props implements Updatable {
       group.rotation.y = state.rotationY;
       this.scene.add(group);
       const prop: Prop = {
+        id: state.id ?? createWorldEntityId('prop'),
         kind: state.kind,
         group,
         position: group.position.clone(),
@@ -639,6 +661,7 @@ export class Props implements Updatable {
     for (const op of ops) {
       if (op.op !== 'set') return false;
       const prop = this.list.find((item) => worldEntityKey('props', {
+        id: item.id,
         kind: item.kind,
         x: item.position.x,
         z: item.position.z,
@@ -714,6 +737,7 @@ export class Props implements Updatable {
       if (prop.regrowLeft > 0) continue;
       prop.ready = true;
       prop.regrowLeft = 0;
+      this.onChanged?.({ op: 'set', id: prop.id, fields: { ready: true } });
       if (prop.kind === 'berry') {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
       } else if (prop.kind === 'grass') {
@@ -746,6 +770,7 @@ export class Props implements Updatable {
       prop.regrowLeft = Math.max(0, prop.regrowLeft - seconds);
       if (prop.regrowLeft > 0) continue;
       prop.ready = true;
+      this.onChanged?.({ op: 'set', id: prop.id, fields: { ready: true } });
       if (prop.kind === 'berry') {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = true;
       } else if (prop.kind === 'grass') {
@@ -794,6 +819,7 @@ export class Props implements Updatable {
       // 长成小树后即可砍伐(只出树枝),长成成树产出完整
       prop.ready = true;
       this.applyTreeLook(prop);
+      this.onChanged?.({ op: 'set', id: prop.id, fields: { growth: prop.growth, ready: true } });
     }
   }
 }

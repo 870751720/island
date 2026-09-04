@@ -11,6 +11,7 @@ export const SAVE_VERSION = 28;
 
 /** 资源点完整世界状态；所有资源都直接保存落点，不依赖种子复算布局。 */
 export type PropSave = {
+  id?: string;
   kind: PropKind;
   ready: boolean;
   /** 联机增量快照省略该字段(连续递减的数值不下发,客人不模拟再生) */
@@ -37,7 +38,7 @@ export type SessionSave = {
 };
 
 /** 火堆/工作台/掉落物等摆件的落点 */
-export type PlacementSave = { x: number; y: number; z: number };
+export type PlacementSave = { id?: string; x: number; y: number; z: number };
 
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {
@@ -68,10 +69,10 @@ export type SaveData = {
   /** 场上所有木箱(落点与箱内格子) */
   crates: (PlacementSave & { slots: InventorySlot[] })[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
-  fences: { x: number; z: number; kind: 'wood' | 'stone' }[];
+  fences: { id?: string; x: number; z: number; kind: 'wood' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */
-  fenceGates: { x: number; z: number; dir: 'x' | 'z' }[];
-  drops: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
+  fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[];
+  drops: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };
   /** 小地图探索迷雾网格(按行展开的 0/1 数组,缺省视为全新探索) */

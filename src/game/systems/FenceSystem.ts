@@ -8,6 +8,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 /** 围栏网格边长:围栏柱吸附在整数格点上,相邻柱间距 1 */
 const FENCE_GRID = 1;
@@ -78,6 +79,15 @@ export class FenceSystem implements ObstacleSolver {
   private gates = new Map<string, FenceGate>();
   private segments: Segment[] = [];
   private states = new Map<PlayerSession, PlayerSessionState>();
+  private fenceIds = new WorldEntityIds<Fence>('fence');
+  private gateIds = new WorldEntityIds<FenceGate>('gate');
+  private onFenceChanged?: EntityChangeSink;
+  private onGateChanged?: EntityChangeSink;
+
+  setChangeSinks(fences?: EntityChangeSink, gates?: EntityChangeSink): void {
+    this.onFenceChanged = fences;
+    this.onGateChanged = gates;
+  }
   private previewMat = previewMaterial();
 
   constructor(
@@ -286,7 +296,9 @@ export class FenceSystem implements ObstacleSolver {
     const { gx, gz } = target;
     actor.inventory.remove(item, 1);
     const y = this.terrain.getHeight(gx, gz);
-    this.fences.set(FenceSystem.vertexKey(gx, gz), new Fence(this.scene, gx, gz, kind, y));
+    const fence = new Fence(this.scene, gx, gz, kind, y);
+    this.fences.set(FenceSystem.vertexKey(gx, gz), fence);
+    this.onFenceChanged?.({ op: 'add', id: this.fenceIds.get(fence), value: { id: this.fenceIds.get(fence), x: gx, z: gz, kind } });
     this.refreshAround(gx, gz);
     this.rebuildSegments();
     this.markPlaced(actor);
@@ -347,6 +359,7 @@ export class FenceSystem implements ObstacleSolver {
       (this.terrain.getHeight(gx, gz) + this.terrain.getHeight(gx + (dir === 'x' ? 2 : 0), gz + (dir === 'z' ? 2 : 0))) / 2
     );
     this.gates.set(FenceSystem.edgeKey(gx, gz, dir), gate);
+    this.onGateChanged?.({ op: 'add', id: this.gateIds.get(gate), value: { id: this.gateIds.get(gate), x: gx, z: gz, dir } });
     this.refreshAround(gx, gz);
     this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
@@ -621,6 +634,7 @@ export class FenceSystem implements ObstacleSolver {
       gz = fence.gz;
       fence.remove(this.scene);
       this.fences.delete(key);
+      this.onFenceChanged?.({ op: 'remove', id: this.fenceIds.get(fence) });
       this.give(fence.kind === 'wood' ? 'fenceWood' : 'fenceStone', 1, actor);
     } else {
       const gate = this.gates.get(key)!;
@@ -630,6 +644,7 @@ export class FenceSystem implements ObstacleSolver {
       const ez = gate.endZ;
       gate.remove(this.scene);
       this.gates.delete(key);
+      this.onGateChanged?.({ op: 'remove', id: this.gateIds.get(gate) });
       this.refreshAround(ex, ez);
       this.give('fenceGate', 1, actor);
     }
@@ -648,13 +663,13 @@ export class FenceSystem implements ObstacleSolver {
   // ---- 存档 ----
 
   /** 所有围栏柱的存档快照(格点坐标与种类) */
-  snapshotFences(): { x: number; z: number; kind: FenceKind }[] {
-    return [...this.fences.values()].map((f) => ({ x: f.gx, z: f.gz, kind: f.kind }));
+  snapshotFences(): { id: string; x: number; z: number; kind: FenceKind }[] {
+    return [...this.fences.values()].map((f) => ({ id: this.fenceIds.get(f), x: f.gx, z: f.gz, kind: f.kind }));
   }
 
   /** 所有门的存档快照(边起点格点与方向) */
-  snapshotGates(): { x: number; z: number; dir: 'x' | 'z' }[] {
-    return [...this.gates.values()].map((g) => ({ x: g.gx, z: g.gz, dir: g.dir }));
+  snapshotGates(): { id: string; x: number; z: number; dir: 'x' | 'z' }[] {
+    return [...this.gates.values()].map((g) => ({ id: this.gateIds.get(g), x: g.gx, z: g.gz, dir: g.dir }));
   }
 
   /** 清空场上全部围栏与门,阻挡线段一并重置(客人侧重放世界快照前调用) */
@@ -668,26 +683,62 @@ export class FenceSystem implements ObstacleSolver {
 
   /** 从存档恢复围栏与门(连接与阻挡统一重建) */
   restore(
-    fences: { x: number; z: number; kind: FenceKind }[],
-    gates: { x: number; z: number; dir: 'x' | 'z' }[]
+    fences: { id?: string; x: number; z: number; kind: FenceKind }[],
+    gates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[]
   ): void {
     for (const f of fences) {
       if (this.fences.has(FenceSystem.vertexKey(f.x, f.z))) continue;
-      this.fences.set(
-        FenceSystem.vertexKey(f.x, f.z),
-        new Fence(this.scene, f.x, f.z, f.kind, this.terrain.getHeight(f.x, f.z))
-      );
+      const fence = new Fence(this.scene, f.x, f.z, f.kind, this.terrain.getHeight(f.x, f.z));
+      this.fenceIds.set(fence, f.id);
+      this.fences.set(FenceSystem.vertexKey(f.x, f.z), fence);
     }
     for (const g of gates) {
       const key = FenceSystem.edgeKey(g.x, g.z, g.dir);
       if (this.gates.has(key)) continue;
       const y =
         (this.terrain.getHeight(g.x, g.z) + this.terrain.getHeight(g.x + (g.dir === 'x' ? 2 : 0), g.z + (g.dir === 'z' ? 2 : 0))) / 2;
-      this.gates.set(key, new FenceGate(this.scene, g.x, g.z, g.dir, y));
+      const gate = new FenceGate(this.scene, g.x, g.z, g.dir, y);
+      this.gateIds.set(gate, g.id);
+      this.gates.set(key, gate);
     }
     for (const fence of this.fences.values()) {
       fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
     }
+    this.rebuildSegments();
+  }
+
+  /** 客人端按稳定 id 原地增删，保留未变化围栏的模型。 */
+  netApply(
+    fences: { id?: string; x: number; z: number; kind: FenceKind }[],
+    gates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[]
+  ): void {
+    const fenceIds = new Set(fences.flatMap((x) => x.id ? [x.id] : []));
+    for (const [key, fence] of [...this.fences]) {
+      if (fenceIds.has(this.fenceIds.get(fence))) continue;
+      fence.remove(this.scene);
+      this.fences.delete(key);
+    }
+    const currentFences = new Map([...this.fences.values()].map((x) => [this.fenceIds.get(x), x]));
+    for (const value of fences) {
+      if (value.id && currentFences.has(value.id)) continue;
+      const fence = new Fence(this.scene, value.x, value.z, value.kind, this.terrain.getHeight(value.x, value.z));
+      this.fenceIds.set(fence, value.id);
+      this.fences.set(FenceSystem.vertexKey(value.x, value.z), fence);
+    }
+    const gateIds = new Set(gates.flatMap((x) => x.id ? [x.id] : []));
+    for (const [key, gate] of [...this.gates]) {
+      if (gateIds.has(this.gateIds.get(gate))) continue;
+      gate.remove(this.scene);
+      this.gates.delete(key);
+    }
+    const currentGates = new Map([...this.gates.values()].map((x) => [this.gateIds.get(x), x]));
+    for (const value of gates) {
+      if (value.id && currentGates.has(value.id)) continue;
+      const gate = new FenceGate(this.scene, value.x, value.z, value.dir, this.terrain.getHeight(value.x, value.z));
+      this.gateIds.set(gate, value.id);
+      this.gates.set(FenceSystem.edgeKey(value.x, value.z, value.dir), gate);
+    }
+    for (const fence of this.fences.values()) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
     this.rebuildSegments();
   }
 }

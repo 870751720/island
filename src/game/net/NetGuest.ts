@@ -1,6 +1,6 @@
 import { PeerNet } from './PeerNet';
 import { GuestSignal, normalizeRoomCode } from './Signaling';
-import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent } from './Protocol';
+import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
@@ -36,9 +36,11 @@ export class NetGuest {
   private inputZ = 0;
   private inputTimer: ReturnType<typeof setInterval> | null = null;
   private lastInputSent = 0;
+  private inputSeq = 0;
+  private lastHeartbeatSent = 0;
   private disposed = false;
   /** 房主发来的欢迎包(种子 + 全量初始状态 + 稳定玩家标识),开始游戏时交给 Game */
-  welcome: { seeds: { terrainSeed: number }; state: SaveData; roster: string[]; you: string } | null =
+  welcome: { seeds: { terrainSeed: number }; state: SaveData; roster: string[]; you: string; worldRevision: number } | null =
     null;
 
   onStarted: () => void = () => {};
@@ -49,8 +51,11 @@ export class NetGuest {
   onAnimals: (list: AnimalPose[]) => void = () => {};
   onAmbient: (state: AmbientState) => void = () => {};
   onWorldDelta: (revision: number, ops: WorldDeltaOp[]) => void = () => {};
+  onWorldFull: (revision: number, state: WorldPatch) => void = () => {};
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
+  /** 输入包实际入队时通知 Game，供权威快照对账保留本地预测轨迹。 */
+  onInputSent: (seq: number) => void = () => {};
 
   /** 输入六位房间码，信令服务会自动完成 WebRTC 握手。 */
   async join(code: string, name: string): Promise<void> {
@@ -100,7 +105,7 @@ export class NetGuest {
           this.dispose();
           break;
         }
-        this.welcome = { seeds: msg.seeds, state: msg.state, roster: msg.roster, you: msg.you };
+        this.welcome = { seeds: msg.seeds, state: msg.state, roster: msg.roster, you: msg.you, worldRevision: msg.worldRevision };
         try {
           localStorage.setItem(RESUME_KEY, msg.resumeToken);
         } catch {}
@@ -123,6 +128,9 @@ export class NetGuest {
         break;
       case 'worldDelta':
         this.onWorldDelta(msg.revision, msg.ops);
+        break;
+      case 'worldFull':
+        this.onWorldFull(msg.revision, msg.state);
         break;
       case 'hud':
         this.onHud(msg.snap);
@@ -147,7 +155,13 @@ export class NetGuest {
       const now = performance.now();
       if (now - this.lastInputSent < 1000 / INPUT_HZ) return;
       this.lastInputSent = now;
-      this.net?.send({ t: 'input', x: this.inputX, z: this.inputZ });
+      if (now - this.lastHeartbeatSent >= 1000) {
+        this.lastHeartbeatSent = now;
+        this.net?.send({ t: 'heartbeat' });
+      }
+      const seq = ++this.inputSeq;
+      this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ });
+      this.onInputSent(seq);
     }, 1000 / INPUT_HZ / 2);
   }
 
@@ -160,5 +174,9 @@ export class NetGuest {
   action(name: string, args: unknown[]): boolean {
     this.net?.send({ t: 'action', name, args });
     return true;
+  }
+
+  requestWorldResync(revision: number): void {
+    this.net?.send({ t: 'worldResync', revision });
   }
 }

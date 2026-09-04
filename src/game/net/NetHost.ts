@@ -4,8 +4,9 @@ import type { SaveData } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
 import { HostSignal } from './Signaling';
 import { ACTIONS } from './Actions';
-import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
-import { diffWorld } from './WorldDelta';
+import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
+import type { EntityChange } from '../systems/WorldEntityId';
+import type { WorldSection } from './WorldDelta';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
@@ -18,6 +19,7 @@ type Guest = {
   name: string;
   lastSeen: number;
   resumeToken: string;
+  lastInputSeq: number;
 };
 
 type Resumable = { session: PlayerSession; name: string; expires: number };
@@ -30,7 +32,6 @@ export class NetHost {
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticks = 0;
-  private worldState: WorldPatch | null = null;
   private worldRevision = 0;
   private resumable = new Map<string, Resumable>();
   private signal: HostSignal | null = null;
@@ -81,6 +82,7 @@ export class NetHost {
       name: '',
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
+      lastInputSeq: 0,
     };
     this.guests.push(guest);
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
@@ -95,7 +97,6 @@ export class NetHost {
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
   attach(game: Game): void {
     this.game = game;
-    this.worldState = game.netWorldState();
     // 信令保持在线:断线客人需要它重新握手,用原房间码回来即可恢复席位
     for (const guest of this.guests) {
       if (guest.net.connected && !guest.session) this.welcome(guest);
@@ -143,15 +144,21 @@ export class NetHost {
       if (this.game && !guest.session) this.welcome(guest);
       else if (this.game) this.sendWelcome(guest);
       this.onGuestJoined(guest.name);
+    } else if (msg.t === 'heartbeat') {
+      return;
     } else if (msg.t === 'input' && guest.session) {
+      if (!Number.isSafeInteger(msg.seq) || msg.seq <= guest.lastInputSeq) return;
       const x = Number.isFinite(msg.x) ? Math.max(-1, Math.min(1, msg.x)) : 0;
       const z = Number.isFinite(msg.z) ? Math.max(-1, Math.min(1, msg.z)) : 0;
       guest.session.player.input.setJoystick(x, z);
+      guest.lastInputSeq = msg.seq;
     } else if (msg.t === 'action' && guest.session && this.game) {
       if (typeof msg.name !== 'string' || !Array.isArray(msg.args) || msg.args.length > 8) return;
       const game = this.game;
       const session = guest.session;
       game.runNetAction(session, () => ACTIONS[msg.name]?.(game, session, msg.args));
+    } else if (msg.t === 'worldResync' && guest.session && this.game) {
+      guest.net.send({ t: 'worldFull', revision: this.worldRevision, state: this.game.netWorldState() });
     }
   }
 
@@ -171,6 +178,7 @@ export class NetHost {
       you: guest.session.id,
       protocol: NET_PROTOCOL_VERSION,
       resumeToken: guest.resumeToken,
+      worldRevision: this.worldRevision,
     });
     guest.net.send({ t: 'start' });
   }
@@ -178,6 +186,19 @@ export class NetHost {
   broadcastEvent(event: NetEvent): void {
     for (const guest of this.guests) {
       if (guest.net.connected && guest.session) guest.net.send({ t: 'event', event });
+    }
+  }
+
+  /** 权威世界系统的离散变化直接进入可靠控制通道。 */
+  broadcastWorldChange(section: WorldSection, change: EntityChange): void {
+    const op = change.op === 'add'
+      ? { section, key: change.id, op: 'add' as const, value: change.value }
+      : change.op === 'remove'
+        ? { section, key: change.id, op: 'remove' as const }
+        : { section, key: change.id, op: 'set' as const, fields: change.fields };
+    const revision = ++this.worldRevision;
+    for (const guest of this.guests) {
+      if (guest.net.connected && guest.session) guest.net.send({ t: 'worldDelta', revision, ops: [op] });
     }
   }
 
@@ -197,7 +218,7 @@ export class NetHost {
     this.onGuestLeft(guest.name || '朋友');
   }
 
-  /** 100ms 一拍:玩家/动物快照每拍,HUD 每 2 拍,世界状态每 2 拍且仅在变化时 */
+  /** 100ms 一拍:玩家/动物快照每拍,HUD 每 2 拍；世界状态由系统事件即时推送。 */
   private tick(): void {
     const game = this.game;
     if (!game) return;
@@ -210,24 +231,10 @@ export class NetHost {
         continue;
       }
       if (!guest.net.connected || !guest.session) continue;
-      guest.net.send(game.netPlayersMsg());
+      guest.net.send(game.netPlayersMsg(guest.lastInputSeq));
       guest.net.send(game.netAnimalsMsg());
       guest.net.send(game.netAmbientMsg());
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
-    }
-  }
-
-  /** 每个权威游戏帧结束时调用；无变化不发包，有变化只发改变字段。 */
-  syncWorldNow(): void {
-    const game = this.game;
-    if (!game) return;
-    const current = game.netWorldState();
-    const ops = this.worldState ? diffWorld(this.worldState, current) : [];
-    this.worldState = current;
-    if (!ops.length) return;
-    const revision = ++this.worldRevision;
-    for (const guest of this.guests) {
-      if (guest.net.connected && guest.session) guest.net.send({ t: 'worldDelta', revision, ops });
     }
   }
 

@@ -6,6 +6,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 const CRAFT_TIME = 2.4; // 制作总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -56,6 +57,9 @@ export class WorkbenchSystem {
   private crafted = false;
   private states = new Map<PlayerSession, PlayerSessionState>();
   private scratch = new THREE.Vector3();
+  private ids = new WorldEntityIds<Workbench>('bench');
+  private onChanged?: EntityChangeSink;
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     private scene: THREE.Scene,
@@ -209,13 +213,17 @@ export class WorkbenchSystem {
       if (st.mode === 'build') {
         actor.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
         actor.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
-        this.benches.push(new Workbench(this.scene, actor.player.group.position));
+        const bench = new Workbench(this.scene, actor.player.group.position);
+        this.benches.push(bench);
+        const bp = bench.group.position;
+        this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, level: bench.level } });
         this.crafted = true;
         // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
         if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
       } else {
         actor.inventory.remove('stone', WORKBENCH_UPGRADE_STONES);
         st.upgradeTarget!.upgrade();
+        this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
         st.upgradeTarget = null;
       }
       this.audio.play('success');
@@ -261,6 +269,7 @@ export class WorkbenchSystem {
     st.hits = 0;
     st.digTarget = null;
     this.benches.splice(this.benches.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     this.give(BENCH_ITEM[target.level], 1, actor);
     this.audio.play('pickup');
@@ -279,7 +288,10 @@ export class WorkbenchSystem {
   placeItem(actor: PlayerSession, level: number): boolean {
     if (actor.inventory.count(BENCH_ITEM[level]) <= 0 || !this.canPlace(actor)) return false;
     actor.inventory.remove(BENCH_ITEM[level], 1);
-    this.benches.push(new Workbench(this.scene, actor.player.group.position, level));
+    const bench = new Workbench(this.scene, actor.player.group.position, level);
+    this.benches.push(bench);
+    const bp = bench.group.position;
+    this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, level } });
     this.audio.play('success');
     const p = actor.player.group.position.clone();
     p.y += 0.8;
@@ -299,10 +311,10 @@ export class WorkbenchSystem {
   }
 
   /** 全部工作台快照(落点与等级) */
-  snapshot(): { x: number; y: number; z: number; level: number }[] {
+  snapshot(): { id: string; x: number; y: number; z: number; level: number }[] {
     return this.benches.map((bench) => {
       const p = bench.group.position;
-      return { x: p.x, y: p.y, z: p.z, level: bench.level };
+      return { id: this.ids.get(bench), x: p.x, y: p.y, z: p.z, level: bench.level };
     });
   }
 
@@ -318,9 +330,29 @@ export class WorkbenchSystem {
   }
 
   /** 从存档恢复全部工作台(含等级) */
-  restore(list: { x: number; y: number; z: number; level: number }[]): void {
+  restore(list: { id?: string; x: number; y: number; z: number; level: number }[]): void {
     for (const b of list) {
-      this.benches.push(new Workbench(this.scene, new THREE.Vector3(b.x, b.y, b.z), b.level));
+      const bench = new Workbench(this.scene, new THREE.Vector3(b.x, b.y, b.z), b.level);
+      this.ids.set(bench, b.id);
+      this.benches.push(bench);
+    }
+  }
+
+  netApply(list: { id?: string; x: number; y: number; z: number; level: number }[]): void {
+    const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
+    for (let i = this.benches.length - 1; i >= 0; i--) {
+      if (incoming.has(this.ids.get(this.benches[i]))) continue;
+      this.scene.remove(this.benches[i].group);
+      this.benches.splice(i, 1);
+    }
+    const current = new Map(this.benches.map((bench) => [this.ids.get(bench), bench]));
+    for (const value of list) {
+      let bench = value.id ? current.get(value.id) : undefined;
+      if (!bench) {
+        bench = new Workbench(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.level);
+        this.ids.set(bench, value.id);
+        this.benches.push(bench);
+      } else while (bench.level < value.level) bench.upgrade();
     }
   }
 }

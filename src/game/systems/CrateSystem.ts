@@ -6,6 +6,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
@@ -27,6 +28,10 @@ type DigState = { swingTimer: number; hits: number; digTarget: Crate | null };
 export class CrateSystem {
   private crates: Crate[] = [];
   private scratch = new THREE.Vector3();
+  private ids = new WorldEntityIds<Crate>('crate');
+  private onChanged?: EntityChangeSink;
+
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
   private digStates = new Map<PlayerSession, DigState>();
 
   constructor(
@@ -92,7 +97,10 @@ export class CrateSystem {
   use(actor: PlayerSession): boolean {
     if (actor.inventory.count('crate') <= 0 || !this.canPlace(actor)) return false;
     actor.inventory.remove('crate', 1);
-    this.crates.push(new Crate(this.scene, actor.player.group.position));
+    const crate = new Crate(this.scene, actor.player.group.position);
+    this.crates.push(crate);
+    const cp = crate.group.position;
+    this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, slots: crate.storage.snapshot() } });
     this.audio.play('success');
     const fxPos = actor.player.group.position.clone();
     fxPos.y += 0.5;
@@ -138,6 +146,7 @@ export class CrateSystem {
     st.hits = 0;
     st.digTarget = null;
     this.crates.splice(this.crates.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     this.give('crate', 1, actor);
     for (const slot of target.storage.snapshot()) {
@@ -165,8 +174,10 @@ export class CrateSystem {
     const crate = this.nearby(actor);
     const n = actor.inventory.count(kind);
     if (!crate || n <= 0 || !crate.storage.canFit(kind)) return false;
+    const before = crate.storage.snapshot();
     actor.inventory.remove(kind, n);
     crate.storage.add(kind, n);
+    this.emitSlotChanges(crate, before);
     this.audio.play('drop');
     return true;
   }
@@ -176,17 +187,19 @@ export class CrateSystem {
     const crate = this.nearby(actor);
     const n = crate ? crate.storage.count(kind) : 0;
     if (!crate || n <= 0 || !actor.inventory.canFit(kind)) return false;
+    const before = crate.storage.snapshot();
     crate.storage.remove(kind, n);
+    this.emitSlotChanges(crate, before);
     actor.inventory.add(kind, n);
     this.audio.play('pickup');
     return true;
   }
 
   /** 当前所有木箱的存档快照(落点与 10 格内容) */
-  snapshot(): { x: number; y: number; z: number; slots: InventorySlot[] }[] {
+  snapshot(): { id: string; x: number; y: number; z: number; slots: InventorySlot[] }[] {
     return this.crates.map((crate) => {
       const p = crate.group.position;
-      return { x: p.x, y: p.y, z: p.z, slots: crate.storage.snapshot() };
+      return { id: this.ids.get(crate), x: p.x, y: p.y, z: p.z, slots: crate.storage.snapshot() };
     });
   }
 
@@ -198,12 +211,42 @@ export class CrateSystem {
 
   /** 从存档恢复木箱(含箱内物品) */
   restore(
-    list: { x: number; y: number; z: number; slots: InventorySlot[] }[]
+    list: { id?: string; x: number; y: number; z: number; slots: InventorySlot[] }[]
   ): void {
     for (const c of list) {
       const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z));
       crate.storage.load(c.slots);
+      this.ids.set(crate, c.id);
       this.crates.push(crate);
+    }
+  }
+
+  /** 槽位以路径字段单独上报，网络层无需重复发送整箱内容。 */
+  private emitSlotChanges(crate: Crate, before: InventorySlot[]): void {
+    const fields: Record<string, unknown> = {};
+    crate.storage.snapshot().forEach((slot, index) => {
+      if (JSON.stringify(slot) !== JSON.stringify(before[index])) fields[`slots.${index}`] = slot;
+    });
+    if (Object.keys(fields).length) this.onChanged?.({ op: 'set', id: this.ids.get(crate), fields });
+  }
+
+  /** 客人端按稳定 id 原地增删改；箱内格子变化只 reload 对应木箱。 */
+  netApply(list: { id?: string; x: number; y: number; z: number; slots: InventorySlot[] }[]): void {
+    const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
+    for (let i = this.crates.length - 1; i >= 0; i--) {
+      if (incoming.has(this.ids.get(this.crates[i]))) continue;
+      this.scene.remove(this.crates[i].group);
+      this.crates.splice(i, 1);
+    }
+    const current = new Map(this.crates.map((crate) => [this.ids.get(crate), crate]));
+    for (const value of list) {
+      let crate = value.id ? current.get(value.id) : undefined;
+      if (!crate) {
+        crate = new Crate(this.scene, new THREE.Vector3(value.x, value.y, value.z));
+        this.ids.set(crate, value.id);
+        this.crates.push(crate);
+      }
+      crate.storage.load(value.slots);
     }
   }
 }

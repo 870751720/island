@@ -8,6 +8,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -59,6 +60,10 @@ export class CampfireSystem {
   private fires: Campfire[] = [];
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
+  private ids = new WorldEntityIds<Campfire>('fire');
+  private onChanged?: EntityChangeSink;
+
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     private scene: THREE.Scene,
@@ -172,7 +177,11 @@ export class CampfireSystem {
 
   /** 世界侧每帧更新:火堆燃烧;各玩家的搭建/挖掘/烹饪由 updateActor 推进 */
   update(delta: number, elapsed: number): void {
-    for (const fire of this.fires) fire.update(delta, elapsed);
+    for (const fire of this.fires) {
+      const wasLit = fire.isLit;
+      fire.update(delta, elapsed);
+      if (wasLit && !fire.isLit) this.onChanged?.({ op: 'set', id: this.ids.get(fire), fields: { fuel: 0 } });
+    }
   }
 
   /** 每帧推进该玩家的搭建/挖掘/烹饪 */
@@ -202,9 +211,10 @@ export class CampfireSystem {
       st.timer = 0;
       actor.inventory.remove('flint', CAMPFIRE_COST.flint);
       actor.inventory.remove('log', CAMPFIRE_COST.log);
-      this.fires.push(
-        new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL)
-      );
+      const fire = new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL);
+      this.fires.push(fire);
+      const firePos = fire.group.position;
+      this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: fire.fuel } });
       this.audio.play('success');
       const p = actor.player.group.position.clone();
       p.y += 0.8;
@@ -228,6 +238,7 @@ export class CampfireSystem {
     const wasLit = fire.isLit;
     fire.fuel += burnTime;
     if (!wasLit) fire.relight();
+    this.onChanged?.({ op: 'set', id: this.ids.get(fire), fields: { fuel: fire.fuel } });
     this.audio.play('stoke');
     const p = fire.group.position.clone();
     p.y += 0.5;
@@ -309,7 +320,11 @@ export class CampfireSystem {
 
   /** 时间快进(睡觉跳到第二天):火堆按跳过的秒数继续烧,烧完的熄灭留场 */
   passTime(seconds: number, elapsed: number): void {
-    for (const fire of this.fires) fire.update(seconds, elapsed);
+    for (const fire of this.fires) {
+      const wasLit = fire.isLit;
+      fire.update(seconds, elapsed);
+      if (wasLit && !fire.isLit) this.onChanged?.({ op: 'set', id: this.ids.get(fire), fields: { fuel: 0 } });
+    }
   }
 
   /** 手持锄头站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(直接消失,无返还) */
@@ -350,6 +365,7 @@ export class CampfireSystem {
     st.hits = 0;
     st.digTarget = null;
     this.fires.splice(this.fires.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     target.dispose();
     this.audio.play('pickup');
@@ -365,10 +381,10 @@ export class CampfireSystem {
   }
 
   /** 当前所有火堆的存档快照(熄灭的也保存,燃料 0) */
-  snapshot(): { x: number; y: number; z: number; fuel: number }[] {
+  snapshot(): { id: string; x: number; y: number; z: number; fuel: number }[] {
     return this.fires.map((fire) => {
       const p = fire.group.position;
-      return { x: p.x, y: p.y, z: p.z, fuel: fire.fuel };
+      return { id: this.ids.get(fire), x: p.x, y: p.y, z: p.z, fuel: fire.fuel };
     });
   }
 
@@ -386,22 +402,31 @@ export class CampfireSystem {
    * 若随之重建模型会造成持续的 GPU 资源销毁/重建,足以触发移动端 WebGL 上下文丢失),
    * 有增删(新搭/挖掉)才整体重放。
    */
-  netApply(list: { x: number; y: number; z: number; fuel: number }[]): void {
-    const key = (f: { x: number; y: number; z: number }) => `${f.x},${f.y},${f.z}`;
-    const current = new Map(this.fires.map((f) => [key(f.group.position), f] as const));
-    const same = list.length === current.size && list.every((f) => current.has(key(f)));
-    if (!same) {
-      this.clear();
-      this.restore(list);
-      return;
+  netApply(list: { id?: string; x: number; y: number; z: number; fuel: number }[]): void {
+    const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      if (incoming.has(this.ids.get(this.fires[i]))) continue;
+      this.scene.remove(this.fires[i].group);
+      this.fires[i].dispose();
+      this.fires.splice(i, 1);
     }
-    for (const f of list) current.get(key(f))!.netApplyFuel(f.fuel);
+    const current = new Map(this.fires.map((fire) => [this.ids.get(fire), fire]));
+    for (const value of list) {
+      let fire = value.id ? current.get(value.id) : undefined;
+      if (!fire) {
+        fire = new Campfire(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.fuel);
+        this.ids.set(fire, value.id);
+        this.fires.push(fire);
+      } else fire.netApplyFuel(value.fuel);
+    }
   }
 
   /** 从存档恢复火堆(含熄灭的) */
-  restore(list: { x: number; y: number; z: number; fuel: number }[]): void {
+  restore(list: { id?: string; x: number; y: number; z: number; fuel: number }[]): void {
     for (const f of list) {
-      this.fires.push(new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), f.fuel));
+      const fire = new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), f.fuel);
+      this.ids.set(fire, f.id);
+      this.fires.push(fire);
     }
   }
 }

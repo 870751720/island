@@ -5,7 +5,7 @@ import type { ActionType } from '../entities/Player';
 import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 
-export const NET_PROTOCOL_VERSION = 8;
+export const NET_PROTOCOL_VERSION = 9;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -79,10 +79,12 @@ export type NetMsg =
       you: string;
       protocol: number;
       resumeToken: string;
+      worldRevision: number;
     }
   | { t: 'reject'; reason: string }
   | { t: 'start' }
-  | { t: 'input'; x: number; z: number }
+  | { t: 'heartbeat' }
+  | { t: 'input'; seq: number; x: number; z: number }
   | { t: 'action'; name: string; args: unknown[] }
   | {
       t: 'players';
@@ -94,10 +96,14 @@ export type NetMsg =
       windAmount: number;
       windDirX: number;
       windDirZ: number;
+      /** 此快照接收者的输入已由房主处理到该序号。 */
+      ackInputSeq: number;
       list: PlayerState[];
     }
   | { t: 'animals'; list: AnimalPose[] }
   | { t: 'ambient'; state: AmbientState }
   | { t: 'worldDelta'; revision: number; ops: WorldDeltaOp[] }
+  | { t: 'worldResync'; revision: number }
+  | { t: 'worldFull'; revision: number; state: WorldPatch }
   | { t: 'hud'; snap: HudSnapshot }
   | { t: 'event'; event: NetEvent };

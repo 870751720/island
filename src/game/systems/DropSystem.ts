@@ -5,6 +5,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import { DROP_COLORS, makeDropModel } from './DropModels';
+import { createWorldEntityId, type EntityChangeSink } from './WorldEntityId';
 
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
@@ -28,7 +29,7 @@ export type DropInfo = { kind: ResourceKind; count: number; source: DropSource }
 
 type Drop = {
   /** 同步用短 id(房主递增分配,拾取时按 id 通知客人移除) */
-  id: number;
+  id: string;
   kind: ResourceKind;
   count: number;
   source: DropSource;
@@ -42,7 +43,9 @@ export class DropSystem {
   private drops: Drop[] = [];
   private scratch = new THREE.Vector3();
 
-  private nextId = 1;
+  private onChanged?: EntityChangeSink;
+
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     private scene: THREE.Scene,
@@ -89,7 +92,9 @@ export class DropSystem {
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
-    this.drops.push({ id: this.nextId++, kind, count, source, mesh, age: 0, baseY });
+    const id = createWorldEntityId('drop');
+    this.drops.push({ id, kind, count, source, mesh, age: 0, baseY });
+    this.onChanged?.({ op: 'add', id, value: { id, kind, count, source, x, z } });
     this.audio.play('drop');
   }
 
@@ -174,6 +179,7 @@ export class DropSystem {
 
   private remove(index: number): void {
     const drop = this.drops[index];
+    this.onChanged?.({ op: 'remove', id: drop.id });
     this.scene.remove(drop.mesh);
     drop.mesh.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
@@ -185,8 +191,9 @@ export class DropSystem {
   }
 
   /** 当前所有地面掉落物的存档快照 */
-  snapshot(): { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[] {
+  snapshot(): { id: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[] {
     return this.drops.map((drop) => ({
+      id: drop.id,
       kind: drop.kind,
       count: drop.count,
       source: drop.source,
@@ -197,7 +204,7 @@ export class DropSystem {
 
   /** 从存档恢复掉落物(不播丢落音效) */
   restore(
-    list: { kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]
+    list: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]
   ): void {
     for (const d of list) {
       if (d.count <= 0) continue;
@@ -205,7 +212,28 @@ export class DropSystem {
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
-      this.drops.push({ id: this.nextId++, kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
+      this.drops.push({ id: d.id ?? createWorldEntityId('drop'), kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
+    }
+  }
+
+  netApply(list: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]): void {
+    const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      if (incoming.has(this.drops[i].id)) continue;
+      this.remove(i);
+    }
+    const current = new Map(this.drops.map((drop) => [drop.id, drop]));
+    for (const value of list) {
+      const existing = value.id ? current.get(value.id) : undefined;
+      if (existing) {
+        existing.count = value.count;
+        continue;
+      }
+      const mesh = makeDropModel(value.kind);
+      const baseY = Math.max(this.terrain.getHeight(value.x, value.z), 0) + 0.5;
+      mesh.position.set(value.x, baseY, value.z);
+      this.scene.add(mesh);
+      this.drops.push({ id: value.id || createWorldEntityId('drop'), kind: value.kind, count: value.count, source: value.source, mesh, age: 0, baseY });
     }
   }
 

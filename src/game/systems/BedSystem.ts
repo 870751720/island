@@ -6,6 +6,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const BED_BLOCK_RANGE = 1.1; // 与其他床重叠距离小于该值时无处摆放
@@ -49,6 +50,9 @@ export class BedSystem {
   private beds: Bed[] = [];
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
+  private ids = new WorldEntityIds<Bed>('bed');
+  private onChanged?: EntityChangeSink;
+  setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     private scene: THREE.Scene,
@@ -133,7 +137,10 @@ export class BedSystem {
   place(actor: PlayerSession, level: number): boolean {
     if (actor.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlace(actor)) return false;
     actor.inventory.remove(BED_ITEM[level], 1);
-    this.beds.push(new Bed(this.scene, actor.player.group.position, level));
+    const bed = new Bed(this.scene, actor.player.group.position, level);
+    this.beds.push(bed);
+    const bp = bed.group.position;
+    this.onChanged?.({ op: 'add', id: this.ids.get(bed), value: { id: this.ids.get(bed), x: bp.x, y: bp.y, z: bp.z, level } });
     this.audio.play('success');
     const fxPos = actor.player.group.position.clone();
     fxPos.y += 0.5;
@@ -215,6 +222,7 @@ export class BedSystem {
     st.hits = 0;
     st.digTarget = null;
     this.beds.splice(this.beds.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     this.give(BED_ITEM[target.level], 1, actor);
     this.audio.play('pickup');
@@ -236,10 +244,10 @@ export class BedSystem {
   }
 
   /** 当前所有床的存档快照(落点与等级) */
-  snapshot(): { x: number; y: number; z: number; level: number }[] {
+  snapshot(): { id: string; x: number; y: number; z: number; level: number }[] {
     return this.beds.map((bed) => {
       const p = bed.group.position;
-      return { x: p.x, y: p.y, z: p.z, level: bed.level };
+      return { id: this.ids.get(bed), x: p.x, y: p.y, z: p.z, level: bed.level };
     });
   }
 
@@ -250,9 +258,27 @@ export class BedSystem {
   }
 
   /** 从存档恢复全部床(含等级) */
-  restore(list: { x: number; y: number; z: number; level: number }[]): void {
+  restore(list: { id?: string; x: number; y: number; z: number; level: number }[]): void {
     for (const b of list) {
-      this.beds.push(new Bed(this.scene, new THREE.Vector3(b.x, b.y, b.z), b.level));
+      const bed = new Bed(this.scene, new THREE.Vector3(b.x, b.y, b.z), b.level);
+      this.ids.set(bed, b.id);
+      this.beds.push(bed);
+    }
+  }
+
+  netApply(list: { id?: string; x: number; y: number; z: number; level: number }[]): void {
+    const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
+    for (let i = this.beds.length - 1; i >= 0; i--) {
+      if (incoming.has(this.ids.get(this.beds[i]))) continue;
+      this.scene.remove(this.beds[i].group);
+      this.beds.splice(i, 1);
+    }
+    const current = new Map(this.beds.map((bed) => [this.ids.get(bed), bed]));
+    for (const value of list) {
+      if (value.id && current.has(value.id)) continue;
+      const bed = new Bed(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.level);
+      this.ids.set(bed, value.id);
+      this.beds.push(bed);
     }
   }
 }
