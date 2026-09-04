@@ -118,7 +118,7 @@ export function RoomLobby({
       <div className="room-panel">
         <h2>{mode === 'host' ? '创建房间' : '加入房间'}</h2>
         <p className="room-subtitle">
-          {mode === 'host' ? '免费直连，最多邀请 3 位朋友' : '输入房主分享的五位数字房间码'}
+          {mode === 'host' ? '免费直连，邀请任意数量的朋友' : '输入房主分享的五位数字房间码'}
         </p>
 
         {mode === 'host' ? (
@@ -146,7 +146,7 @@ export function RoomLobby({
               <div className="room-players">
                 <p className="connected">● {hostName || '房主'}（你）</p>
                 {players.map((player) => <p className="connected" key={player}>● {player}</p>)}
-                {players.length < 3 && <p className="waiting"><span /> 等待朋友加入…</p>}
+                {!players.length && <p className="waiting"><span /> 等待朋友加入…</p>}
               </div>
               <button
                 className="room-button room-start"

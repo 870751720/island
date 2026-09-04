@@ -1,6 +1,6 @@
 import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
-import type { SaveData } from '../systems/SaveSystem';
+import type { SaveData, SessionSave } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
 import { HostSignal } from './Signaling';
 import { ACTIONS } from './Actions';
@@ -12,7 +12,7 @@ import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
 import type { HudSnapshot } from '../Game';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
-const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
+const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可按离场快照恢复角色
 const FAST_TICK_MS = 40; // 玩家与战斗动物 25Hz
 const NORMAL_TICK_MS = 100; // 普通动物与环境生物 10Hz
 const HUD_TICK_MS = 200;
@@ -38,7 +38,7 @@ type Guest = {
   climate: string;
 };
 
-type Resumable = { session: PlayerSession; name: string; expires: number };
+type Resumable = { save: SessionSave; name: string; expires: number };
 
 /** 房主侧联机会话总管:管理多条 DataChannel、接入/断线、输入写入、动作分发与快照广播 */
 export class NetHost {
@@ -74,7 +74,7 @@ export class NetHost {
     return this.guests.filter((g) => g.net.connected || g.session).map((g) => g.name || '朋友');
   }
 
-  /** 创建六位码房间；之后加入者由信令服务自动接入。 */
+  /** 创建五位数字码房间；之后加入者由信令服务自动接入。 */
   async createRoom(): Promise<string> {
     this.purgeResumable();
     const room = await HostSignal.create();
@@ -91,7 +91,6 @@ export class NetHost {
   private async addPeer(peer: string): Promise<void> {
     if (!this.signal || this.guests.some((guest) => guest.peer === peer)) return;
     this.purgeResumable();
-    if (this.guests.length >= 3) return;
     const net = new PeerNet('host', (data) => this.signal?.send(peer, data));
     const guest: Guest = {
       peer,
@@ -148,17 +147,12 @@ export class NetHost {
         return;
       }
       const resume = msg.resumeToken ? this.resumable.get(msg.resumeToken) : undefined;
-      if (resume && resume.expires > performance.now()) {
+      if (this.game && resume && resume.expires > performance.now()) {
         this.resumable.delete(msg.resumeToken!);
-        guest.session = resume.session;
+        guest.session = this.game.resumeRemoteSession(resume.save, resume.name);
         guest.name = resume.name;
         guest.resumeToken = msg.resumeToken!;
       } else {
-        if (this.guests.filter((item) => item !== guest && item.session).length + this.resumable.size >= 3) {
-          guest.net.send({ t: 'reject', reason: '房间已满（断线玩家的席位会保留 5 分钟）' });
-          setTimeout(() => this.dropGuest(guest), 100);
-          return;
-        }
         guest.name = msg.name?.trim().slice(0, 16) || '朋友';
       }
       if (this.game && !guest.session) this.welcome(guest);
@@ -184,7 +178,9 @@ export class NetHost {
 
   private welcome(guest: Guest): void {
     if (!this.game || guest.session) return;
-    guest.session = this.game.claimSavedRemoteSession(guest.name) ?? this.game.addRemoteSession(false, undefined, guest.name);
+    // 断线保留期内的新客人不能认领仍在保留期中的角色
+    const held = [...this.resumable.values()].map((entry) => entry.save.id);
+    guest.session = this.game.claimSavedRemoteSession(guest.name, held) ?? this.game.addRemoteSession(false, undefined, guest.name);
     this.sendWelcome(guest);
   }
 
@@ -228,11 +224,9 @@ export class NetHost {
     this.guests.splice(index, 1);
     if (guest.session && this.game) {
       guest.session.player.input.setJoystick(0, 0);
-      this.resumable.set(guest.resumeToken, {
-        session: guest.session,
-        name: guest.name,
-        expires: performance.now() + RESUME_GRACE,
-      });
+      // 角色立即移出世界,离场快照保留 5 分钟供原玩家重连恢复
+      const save = this.game.suspendRemoteSession(guest.session);
+      this.resumable.set(guest.resumeToken, { save, name: guest.name, expires: performance.now() + RESUME_GRACE });
     }
     guest.net.close();
     this.onGuestLeft(guest.name || '朋友');
@@ -308,9 +302,8 @@ export class NetHost {
   private purgeResumable(): void {
     const now = performance.now();
     for (const [token, entry] of this.resumable) {
-      if (entry.expires > now) continue;
-      if (this.game) this.game.removeRemoteSession(entry.session);
-      this.resumable.delete(token);
+      // 快照已留在 Game 的待恢复列表中,过期后仍可被同名新客人认领或随存档保留
+      if (entry.expires <= now) this.resumable.delete(token);
     }
   }
 }
