@@ -170,8 +170,6 @@ const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(�
 const MULTIPLAYER_RESPAWN_DELAY = 3;
 /** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
 const BEAR_SFX_RANGE = 20;
-/** 联机时客人端熊击伤害的延迟结算秒数(等客人画面上熊扑到再掉血) */
-const WILDLIFE_HIT_DELAY = 0.25;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
@@ -287,11 +285,9 @@ export class Game {
   private netAckInputSeq = 0;
   /** 客人端进食特效已播放到的快照进度档(0~3) */
   private netEatTick = 0;
-  /** 待延迟结算的熊击(联机客人,等画面命中后再掉血) */
-  private pendingWildlifeHits: { session: PlayerSession; damage: number; pounce: boolean; at: number }[] = [];
-  /** 游戏循环累计时间(延迟队列用) */
-  private loopElapsed = 0;
   private lastHurtSfxAt = -10;
+  /** 游戏循环累计时间(音效节流用) */
+  private loopElapsed = 0;
   private netIndicatorProgress: number | null = null;
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
@@ -441,19 +437,7 @@ export class Game {
       terrain,
       () => this.sessions.map((s) => s.player),
       (player: Player, damage: number, pounce?: boolean) => {
-        const session = this.sessionOf(player);
-        if (this.hostRef && session !== this.local) {
-          // 客人端熊的位置画面比房主权威模拟滞后约 1~2 拍快照 + 插值;
-          // 伤害延迟到画面上熊扑到时再结算,避免"人先掉血、熊还没到"
-          this.pendingWildlifeHits.push({
-            session,
-            damage,
-            pounce: !!pounce,
-            at: this.loopElapsed + WILDLIFE_HIT_DELAY,
-          });
-          return;
-        }
-        this.applyWildlifeHit(session, damage, !!pounce);
+        this.applyWildlifeHit(this.sessionOf(player), damage, !!pounce);
       },
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
       (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'collectFx', x, y, z, color: '#b3a284', count: 10 }),
@@ -565,16 +549,6 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
-        // 到点的延迟熊击结算(联机客人:等画面上熊扑到再掉血)
-        if (this.pendingWildlifeHits.length > 0) {
-          this.pendingWildlifeHits = this.pendingWildlifeHits.filter((hit) => {
-            if (hit.at > elapsed) return true;
-            if (!hit.session.survival.state.dead) {
-              this.applyWildlifeHit(hit.session, hit.damage, hit.pounce);
-            }
-            return false;
-          });
-        }
         for (const session of this.sessions) session.player.update(delta, elapsed);
         this.minimap.update(this.player.group.position.x, this.player.group.position.z);
         this.dayNight.update(delta);
