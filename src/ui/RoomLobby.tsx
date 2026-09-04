@@ -5,10 +5,8 @@ import QRCode from 'qrcode';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
+import { loadNickname, saveNickname } from '@/game/net/nickname';
 import { SaveSystem } from '@/game/systems/SaveSystem';
-
-/** 昵称持久化键:输入即记住,下次进入自动带出,想改直接改 */
-const NICKNAME_KEY = 'island.nickname';
 
 /** 自动信令大厅：房主分享六位码或二维码，客人输入昵称即可直接连接。 */
 export function RoomLobby({
@@ -26,7 +24,7 @@ export function RoomLobby({
 }) {
   const [host] = useState(() => (mode === 'host' ? new NetHost() : null));
   const [guest] = useState(() => (mode === 'guest' ? new NetGuest() : null));
-  const [name, setName] = useState(() => (typeof window === 'undefined' ? '' : window.localStorage.getItem(NICKNAME_KEY) ?? ''));
+  const [name, setName] = useState(loadNickname);
   const [roomCode, setRoomCode] = useState(() => {
     if (initialRoomCode) return normalizeRoomCode(initialRoomCode);
     return mode === 'guest' ? (loadLastRoom()?.code ?? '') : '';
@@ -35,6 +33,7 @@ export function RoomLobby({
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
+  const [hostName] = useState(loadNickname);
   const [qr, setQr] = useState('');
 
   const inviteUrl = useMemo(() => {
@@ -145,7 +144,7 @@ export function RoomLobby({
               </div>
               <button className="room-button" onClick={shareRoom}>分享邀请</button>
               <div className="room-players">
-                <p className="connected">● 房主（你）</p>
+                <p className="connected">● {hostName || '房主'}（你）</p>
                 {players.map((player) => <p className="connected" key={player}>● {player}</p>)}
                 {players.length < 3 && <p className="waiting"><span /> 等待朋友加入…</p>}
               </div>
@@ -181,7 +180,7 @@ export function RoomLobby({
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
-                if (event.target.value.trim()) window.localStorage.setItem(NICKNAME_KEY, event.target.value);
+                saveNickname(event.target.value);
               }}
             />
             <button

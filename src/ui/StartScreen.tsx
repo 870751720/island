@@ -18,7 +18,7 @@ export function StartScreen({
   notice?: string;
 }) {
   const [hasSave] = useState(() => !!SaveSystem.load());
-  // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,先禁用避免「点了没反应」
+  // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,水合前不渲染按钮只显示加载提示
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
@@ -40,30 +40,31 @@ export function StartScreen({
         <h1 className="start-title">去你的岛</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
         {notice && <p className="start-notice">{notice}</p>}
-        {hasSave && (
-          <button
-            className="start-button"
-            disabled={!ready}
-            onClick={() => onStart('continue')}
-          >
-            {ready ? '继续游戏' : '加载中…'}
-          </button>
+        {ready ? (
+          <>
+            {hasSave && (
+              <button className="start-button" onClick={() => onStart('continue')}>
+                继续游戏
+              </button>
+            )}
+            <button
+              className={hasSave ? 'new-game-button' : 'start-button'}
+              onClick={() => onStart('new')}
+            >
+              {hasSave ? '开新档' : '开始游戏'}
+            </button>
+            <div className="start-mp">
+              <button className="mp-button" onClick={() => onMultiplayer('host')}>
+                🏠 创建房间
+              </button>
+              <button className="mp-button" onClick={() => onMultiplayer('guest')}>
+                🤝 加入房间
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="start-loading">加载中…</p>
         )}
-        <button
-          className={hasSave ? 'new-game-button' : 'start-button'}
-          disabled={!ready}
-          onClick={() => onStart('new')}
-        >
-          {ready ? (hasSave ? '开新档' : '开始游戏') : '加载中…'}
-        </button>
-        <div className="start-mp">
-          <button className="mp-button" disabled={!ready} onClick={() => onMultiplayer('host')}>
-            🏠 创建房间
-          </button>
-          <button className="mp-button" disabled={!ready} onClick={() => onMultiplayer('guest')}>
-            🤝 加入房间
-          </button>
-        </div>
         <p className="start-hint">🍎 采集 · 🎣 钓鱼 · 🔥 生存</p>
       </div>
     </div>
@@ -198,6 +199,14 @@ const css = `
   color: #6b7a5e;
 }
 .start-notice { margin: 10px 0 0; color: #b34a3c; font-size: 13px; font-weight: 700; }
+.start-loading {
+  margin-top: clamp(20px, 5vw, 28px);
+  color: #9aa58a;
+  font-size: clamp(14px, 4vw, 16px);
+  letter-spacing: 0.2em;
+  animation: loading-blink 1.2s ease-in-out infinite;
+}
+@keyframes loading-blink { 50% { opacity: 0.4; } }
 .start-button {
   margin-top: clamp(20px, 5vw, 28px);
   width: 100%;
@@ -217,11 +226,6 @@ const css = `
 .start-button:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #c97c12;
-}
-.start-button:disabled {
-  background: linear-gradient(#c9c2b4, #a89f8d);
-  box-shadow: 0 6px 0 #8a8272;
-  cursor: wait;
 }
 .new-game-button {
   margin-top: 14px;
@@ -250,10 +254,6 @@ const css = `
   font-size: clamp(13px, 3.6vw, 15px);
   letter-spacing: 0.06em;
   cursor: pointer;
-}
-.mp-button:disabled {
-  color: #9aa58a;
-  cursor: wait;
 }
 .start-hint {
   margin: clamp(14px, 4vw, 20px) 0 0;

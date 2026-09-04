@@ -4,6 +4,7 @@ import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
+import { loadNickname } from './net/nickname';
 import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
@@ -393,7 +394,7 @@ export class Game {
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
       this.youId ?? undefined,
-      this.guestMode ? '我' : this.hostRef ? '房主' : '我'
+      this.guestMode ? '我' : this.hostRef ? (loadNickname() || '房主') : '我'
     );
     // 自己的头顶不显示名牌，避免与作业提示和自言自语重叠。
     this.local.nameTag.sprite.visible = false;
