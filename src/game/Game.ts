@@ -1140,7 +1140,7 @@ export class Game {
     }
     this.netIndicator = snap.indicator;
     this.netIndicatorAt = now;
-    // 钓鱼阶段纠正本地表现(起播/咬钩收竿/结束)
+    // 钓鱼阶段纠正本地表现(起播/中鱼收线/结束)
     this.fishing.netSyncState(snap.fishingState);
     // 客人端本地复现进食特效(权威结算在房主):快照进度每过 1/3 触发一次咀嚼声与掉渣
     const food = snap.eatName ? FOODS.find((f) => f.name === snap.eatName) : null;
@@ -2139,7 +2139,9 @@ export class Game {
       this.waterFx,
       this.fx,
       this.audio,
-      s.tools
+      s.tools,
+      // 只有本地玩家的鱼获需要飞行表现(客人由 HUD 快照差额自行触发)
+      s === this.local ? (position) => this.markPickupOrigin(position) : () => {}
     );
     s.archery = new BowSystem(
       this.scene,
@@ -2439,7 +2441,7 @@ export class Game {
               ? session.fishing.biteNeed > 1
                 ? `咬钩了!快连点屏幕!${session.fishing.biteClicks}/${session.fishing.biteNeed}`
                 : '咬钩了!快点击屏幕!'
-              : '收竿!';
+              : '收线…';
       progress = session.fishing.getProgress();
       color = tease?.color;
     } else if (nearby && session.collect.canCollect(nearby)) {

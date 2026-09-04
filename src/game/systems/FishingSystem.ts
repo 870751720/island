@@ -21,8 +21,7 @@ import {
 
 const CAST_TIME = 0.7; // 抛竿(秒,精致鱼竿更快)
 const REFINED_CAST_TIME = 0.5;
-const CATCH_TIME = 0.9; // 收竿把鱼拉回(秒,精致鱼竿更快)
-const REFINED_CATCH_TIME = 0.6;
+const REEL_TIME = 0.45; // 中鱼后鱼线收回(纯表现,期间已入包)
 /** 精致鱼竿咬钩反应窗口的放大倍数 */
 const REFINED_BITE_WINDOW = 1.5;
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
@@ -36,7 +35,7 @@ const POND_SPREAD = 0.5;
 const SEA_CAST_MIN = 3;
 const SEA_CAST_MAX = 4;
 
-export type FishingState = 'casting' | 'waiting' | 'bite' | 'catching';
+export type FishingState = 'casting' | 'waiting' | 'bite' | 'reeling';
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -53,62 +52,6 @@ function makeBobber(): THREE.Group {
   return g;
 }
 
-/** 上钩战利品的低面数造型:按 shape 拼装,按 size 缩放 */
-function makeCatch(entry: LootEntry): THREE.Object3D {
-  const g = new THREE.Group();
-  const mat = clayMaterial(entry.color);
-  switch (entry.shape) {
-    case 'fish': {
-      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), mat);
-      body.scale.set(1.6, 0.7, 0.6);
-      g.add(body);
-      break;
-    }
-    case 'long': {
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.4, 2, 6), mat);
-      body.rotation.z = Math.PI / 2;
-      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 4), mat);
-      tail.rotation.z = -Math.PI / 2;
-      tail.scale.set(0.4, 1, 1);
-      tail.position.x = -0.3;
-      g.add(body, tail);
-      break;
-    }
-    case 'flat': {
-      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), mat);
-      body.scale.set(1.8, 0.28, 1.1);
-      g.add(body);
-      break;
-    }
-    case 'junk': {
-      const body = new THREE.Mesh(new THREE.DodecahedronGeometry(0.13, 0), mat);
-      body.rotation.set(0.4, 0.7, 0.2);
-      g.add(body);
-      break;
-    }
-    case 'can': {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 8), mat);
-      const band = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.083, 0.083, 0.05, 8),
-        clayMaterial('#e8e2d4')
-      );
-      g.add(body, band);
-      break;
-    }
-    case 'bottle': {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.22, 6), mat);
-      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.1, 6), mat);
-      neck.position.y = 0.15;
-      const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.04, 6), clayMaterial('#b5813f'));
-      cork.position.y = 0.21;
-      g.add(body, neck, cork);
-      break;
-    }
-  }
-  g.scale.setScalar(entry.size);
-  return g;
-}
-
 /**
  * 钓鱼:水洼边与海边滩地可下竿。按档位抽取战利品,等待期内按档位出
  * 白/紫/金色预告;咬钩后需在窗口内点击(高档位需连点多次)才能收竿。
@@ -116,8 +59,6 @@ function makeCatch(entry: LootEntry): THREE.Object3D {
 export class FishingSystem {
   private state: FishingState | null = null;
   private timer = 0;
-  /** 客人端纯表现模式:由房主快照驱动起止,本地不结算鱼获入包 */
-  private visualOnly = false;
   private waitTotal = 0;
   private rippleTimer = 0;
   private tier: FishTier = 1;
@@ -127,7 +68,6 @@ export class FishingSystem {
   private clicks = 0;
   private bobber: THREE.Group | null = null;
   private line: THREE.Mesh | null = null;
-  private fish: THREE.Object3D | null = null;
   private scratch = new THREE.Vector3();
   private scratch2 = new THREE.Vector3();
   private up = new THREE.Vector3(0, 1, 0);
@@ -140,7 +80,9 @@ export class FishingSystem {
     private waterFx: WaterFx,
     private fx: Particles,
     private audio: GameAudio,
-    private tools: Tools
+    private tools: Tools,
+    /** 中鱼瞬间回调(浮漂落点):通知外层把入包飞行起点定在浮漂处 */
+    private onCatch: (position: THREE.Vector3) => void
   ) {}
 
   private get refined(): boolean {
@@ -149,10 +91,6 @@ export class FishingSystem {
 
   private get castTime(): number {
     return this.refined ? REFINED_CAST_TIME : CAST_TIME;
-  }
-
-  private get catchTime(): number {
-    return this.refined ? REFINED_CATCH_TIME : CATCH_TIME;
   }
 
   /** 咬钩反应窗口(精致鱼竿更宽裕) */
@@ -178,13 +116,12 @@ export class FishingSystem {
     return TIER_BITE[this.tier].clicks;
   }
 
-  /** 进度 0-1:抛竿/咬钩倒计时/收竿,等待与空闲为 null */
+  /** 进度 0-1:抛竿/咬钩倒计时,等待/收线/空闲为 null */
   getProgress(): number | null {
     if (this.state === 'casting') return Math.min(this.timer / this.castTime, 1);
     if (this.state === 'bite') {
       return 1 - Math.max(this.timer, 0) / this.biteWindow;
     }
-    if (this.state === 'catching') return Math.min(this.timer / this.catchTime, 1);
     return null;
   }
 
@@ -243,20 +180,23 @@ export class FishingSystem {
 
   private bobberTarget = new THREE.Vector3();
 
-  /** 咬钩窗口内点击屏幕任意处调用,累计点击;达到次数收竿得鱼,其余时刻无效 */
+  /** 咬钩窗口内点击屏幕任意处调用,累计点击;达到次数立刻结算入包并转入收线表现 */
   hook(): boolean {
     if (this.state !== 'bite') return false;
     this.clicks++;
     if (this.clicks < TIER_BITE[this.tier].clicks) return false;
-    this.state = 'catching';
+    this.state = 'reeling';
     this.timer = 0;
     this.audio.play('splash');
     this.waterFx.splash(this.bobberTarget);
-    this.fish = makeCatch(this.loot!);
-    this.fish.position.copy(this.bobberTarget);
-    this.scene.add(this.fish);
-    this.removeBobber();
-    this.removeLine();
+    // 中鱼即入包:入包飞行(浮漂点起飞)由外层 onAdd 驱动,这里只交代起点
+    this.onCatch(this.bobberTarget);
+    const added = this.inventory.add(this.loot!.kind, 1);
+    if (added === 0) {
+      // 背包已满:鱼获落空,浮漂处散一撮灰渣
+      this.audio.play('drop');
+      this.fx.burst(this.bobberTarget, '#b5b0a8', 8);
+    }
     return true;
   }
 
@@ -269,7 +209,7 @@ export class FishingSystem {
     }
     this.player.setAction(this.state === 'casting' ? 'cast' : 'fish');
     this.timer += delta;
-    if (this.state !== 'catching') this.updateLine();
+    this.updateLine();
 
     switch (this.state) {
       case 'casting': {
@@ -329,32 +269,20 @@ export class FishingSystem {
         }
         break;
       }
-      case 'catching': {
-        // 鱼被拉出水面,抛物线飞向玩家
-        const t = Math.min(this.timer / this.catchTime, 1);
-        const to = this.player.group.position.clone();
-        to.y += 1.1;
-        this.fish!.position.lerpVectors(this.bobberTarget, to, t);
-        this.fish!.position.y += Math.sin(t * Math.PI) * 1.4;
-        this.fish!.rotation.z = t * Math.PI * 4;
-        if (this.timer >= this.catchTime) {
-          const p = to.clone();
-          this.scene.remove(this.fish!);
-          this.fish = null;
+      case 'reeling': {
+        // 收线表现:浮漂被拽离落点快速拉回竿梢,鱼获已入包、飞行另由入包管线表现
+        const t = Math.min(this.timer / REEL_TIME, 1);
+        const tip = this.player.getRodTip(this.scratch)
+          ? this.scratch
+          : this.scratch.copy(this.player.group.position).setY(this.player.group.position.y + 0.9);
+        this.bobber!.position.lerpVectors(this.bobberTarget, tip, t);
+        this.bobber!.position.y += Math.sin(t * Math.PI) * 0.8;
+        this.bobber!.rotation.z = t * Math.PI * 3;
+        if (t >= 1) {
           this.state = null;
+          this.tease = null;
+          this.removeBobber();
           this.removeLine();
-          if (this.visualOnly) {
-            // 客人端:入包与音效由房主结算,本地只留水花表现
-            this.fx.burst(p, '#b5b0a8', 8);
-          } else {
-            const added = this.inventory.add(this.loot!.kind, 1);
-            this.audio.play(added > 0 ? 'pickup' : 'drop');
-            if (added > 0) {
-              this.fx.burst(p, this.loot!.color, 10);
-            } else {
-              this.fx.burst(p, '#b5b0a8', 8);
-            }
-          }
         }
         break;
       }
@@ -367,10 +295,6 @@ export class FishingSystem {
     this.tease = null;
     this.removeBobber();
     this.removeLine();
-    if (this.fish) {
-      this.scene.remove(this.fish);
-      this.fish = null;
-    }
   }
 
   /** 客人端表现驱动:进入钓鱼时本地起播浮漂与钓线,阶段与中断由房主快照纠正 */
@@ -378,7 +302,6 @@ export class FishingSystem {
     if (this.state !== null) return;
     const target = this.findBobberTarget();
     if (!target) return;
-    this.visualOnly = true;
     this.state = 'casting';
     this.audio.play('whoosh');
     this.timer = 0;
@@ -401,27 +324,23 @@ export class FishingSystem {
     this.stop();
   }
 
-  /** 客人端:按房主快照的钓鱼阶段纠正本地表现(起播/咬钩收竿/结束) */
+  /** 客人端:按房主快照的钓鱼阶段纠正本地表现(起播/中鱼收线/结束) */
   netSyncState(state: FishingState | null): void {
     if (state === null) {
-      if (this.visualOnly) this.stop();
+      this.stop();
       return;
     }
     if (state === 'casting') {
       this.netEnter();
       return;
     }
-    if (state === 'catching' && this.state === 'bite') {
-      // 咬钩后收竿:切换为鱼跃出水面表现(战利品入包由房主结算,造型随机)
-      this.state = 'catching';
+    if (state === 'reeling' && this.state === 'bite') {
+      // 房主已结算中鱼:本地转入收线表现,入包飞行起点交代在浮漂处(入包由 HUD 快照回流驱动)
+      this.state = 'reeling';
       this.timer = 0;
       this.audio.play('splash');
       this.waterFx.splash(this.bobberTarget);
-      this.fish = makeCatch(rollLoot(rollTier(false)));
-      this.fish.position.copy(this.bobberTarget);
-      this.scene.add(this.fish);
-      this.removeBobber();
-      this.removeLine();
+      this.onCatch(this.bobberTarget);
     }
   }
 
