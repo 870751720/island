@@ -295,7 +295,7 @@ export class Game {
   private autoEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
-  private readonly hostRef: NetHost | null;
+  private hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
   private netWorldRevision = 0;
   private netWorldMirror: WorldPatch | null = null;
@@ -734,6 +734,17 @@ export class Game {
   /** 房主侧当前玩家顺序，欢迎包用它对应初始存档。 */
   sessionIds(): string[] {
     return this.sessions.map((session) => session.id);
+  }
+
+  /** 单机中途转联机:挂接已创建房间的 NetHost,世界种子与快照广播自此生效,之后来客走正常欢迎流程。 */
+  bindHost(host: NetHost): void {
+    if (this.hostRef || this.guestMode) return;
+    this.hostRef = host;
+    host.terrainSeed = this.terrainSeed;
+    // 单机时本地角色叫「我」,转为房主后对客人显示联机昵称
+    this.local.setName(loadNickname() || '房主');
+    this.bindWorldChangeSinks();
+    host.attach(this);
   }
 
   /** 房主恢复旧联机岛后，按昵称优先认领此前保存的队友角色；excludeIds 为仍在断线保留期内的角色。 */

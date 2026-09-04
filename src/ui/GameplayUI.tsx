@@ -3,7 +3,6 @@
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
-import type { NetHost } from '@/game/net/NetHost';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
@@ -27,6 +26,7 @@ import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
 import { Minimap, type MinimapSource } from './Minimap';
 import { SettingsPanel } from './SettingsPanel';
+import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
 
 const INITIAL_HUD: HudSnapshot = {
@@ -123,10 +123,13 @@ function hijackerDiggable(
 export function GameplayUI({
   net,
   onExit,
+  onBecomeHost,
 }: {
   /** 联机会话(房主或客人);缺省为单机 */
   net?: { host?: NetHost; guest?: NetGuest };
   onExit: () => void;
+  /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
+  onBecomeHost: (host: NetHost) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -160,6 +163,26 @@ export function GameplayUI({
     if (taps.length >= 5) {
       heartTapsRef.current = [];
       setGmOpen(true);
+    }
+  };
+  // 单机中途开启多人模式:创建房间并把已在运行的游戏挂接为房主权威端
+  const [mpBusy, setMpBusy] = useState(false);
+  const [mpError, setMpError] = useState('');
+  const enableMultiplayer = async () => {
+    const game = gameRef.current;
+    if (!game || mpBusy) return;
+    setMpBusy(true);
+    setMpError('');
+    const host = new NetHost();
+    try {
+      await host.createRoom();
+      game.bindHost(host);
+      onBecomeHost(host);
+    } catch (error) {
+      host.dispose();
+      setMpError(error instanceof Error ? error.message : '创建房间失败，请重试');
+    } finally {
+      setMpBusy(false);
     }
   };
 
@@ -323,6 +346,16 @@ export function GameplayUI({
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
           onExit={onExit}
           onClose={() => setSettingsOpen(false)}
+          multiplayer={
+            net?.guest
+              ? undefined
+              : {
+                  roomCode: net?.host?.roomCode ?? '',
+                  busy: mpBusy,
+                  error: mpError,
+                  onEnable: () => void enableMultiplayer(),
+                }
+          }
         />
       )}
       {gmOpen && (

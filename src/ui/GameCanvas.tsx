@@ -51,7 +51,13 @@ export function GameCanvas() {
   };
 
   if (phase === 'playing') {
-    return <GameplayUI net={{ host: host ?? undefined, guest: guest ?? undefined }} onExit={exit} />;
+    return (
+      <GameplayUI
+        net={{ host: host ?? undefined, guest: guest ?? undefined }}
+        onExit={exit}
+        onBecomeHost={setHost}
+      />
+    );
   }
   if (phase === 'host') {
     return (

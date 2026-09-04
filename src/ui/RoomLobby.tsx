@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import QRCode from 'qrcode';
+import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
@@ -36,18 +36,11 @@ export function RoomLobby({
   const [hostName] = useState(loadNickname);
   const [qr, setQr] = useState('');
 
-  const inviteUrl = useMemo(() => {
-    if (!roomCode || typeof window === 'undefined') return '';
-    const url = new URL(window.location.href);
-    url.search = '';
-    url.hash = '';
-    url.searchParams.set('room', roomCode);
-    return url.toString();
-  }, [roomCode]);
+  const inviteUrl = useMemo(() => (roomCode && typeof window !== 'undefined' ? buildInviteUrl(roomCode) : ''), [roomCode]);
 
   useEffect(() => {
     if (!inviteUrl || mode !== 'host') return setQr('');
-    void QRCode.toDataURL(inviteUrl, { width: 220, margin: 1, errorCorrectionLevel: 'M' }).then(setQr);
+    void buildInviteQr(inviteUrl).then(setQr);
   }, [inviteUrl, mode]);
 
   useEffect(() => {
@@ -100,16 +93,8 @@ export function RoomLobby({
   };
 
   const shareRoom = async () => {
-    const text = `来《去你的岛》和我一起玩！房间码：${roomCode}`;
-    try {
-      if (navigator.share) await navigator.share({ title: '去你的岛联机邀请', text, url: inviteUrl });
-      else {
-        await navigator.clipboard.writeText(`${text}\n${inviteUrl}`);
-        setStatus('邀请链接已复制');
-      }
-    } catch {
-      // 用户取消分享时不改变房间状态。
-    }
+    const message = await shareRoomInvite(roomCode, inviteUrl);
+    if (message) setStatus(message);
   };
 
   return (
