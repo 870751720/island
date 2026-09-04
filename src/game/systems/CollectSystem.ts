@@ -279,7 +279,6 @@ export class CollectSystem {
       this.props.harvest(prop);
       config.yield(this.inventory, prop);
     }
-    this.audio.play('pickup');
     this.fx.burst(prop.position, config.fxColor, 14);
     this.onFx(prop.position, config.fxColor, 14);
     this.nearby = null;

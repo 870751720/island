@@ -152,7 +152,6 @@ export class CrateSystem {
     for (const slot of target.storage.snapshot()) {
       if (slot) this.give(slot.kind, slot.count, actor);
     }
-    this.audio.play('pickup');
     this.fx.burst(target.group.position, '#a97b48', 14);
   }
 
@@ -191,7 +190,6 @@ export class CrateSystem {
     crate.storage.remove(kind, n);
     this.emitSlotChanges(crate, before);
     actor.inventory.add(kind, n);
-    this.audio.play('pickup');
     return true;
   }
 

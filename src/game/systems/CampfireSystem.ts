@@ -289,7 +289,6 @@ export class CampfireSystem {
     }
     if (st.cookTimer >= COOK_TIME) {
       this.give(COOKABLE[kind]!, 1, actor);
-      this.audio.play('pickup');
       st.cookTimer = 0;
       st.cookTickTimer = 0;
       st.cookQueue -= 1;

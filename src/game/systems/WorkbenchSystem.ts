@@ -272,7 +272,6 @@ export class WorkbenchSystem {
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     this.give(BENCH_ITEM[target.level], 1, actor);
-    this.audio.play('pickup');
     this.fx.burst(target.group.position, '#8a6239', 14);
   }
 

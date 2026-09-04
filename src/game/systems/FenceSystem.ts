@@ -584,7 +584,6 @@ export class FenceSystem implements ObstacleSolver {
     st.digTarget = null;
     const center = this.digCenter(target);
     this.removeByKey(actor, target.kind, target.key);
-    this.audio.play('pickup');
     this.fx.burst(center, '#a97b48', 14);
   }
 

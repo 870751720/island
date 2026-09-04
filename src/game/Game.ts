@@ -1370,6 +1370,7 @@ export class Game {
     let remaining = spawns.length;
     const arrive = () => {
       if (--remaining > 0) return;
+      this.audio.play('pickup');
       const p = this.player.group.position;
       const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
       const w = this.renderer.domElement.clientWidth;

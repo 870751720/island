@@ -225,7 +225,6 @@ export class BedSystem {
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     this.give(BED_ITEM[target.level], 1, actor);
-    this.audio.play('pickup');
     this.fx.burst(target.group.position, '#c9a15c', 14);
   }
 

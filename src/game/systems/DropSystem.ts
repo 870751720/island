@@ -137,7 +137,6 @@ export class DropSystem {
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (actor.inventory.add(drop.kind, drop.count) < drop.count) return false;
-      this.audio.play('pickup');
       this.fx.burst(drop.mesh.position, DROP_COLORS[drop.kind], 8);
       this.remove(i);
       return true;
