@@ -604,12 +604,27 @@ export class Props implements Updatable {
       return state;
   }
 
-  /** 从房主快照/存档恢复：清空现有资源并按完整列表重建。 */
+  /** 从房主快照/存档恢复：按稳定 id 对账，未变化资源保留原模型。 */
   applySave(states: PropState[]): void {
-    this.clear();
+    const incomingIds = new Set(states.flatMap((state) => state.id ? [state.id] : []));
+    for (const prop of [...this.list]) {
+      if (!incomingIds.has(prop.id)) this.removeProp(prop);
+    }
     for (const state of states) {
+      const existing = state.id ? this.list.find((prop) => prop.id === state.id) : undefined;
+      if (existing) {
+        existing.ready = state.ready;
+        existing.regrowLeft = state.regrowLeft ?? existing.regrowLeft;
+        existing.stage = state.stage;
+        existing.species = state.species;
+        existing.growth = state.growth;
+        existing.group.rotation.y = state.rotationY;
+        this.syncAppearance(existing);
+        continue;
+      }
       if (state.kind === 'meteor') {
         const prop = this.placeMeteor(state.x, state.z);
+        prop.id = state.id ?? prop.id;
         prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.group.rotation.y = state.rotationY;
@@ -618,6 +633,7 @@ export class Props implements Updatable {
       }
       if (state.kind === 'berry' || state.kind === 'shrub' || state.kind === 'grass') {
         const prop = this.placeBush(state.kind, state.x, state.z);
+        prop.id = state.id ?? prop.id;
         prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
@@ -627,6 +643,7 @@ export class Props implements Updatable {
       }
       if (state.kind === 'tree') {
         const prop = this.plant(state.species ?? 'oak', state.x, state.z);
+        prop.id = state.id ?? prop.id;
         prop.id = state.id ?? createWorldEntityId('prop');
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
