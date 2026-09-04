@@ -711,11 +711,15 @@ export class Game {
         if (this.guestMode) {
           this.collect.scanNearby();
           for (const s of this.sessions) {
-            // 纯表现:箭矢/钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面
+            // 纯表现:箭矢/钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
+            // 复现期间静音——本人的音效已由房主 feedback 事件补播,这里再播会重一声,
+            // 远程玩家的交互音效按设计只给发起者本人听
+            this.audio.silent = true;
             s.archery.netUpdate(delta, s.survival.state.dead);
             s.fishing.update(delta, false);
             this.fences.updatePreviewFor(s);
           }
+          this.audio.silent = false;
         }
         // 客人静止期间把本地预测位置的残留偏差向房主快照柔和抹平(移动中不干预,避免和输入打架)
         if (this.guestMode && !this.player.isMoving && this.netDrift.lengthSq() > 1e-8) {
@@ -962,9 +966,12 @@ export class Game {
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
-        // 远程玩家钓鱼表现:作业动作出现即本地起播浮漂钓线,动作消失即收线
-        if (p.action === 'cast' || p.action === 'fish') s.fishing.netEnter();
-        else s.fishing.netStop();
+          // 远程玩家钓鱼表现:作业动作出现即本地起播浮漂钓线,动作消失即收线;
+          // 交互音效只给发起者本人听,远程会话起播时静音
+          this.audio.silent = true;
+          if (p.action === 'cast' || p.action === 'fish') s.fishing.netEnter();
+          else s.fishing.netStop();
+          this.audio.silent = false;
       }
       s.player.setAction(p.action);
       s.survival.state.hunger = p.hunger;
@@ -1144,8 +1151,11 @@ export class Game {
     }
     this.netIndicator = snap.indicator;
     this.netIndicatorAt = now;
-    // 钓鱼阶段与等待时长对齐本地表现(起播/咬钩时刻/中鱼收线/结束)
+    // 钓鱼阶段与等待时长对齐本地表现(起播/咬钩时刻/中鱼收线/结束);
+    // 对齐期间静音:兜底起播的音效已由房主 feedback 事件补播,这里再播会重一声
+    this.audio.silent = true;
     this.fishing.netSyncState(snap.fishingState, snap.biteClicks, snap.fishingTier as FishTier, snap.fishingWaitLeft);
+    this.audio.silent = false;
     // 客人端本地复现进食特效(权威结算在房主):快照进度每过 1/3 触发一次咀嚼声与掉渣
     const food = snap.eatName ? FOODS.find((f) => f.name === snap.eatName) : null;
     if (food) {
