@@ -8,7 +8,7 @@ import { normalizeRoomCode } from '@/game/net/Signaling';
 import { loadNickname, saveNickname } from '@/game/net/nickname';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
-/** 自动信令大厅：房主分享六位码或二维码，客人输入昵称即可直接连接。 */
+/** 自动信令大厅：房主分享五位数字码或二维码，客人输入昵称即可直接连接。 */
 export function RoomLobby({
   mode,
   initialRoomCode = '',
@@ -27,7 +27,7 @@ export function RoomLobby({
   const [name, setName] = useState(loadNickname);
   const [roomCode, setRoomCode] = useState(() => {
     if (initialRoomCode) return normalizeRoomCode(initialRoomCode);
-    return mode === 'guest' ? (loadLastRoom()?.code ?? '') : '';
+    return mode === 'guest' ? normalizeRoomCode(loadLastRoom()?.code ?? '') : '';
   });
   const [players, setPlayers] = useState<string[]>([]);
   const [status, setStatus] = useState(initialStatus);
@@ -118,7 +118,7 @@ export function RoomLobby({
       <div className="room-panel">
         <h2>{mode === 'host' ? '创建房间' : '加入房间'}</h2>
         <p className="room-subtitle">
-          {mode === 'host' ? '免费直连，最多邀请 3 位朋友' : '输入房主分享的六位房间码'}
+          {mode === 'host' ? '免费直连，最多邀请 3 位朋友' : '输入房主分享的五位数字房间码'}
         </p>
 
         {mode === 'host' ? (
@@ -163,11 +163,10 @@ export function RoomLobby({
             <input
               id="room-code"
               className="room-code-input"
-              inputMode="text"
-              autoCapitalize="characters"
+              inputMode="numeric"
               autoCorrect="off"
-              placeholder="例如 7K3M9Q"
-              maxLength={6}
+              placeholder="例如 73821"
+              maxLength={5}
               value={roomCode}
               onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
             />
@@ -185,7 +184,7 @@ export function RoomLobby({
             />
             <button
               className="room-button"
-              disabled={busy || roomCode.length !== 6 || !name.trim()}
+              disabled={busy || roomCode.length !== 5 || !name.trim()}
               onClick={joinRoom}
             >
               {busy ? '正在加入…' : '加入房间'}
@@ -213,7 +212,7 @@ const css = `
 .room-qr { width:min(48vw,190px); height:min(48vw,190px); border-radius:8px; }
 .room-label { display:block; margin:12px 0 6px; text-align:left; color:#44513a; font-size:13px; font-weight:700; }
 .room-code-input,.room-name { width:100%; min-height:48px; box-sizing:border-box; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font-size:16px; }
-.room-code-input { font:700 25px monospace; letter-spacing:.2em; text-transform:uppercase; }
+.room-code-input { font:700 25px monospace; letter-spacing:.2em; }
 .room-button { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:14px; background:linear-gradient(#ffbe5c,#f59a1f); color:#fff; font-size:16px; font-weight:700; letter-spacing:.08em; box-shadow:0 5px 0 #c97c12; cursor:pointer; }
 .room-button:disabled { background:linear-gradient(#c9c2b4,#a89f8d); box-shadow:0 5px 0 #8a8272; }
 .room-start { background:linear-gradient(#7fd67f,#4d9e4f); box-shadow:0 5px 0 #37793a; }

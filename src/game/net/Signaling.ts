@@ -3,7 +3,7 @@ import type { PeerSignal } from './PeerNet';
 
 const BROKER_URL = 'wss://broker-cn.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'island-game/v1';
-const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROOM_CHARS = '0123456789';
 const CONNECT_TIMEOUT = 10_000;
 
 type UplinkMessage =
@@ -83,7 +83,7 @@ export class HostSignal {
 
   static async create(): Promise<{ roomCode: string; signal: HostSignal }> {
     const signal = new HostSignal();
-    signal.code = randomId(6);
+    signal.code = randomId(5);
     signal.client = await connectBroker('host', 5000);
     await subscribe(signal.client, uplinkTopic(signal.code));
     signal.client.on('message', (_topic, payload) => signal.receive(parseMessage(payload)));
@@ -165,5 +165,5 @@ export class GuestSignal {
 }
 
 export function normalizeRoomCode(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  return value.replace(/[^0-9]/g, '').slice(0, 5);
 }

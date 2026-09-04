@@ -68,7 +68,7 @@ export class NetGuest {
   /** 输入包实际入队时通知 Game，供权威快照对账保留本地预测轨迹。 */
   onInputSent: (seq: number) => void = () => {};
 
-  /** 输入六位房间码，信令服务会自动完成 WebRTC 握手。 */
+  /** 输入五位数字房间码，信令服务会自动完成 WebRTC 握手。 */
   async join(code: string, name: string): Promise<void> {
     const signal = new GuestSignal();
     const net = new PeerNet('guest', (data) => signal.send(data));
