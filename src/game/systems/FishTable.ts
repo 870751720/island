@@ -101,7 +101,7 @@ const TEASE_PURPLE = [
   '竿子几乎要脱手了…',
 ];
 
-/** 金色预告:咬钩前 1.5 秒,确定是大鱼(仅三档出现;四档不预告) */
+/** 金色预告:咬钩前 1.5 秒,确定是稀世珍宝(仅四档出现) */
 const TEASE_GOLD = [
   '水中闪过一道巨大的鳞光!',
   '那个身影庞大得惊人!',
@@ -116,7 +116,7 @@ const TEASE_GOLD = [
 /** 档位预告文字与颜色 */
 export type Tease = { text: string; color: string };
 
-/** 预告阶段:白色(≥2 档)/紫色(≥3 档)/金色(仅 3 档);四档无预告 */
+/** 预告阶段:白色(≥2 档)/紫色(≥3 档)/金色(仅 4 档) */
 export type TeaseStage = 'white' | 'purple' | 'gold';
 
 /**
@@ -127,7 +127,7 @@ export type TeaseStage = 'white' | 'purple' | 'gold';
 export function teaseStage(tier: FishTier, secondsToBite: number): TeaseStage | null {
   if (tier >= 2 && secondsToBite <= 4.5 && secondsToBite > 3) return 'white';
   if (tier >= 3 && secondsToBite <= 3 && secondsToBite > 1.5) return 'purple';
-  if (tier === 3 && secondsToBite <= 1.5 && secondsToBite > 0) return 'gold';
+  if (tier === 4 && secondsToBite <= 1.5 && secondsToBite > 0) return 'gold';
   return null;
 }
 
