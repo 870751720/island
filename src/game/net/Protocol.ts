@@ -3,8 +3,9 @@ import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
 import type { GmConfig } from '../systems/GmSystem';
+import type { WorldDeltaOp } from './WorldDelta';
 
-export const NET_PROTOCOL_VERSION = 7;
+export const NET_PROTOCOL_VERSION = 8;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -97,6 +98,6 @@ export type NetMsg =
     }
   | { t: 'animals'; list: AnimalPose[] }
   | { t: 'ambient'; state: AmbientState }
-  | { t: 'world'; patch: WorldPatch }
+  | { t: 'worldDelta'; revision: number; ops: WorldDeltaOp[] }
   | { t: 'hud'; snap: HudSnapshot }
   | { t: 'event'; event: NetEvent };

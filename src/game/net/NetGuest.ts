@@ -1,6 +1,7 @@
 import { PeerNet } from './PeerNet';
 import { GuestSignal, normalizeRoomCode } from './Signaling';
-import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
+import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent } from './Protocol';
+import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
 
@@ -47,7 +48,7 @@ export class NetGuest {
   onPlayers: (msg: Extract<NetMsg, { t: 'players' }>) => void = () => {};
   onAnimals: (list: AnimalPose[]) => void = () => {};
   onAmbient: (state: AmbientState) => void = () => {};
-  onWorld: (state: WorldPatch) => void = () => {};
+  onWorldDelta: (revision: number, ops: WorldDeltaOp[]) => void = () => {};
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
 
@@ -120,8 +121,8 @@ export class NetGuest {
       case 'ambient':
         this.onAmbient(msg.state);
         break;
-      case 'world':
-        this.onWorld(msg.patch);
+      case 'worldDelta':
+        this.onWorldDelta(msg.revision, msg.ops);
         break;
       case 'hud':
         this.onHud(msg.snap);

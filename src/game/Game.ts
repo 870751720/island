@@ -6,6 +6,7 @@ import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
 import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
+import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
@@ -296,6 +297,8 @@ export class Game {
   private container: HTMLElement;
   private readonly hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
+  private netWorldRevision = 0;
+  private netWorldMirror: WorldPatch | null = null;
   private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
   /** 客人自己在房主侧的稳定玩家标识。 */
@@ -722,6 +725,8 @@ export class Game {
           this.netDrift.multiplyScalar(1 - k);
         }
         this.updateAutoEquip(delta);
+        // 权威帧完成后立即检测离散世界变化；无变化零网络包，变化时发送字段级增量。
+        this.hostRef?.syncWorldNow();
       },
     });
 
@@ -731,7 +736,8 @@ export class Game {
       this.guestNet.onPlayers = (m) => this.netApplyPlayers(m);
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
-      this.guestNet.onWorld = (state) => this.netApplyWorld(state);
+      this.netWorldMirror = this.netWorldState();
+      this.guestNet.onWorldDelta = (revision, ops) => this.netApplyWorldDelta(revision, ops);
       this.guestNet.onHud = (snap) => this.netApplyHud(snap);
       this.guestNet.onEvent = (event) => this.netApplyEvent(event);
       this.guestNet.begin();
@@ -804,6 +810,40 @@ export class Game {
         dog: this.dog.netPose(),
       },
     };
+  }
+
+  /** 联机世界离散状态；连续倒计时不入网络比较。 */
+  netWorldState(): WorldPatch {
+    return {
+      props: this.props.snapshot().map(({ regrowLeft: _, ...prop }) => prop),
+      campfires: this.campfire.snapshot().map((fire) => ({ ...fire, fuel: Math.round(fire.fuel / 15) * 15 })),
+      workbenches: this.workbench.snapshot(),
+      workbenchCrafted: this.workbench.hasCrafted,
+      crates: this.crates.snapshot(),
+      fences: this.fences.snapshotFences(),
+      fenceGates: this.fences.snapshotGates(),
+      beds: this.beds.snapshot(),
+      drops: this.drops.snapshot(),
+    };
+  }
+
+  private netApplyWorldDelta(revision: number, ops: WorldDeltaOp[]): void {
+    if (!this.netWorldMirror || revision <= this.netWorldRevision) return;
+    this.netWorldRevision = revision;
+    const changed = applyWorldDelta(this.netWorldMirror, ops);
+    const propOps = ops.filter((op) => op.section === 'props');
+    const propsAppliedInPlace = propOps.length > 0 && this.props.applyNetDelta(propOps);
+    const patch: WorldPatch = {};
+    for (const section of changed) {
+      if (section === 'props' && propsAppliedInPlace) continue;
+      Object.assign(patch, { [section]: this.netWorldMirror[section] });
+    }
+    // 围栏系统会统一重建柱、横杆、门和阻挡线，任一集合变化都要带上另一份镜像。
+    if (changed.has('fences') || changed.has('fenceGates')) {
+      patch.fences = this.netWorldMirror.fences;
+      patch.fenceGates = this.netWorldMirror.fenceGates;
+    }
+    this.netApplyWorld(patch);
   }
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
@@ -956,6 +996,7 @@ export class Game {
       this.workbench.clear();
       this.workbench.restore(state.workbenches);
     }
+    if (state.workbenchCrafted) this.workbench.restoreCrafted();
     if (state.crates) {
       this.crates.clear();
       this.crates.restore(state.crates);

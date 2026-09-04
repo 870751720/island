@@ -5,6 +5,7 @@ import { PeerNet } from './PeerNet';
 import { HostSignal } from './Signaling';
 import { ACTIONS } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg, type WorldPatch } from './Protocol';
+import { diffWorld } from './WorldDelta';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
@@ -29,7 +30,8 @@ export class NetHost {
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticks = 0;
-  private worldHashes = new Map<keyof WorldPatch, string>();
+  private worldState: WorldPatch | null = null;
+  private worldRevision = 0;
   private resumable = new Map<string, Resumable>();
   private signal: HostSignal | null = null;
   roomCode = '';
@@ -93,6 +95,7 @@ export class NetHost {
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
   attach(game: Game): void {
     this.game = game;
+    this.worldState = game.netWorldState();
     // 信令保持在线:断线客人需要它重新握手,用原房间码回来即可恢复席位
     for (const guest of this.guests) {
       if (guest.net.connected && !guest.session) this.welcome(guest);
@@ -201,54 +204,31 @@ export class NetHost {
     this.purgeResumable();
     this.ticks++;
     const now = performance.now();
-    const active: Guest[] = [];
     for (const guest of [...this.guests]) {
       if (now - guest.lastSeen > INPUT_TIMEOUT) {
         this.dropGuest(guest);
         continue;
       }
       if (!guest.net.connected || !guest.session) continue;
-      active.push(guest);
       guest.net.send(game.netPlayersMsg());
       guest.net.send(game.netAnimalsMsg());
       guest.net.send(game.netAmbientMsg());
       if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
     }
-    if (this.ticks % 2 === 0) this.maybeBroadcastWorld(active);
   }
 
-  private maybeBroadcastWorld(guests: Guest[]): void {
-    const game = this.game!;
-    const save = game.collectSave(true);
-    const sections: WorldPatch = {
-      // 再生倒计时与燃料这类连续递减的数值不入增量快照(客人端本地模拟),
-      // 否则它们每秒都改变哈希,导致全量 section 每秒重播;燃料按 15 秒量化,
-      // 只在跨档或添柴跳变时才触发同步
-      props: save.props.map(({ regrowLeft: _, ...p }) => p),
-      campfires: save.campfires.map((c) => ({ ...c, fuel: Math.round(c.fuel / 15) * 15 })),
-      workbenches: save.workbenches,
-      workbenchCrafted: save.workbenchCrafted,
-      crates: save.crates,
-      fences: save.fences,
-      fenceGates: save.fenceGates,
-      beds: save.beds,
-      drops: save.drops,
-    };
-    const patch: WorldPatch = {};
-    for (const key of Object.keys(sections) as (keyof WorldPatch)[]) {
-      const value = sections[key];
-      const json = JSON.stringify(value);
-      if (this.worldHashes.get(key) === json) continue;
-      this.worldHashes.set(key, json);
-      Object.assign(patch, { [key]: value });
+  /** 每个权威游戏帧结束时调用；无变化不发包，有变化只发改变字段。 */
+  syncWorldNow(): void {
+    const game = this.game;
+    if (!game) return;
+    const current = game.netWorldState();
+    const ops = this.worldState ? diffWorld(this.worldState, current) : [];
+    this.worldState = current;
+    if (!ops.length) return;
+    const revision = ++this.worldRevision;
+    for (const guest of this.guests) {
+      if (guest.net.connected && guest.session) guest.net.send({ t: 'worldDelta', revision, ops });
     }
-    // 围栏柱和门由同一个场景系统重建，任一变化时必须成对下发。
-    if (patch.fences !== undefined || patch.fenceGates !== undefined) {
-      patch.fences = save.fences;
-      patch.fenceGates = save.fenceGates;
-    }
-    if (Object.keys(patch).length === 0) return;
-    for (const guest of guests) guest.net.send({ t: 'world', patch });
   }
 
   private purgeResumable(): void {

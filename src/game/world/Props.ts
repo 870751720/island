@@ -8,6 +8,7 @@ import {
   type TreeSpecies,
   type TreeStage,
 } from './TreeSpecies';
+import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 
 const SHAKE_TIME = 0.4;
 
@@ -630,6 +631,29 @@ export class Props implements Updatable {
       this.list.push(prop);
       this.syncAppearance(prop);
     }
+  }
+
+  /** 联机字段增量：普通采集/再生只改原实体状态，不销毁或重建模型。 */
+  applyNetDelta(ops: readonly WorldDeltaOp[]): boolean {
+    if (ops.some((op) => op.section !== 'props' || op.op !== 'set')) return false;
+    for (const op of ops) {
+      if (op.op !== 'set') return false;
+      const prop = this.list.find((item) => worldEntityKey('props', {
+        kind: item.kind,
+        x: item.position.x,
+        z: item.position.z,
+      }) === op.key);
+      if (!prop) return false;
+      if ('ready' in op.fields && typeof op.fields.ready === 'boolean') prop.ready = op.fields.ready;
+      if ('stage' in op.fields) prop.stage = op.fields.stage as Prop['stage'];
+      if ('growth' in op.fields) prop.growth = op.fields.growth as Prop['growth'];
+      if ('species' in op.fields) prop.species = op.fields.species as Prop['species'];
+      if ('rotationY' in op.fields && typeof op.fields.rotationY === 'number') {
+        prop.group.rotation.y = op.fields.rotationY;
+      }
+      this.syncAppearance(prop);
+    }
+    return true;
   }
 
   private clear(): void {
