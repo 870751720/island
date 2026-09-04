@@ -642,7 +642,8 @@ export class Game {
           s.eating.update(delta);
           s.fishing.update(delta, this.isSessionBusy(s, 'fishing'));
           s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
-          s.water.update(delta, this.isSessionBusy(s, 'water'));
+          // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
+          s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
           this.crates.updateActor(s, delta);
           this.fences.updateActor(s, delta);
           this.beds.updateActor(s, delta);
