@@ -1,6 +1,7 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
 import type { NetGuest } from '@/game/net/NetGuest';
@@ -526,7 +527,7 @@ export function GameplayUI({
           {t.items.map((item, i) => (
             <span key={i} style={{ marginLeft: i > 0 ? 8 : 0, display: 'inline-flex', alignItems: 'center' }}>
               <ItemIcon kind={item.kind} size={22} />
-              <span className="pickup-count">×{item.count}</span>
+              <span className="pickup-count">{ITEMS[item.kind].name}×{item.count}</span>
             </span>
           ))}
         </div>
