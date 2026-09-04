@@ -192,6 +192,112 @@ const ArrowIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
+/** 皮毛:带四肢皮筒的兽皮 */
+const FurIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path
+      d="M14 20 Q12 34 20 42 Q14 46 12 52 Q10 56 15 55 Q22 53 24 48 Q32 54 40 48 Q42 53 49 55 Q54 56 52 52 Q50 46 44 42 Q52 34 50 20 Q44 10 32 12 Q20 10 14 20 Z"
+      fill="#a97a4f"
+    />
+    <ellipse cx={32} cy={32} rx={13} ry={15} fill="#c69a6d" />
+  </Svg>
+);
+
+/** 烤小鱼:竹签串着的小烤鱼 */
+const CookedSmallFishIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <line x1={8} y1={56} x2={56} y2={8} stroke="#c9a06a" strokeWidth={3} strokeLinecap="round" />
+    <g transform="rotate(-45 32 32)">
+      <FishShape color="#c98a4e" rx={15} ry={8} />
+      <path d="M24 27 q2 5 0 10 M30 25 q2 7 0 14" stroke="#96602e" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+    </g>
+  </Svg>
+);
+
+/** 果树种子:种子抽芽并结出小红果 */
+const FruitSeedIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M32 28 q-2 -8 3 -13" stroke="#6aa84f" strokeWidth={2.5} fill="none" strokeLinecap="round" />
+    <circle cx={38} cy={12} r={5} fill="#c0392b" />
+    <path d="M30 18 q-6 -2 -7 4 q6 2 7 -4" fill="#8bc34a" />
+    <ellipse cx={32} cy={44} rx={12} ry={13} fill="#9c6b3f" />
+    <path d="M19 39 h26" stroke="#7a5230" strokeWidth={3} strokeLinecap="round" />
+    <ellipse cx={32} cy={30} rx={11} ry={4.5} fill="#6b4526" />
+  </Svg>
+);
+
+/** 草衣:草编上衣,下摆垂草须 */
+const GrassShirtIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M22 12 L29 9 Q32 7 35 9 L42 12 L50 20 L44 26 L44 50 L20 50 L20 26 L14 20 Z" fill="#7cb342" />
+    <g stroke="#558b2f" strokeWidth={2} strokeLinecap="round">
+      <path d="M22 50 v6 M27 50 v8 M32 50 v7 M37 50 v8 M42 50 v6" />
+      <path d="M25 30 h14 M25 38 h14" />
+    </g>
+  </Svg>
+);
+
+/** 草裤:草编短裤,裤脚垂草须 */
+const GrassPantsIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 12 h28 v8 l-4 32 h-9 l-1 -20 -1 20 h-9 l-4 -32 Z" fill="#7cb342" />
+    <g stroke="#558b2f" strokeWidth={2} strokeLinecap="round">
+      <path d="M21 52 v6 M25 52 v7 M39 52 v7 M43 52 v6" />
+      <path d="M20 20 h24" />
+    </g>
+  </Svg>
+);
+
+/** 木围栏:尖桩栅栏 */
+const FenceWoodIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <g fill="#a0784a">
+      <rect x={10} y={14} width={8} height={38} rx={1.5} />
+      <polygon points="10,14 14,6 18,14" />
+      <rect x={28} y={14} width={8} height={38} rx={1.5} />
+      <polygon points="28,14 32,6 36,14" />
+      <rect x={46} y={14} width={8} height={38} rx={1.5} />
+      <polygon points="46,14 50,6 54,14" />
+      <rect x={7} y={22} width={50} height={6} rx={2} />
+      <rect x={7} y={38} width={50} height={6} rx={2} />
+    </g>
+  </Svg>
+);
+
+/** 石围栏:垒石矮墙 */
+const FenceStoneIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <g fill="#9aa5a0" stroke="#6f7a75" strokeWidth={1.5}>
+      <rect x={6} y={12} width={22} height={13} rx={4} />
+      <rect x={31} y={12} width={27} height={13} rx={4} />
+      <rect x={6} y={27} width={14} height={13} rx={4} />
+      <rect x={22} y={27} width={20} height={13} rx={4} />
+      <rect x={44} y={27} width={14} height={13} rx={4} />
+      <rect x={6} y={42} width={22} height={13} rx={4} />
+      <rect x={31} y={42} width={27} height={13} rx={4} />
+    </g>
+  </Svg>
+);
+
+/** 浆果丛:绿丛上结红果 */
+const BerryBushIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M8 50 Q6 30 20 26 Q22 14 34 16 Q48 14 50 28 Q60 34 56 50 Z" fill="#5d9c46" />
+    <g fill="#c0392b">
+      <circle cx={20} cy={36} r={4} />
+      <circle cx={32} cy={30} r={4} />
+      <circle cx={44} cy={36} r={4} />
+      <circle cx={26} cy={45} r={4} />
+      <circle cx={38} cy={45} r={4} />
+    </g>
+    <g fill="rgba(255,255,255,0.5)">
+      <circle cx={18.8} cy={34.8} r={1.2} />
+      <circle cx={30.8} cy={28.8} r={1.2} />
+      <circle cx={42.8} cy={34.8} r={1.2} />
+    </g>
+  </Svg>
+);
+
 /** 自绘图标表:键为道具 kind,渲染时优先于 ITEMS 的 emoji */
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   oakSeed: OakSeedIcon,
@@ -205,5 +311,13 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   goldenFish: GoldenFishIcon,
   cookedBerry: CookedBerryIcon,
   cookedBigFish: CookedBigFishIcon,
+  fur: FurIcon,
+  cookedSmallFish: CookedSmallFishIcon,
+  fruitSeed: FruitSeedIcon,
+  grassShirt: GrassShirtIcon,
+  grassPants: GrassPantsIcon,
+  fenceWood: FenceWoodIcon,
+  fenceStone: FenceStoneIcon,
+  berryBush: BerryBushIcon,
   arrow: ArrowIcon,
 };

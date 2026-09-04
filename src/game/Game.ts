@@ -705,10 +705,8 @@ export class Game {
             SaveSystem.save(this.collectSave());
           }
         }
-        if (!this.guestMode) {
-          this.pushHud(delta);
-          this.flushPickups();
-        }
+        if (!this.guestMode) this.pushHud(delta);
+        this.flushPickups();
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
         if (this.guestMode) {
           this.collect.scanNearby();
@@ -981,7 +979,18 @@ export class Game {
 
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
+    // 客人端入包不走 Inventory.add,对比快照前后数量差补发拾取飘字
+    const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> => {
+      const map = new Map<ResourceKind, number>();
+      for (const slot of slots) if (slot) map.set(slot.kind, (map.get(slot.kind) ?? 0) + slot.count);
+      return map;
+    };
+    const before = countSlots(this.local.inventory.snapshot());
     this.local.inventory.load(snap.slots, snap.capacity);
+    for (const [kind, n] of countSlots(snap.slots)) {
+      const gained = n - (before.get(kind) ?? 0);
+      if (gained > 0) this.emitPickup(kind, gained);
+    }
     Object.assign(this.local.tools, snap.toolTiers);
     this.local.player.setTool(snap.tool);
     // 装备穿戴由房主权威结算:快照回流后同步本地装备状态,触发外观/背包容量刷新
