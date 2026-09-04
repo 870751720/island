@@ -7,6 +7,9 @@ import { ACTIONS } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
 import type { EntityChange } from '../systems/WorldEntityId';
 import type { WorldSection } from './WorldDelta';
+import { diffEntities, diffObject, quantize } from './SnapshotDelta';
+import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
+import type { HudSnapshot } from '../Game';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可恢复角色
@@ -20,6 +23,14 @@ type Guest = {
   lastSeen: number;
   resumeToken: string;
   lastInputSeq: number;
+  players: Map<string | number, PlayerState>;
+  animals: Map<string | number, AnimalPose>;
+  crabs: Map<string | number, AmbientPose>;
+  birds: Map<string | number, AmbientPose>;
+  butterflies: Map<string | number, AmbientPose>;
+  dog: AmbientPose | null;
+  hud: HudSnapshot | null;
+  climate: string;
 };
 
 type Resumable = { session: PlayerSession; name: string; expires: number };
@@ -83,6 +94,8 @@ export class NetHost {
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
       lastInputSeq: 0,
+      players: new Map(), animals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
+      dog: null, hud: null, climate: '',
     };
     this.guests.push(guest);
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
@@ -224,6 +237,8 @@ export class NetHost {
     if (!game) return;
     this.purgeResumable();
     this.ticks++;
+    // 实时通道允许丢包：低频全量关键帧只用于自动修复漏掉的增量，不承担日常同步。
+    const recoveryFrame = this.ticks % 50 === 1;
     const now = performance.now();
     for (const guest of [...this.guests]) {
       if (now - guest.lastSeen > INPUT_TIMEOUT) {
@@ -231,10 +246,38 @@ export class NetHost {
         continue;
       }
       if (!guest.net.connected || !guest.session) continue;
-      guest.net.send(game.netPlayersMsg(guest.lastInputSeq));
-      guest.net.send(game.netAnimalsMsg());
-      guest.net.send(game.netAmbientMsg());
-      if (this.ticks % 2 === 0) guest.net.send({ t: 'hud', snap: game.hudFor(guest.session) });
+      const state = game.netPlayersState();
+      const qPlayers = state.list.map((p) => ({ ...p, x: quantize(p.x, .02), y: quantize(p.y, .02), z: quantize(p.z, .02), rotY: quantize(p.rotY, .01), hunger: quantize(p.hunger, .1), thirst: quantize(p.thirst, .1), health: quantize(p.health, .1), stamina: quantize(p.stamina, .1) }));
+      const players = diffEntities(qPlayers, guest.players, recoveryFrame);
+      const climate = { time: quantize(state.time, .01), day: state.day, weather: state.weather, rain: quantize(state.rain, .02), windAmount: quantize(state.windAmount, .02), windDirX: quantize(state.windDirX, .02), windDirZ: quantize(state.windDirZ, .02) };
+      const climateKey = JSON.stringify(climate);
+      if (players || climateKey !== guest.climate) {
+        const climateChanged = climateKey !== guest.climate;
+        guest.climate = climateKey;
+        guest.net.send({ t: 'players', ...(climateChanged ? climate : {}), ackInputSeq: guest.lastInputSeq, players: players ?? {} });
+      }
+
+      const animalsNow = game.netAnimalsState().map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
+      const animals = diffEntities(animalsNow, guest.animals, recoveryFrame);
+      if (animals) guest.net.send({ t: 'animals', animals });
+
+      const ambient = game.netAmbientState();
+      const qAmbient = (list: AmbientPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .05), y: quantize(p.y, .05), z: quantize(p.z, .05), h: quantize(p.h, .03) }));
+      const crabs = diffEntities(qAmbient(ambient.crabs), guest.crabs, recoveryFrame);
+      const birds = diffEntities(qAmbient(ambient.birds), guest.birds, recoveryFrame);
+      const butterflies = diffEntities(qAmbient(ambient.butterflies), guest.butterflies, recoveryFrame);
+      const dogNow = qAmbient([ambient.dog])[0];
+      const dog = recoveryFrame ? dogNow : diffObject(dogNow, guest.dog);
+      guest.dog = dogNow;
+      if (crabs || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
+
+      if (this.ticks % 2 === 0) {
+        const hud = game.hudFor(guest.session);
+        const snap = diffObject(hud, guest.hud);
+        const full = !guest.hud;
+        guest.hud = hud;
+        if (snap) guest.net.send({ t: 'hud', snap, full });
+      }
     }
   }
 

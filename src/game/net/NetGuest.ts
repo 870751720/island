@@ -4,6 +4,8 @@ import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, 
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
+import { applyEntityDelta } from './SnapshotDelta';
+import type { AmbientPose, PlayerState } from './Protocol';
 
 const INPUT_HZ = 20; // 摇杆上行频率
 const RESUME_KEY = 'island.multiplayer.resume';
@@ -37,8 +39,17 @@ export class NetGuest {
   private inputTimer: ReturnType<typeof setInterval> | null = null;
   private lastInputSent = 0;
   private inputSeq = 0;
+  private sentInputX = Number.NaN;
+  private sentInputZ = Number.NaN;
   private lastHeartbeatSent = 0;
   private disposed = false;
+  private players = new Map<string | number, PlayerState>();
+  private animals = new Map<string | number, AnimalPose>();
+  private crabs = new Map<string | number, AmbientPose>();
+  private birds = new Map<string | number, AmbientPose>();
+  private butterflies = new Map<string | number, AmbientPose>();
+  private dog: AmbientPose | null = null;
+  private hud: HudSnapshot | null = null;
   /** 房主发来的欢迎包(种子 + 全量初始状态 + 稳定玩家标识),开始游戏时交给 Game */
   welcome: { seeds: { terrainSeed: number }; state: SaveData; roster: string[]; you: string; worldRevision: number } | null =
     null;
@@ -118,13 +129,17 @@ export class NetGuest {
         this.onStarted();
         break;
       case 'players':
-        this.onPlayers(msg);
+        this.onPlayers({ ...msg, players: { full: applyEntityDelta(msg.players, this.players) } });
         break;
       case 'animals':
-        this.onAnimals(msg.list);
+        this.onAnimals(applyEntityDelta(msg.animals, this.animals));
         break;
       case 'ambient':
-        this.onAmbient(msg.state);
+        if (msg.crabs) applyEntityDelta(msg.crabs, this.crabs);
+        if (msg.birds) applyEntityDelta(msg.birds, this.birds);
+        if (msg.butterflies) applyEntityDelta(msg.butterflies, this.butterflies);
+        if (msg.dog) this.dog = { ...(this.dog ?? msg.dog), ...msg.dog } as AmbientPose;
+        if (this.dog) this.onAmbient({ crabs: [...this.crabs.values()], birds: [...this.birds.values()], butterflies: [...this.butterflies.values()], dog: this.dog });
         break;
       case 'worldDelta':
         this.onWorldDelta(msg.revision, msg.ops);
@@ -133,7 +148,8 @@ export class NetGuest {
         this.onWorldFull(msg.revision, msg.state);
         break;
       case 'hud':
-        this.onHud(msg.snap);
+        this.hud = { ...(this.hud ?? {}), ...msg.snap } as HudSnapshot;
+        this.onHud(this.hud);
         break;
       case 'event':
         this.onEvent(msg.event);
@@ -159,9 +175,13 @@ export class NetGuest {
         this.lastHeartbeatSent = now;
         this.net?.send({ t: 'heartbeat' });
       }
-      const seq = ++this.inputSeq;
-      this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ });
-      this.onInputSent(seq);
+      if (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ) {
+        this.sentInputX = this.inputX;
+        this.sentInputZ = this.inputZ;
+        const seq = ++this.inputSeq;
+        this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ });
+        this.onInputSent(seq);
+      }
     }, 1000 / INPUT_HZ / 2);
   }
 

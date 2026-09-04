@@ -4,8 +4,9 @@ import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
 import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
+import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 9;
+export const NET_PROTOCOL_VERSION = 10;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -88,22 +89,22 @@ export type NetMsg =
   | { t: 'action'; name: string; args: unknown[] }
   | {
       t: 'players';
-      time: number;
-      day: number;
-      weather: 'sunny' | 'rain';
+      time?: number;
+      day?: number;
+      weather?: 'sunny' | 'rain';
       /** 房主权威天气连续值(客人端驱动画表现,不再本地随机轮换) */
-      rain: number;
-      windAmount: number;
-      windDirX: number;
-      windDirZ: number;
+      rain?: number;
+      windAmount?: number;
+      windDirX?: number;
+      windDirZ?: number;
       /** 此快照接收者的输入已由房主处理到该序号。 */
       ackInputSeq: number;
-      list: PlayerState[];
+      players: EntityDelta<PlayerState>;
     }
-  | { t: 'animals'; list: AnimalPose[] }
-  | { t: 'ambient'; state: AmbientState }
+  | { t: 'animals'; animals: EntityDelta<AnimalPose> }
+  | { t: 'ambient'; crabs?: EntityDelta<AmbientPose>; birds?: EntityDelta<AmbientPose>; butterflies?: EntityDelta<AmbientPose>; dog?: Partial<AmbientPose> }
   | { t: 'worldDelta'; revision: number; ops: WorldDeltaOp[] }
   | { t: 'worldResync'; revision: number }
   | { t: 'worldFull'; revision: number; state: WorldPatch }
-  | { t: 'hud'; snap: HudSnapshot }
+  | { t: 'hud'; snap: Partial<HudSnapshot>; full?: boolean }
   | { t: 'event'; event: NetEvent };

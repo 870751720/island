@@ -772,10 +772,9 @@ export class Game {
   }
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
-  netPlayersMsg(ackInputSeq = 0): Extract<NetMsg, { t: 'players' }> {
+  netPlayersState() {
     const wind = this.weather.wind;
     return {
-      t: 'players',
       time: this.dayNight.time,
       day: this.dayNight.day,
       weather: this.weather.rainIntensity > 0.05 ? 'rain' : 'sunny',
@@ -783,7 +782,6 @@ export class Game {
       windAmount: this.weather.windIntensity,
       windDirX: wind.dirX,
       windDirZ: wind.dirZ,
-      ackInputSeq,
       list: this.sessions.map((s) => {
         const p = s.player.group.position;
         const sv = s.survival.state;
@@ -807,19 +805,16 @@ export class Game {
   }
 
   /** 房主侧:动物快照消息 */
-  netAnimalsMsg(): { t: 'animals'; list: AnimalPose[] } {
-    return { t: 'animals', list: this.wildlife.netPoses() };
+  netAnimalsState(): AnimalPose[] {
+    return this.wildlife.netPoses();
   }
 
-  netAmbientMsg(): { t: 'ambient'; state: AmbientState } {
+  netAmbientState(): AmbientState {
     return {
-      t: 'ambient',
-      state: {
         crabs: this.crabs.netPoses(),
         birds: this.birds.netPoses(),
         butterflies: this.butterflies.netPoses(),
         dog: this.dog.netPose(),
-      },
     };
   }
 
@@ -888,11 +883,14 @@ export class Game {
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
   netApplyPlayers(msg: Extract<NetMsg, { t: 'players' }>): void {
-    const { time, day, list } = msg;
-    this.dayNight.time = time;
-    if (day) this.dayNight.day = day;
+    const { time, day } = msg;
+    if (time !== undefined) this.dayNight.time = time;
+    if (day !== undefined) this.dayNight.day = day;
     // 天气与风采用房主权威值,本地只做表现插值(不再随机轮换/重掷风向)
-    this.weather.netSync(msg.rain, msg.windAmount, msg.windDirX, msg.windDirZ);
+    if (msg.rain !== undefined && msg.windAmount !== undefined && msg.windDirX !== undefined && msg.windDirZ !== undefined) {
+      this.weather.netSync(msg.rain, msg.windAmount, msg.windDirX, msg.windDirZ);
+    }
+    const list = msg.players.full ?? [];
     const liveIds = new Set(list.map((p) => p.id));
     for (const session of [...this.sessions]) {
       if (session !== this.local && !liveIds.has(session.id)) this.removeRemoteSession(session);
