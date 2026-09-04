@@ -53,7 +53,8 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'fenceStone' ||
     kind === 'fenceGate' ||
     workbenchItemLevel(kind) !== null ||
-    bedItemLevel(kind) !== null
+    bedItemLevel(kind) !== null ||
+    kind === 'poseidonBlessing'
   );
 }
 

@@ -93,6 +93,7 @@ const INITIAL_HUD: HudSnapshot = {
   heldFenceCount: 0,
   busy: false,
   indicator: { label: null, progress: null },
+  buffs: [],
 };
 
 /**
@@ -412,6 +413,11 @@ export function GameplayUI({
           }
           if (bedItemLevel(kind) !== null) {
             gameRef.current?.useBedItem(kind);
+            setBackpackOpen(false);
+            return;
+          }
+          if (kind === 'poseidonBlessing') {
+            gameRef.current?.useShrine();
             setBackpackOpen(false);
             return;
           }

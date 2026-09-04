@@ -42,7 +42,11 @@ export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
     { kind: 'swordfish', weight: 2, size: 1.7, color: '#5a7d9e', shape: 'long' },
     { kind: 'manta', weight: 2, size: 1.7, color: '#4a5568', shape: 'flat' },
   ],
-  4: [{ kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' }],
+  4: [
+    { kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' },
+    { kind: 'reviveStone', weight: 1, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
+    { kind: 'poseidonBlessing', weight: 1, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
+  ],
 };
 
 /** 各档位的咬钩交互:反应窗口秒数与所需点击次数 */
@@ -149,9 +153,16 @@ export function pickTease(stage: TeaseStage): Tease {
   return { text: pool[Math.floor(Math.random() * pool.length)], color: TEASE_COLOR[stage] };
 }
 
-/** 按 GM 权重随机档位;无鱼饵时二三四档权重削 80%,削掉的部分全归一档 */
-export function rollTier(baited = true): FishTier {
-  const base = GmSystem.fishingTierWeights;
+/**
+ * 按 GM 权重随机档位;无鱼饵时二三四档权重削 80%,削掉的部分全归一档。
+ * junkCut 为杂物概率的降低量(百分点,波塞冬的祝福):从一档权重中扣下,
+ * 转移给二档,保持总权重不变。
+ */
+export function rollTier(baited = true, junkCut = 0): FishTier {
+  const base = [...GmSystem.fishingTierWeights];
+  const cut = Math.min(junkCut, base[0]);
+  base[0] -= cut;
+  base[1] += cut;
   const w = baited
     ? base
     : [

@@ -20,6 +20,8 @@ export type ResourceKind =
   | 'swordfish'
   | 'manta'
   | 'goldenFish'
+  | 'reviveStone'
+  | 'poseidonBlessing'
   | 'crabMeat'
   | 'birdMeat'
   | 'gameMeat'

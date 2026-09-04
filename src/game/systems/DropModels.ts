@@ -24,6 +24,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   swordfish: '#5a7d9e',
   manta: '#4a5568',
   goldenFish: '#e6b422',
+  reviveStone: '#7fd8e8',
+  poseidonBlessing: '#2ec4b6',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   gameMeat: '#b04a3a',
@@ -569,6 +571,47 @@ function makeBushDrop(color: string, withBerries: boolean): THREE.Object3D {
   return g;
 }
 
+/** 复活石道具:微微发光的青蓝色晶石 */
+function makeReviveStone(): THREE.Object3D {
+  const g = new THREE.Group();
+  const stone = mesh(
+    new THREE.OctahedronGeometry(0.14, 0),
+    new THREE.MeshStandardMaterial({
+      color: DROP_COLORS.reviveStone,
+      flatShading: true,
+      roughness: 0.4,
+      emissive: '#3aa8bb',
+    })
+  );
+  stone.position.y = 0.14;
+  stone.scale.y = 1.3;
+  g.add(stone);
+  return g;
+}
+
+/** 波塞冬的祝福道具:带宝石座的迷你三叉戟 */
+function makePoseidonDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const base = mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.07, 6), clay('#8d99a6'));
+  base.position.y = 0.04;
+  g.add(base);
+  const gem = mesh(new THREE.OctahedronGeometry(0.06, 0), clay(DROP_COLORS.poseidonBlessing));
+  gem.position.y = 0.12;
+  g.add(gem);
+  const shaft = mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.34, 4), clay('#8a6239'));
+  shaft.position.y = 0.3;
+  g.add(shaft);
+  const cross = mesh(new THREE.BoxGeometry(0.12, 0.02, 0.02), clay('#c9a15c'));
+  cross.position.y = 0.46;
+  g.add(cross);
+  for (const dx of [-0.05, 0, 0.05]) {
+    const prong = mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12, 4), clay('#c9a15c'));
+    prong.position.set(dx, 0.52, 0);
+    g.add(prong);
+  }
+  return g;
+}
+
 /** 工作台道具:小桌面 + 四条腿,等级越高桌面材质与点缀越讲究 */
 function makeWorkbenchDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
@@ -624,6 +667,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   swordfish: () => makeFishShape(DROP_COLORS.swordfish, 0.9, 0.9, 1.8),
   manta: () => makeFishShape(DROP_COLORS.manta, 1.8, 0.5, 1.1),
   goldenFish: () => makeFishShape(DROP_COLORS.goldenFish, 1.1, 1.1, 1.2),
+  reviveStone: makeReviveStone,
+  poseidonBlessing: makePoseidonDrop,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,

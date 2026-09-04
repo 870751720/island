@@ -24,6 +24,8 @@ import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
+import { ShrineSystem } from './systems/ShrineSystem';
+import { BUFFS, type HudBuff } from './systems/BuffSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -163,6 +165,8 @@ export type HudSnapshot = {
   busy: boolean;
   /** 房主权威计算的头顶交互提示；联机客人不在本地推进交互系统。 */
   indicator: { label: string | null; progress: number | null; color?: string };
+  /** 当前生效的 buff(全局祝福 + 个人减速),点图标看效果 tip */
+  buffs: HudBuff[];
 };
 
 const VIEW_SIZE = 18;
@@ -189,7 +193,8 @@ type InteractionKind =
   | 'campfire'
   | 'crates'
   | 'fences'
-  | 'beds';
+  | 'beds'
+  | 'shrines';
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -245,6 +250,7 @@ export class Game {
   private crates: CrateSystem;
   private fences: FenceSystem;
   private beds: BedSystem;
+  private shrines: ShrineSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private lastFishingState: FishingState | null = null;
@@ -534,6 +540,17 @@ export class Game {
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor)
     );
+    this.shrines = new ShrineSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 挖走神像时道具入包,背包放不下的部分掉在玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'shrines')
+    );
     this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio);
     this.attachSessionSystems(this.local);
 
@@ -637,6 +654,7 @@ export class Game {
           this.crates.updateActor(s, delta);
           this.fences.updateActor(s, delta);
           this.beds.updateActor(s, delta);
+          this.shrines.updateActor(s, delta);
           this.workbench.updateActor(s, delta);
           this.campfire.updateActor(s, delta);
           // 手里的种子/围栏用光后自动收起,回到空手
@@ -656,6 +674,7 @@ export class Game {
         }
         this.fences.update(delta, this.sessions.map((s) => s.player.group.position));
         this.campfire.update(delta, elapsed);
+        this.shrines.update(delta, elapsed);
         this.drops.update(delta, elapsed);
         this.mumbles.update(delta, {
           elapsed,
@@ -676,14 +695,17 @@ export class Game {
         this.renderer.render(this.scene, this.camera);
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
-            s.player.setDead();
-            if (this.hostRef) s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
-            if (s === this.local) {
-              this.audio.play('death');
-              // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
-              this.setJoystick(0, 0);
-              // 单机死亡清档；联机玩家由房主在倒计时结束后重生。
-              if (!this.hostRef && !this.guestMode) SaveSystem.clear();
+            // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
+            if (this.guestMode || !this.tryReviveWithStone(s)) {
+              s.player.setDead();
+              if (this.hostRef) s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
+              if (s === this.local) {
+                this.audio.play('death');
+                // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
+                this.setJoystick(0, 0);
+                // 单机死亡清档；联机玩家由房主在倒计时结束后重生。
+                if (!this.hostRef && !this.guestMode) SaveSystem.clear();
+              }
             }
           }
           s.lastDead = s.survival.state.dead;
@@ -855,6 +877,7 @@ export class Game {
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
+      shrines: this.shrines.snapshot(),
       drops: this.drops.snapshot(),
     };
   }
@@ -873,6 +896,7 @@ export class Game {
     this.crates.setChangeSink(send('crates'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
     this.beds.setChangeSink(send('beds'));
+    this.shrines.setChangeSink(send('shrines'));
     this.drops.setChangeSink(send('drops'));
   }
 
@@ -1043,6 +1067,19 @@ export class Game {
       this.wildlife.netPlayAttack(event.animalId);
       return;
     }
+    // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
+    if (event.kind === 'reviveFx') {
+      const s = this.sessions.find((x) => x.id === event.target);
+      if (!s) return;
+      if (s === this.local) {
+        this.audio.play('success');
+        this.notify('复活石发出微光碎裂了,你在出生点苏醒');
+      } else {
+        const p = s.player.group.position;
+        this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#7fd8e8', 22);
+      }
+      return;
+    }
     // 交互音效只给发起者自己听:只有事件属于本地玩家时补播,其余只保留轻量粒子反馈
     if (event.actor === this.local.id) this.audio.play(event.sfx);
     const colors: Partial<Record<SfxName, string>> = {
@@ -1104,6 +1141,9 @@ export class Game {
     }
     if (state.beds) {
       this.beds.netApply(state.beds);
+    }
+    if (state.shrines) {
+      this.shrines.netApply(state.shrines);
     }
     if (state.drops) {
       this.drops.netApply(state.drops);
@@ -1240,6 +1280,7 @@ export class Game {
     this.crates.restore(save.crates);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
+    this.shrines.restore(save.shrines ?? []);
     this.drops.restore(save.drops);
     if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
   }
@@ -1302,6 +1343,7 @@ export class Game {
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
+      shrines: this.shrines.snapshot(),
       drops: this.drops.snapshot(),
       dog: this.dog.snapshot(),
       fog: this.minimap.serialize(),
@@ -1827,6 +1869,43 @@ export class Game {
     return true;
   }
 
+  /** 背包里点击「使用」波塞冬的祝福:校验通过后在玩家脚下原地立起神像,不满足时给出提示 */
+  useShrine(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useShrine', []);
+
+    if (this.asleepFor(actor) || !this.shrines.place(actor)) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
+  /** 死亡瞬间的复活石结算:碎裂一颗,免惩罚在出生点苏醒(血量回半,携带不变);没有则返回 false */
+  private tryReviveWithStone(session: PlayerSession): boolean {
+    if (!session.inventory.remove('reviveStone', 1)) return false;
+    const sv = session.survival.state;
+    sv.dead = false;
+    sv.health = Math.max(sv.health, 50);
+    session.lastHealth = sv.health;
+    session.lastDead = false;
+    session.player.respawn(this.terrain.findSpawnPoint());
+    this.playReviveFx(session);
+    this.hostRef?.broadcastEvent({ kind: 'reviveFx', target: session.id });
+    return true;
+  }
+
+  /** 复活石碎裂的表现:出生点青蓝光柱迸溅 + 音效,本人另给一条提示 */
+  private playReviveFx(session: PlayerSession): void {
+    const p = session.player.group.position;
+    this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#7fd8e8', 22);
+    if (session === this.local) {
+      this.audio.play('success');
+      this.notify('复活石发出微光碎裂了,你在出生点苏醒');
+    }
+  }
+
   /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
   private afterPlaceDiggable(actor: PlayerSession = this.local): void {
     if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
@@ -2102,6 +2181,7 @@ export class Game {
     this.crates.detach(session);
     this.fences.detach(session);
     this.beds.detach(session);
+    this.shrines.detach(session);
     this.scene.remove(session.player.group);
     session.nameTag.dispose();
     session.player.dispose();
@@ -2127,6 +2207,7 @@ export class Game {
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
       return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
+    if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
     return false;
   }
 
@@ -2198,7 +2279,9 @@ export class Game {
       this.audio,
       s.tools,
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
-      (position) => this.markPickupOrigin(position, s)
+      (position) => this.markPickupOrigin(position, s),
+      // 波塞冬神像放置期间杂物概率降低
+      () => this.shrines.junkCut
     );
     s.archery = new BowSystem(
       this.scene,
@@ -2342,8 +2425,18 @@ export class Game {
       day: this.dayNight.day,
       busy,
       indicator: this.indicatorFor(s),
+      buffs: this.buffsFor(s),
 };
   }
+  /** 某会话当前生效的 buff:全局祝福(波塞冬神像) + 个人减速(熊扑),供 HUD 图标展示 */
+  private buffsFor(s: PlayerSession): HudBuff[] {
+    const list: HudBuff[] = [];
+    if (this.shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
+    const slow = s.player.slowSeconds;
+    if (slow > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(slow) });
+    return list;
+  }
+
   /** 玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
    * 各交互(采集/制作/挖除/吃喝/钓鱼/拉弓等)都会设置玩家的作业动画,统一用 isActing 判定 */
   private get isPlayerBusy(): boolean {
@@ -2474,6 +2567,9 @@ export class Game {
     } else if (this.beds.isDigging(session)) {
       label = '挖床…';
       progress = this.beds.getDigProgress(session);
+    } else if (this.shrines.isDigging(session)) {
+      label = '拆神像…';
+      progress = this.shrines.getDigProgress(session);
     } else if (this.campfire.isDigging(session)) {
       label = '挖火堆…';
       progress = this.campfire.getDigProgress(session);

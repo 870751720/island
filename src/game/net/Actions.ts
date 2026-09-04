@@ -20,6 +20,7 @@ export const ACTIONS: Record<string, NetAction> = {
   useCrate: (g, a) => g.useCrate(a),
   useWorkbenchItem: (g, a, [kind]) => g.useWorkbenchItem(kind as ResourceKind, a),
   useBedItem: (g, a, [kind]) => g.useBedItem(kind as ResourceKind, a),
+  useShrine: (g, a) => g.useShrine(a),
   useFenceItem: (g, a, [kind]) => g.useFenceItem(kind as ResourceKind, a),
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,

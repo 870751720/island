@@ -496,6 +496,11 @@ export class Player implements Updatable {
     this.slowLeft = Math.max(this.slowLeft, duration);
   }
 
+  /** 减速剩余秒数(供 buff 展示),0 表示未被减速 */
+  get slowSeconds(): number {
+    return this.slowLeft;
+  }
+
   /** 遥控玩家:写入网络快照给出的目标姿态(本地玩家忽略) */
   setNetPose(x: number, y: number, z: number, rotY: number): void {
     if (!this.remote) return;

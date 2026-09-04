@@ -7,7 +7,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 12;
+export const NET_PROTOCOL_VERSION = 13;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -57,6 +57,7 @@ export type WorldPatch = Partial<
     | 'fences'
     | 'fenceGates'
     | 'beds'
+    | 'shrines'
     | 'drops'
   >
 >;
@@ -69,6 +70,7 @@ export type NetEvent =
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }
+  | { kind: 'reviveFx'; target: string }
   | { kind: 'bottle'; target: string; text: string };
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */

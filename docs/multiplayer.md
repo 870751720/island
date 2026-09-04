@@ -351,3 +351,9 @@
 - 需求:道具入包的飞行表现(模型从交互点飞向玩家后背缩没)此前只对每个端自己的本地玩家播放,其他玩家看不到别人捡东西/采集入包。音效维持「只给本人听」不变。
 - 方案:`NetEvent` 新增 `itemFly { actor, item, count, x, y, z }`(起点=资源点/掉落物/浮漂位置,无记录时兜底为玩家身前),`NET_PROTOCOL_VERSION` 升至 12。房主在 `inventory.onAdd` 对所有会话统一广播(含房主本人,客人端按 `actor` 过滤掉自己的以免与 HUD 快照差额触发的本地飞行重复),并在房主端就地为远程会话播飞行。
 - 实现:飞行起点记录 `markPickupOrigin` 从单一本地值改为按会话的 `pickupOrigins` 映射(采集/钓鱼回调对所有会话生效,`pickupDrop` 房主侧也按动作发起者记录);`ItemFlyFx.spawn` 支持按件指定终点回调,终点取该会话玩家后背(远程玩家位置由姿态快照驱动,终点实时跟随);本地与远程共用 `spawnItemFlights` 错峰起飞逻辑,拾取飘字与「叮」声仍只挂在本地玩家的到达回调上。
+
+### M33 钓鱼珍宝(复活石/波塞冬神像)与 Buff 系统(2026-09-05)
+
+- 四档奖池新增「复活石」与「波塞冬的祝福」。复活:房主权威端在死亡瞬间结算复活石(客人端不本地尝试,避免与房主背包权威冲突),碎裂一颗立即在出生点无惩罚复活,`NET_PROTOCOL_VERSION` 升至 13,新增 `NetEvent reviveFx { target }` 补播表现——客人本人当帧不会看到 dead,提示与音效靠该事件;其他玩家看到出生点光效。
+- 神像:走既有世界摆件同步管线,`WorldPatch` 新增 `shrines` section(放置/挖除经 change sink 广播增量,客人 `netApply` 重放);放置动作上行 `useShrine`(Actions 表)由房主权威结算。祝福为全岛全局效果,杂物概率削减只发生在房主抽档处(`rollTier(baited, junkCut)`),客人档位本就由快照回流,天然一致。
+- Buff 展示:`HudSnapshot` 新增 `buffs: HudBuff[]`(来源:全局 `poseidon` 神像祝福 + 个人 `bearSlow` 熊扑减速)。房主按会话计算(远程会话的减速由房主 applyWildlifeHit 施加,数据同源)随 HUD 快照定向下发;波塞冬祝福所有玩家都显示,熊扑减速只显示在被扑玩家自己的界面上。均为展示数据,不新增权威状态。

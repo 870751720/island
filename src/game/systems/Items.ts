@@ -139,6 +139,20 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '✨',
     description: '通体金光闪闪的传说之鱼!吃掉它能大幅恢复饥饿与口渴,也可留作收藏。',
   },
+  reviveStone: {
+    kind: 'reviveStone',
+    name: '复活石',
+    icon: '💠',
+    description:
+      '钓鱼钓起的传说之石,放在背包里便会生效:死亡瞬间碎裂一颗,你立刻在出生点苏醒,不损失任何东西。',
+  },
+  poseidonBlessing: {
+    kind: 'poseidonBlessing',
+    name: '波塞冬的祝福',
+    icon: '🔱',
+    description:
+      '海神赐福的三叉戟石像。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间全岛所有人钓鱼钓到杂物的概率降低 1%。',
+  },
   crabMeat: {
     kind: 'crabMeat',
     name: '蟹肉',

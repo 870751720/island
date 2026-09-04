@@ -84,7 +84,9 @@ export class FishingSystem {
     private audio: GameAudio,
     private tools: Tools,
     /** 中鱼瞬间回调(浮漂落点):通知外层把入包飞行起点定在浮漂处 */
-    private onCatch: (position: THREE.Vector3) => void
+    private onCatch: (position: THREE.Vector3) => void,
+    /** 钓鱼杂物概率的降低量(百分点,波塞冬神像放置期间为 1) */
+    private junkCut: () => number = () => 0
   ) {}
 
   private get refined(): boolean {
@@ -172,7 +174,7 @@ export class FishingSystem {
     // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低)
     const baited = this.inventory.count('bait') > 0;
     if (baited) this.inventory.remove('bait', 1);
-    this.tier = rollTier(baited);
+    this.tier = rollTier(baited, this.junkCut());
     this.loot = rollLoot(this.tier);
     this.tease = null;
     this.teaseStageDone = null;
