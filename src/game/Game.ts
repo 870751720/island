@@ -289,6 +289,7 @@ export class Game {
   private pendingWildlifeHits: { session: PlayerSession; damage: number; pounce: boolean; at: number }[] = [];
   /** 游戏循环累计时间(延迟队列用) */
   private loopElapsed = 0;
+  private lastHurtSfxAt = -10;
   private netIndicatorProgress: number | null = null;
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
@@ -847,6 +848,14 @@ export class Game {
       s.survival.state.thirst = p.thirst;
       s.survival.state.health = p.health;
       s.survival.state.stamina = p.stamina;
+      // 客人端闪红与受伤音跟随快照血量下降(受击/饥饿/溺水等所有掉血来源)
+      if (p.health < s.lastHealth - 0.001) {
+        s.player.hurt();
+        if (s === this.local && this.loopElapsed - this.lastHurtSfxAt > 1.5) {
+          this.audio.play('hurt');
+          this.lastHurtSfxAt = this.loopElapsed;
+        }
+      }
       if (p.dead && !s.lastDead) {
         s.player.setDead();
         // 客人的死亡过渡由快照驱动,这里先于主循环消费 lastDead,须就地清摇杆
@@ -888,6 +897,14 @@ export class Game {
     }
     if (event.kind === 'gm') {
       gmApply(event.config);
+      return;
+    }
+    // 客人被野生动物击中的补播:粒子/击中音/伤害数字/扑击减速(血量本身由快照回流)
+    if (event.kind === 'wildlifeHit') {
+      const s = this.sessions.find((x) => x.id === event.target);
+      if (!s) return;
+      if (event.pounce) s.player.applySlow(3);
+      this.playWildlifeHitFeedback(s, Math.max(1, Math.round(event.damage)));
       return;
     }
     // 交互音效只给发起者自己听:只有事件属于本地玩家时补播,其余只保留轻量粒子反馈
@@ -1020,7 +1037,16 @@ export class Game {
     session.survival.damage(final);
     // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
     if (pounce) player.applySlow(3);
-    const p = player.group.position;
+    this.playWildlifeHitFeedback(session, final);
+    // 客人被击中的表现在客人端补播(闪红与音效由血量快照驱动,这里补齐粒子/数字/减速)
+    if (this.hostRef && session !== this.local) {
+      this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage: final, pounce });
+    }
+  }
+
+  /** 受击的本地表现:红色粒子迸溅 + 击中音 + 本地玩家头顶伤害数字 */
+  private playWildlifeHitFeedback(session: PlayerSession, final: number): void {
+    const p = session.player.group.position;
     this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#c0392d', 12);
     const previousActor = this.activeNetActor;
     this.activeNetActor = session;
