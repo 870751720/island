@@ -949,6 +949,8 @@ export class Game {
           this.lastHurtSfxAt = this.loopElapsed;
         }
       }
+      // 消费本次权威血量；否则同一次掉血会被后续每个快照重复判定为新伤害。
+      s.lastHealth = p.health;
       if (p.dead && !s.lastDead) {
         s.player.setDead();
         // 客人的死亡过渡由快照驱动,这里先于主循环消费 lastDead,须就地清摇杆
