@@ -1,4 +1,5 @@
 import type { SaveData } from '../systems/SaveSystem';
+import type { ResourceKind } from '../systems/Inventory';
 import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
@@ -6,7 +7,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 11;
+export const NET_PROTOCOL_VERSION = 12;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -66,6 +67,7 @@ export type NetEvent =
   | { kind: 'wildlifeHit'; target: string; damage: number; pounce: boolean }
   | { kind: 'wildlifeAttack'; animalId: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
+  | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }
   | { kind: 'bottle'; target: string; text: string };
 

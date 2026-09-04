@@ -14,6 +14,8 @@ type Flight = {
   /** 已飞行时间;负值为出发前的滞空等待(多件道具错峰出发) */
   t: number;
   onArrive?: () => void;
+  /** 该件道具的飞行终点(联机时按入包玩家各自指定,缺省用实例默认目标) */
+  getTarget?: () => THREE.Vector3;
 };
 
 /** 释放掉落物模型自建的几何体与材质(模型为一次性实例,不复用) */
@@ -40,23 +42,23 @@ export class ItemFlyFx {
     private getTarget: () => THREE.Vector3
   ) {}
 
-  /** 从 origin 起飞一件道具;delay 为错峰出发的等待秒数 */
-  spawn(kind: ResourceKind, origin: THREE.Vector3, delay = 0, onArrive?: () => void): void {
+  /** 从 origin 起飞一件道具;delay 为错峰出发的等待秒数,getTarget 覆盖本实例默认终点 */
+  spawn(kind: ResourceKind, origin: THREE.Vector3, delay = 0, onArrive?: () => void, getTarget?: () => THREE.Vector3): void {
     const mesh = makeDropModel(kind);
     mesh.position.copy(origin);
     mesh.scale.setScalar(0.8);
     this.scene.add(mesh);
     const control = origin.clone();
     control.y += ARC_HEIGHT;
-    this.flights.push({ mesh, origin: origin.clone(), control, t: -delay, onArrive });
+    this.flights.push({ mesh, origin: origin.clone(), control, t: -delay, onArrive, getTarget });
   }
 
   update(delta: number): void {
-    this.target.copy(this.getTarget());
     for (let i = this.flights.length - 1; i >= 0; i--) {
       const f = this.flights[i];
       f.t += delta;
       if (f.t < 0) continue;
+      this.target.copy(f.getTarget ? f.getTarget() : this.getTarget());
       const k = Math.min(f.t / FLY_TIME, 1);
       // 二次贝塞尔:起点→头顶弧顶→玩家后背
       const inv = 1 - k;
