@@ -94,6 +94,16 @@ export class Inventory {
     while (this.slots.length < capacity) this.slots.push(null);
   }
 
+  /** 收缩到指定格数(卸下背包),被裁掉格子中的物品作为溢出返回 */
+  shrink(capacity: number): { kind: ResourceKind; count: number }[] {
+    if (capacity >= this.slots.length) return [];
+    const overflow: { kind: ResourceKind; count: number }[] = [];
+    for (const slot of this.slots.splice(capacity)) {
+      if (slot) overflow.push({ kind: slot.kind, count: slot.count });
+    }
+    return overflow;
+  }
+
   /** 放入道具(自动叠加),返回实际放入的数量,放不下的部分丢弃 */
   add(kind: ResourceKind, n = 1): number {
     let remain = n;

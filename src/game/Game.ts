@@ -41,7 +41,7 @@ import { Wind } from './fx/Wind';
 import { PondLife } from './fx/PondLife';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
-import { Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
+import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import { mulberry32 } from './core/rng';
@@ -847,8 +847,18 @@ export class Game {
       s.survival.state.thirst = p.thirst;
       s.survival.state.health = p.health;
       s.survival.state.stamina = p.stamina;
-      if (p.dead && !s.lastDead) s.player.setDead();
-      if (!p.dead && s.lastDead) s.player.respawn(new THREE.Vector3(p.x, p.y, p.z));
+      if (p.dead && !s.lastDead) {
+        s.player.setDead();
+        // 客人的死亡过渡由快照驱动,这里先于主循环消费 lastDead,须就地清摇杆
+        if (s === this.local) {
+          this.audio.play('death');
+          this.setJoystick(0, 0);
+        }
+      }
+      if (!p.dead && s.lastDead) {
+        s.player.respawn(new THREE.Vector3(p.x, p.y, p.z));
+        if (s === this.local) this.setJoystick(0, 0);
+      }
       s.survival.state.dead = p.dead;
       s.lastDead = p.dead;
     }
@@ -1875,11 +1885,18 @@ export class Game {
     s.inventory.onAdd = (kind, count) => {
       if (s === this.local) this.emitPickup(kind, count);
     };
-    // 穿戴变化即时反映到玩家模型;背包类装备同时扩容背包
+    // 穿戴变化即时反映到玩家模型;背包类装备扩容,卸下/换小背包则收缩并溢出掉落
     s.equipment.onChange = (slot, kind) => {
       s.player.setEquip(slot, kind);
       const cap = kind ? EQUIPMENT[kind].capacity : undefined;
       if (cap) s.inventory.setCapacity(cap);
+      if (slot === 'backpack') {
+        const target = cap ?? DEFAULT_CAPACITY;
+        for (const item of s.inventory.shrink(target)) {
+          // 掉落只在权威端生成,客人端由同步复现
+          if (!this.guestMode) this.drops.dropOverflow(item.kind, item.count, s);
+        }
+      }
     };
     s.collect = new CollectSystem(
       s.player,
