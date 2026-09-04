@@ -6,7 +6,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 10;
+export const NET_PROTOCOL_VERSION = 11;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -64,6 +64,7 @@ export type NetEvent =
   | { kind: 'feedback'; sfx: SfxName; actor: string; x: number; y: number; z: number }
   | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }
   | { kind: 'wildlifeHit'; target: string; damage: number; pounce: boolean }
+  | { kind: 'wildlifeAttack'; animalId: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'gm'; config: GmConfig }
   | { kind: 'bottle'; target: string; text: string };

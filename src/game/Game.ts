@@ -455,6 +455,7 @@ export class Game {
         }
         this.applyWildlifeHit(session, damage, !!pounce);
       },
+      (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
       (player: Player) => {
         const session = this.sessionOf(player);
         return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
@@ -1006,6 +1007,10 @@ export class Game {
       if (!s) return;
       if (event.pounce) s.player.applySlow(3);
       this.playWildlifeHitFeedback(s, Math.max(1, Math.round(event.damage)));
+      return;
+    }
+    if (event.kind === 'wildlifeAttack') {
+      this.wildlife.netPlayAttack(event.animalId);
       return;
     }
     // 交互音效只给发起者自己听:只有事件属于本地玩家时补播,其余只保留轻量粒子反馈

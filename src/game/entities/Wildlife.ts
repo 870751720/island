@@ -196,6 +196,8 @@ export class Wildlife implements Updatable {
     private players: () => Player[],
     /** 熊扑击命中玩家时对该玩家造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
     private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => void,
+    /** 熊开始普通挥击时通知联机层；这是短时动作，走可靠事件而不是姿态采样。 */
+    private onAttack: (animalId: number) => void,
     /** 某玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: (player: Player) => boolean,
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
@@ -396,6 +398,7 @@ export class Wildlife implements Updatable {
         if (animal.attackLeft <= 0) {
           animal.attackLeft = animal.config.attackCooldown;
           animal.lungeLeft = 0.35;
+          this.onAttack(animal.id);
           this.onPlayerHit(target!, animal.config.damage);
         }
       } else if (rushed) {
@@ -646,11 +649,19 @@ export class Wildlife implements Updatable {
     }
   }
 
+  /** 客人侧由可靠网络事件立即触发熊的普通挥击，不等待下一帧姿态快照。 */
+  netPlayAttack(id: number): void {
+    const animal = this.animals.find((candidate) => candidate.id === id);
+    if (!animal?.alive) return;
+    animal.lungeLeft = 0.35;
+  }
+
   /** 客人端只平滑权威姿态并播放视觉动画，不运行 AI 或伤害结算。 */
   netUpdate(delta: number, elapsed: number): void {
     const k = 1 - Math.exp(-14 * delta);
     for (const a of this.animals) {
       if (!a.alive) continue;
+      a.lungeLeft = Math.max(0, a.lungeLeft - delta);
       const beforeX = a.pos.x;
       const beforeZ = a.pos.z;
       a.pos.lerp(a.netPos, k);
