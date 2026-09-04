@@ -25,7 +25,13 @@ export const MEAT_KINDS: readonly ResourceKind[] = [
 /** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 / 背包放不下溢出 */
 export type DropSource = 'discarded' | 'loot' | 'overflow';
 
-export type DropInfo = { kind: ResourceKind; count: number; source: DropSource };
+export type DropInfo = {
+  kind: ResourceKind;
+  count: number;
+  source: DropSource;
+  /** 掉落物当前位置(入包飞行表现等用,引用自掉落物网格) */
+  position: THREE.Vector3;
+};
 
 type Drop = {
   /** 同步用短 id(房主递增分配,拾取时按 id 通知客人移除) */
@@ -117,7 +123,9 @@ export class DropSystem {
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (!nearest || drop.age > nearest.age) nearest = drop;
     }
-    return nearest ? { kind: nearest.kind, count: nearest.count, source: nearest.source } : null;
+    return nearest
+      ? { kind: nearest.kind, count: nearest.count, source: nearest.source, position: nearest.mesh.position }
+      : null;
   }
 
   /** 捡回附近掉落物;背包放不下时返回 false(掉落物留在地上) */

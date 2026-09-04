@@ -155,7 +155,9 @@ export class CollectSystem {
     /** 其他占用双手的行为(如合成中),为真时采集让位 */
     private isBusy: () => boolean = () => false,
     /** 将资源点处的命中/完成粒子同步给联机客人。 */
-    private onFx: (position: Vector3, color: string, count: number) => void = () => {}
+    private onFx: (position: Vector3, color: string, count: number) => void = () => {},
+    /** 资源点产出入包时上报飞行起点(本地玩家的入包飞行表现用) */
+    private onYield: (position: Vector3) => void = () => {}
   ) {}
 
   /** 手持锄头靠近浆果丛/灌木丛/草丛时是在挖整棵丛,而不是徒手采集 */
@@ -268,6 +270,7 @@ export class CollectSystem {
       return;
     }
     this.hitCounts.delete(prop);
+    this.onYield(prop.position);
     if (this.isDigging(prop)) {
       // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);

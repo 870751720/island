@@ -42,6 +42,7 @@ import { RainImpact } from './fx/RainImpact';
 import { Wind } from './fx/Wind';
 import { PondLife } from './fx/PondLife';
 import { Footprints } from './fx/Footprints';
+import { ItemFlyFx } from './fx/ItemFlyFx';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
@@ -196,6 +197,9 @@ export class Game {
   private local: PlayerSession;
   private props: Props;
   private fx: Particles;
+  private itemFly: ItemFlyFx;
+  /** 飞行终点复用向量(避免每帧分配) */
+  private itemFlyTarget = new THREE.Vector3();
   private audio = new GameAudio();
   private waterFx: WaterFx;
   private pondLife: PondLife;
@@ -387,6 +391,16 @@ export class Game {
     this.props = new Props(this.scene, terrain, !save);
     this.fx = new Particles(this.scene);
     this.waterFx = new WaterFx(this.scene, this.fx);
+    // 入包表现的目标点:玩家后背(朝向反方向、肩部高度),玩家移动时终点实时跟随
+    this.itemFly = new ItemFlyFx(this.scene, () => {
+      const p = this.player.group.position;
+      const rot = this.player.group.rotation.y;
+      return this.itemFlyTarget.set(
+        p.x - Math.sin(rot) * 0.45,
+        p.y + 1.5,
+        p.z - Math.cos(rot) * 0.45
+      );
+    });
 
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
@@ -576,6 +590,7 @@ export class Game {
         this.props.update(delta, elapsed, this.weather.wind);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
+        this.itemFly.update(delta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
         this.footprints.update(delta);
@@ -1309,9 +1324,19 @@ export class Game {
     saveAudioSettings(settings);
   }
 
-  /** 背包入包时在玩家头顶飘出图标与数量 */
+  /** 背包入包时道具模型飞向玩家后背,到达后头顶飘出图标与数量 */
   /** 本帧入包待合并的拾取项(同帧多种道具合并为一条提示) */
   private pendingPickups: { kind: ResourceKind; count: number }[] = [];
+  /** 本帧入包道具的飞行起点:采集/捡拾时为资源点/掉落物位置,帧末消费后清空。
+   * 客人端入包由 HUD 快照回流触发,起点要短暂保留等待快照到达 */
+  private pickupOrigin: THREE.Vector3 | null = null;
+  private pickupOriginUntil = 0;
+
+  /** 记录入包飞行起点(短时保留:客人端入包由快照回流,晚几帧才触发) */
+  private markPickupOrigin(position: THREE.Vector3): void {
+    this.pickupOrigin = position.clone();
+    this.pickupOriginUntil = performance.now() + 1000;
+  }
 
   private emitPickup(kind: ResourceKind, count: number): void {
     const existing = this.pendingPickups.find((p) => p.kind === kind);
@@ -1319,19 +1344,43 @@ export class Game {
     else this.pendingPickups.push({ kind, count });
   }
 
-  /** 帧末统一发出本帧的拾取提示:同一瞬间获得的多种道具合并为一条,避免重叠 */
-  private flushPickups(): void {
-    if (this.pendingPickups.length === 0) return;
+  /** 无明确起点时的兜底:道具从玩家身前出发(合成产出等来源) */
+  private defaultPickupOrigin(): THREE.Vector3 {
     const p = this.player.group.position;
-    const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
-    const w = this.renderer.domElement.clientWidth;
-    const h = this.renderer.domElement.clientHeight;
-    this.onPickup({
-      items: this.pendingPickups,
-      x: Math.round(((head.x + 1) / 2) * w),
-      y: Math.round(((1 - head.y) / 2) * h),
-    });
+    const rot = this.player.group.rotation.y;
+    return new THREE.Vector3(p.x + Math.sin(rot) * 0.9, p.y + 1, p.z + Math.cos(rot) * 0.9);
+  }
+
+  /** 帧末统一发出本帧的拾取:道具模型从起点错峰飞向玩家后背缩没,全部到达后合并飘一条提示 */
+  private flushPickups(): void {
+    if (this.pendingPickups.length === 0) {
+      if (this.pickupOrigin && performance.now() > this.pickupOriginUntil) this.pickupOrigin = null;
+      return;
+    }
+    const items = this.pendingPickups;
+    const origin = this.pickupOrigin ?? this.defaultPickupOrigin();
+    this.pickupOrigin = null;
     this.pendingPickups = [];
+    // 每件道具单独一个模型错峰起飞(同种数量多时最多 3 个),全部到达后合并飘一条提示
+    const spawns: { kind: ResourceKind; delay: number }[] = [];
+    for (const item of items) {
+      const n = Math.min(item.count, 3);
+      for (let j = 0; j < n; j++) spawns.push({ kind: item.kind, delay: spawns.length * 0.12 });
+    }
+    let remaining = spawns.length;
+    const arrive = () => {
+      if (--remaining > 0) return;
+      const p = this.player.group.position;
+      const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
+      const w = this.renderer.domElement.clientWidth;
+      const h = this.renderer.domElement.clientHeight;
+      this.onPickup({
+        items,
+        x: Math.round(((head.x + 1) / 2) * w),
+        y: Math.round(((1 - head.y) / 2) * h),
+      });
+    };
+    for (const s of spawns) this.itemFly.spawn(s.kind, origin, s.delay, arrive);
   }
 
   private resize(): void {
@@ -1796,8 +1845,12 @@ export class Game {
 
   /** 捡回附近掉落物(点「捡回」卡片),背包放不下则提示 */
   pickupDrop(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('pickupDrop', []);
+    // 客人端:动作上行车主权威结算,状态由快照回流;飞行起点取本地同步到的掉落物位置
+    if (this.guestNet) {
+      const near = this.drops.getNearby(this.local);
+      if (near) this.markPickupOrigin(near.position);
+      return this.guestNet.action('pickupDrop', []);
+    }
 
     const a = actor;
     if (this.asleepFor(a)) return false;
@@ -1807,6 +1860,7 @@ export class Game {
       this.notify('背包满了,装不下更多东西');
       return false;
     }
+    if (a === this.local) this.markPickupOrigin(near.position);
     return this.drops.pickupNearby(a);
   }
 
@@ -2058,7 +2112,9 @@ export class Game {
           color,
           count,
         });
-      }
+      },
+      // 只有本地玩家的采集产出需要飞行表现(客人由 HUD 快照差额自行触发)
+      s === this.local ? (position) => this.markPickupOrigin(position) : () => {}
     );
     s.crafting = new CraftingSystem(
       s.player,
