@@ -61,6 +61,12 @@ export class CreatureFx {
       fallToY: groundY ?? group.position.y,
       onDone,
     });
+    // 死亡即进入透明通道并重编译材质:渐隐期间只改 opacity,避免运行时切 transparent 的时序问题
+    for (const mat of this.deaths.get(group)!.materials) {
+      mat.transparent = true;
+      mat.opacity = 1;
+      mat.needsUpdate = true;
+    }
   }
 
   /** 受击闪红:材质自发光短暂泛红后恢复 */
@@ -106,11 +112,15 @@ export class CreatureFx {
         group.rotation.z = death.dir * roll;
         const fade = death.t - FALL_TIME - DEATH_HOLD;
         if (fade > 0) {
-          // 渐隐:逐材质降低不透明度,结束后隐藏
-          const opacity = Math.max(0, 1 - fade / FADE_TIME);
-          for (const mat of death.materials) {
-            mat.transparent = true;
-            mat.opacity = opacity;
+          // 渐隐:开方曲线前段掉得快(线性 alpha 在 1→0.6 区间肉眼几乎不可见,会把变化堆到最后一瞬)
+          const k = Math.min(1, fade / FADE_TIME);
+          const opacity = 1 - Math.sqrt(k);
+          for (const mat of death.materials) mat.opacity = opacity;
+          if (fade <= delta) {
+            // 渐隐开始的瞬间关掉投影:阴影无法随透明度变淡,留到结束会整块突然消失
+            group.traverse((obj) => {
+              if ((obj as THREE.Mesh).isMesh) obj.castShadow = false;
+            });
           }
           if (opacity <= 0) {
             group.visible = false;
