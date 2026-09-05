@@ -21,7 +21,7 @@ function createNoise(seed: number) {
 }
 
 /** 近岸抬升带宽:低于草线的低平地向岛内最多延伸这么多米 */
-const BEACH_WIDTH = 12;
+const BEACH_WIDTH = 22;
 /** 近岸抬升的满额高度:压过岛内噪声低谷,使 8 米外地面稳定高于草线 */
 const BEACH_RISE = 2.6;
 
