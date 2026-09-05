@@ -25,6 +25,7 @@ export type ResourceKind =
   | 'beehiveShrine'
   | 'healCrystal'
   | 'rainAltar'
+  | 'torch'
   | 'crabMeat'
   | 'birdMeat'
   | 'gameMeat'

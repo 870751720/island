@@ -460,3 +460,8 @@
 - 四档中鱼后进入 `treasure` 暂态(不立即入包):暂态随既有玩家 HUD 快照 `fishingState` 回流,目标珍宝经新增字段 `treasureKind` 下发,客人端转盘(本地表现)与房主落点一致。
 - 新增客人动作 `claimTreasure`:客人转盘转完点「收入背包」时上行,房主 `Game.claimTreasure` 以该客人的会话权威结算入包;入包飞行起点(浮漂点)与飘字复用既有 `onCatch`/快照回流管线,无新增事件。
 - 转盘期间房主端钓鱼保持 `isWorking` 占用;若会话被移动等打断,房主在本地 `update` 内直接代为结算,客人由快照对齐到 `reeling`。
+
+### M51 火把(2026-09-05)
+- 火把作为新 `ShrineKind 'torch'` 完全复用神龛联机链路,零新增协议。
+- 放置:客人背包「使用」走既有 `useShrine` action 上行,房主 `ShrineSystem.place` 权威结算;挖掘:房主/客人各自经 `updateActor` 本地挥击,实际移除与入包由所在端权威结算后经 `shrines` 世界增量快照(`add/remove`)回流对端补播,与波塞冬神像一致。
+- 火把 PointLight 为纯客户端表现,随神龛实体增删自动创建/销毁,不同步光强闪烁。

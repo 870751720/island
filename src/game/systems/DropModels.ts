@@ -29,6 +29,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   beehiveShrine: '#e8a13a',
   healCrystal: '#ff9ecb',
   rainAltar: '#6fa8dc',
+  torch: '#ff9d2e',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   gameMeat: '#b04a3a',
@@ -647,6 +648,20 @@ function makeShrineDrop(color: string, emissive: string, gemScaleY = 1): THREE.O
   return g;
 }
 
+/** 火把道具:横躺的迷你树枝,顶端一团未点燃的浸油布头 */
+function makeTorchDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const stick = mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.32, 4), clay('#8a6239'));
+  stick.rotation.z = Math.PI / 2;
+  stick.position.y = 0.05;
+  g.add(stick);
+  const wrap = mesh(new THREE.CylinderGeometry(0.04, 0.032, 0.09, 5), clay('#6b4a26'));
+  wrap.rotation.z = Math.PI / 2;
+  wrap.position.set(0.15, 0.05, 0);
+  g.add(wrap);
+  return g;
+}
+
 /** 工作台道具:小桌面 + 四条腿,等级越高桌面材质与点缀越讲究 */
 function makeWorkbenchDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
@@ -707,6 +722,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   beehiveShrine: () => makeShrineDrop(DROP_COLORS.beehiveShrine, '#9c6a1a', 1.3),
   healCrystal: () => makeShrineDrop(DROP_COLORS.healCrystal, '#c4537f', 1.7),
   rainAltar: () => makeShrineDrop(DROP_COLORS.rainAltar, '#2b5f9e', 1.5),
+  torch: makeTorchDrop,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,

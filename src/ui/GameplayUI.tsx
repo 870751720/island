@@ -24,6 +24,7 @@ const SHRINE_ITEM_KINDS: readonly ShrineKind[] = [
   'beehiveShrine',
   'healCrystal',
   'rainAltar',
+  'torch',
 ];
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { CampfirePanel } from './CampfirePanel';

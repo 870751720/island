@@ -33,6 +33,7 @@ type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; 
  * - 蜂巢神龛:全岛采集浆果丛时 10% 概率多掉 1 颗
  * - 治愈水晶:30 米内玩家缓慢回血
  * - 雨神祭坛:30 米内玩家口渴值不再下降
+ * - 火把:手搓的可插地摆件,小范围照明,永不熄灭(无祝福效果)
  */
 export class ShrineSystem {
   private shrines: Shrine[] = [];

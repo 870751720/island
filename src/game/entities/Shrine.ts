@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** 场上神龛的种类(与对应道具的持久化 ID 一致) */
-export type ShrineKind = 'poseidonBlessing' | 'beehiveShrine' | 'healCrystal' | 'rainAltar';
+export type ShrineKind = 'poseidonBlessing' | 'beehiveShrine' | 'healCrystal' | 'rainAltar' | 'torch';
 
 /** 各神龛的主题色(宝石、放置特效共用) */
 export const SHRINE_COLORS: Record<ShrineKind, string> = {
@@ -9,6 +9,7 @@ export const SHRINE_COLORS: Record<ShrineKind, string> = {
   beehiveShrine: '#e8a13a',
   healCrystal: '#ff9ecb',
   rainAltar: '#6fa8dc',
+  torch: '#ff9d2e',
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -33,7 +34,13 @@ function makeBase(): THREE.Group {
   return g;
 }
 
-type ShrineMesh = { group: THREE.Group; gem: THREE.Mesh; gemY: number };
+type ShrineMesh = {
+  group: THREE.Group;
+  gem: THREE.Mesh;
+  gemY: number;
+  /** 覆盖默认的宝石常驻表现(如火把的火焰摇曳) */
+  update?: (delta: number, elapsed: number, gem: THREE.Mesh, gemY: number) => void;
+};
 
 /** 波塞冬神像:蓝绿宝石座 + 三叉戟,插在浪花石上 */
 function makePoseidonMesh(): ShrineMesh {
@@ -123,11 +130,45 @@ function makeRainAltarMesh(): ShrineMesh {
   return { group, gem, gemY: 0.74 };
 }
 
+/** 火把:插地的树枝顶着永不熄灭的火苗,小范围照亮四周 */
+function makeTorchMesh(): ShrineMesh {
+  const group = new THREE.Group();
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 1.0, 5), clayMaterial('#8a6239'));
+  stick.position.y = 0.5;
+  stick.castShadow = true;
+  group.add(stick);
+  // 缠在顶端的浸油布头
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.18, 5), clayMaterial('#6b4a26'));
+  wrap.position.y = 0.98;
+  group.add(wrap);
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), gemMaterial('#ffb84d', '#ff7b1c'));
+  gem.scale.y = 1.7;
+  gem.position.y = 1.18;
+  group.add(gem);
+  const light = new THREE.PointLight('#ff9d2e', 1.2, 4.5, 1.5);
+  light.position.y = 1.2;
+  group.add(light);
+  return {
+    group,
+    gem,
+    gemY: 1.18,
+    update: (delta, elapsed, flame, flameY) => {
+      // 火苗摇曳 + 光强轻微抖动
+      const flicker = 1 + Math.sin(elapsed * 11) * 0.08 + Math.sin(elapsed * 23) * 0.05;
+      flame.scale.set(flicker, 1 / flicker, flicker);
+      flame.rotation.y += delta * 3;
+      light.intensity = 1.2 * flicker;
+      flame.position.y = flameY + Math.sin(elapsed * 9) * 0.02;
+    },
+  };
+}
+
 const BUILDERS: Record<ShrineKind, () => ShrineMesh> = {
   poseidonBlessing: makePoseidonMesh,
   beehiveShrine: makeBeehiveMesh,
   healCrystal: makeHealCrystalMesh,
   rainAltar: makeRainAltarMesh,
+  torch: makeTorchMesh,
 };
 
 /** 场景中的神龛摆件(可放置多个);kind 决定造型与提供的祝福 */
@@ -136,6 +177,7 @@ export class Shrine {
   readonly kind: ShrineKind;
   private gem: THREE.Mesh;
   private gemY: number;
+  private customUpdate?: NonNullable<ShrineMesh['update']>;
 
   constructor(scene: THREE.Scene, position: THREE.Vector3, kind: ShrineKind) {
     this.kind = kind;
@@ -147,10 +189,15 @@ export class Shrine {
     this.group.add(built.group);
     this.gem = built.gem;
     this.gemY = built.gemY;
+    this.customUpdate = built.update;
   }
 
-  /** 宝石缓慢旋转、微微起伏的常驻表现 */
+  /** 宝石缓慢旋转、微微起伏的常驻表现(火把为火苗摇曳) */
   update(delta: number, elapsed: number): void {
+    if (this.customUpdate) {
+      this.customUpdate(delta, elapsed, this.gem, this.gemY);
+      return;
+    }
     this.gem.rotation.y += delta * 1.2;
     this.gem.position.y = this.gemY + Math.sin(elapsed * 2) * 0.03;
   }

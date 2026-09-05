@@ -174,6 +174,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     description:
       '供奉雨神的蓝陶钵。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间 30 米内的所有玩家口渴值不再下降。',
   },
+  torch: {
+    kind: 'torch',
+    name: '火把',
+    icon: '🔥',
+    description:
+      '树枝缠布做成的火把。点击「使用」把它插到脚下(不能在水里),周围会被暖暖的火光照亮,火把永不熄灭;手持锄头靠近可以把它挖走。',
+  },
   crabMeat: {
     kind: 'crabMeat',
     name: '蟹肉',

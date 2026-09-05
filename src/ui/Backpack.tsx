@@ -57,7 +57,8 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'poseidonBlessing' ||
     kind === 'beehiveShrine' ||
     kind === 'healCrystal' ||
-    kind === 'rainAltar'
+    kind === 'rainAltar' ||
+    kind === 'torch'
   );
 }
 

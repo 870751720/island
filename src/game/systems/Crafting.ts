@@ -25,6 +25,7 @@ export type CraftId =
   | 'baitCrab'
   | 'baitBird'
   | 'baitGame'
+  | 'torch'
   | EquipKind;
 
 export type Recipe = {
@@ -103,6 +104,15 @@ export const RECIPES: Recipe[] = [
     station: 'hand',
     promptPriority: 3,
     tool: 'hoe',
+    hidePrompt: true,
+  },
+  {
+    id: 'torch',
+    name: '火把',
+    cost: { wood: 1, flint: 1 },
+    station: 'hand',
+    output: 'torch',
+    promptPriority: 4,
     hidePrompt: true,
   },
   {
