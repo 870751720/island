@@ -54,6 +54,7 @@ export class EatingSystem {
       this.food = null;
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
+        this.audio.play('eatFinish');
       }
     }
   }

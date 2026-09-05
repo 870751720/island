@@ -454,10 +454,10 @@ export class Wildlife implements Updatable {
         let speed = animal.config.rushSpeed;
         if (hostile) {
           if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
-            // 扑击窗口:中距离人立蓄力后腾跃,伴随咆哮威慑
+            // 扑击窗口:中距离人立蓄力后腾跃,用短低吼预警而不重复完整咆哮
             animal.attackLeft = animal.config.attackCooldown;
             animal.pounce = { phase: 'windup', left: BEAR_POUNCE_WINDUP, dir: 0 };
-            this.roar(animal);
+            this.roar(animal, true);
           } else {
             if (animal.stamina > 0) {
               // 冲刺:体力按秒耗,耗尽转入喘息;暴怒期额外加速;身后扬尘
@@ -574,8 +574,8 @@ export class Wildlife implements Updatable {
     animal.model.tail.rotation.y = Math.sin(elapsed * 3 + animal.phase) * 0.3;
   }
 
-  /** 熊咆哮:吼声 + 口鼻扬尘 + 昂首动画(警戒/暴怒/扑击蓄力时触发) */
-  private roar(animal: Animal): void {
+  /** 熊咆哮:警戒/暴怒播完整咆哮,扑击蓄力只播短低吼 */
+  private roar(animal: Animal, short = false): void {
     animal.roared = true;
     animal.roarLeft = 0.6;
     const head = animal.pos.clone();
@@ -583,7 +583,7 @@ export class Wildlife implements Updatable {
     head.z += Math.sin(animal.heading) * 0.6;
     head.y += 1.1;
     this.fx.burst(head, '#a08b6f', 6);
-    this.playSound('roar', animal.pos.x, animal.pos.z);
+    this.playSound(short ? 'bearGrowl' : 'roar', animal.pos.x, animal.pos.z);
   }
 
   /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离) */

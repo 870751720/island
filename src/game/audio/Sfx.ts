@@ -10,6 +10,7 @@ export type SfxName =
   | 'stoke' // 添柴:木柴落火与火焰腾起
   | 'sizzle' // 烹饪:食材下锅的滋滋油响
   | 'munch' // 进食
+  | 'eatFinish' // 进食完成:吞咽与满足收尾
   | 'drink' // 喝下一轮水
   | 'whoosh' // 抛竿挥动
   | 'shoot' // 放箭:弦弹与箭矢破空
@@ -20,7 +21,8 @@ export type SfxName =
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
   | 'hurt' // 受伤闷哼
-  | 'roar' // 熊咆哮(警戒/中箭暴怒/扑击前摇)
+  | 'roar' // 熊完整咆哮(警戒/中箭暴怒)
+  | 'bearGrowl' // 熊扑击前的短促低吼
   | 'snore' // 睡觉打呼
   | 'death'; // 死亡
 
@@ -33,6 +35,7 @@ const VOL: Record<SfxName, number> = {
   stoke: 0.55,
   sizzle: 0.4,
   munch: 0.5,
+  eatFinish: 0.42,
   drink: 0.55,
   whoosh: 0.4,
   shoot: 0.45,
@@ -44,6 +47,7 @@ const VOL: Record<SfxName, number> = {
   success: 0.45,
   hurt: 0.5,
   roar: 0.55,
+  bearGrowl: 0.48,
   snore: 0.75,
   death: 0.5,
 };
@@ -144,6 +148,13 @@ export class Sfx {
           noiseBurst(this.ctx, dest, bt + 0.02, { attack: 0.02, decay: 0.08, peak: v * 0.35 }, 'bandpass', detune(1300), 600);
         }
         break;
+      case 'eatFinish':
+        // 吃完收尾:柔和的吞咽下滑,接两个轻快上行音,避免像任务完成提示
+        noiseBurst(this.ctx, dest, t, { attack: 0.015, decay: 0.11, peak: v * 0.35 }, 'bandpass', detune(720), 360, 1.3);
+        tone(this.ctx, dest, detune(520), t + 0.015, { attack: 0.012, decay: 0.16, peak: v * 0.42 }, 'sine', detune(330));
+        pianoTone(this.ctx, dest, midiToFreq(76), t + 0.13, 0.32, v * 0.42);
+        pianoTone(this.ctx, dest, midiToFreq(81), t + 0.23, 0.38, v * 0.34);
+        break;
       case 'drink':
         // 「咕咕」吞咽贯穿整轮喝水:八声水泡音由低滑高,间隔铺满约 2 秒的喝水时长
         for (let i = 0; i < 8; i++) {
@@ -201,10 +212,16 @@ export class Sfx {
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
       case 'roar':
-        // 熊吼:两声失谐低频嘶吼先后下坠 + 喉腔噪声滚压,粗粝压迫感
-        tone(this.ctx, dest, detune(165), t, { attack: 0.03, decay: 0.55, peak: v }, 'sawtooth', 72);
-        tone(this.ctx, dest, detune(112), t + 0.05, { attack: 0.04, decay: 0.5, peak: v * 0.8 }, 'sawtooth', 52);
-        noiseBurst(this.ctx, dest, t, { attack: 0.03, decay: 0.48, peak: v * 0.65 }, 'bandpass', 420, 190, 1.6);
+        // 完整熊吼:用正弦/三角波的喉腔共鸣取代电子感明显的锯齿波,沙哑尾音缓慢下沉
+        tone(this.ctx, dest, detune(150), t, { attack: 0.11, decay: 0.95, peak: v * 0.9 }, 'triangle', 68);
+        tone(this.ctx, dest, detune(225), t + 0.04, { attack: 0.09, decay: 0.78, peak: v * 0.55 }, 'sine', 92);
+        noiseBurst(this.ctx, dest, t + 0.03, { attack: 0.13, decay: 0.85, peak: v * 0.72 }, 'bandpass', detune(520), 310, 1.2);
+        noiseBurst(this.ctx, dest, t + 0.36, { attack: 0.05, decay: 0.62, peak: v * 0.35 }, 'bandpass', detune(310), 180, 1.8);
+        break;
+      case 'bearGrowl':
+        // 扑击前短低吼:只做威胁预告,不重复播放一整段咆哮
+        tone(this.ctx, dest, detune(175), t, { attack: 0.035, decay: 0.3, peak: v * 0.78 }, 'triangle', 92);
+        noiseBurst(this.ctx, dest, t, { attack: 0.04, decay: 0.28, peak: v * 0.58 }, 'bandpass', detune(460), 260, 1.5);
         break;
       case 'snore': {
         // 打呼:低频正弦垫底 + 喉腔滚动的带通噪声(软腭颤动),一声「呼——噜」
