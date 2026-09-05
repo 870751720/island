@@ -45,6 +45,11 @@ export class OceanMaterial {
            uniform float uHalfExtent;
            varying vec2 vOceanWorld;
 
+           // 静态哈希噪声,用来打散泡沫边缘
+           float oceanHash(vec2 p) {
+             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+           }
+
            // 世界坐标处的归一化深度:纹理覆盖外明确返回深海,不延伸边缘
            float oceanDepth(vec2 p) {
              vec2 uv = p / (2.0 * uHalfExtent) + 0.5;
@@ -63,6 +68,14 @@ export class OceanMaterial {
              diffuseColor.rgb = mix(shallow, deep, smoothstep(0.06, 0.6, d));
              // 边缘水深约 0.67(1.75/2.6),过渡在其之前完成,遮住方形海底终止线
              diffuseColor.a = mix(0.55, 1.0, smoothstep(0.22, 0.55, d));
+
+             // 岸边泡沫线:近岸窄带内一条随时间向岸推进再退去的湿边,
+             // 噪声既错开各处相位也打散轮廓,避免一条均匀的死白线
+             float n = oceanHash(floor(vOceanWorld * 6.0));
+             float band = 1.0 - smoothstep(0.012, 0.07 + n * 0.03, d);
+             float sweep = sin(d * 70.0 - uTime * 0.8 + n * 6.283) * 0.5 + 0.5;
+             float edge = band * smoothstep(0.35, 0.9, sweep);
+             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.97, 0.97), edge * 0.65);
            }`
         )
         .replace(
