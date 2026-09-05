@@ -190,6 +190,7 @@ export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: n
 /** 地图只读快照：UI 定时读取当前已同步到本机的玩家与放置物位置。 */
 export type MapSnapshot = {
   island: { width: number; length: number };
+  terrain: { columns: number; rows: number; pixels: Uint8Array };
   localPlayerId: string;
   players: { id: string; name: string; x: number; z: number; dead: boolean }[];
   workbenches: { x: number; z: number }[];
@@ -228,6 +229,7 @@ export class Game {
   private loop = new GameLoop();
   /** 全部玩家会话(下标 0 为本地玩家;联机时由房主持有远程会话) */
   private sessions: PlayerSession[] = [];
+  private mapTerrain?: MapSnapshot['terrain'];
   private local: PlayerSession;
   private props: Props;
   private fx: Particles;
@@ -241,8 +243,24 @@ export class Game {
 
   /** 获取地图表现所需的即时状态；客人端读取的玩家/设施均已由房主快照回流。 */
   getMapSnapshot(): MapSnapshot {
+    if (!this.mapTerrain) {
+      const columns = 100;
+      const rows = 500;
+      const pixels = new Uint8Array(columns * rows);
+      for (let row = 0; row < rows; row++) {
+        const z = -this.terrain.halfLength + ((row + 0.5) / rows) * this.terrain.length;
+        for (let column = 0; column < columns; column++) {
+          const x = -this.terrain.halfWidth + ((column + 0.5) / columns) * this.terrain.width;
+          const water = this.terrain.getWaterKind(x, z);
+          const height = this.terrain.getHeight(x, z);
+          pixels[row * columns + column] = water === 'pond' ? 4 : water === 'sea' ? 0 : height < 0.05 ? 1 : height < 1.8 ? 2 : 3;
+        }
+      }
+      this.mapTerrain = { columns, rows, pixels };
+    }
     return {
       island: { width: this.terrain.width, length: this.terrain.length },
+      terrain: this.mapTerrain,
       localPlayerId: this.local.id,
       players: this.sessions.map((session) => ({
         id: session.id,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { MapSnapshot } from '@/game/Game';
 
 type MapPanelProps = {
@@ -23,7 +24,37 @@ export function MapIcon({ size = 24 }: { size?: number }) {
 
 const MINI_VIEW_METERS = 180;
 
+const TERRAIN_COLORS = ['#6caec5', '#ead394', '#9dbb6c', '#628c4e', '#4f9dbb'] as const;
+
+/** 把游戏地形的真实采样栅格转为贴图；同一种子只生成一次。 */
+function useTerrainImage(snapshot: MapSnapshot): string {
+  return useMemo(() => {
+    const { columns, rows, pixels } = snapshot.terrain;
+    const canvas = document.createElement('canvas');
+    canvas.width = columns;
+    canvas.height = rows;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+    const image = context.createImageData(columns, rows);
+    const rgb = TERRAIN_COLORS.map((color) => [
+      Number.parseInt(color.slice(1, 3), 16),
+      Number.parseInt(color.slice(3, 5), 16),
+      Number.parseInt(color.slice(5, 7), 16),
+    ]);
+    for (let index = 0; index < pixels.length; index++) {
+      const color = rgb[pixels[index]] ?? rgb[0];
+      image.data[index * 4] = color[0];
+      image.data[index * 4 + 1] = color[1];
+      image.data[index * 4 + 2] = color[2];
+      image.data[index * 4 + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
+    return canvas.toDataURL();
+  }, [snapshot.terrain]);
+}
+
 function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: boolean }) {
+  const terrainImage = useTerrainImage(snapshot);
   const local = snapshot.players.find((player) => player.id === snapshot.localPlayerId) ?? snapshot.players[0];
   if (!local) return null;
 
@@ -39,8 +70,8 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
   const py = (z: number) => height / 2 + (z - local.z) * scale;
   const markerSize = expanded ? 8 : 6;
   const labelSize = expanded ? 11 : 8;
-  const islandX = px(0);
-  const islandY = py(0);
+  const mapX = px(-snapshot.island.width / 2);
+  const mapY = py(-snapshot.island.length / 2);
 
   return (
     <svg
@@ -60,15 +91,17 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
         </filter>
       </defs>
       <rect width={width} height={height} fill={`url(#waves-${expanded})`} />
-      <ellipse
-        cx={islandX}
-        cy={islandY}
-        rx={(snapshot.island.width / 2) * scale}
-        ry={(snapshot.island.length / 2) * scale}
-        fill="#9dbb6c"
-        stroke="#ead394"
-        strokeWidth={expanded ? 7 : 4}
-      />
+      {terrainImage && (
+        <image
+          href={terrainImage}
+          x={mapX}
+          y={mapY}
+          width={snapshot.island.width * scale}
+          height={snapshot.island.length * scale}
+          preserveAspectRatio="none"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
 
       {snapshot.workbenches.map((point, index) => (
         <g key={`workbench-${index}`} transform={`translate(${px(point.x)} ${py(point.z)})`} filter={`url(#shadow-${expanded})`}>
