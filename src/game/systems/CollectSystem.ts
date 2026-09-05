@@ -206,14 +206,17 @@ export class CollectSystem {
 
     const working =
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
+    const wasWorking = this.workingNow;
     this.workingNow = working;
-    this.player.setAction(
-      working
-        ? this.nearby && this.isDigging(this.nearby)
-          ? 'mine'
-          : HARVEST_CONFIG[kindOf(this.nearby!)].action
-        : null
-    );
+    // 只在作业期间持有动作、结束时清一次;不作业时不能每帧清动作,
+    // 否则会把挥剑/放箭等其他系统刚设的动作抹掉(动画只播一帧)
+    if (working) {
+      this.player.setAction(
+        this.isDigging(this.nearby!) ? 'mine' : HARVEST_CONFIG[kindOf(this.nearby!)].action
+      );
+    } else if (wasWorking) {
+      this.player.setAction(null);
+    }
     if (!working) {
       this.swingTimer = 0;
       return;
