@@ -39,6 +39,8 @@ export class PlayerSession implements Actor {
   lastDead = false;
   /** 联机死亡后的重生倒计时（秒）；0 表示无需重生。 */
   respawnLeft = 0;
+  /** 权威端的放箭动画剩余时长(客人射箭由客人本地判定,房主只补动作快照) */
+  shotAnimLeft = 0;
 
   constructor(player: Player, id = crypto.randomUUID(), name = '岛友') {
     this.player = player;

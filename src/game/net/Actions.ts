@@ -52,6 +52,11 @@ export const ACTIONS: Record<string, NetAction> = {
     a.archery.settleNetHit(hit, x as number, z as number);
     return true;
   },
+  // 客人放箭的视觉广播:房主补动作与箭矢复现并转发给其他客人(命中走 arrowHit)
+  arrowShot: (g, a, [dx, dz]) => {
+    g.netArrowShot(a, dx as number, dz as number);
+    return true;
+  },
   gmSpawnAnimal: (g, a, [species]) => {
     g.gmSpawnAnimalFor(species as AnimalSpecies, a);
     return true;

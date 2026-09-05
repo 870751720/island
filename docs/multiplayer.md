@@ -372,3 +372,9 @@
 - 移除「房主为每个会话独立模拟射箭」:房主只跑本地玩家的弓,客人的弓只在客人端跑;远程玩家的箭矢在他端不再有飞行表现(其放箭声效仍由 feedback 事件补播,受击/死亡由快照回流)。
 - `NET_PROTOCOL_VERSION` 升至 14:`AnimalPose` 新增可选 `species`(房主运行时新生成的动物——如 GM 生成——客人端按快照补建模型)。
 - GM 动物生成(同批):GM 面板新增「动物」页,在玩家附近草地生成指定物种;客人端上行 `gmSpawnAnimal {species}` 由房主结算(见 `docs/gm-panel.md`)。
+
+### M36 互相可见的放箭表现(2026-09-05)
+
+- 修复:M35 重做后客人的弓只在客人端跑,房主看不到客人的放箭动作,两端也看不到彼此的箭矢飞行。
+- 方案:放箭瞬间广播纯视觉信息——本地玩家放箭时触发 `BowSystem.onShot` 回调(房主直接 `broadcastEvent`,客人上行新动作 `arrowShot {dx, dz}` 由房主 `Game.netArrowShot` 转发事件给其他客人)。各端收到 `arrowShot` 事件(或房主收到动作)后为该玩家调用 `archery.netPlayShot` 复现一支**纯视觉箭矢**(只飞行插地,不做命中判定,避免与射手端判定重复结算),射手本人过滤自己的回声。
+- 放箭动作:房主为客人的会话维护 0.35s 放箭动画窗口(`PlayerSession.shotAnimLeft`,主循环内推进并写入 `action` 快照),客人与其他客人经既有姿态快照看到 `shoot` 动作;房主自己的动作本就来自本地模拟。命中结算路径(arrowHit)不变。`NET_PROTOCOL_VERSION` 升至 15。

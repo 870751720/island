@@ -8,7 +8,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 14;
+export const NET_PROTOCOL_VERSION = 15;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -68,6 +68,8 @@ export type NetEvent =
   | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }
   | { kind: 'wildlifeHit'; target: string; damage: number; pounce: boolean }
   | { kind: 'wildlifeAttack'; animalId: number }
+  /** 玩家放箭的视觉广播(命中由射手端判定、arrowHit 动作结算):他人端复现箭矢飞行与放箭动作 */
+  | { kind: 'arrowShot'; actor: string; dx: number; dz: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }

@@ -609,6 +609,13 @@ export class Game {
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
           this.activeNetActor = s;
+          // 客人放箭的动作快照:客人射箭在客人端判定,房主按 arrowShot 动作补放箭动画窗口
+          if (s !== this.local) {
+            if (s.shotAnimLeft > 0) {
+              s.shotAnimLeft = Math.max(0, s.shotAnimLeft - delta);
+              s.player.setAction(s.shotAnimLeft > 0 ? 'shoot' : null);
+            }
+          }
           // 交互音效只给发起者本人听:远程会话的模拟音效本地静音,只广播给对应客人补播
           this.audio.silent = s !== this.local;
           s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
@@ -1075,6 +1082,12 @@ export class Game {
       this.wildlife.netPlayAttack(event.animalId);
       return;
     }
+    // 他人放箭:本地复现箭矢飞行(放箭动作随姿态快照回流,命中由射手端判定)
+    if (event.kind === 'arrowShot') {
+      if (event.actor === this.local.id) return;
+      this.sessions.find((s) => s.id === event.actor)?.archery.netPlayShot(event.dx, event.dz);
+      return;
+    }
     // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
     if (event.kind === 'reviveFx') {
       const s = this.sessions.find((x) => x.id === event.target);
@@ -1226,6 +1239,13 @@ export class Game {
       autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
       notice: this.notice,
     });
+  }
+
+  /** 房主收到客人放箭动作:补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
+  netArrowShot(actor: PlayerSession, dx: number, dz: number): void {
+    actor.shotAnimLeft = 0.35;
+    actor.archery.netPlayShot(dx, dz);
+    this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
   }
 
   /** 熊击某玩家的最终结算:减伤掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
@@ -2339,6 +2359,13 @@ export class Game {
               Math.round(x * 10) / 10,
               Math.round(z * 10) / 10,
             ])
+        : undefined,
+      // 本地玩家放箭时广播视觉(客人上行动作由房主转发,房主直接广播事件)
+      s === this.local
+        ? (dx, dz) => {
+            if (this.guestNet) this.guestNet.action('arrowShot', [dx, dz]);
+            else this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: s.id, dx, dz });
+          }
         : undefined
     );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio);

@@ -112,6 +112,8 @@ type Arrow = {
   left: number;
   /** 上一帧位置,扫掠判定用 */
   prev: THREE.Vector3;
+  /** 纯视觉箭(他人射出的表现复现):只飞行插地,不做命中判定 */
+  visual: boolean;
   /** 命中目标未杀死(生物已移动)时插在地上等消失 */
   stuck: number;
 };
@@ -152,7 +154,9 @@ export class BowSystem {
       z: number
     ) => void,
     /** 客人端注入:本地判定命中后上行房主权威结算(扣箭/伤害/掉落) */
-    private onNetHit?: (hit: ArrowHit, x: number, z: number) => void
+    private onNetHit?: (hit: ArrowHit, x: number, z: number) => void,
+    /** 放箭瞬间回调(联机广播用):参数为瞄准方向与出手点 */
+    private onShot?: (dirX: number, dirZ: number) => void
   ) {
     this.guide = new AimGuide(terrain);
     this.scene.add(this.guide.group);
@@ -249,6 +253,28 @@ export class BowSystem {
       dir: new THREE.Vector3(this.aimDir.x, 0, this.aimDir.y),
       left: RANGE + 0.8,
       prev: this.tmpV.clone(),
+      visual: false,
+      stuck: 0,
+    });
+    this.onShot?.(this.aimDir.x, this.aimDir.y);
+  }
+
+  /** 复现他人射出的箭:纯视觉飞行插地,不做命中判定(命中已在射手端判定、房主结算) */
+  netPlayShot(dirX: number, dirZ: number): void {
+    const len = Math.hypot(dirX, dirZ);
+    if (len < 0.001) return;
+    const group = makeArrowModel();
+    const p = this.player.group.position;
+    this.tmpV.set(p.x, p.y + 1.1, p.z);
+    group.position.copy(this.tmpV);
+    this.scene.add(group);
+    this.arrows.push({
+      group,
+      pos: this.tmpV.clone(),
+      dir: new THREE.Vector3(dirX / len, 0, dirZ / len),
+      left: RANGE + 0.8,
+      prev: this.tmpV.clone(),
+      visual: true,
       stuck: 0,
     });
   }
@@ -269,7 +295,7 @@ export class BowSystem {
       arrow.group.position.copy(arrow.pos);
       arrow.group.quaternion.setFromUnitVectors(this.up, arrow.dir);
 
-      const hit = this.sweepHit(arrow);
+      const hit = arrow.visual ? null : this.sweepHit(arrow);
       if (hit) {
         this.resolveHit(hit, arrow, i);
         continue;
