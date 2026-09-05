@@ -19,6 +19,7 @@ export const ACTIONS: Record<string, NetAction> = {
   eatFood: (g, a, [kind]) => g.eatFood(kind as ResourceKind | undefined, a),
   startFishing: (g, a) => g.startFishing(a),
   hookFish: (g, a) => g.hookFish(a),
+  claimTreasure: (g, a) => g.claimTreasure(a),
   sleep: (g, a) => g.sleep(a),
   useCrate: (g, a) => g.useCrate(a),
   useWorkbenchItem: (g, a, [kind]) => g.useWorkbenchItem(kind as ResourceKind, a),

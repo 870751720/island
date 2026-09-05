@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import type { IslandTerrain } from '../world/IslandTerrain';
-import type { Inventory } from './Inventory';
+import type { Inventory, ResourceKind } from './Inventory';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -33,7 +33,7 @@ const CAST_MIN_RANGE = 2;
 /** 水岸资格与抛竿射线的采样间隔；足够细以避免低模岸线漏判。 */
 const WATER_TRACE_STEP = 0.1;
 
-export type FishingState = 'casting' | 'waiting' | 'bite' | 'reeling';
+export type FishingState = 'casting' | 'waiting' | 'bite' | 'treasure' | 'reeling';
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -128,6 +128,11 @@ export class FishingSystem {
     return this.tier;
   }
 
+  /** 四档珍宝转盘的目标道具(供 HUD 弹转盘),非珍宝等待转盘态为 null */
+  get treasureLoot(): ResourceKind | null {
+    return this.state === 'treasure' ? this.loot!.kind : null;
+  }
+
   /** 进度 0-1:抛竿/咬钩倒计时,等待/收线/空闲为 null */
   getProgress(): number | null {
     if (this.state === 'casting') return Math.min(this.timer / this.castTime, 1);
@@ -190,16 +195,34 @@ export class FishingSystem {
 
   private bobberTarget = new THREE.Vector3();
 
-  /** 咬钩窗口内点击屏幕任意处调用,累计点击;达到次数立刻结算入包并转入收线表现 */
+  /** 咬钩窗口内点击屏幕任意处调用,累计点击;达到次数结算:四档弹转盘暂缓入包,其余立刻入包 */
   hook(): boolean {
     if (this.state !== 'bite') return false;
     this.clicks++;
     if (this.clicks < TIER_BITE[this.tier].clicks) return false;
-    this.state = 'reeling';
-    this.timer = 0;
     this.audio.play('splash');
     this.waterFx.splash(this.bobberTarget);
-    // 中鱼即入包:入包飞行(浮漂点起飞)由外层 onAdd 驱动,这里只交代起点
+    if (this.tier === 4) {
+      // 稀世珍宝:中鱼不直接结算,弹转盘后由 claimTreasure 按转出的结果入包
+      this.state = 'treasure';
+      this.timer = 0;
+      return true;
+    }
+    this.settleCatch();
+    return true;
+  }
+
+  /** 四档转盘转完后结算入包并转入收线表现 */
+  claimTreasure(): boolean {
+    if (this.state !== 'treasure') return false;
+    this.settleCatch();
+    return true;
+  }
+
+  /** 中鱼结算:入包飞行(浮漂点起飞)由外层 onCatch 驱动,这里只交代起点 */
+  private settleCatch(): void {
+    this.state = 'reeling';
+    this.timer = 0;
     this.onCatch(this.bobberTarget);
     const added = this.inventory.add(this.loot!.kind, 1);
     if (added === 0) {
@@ -207,14 +230,15 @@ export class FishingSystem {
       this.audio.play('drop');
       this.fx.burst(this.bobberTarget, '#b5b0a8', 8);
     }
-    return true;
   }
 
   /** 移动或其他占用双手的行为会中断钓鱼 */
   update(delta: number, busy: boolean): void {
     if (!this.state) return;
     if (this.player.isMoving || this.player.isSwimming || this.player.currentTool !== 'fishingrod' || busy) {
-      this.stop();
+      // 珍宝已咬死在钩上:即便被移动等打断也照常入包,只有转盘前才可能跑鱼
+      if (this.state === 'treasure') this.claimTreasure();
+      else this.stop();
       return;
     }
     this.player.setAction(this.state === 'casting' ? 'cast' : 'fish');
@@ -279,6 +303,12 @@ export class FishingSystem {
           this.waterFx.ripple(this.bobberTarget.x, this.bobberTarget.y, this.bobberTarget.z);
           this.stop();
         }
+        break;
+      }
+      case 'treasure': {
+        // 等玩家转转盘:浮漂被珍宝拽得缓慢下沉晃动,不超时
+        this.bobber!.position.y =
+          this.bobberTarget.y - 0.15 + Math.sin(this.timer * 6) * 0.04;
         break;
       }
       case 'reeling': {
@@ -366,6 +396,20 @@ export class FishingSystem {
         this.clicks = clicks;
         this.tease = null;
         this.audio.play('bite');
+        this.bobber!.position.y = this.bobberTarget.y - 0.15;
+        this.waterFx.splash(this.bobberTarget);
+      }
+      return;
+    }
+    if (state === 'treasure') {
+      // 房主已连点完成、珍宝待转盘:本地同步进入暂缓态,转盘结果由 HUD 快照回流对齐
+      this.tier = tier;
+      if (this.state === 'bite' || this.state === null) {
+        if (this.state === null) this.netEnter();
+        this.state = 'treasure';
+        this.timer = 0;
+        this.tease = null;
+        this.audio.play('splash');
         this.bobber!.position.y = this.bobberTarget.y - 0.15;
         this.waterFx.splash(this.bobberTarget);
       }

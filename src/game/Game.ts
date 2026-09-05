@@ -160,6 +160,8 @@ export type HudSnapshot = {
   biteActive: boolean;
   biteClicks: number;
   biteNeed: number;
+  /** 四档珍宝转盘的目标道具(非转盘态为 null,客人端随快照回流) */
+  treasureKind: ResourceKind | null;
   /** 玩家附近可捡回的掉落物,无时为 null */
   nearDrop: DropInfo | null;
   /** 通用临时提示(自动消失),如「背包满了」 */
@@ -1775,6 +1777,13 @@ export class Game {
     return actor.fishing.hook();
   }
 
+  /** 四档珍宝转盘转完后结算入包(客人端动作上行,房主权威结算) */
+  claimTreasure(actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('claimTreasure', []);
+
+    return actor.fishing.claimTreasure();
+  }
+
   /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */
   gmGiveItem(kind: ResourceKind, count: number, actor: Actor = this.local): void {
     // 客人端:动作上行车主权威结算,状态由快照回流
@@ -2620,6 +2629,7 @@ export class Game {
       biteActive: s.fishing.currentState === 'bite',
       biteClicks: s.fishing.biteClicks,
       biteNeed: s.fishing.biteNeed,
+      treasureKind: s.fishing.treasureLoot,
       nearDrop: this.drops.getNearby(s),
       day: this.dayNight.day,
       busy,
@@ -2799,7 +2809,9 @@ export class Game {
               ? session.fishing.biteNeed > 1
                 ? `咬钩了!快连点屏幕!${session.fishing.biteClicks}/${session.fishing.biteNeed}`
                 : '咬钩了!快点击屏幕!'
-              : '收线…';
+              : s === 'treasure'
+                ? '转珍宝转盘中…'
+                : '收线…';
       progress = session.fishing.getProgress();
       color = tease?.color;
     } else if (nearby && session.collect.canCollect(nearby)) {

@@ -30,6 +30,7 @@ import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
+import { TreasureWheel } from './TreasureWheel';
 import { DropPrompt } from './DropPrompt';
 import { Notice } from './Notice';
 import { DeathScreen } from './DeathScreen';
@@ -98,6 +99,7 @@ const INITIAL_HUD: HudSnapshot = {
   biteActive: false,
   biteClicks: 0,
   biteNeed: 1,
+  treasureKind: null,
   nearDrop: null,
   notice: null,
   day: 1,
@@ -530,6 +532,11 @@ export function GameplayUI({
             hud={hud}
             onStart={() => gameRef.current?.startFishing()}
             onHook={() => gameRef.current?.hookFish()}
+          />
+          <TreasureWheel
+            key={hud.treasureKind ?? 'none'}
+            kind={hud.treasureKind}
+            onClaim={() => gameRef.current?.claimTreasure()}
           />
           {!backpackOpen && (
             <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
