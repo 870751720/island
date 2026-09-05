@@ -21,7 +21,7 @@ const PROP_BLOCK_RANGE = 0.6;
 const GATE_AUTO_RANGE = 1.6;
 /** 持锄头可开挖围栏的距离 */
 const DIG_RANGE = 1.5;
-/** 锄头挖围栏的命中次数(精致锄 1 次) */
+/** 锄头挖围栏的命中次数(二级锄 1 次) */
 const DIG_HITS = 2;
 const SWING_TIME = 0.6;
 /** 手持围栏站定自动放置的时长(秒) */

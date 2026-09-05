@@ -4,10 +4,10 @@ import { EQUIPMENT, isEquipKind, type EquipKind, type EquipSlot } from './Equipm
 /** 可拥有的工具 */
 export type ToolId = 'axe' | 'pickaxe' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
 
-/** 精致工具配方 id(refined- 前缀区分基础工具) */
+/** 二级工具配方 id(refined- 前缀区分基础工具) */
 export type RefinedToolId = `refined-${ToolId}`;
 
-/** 工具等级:0 未拥有、1 基础、2 精致(二级工作台升级) */
+/** 工具等级:0 未拥有、1 基础、2 二级(二级工作台升级) */
 export type Tools = Record<ToolId, number>;
 
 /** 配方 id:工具与其同名,材料类与装备类为产物入口 */
@@ -36,13 +36,13 @@ export type Recipe = {
   station: 'hand' | 'workbench';
   /** 工具类:制作完成即永久拥有(不进背包、不可丢弃) */
   tool?: ToolId;
-  /** 工具类产物的等级(基础工具缺省 1,精致工具为 2) */
+  /** 工具类产物的等级(基础工具缺省 1,二级工具为 2) */
   tier?: 2;
   /** 材料类:产物进背包,可反复制作 */
   output?: ResourceKind;
   /** 单次制作的产物个数(默认 1,如 1 根树枝削 10 只箭) */
   outputCount?: number;
-  /** 需要的工作台等级(缺省 1 级即可,精致工具需 2 级) */
+  /** 需要的工作台等级(缺省 1 级即可,二级工具需 2 级) */
   minBenchLevel?: number;
   /** 鱼饵类手搓配方:只在手持鱼竿且背包没有鱼饵时弹出制作卡片 */
   baitPrompt?: boolean;
@@ -52,15 +52,14 @@ export type Recipe = {
   promptPriority?: number;
 };
 
-/** 各工具按等级的名称(工具 tab 与制作面板展示用) */
+/** 各工具按等级的名称(工具 tab 与制作面板展示用);锄头暂无二级 */
 const TOOL_NAMES: Record<ToolId, [string, string]> = {
-  axe: ['石斧', '精致石斧'],
-  pickaxe: ['石镐', '精致石镐'],
-  hoe: ['石锄', '精致石锄'],
-  fishingrod: ['树枝鱼竿', '精致鱼竿'],
-  bow: ['粗制弓', '精致弓'],
-  // 木剑暂无精致升级,二级名称占位同款
-  sword: ['木剑', '木剑'],
+  axe: ['木斧', '石斧'],
+  pickaxe: ['木镐', '石镐'],
+  hoe: ['木锄', '木锄'],
+  fishingrod: ['树枝鱼竿', '木鱼竿'],
+  bow: ['树枝弓', '木弓'],
+  sword: ['木剑', '石剑'],
 };
 
 export function toolName(tool: ToolId, tier: number): string {
@@ -75,7 +74,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
   return recipe.tool ?? recipe.output!;
 }
 
-/** 配方图标的级别角标(精致工具为 2,其余无) */
+/** 配方图标的级别角标(二级工具为 2,其余无) */
 export function recipeIconLevel(recipe: Recipe): number | undefined {
   return recipe.tier;
 }
@@ -83,7 +82,7 @@ export function recipeIconLevel(recipe: Recipe): number | undefined {
 export const RECIPES: Recipe[] = [
   {
     id: 'axe',
-    name: '石斧',
+    name: '木斧',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     promptPriority: 1,
@@ -91,20 +90,11 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'pickaxe',
-    name: '石镐',
+    name: '木镐',
     cost: { wood: 1, stone: 1 },
     station: 'hand',
     promptPriority: 2,
     tool: 'pickaxe',
-  },
-  {
-    id: 'hoe',
-    name: '石锄',
-    cost: { wood: 1, stone: 1 },
-    station: 'hand',
-    promptPriority: 3,
-    tool: 'hoe',
-    hidePrompt: true,
   },
   {
     id: 'torch',
@@ -131,23 +121,30 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'bow',
-    name: '粗制弓',
+    name: '树枝弓',
     cost: { wood: 1, rope: 1 },
     station: 'workbench',
     tool: 'bow',
   },
   {
+    id: 'hoe',
+    name: '木锄',
+    cost: { wood: 1, stone: 2 },
+    station: 'workbench',
+    tool: 'hoe',
+    hidePrompt: true,
+  },
+  {
     id: 'sword',
     name: '木剑',
-    cost: { log: 2 },
+    cost: { wood: 2 },
     station: 'workbench',
     tool: 'sword',
-    minBenchLevel: 2,
   },
   {
     id: 'refined-axe',
-    name: '精致石斧',
-    cost: { wood: 2, stone: 2 },
+    name: '石斧',
+    cost: { wood: 3, stone: 2 },
     station: 'workbench',
     tool: 'axe',
     tier: 2,
@@ -155,26 +152,26 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'refined-pickaxe',
-    name: '精致石镐',
-    cost: { wood: 2, stone: 2 },
+    name: '石镐',
+    cost: { wood: 2, stone: 3 },
     station: 'workbench',
     tool: 'pickaxe',
     tier: 2,
     minBenchLevel: 2,
   },
   {
-    id: 'refined-hoe',
-    name: '精致石锄',
-    cost: { wood: 2, stone: 2 },
+    id: 'refined-sword',
+    name: '石剑',
+    cost: { stone: 5 },
     station: 'workbench',
-    tool: 'hoe',
+    tool: 'sword',
     tier: 2,
     minBenchLevel: 2,
   },
   {
     id: 'refined-fishingrod',
-    name: '精致鱼竿',
-    cost: { wood: 2, rope: 2 },
+    name: '木鱼竿',
+    cost: { wood: 3, rope: 2 },
     station: 'workbench',
     tool: 'fishingrod',
     tier: 2,
@@ -182,8 +179,8 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'refined-bow',
-    name: '精致弓',
-    cost: { wood: 2, rope: 2 },
+    name: '木弓',
+    cost: { wood: 1, rope: 5 },
     station: 'workbench',
     tool: 'bow',
     tier: 2,
@@ -432,7 +429,7 @@ export function craft(
     inventory.remove(kind as ResourceKind, n ?? 0);
   }
   if (recipe.tool) {
-    // 工具制作完成即永久拥有(精致工具直接替换基础工具),不进背包
+    // 工具制作完成即永久拥有(二级工具直接替换基础工具),不进背包
     tools[recipe.tool] = recipe.tier ?? 1;
     return true;
   }

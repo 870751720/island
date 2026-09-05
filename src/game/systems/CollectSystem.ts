@@ -17,7 +17,7 @@ const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
-const DIG_HITS = 2; // 锄头挖丛的命中次数(精致石锄 1 次)
+const DIG_HITS = 2; // 锄头挖丛的命中次数(二级石锄 1 次)
 /** 锄头挖走的丛对应的道具 */
 const DIG_YIELD: Partial<
   Record<'berry' | 'shrub' | 'grass', 'berryBush' | 'shrubBush' | 'grassTuft'>
@@ -132,7 +132,7 @@ const HARVEST_CONFIG: Record<
 
 export type HarvestInfo = { progress: number };
 
-/** 精致斧/镐对应的各资源点命中次数(比基础工具少敲几下) */
+/** 二级斧/镐对应的各资源点命中次数(比基础工具少敲几下) */
 const REFINED_HITS: Partial<Record<HarvestKind, number>> = {
   tree: 2,
   stump: 1,
@@ -176,7 +176,7 @@ export class CollectSystem {
     );
   }
 
-  /** 该资源点需要命中的总次数:精致斧/镐比基础工具少 1 次,精致锄 1 下挖走 */
+  /** 该资源点需要命中的总次数:二级斧/镐比基础工具少 1 次,二级锄 1 下挖走 */
   private hitsFor(prop: Prop): number {
     const kind = kindOf(prop);
     if (this.isDigging(prop)) return this.tools.hoe >= 2 ? 1 : DIG_HITS;

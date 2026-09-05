@@ -6,7 +6,7 @@ import { ITEMS } from '@/game/systems/Items';
 import { TOOL_IDS, toolName, type ToolId } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
-/** 物品 tab:全物品发放 + 工具按等级发放(基础/精致),可按名称筛选 */
+/** 物品 tab:全物品发放 + 工具按等级发放(一级/二级),可按名称筛选 */
 export function ItemsTab({
   onGiveItem,
   onGiveTool,
@@ -56,7 +56,7 @@ export function ItemsTab({
                 基础
               </button>
               <button onClick={() => onGiveTool(id, 2)} style={giveStyle}>
-                精致
+                二级
               </button>
             </span>
           </div>

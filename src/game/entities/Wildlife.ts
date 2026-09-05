@@ -811,7 +811,7 @@ export class Wildlife implements Updatable {
   }
 
   /**
-   * 箭矢命中判定:对范围内最近的活动物造成指定伤害(精致弓伤害更高)。
+   * 箭矢命中判定:对范围内最近的活动物造成指定伤害(二级弓伤害更高)。
    * 返回被击倒物种的对象(应掉落战利品)、'hit'(受伤未死)或 null(未命中)。
    */
   damageNearby(

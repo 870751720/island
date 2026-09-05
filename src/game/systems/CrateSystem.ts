@@ -14,7 +14,7 @@ const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
 const DIG_RANGE = 1.6; // 持锄头可开挖木箱的距离
-const DIG_HITS = 2; // 锄头挖木箱的命中次数(精致石锄 1 次)
+const DIG_HITS = 2; // 锄头挖木箱的命中次数(二级石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每玩家的挖掘进度(世界里的木箱是共享的,进度各自算) */

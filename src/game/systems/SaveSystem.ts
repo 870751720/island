@@ -8,7 +8,7 @@ import type { DropSource } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 28;
+export const SAVE_VERSION = 29;
 
 /** 资源点完整世界状态；所有资源都直接保存落点，不依赖种子复算布局。 */
 export type PropSave = {
@@ -51,7 +51,7 @@ export type SaveData = {
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
-  /** 已拥有的工具及其等级(0/未拥有不入档,1 基础,2 精致;制作一次永久拥有,不进背包) */
+  /** 已拥有的工具及其等级(0/未拥有不入档,1 基础,2 二级;制作一次永久拥有,不进背包) */
   tools: Partial<Record<ToolId, number>>;
   /** 各栏位已装备的道具(未装备的栏位缺省) */
   equipped: Partial<Record<EquipSlot, EquipKind>>;

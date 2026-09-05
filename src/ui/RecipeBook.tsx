@@ -12,13 +12,13 @@ const STATION_NAMES: Record<Recipe['station'], string> = {
   workbench: '工作台',
 };
 
-/** 精致工具的增益说明 */
+/** 二级工具的增益说明 */
 const REFINED_EFFECTS: Record<string, string> = {
-  'refined-axe': '砍树、砍树桩各少敲 1 下,制作后替换石斧。',
-  'refined-pickaxe': '开采大石块、陨石各少敲 1 下,制作后替换石镐。',
-  'refined-hoe': '挖走浆果丛、灌木丛只需 1 下,制作后替换石锄。',
+  'refined-axe': '砍树、砍树桩各少敲 1 下,制作后替换木斧。',
+  'refined-pickaxe': '开采大石块、陨石各少敲 1 下,制作后替换木镐。',
+  'refined-sword': '近战武器,制作后替换木剑。',
   'refined-fishingrod': '抛竿更快,咬钩反应窗口 ×1.5,制作后替换树枝鱼竿。',
-  'refined-bow': '箭矢伤害 2 点,射击冷却 3 秒 → 2 秒,制作后替换粗制弓。',
+  'refined-bow': '箭矢伤害 2 点,射击冷却 3 秒 → 2 秒,制作后替换树枝弓。',
 };
 
 /** 单条配方的产物说明:装备评分/背包扩容,其他道具用道具描述首句 */

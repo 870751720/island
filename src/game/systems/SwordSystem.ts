@@ -7,8 +7,8 @@ import { GmSystem } from './GmSystem';
 
 /** 近战攻击范围:范围内有动物才会挥砍 */
 const RANGE = 1.4;
-/** 每次挥砍造成的伤害 */
-const DAMAGE = 10;
+/** 每次挥砍造成的伤害(按等级:木剑 10,石剑 16) */
+const DAMAGE = [10, 16];
 /** 挥砍间隔(秒) */
 const ATTACK_INTERVAL = 0.8;
 /** 挥砍动作时长(秒) */
@@ -39,7 +39,9 @@ export class SwordSystem {
       z: number
     ) => void,
     /** 客人端注入:本地判定命中后上行房主权威结算(伤害/掉落) */
-    private onNetHit?: (animalId: number) => void
+    private onNetHit?: (animalId: number) => void,
+    /** 当前剑等级(1 木剑 / 2 石剑),缺省 1 */
+    private getSwordTier: () => number = () => 1
   ) {}
 
   /** 挥砍动作期间占用双手(其他系统让位用) */
@@ -87,7 +89,10 @@ export class SwordSystem {
 
   /** 权威结算一次命中:扣动物血量,击杀则掉落战利品 */
   private settle(animalId: number): void {
-    const beast = this.wildlife.damage(animalId, DAMAGE * GmSystem.attackMultiplier);
+    const beast = this.wildlife.damage(
+      animalId,
+      DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier
+    );
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)
     if (!beast || beast === 'hit') return;
     const p = this.player.group.position;

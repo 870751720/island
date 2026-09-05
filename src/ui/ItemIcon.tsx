@@ -9,7 +9,7 @@ import { CUSTOM_ICONS } from './icons/CustomIcons';
 /**
  * 道具图标的统一渲染入口:
  * - 有自绘 SVG 的道具(自绘图标表)优先画 SVG,其余用 ITEMS 的 emoji;
- * - 多级道具(床、工作台)在右上角标出级别;level 参数可覆盖(如精致工具 2 级)。
+ * - 多级道具(床、工作台)在右上角标出级别;level 参数可覆盖(如二级工具 2 级)。
  */
 export function ItemIcon({
   kind,

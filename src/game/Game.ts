@@ -108,7 +108,7 @@ export type HudSnapshot = {
   hasFishingrod: boolean;
   hasBow: boolean;
   hasSword: boolean;
-  /** 各工具当前等级(0 未拥有、1 基础、2 精致),用于展示精致名称 */
+  /** 各工具当前等级(0 未拥有、1 基础、2 高级) */
   toolTiers: Tools;
   /** 背包里是否有种子(可切换到种子播种) */
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
@@ -1804,7 +1804,7 @@ export class Game {
     this.giveItem(kind, count, actor);
   }
 
-  /** GM 直接把工具点亮到指定等级(1 基础 / 2 精致) */
+  /** GM 直接把工具点亮到指定等级(1 基础 / 2 高级) */
   gmGiveTool(tool: ToolId, tier: 1 | 2, actor: PlayerSession = this.local): void {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) {
@@ -2487,7 +2487,9 @@ export class Game {
       // 客人端:命中判定在本地完成,结果上行房主权威结算(伤害/掉落随快照回流)
       this.guestMode && s === this.local
         ? (animalId: number) => this.guestNet?.action('swordHit', [animalId])
-        : undefined
+        : undefined,
+      // 石剑(2 级)伤害更高
+      () => s.tools.sword
     );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
   }

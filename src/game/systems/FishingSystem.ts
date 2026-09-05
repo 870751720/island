@@ -19,10 +19,10 @@ import {
   type TeaseStage,
 } from './FishTable';
 
-const CAST_TIME = 0.7; // 抛竿(秒,精致鱼竿更快)
+const CAST_TIME = 0.7; // 抛竿(秒,二级鱼竿更快)
 const REFINED_CAST_TIME = 0.5;
 const REEL_TIME = 0.45; // 中鱼后鱼线收回(纯表现,期间已入包)
-/** 精致鱼竿咬钩反应窗口的放大倍数 */
+/** 二级鱼竿咬钩反应窗口的放大倍数 */
 const REFINED_BITE_WINDOW = 1.5;
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边可下竿的水线水平距离(米) */
@@ -95,7 +95,7 @@ export class FishingSystem {
     return this.refined ? REFINED_CAST_TIME : CAST_TIME;
   }
 
-  /** 咬钩反应窗口(精致鱼竿更宽裕) */
+  /** 咬钩反应窗口(二级鱼竿更宽裕) */
   private get biteWindow(): number {
     return TIER_BITE[this.tier].window * (this.refined ? REFINED_BITE_WINDOW : 1);
   }
