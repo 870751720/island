@@ -133,25 +133,25 @@ function makeRainAltarMesh(): ShrineMesh {
 /** 火把:插地的树枝顶着永不熄灭的火苗,小范围照亮四周 */
 function makeTorchMesh(): ShrineMesh {
   const group = new THREE.Group();
-  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 1.0, 5), clayMaterial('#8a6239'));
-  stick.position.y = 0.5;
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.5, 5), clayMaterial('#8a6239'));
+  stick.position.y = 0.25;
   stick.castShadow = true;
   group.add(stick);
   // 缠在顶端的浸油布头
   const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.18, 5), clayMaterial('#6b4a26'));
-  wrap.position.y = 0.98;
+  wrap.position.y = 0.48;
   group.add(wrap);
   const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), gemMaterial('#ffb84d', '#ff7b1c'));
   gem.scale.y = 1.7;
-  gem.position.y = 1.18;
+  gem.position.y = 0.68;
   group.add(gem);
   const light = new THREE.PointLight('#ff9d2e', 1.2, 4.5, 1.5);
-  light.position.y = 1.2;
+  light.position.y = 0.7;
   group.add(light);
   return {
     group,
     gem,
-    gemY: 1.18,
+    gemY: 0.68,
     update: (delta, elapsed, flame, flameY) => {
       // 火苗摇曳 + 光强轻微抖动
       const flicker = 1 + Math.sin(elapsed * 11) * 0.08 + Math.sin(elapsed * 23) * 0.05;
