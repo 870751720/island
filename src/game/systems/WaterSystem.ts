@@ -5,9 +5,7 @@ import type { GameAudio } from '../audio/GameAudio';
 
 const DRINK_TIME = 2; // 一轮喝水(秒)
 const THIRST_PER_ROUND = 40;
-const DRINK_RANGE = 1; // 距水边
-
-/** 靠近水洼岸边站定自动喝水恢复口渴;站在水里或有采集作业时让位 */
+/** 站在水洼浅水中自动喝水恢复口渴；海水不可饮用，游泳或有其他作业时让位。 */
 export class WaterSystem {
   private timer = 0;
   private active = false;
@@ -20,12 +18,11 @@ export class WaterSystem {
   ) {}
 
   update(delta: number, harvestBusy: boolean): void {
-    const nearWater =
-      this.terrain.isNearWater(this.player.group.position, DRINK_RANGE) &&
-      !this.terrain.isInWater(this.player.group.position);
+    const p = this.player.group.position;
+    const standingInPond = this.terrain.getWaterKind(p.x, p.z) === 'pond' && !this.player.isSwimming;
     const thirsty = this.survival.state.thirst < 99;
     this.active =
-      nearWater && thirsty && !this.player.isMoving && !harvestBusy;
+      standingInPond && thirsty && !this.player.isMoving && !harvestBusy;
 
     if (!this.active) {
       // 中途走开等取消喝水时,切断仍在播的吞咽声

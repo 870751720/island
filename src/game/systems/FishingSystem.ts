@@ -27,13 +27,10 @@ const REFINED_BITE_WINDOW = 1.5;
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边可下竿的水线水平距离(米) */
 const SEA_FISH_RANGE = 1.5;
-/** 从脚下向水面方向探测浮漂落点的最远距离 */
-const CAST_RANGE = 4.2;
-/** 水洼落点:洼中心 0.5 米半径内随机 */
-const POND_SPREAD = 0.5;
-/** 海边落点:玩家向海方向 3~4 米外随机 */
-const SEA_CAST_MIN = 3;
-const SEA_CAST_MAX = 4;
+/** 沿玩家朝向探测浮漂落点的最远距离 */
+const CAST_RANGE = 8;
+/** 水岸资格与抛竿射线的采样间隔；足够细以避免低模岸线漏判。 */
+const WATER_TRACE_STEP = 0.1;
 
 export type FishingState = 'casting' | 'waiting' | 'bite' | 'reeling';
 
@@ -144,14 +141,11 @@ export class FishingSystem {
     return this.state === 'waiting' ? this.tease : null;
   }
 
-  /** 站位是否可钓鱼:不在水里/不游泳,且在水洼边或海边滩地 */
+  /** 站位是否可钓鱼：人在干地，面朝水面，沿朝向 1.5m 内碰到实际水体。 */
   canFishHere(): boolean {
     const p = this.player.group.position;
-    if (this.player.isSwimming || this.terrain.isInWater(p)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= this.terrain.getWaterLevel(p.x, p.z)) return false;
-    const nearPond = this.terrain.isNearWater(p, 1.2);
-    const nearSea = this.terrain.isNearSea(p, SEA_FISH_RANGE);
-    return nearPond || nearSea;
+    if (this.player.isSwimming || this.terrain.getWaterKind(p.x, p.z)) return false;
+    return this.traceFacingWater(SEA_FISH_RANGE) !== null;
   }
 
   /** 是否满足发起条件(可钓点 + 手持鱼竿 + 站定 + 空闲) */
@@ -410,43 +404,26 @@ export class FishingSystem {
     this.line.quaternion.setFromUnitVectors(this.up, dir.normalize());
   }
 
-  /** 浮漂落点:水洼取洼中心 0.5 米内随机,海边向海方向 3~4 米外随机 */
+  /** 浮漂严格沿玩家朝向落入实际水体，最远 8m；资格检测保证 1.5m 内先碰到水。 */
   private findBobberTarget(): THREE.Vector3 | null {
+    if (!this.traceFacingWater(SEA_FISH_RANGE)) return null;
+    return this.traceFacingWater(CAST_RANGE, true);
+  }
+
+  /** 沿角色正前方找实际水面。farthest=true 返回范围内最远水点，否则返回首个水点。 */
+  private traceFacingWater(range: number, farthest = false): THREE.Vector3 | null {
     const p = this.player.group.position;
-    const nearest = this.terrain.waterAreas.reduce<(typeof this.terrain.waterAreas)[number] | null>(
-      (best, w) => {
-        const d = Math.hypot(p.x - w.x, p.z - w.z);
-        return !best || d < Math.hypot(p.x - best.x, p.z - best.z) ? w : best;
-      },
-      null
-    );
-
-    // 水洼:落点散布在洼中心附近,保证在水中央
-    if (nearest && Math.hypot(p.x - nearest.x, p.z - nearest.z) < nearest.radius + 3) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random()) * POND_SPREAD;
-      const x = nearest.x + Math.cos(a) * r;
-      const z = nearest.z + Math.sin(a) * r;
-      return new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z);
+    const rot = this.player.group.rotation.y;
+    const dx = Math.sin(rot);
+    const dz = Math.cos(rot);
+    let result: THREE.Vector3 | null = null;
+    for (let distance = WATER_TRACE_STEP; distance <= range + 0.001; distance += WATER_TRACE_STEP) {
+      const x = p.x + dx * distance;
+      const z = p.z + dz * distance;
+      if (!this.terrain.getWaterKind(x, z)) continue;
+      result = new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z);
+      if (!farthest) return result;
     }
-
-    // 海边:朝岛外方向抛 3~4 米,落不进水则逐段探测兜底
-    const dir = this.scratch.set(p.x, 0, p.z);
-    if (dir.lengthSq() < 0.001) dir.set(1, 0, 0);
-    dir.normalize();
-    const d = SEA_CAST_MIN + Math.random() * (SEA_CAST_MAX - SEA_CAST_MIN);
-    const x = p.x + dir.x * d;
-    const z = p.z + dir.z * d;
-    if (this.terrain.getHeight(x, z) < this.terrain.getWaterLevel(x, z)) {
-      return new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z);
-    }
-    for (let t = 1; t <= CAST_RANGE; t += 0.2) {
-      const fx = p.x + dir.x * t;
-      const fz = p.z + dir.z * t;
-      if (this.terrain.getHeight(fx, fz) < this.terrain.getWaterLevel(fx, fz)) {
-        return new THREE.Vector3(fx, this.terrain.getWaterLevel(fx, fz), fz);
-      }
-    }
-    return null;
+    return result;
   }
 }
