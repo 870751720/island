@@ -142,6 +142,8 @@ const REFINED_HITS: Partial<Record<HarvestKind, number>> = {
 export class CollectSystem {
   private nearby: Prop | null = null;
   private swingTimer = 0;
+  /** 本帧是否真的在作业(update 里含让位判定后写入):让位期间(如弓瞄准中)不算占用,否则会把让位给它的系统反向挤掉 */
+  private workingNow = false;
   /** 已命中次数记在资源点上,走开后回来可继续 */
   private hitCounts = new Map<Prop, number>();
 
@@ -204,6 +206,7 @@ export class CollectSystem {
 
     const working =
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
+    this.workingNow = working;
     this.player.setAction(
       working
         ? this.nearby && this.isDigging(this.nearby)
@@ -232,9 +235,9 @@ export class CollectSystem {
     return this.nearby;
   }
 
-  /** 是否正在作业(喝水等让位判定用) */
+  /** 是否正在作业(喝水等让位判定用;让位期间为假,见 workingNow) */
   get isWorking(): boolean {
-    return !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving;
+    return this.workingNow;
   }
 
   /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
