@@ -75,8 +75,8 @@ export class IslandTerrain {
     };
 
     const baseHeight = (x: number, z: number) => {
-      // 基准椭圆按最大扰动幅度收缩,保证扰动后的海岸不会超出地形平面边界
-      const shrink = 1.3;
+      // 基准椭圆按最大扰动幅度向外扩(wob 下限约 0.79),保证扰动后的海岸(wob 最大处)仍在地形平面内
+      const shrink = 0.75;
       const wob = coastWobble(x, z);
       const nd = Math.sqrt((x * x) / (hw * hw) + (z * z) / (hl * hl)) / shrink;
       const dist = nd * wob;
