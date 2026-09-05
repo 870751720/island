@@ -44,7 +44,7 @@ export const FOODS: Food[] = [
   { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🥩', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
 ];
 
-/** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);大体按获取难度定价:基础采集 1、小鱼/肉 2-3、大鱼 5、兽肉 10、传说鱼 40,熟食比生食更值钱 */
+/** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);熟食与生食兑换相同,大体按获取难度定价:基础采集 1、小鱼/肉 2-3、大鱼 5、兽肉 5、黄金鱼 20 */
 export const BAIT_YIELD: Partial<Record<ResourceKind, number>> = {
   oakFruit: 1,
   pineFruit: 1,
@@ -64,15 +64,15 @@ export const BAIT_YIELD: Partial<Record<ResourceKind, number>> = {
   catfish: 5,
   swordfish: 5,
   manta: 5,
-  gameMeat: 10,
-  goldenFish: 40,
-  cookedBerry: 2,
-  cookedCrabMeat: 3,
+  gameMeat: 5,
+  goldenFish: 20,
+  cookedBerry: 1,
+  cookedCrabMeat: 2,
   cookedBirdMeat: 3,
-  cookedSmallFish: 4,
-  cookedBigFish: 8,
-  cookedGameMeat: 12,
-  cookedGoldenFish: 80,
+  cookedSmallFish: 2,
+  cookedBigFish: 5,
+  cookedGameMeat: 5,
+  cookedGoldenFish: 20,
 };
 
 /** 烹饪映射:生食在燃烧的火堆上烤成熟食,效果增强;不可烤的食材不在表中 */
