@@ -73,37 +73,77 @@ function makeBedMesh(level: number): THREE.Group {
   return g;
 }
 
-/** 三级床帐篷罩:两片斜坡布帘 + 床头三角墙,床尾敞开能看见里面的皮毛床 */
+/** 三级床帐篷罩:两面拼接布帘坡面 + 前后三角墙(正面留门洞),床头封住、床尾开门 */
 function addTent(g: THREE.Group): void {
   const clothMat = new THREE.MeshStandardMaterial({ color: '#7d9a6e', flatShading: true, roughness: 1 });
-  const ridge = 1.55; // 屋脊高
-  const halfW = 0.72; // 半跨
-  const len = 2.1; // 帐篷沿床身方向长
+  const clothAltMat = new THREE.MeshStandardMaterial({ color: '#6f8c62', flatShading: true, roughness: 1 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#8a6239', flatShading: true, roughness: 1 });
+  const ridge = 1.35; // 屋脊高
+  const halfW = 0.85; // 半跨
+  const len = 2.0; // 帐篷沿床身方向长
   const slope = Math.hypot(ridge, halfW);
   const tilt = Math.atan2(halfW, ridge);
 
+  // 两面坡各由三块布片拼成,布片间留缝、双色相间,更像缝出来的帐篷
+  const segLen = (len - 0.08) / 3;
   for (const side of [-1, 1]) {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(len, 0.04, slope), clothMat);
-    panel.rotation.x = side * tilt;
-    panel.position.set(0, ridge / 2, (side * halfW) / 2);
-    panel.castShadow = true;
-    g.add(panel);
+    for (let i = 0; i < 3; i++) {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(segLen, 0.04, slope),
+        i % 2 === 0 ? clothMat : clothAltMat
+      );
+      panel.rotation.x = side * tilt;
+      panel.position.set(-len / 2 + segLen / 2 + i * (segLen + 0.04), ridge / 2, (side * halfW) / 2);
+      panel.castShadow = true;
+      g.add(panel);
+    }
   }
 
-  // 床头(枕头端)三角墙封住帐内,床尾敞开
-  const wallShape = new THREE.Shape([
-    new THREE.Vector2(-halfW, 0),
-    new THREE.Vector2(halfW, 0),
-    new THREE.Vector2(0, ridge),
-  ]);
-  const wall = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(wallShape, { depth: 0.06, bevelEnabled: false }),
-    clothMat
-  );
-  wall.rotation.y = Math.PI / 2;
-  wall.position.set(-len / 2, 0, 0);
-  wall.castShadow = true;
-  g.add(wall);
+  // 屋脊撑杆 + 两端立柱,撑起整顶帐篷
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 5), woodMat);
+  pole.rotation.z = Math.PI / 2;
+  pole.position.y = ridge;
+  pole.castShadow = true;
+  g.add(pole);
+  for (const x of [-len / 2, len / 2]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, ridge, 5), woodMat);
+    post.position.set(x, ridge / 2, 0);
+    post.castShadow = true;
+    g.add(post);
+  }
+
+  const wallShape = (door: boolean): THREE.Shape => {
+    const shape = new THREE.Shape([
+      new THREE.Vector2(-halfW, 0),
+      new THREE.Vector2(halfW, 0),
+      new THREE.Vector2(0, ridge),
+    ]);
+    if (door) {
+      // 正面门洞:中部一个倒梯形口,能看见帐内的床
+      shape.holes.push(
+        new THREE.Path([
+          new THREE.Vector2(-halfW * 0.45, 0),
+          new THREE.Vector2(halfW * 0.45, 0),
+          new THREE.Vector2(halfW * 0.3, ridge * 0.55),
+          new THREE.Vector2(-halfW * 0.3, ridge * 0.55),
+        ])
+      );
+    }
+    return shape;
+  };
+  for (const [x, door] of [
+    [-len / 2, false],
+    [len / 2, true],
+  ] as [number, boolean][]) {
+    const wall = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(wallShape(door), { depth: 0.05, bevelEnabled: false }),
+      clothMat
+    );
+    wall.rotation.y = Math.PI / 2;
+    wall.position.set(x, 0, 0);
+    wall.castShadow = true;
+    g.add(wall);
+  }
 }
 
 /** 场景中的床摆件(可放置多个),靠近可睡觉跳到第二天清晨 */
