@@ -57,6 +57,14 @@ export const ACTIONS: Record<string, NetAction> = {
     g.netArrowShot(a, dx as number, dz as number);
     return true;
   },
+  // 客人本地判定剑命中后的权威结算:房主补挥砍动作(经姿态快照同步)并结算伤害/掉落
+  swordHit: (g, a, [animalId]) => {
+    if (a.tools.sword && a.player.currentTool === 'sword') {
+      a.sword.netPlaySwing();
+      a.sword.settleNetHit(animalId as number);
+    }
+    return true;
+  },
   gmSpawnAnimal: (g, a, [species]) => {
     g.gmSpawnAnimalFor(species as AnimalSpecies, a);
     return true;

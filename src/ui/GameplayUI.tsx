@@ -54,7 +54,8 @@ const INITIAL_HUD: HudSnapshot = {
   hasHoe: false,
   hasFishingrod: false,
   hasBow: false,
-  toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 },
+  hasSword: false,
+  toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
   nearCrate: false,
   nearBed: false,
   bedSleeping: false,
@@ -446,6 +447,7 @@ export function GameplayUI({
             hud.hasHoe ||
             hud.hasFishingrod ||
             hud.hasBow ||
+            hud.hasSword ||
             hud.nearWorkbench ||
             hud.nearCampfire ||
             hud.nearCrate ||

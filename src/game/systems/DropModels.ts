@@ -50,6 +50,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   hoe: '#8a7a5a',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
+  sword: '#c9a877',
   grassShirt: '#5a8a3a',
   furShirt: '#8a6239',
   grassPants: '#4a7a3a',
@@ -453,6 +454,21 @@ function makeBow(): THREE.Object3D {
   return g;
 }
 
+/** 木剑:斜插的扁剑身 + 十字护手(工具不掉落,仅为掉落物表补全) */
+function makeSword(): THREE.Object3D {
+  const g = new THREE.Group();
+  const blade = mesh(new THREE.BoxGeometry(0.07, 0.55, 0.025), clay(DROP_COLORS.sword));
+  blade.position.y = 0.42;
+  const tip = mesh(new THREE.ConeGeometry(0.05, 0.12, 4), clay(DROP_COLORS.sword));
+  tip.position.y = 0.75;
+  const guard = mesh(new THREE.BoxGeometry(0.22, 0.05, 0.05), clay('#a97b48'));
+  guard.position.y = 0.14;
+  const handle = mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.24, 5), clay('#8a6239'));
+  handle.position.y = 0.0;
+  g.add(blade, tip, guard, handle);
+  return g;
+}
+
 /** 种子:圆润的小粒,带一点芽尖 */
 function makeSeed(color: string): THREE.Object3D {
   const g = new THREE.Group();
@@ -707,6 +723,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   hoe: makeHoe,
   fishingrod: makeFishingRod,
   bow: makeBow,
+  sword: makeSword,
   grassShirt: () => makeShirt(DROP_COLORS.grassShirt),
   furShirt: () => makeShirt(DROP_COLORS.furShirt),
   grassPants: () => makePants(DROP_COLORS.grassPants),

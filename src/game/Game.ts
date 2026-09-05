@@ -35,6 +35,7 @@ import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import type { FishTier } from './systems/FishTable';
 import { BowSystem } from './systems/BowSystem';
+import { SwordSystem } from './systems/SwordSystem';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
@@ -103,6 +104,7 @@ export type HudSnapshot = {
   hasHoe: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
+  hasSword: boolean;
   /** 各工具当前等级(0 未拥有、1 基础、2 精致),用于展示精致名称 */
   toolTiers: Tools;
   /** 背包里是否有种子(可切换到种子播种) */
@@ -188,6 +190,7 @@ type InteractionKind =
   | 'eating'
   | 'fishing'
   | 'archery'
+  | 'sword'
   | 'water'
   | 'workbench'
   | 'campfire'
@@ -658,6 +661,7 @@ export class Game {
           // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算)
           if (s === this.local) {
             s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
+            s.sword.update(delta, this.isSessionBusy(s, 'sword') || s.survival.state.dead);
           } else {
             // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失
             s.archery.updateVisuals(delta);
@@ -740,6 +744,11 @@ export class Game {
           this.local.archery.update(
             delta,
             this.isSessionBusy(this.local, 'archery') || this.survival.state.dead
+          );
+          // 客人的剑同样在本地完整跑索敌与命中判定,命中结果上行房主权威结算
+          this.local.sword.update(
+            delta,
+            this.isSessionBusy(this.local, 'sword') || this.survival.state.dead
           );
           for (const s of this.sessions) {
             // 远程玩家(房主)的弓只推进 arrowShot 复现的视觉箭矢
@@ -1580,7 +1589,7 @@ export class Game {
     this.guestNet?.action('tool', [tool]);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 围栏/门(仅手里还有的) */
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 木剑 → 围栏/门(仅手里还有的) */
   cycleTool(): void {
     this.selectTool(this.nextToolInCycle());
   }
@@ -1594,6 +1603,7 @@ export class Game {
       'hoe',
       'fishingrod',
       'bow',
+      'sword',
       'fence',
       'fenceGate',
     ];
@@ -2251,6 +2261,7 @@ export class Game {
   private isSessionBusy(s: PlayerSession, exclude?: InteractionKind): boolean {
     // 弓优先级最高:瞄准中(虚线可见)或放箭动作期间,其他站定交互(采集/喝水等)让位,先放箭再交互
     if (exclude !== 'archery' && (s.archery.isWorking || s.archery.isAiming)) return true;
+    if (exclude !== 'sword' && s.sword.isWorking) return true;
     if (exclude !== 'collect' && s.collect.isWorking) return true;
     if (exclude !== 'crafting' && s.crafting.isWorking) return true;
     if (exclude !== 'eating' && s.eating.isWorking) return true;
@@ -2375,6 +2386,23 @@ export class Game {
           }
         : undefined
     );
+    s.sword = new SwordSystem(
+      s.player,
+      this.wildlife,
+      this.fx,
+      this.audio,
+      // 击杀的战利品散落在玩家身旁,走近后点「捡回」拾取
+      (items: { kind: ResourceKind; count: number }[], x: number, z: number) => {
+        items.forEach((item, i) => {
+          const angle = (i / items.length) * Math.PI * 2;
+          this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);
+        });
+      },
+      // 客人端:命中判定在本地完成,结果上行房主权威结算(伤害/掉落随快照回流)
+      this.guestMode && s === this.local
+        ? (animalId: number) => this.guestNet?.action('swordHit', [animalId])
+        : undefined
+    );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio);
   }
 
@@ -2460,6 +2488,7 @@ export class Game {
       hasHoe: !!s.tools.hoe,
       hasFishingrod: !!s.tools.fishingrod,
       hasBow: !!s.tools.bow,
+      hasSword: !!s.tools.sword,
       toolTiers: { ...s.tools },
       nearCrate: !!this.crates.nearby(s),
       nearBed: !!this.beds.nearby(s),

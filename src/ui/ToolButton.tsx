@@ -10,6 +10,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   hoe: '⚒️',
   fishingrod: '🎣',
   bow: '🏹',
+  sword: '🗡️',
   fence: '🚧',
   fenceGate: '🪵',
 };

@@ -589,6 +589,21 @@ export class Wildlife implements Updatable {
     return best ? best.pos.clone() : null;
   }
 
+  /** 范围内最近的一只活动物 id(无则 null),供近战武器索敌与联机命中结算 */
+  nearestId(origin: THREE.Vector3, range: number): number | null {
+    let best: Animal | null = null;
+    let bestDist = range * range;
+    for (const animal of this.animals) {
+      if (!animal.alive) continue;
+      const d = animal.pos.distanceToSquared(origin);
+      if (d < bestDist) {
+        best = animal;
+        bestDist = d;
+      }
+    }
+    return best ? best.id : null;
+  }
+
   /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null) */
   hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Animal | null {
     return nearestToSegmentXZ(this.animals, from, to, range);

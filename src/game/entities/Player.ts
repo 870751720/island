@@ -46,7 +46,7 @@ export type ActionType =
   | 'shoot'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/围栏(木/石通用)与围栏门(用于沿途立栏) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/围栏(木/石通用)与围栏门(用于沿途立栏) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -54,6 +54,7 @@ export type HandTool =
   | 'hoe'
   | 'fishingrod'
   | 'bow'
+  | 'sword'
   | 'fence'
   | 'fenceGate';
 
@@ -139,6 +140,25 @@ function makeHoeModel(): THREE.Group {
   blade.position.set(0.05, 0.28, 0.08);
   blade.rotation.z = 0.35;
   g.add(handle, blade);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
+/** 木剑:木柄 + 十字护手 + 扁木剑身,握在右手 */
+function makeSwordModel(): THREE.Group {
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.04, 0.16, 5),
+    clayMaterial('#8a6239')
+  );
+  handle.position.y = -0.06;
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), clayMaterial('#a97b48'));
+  guard.position.y = 0.03;
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.02), clayMaterial('#d9c27a'));
+  blade.position.y = 0.28;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.1, 4), clayMaterial('#d9c27a'));
+  tip.position.y = 0.56;
+  g.add(handle, guard, blade, tip);
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -353,14 +373,15 @@ export class Player implements Updatable {
     const hoe = makeHoeModel();
     const fishingrod = makeFishingRodModel();
     const bow = makeBowModel();
+    const sword = makeSwordModel();
     const fence = makeFenceBundleModel('#a97b48', false);
     const fenceGate = makeFenceBundleModel('#8a6239', true);
-    for (const t of [axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate]) {
+    for (const t of [axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate]) {
       t.position.set(0, -0.3, 0.05);
       t.visible = false;
     }
-    armR.add(axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate);
-    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, fence, fenceGate };
+    armR.add(axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate);
+    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate };
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();

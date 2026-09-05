@@ -8,6 +8,7 @@ import type { CraftingSystem } from '../systems/CraftingSystem';
 import type { EatingSystem } from '../systems/EatingSystem';
 import type { FishingSystem } from '../systems/FishingSystem';
 import type { BowSystem } from '../systems/BowSystem';
+import type { SwordSystem } from '../systems/SwordSystem';
 import type { WaterSystem } from '../systems/WaterSystem';
 import type { Actor } from './Actor';
 import { PlayerNameTag } from './PlayerNameTag';
@@ -24,12 +25,13 @@ export class PlayerSession implements Actor {
   readonly survival = new SurvivalSystem();
   readonly inventory = new Inventory();
   readonly equipment = new Equipment();
-  readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0 };
+  readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 };
   collect!: CollectSystem;
   crafting!: CraftingSystem;
   eating!: EatingSystem;
   fishing!: FishingSystem;
   archery!: BowSystem;
+  sword!: SwordSystem;
   water!: WaterSystem;
   /** 上次记录的血量(检测血量下降触发受击表现) */
   lastHealth = 100;

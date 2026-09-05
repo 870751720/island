@@ -297,6 +297,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏹',
     description: '枝干弯成弓身、绳线做弦,手持时会自动射向附近的猎物;二级工作台可升级为精致弓。',
   },
+  sword: {
+    kind: 'sword',
+    name: '木剑',
+    icon: '🗡️',
+    description: '两段木头削成的近战武器,手持时靠近动物会自动挥砍;不会自动切换上手,制作需二级工作台。',
+  },
   grassShirt: {
     kind: 'grassShirt',
     name: '草衣',

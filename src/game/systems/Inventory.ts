@@ -45,6 +45,7 @@ export type ResourceKind =
   | 'hoe'
   | 'fishingrod'
   | 'bow'
+  | 'sword'
   | 'fur'
   | 'grassShirt'
   | 'grassPants'
