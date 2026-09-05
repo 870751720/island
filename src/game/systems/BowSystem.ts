@@ -162,6 +162,11 @@ export class BowSystem {
     this.scene.add(this.guide.group);
   }
 
+  /** 纯表现更新(他人端):只推进箭矢飞行与插地消失,不跑本地瞄准/命中逻辑 */
+  updateVisuals(delta: number): void {
+    this.updateArrows(delta);
+  }
+
   /** 放箭动作期间占用双手(其他系统让位用) */
   get isWorking(): boolean {
     return this.shotLock > 0;

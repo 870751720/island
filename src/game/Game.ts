@@ -658,6 +658,9 @@ export class Game {
           // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算)
           if (s === this.local) {
             s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
+          } else {
+            // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失
+            s.archery.updateVisuals(delta);
           }
           // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
           s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
@@ -739,6 +742,8 @@ export class Game {
             this.isSessionBusy(this.local, 'archery') || this.survival.state.dead
           );
           for (const s of this.sessions) {
+            // 远程玩家(房主)的弓只推进 arrowShot 复现的视觉箭矢
+            if (s !== this.local) s.archery.updateVisuals(delta);
             // 纯表现:钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
             // 复现期间静音——本人的音效已由房主 feedback 事件补播,这里再播会重一声,
             // 远程玩家的交互音效按设计只给发起者本人听
