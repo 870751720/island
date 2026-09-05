@@ -57,6 +57,8 @@ const DUST_COLOR = '#b3a284';
 // —— 鳄鱼的行为参数 ——
 /** 陆地活动范围:距所属水洼水边的最大距离(米) */
 const CROC_LEASH = 5;
+/** 脱战距离:玩家拉开 5 米外立刻丢失仇恨(鳄鱼不设迟滞,脱战即游回水洼) */
+const CROC_DEAGGRO = 5;
 /** 出场潜伏时长:先藏在水下,只留涟漪预警 */
 const CROC_LURK_TIME = 0.5;
 /** 出场扑咬的腾跃速度与最长时长 */
@@ -481,11 +483,18 @@ export class Wildlife implements Updatable {
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
       const hostile = animal.config.damage > 0;
       const bear = animal.species === 'bear';
-      // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动
-      if (dist < animal.config.senseRange) animal.alerted = true;
-      else if (dist > animal.config.deaggroRange) animal.alerted = false;
-      // 受伤的熊即使玩家超出感知半径也会记仇反扑
-      if (hostile && animal.hp < animal.config.hp && dist < animal.config.deaggroRange) {
+      // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动;
+      // 鳄鱼例外:玩家一拉开 5 米立刻脱战(先判脱战,感知半径内不会被反复拉回仇恨)
+      if (animal.species === 'crocodile') {
+        if (dist > CROC_DEAGGRO) animal.alerted = false;
+        else if (dist < animal.config.senseRange) animal.alerted = true;
+      } else {
+        if (dist < animal.config.senseRange) animal.alerted = true;
+        else if (dist > animal.config.deaggroRange) animal.alerted = false;
+      }
+      // 受伤的熊即使玩家超出感知半径也会记仇反扑;鳄鱼记仇同样止步于 5 米
+      const grudgeRange = animal.species === 'crocodile' ? CROC_DEAGGRO : animal.config.deaggroRange;
+      if (hostile && animal.hp < animal.config.hp && dist < grudgeRange) {
         animal.alerted = true;
       }
       const rushed = animal.alerted && vulnerable;

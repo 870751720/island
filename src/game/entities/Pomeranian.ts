@@ -376,8 +376,17 @@ export class Pomeranian {
         }
         this.waitingForReturn = false;
         this.wasFollowing = false;
+      } else if (this.player.isSwimming) {
+        // 2) 玩家下水游泳:狗不进水,原地趴坐在岸边面向玩家等待,
+        //    不再沿着水线来回蹭(直路不通时切线方向反复切换造成的抖动)
+        this.wake();
+        this.wasFollowing = false;
+        if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
+        this.play = 'sit';
+        this.playLeft = 0.5;
+        this.heading = Math.atan2(p.z - this.pos.z, p.x - this.pos.x);
       } else if (playerDist > FOLLOW_RANGE) {
-        // 2) 玩家走远:跟上去(玩家下水时追到岸边等待)
+        // 3) 玩家走远:跟上去
         this.wake();
         this.wasFollowing = true;
         moving = this.stepTo(p, playerDist > 8 ? RUN_SPEED : TROT_SPEED, delta);

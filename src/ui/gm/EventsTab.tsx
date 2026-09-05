@@ -23,7 +23,7 @@ export function EventsTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <ActionButton label="触发一次喝水出鳄鱼" tone="primary" onClick={onTriggerCrocodile} />
-      <StepperRow label="喝水出鳄鱼概率 %" value={chance} step={1} onChange={setPercent} />
+      <StepperRow label="喝水出鳄鱼概率 %" value={chance} step={5} onChange={setPercent} />
     </div>
   );
 }
