@@ -10,6 +10,7 @@ import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
 import { ItemsTab } from './ItemsTab';
 import { AnimalsTab } from './AnimalsTab';
+import { EventsTab } from './EventsTab';
 
 /** GM 面板可对 Game 实例执行的动作,由 GameplayUI 通过回调注入 */
 export type GmActions = {
@@ -20,6 +21,7 @@ export type GmActions = {
   giveItem: (kind: ResourceKind, count: number) => void;
   giveTool: (tool: ToolId, tier: 1 | 2) => void;
   spawnAnimal: (species: AnimalSpecies) => void;
+  triggerCrocodile: () => void;
 };
 
 const TABS = [
@@ -28,6 +30,7 @@ const TABS = [
   { id: 'fishing', label: '钓鱼' },
   { id: 'items', label: '物品' },
   { id: 'animals', label: '动物' },
+  { id: 'events', label: '特殊事件' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -60,6 +63,9 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
+        {tab === 'events' && (
+          <EventsTab onTriggerCrocodile={actions.triggerCrocodile} onSetConfig={actions.setConfig} />
+        )}
         <button onClick={onClose} style={closeStyle}>
           关闭
         </button>

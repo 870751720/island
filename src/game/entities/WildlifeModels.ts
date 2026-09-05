@@ -394,10 +394,96 @@ function makeBearModel(): AnimalModel {
   return { group, legs, head: headPivot, tail, eyes };
 }
 
+/** 鳄鱼:低伏的墨绿长身 + 宽扁吻部露齿 + 背部角质鳞嵴 + 粗壮侧伸尾 */
+function makeCrocodileModel(): AnimalModel {
+  const group = new THREE.Group();
+  const hide = clay('#4c6b3c');
+  const darkHide = clay('#37502b');
+  const belly = clay('#c8c39a');
+  const tooth = clay('#eee8d8');
+  const dark = clay('#20261b');
+
+  // 低伏的长躯干:主身 + 尾基,鳄鱼不抬身子,贴地滑行
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), hide);
+  body.scale.set(1.05, 0.55, 1.9);
+  body.position.y = 0.18;
+  body.castShadow = true;
+  group.add(body);
+
+  // 背部鳞嵴:沿脊线一排小角锥
+  for (let i = 0; i < 5; i++) {
+    const ridge = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.09, 4), darkHide);
+    ridge.position.set(0, 0.36, 0.35 - i * 0.22);
+    group.add(ridge);
+  }
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.22, 0.52);
+  // 宽扁的头与长吻:两段拼接读出鳄鱼轮廓
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 5), hide);
+  head.scale.set(1.1, 0.7, 1);
+  head.castShadow = true;
+  headPivot.add(head);
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), hide);
+  snout.scale.set(0.95, 0.5, 2.1);
+  snout.position.set(0, -0.02, 0.26);
+  snout.castShadow = true;
+  headPivot.add(snout);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.03, 5, 4), dark);
+  nose.position.set(0, 0.02, 0.48);
+  headPivot.add(nose);
+  // 闭不拢的嘴:上下颌交错的白色獠牙
+  for (const side of [-1, 1]) {
+    for (const z of [0.14, 0.28, 0.4]) {
+      const fang = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.05, 4), tooth);
+      fang.position.set(side * 0.085, -0.03, z);
+      headPivot.add(fang);
+    }
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 5, 4), dark);
+    eye.position.set(side * 0.11, 0.07, 0.1);
+    headPivot.add(eye);
+    // 眼眶凸起:水面潜伏时先露出眼睛
+    const brow = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 4), darkHide);
+    brow.scale.set(1, 0.7, 1);
+    brow.position.set(side * 0.11, 0.1, 0.08);
+    headPivot.add(brow);
+  }
+  group.add(headPivot);
+
+  // 短粗四肢:陆地上爬行,水中向后收拢
+  const legs = [
+    makeLeg(hide, -0.28, 0.16, 0.28, 0.16, 1.5),
+    makeLeg(hide, 0.28, 0.16, 0.28, 0.16, 1.5),
+    makeLeg(darkHide, -0.28, 0.16, -0.2, 0.16, 1.5),
+    makeLeg(darkHide, 0.28, 0.16, -0.2, 0.16, 1.5),
+  ];
+  legs.forEach((l) => group.add(l));
+
+  // 侧扁大尾:游泳的主推进器,根部粗向尖端收窄
+  const tailPivot = new THREE.Group();
+  tailPivot.position.set(0, 0.18, -0.5);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.75, 6), hide);
+  tail.scale.set(0.6, 1, 1);
+  tail.rotation.x = -Math.PI / 2;
+  tail.position.z = -0.34;
+  tail.castShadow = true;
+  tailPivot.add(tail);
+  group.add(tailPivot);
+
+  // 浅色腹带压住体色,水里半沉时读得出水线
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.26, 7, 5), belly);
+  chest.scale.set(0.85, 0.35, 1.5);
+  chest.position.set(0, 0.07, 0.05);
+  group.add(chest);
+
+  return { group, legs, head: headPivot, tail: tailPivot };
+}
+
 export const ANIMAL_BUILDERS = {
   rabbit: makeRabbitModel,
   sheep: makeSheepModel,
   deer: makeDeerModel,
   wolf: makeWolfModel,
   bear: makeBearModel,
+  crocodile: makeCrocodileModel,
 } as const;

@@ -445,3 +445,10 @@
 
 - 海面深浅过渡与波纹为各端本地视觉(新增 `OceanDepth`/`OceanMaterial` 模块):深度纹理由各端按同一份地形种子重建,表现一致但不产生网络消息;波纹相位随本地时间推进,允许各端细微差异。
 - 不改变水位、水体判定、游泳/钓鱼权威结算;无新增动作、协议与持久化字段,SAVE_VERSION 不变。
+
+### M49 喝水出鳄鱼(2026-09-05)
+
+- 喝水触发鳄鱼的掷骰与生成完全在房主侧:每个会话的 `WaterSystem` 在房主端运行,喝完一轮水回调 `Game.onDrinkRound`(客人本地喝水表现不触发),按 GM 概率在所站水洼 `Wildlife.spawnCrocodile`。
+- 鳄鱼为房主权威 AI(追击/伤害/ leash),随既有战斗频段动物姿态快照同步(`AnimalPose.species` 客人端补建),不新增快照字段。
+- 新增可靠事件 `crocodileBurst {x,y,z}`:鳄鱼跃出水面时广播,各端本地补水花粒子,距声源 20m 内播 splash 音;出场咬人复用 `wildlifeAttack`(咬合动画)与 `wildlifeHit`(客人受击表现)。
+- GM「特殊事件」触发走既有模式:客人上行 `gmTriggerCrocodile` 动作,房主 `gmTriggerCrocodileFor` 结算;概率调整走既有 `gmConfig` 动作 + `gm` 事件全房间同步。协议版本不变。

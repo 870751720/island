@@ -69,6 +69,10 @@ export const ACTIONS: Record<string, NetAction> = {
     g.gmSpawnAnimalFor(species as AnimalSpecies, a);
     return true;
   },
+  gmTriggerCrocodile: (g, a) => {
+    g.gmTriggerCrocodileFor(a);
+    return true;
+  },
   gmGiveItem: (g, a, [kind, count]) => {
     g.gmGiveItem(kind as ResourceKind, count as number, a);
     return true;

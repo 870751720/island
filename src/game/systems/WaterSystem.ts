@@ -14,7 +14,9 @@ export class WaterSystem {
     private player: Player,
     private terrain: IslandTerrain,
     private survival: SurvivalSystem,
-    private audio: GameAudio
+    private audio: GameAudio,
+    /** 每喝完一轮水后通知(喝水触发的特殊事件挂在房主侧,如水洼出鳄鱼) */
+    private onDrinkRound: () => void = () => {}
   ) {}
 
   update(delta: number, harvestBusy: boolean): void {
@@ -39,6 +41,7 @@ export class WaterSystem {
     if (this.timer < DRINK_TIME) return;
     this.timer = 0;
     this.survival.drink();
+    this.onDrinkRound();
   }
 
   get isActive(): boolean {

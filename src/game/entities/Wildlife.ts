@@ -9,7 +9,7 @@ import type { Particles } from '../fx/Particles';
 import { CreatureFx } from '../fx/CreatureFx';
 import type { SfxName } from '../audio/Sfx';
 
-export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'wolf' | 'bear';
+export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'wolf' | 'bear' | 'crocodile';
 
 /** 物种中文名(GM 面板等展示用) */
 export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
@@ -18,6 +18,7 @@ export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
   deer: '鹿',
   wolf: '狼',
   bear: '熊',
+  crocodile: '鳄鱼',
 };
 
 /** 击杀掉落的战利品(兽肉之外按物种附带不同材料) */
@@ -52,6 +53,27 @@ const BEAR_POUNCE_LAND_RANGE = 1.6;
 const NOISE_RANGE = 9;
 /** 落地尘土 / 冲刺扬尘的颜色 */
 const DUST_COLOR = '#b3a284';
+
+// —— 鳄鱼的行为参数 ——
+/** 陆地活动范围:距所属水洼水边的最大距离(米) */
+const CROC_LEASH = 5;
+/** 出场潜伏时长:先藏在水下,只留涟漪预警 */
+const CROC_LURK_TIME = 0.5;
+/** 出场扑咬的腾跃速度与最长时长 */
+const CROC_LEAP_SPEED = 7;
+const CROC_LEAP_TIME = 0.55;
+/** 出场扑咬的命中判定距离(稍大于普通攻击距离) */
+const CROC_LEAP_RANGE = 1.5;
+/** 扑咬后的硬直时长 */
+const CROC_RECOVER_TIME = 0.9;
+/** 水花粒子颜色 */
+const WATER_COLOR = '#bfe3f2';
+
+/** 鳄鱼出场的三段状态:水下潜伏 → 跃出扑咬 → 落水硬直 */
+type CrocEntrance = { phase: 'lurk' | 'leap' | 'recover'; left: number };
+
+/** 鳄鱼的家:所属水洼(限制活动范围,丢失仇恨后游回去) */
+type CrocPond = { x: number; z: number; radius: number };
 
 /** 熊扑击的三段状态:人立蓄力 → 腾跃 → 落地硬直 */
 type BearPounce = { phase: 'windup' | 'leap' | 'recover'; left: number; dir: number };
@@ -159,6 +181,23 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'fur', count: 4 },
     ],
   },
+  // 鳄鱼只由喝水事件/GM 生成(count 0,种群刷新不补),平时藏在水洼里
+  crocodile: {
+    label: '鳄鱼',
+    count: 0,
+    walkSpeed: 0.7,
+    rushSpeed: 3.5,
+    senseRange: 7,
+    deaggroRange: 12,
+    attackRange: 1.15,
+    damage: 30,
+    attackCooldown: 1.8,
+    hp: 100,
+    loot: [
+      { kind: 'gameMeat', count: 2 },
+      { kind: 'fur', count: 2 },
+    ],
+  },
 };
 
 type Animal = {
@@ -199,6 +238,11 @@ type Animal = {
   pounce: BearPounce | null;
   /** 冲刺扬尘的发射计时 */
   dustLeft: number;
+  // —— 鳄鱼专属状态(其他物种恒为初始值) ——
+  /** 所属水洼(限制活动范围;GM 在远离水洼处生成时为 null,不限制) */
+  pond: CrocPond | null;
+  /** 出场扑咬进行中的状态(未出场时为 null) */
+  entrance: CrocEntrance | null;
 };
 
 /**
@@ -237,6 +281,8 @@ export class Wildlife implements Updatable {
     private onHit: (animalId: number) => void = () => {},
     /** 熊扑击落地时把权威落点交给联机层补播扬尘。 */
     private onPounceLand: (x: number, y: number, z: number) => void,
+    /** 鳄鱼跃出水面的表现交给联机层补播水花。 */
+    private onCrocodileBurst: (x: number, y: number, z: number) => void,
     /** 某玩家当前是否可被攻击(死亡时不追击) */
     private isPlayerVulnerable: (player: Player) => boolean,
     /** 尘土等粒子特效(咆哮扬尘/扑击落地/冲刺扬尘) */
@@ -294,9 +340,25 @@ export class Wildlife implements Updatable {
       roared: false,
       pounce: null,
       dustLeft: 0,
+      pond: species === 'crocodile' ? this.nearestPond(spawn.x, spawn.z) : null,
+      entrance: null,
     };
     this.animals.push(animal);
     return animal;
+  }
+
+  /** 距 (x,z) 最近的水洼(鳄鱼的家;无水洼返回 null) */
+  private nearestPond(x: number, z: number): CrocPond | null {
+    let best: CrocPond | null = null;
+    let bestDist = Infinity;
+    for (const w of this.terrain.waterAreas) {
+      const d = Math.hypot(x - w.x, z - w.z);
+      if (d < bestDist) {
+        best = { x: w.x, z: w.z, radius: w.radius };
+        bestDist = d;
+      }
+    }
+    return best;
   }
 
   /** 某点是否为可站立的草地(不进沙滩,也不进海与池塘等水面之下) */
@@ -346,14 +408,31 @@ export class Wildlife implements Updatable {
     return null;
   }
 
-  /** 在动物附近找下一个游荡目标,只接受草地上的点 */
+  /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围 */
+  private canStand(animal: Animal, x: number, z: number): boolean {
+    if (animal.species !== 'crocodile') return this.isGrass(x, z);
+    const inPond = this.terrain.getWaterKind(x, z) === 'pond';
+    if (!inPond && !this.isGrass(x, z)) return false;
+    const pond = animal.pond;
+    if (pond && Math.hypot(x - pond.x, z - pond.z) > pond.radius + CROC_LEASH) return false;
+    return !this.isBlocked(x, z);
+  }
+
+  /** 在动物附近找下一个游荡目标;鳄鱼丢失仇恨后只挑水洼内的点,自己游回去 */
   private pickTarget(animal: Animal, rng: () => number, range = 5): boolean {
     for (let i = 0; i < 8; i++) {
       const a = rng() * Math.PI * 2;
       const d = 1 + rng() * range;
-      const x = animal.pos.x + Math.cos(a) * d;
-      const z = animal.pos.z + Math.sin(a) * d;
-      if (this.isGrass(x, z)) {
+      let x: number;
+      let z: number;
+      if (animal.species === 'crocodile' && animal.pond) {
+        x = animal.pond.x + Math.cos(a) * rng() * animal.pond.radius * 0.7;
+        z = animal.pond.z + Math.sin(a) * rng() * animal.pond.radius * 0.7;
+      } else {
+        x = animal.pos.x + Math.cos(a) * d;
+        z = animal.pos.z + Math.sin(a) * d;
+      }
+      if (this.canStand(animal, x, z)) {
         animal.target.set(x, this.terrain.getHeight(x, z), z);
         return true;
       }
@@ -361,12 +440,12 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  /** 朝目标方向走一步,前方不是草地时依次试切线方向;返回是否移动成功 */
+  /** 朝目标方向走一步,前方不可站时依次试切线方向;返回是否移动成功 */
   private step(animal: Animal, angle: number, speed: number, delta: number): boolean {
     const tryDir = (a: number): boolean => {
       const nx = animal.pos.x + Math.cos(a) * speed * delta;
       const nz = animal.pos.z + Math.sin(a) * speed * delta;
-      if (!this.isGrass(nx, nz)) return false;
+      if (!this.canStand(animal, nx, nz)) return false;
       animal.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
       animal.heading = a;
       return true;
@@ -423,7 +502,48 @@ export class Wildlife implements Updatable {
       if (!rushed) animal.pounce = null;
 
       let moving = false;
-      if (hostile && animal.pounce) {
+      if (animal.entrance) {
+        // 鳄鱼出场三段:水下潜伏(涟漪预警)→ 跃出水面扑向玩家咬一口 → 落水硬直后进入普通追击
+        const entrance = animal.entrance;
+        entrance.left -= delta;
+        animal.target.copy(animal.pos);
+        animal.idleTime = 0;
+        animal.walkTime = 0;
+        if (entrance.phase === 'lurk') {
+          animal.heading = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
+          // 潜伏涟漪:水面冒泡预警
+          animal.dustLeft -= delta;
+          if (animal.dustLeft <= 0) {
+            animal.dustLeft = 0.18;
+            this.fx.burst(animal.pos.clone(), WATER_COLOR, 2);
+          }
+          if (entrance.left <= 0) {
+            entrance.phase = 'leap';
+            entrance.left = CROC_LEAP_TIME;
+            this.fx.burst(animal.pos.clone(), WATER_COLOR, 14);
+            this.playSound('splash', animal.pos.x, animal.pos.z);
+            this.onCrocodileBurst(animal.pos.x, animal.pos.y, animal.pos.z);
+          }
+        } else if (entrance.phase === 'leap') {
+          const dir = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
+          moving = this.step(animal, dir, CROC_LEAP_SPEED, delta);
+          animal.heading = dir;
+          if (entrance.left <= 0 || !moving || dist <= animal.config.attackRange) {
+            // 扑到跟前(或力竭落水)结一口咬:命中才有伤害,咬完硬直
+            if (vulnerable && dist <= CROC_LEAP_RANGE) {
+              animal.lungeLeft = 0.35;
+              this.onAttack(animal.id);
+              this.onPlayerHit(target!, animal.config.damage);
+            }
+            entrance.phase = 'recover';
+            entrance.left = CROC_RECOVER_TIME;
+          }
+        } else if (entrance.left <= 0) {
+          animal.entrance = null;
+          // 出场结束后立刻锁定目标,不给脱身窗口
+          animal.alerted = true;
+        }
+      } else if (hostile && animal.pounce) {
         // 扑击三段:人立蓄力(留侧闪窗口)→ 朝锁定方向腾跃 → 落地结算伤害并硬直
         const pounce = animal.pounce;
         pounce.left -= delta;
@@ -525,6 +645,12 @@ export class Wildlife implements Updatable {
   private animate(animal: Animal, delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
+    // 鳄鱼在水洼里:身体半沉推进;出场潜伏时几乎整个没入水下,只靠涟漪暴露位置
+    const croc = animal.species === 'crocodile';
+    const crocInWater = croc && this.terrain.getWaterKind(animal.pos.x, animal.pos.z) === 'pond';
+    if (croc) {
+      g.position.y -= animal.entrance?.phase === 'lurk' ? 0.55 : crocInWater ? 0.22 : 0;
+    }
     // 兔子使用完整蹦跳周期:后腿压缩蓄力 → 腾空收腿 → 前爪探地 → 落地回弹。
     const hop = animal.species === 'rabbit';
     const rabbitRig = animal.model.rabbitRig;
@@ -563,7 +689,8 @@ export class Wildlife implements Updatable {
         // 前左/后右一组,前右/后左一组,交替摆动
         const pair = i === 0 || i === 3 ? 0 : Math.PI;
         const swing = Math.sin(elapsed * speed + animal.phase + pair);
-        leg.rotation.x = moving ? swing * 0.6 : 0;
+        if (crocInWater) leg.rotation.x = 0.85; // 游泳:四肢向后收拢贴身,靠尾巴推进
+        else leg.rotation.x = moving ? swing * (croc ? 0.35 : 0.6) : 0;
       });
     }
     // 头颈:兔子停下时会轻微嗅闻,其他动物平时轻晃;近身挥击瞬间向前顶。
@@ -611,12 +738,14 @@ export class Wildlife implements Updatable {
         mat.emissive.set(rage ? '#8c1a10' : '#000000');
       });
     }
-    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : 0.4) + bob;
+    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
-    // 兔尾以轻颤为主,其余动物左右摆尾。
+    // 兔尾以轻颤为主,鳄鱼在水中靠粗尾左右大幅摆动推进,其余动物轻晃摆尾。
     animal.model.tail.rotation.y = hop
       ? Math.sin(elapsed * 7 + animal.phase) * 0.09
-      : Math.sin(elapsed * 3 + animal.phase) * 0.3;
+      : croc
+        ? Math.sin(elapsed * (crocInWater ? 5 : 3) + animal.phase) * (crocInWater ? 0.45 : 0.25)
+        : Math.sin(elapsed * 3 + animal.phase) * 0.3;
   }
 
   /** 熊咆哮:警戒/暴怒播完整咆哮,扑击蓄力只播短低吼 */
@@ -728,8 +857,15 @@ export class Wildlife implements Updatable {
     return SPECIES[species].loot;
   }
 
-  /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物,成功返回 true */
+  /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物;鳄鱼改为在最近水洼里带出场扑咬生成 */
   gmSpawnNear(species: AnimalSpecies, x: number, z: number): boolean {
+    if (species === 'crocodile') {
+      const pond = this.nearestPond(x, z);
+      const target = this.nearestPlayer(x, z);
+      if (!pond || !target) return false;
+      this.spawnCrocodile(pond, target);
+      return true;
+    }
     for (let i = 0; i < 24; i++) {
       const a = Math.random() * Math.PI * 2;
       const d = 1.5 + Math.random() * 3.5;
@@ -740,6 +876,44 @@ export class Wildlife implements Updatable {
       return true;
     }
     return false;
+  }
+
+  /**
+   * 在水洼里生成一条鳄鱼:落点在玩家与洼心之间(确保在水中),带「潜伏→跃出扑咬」出场,
+   * 咬完进入普通追击 AI;返回生成的鳄鱼。
+   */
+  spawnCrocodile(pond: CrocPond, target: Player): Animal {
+    const p = target.group.position;
+    let dx = pond.x - p.x;
+    let dz = pond.z - p.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.01) {
+      dx = 1;
+      dz = 0;
+    } else {
+      dx /= len;
+      dz /= len;
+    }
+    // 从玩家朝洼心退进水里,并夹在洼心周围 0.9 半径内
+    const back = Math.min(2.5, pond.radius * 0.6);
+    let x = p.x + dx * back;
+    let z = p.z + dz * back;
+    const cx = x - pond.x;
+    const cz = z - pond.z;
+    const cd = Math.hypot(cx, cz);
+    const maxD = pond.radius * 0.9;
+    if (cd > maxD) {
+      x = pond.x + (cx / cd) * maxD;
+      z = pond.z + (cz / cd) * maxD;
+    }
+    const animal = this.createAnimal(
+      'crocodile',
+      new THREE.Vector3(x, this.terrain.getHeight(x, z), z),
+      Math.atan2(p.z - z, p.x - x)
+    );
+    animal.pond = pond;
+    animal.entrance = { phase: 'lurk', left: CROC_LURK_TIME };
+    return animal;
   }
 
   /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物) */

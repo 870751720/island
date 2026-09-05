@@ -474,6 +474,8 @@ export class Game {
       // 动物受击未死:广播给客人补播闪红
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'wildlife', id: animalId }),
       (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'collectFx', x, y, z, color: '#b3a284', count: 10 }),
+      // 鳄鱼跃出水面的水花:广播给客人各自按位置补播
+      (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'crocodileBurst', x, y, z }),
       (player: Player) => {
         const session = this.sessionOf(player);
         return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
@@ -1113,6 +1115,13 @@ export class Game {
     }
     if (event.kind === 'wildlifeAttack') {
       this.wildlife.netPlayAttack(event.animalId);
+      return;
+    }
+    // 鳄鱼跃出水面:本地补水花粒子,离得近才播水花声(位置表现,不进姿态快照)
+    if (event.kind === 'crocodileBurst') {
+      this.fx.burst(new THREE.Vector3(event.x, event.y, event.z), '#bfe3f2', 14);
+      const p = this.player.group.position;
+      if (Math.hypot(p.x - event.x, p.z - event.z) <= BEAR_SFX_RANGE) this.audio.play('splash');
       return;
     }
     // 生物受击未死的补播:闪红表现(血量与死亡由房主权威结算,经快照回流)
@@ -1852,8 +1861,20 @@ export class Game {
     );
   }
 
-  /** GM 开关调整:本地立即生效;联机时全房间同步同一份配置 */
-  gmSetConfig(patch: Partial<GmConfig>): void {
+  /** GM 特殊事件:立即在该玩家所在水洼触发一次鳄鱼袭击(不走概率);客人端上行房主结算 */
+  gmTriggerCrocodile(): void {
+    if (this.guestNet) {
+      this.guestNet.action('gmTriggerCrocodile', []);
+      return;
+    }
+    this.gmTriggerCrocodileFor(this.local);
+  }
+
+  gmTriggerCrocodileFor(actor: PlayerSession): void {
+    if (!this.spawnCrocodileNear(actor) && actor === this.local) this.notify('站在水洼边上再试');
+  }
+
+  /** GM 开关调整:本地立即生效;联机时全房间同步同一份配置 */  gmSetConfig(patch: Partial<GmConfig>): void {
     gmApply(patch);
     if (this.guestNet) this.guestNet.action('gmConfig', [gmSnapshot()]);
     else this.hostRef?.broadcastEvent({ kind: 'gm', config: gmSnapshot() });
@@ -2436,7 +2457,30 @@ export class Game {
         ? (animalId: number) => this.guestNet?.action('swordHit', [animalId])
         : undefined
     );
-    s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio);
+    s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
+  }
+
+  /** 某玩家喝完一轮水:按 GM 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现) */
+  private onDrinkRound(session: PlayerSession): void {
+    if (this.guestMode) return;
+    if (Math.random() >= GmSystem.crocodileChance) return;
+    this.spawnCrocodileNear(session);
+  }
+
+  /** 在该玩家所站(或最近)的水洼里生成鳄鱼袭击;成功返回 true */
+  private spawnCrocodileNear(session: PlayerSession): boolean {
+    const p = session.player.group.position;
+    const pond = this.terrain.waterAreas.reduce(
+      (best, w) => (Math.hypot(p.x - w.x, p.z - w.z) < Math.hypot(p.x - best.x, p.z - best.z) ? w : best),
+      this.terrain.waterAreas[0]
+    );
+    if (!pond || Math.hypot(p.x - pond.x, p.z - pond.z) > pond.radius + 2) {
+      if (session === this.local) this.notify('附近没有水洼,鳄鱼没来');
+      return false;
+    }
+    this.wildlife.spawnCrocodile({ x: pond.x, z: pond.z, radius: pond.radius }, session.player);
+    if (session === this.local) this.notify('水面翻涌,一条鳄鱼窜了出来!');
+    return true;
   }
 
   /** 手上是否还持有该工具(围栏/门按背包数量判断) */
