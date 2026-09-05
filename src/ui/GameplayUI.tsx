@@ -537,6 +537,7 @@ export function GameplayUI({
             key={hud.treasureKind ?? 'none'}
             kind={hud.treasureKind}
             onClaim={() => gameRef.current?.claimTreasure()}
+            onSfx={(name) => gameRef.current?.playUiSfx(name)}
           />
           {!backpackOpen && (
             <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />

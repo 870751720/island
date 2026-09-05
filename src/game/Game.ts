@@ -216,6 +216,11 @@ export class Game {
   private fx: Particles;
   private itemFly: ItemFlyFx;
   private audio = new GameAudio();
+
+  /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
+  playUiSfx(name: SfxName): void {
+    this.audio.playLocal(name);
+  }
   private waterFx: WaterFx;
   private pondLife: PondLife;
   private footprints: Footprints;

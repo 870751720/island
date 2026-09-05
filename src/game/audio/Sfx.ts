@@ -24,7 +24,9 @@ export type SfxName =
   | 'roar' // 熊完整咆哮(警戒/中箭暴怒)
   | 'bearGrowl' // 熊扑击前的短促低吼
   | 'snore' // 睡觉打呼
-  | 'death'; // 死亡
+  | 'death' // 死亡
+  | 'wheelTick' // 珍宝转盘滚过格线的「嗒」声
+  | 'treasureWin'; // 珍宝转盘转中定格的奖励号角
 
 const VOL: Record<SfxName, number> = {
   chop: 0.5,
@@ -50,6 +52,8 @@ const VOL: Record<SfxName, number> = {
   bearGrowl: 0.48,
   snore: 0.75,
   death: 0.5,
+  wheelTick: 0.32,
+  treasureWin: 0.55,
 };
 
 /** 程序化音效:全部用振荡器与噪声实时合成,每次播放带随机音高抖动避免机械感 */
@@ -239,6 +243,18 @@ export class Sfx {
           pianoTone(this.ctx, dest, midiToFreq(m), t + [0, 0.28, 0.5, 0.66, 0.78][i], 0.6, v);
         });
         tone(this.ctx, dest, 90, t + 0.85, { attack: 0.005, decay: 0.5, peak: v * 0.7 }, 'sine', 45);
+        break;
+      case 'wheelTick':
+        // 转盘指针压过格线:木质「嗒」,极短无滑频;减速期间高频密、低速时自然稀疏
+        tone(this.ctx, dest, detune(1150), t, { attack: 0.001, decay: 0.028, peak: v }, 'triangle');
+        noiseBurst(this.ctx, dest, t, { attack: 0.001, decay: 0.014, peak: v * 0.5 }, 'highpass', 4600);
+        break;
+      case 'treasureWin':
+        // 转中定格号角:上行小琶音冲顶 + 高八度亮音悬留,金色落定的高潮感
+        [72, 76, 79, 84].forEach((m, i) => pianoTone(this.ctx, dest, midiToFreq(m), t + i * 0.08, 0.9, v));
+        pianoTone(this.ctx, dest, midiToFreq(91), t + 0.34, 1.6, v * 0.85);
+        pianoTone(this.ctx, dest, midiToFreq(96), t + 0.34, 1.2, v * 0.45);
+        tone(this.ctx, dest, 130, t, { attack: 0.01, decay: 0.7, peak: v * 0.5 }, 'sine', 65);
         break;
     }
   }

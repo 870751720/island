@@ -74,6 +74,11 @@ export class GameAudio {
     if (!this.silent) this.sfx?.play(name, gainScale);
   }
 
+  /** UI 表现层音效(珍宝转盘滚轮等):只发声,不触发噪音通知与联机事件回流 */
+  playLocal(name: SfxName): void {
+    this.sfx?.play(name);
+  }
+
   /** 中途切断仍在播的长音效(交互取消时用) */
   stop(name: SfxName): void {
     this.sfx?.stop(name);
