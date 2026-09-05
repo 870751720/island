@@ -15,6 +15,7 @@ export function PlayerTab({
   const [godMode, setGodMode] = useState(GmSystem.godMode);
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
   const [attackMultiplier, setAttackMultiplier] = useState(GmSystem.attackMultiplier);
+  const [speedMultiplier, setSpeedMultiplier] = useState(GmSystem.speedMultiplier);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -41,6 +42,16 @@ export function PlayerTab({
         onChange={(v) => {
           onSetConfig({ attackMultiplier: v });
           setAttackMultiplier(v);
+        }}
+      />
+      <StepperRow
+        label="移动速度倍率"
+        value={speedMultiplier}
+        min={0.1}
+        step={0.5}
+        onChange={(v) => {
+          onSetConfig({ speedMultiplier: v });
+          setSpeedMultiplier(v);
         }}
       />
       <ActionButton label="状态回满(复活)" tone="primary" onClick={onRestoreStatus} />

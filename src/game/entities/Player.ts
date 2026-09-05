@@ -5,6 +5,7 @@ import { IslandTerrain } from '../world/IslandTerrain';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Footprints } from '../fx/Footprints';
 import type { EquipKind, EquipSlot } from '../systems/Equipment';
+import { GmSystem } from '../systems/GmSystem';
 
 const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
@@ -657,7 +658,7 @@ export class Player implements Updatable {
       this.group.rotation.y += diff * k;
     } else if (this.moving) {
       const len = this.moveVec.length();
-      const base = this.swimming ? SWIM_SPEED : MOVE_SPEED;
+      const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
       const speed = this.slowLeft > 0 ? base * 0.5 : base;
       const step = speed * delta;
       p.x += (this.moveVec.x / len) * step;

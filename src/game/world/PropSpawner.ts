@@ -24,15 +24,15 @@ type SpawnRule = {
   clustered: boolean;
 };
 
-/** 与旧岛固定数量(tree60/rock18/gravel32/berry20/shrub30/grass26/worm12)手感一致的基础密度 */
+/** 与旧岛固定数量(tree60/rock18/gravel32/berry20/shrub30/grass26/worm12)手感一致的基础密度,整体上浮 0.3 倍 */
 const RULES: SpawnRule[] = [
-  { kind: 'tree', density: 0.0046, from: 0, clustered: true },
-  { kind: 'rock', density: 0.0014, from: 0, mul: (t) => 0.6 + 1.4 * t, clustered: false },
-  { kind: 'gravel', density: 0.0025, from: 0, mul: (t) => 0.6 + 1.2 * t, clustered: false },
-  { kind: 'berry', density: 0.0015, from: 0, mul: (t) => 1.4 - 0.7 * t, clustered: true },
-  { kind: 'shrub', density: 0.0023, from: 0, clustered: true },
-  { kind: 'grass', density: 0.0020, from: 0, mul: (t) => 1.25 - 0.5 * t, clustered: false },
-  { kind: 'worm', density: 0.0009, from: 0, clustered: false },
+  { kind: 'tree', density: 0.0060, from: 0, clustered: true },
+  { kind: 'rock', density: 0.0018, from: 0, mul: (t) => 0.6 + 1.4 * t, clustered: false },
+  { kind: 'gravel', density: 0.0033, from: 0, mul: (t) => 0.6 + 1.2 * t, clustered: false },
+  { kind: 'berry', density: 0.0020, from: 0, mul: (t) => 1.4 - 0.7 * t, clustered: true },
+  { kind: 'shrub', density: 0.0030, from: 0, clustered: true },
+  { kind: 'grass', density: 0.0026, from: 0, mul: (t) => 1.25 - 0.5 * t, clustered: false },
+  { kind: 'worm', density: 0.0012, from: 0, clustered: false },
 ];
 
 /** 生成自己的 2D 值噪声(与地形噪声实现一致,种子独立) */

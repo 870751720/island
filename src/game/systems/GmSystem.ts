@@ -20,6 +20,8 @@ export const GmSystem = {
   showWaterDebug: false,
   /** 玩家攻击力倍率(作用于剑与弓箭对生物的伤害结算) */
   attackMultiplier: 1,
+  /** 玩家移动速度倍率(赶路调试用,1 为正常) */
+  speedMultiplier: 1,
   /** 喝水触发鳄鱼袭击的概率(0~1,特殊事件调试用) */
   crocodileChance: 0.02,
 };
@@ -40,6 +42,7 @@ export function gmSnapshot(): GmConfig {
     showTraffic: GmSystem.showTraffic,
     showWaterDebug: GmSystem.showWaterDebug,
     attackMultiplier: GmSystem.attackMultiplier,
+    speedMultiplier: GmSystem.speedMultiplier,
     crocodileChance: GmSystem.crocodileChance,
   };
 }
@@ -65,6 +68,9 @@ export function gmApply(config: Partial<GmConfig>): void {
   if (typeof config.showWaterDebug === 'boolean') GmSystem.showWaterDebug = config.showWaterDebug;
   if (typeof config.attackMultiplier === 'number' && Number.isFinite(config.attackMultiplier)) {
     GmSystem.attackMultiplier = Math.min(1000, Math.max(0.1, config.attackMultiplier));
+  }
+  if (typeof config.speedMultiplier === 'number' && Number.isFinite(config.speedMultiplier)) {
+    GmSystem.speedMultiplier = Math.min(10, Math.max(0.1, config.speedMultiplier));
   }
   if (typeof config.crocodileChance === 'number' && Number.isFinite(config.crocodileChance)) {
     GmSystem.crocodileChance = Math.min(1, Math.max(0, config.crocodileChance));

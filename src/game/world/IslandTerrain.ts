@@ -60,25 +60,30 @@ export class IslandTerrain {
     const f1 = 6 / width;
     const f2 = 18 / width;
 
-    // 海岸线扰动:以极角为参数的周期噪声,让椭圆边界凹凸不平而非规整曲线
+    // 海岸线扰动:直接按空间坐标采样多尺度噪声,长条岛长边也有连续的凹凸变化
+    // (按极角采样会让 800 米长边落在极窄角度区间内,呈现规整直线)
     const coastWobble = (x: number, z: number) => {
-      const a = Math.atan2(z, x);
-      const n1 = noise(Math.cos(a) * 1.6 + 7, Math.sin(a) * 1.6 + 13);
-      const n2 = noise(Math.cos(a) * 4 + 31, Math.sin(a) * 4 + 17);
-      return 1 + (n1 - 0.5) * 0.3 + (n2 - 0.5) * 0.14;
+      const f = 2.4 / width;
+      const n1 = noise(x * f + 7, z * f + 13);
+      const n2 = noise(x * f * 3.1 + 31, z * f * 3.1 + 17);
+      const n3 = noise(x * f * 7.7 + 59, z * f * 7.7 + 23);
+      return 1 + (n1 - 0.5) * 0.24 + (n2 - 0.5) * 0.12 + (n3 - 0.5) * 0.06;
     };
 
     const baseHeight = (x: number, z: number) => {
       // 基准椭圆按最大扰动幅度收缩,保证扰动后的海岸不会超出地形平面边界
-      const shrink = 1.18;
+      const shrink = 1.3;
       const nd = Math.sqrt((x * x) / (hw * hw) + (z * z) / (hl * hl)) / shrink;
       const dist = nd * coastWobble(x, z);
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
+      // 近岸下坡陡度用噪声调制:水线与浅滩边界宽窄不一(不规整),且始终不缓于基准,
+      // 沙滩宽度稳定收紧在个位数米内
+      const shoreSteep = 1.1 + noise(x * f2 + 91, z * f2 + 45) * 0.8;
       // 岛外海底逐渐加深到约 -2.1,保证外海水深足够进入游泳;
       // 下压偏移随 falloff 淡出,使内陆噪声低谷不低于海平面,避免出现无法交互的内陆积水
       const f2sq = falloff * falloff;
-      return f2sq * h - 0.6 * (1 - f2sq) - (1 - falloff) * (1 - falloff) * 1.5;
+      return f2sq * h - 0.6 * (1 - f2sq) - (1 - falloff) * (1 - falloff) * 1.5 * shoreSteep;
     };
 
     const rng = (i: number) => {
@@ -105,8 +110,8 @@ export class IslandTerrain {
       this.waterGroup.add(disc);
     };
 
-    // 内陆水洼:数量随岛屿面积,间距与短轴挂钩,不写死上限
-    const maxPonds = THREE.MathUtils.clamp(Math.round((width * length) / 3200), 3, 60);
+    // 内陆水洼:数量随岛屿面积(按需求收缩为原来的 1/3),间距与短轴挂钩,不写死上限
+    const maxPonds = THREE.MathUtils.clamp(Math.round((width * length) / 9600), 2, 20);
     const minPondGap = Math.max(18, width / 8);
     for (let i = 0; i < maxPonds * 30 && this.countPonds() < maxPonds; i++) {
       const x = (rng(i * 2 + 1) * 2 - 1) * hw * 0.55;
