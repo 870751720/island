@@ -173,8 +173,7 @@ export class Crabs implements Updatable {
     private onHit: (crabId: number) => void = () => {},
     rng: () => number = Math.random
   ) {
-    const size = terrain.size;
-    this.desiredCount = THREE.MathUtils.clamp(Math.round(size / 22), 5, 9);
+    this.desiredCount = THREE.MathUtils.clamp(Math.round(terrain.width / 22), 5, 9);
     for (let i = 0; i < this.desiredCount; i++) {
       const spawn = this.findBeachSpot(rng);
       if (!spawn) continue;
@@ -193,11 +192,16 @@ export class Crabs implements Updatable {
   /** 沿随机方向从岛外向内找第一处沙滩带上的点 */
   private findBeachSpot(rng: () => number): THREE.Vector3 | null {
     const angle = rng() * Math.PI * 2;
-    const maxR = this.terrain.size / 2 - 1;
+    // 从椭圆边界外侧一点向内步进;长条岛各方向半径不同,按角度求边界
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    const hw = this.terrain.halfWidth;
+    const hl = this.terrain.halfLength;
+    const maxR = 1 / Math.sqrt((ca * ca) / (hw * hw) + (sa * sa) / (hl * hl));
     let prevInside = false;
-    for (let r = maxR; r > 1; r -= 0.5) {
-      const x = Math.cos(angle) * r;
-      const z = Math.sin(angle) * r;
+    for (let r = maxR * 1.1; r > 1; r -= 0.5) {
+      const x = ca * r;
+      const z = sa * r;
       const inside = this.isSand(x, z);
       if (inside && prevInside) {
         // 连续两步都在带内才落脚,避开零星湿沙尖角

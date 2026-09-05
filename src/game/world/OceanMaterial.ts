@@ -11,12 +11,12 @@ export class OceanMaterial {
   private readonly uniforms = {
     uTime: { value: 0 },
     uDepth: { value: null as THREE.DataTexture | null },
-    uHalfExtent: { value: 1 },
+    uHalfExtent: { value: new THREE.Vector2(1, 1) },
   };
 
   constructor(depth: OceanDepth) {
     this.uniforms.uDepth.value = depth.texture;
-    this.uniforms.uHalfExtent.value = depth.halfExtent;
+    this.uniforms.uHalfExtent.value.set(depth.halfExtentX, depth.halfExtentZ);
     this.material = new THREE.MeshStandardMaterial({
       color: '#3d97b8',
       roughness: 0.36,
@@ -42,7 +42,7 @@ export class OceanMaterial {
           `#include <common>
            uniform float uTime;
            uniform sampler2D uDepth;
-           uniform float uHalfExtent;
+           uniform vec2 uHalfExtent;
            varying vec2 vOceanWorld;
 
            // 世界坐标处的归一化深度:纹理覆盖外明确返回深海,不延伸边缘

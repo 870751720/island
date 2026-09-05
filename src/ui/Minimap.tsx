@@ -23,13 +23,14 @@ const MARKER_STYLE: Record<string, { icon: string; label: string }> = {
   bed: { icon: '🛏️', label: '床' },
 };
 
-/** 底图分辨率(采样一次后缓存,不随帧重绘;越高海岸线越锐利) */
-const BASE_RES = 256;
+/** 底图长边分辨率(采样一次后缓存,不随帧重绘;越高海岸线越锐利) */
+const BASE_RES = 512;
 /** 迷雾颜色:未探索区域整体盖住 */
 const FOG_COLOR = [16, 24, 36, 235] as const;
 
 /**
  * 右上角小地图(定位由外层容器负责):
+ * - 地图形状与岛屿同比例(长条岛显示为竖长地图);
  * - 战争迷雾——只有玩家走过(周围一圈)的区域可见,地形与标记都不透出;
  * - 点击地图放大查看,放大后有文字标注(工作台/火堆/床)与其他玩家昵称;
  * - 大地图关闭时自动收起小地图(回到右上角按钮态)。
@@ -59,16 +60,17 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
   const bigRef = useRef<HTMLCanvasElement>(null);
   // 底图(岛屿地形)按世界种子采样一次后缓存
   const baseRef = useRef<HTMLCanvasElement | null>(null);
-  const islandSizeRef = useRef(0);
+  const baseKeyRef = useRef('');
 
   useEffect(() => {
     if (!source) return;
     let raf = 0;
     const render = () => {
       const snap = source.getMinimapSnapshot();
-      if (snap.islandSize !== islandSizeRef.current) {
-        islandSizeRef.current = snap.islandSize;
-        baseRef.current = buildBase(source, snap.islandSize);
+      const key = `${snap.islandWidth}x${snap.islandLength}`;
+      if (key !== baseKeyRef.current) {
+        baseKeyRef.current = key;
+        baseRef.current = buildBase(source, snap.islandWidth, snap.islandLength);
       }
       const base = baseRef.current;
       if (base) {
@@ -82,6 +84,11 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
   }, [source, folded, enlarged]);
 
   if (!source) return null;
+
+  const aspect = (() => {
+    const snap = source.getMinimapSnapshot();
+    return `${snap.islandWidth} / ${snap.islandLength}`;
+  })();
 
   // 折叠后只留一个小按钮
   if (folded) {
@@ -108,8 +115,6 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
     );
   }
 
-  const smallSize = 'min(34vw, 132px)';
-
   return (
     <>
       <div>
@@ -118,8 +123,8 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
           onClick={() => setEnlarged(true)}
           style={{
             display: 'block',
-            width: smallSize,
-            height: smallSize,
+            width: 'min(30vw, 116px)',
+            aspectRatio: aspect,
             borderRadius: 10,
             border: '2px solid rgba(255,255,255,0.85)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
@@ -154,7 +159,8 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
               style={{
                 display: 'block',
                 width: 'min(86vw, 420px)',
-                height: 'min(86vw, 420px)',
+                maxHeight: '86vh',
+                aspectRatio: aspect,
                 borderRadius: 14,
                 border: '3px solid rgba(255,255,255,0.9)',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
@@ -168,17 +174,18 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
   );
 }
 
-/** 采样整座岛的地形生成底图(只在岛屿尺寸变化时执行一次) */
-function buildBase(source: MinimapSource, islandSize: number): HTMLCanvasElement {
+/** 采样整座岛的地形生成底图(只在岛屿尺寸变化时执行一次);画布宽高与岛屿同比例 */
+function buildBase(source: MinimapSource, islandWidth: number, islandLength: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = BASE_RES;
+  canvas.width = Math.max(16, Math.round((BASE_RES * islandWidth) / islandLength));
   canvas.height = BASE_RES;
   const ctx = canvas.getContext('2d')!;
-  const half = islandSize / 2;
-  for (let py = 0; py < BASE_RES; py++) {
-    for (let px = 0; px < BASE_RES; px++) {
-      const x = (px / BASE_RES) * islandSize - half;
-      const z = (py / BASE_RES) * islandSize - half;
+  const hw = islandWidth / 2;
+  const hl = islandLength / 2;
+  for (let py = 0; py < canvas.height; py++) {
+    for (let px = 0; px < canvas.width; px++) {
+      const x = (px / canvas.width) * islandWidth - hw;
+      const z = (py / canvas.height) * islandLength - hl;
       ctx.fillStyle = GROUND_COLORS[source.getGroundKind(x, z)];
       ctx.fillRect(px, py, 1, 1);
     }
@@ -186,9 +193,12 @@ function buildBase(source: MinimapSource, islandSize: number): HTMLCanvasElement
   return canvas;
 }
 
-/** 世界坐标 → 画布像素 */
-function toPixel(v: number, islandSize: number, canvasSize: number): number {
-  return ((v + islandSize / 2) / islandSize) * canvasSize;
+/** 世界坐标 → 画布像素(横纵各自按岛屿宽高换算) */
+function toPixelX(v: number, islandWidth: number, canvasW: number): number {
+  return ((v + islandWidth / 2) / islandWidth) * canvasW;
+}
+function toPixelY(v: number, islandLength: number, canvasH: number): number {
+  return ((v + islandLength / 2) / islandLength) * canvasH;
 }
 
 /** 把一帧快照画到目标画布:底图 + 迷雾 + 标记 + 玩家;放大时带文字标注 */
@@ -199,25 +209,27 @@ function draw(
   withLabels: boolean
 ): void {
   if (!canvas) return;
-  const cssSize = canvas.clientWidth;
-  if (cssSize === 0) return;
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  if (cssW === 0 || cssH === 0) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const size = Math.round(cssSize * dpr);
-  if (canvas.width !== size) {
-    canvas.width = size;
-    canvas.height = size;
+  const w = Math.round(cssW * dpr);
+  const h = Math.round(cssH * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
   }
   const ctx = canvas.getContext('2d')!;
-  ctx.clearRect(0, 0, size, size);
+  ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(base, 0, 0, size, size);
+  ctx.drawImage(base, 0, 0, w, h);
 
   // 迷雾:网格铺成一张小图再放大,得到柔和的探索边缘
   const fog = document.createElement('canvas');
-  fog.width = snap.gridLen;
-  fog.height = snap.gridLen;
+  fog.width = snap.gridW;
+  fog.height = snap.gridL;
   const fctx = fog.getContext('2d')!;
-  const img = fctx.createImageData(snap.gridLen, snap.gridLen);
+  const img = fctx.createImageData(snap.gridW, snap.gridL);
   for (let i = 0; i < snap.explored.length; i++) {
     if (!snap.explored[i]) {
       img.data[i * 4] = FOG_COLOR[0];
@@ -229,9 +241,10 @@ function draw(
   fctx.putImageData(img, 0, 0);
   // 迷雾边缘用硬边(最近邻,不做插值柔化)
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(fog, 0, 0, size, size);
+  ctx.drawImage(fog, 0, 0, w, h);
 
-  // 建筑标记(已在快照里过滤为仅已探索区域)
+  // 建筑标记(已在快照里过滤为仅已探索区域);图标尺寸按画布短边取,避免长图上过小
+  const size = Math.min(w, h);
   const iconSize = withLabels ? size * 0.06 : Math.max(size * 0.09, 11);
   ctx.font = `${iconSize}px sans-serif`;
   ctx.textAlign = 'center';
@@ -239,8 +252,8 @@ function draw(
   for (const m of snap.markers) {
     const style = MARKER_STYLE[m.kind];
     if (!style) continue;
-    const x = toPixel(m.x, snap.islandSize, size);
-    const y = toPixel(m.z, snap.islandSize, size);
+    const x = toPixelX(m.x, snap.islandWidth, w);
+    const y = toPixelY(m.z, snap.islandLength, h);
     ctx.fillText(style.icon, x, y);
     if (withLabels) {
       ctx.font = `600 ${iconSize * 0.6}px sans-serif`;
@@ -255,7 +268,7 @@ function draw(
 
   // 其他联机玩家:橙心白圈圆点,放大时带昵称
   for (const o of snap.others) {
-    const [ox, oy] = playerMapPoint(o.x, o.z, snap.islandSize, size);
+    const [ox, oy] = playerMapPoint(o.x, o.z, snap, w, h);
     const or = Math.max(size * 0.02, 3.5);
     ctx.beginPath();
     ctx.arc(ox, oy, or, 0, Math.PI * 2);
@@ -274,7 +287,7 @@ function draw(
   }
 
   // 本地玩家:白心蓝圈圆点
-  const [px, py] = playerMapPoint(snap.player.x, snap.player.z, snap.islandSize, size);
+  const [px, py] = playerMapPoint(snap.player.x, snap.player.z, snap, w, h);
   const r = Math.max(size * 0.025, 4);
   ctx.beginPath();
   ctx.arc(px, py, r, 0, Math.PI * 2);
@@ -285,13 +298,20 @@ function draw(
   ctx.stroke();
 }
 
-/** 远海玩家沿岛心方向投到地图内沿，保留返岛方位。 */
-function playerMapPoint(x: number, z: number, islandSize: number, size: number): [number, number] {
-  const limit = islandSize / 2;
-  const scale = Math.max(1, Math.abs(x) / limit, Math.abs(z) / limit);
-  const inset = size * 0.06;
+/** 远海玩家沿岛心方向投到地图内沿,保留返岛方位。 */
+function playerMapPoint(
+  x: number,
+  z: number,
+  snap: MinimapSnapshot,
+  w: number,
+  h: number
+): [number, number] {
+  const limitX = snap.islandWidth / 2;
+  const limitZ = snap.islandLength / 2;
+  const scale = Math.max(1, Math.abs(x) / limitX, Math.abs(z) / limitZ);
+  const inset = Math.min(w, h) * 0.06;
   return [
-    Math.max(inset, Math.min(size - inset, toPixel(x / scale, islandSize, size))),
-    Math.max(inset, Math.min(size - inset, toPixel(z / scale, islandSize, size))),
+    Math.max(inset, Math.min(w - inset, toPixelX(x / scale, snap.islandWidth, w))),
+    Math.max(inset, Math.min(h - inset, toPixelY(z / scale, snap.islandLength, h))),
   ];
 }

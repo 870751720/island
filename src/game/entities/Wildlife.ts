@@ -363,8 +363,9 @@ export class Wildlife implements Updatable {
 
   /** 某点是否为可站立的草地(不进沙滩,也不进海与池塘等水面之下) */
   private isGrass(x: number, z: number): boolean {
-    const r = Math.hypot(x, z);
-    if (r > this.terrain.size / 2 - 2) return false;
+    if (Math.abs(x) > this.terrain.halfWidth - 2 || Math.abs(z) > this.terrain.halfLength - 2) {
+      return false;
+    }
     const y = this.terrain.getHeight(x, z);
     if (y < GRASS_MIN) return false;
     // 池塘处地形被挖到水面之下,陆地处水面高度即地形高度
@@ -390,12 +391,11 @@ export class Wildlife implements Updatable {
 
   /** 在岛上随机撒点找一处草地(离所有玩家远一点,避免刷新在脸上) */
   private findGrassSpot(rng: () => number): THREE.Vector3 | null {
-    const maxR = this.terrain.size / 2 - 3;
+    const maxX = this.terrain.halfWidth - 3;
+    const maxZ = this.terrain.halfLength - 3;
     for (let i = 0; i < 40; i++) {
-      const a = rng() * Math.PI * 2;
-      const r = 4 + rng() * (maxR - 4);
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
+      const x = (rng() * 2 - 1) * maxX;
+      const z = (rng() * 2 - 1) * maxZ;
       if (!this.isGrass(x, z)) continue;
       let near = false;
       for (const t of this.players()) {

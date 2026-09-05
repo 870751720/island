@@ -120,11 +120,12 @@ export class MeteorSystem {
 
   /** 落点:随机找一块不低于水面、离水边远、未被资源点/玩家占住的干地 */
   private pickSpot(): THREE.Vector3 | null {
-    const half = this.terrain.size / 2;
+    const maxX = this.terrain.halfWidth * 0.85;
+    const maxZ = this.terrain.halfLength * 0.85;
     const p = this.player.group.position;
     for (let tries = 0; tries < 40; tries++) {
-      const x = (Math.random() * 2 - 1) * half * 0.85;
-      const z = (Math.random() * 2 - 1) * half * 0.85;
+      const x = (Math.random() * 2 - 1) * maxX;
+      const z = (Math.random() * 2 - 1) * maxZ;
       const y = this.terrain.getHeight(x, z);
       if (y <= 0.3) continue;
       const pos = new THREE.Vector3(x, y, z);

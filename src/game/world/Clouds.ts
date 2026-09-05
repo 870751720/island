@@ -1,16 +1,18 @@
 import * as THREE from 'three';
 
-const CLOUD_COUNT = 6;
+const CLOUD_COUNT = 12;
 const DRIFT_DIR = new THREE.Vector3(1, 0, 0.25).normalize();
 /** 低多边形白云:高空缓慢飘过岛上,并在地面投下移动的影子 */
 export class Clouds {
   readonly group = new THREE.Group();
   private clouds: { mesh: THREE.Group; speed: number }[] = [];
-  private span: number;
+  private spanX: number;
+  private spanZ: number;
 
-  /** span 为飘动范围(世界坐标边长),略大于岛直径,保证每隔一阵就有云飘过头顶 */
-  constructor(span = 150) {
-    this.span = span;
+  /** 飘动范围(世界坐标,东西/南北各一个边长),略大于岛尺寸,保证每隔一阵就有云飘过头顶 */
+  constructor(spanX = 150, spanZ = 150) {
+    this.spanX = spanX;
+    this.spanZ = spanZ;
     const mat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
       roughness: 1,
@@ -40,23 +42,24 @@ export class Clouds {
       g.add(blob);
     }
     g.position.set(
-      (rng(10) * 2 - 1) * this.span * 0.5,
+      (rng(10) * 2 - 1) * this.spanX * 0.5,
       26 + rng(11) * 8,
-      (rng(12) * 2 - 1) * this.span * 0.5
+      (rng(12) * 2 - 1) * this.spanZ * 0.5
     );
     return g;
   }
 
   update(delta: number): void {
-    const half = this.span / 2;
+    const halfX = this.spanX / 2;
+    const halfZ = this.spanZ / 2;
     for (const c of this.clouds) {
       c.mesh.position.addScaledVector(DRIFT_DIR, c.speed * delta);
       // 飘出范围后从另一侧回来,并换个随机高度
-      if (Math.abs(c.mesh.position.x) > half || Math.abs(c.mesh.position.z) > half) {
+      if (Math.abs(c.mesh.position.x) > halfX || Math.abs(c.mesh.position.z) > halfZ) {
         c.mesh.position.set(
-          -Math.sign(c.mesh.position.x) * half,
+          -Math.sign(c.mesh.position.x) * halfX,
           26 + Math.random() * 8,
-          (Math.random() * 2 - 1) * half * 0.8
+          (Math.random() * 2 - 1) * halfZ * 0.8
         );
       }
     }

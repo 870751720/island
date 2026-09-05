@@ -40,18 +40,39 @@ export class IslandTerrain {
   readonly waterGroup = new THREE.Group();
   /** 全部水面区域(水洼),供资源生成等避让 */
   readonly waterAreas: WaterArea[] = [];
-  readonly size: number;
+  /** 岛屿东西向(短轴)宽度 */
+  readonly width: number;
+  /** 岛屿南北向(长轴)长度 */
+  readonly length: number;
+  readonly halfWidth: number;
+  readonly halfLength: number;
   private heightAt: (x: number, z: number) => number;
 
-  constructor(size = 160, seed = Math.random() * 1000) {
-    this.size = size;
+  constructor(width = 160, length = 800, seed = Math.random() * 1000) {
+    this.width = width;
+    this.length = length;
+    const hw = width / 2;
+    const hl = length / 2;
+    this.halfWidth = hw;
+    this.halfLength = hl;
     const noise = createNoise(seed);
-    const half = size / 2;
-    const f1 = 6 / size;
-    const f2 = 18 / size;
+    // 噪声波长按短轴宽度取,长条岛上地形起伏的颗粒感与旧圆形岛一致
+    const f1 = 6 / width;
+    const f2 = 18 / width;
+
+    // 海岸线扰动:以极角为参数的周期噪声,让椭圆边界凹凸不平而非规整曲线
+    const coastWobble = (x: number, z: number) => {
+      const a = Math.atan2(z, x);
+      const n1 = noise(Math.cos(a) * 1.6 + 7, Math.sin(a) * 1.6 + 13);
+      const n2 = noise(Math.cos(a) * 4 + 31, Math.sin(a) * 4 + 17);
+      return 1 + (n1 - 0.5) * 0.3 + (n2 - 0.5) * 0.14;
+    };
 
     const baseHeight = (x: number, z: number) => {
-      const dist = Math.sqrt(x * x + z * z) / half;
+      // 基准椭圆按最大扰动幅度收缩,保证扰动后的海岸不会超出地形平面边界
+      const shrink = 1.18;
+      const nd = Math.sqrt((x * x) / (hw * hw) + (z * z) / (hl * hl)) / shrink;
+      const dist = nd * coastWobble(x, z);
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
       // 岛外海底逐渐加深到约 -2.1,保证外海水深足够进入游泳;
@@ -84,12 +105,12 @@ export class IslandTerrain {
       this.waterGroup.add(disc);
     };
 
-    // 内陆水洼:数量随岛屿面积,间距与尺寸挂钩,不写死上限
-    const maxPonds = THREE.MathUtils.clamp(Math.round((size * size) / 3200), 3, 14);
-    const minPondGap = Math.max(18, size / 8);
-    for (let i = 0; i < size && this.countPonds() < maxPonds; i++) {
-      const x = (rng(i * 2 + 1) * 2 - 1) * half * 0.55;
-      const z = (rng(i * 2 + 2) * 2 - 1) * half * 0.55;
+    // 内陆水洼:数量随岛屿面积,间距与短轴挂钩,不写死上限
+    const maxPonds = THREE.MathUtils.clamp(Math.round((width * length) / 3200), 3, 60);
+    const minPondGap = Math.max(18, width / 8);
+    for (let i = 0; i < maxPonds * 30 && this.countPonds() < maxPonds; i++) {
+      const x = (rng(i * 2 + 1) * 2 - 1) * hw * 0.55;
+      const z = (rng(i * 2 + 2) * 2 - 1) * hl * 0.55;
       const y = baseHeight(x, z);
       if (y < 1.0) continue;
       if (this.tooClose(x, z, minPondGap)) continue;
@@ -115,8 +136,10 @@ export class IslandTerrain {
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
-    const segments = Math.round(size / 1.8);
-    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    const segW = Math.round(width / 1.8);
+    const segL = Math.round(length / 1.8);
+    const segments = Math.max(segW, segL);
+    const geometry = new THREE.PlaneGeometry(width, length, segW, segL);
     geometry.rotateX(-Math.PI / 2);
     const pos = geometry.attributes.position as THREE.BufferAttribute;
     const vertexHeights = new Float32Array(pos.count);
@@ -144,14 +167,15 @@ export class IslandTerrain {
 
     // 玩法高度按渲染网格的两个三角形插值。此前继续使用连续噪声函数，
     // 而屏幕上看到的是约 1.8m 间距的三角网格，水岸视觉与判定因此错位。
-    const stride = segments + 1;
-    const cellSize = size / segments;
+    const stride = segW + 1;
+    const cellX = width / segW;
+    const cellZ = length / segL;
     this.heightAt = (x: number, z: number) => {
-      if (Math.abs(x) > half || Math.abs(z) > half) return -2.1;
-      const gx = THREE.MathUtils.clamp((x + half) / cellSize, 0, segments);
-      const gz = THREE.MathUtils.clamp((z + half) / cellSize, 0, segments);
-      const ix = Math.min(Math.floor(gx), segments - 1);
-      const iz = Math.min(Math.floor(gz), segments - 1);
+      if (Math.abs(x) > hw || Math.abs(z) > hl) return -2.1;
+      const gx = THREE.MathUtils.clamp((x + hw) / cellX, 0, segW);
+      const gz = THREE.MathUtils.clamp((z + hl) / cellZ, 0, segL);
+      const ix = Math.min(Math.floor(gx), segW - 1);
+      const iz = Math.min(Math.floor(gz), segL - 1);
       const u = gx - ix;
       const v = gz - iz;
       const a = vertexHeights[iz * stride + ix];
@@ -248,16 +272,15 @@ export class IslandTerrain {
     return this.heightAt(x, z);
   }
 
-  /** 从岛外向内找第一处水线上方的干地,确保出生就在海岸边 */
+  /** 出生点固定在岛最南端(+z 为屏幕下方):从南端海岸向岛内扫,找第一处水线上方的干地 */
   findSpawnPoint(): THREE.Vector3 {
-    const r = this.size / 2 - 2;
-    for (let radius = r; radius > 2; radius -= 2) {
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
-        const x = Math.cos(a) * radius;
-        const z = Math.sin(a) * radius;
-        const h = this.heightAt(x, z);
-        if (h > 0.1 && !this.isInWater(new THREE.Vector3(x, h, z))) {
-          return new THREE.Vector3(x, h, z);
+    for (let z = this.halfLength - 2; z > 0; z -= 1) {
+      for (let x = 0; x < this.halfWidth; x += 1) {
+        for (const sx of x === 0 ? [0] : [x, -x]) {
+          const h = this.heightAt(sx, z);
+          if (h > 0.1 && !this.isInWater(new THREE.Vector3(sx, h, z))) {
+            return new THREE.Vector3(sx, h, z);
+          }
         }
       }
     }

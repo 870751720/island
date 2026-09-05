@@ -319,12 +319,14 @@ export function GameplayUI({
     () => ({
       getMinimapSnapshot: () =>
         gameRef.current?.getMinimapSnapshot() ?? {
-          islandSize: 0,
+          islandWidth: 0,
+          islandLength: 0,
           player: { x: 0, z: 0 },
           others: [],
           markers: [],
           explored: new Uint8Array(0),
-          gridLen: 0,
+          gridW: 0,
+          gridL: 0,
         },
       getGroundKind: (x: number, z: number) => gameRef.current?.getGroundKind(x, z) ?? 'water',
     }),

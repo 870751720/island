@@ -370,15 +370,16 @@ export class Props implements Updatable {
     rng: () => number = Math.random
   ) {
     if (!generate) return;
-    const half = terrain.size / 2;
+    const maxX = terrain.halfWidth * 0.85;
+    const maxZ = terrain.halfLength * 0.85;
     const spawn = (kind: PropKind, count: number) => {
       for (let i = 0; i < count; i++) {
         let x = 0;
         let z = 0;
         let y = -1;
         for (let tries = 0; tries < 20; tries++) {
-          x = (rng() * 2 - 1) * half * 0.85;
-          z = (rng() * 2 - 1) * half * 0.85;
+          x = (rng() * 2 - 1) * maxX;
+          z = (rng() * 2 - 1) * maxZ;
           y = terrain.getHeight(x, z);
           if (y > 0.3) break;
         }

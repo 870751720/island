@@ -7,13 +7,14 @@ export class WaterDebugOverlay {
 
   constructor(terrain: IslandTerrain) {
     const step = 1;
-    const half = terrain.size / 2;
+    const halfX = terrain.halfWidth;
+    const halfZ = terrain.halfLength;
     const positions: number[] = [];
     const colors: number[] = [];
     const sea = new THREE.Color('#ff2bd6');
     const pond = new THREE.Color('#65ff4d');
-    for (let z = -half; z < half; z += step) {
-      for (let x = -half; x < half; x += step) {
+    for (let z = -halfZ; z < halfZ; z += step) {
+      for (let x = -halfX; x < halfX; x += step) {
         const cx = x + step / 2;
         const cz = z + step / 2;
         const kind = terrain.getWaterKind(cx, cz);

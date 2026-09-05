@@ -414,16 +414,16 @@ export class Game {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    const terrain = new IslandTerrain(160, this.terrainSeed);
+    const terrain = new IslandTerrain(160, 800, this.terrainSeed);
     this.terrain = terrain;
-    this.minimap = new MinimapSystem(terrain.size);
+    this.minimap = new MinimapSystem(terrain.width, terrain.length);
     this.scene.add(terrain.mesh);
     this.oceanDepth = new OceanDepth(terrain);
     this.ocean = new Ocean(terrain.seaLevel, this.oceanDepth);
     this.scene.add(this.ocean.mesh);
     this.waterDebug = new WaterDebugOverlay(terrain);
     this.scene.add(this.waterDebug.mesh);
-    this.clouds = new Clouds(terrain.size * 0.95);
+    this.clouds = new Clouds(terrain.width, terrain.length);
     this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain, !save);
     this.fx = new Particles(this.scene);
@@ -1505,7 +1505,8 @@ export class Game {
     for (const pos of this.campfire.positions) markers.push({ kind: 'campfire', ...pos });
     for (const pos of this.beds.positions) markers.push({ kind: 'bed', ...pos });
     return {
-      islandSize: this.terrain.size,
+      islandWidth: this.terrain.width,
+      islandLength: this.terrain.length,
       player: { x: p.x, z: p.z },
       others: this.sessions
         .filter((s) => s !== this.local)
@@ -1516,7 +1517,8 @@ export class Game {
         })),
       markers: markers.filter((m) => this.minimap.isExplored(m.x, m.z)),
       explored: this.minimap.grid,
-      gridLen: this.minimap.gridLen,
+      gridW: this.minimap.gridW,
+      gridL: this.minimap.gridL,
     };
   }
 

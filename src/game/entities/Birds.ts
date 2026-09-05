@@ -213,12 +213,13 @@ export class Birds implements Updatable {
   /** 巡航目标:玩家周围环内随机一点的高空 */
   private pickWanderTarget(rng: () => number): THREE.Vector3 {
     const p = this.players()[0]?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
-    const half = this.terrain.size / 2;
+    const halfX = this.terrain.halfWidth * 0.9;
+    const halfZ = this.terrain.halfLength * 0.9;
     for (let tries = 0; tries < 10; tries++) {
       const a = rng() * Math.PI * 2;
       const d = WANDER_MIN + rng() * (WANDER_MAX - WANDER_MIN);
-      const x = THREE.MathUtils.clamp(p.x + Math.cos(a) * d, -half * 0.9, half * 0.9);
-      const z = THREE.MathUtils.clamp(p.z + Math.sin(a) * d, -half * 0.9, half * 0.9);
+      const x = THREE.MathUtils.clamp(p.x + Math.cos(a) * d, -halfX, halfX);
+      const z = THREE.MathUtils.clamp(p.z + Math.sin(a) * d, -halfZ, halfZ);
       if (this.terrain.getHeight(x, z) > 0.3) {
         return new THREE.Vector3(x, this.terrain.getHeight(x, z) + 4 + rng() * 5, z);
       }
@@ -250,12 +251,13 @@ export class Birds implements Updatable {
     }
     // 空地:玩家周围环内找一块离水稍远的干地
     const p = this.players()[0]?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
-    const half = this.terrain.size / 2;
+    const halfX = this.terrain.halfWidth * 0.9;
+    const halfZ = this.terrain.halfLength * 0.9;
     for (let tries = 0; tries < 12; tries++) {
       const a = rng() * Math.PI * 2;
       const d = WANDER_MIN * 0.5 + rng() * WANDER_MAX * 0.6;
-      const x = THREE.MathUtils.clamp(p.x + Math.cos(a) * d, -half * 0.9, half * 0.9);
-      const z = THREE.MathUtils.clamp(p.z + Math.sin(a) * d, -half * 0.9, half * 0.9);
+      const x = THREE.MathUtils.clamp(p.x + Math.cos(a) * d, -halfX, halfX);
+      const z = THREE.MathUtils.clamp(p.z + Math.sin(a) * d, -halfZ, halfZ);
       if (
         this.terrain.getHeight(x, z) > 0.3 &&
         !this.terrain.isNearWater(new THREE.Vector3(x, 0, z), 0.5)
