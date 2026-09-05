@@ -265,18 +265,18 @@ function makeMeteor(): THREE.Group {
   return g;
 }
 
-/** 铁矿:灰岩体表面嵌着锈红色铁斑 */
+/** 铁矿:整体锈红的岩体,嵌着深灰的金属矿块(与灰色石矿一眼区分) */
 function makeIron(): THREE.Group {
   const g = new THREE.Group();
   const rock = new THREE.Mesh(
     new THREE.DodecahedronGeometry(0.55, 0),
-    clayMaterial('#8a8a8a')
+    clayMaterial('#a5623f')
   );
   rock.scale.set(1, 0.85, 0.9);
   rock.position.y = 0.4;
   rock.castShadow = true;
   g.add(rock);
-  const oreMat = clayMaterial('#b0714f');
+  const oreMat = clayMaterial('#4d5560');
   const bits: [number, number, number][] = [
     [0.3, 0.5, 0.22],
     [-0.35, 0.42, 0.18],
@@ -285,7 +285,7 @@ function makeIron(): THREE.Group {
     [0.42, 0.32, -0.2],
   ];
   for (const [x, y, z] of bits) {
-    const bit = new THREE.Mesh(new THREE.TetrahedronGeometry(0.11, 0), oreMat);
+    const bit = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.13, 0.14), oreMat);
     bit.position.set(x, y, z);
     bit.rotation.set(0.4, 0.8, 0.2);
     g.add(bit);
