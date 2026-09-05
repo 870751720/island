@@ -38,3 +38,4 @@
 - 2026-09-04:世界 tab 新增「锁定夜晚」开关(GmSystem.lockNighttime,时间停在午夜),与锁定白天互斥(后设置者生效自动解除另一个);跳转时刻会同时解除两种锁定。
 - 2026-09-04:世界 tab 新增「显示网络流量与延迟」开关(GmSystem.showTraffic);`src/ui/TrafficOverlay.tsx` 显示每秒上行/下行速率与 RTT(各通道最大值,着色阈值 100/250ms),数据来自 `src/game/net/NetTraffic.ts`(PeerNet 收发字节累计 + 通道层每秒 ping/pong)。
 - 2026-09-05:网络浮层增加按方向、消息类型和 DataChannel 的每秒速率明细，按流量从高到低显示前 8 项；实时状态通道标为蓝色“实时”，可靠控制通道标为黄色“可靠”，可直接定位玩家姿态、动物、环境生物、HUD、世界增量等各自占用。
+- 2026-09-05:新增「动物」页(`AnimalsTab.tsx`):一键在玩家附近草地生成 兔子/绵羊/鹿/熊(`Game.gmSpawnAnimal` → `Wildlife.gmSpawnNear`,1.5~5m 内找草地,找不到提示挪位)。联机时客人经 `gmSpawnAnimal` 动作上行房主结算,新动物随动物姿态快照同步(协议 AnimalPose 带 species,客人端按 id 补建)。

@@ -4,10 +4,12 @@ import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import type { ToolId } from '@/game/systems/Crafting';
 import type { GmConfig } from '@/game/systems/GmSystem';
+import type { AnimalSpecies } from '@/game/entities/Wildlife';
 import { PlayerTab } from './PlayerTab';
 import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
 import { ItemsTab } from './ItemsTab';
+import { AnimalsTab } from './AnimalsTab';
 
 /** GM 面板可对 Game 实例执行的动作,由 GameplayUI 通过回调注入 */
 export type GmActions = {
@@ -17,6 +19,7 @@ export type GmActions = {
   setConfig: (patch: Partial<GmConfig>) => void;
   giveItem: (kind: ResourceKind, count: number) => void;
   giveTool: (tool: ToolId, tier: 1 | 2) => void;
+  spawnAnimal: (species: AnimalSpecies) => void;
 };
 
 const TABS = [
@@ -24,6 +27,7 @@ const TABS = [
   { id: 'world', label: '世界' },
   { id: 'fishing', label: '钓鱼' },
   { id: 'items', label: '物品' },
+  { id: 'animals', label: '动物' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -55,6 +59,7 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
         {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
+        {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
         <button onClick={onClose} style={closeStyle}>
           关闭
         </button>

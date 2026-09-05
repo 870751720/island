@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import { nearestToSegmentXZ } from '../core/HitSegment';
 import type { AmbientPose } from '../net/Protocol';
 import type { Props } from '../world/Props';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -441,6 +442,11 @@ export class Birds implements Updatable {
       }
     }
     return best ? best.pos.clone() : null;
+  }
+
+  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活鸟(无则 null) */
+  hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Bird | null {
+    return nearestToSegmentXZ(this.birds, from, to, range);
   }
 
   /** 击杀某点附近的一只活鸟(箭矢命中调用),返回是否命中;死后经 RESPAWN_TIME 在别处高空重新起飞 */

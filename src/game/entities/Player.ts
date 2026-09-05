@@ -274,6 +274,8 @@ export class Player implements Updatable {
   private swimming = false;
   private wading = false;
   private action: ActionType | null = null;
+  /** 当前动作已进行时长(射箭等需要按进度摆姿态的动作用) */
+  private actionTime = 0;
   private hurtFlash = 0;
   /** 减速 debuff 剩余时长(熊扑击命中时施加) */
   private slowLeft = 0;
@@ -427,7 +429,10 @@ export class Player implements Updatable {
   }
 
   setAction(action: ActionType | null): void {
-    this.action = action;
+    if (action !== this.action) {
+      this.action = action;
+      this.actionTime = 0;
+    }
   }
 
   /** 是否处于作业动画中(砍树/凿石/制作/吃喝/钓鱼等交互动作) */
@@ -595,6 +600,7 @@ export class Player implements Updatable {
         model!.visible = name === this.handTool;
       }
       if (this.action && !this.moving) {
+        this.actionTime += delta;
         this.animateAction(elapsed);
       } else {
         this.group.rotation.x = 0;
@@ -712,12 +718,14 @@ export class Player implements Updatable {
         break;
       }
       case 'shoot': {
-        // 开弓放箭:左臂前伸持弓,右臂拉弦到脸颊后猛地松开
-        this.group.rotation.x = 0.05;
-        this.arms[0].rotation.x = -1.55;
-        const draw = Math.sin(t * 6);
-        this.arms[1].rotation.x = -1.55 + draw * 0.35;
-        this.arms[1].rotation.z = draw * 0.25;
+        // 放箭:从满弦到撒放——左臂持弓前伸,右臂先贴颊满弦,随即向后撒开放空,身体带一点后坐
+        const p = Math.min(this.actionTime / 0.35, 1);
+        this.group.rotation.x = 0.05 - Math.max(0, p - 0.5) * 0.12;
+        this.arms[0].rotation.x = -1.5;
+        this.arms[0].rotation.z = 0;
+        const release = p < 0.35 ? 0 : Math.min(1, (p - 0.35) / 0.3);
+        this.arms[1].rotation.x = -1.05 + release * -0.45 - release * release * 0.1;
+        this.arms[1].rotation.z = 0.32 * (1 - release);
         break;
       }
       case 'eat_berry': {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import type { AmbientPose } from '../net/Protocol';
+import { nearestToSegmentXZ } from '../core/HitSegment';
 import { IslandTerrain } from '../world/IslandTerrain';
 
 /** 沙滩高度带:低于该值为海/湿沙,高于该值为草地;螃蟹只在带内活动 */
@@ -342,6 +343,11 @@ export class Crabs implements Updatable {
       }
     }
     return best ? best.pos.clone() : null;
+  }
+
+  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活螃蟹(无则 null) */
+  hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Crab | null {
+    return nearestToSegmentXZ(this.crabs, from, to, range);
   }
 
   /**

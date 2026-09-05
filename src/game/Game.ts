@@ -12,7 +12,7 @@ import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
-import { Wildlife } from './entities/Wildlife';
+import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
 import { DayNightSystem } from './systems/DayNightSystem';
@@ -648,7 +648,10 @@ export class Game {
           }
           s.eating.update(delta);
           s.fishing.update(delta, this.isSessionBusy(s, 'fishing'));
-          s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
+          // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算)
+          if (s === this.local) {
+            s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
+          }
           // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
           s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
           this.crates.updateActor(s, delta);
@@ -722,12 +725,17 @@ export class Game {
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
         if (this.guestMode) {
           this.collect.scanNearby();
+          // 客人的弓在本地完整跑瞄准/飞行/命中判定,命中结果上行房主权威结算;
+          // 远程玩家的弓不在此端模拟(其放箭声效由房主 feedback 事件补播)
+          this.local.archery.update(
+            delta,
+            this.isSessionBusy(this.local, 'archery') || this.survival.state.dead
+          );
           for (const s of this.sessions) {
-            // 纯表现:箭矢/钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
+            // 纯表现:钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
             // 复现期间静音——本人的音效已由房主 feedback 事件补播,这里再播会重一声,
             // 远程玩家的交互音效按设计只给发起者本人听
             this.audio.silent = true;
-            s.archery.netUpdate(delta, s.survival.state.dead);
             s.fishing.update(delta, false);
             this.fences.updatePreviewFor(s);
           }
@@ -1583,6 +1591,7 @@ export class Game {
     if (
       this.player.isMoving ||
       (this.guestMode && this.player.isActing) ||
+      this.archery.isWorking ||
       this.crafting.isWorking ||
       this.workbench.isWorking(this.local) ||
       this.eating.isWorking ||
@@ -1749,6 +1758,29 @@ export class Game {
       return;
     }
     this.weather.force(type);
+  }
+
+  /** GM 在玩家附近的草地上生成一只指定动物;客人端上行车主权威结算 */
+  gmSpawnAnimal(species: AnimalSpecies): void {
+    if (this.guestNet) {
+      this.guestNet.action('gmSpawnAnimal', [species]);
+      return;
+    }
+    this.gmSpawnAnimalFor(species, this.local);
+  }
+
+  /** GM 生成落点:在该玩家附近的草地上生成指定动物并提示 */
+  gmSpawnAnimalFor(species: AnimalSpecies, actor: PlayerSession = this.local): void {
+    const p = actor.player.group.position;
+    if (actor !== this.local) {
+      this.wildlife.gmSpawnNear(species, p.x, p.z);
+      return;
+    }
+    this.notify(
+      this.wildlife.gmSpawnNear(species, p.x, p.z)
+        ? `已在附近生成${ANIMAL_LABELS[species]}`
+        : '附近没有合适的草地,挪个位置再试'
+    );
   }
 
   /** GM 开关调整:本地立即生效;联机时全房间同步同一份配置 */
@@ -2297,7 +2329,17 @@ export class Game {
           const angle = (i / items.length) * Math.PI * 2;
           this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);
         });
-      }
+      },
+      // 客人端:命中判定在本地完成,结果上行房主权威结算(扣箭/伤害/掉落随快照回流)
+      this.guestMode && s === this.local
+        ? (hit, x, z) =>
+            this.guestNet?.action('arrowHit', [
+              hit.kind,
+              hit.kind === 'wildlife' ? hit.animalId : 0,
+              Math.round(x * 10) / 10,
+              Math.round(z * 10) / 10,
+            ])
+        : undefined
     );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio);
   }

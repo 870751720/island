@@ -9,22 +9,24 @@ import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { Tools } from './Crafting';
 
-/** 攻击范围:玩家到目标不超过这个距离才会开弓 */
+/** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
-/** 每次射箭的冷却(秒,精致弓更短) */
-const COOLDOWN = 3;
-const REFINED_COOLDOWN = 2;
 /** 每支箭对野生动物的伤害(精致弓更高) */
 const ARROW_DAMAGE = 1;
 const REFINED_ARROW_DAMAGE = 2;
-/** 开弓瞄准时间(秒),期间播拉弓动作 */
+/** 开弓瞄准时间(秒):移动瞄准满这段时间后,松手才会放箭 */
 const DRAW_TIME = 0.45;
+/** 放箭动作时长(秒):播完即可重新开弓,没有额外冷却 */
+const SHOT_TIME = 0.35;
 /** 箭矢飞行速度 */
 const ARROW_SPEED = 18;
-/** 箭矢到达后判定命中的范围 */
+/** 扫掠命中半径:箭矢飞过路径上距目标不超过该值即命中 */
 const HIT_RANGE = 0.9;
 /** 命中箭插在地上多久后消失(秒) */
 const STICK_TIME = 6;
+/** 瞄准虚线的点数与起点间距 */
+const AIM_DOTS = 9;
+const AIM_START = 1;
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -38,7 +40,7 @@ function makeArrowModel(): THREE.Group {
     clayMaterial('#a97c50')
   );
   g.add(shaft);
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 4), clayMaterial('#8a8a8a'));
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 4), clayMaterial('#8a8a95'));
   head.position.y = 0.3;
   g.add(head);
   const feather = clayMaterial('#e8e2d4');
@@ -51,32 +53,86 @@ function makeArrowModel(): THREE.Group {
   return g;
 }
 
+/** 一次命中判定结果:客人端上行给房主权威结算用 */
+export type ArrowHit =
+  | { kind: 'wildlife'; animalId: number }
+  | { kind: 'crab' }
+  | { kind: 'bird' };
+
+/** 瞄准虚线:沿瞄准方向的一串圆点,随拉弓进度逐渐向外延伸 */
+class AimGuide {
+  readonly group = new THREE.Group();
+  private dots: THREE.Mesh[] = [];
+
+  constructor(private terrain: IslandTerrain) {
+    const geo = new THREE.SphereGeometry(0.09, 6, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: '#fff3c4', transparent: true, opacity: 0.85 });
+    for (let i = 0; i < AIM_DOTS; i++) {
+      const dot = new THREE.Mesh(geo, mat);
+      dot.visible = false;
+      this.dots.push(dot);
+      this.group.add(dot);
+    }
+    this.group.visible = false;
+  }
+
+  /** 显示:origin 为射手位置,progress∈(0,1] 为拉弓进度,决定点数 */
+  show(origin: THREE.Vector3, dirX: number, dirZ: number, progress: number): void {
+    this.group.visible = true;
+    const count = Math.max(1, Math.round(progress * AIM_DOTS));
+    const step = (RANGE - AIM_START) / (AIM_DOTS - 1);
+    for (let i = 0; i < AIM_DOTS; i++) {
+      const dot = this.dots[i];
+      if (i >= count) {
+        dot.visible = false;
+        continue;
+      }
+      const d = AIM_START + step * i;
+      const x = origin.x + dirX * d;
+      const z = origin.z + dirZ * d;
+      dot.visible = true;
+      dot.position.set(x, this.terrain.getHeight(x, z) + 0.3, z);
+      // 越靠前(越接近拉满)的点越亮越大
+      const k = (i + 1) / AIM_DOTS;
+      dot.scale.setScalar(0.7 + k * 0.6);
+    }
+  }
+
+  hide(): void {
+    this.group.visible = false;
+  }
+}
+
 type Arrow = {
   group: THREE.Group;
-  from: THREE.Vector3;
-  to: THREE.Vector3;
-  t: number;
-  duration: number;
-  /** 上一帧位置,末帧用于取真实运动方向 */
+  pos: THREE.Vector3;
+  /** 飞行方向(单位向量,XZ 平面) */
+  dir: THREE.Vector3;
+  /** 剩余射程 */
+  left: number;
+  /** 上一帧位置,扫掠判定用 */
   prev: THREE.Vector3;
   /** 命中目标未杀死(生物已移动)时插在地上等消失 */
   stuck: number;
 };
 
 /**
- * 弓箭:手持弓且背包有箭时,攻击范围内的螃蟹/小鸟/野生动物(蝴蝶除外)会被自动瞄准,
- * 拉弓片刻后放箭,箭飞到目标点判定命中;每次射击 3 秒冷却。
+ * 弓箭:持弓且攻击范围内有猎物时,移动即开弓——沿摇杆方向显示瞄准虚线,
+ * 持续瞄准片刻拉满后松手(松开摇杆/停止移动)放箭;箭沿飞行路径扫掠判定命中。
+ * 站定不瞄、没有目标不开弓,误射风险由玩家持弓自行承担。
  */
 export class BowSystem {
-  private cooldown = 0;
-  private drawLeft = 0;
+  /** 拉弓剩余时间(0 表示已拉满) */
+  private drawLeft = DRAW_TIME;
+  /** 已获得瞄准方向(移动瞄准过) */
+  private aimed = false;
+  private aimDir = new THREE.Vector2();
+  private shotLock = 0;
   private arrows: Arrow[] = [];
-  private from = new THREE.Vector3();
-  private target = new THREE.Vector3();
-  private dir = new THREE.Vector3();
+  private guide: AimGuide;
+  private inputVec = new THREE.Vector2();
+  private tmpV = new THREE.Vector3();
   private up = new THREE.Vector3(0, 1, 0);
-  /** 客人端纯表现模式:自动开弓放箭的视觉照跑,但不做命中/消耗等权威结算 */
-  private visualOnly = false;
 
   constructor(
     private scene: THREE.Scene,
@@ -94,50 +150,64 @@ export class BowSystem {
       items: { kind: ResourceKind; count: number }[],
       x: number,
       z: number
-    ) => void
-  ) {}
-
-  /** 拉弓期间占用双手(其他系统让位用) */
-  get isWorking(): boolean {
-    return this.drawLeft > 0;
+    ) => void,
+    /** 客人端注入:本地判定命中后上行房主权威结算(扣箭/伤害/掉落) */
+    private onNetHit?: (hit: ArrowHit, x: number, z: number) => void
+  ) {
+    this.guide = new AimGuide(terrain);
+    this.scene.add(this.guide.group);
   }
 
-  /** 客人端表现驱动:箭矢命中/掉落由房主权威结算,本地只复现开弓与飞箭画面 */
-  netUpdate(delta: number, busy: boolean): void {
-    this.visualOnly = true;
-    this.update(delta, busy);
+  /** 放箭动作期间占用双手(其他系统让位用) */
+  get isWorking(): boolean {
+    return this.shotLock > 0;
+  }
+
+  /** 当前是否处于瞄准状态(虚线可见) */
+  get isAiming(): boolean {
+    return this.guide.group.visible;
   }
 
   update(delta: number, busy: boolean): void {
-    this.cooldown = Math.max(0, this.cooldown - delta);
     this.updateArrows(delta);
 
-    if (this.drawLeft > 0) {
+    if (this.shotLock > 0) {
       this.player.setAction('shoot');
-      // 持续面朝目标开弓
-      const p = this.player.group.position;
-      this.player.group.rotation.y = Math.atan2(
-        this.target.x - p.x,
-        this.target.z - p.z
-      );
-      this.drawLeft -= delta;
-      if (this.drawLeft <= 0) this.launch();
+      this.shotLock -= delta;
+      if (this.shotLock <= 0) this.player.setAction(null);
       return;
     }
 
-    if (
-      this.cooldown > 0 ||
-      busy ||
-      this.player.isSwimming ||
-      this.player.currentTool !== 'bow' ||
-      this.inventory.count('arrow') <= 0
-    ) {
+    const canAim =
+      !busy &&
+      !this.player.isSwimming &&
+      this.player.currentTool === 'bow' &&
+      this.inventory.count('arrow') > 0 &&
+      this.findTarget() !== null;
+    if (!canAim) {
+      this.cancelAim();
       return;
     }
-    const target = this.findTarget();
-    if (!target) return;
-    this.target.copy(target);
-    this.drawLeft = DRAW_TIME;
+
+    this.player.input.getVector(this.inputVec);
+    const moving = this.inputVec.lengthSq() > 0.001;
+    if (moving) {
+      // 移动即瞄准:虚线沿摇杆方向(360° 自由),持续瞄准逐渐拉满
+      this.aimDir.set(this.inputVec.x, this.inputVec.y).normalize();
+      this.aimed = true;
+      this.drawLeft = Math.max(0, this.drawLeft - delta);
+      this.guide.show(
+        this.player.group.position,
+        this.aimDir.x,
+        this.aimDir.y,
+        1 - this.drawLeft / DRAW_TIME
+      );
+      return;
+    }
+    // 站定即收弓:拉满松手放箭,没拉满视为取消
+    this.guide.hide();
+    if (this.aimed && this.drawLeft <= 0) this.release();
+    else this.drawLeft = DRAW_TIME;
   }
 
   /** 攻击范围内最近的活螃蟹/活鸟/野生动物(蝴蝶不可射) */
@@ -152,30 +222,38 @@ export class BowSystem {
     return candidates.reduce((best, v) => (v.distanceToSquared(p) < best.distanceToSquared(p) ? v : best));
   }
 
-  /** 放箭:扣一支箭,生成飞行箭矢,进入冷却 */
-  private launch(): void {
-    if (!this.visualOnly && !this.inventory.remove('arrow', 1)) return;
-    this.cooldown = this.tools.bow >= 2 ? REFINED_COOLDOWN : COOLDOWN;
+  private cancelAim(): void {
+    this.guide.hide();
+    this.drawLeft = DRAW_TIME;
+    this.aimed = false;
+  }
+
+  /** 放箭:扣一支箭,沿瞄准方向生成飞行箭矢,播放箭动作 */
+  private release(): void {
+    if (!this.inventory.remove('arrow', 1)) {
+      this.cancelAim();
+      return;
+    }
+    this.shotLock = SHOT_TIME;
+    this.drawLeft = DRAW_TIME;
+    this.aimed = false;
     this.audio.play('shoot');
     const group = makeArrowModel();
-    this.from.copy(this.player.group.position);
-    this.from.y += 1.1;
-    const to = this.target.clone();
-    const duration = Math.max(this.from.distanceTo(to) / ARROW_SPEED, 0.05);
-    group.position.copy(this.from);
+    const p = this.player.group.position;
+    this.tmpV.set(p.x, p.y + 1.1, p.z);
+    group.position.copy(this.tmpV);
     this.scene.add(group);
     this.arrows.push({
       group,
-      from: this.from.clone(),
-      to,
-      t: 0,
-      duration,
-      prev: this.from.clone(),
+      pos: this.tmpV.clone(),
+      dir: new THREE.Vector3(this.aimDir.x, 0, this.aimDir.y),
+      left: RANGE + 0.8,
+      prev: this.tmpV.clone(),
       stuck: 0,
     });
   }
 
-  /** 箭矢飞行:直线略带下坠的弧线,到达后判定命中,未命中插地保留片刻 */
+  /** 箭矢飞行:直线平飞,逐帧对飞行路径做扫掠命中,未命中插地保留片刻 */
   private updateArrows(delta: number): void {
     for (let i = this.arrows.length - 1; i >= 0; i--) {
       const arrow = this.arrows[i];
@@ -184,58 +262,75 @@ export class BowSystem {
         if (arrow.stuck <= 0) this.removeArrow(arrow, i);
         continue;
       }
-      arrow.t += delta;
-      const t = Math.min(arrow.t / arrow.duration, 1);
-      arrow.group.position.lerpVectors(arrow.from, arrow.to, t);
-      // 轻微抛物线:飞行中段略抬高,姿态对准实际运动方向
-      arrow.group.position.y += Math.sin(t * Math.PI) * 0.15;
-      this.dir.copy(arrow.group.position).sub(arrow.prev);
-      if (this.dir.lengthSq() > 0.0001) {
-        arrow.group.quaternion.setFromUnitVectors(this.up, this.dir.normalize());
+      const step = Math.min(ARROW_SPEED * delta, arrow.left);
+      arrow.prev.copy(arrow.pos);
+      arrow.pos.addScaledVector(arrow.dir, step);
+      arrow.left -= step;
+      arrow.group.position.copy(arrow.pos);
+      arrow.group.quaternion.setFromUnitVectors(this.up, arrow.dir);
+
+      const hit = this.sweepHit(arrow);
+      if (hit) {
+        this.resolveHit(hit, arrow, i);
+        continue;
       }
-      arrow.prev.copy(arrow.group.position);
-      if (t >= 1) {
-        this.resolveHit(arrow, i);
-      }
+      const ground = this.terrain.getHeight(arrow.pos.x, arrow.pos.z);
+      if (arrow.left <= 0 || arrow.pos.y <= ground) this.stick(arrow);
     }
   }
 
-  /** 到达目标点:命中范围内的螃蟹/小鸟/野生动物即结算;未命中则插在地上 */
-  private resolveHit(arrow: Arrow, index: number): void {
-    const p = arrow.group.position;
-    // 纯表现模式:命中与掉落由房主结算,箭到点即插地
-    if (this.visualOnly) {
-      arrow.stuck = STICK_TIME;
-      arrow.group.position.y = this.terrain.getHeight(p.x, p.z) + 0.2;
-      arrow.group.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+  /** 扫掠判定:箭矢本帧扫过的线段附近(平面距离)第一只猎物,命中优先级 野兽>螃蟹>鸟 */
+  private sweepHit(arrow: Arrow): ArrowHit | null {
+    const beast = this.wildlife.hitSegment(arrow.prev, arrow.pos, HIT_RANGE);
+    if (beast) return { kind: 'wildlife', animalId: beast.id };
+    const crab = this.crabs.hitSegment(arrow.prev, arrow.pos, HIT_RANGE);
+    if (crab) return { kind: 'crab' };
+    const bird = this.birds.hitSegment(arrow.prev, arrow.pos, HIT_RANGE);
+    if (bird) return { kind: 'bird' };
+    return null;
+  }
+
+  /** 命中结算:客人端只做本地表现并上行,房主/单机端权威扣血与掉落 */
+  private resolveHit(hit: ArrowHit, arrow: Arrow, index: number): void {
+    const p = arrow.pos;
+    this.audio.play('arrowHit');
+    this.fx.burst(p, '#c0392d', 10);
+    if (this.onNetHit) {
+      this.onNetHit(hit, p.x, p.z);
+    } else {
+      this.applyHit(hit, p.x, p.z);
+    }
+    this.removeArrow(arrow, index);
+  }
+
+  /** 权威结算一次命中:扣目标血量/击杀并掉落战利品 */
+  private applyHit(hit: ArrowHit, x: number, z: number): void {
+    const damage = this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE;
+    if (hit.kind === 'wildlife') {
+      const beast = this.wildlife.damage(hit.animalId, damage);
+      // 野生动物可中数箭:受伤未死不掉肉
+      if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species), x, z);
       return;
     }
-    const beast = this.wildlife.damageNearby(
-      p,
-      HIT_RANGE,
-      this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE
-    );
-    const hitCrab = !beast && this.crabs.killNearby(p, HIT_RANGE);
-    const hitBird = !beast && !hitCrab && this.birds.killNearby(p, HIT_RANGE);
-    if (beast || hitCrab || hitBird) {
-      this.audio.play('arrowHit');
-      this.fx.burst(p, '#c0392d', 10);
-      // 野生动物可中数箭:受伤未死不掉肉,箭留在身上消失
-      if (beast !== 'hit') {
-        const loot = beast
-          ? this.wildlife.lootOf(beast.species)
-          : ([{ kind: hitCrab ? ('crabMeat' as const) : ('birdMeat' as const), count: 1 }]);
-        this.onLoot(loot, p.x, p.z);
-      }
-      this.removeArrow(arrow, index);
-    } else {
-      arrow.stuck = STICK_TIME;
-      arrow.group.position.y = this.terrain.getHeight(p.x, p.z) + 0.2;
-      arrow.group.quaternion.setFromAxisAngle(
-        new THREE.Vector3(1, 0, 0),
-        Math.PI
-      );
+    const point = this.tmpV.set(x, 0, z);
+    if (hit.kind === 'crab' && this.crabs.killNearby(point, HIT_RANGE)) {
+      this.onLoot([{ kind: 'crabMeat', count: 1 }], x, z);
+    } else if (hit.kind === 'bird' && this.birds.killNearby(point, HIT_RANGE)) {
+      this.onLoot([{ kind: 'birdMeat', count: 1 }], x, z);
     }
+  }
+
+  /** 房主收到客人上行命中后的权威结算:扣一支箭并结算伤害/掉落(表现已在客人端播过) */
+  settleNetHit(hit: ArrowHit, x: number, z: number): void {
+    if (!this.inventory.remove('arrow', 1)) return;
+    this.applyHit(hit, x, z);
+  }
+
+  /** 未命中:箭插在地上,朝下竖直保留片刻后消失 */
+  private stick(arrow: Arrow): void {
+    arrow.stuck = STICK_TIME;
+    arrow.group.position.y = this.terrain.getHeight(arrow.pos.x, arrow.pos.z) + 0.2;
+    arrow.group.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
   }
 
   private removeArrow(arrow: Arrow, index: number): void {

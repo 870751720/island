@@ -3,11 +3,12 @@ import type { ResourceKind } from '../systems/Inventory';
 import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
+import type { AnimalSpecies } from '../entities/Wildlife';
 import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 13;
+export const NET_PROTOCOL_VERSION = 14;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -26,8 +27,8 @@ export type PlayerState = {
   action: ActionType | null;
 };
 
-/** 一只动物的实时姿态(快照用) */
-export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean };
+/** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物 */
+export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; species?: AnimalSpecies };
 
 export type AmbientPose = {
   id: number;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import { nearestToSegmentXZ } from '../core/HitSegment';
 import { IslandTerrain } from '../world/IslandTerrain';
 import type { Player } from './Player';
 import { ANIMAL_BUILDERS } from './WildlifeModels';
@@ -8,6 +9,14 @@ import type { Particles } from '../fx/Particles';
 import type { SfxName } from '../audio/Sfx';
 
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'bear';
+
+/** 物种中文名(GM 面板等展示用) */
+export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
+  rabbit: '兔子',
+  sheep: '绵羊',
+  deer: '鹿',
+  bear: '熊',
+};
 
 /** 击杀掉落的战利品(兽肉之外按物种附带不同材料) */
 export type AnimalLoot = { kind: ResourceKind; count: number }[];
@@ -215,41 +224,52 @@ export class Wildlife implements Updatable {
       for (let i = 0; i < config.count; i++) {
         const spawn = this.findGrassSpot(rng);
         if (!spawn) continue;
-        const model = ANIMAL_BUILDERS[species]();
-        model.group.position.copy(spawn);
-        this.group.add(model.group);
-        const heading = rng() * Math.PI * 2;
-        this.animals.push({
-          id: this.nextId++,
-          species,
-          config,
-          model,
-          pos: spawn.clone(),
-          target: spawn.clone(),
-          heading,
-          netPos: spawn.clone(),
-          netHeading: heading,
-          walkTime: 0,
-          idleTime: rng() * 4,
-          phase: rng() * Math.PI * 2,
-          hp: config.hp,
-          alive: true,
-          respawnLeft: 0,
-          attackLeft: 0,
-          lungeLeft: 0,
-          alerted: false,
-          viewHeading: heading,
-          stamina: BEAR_SPRINT_TIME,
-          tiredLeft: 0,
-          rageLeft: 0,
-          roarLeft: 0,
-          roared: false,
-          pounce: null,
-          dustLeft: 0,
-        });
+        this.createAnimal(species, spawn, rng() * Math.PI * 2, rng);
       }
     }
     scene.add(this.group);
+  }
+
+  /** 创建并放入一只动物(初始刷新与 GM 生成共用) */
+  private createAnimal(
+    species: AnimalSpecies,
+    spawn: THREE.Vector3,
+    heading: number,
+    rng: () => number = Math.random
+  ): Animal {
+    const model = ANIMAL_BUILDERS[species]();
+    model.group.position.copy(spawn);
+    this.group.add(model.group);
+    const animal: Animal = {
+      id: this.nextId++,
+      species,
+      config: SPECIES[species],
+      model,
+      pos: spawn.clone(),
+      target: spawn.clone(),
+      heading,
+      netPos: spawn.clone(),
+      netHeading: heading,
+      walkTime: 0,
+      idleTime: rng() * 4,
+      phase: rng() * Math.PI * 2,
+      hp: SPECIES[species].hp,
+      alive: true,
+      respawnLeft: 0,
+      attackLeft: 0,
+      lungeLeft: 0,
+      alerted: false,
+      viewHeading: heading,
+      stamina: BEAR_SPRINT_TIME,
+      tiredLeft: 0,
+      rageLeft: 0,
+      roarLeft: 0,
+      roared: false,
+      pounce: null,
+      dustLeft: 0,
+    };
+    this.animals.push(animal);
+    return animal;
   }
 
   /** 某点是否为可站立的草地(不进沙滩,也不进海与池塘等水面之下) */
@@ -569,6 +589,11 @@ export class Wildlife implements Updatable {
     return best ? best.pos.clone() : null;
   }
 
+  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null) */
+  hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Animal | null {
+    return nearestToSegmentXZ(this.animals, from, to, range);
+  }
+
   /**
    * 箭矢命中判定:对范围内最近的活动物造成指定伤害(精致弓伤害更高)。
    * 返回被击倒物种的对象(应掉落战利品)、'hit'(受伤未死)或 null(未命中)。
@@ -589,21 +614,32 @@ export class Wildlife implements Updatable {
       }
     }
     if (!best) return null;
-    best.hp -= damage;
-    if (best.hp > 0) {
+    return this.applyDamage(best, damage);
+  }
+
+  /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算) */
+  damage(id: number, damage: number): { species: AnimalSpecies } | 'hit' | null {
+    const animal = this.animals.find((a) => a.id === id);
+    if (!animal?.alive) return null;
+    return this.applyDamage(animal, damage);
+  }
+
+  private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
+    animal.hp -= damage;
+    if (animal.hp > 0) {
       // 熊中箭未死:立刻无视距离锁定玩家并暴怒(加速 + 红眼 + 咆哮),远程偷袭有代价
-      if (best.species === 'bear') {
-        best.alerted = true;
-        best.rageLeft = BEAR_RAGE_TIME;
-        this.roar(best);
+      if (animal.species === 'bear') {
+        animal.alerted = true;
+        animal.rageLeft = BEAR_RAGE_TIME;
+        this.roar(animal);
       }
       return 'hit';
     }
-    const species = best.species;
-    best.alive = false;
-    best.respawnLeft = best.config.respawn;
-    best.hp = best.config.hp;
-    best.model.group.visible = false;
+    const species = animal.species;
+    animal.alive = false;
+    animal.respawnLeft = animal.config.respawn;
+    animal.hp = animal.config.hp;
+    animal.model.group.visible = false;
     return { species };
   }
 
@@ -612,29 +648,44 @@ export class Wildlife implements Updatable {
     return SPECIES[species].loot;
   }
 
-  /** 联机快照:各动物的位置朝向与存活(房主侧收集) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+  /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物,成功返回 true */
+  gmSpawnNear(species: AnimalSpecies, x: number, z: number): boolean {
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 1.5 + Math.random() * 3.5;
+      const px = x + Math.cos(a) * d;
+      const pz = z + Math.sin(a) * d;
+      if (!this.isGrass(px, pz)) continue;
+      this.createAnimal(species, new THREE.Vector3(px, this.terrain.getHeight(px, pz), pz), a + Math.PI);
+      return true;
+    }
+    return false;
+  }
+
+  /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物) */
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; species: AnimalSpecies }[] {
     return this.animals.map((a) => ({
       id: a.id,
       x: a.pos.x,
       z: a.pos.z,
       h: a.heading,
       alive: a.alive,
+      species: a.species,
     }));
   }
 
   /** 具有主动攻击能力的动物（当前为熊），联机侧用更高频率同步。 */
-  netCombatPoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+  netCombatPoses() {
     return this.netPoses().filter((pose) => this.animals.find((animal) => animal.id === pose.id)?.config.damage);
   }
 
   /** 无主动攻击能力的动物，保持普通姿态同步频率。 */
-  netPassivePoses(): { id: number; x: number; z: number; h: number; alive: boolean }[] {
+  netPassivePoses() {
     return this.netPoses().filter((pose) => !this.animals.find((animal) => animal.id === pose.id)?.config.damage);
   }
 
-  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活状态同步可见性 */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean }[]): void {
+  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活状态同步可见性;未知 id 且带物种时新建(GM 生成) */
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; species?: AnimalSpecies }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -649,6 +700,13 @@ export class Wildlife implements Updatable {
       }
       a.alive = p.alive;
       a.model.group.visible = p.alive;
+    }
+    // 本地没有的 id:房主新生成的动物,按快照物种补建
+    for (const p of poses) {
+      if (this.animals.some((a) => a.id === p.id) || !p.alive || !p.species) continue;
+      const animal = this.createAnimal(p.species, new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z), p.z), p.h);
+      animal.netPos.copy(animal.pos);
+      animal.netHeading = p.h;
     }
   }
 

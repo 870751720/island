@@ -4,6 +4,8 @@ import type { EquipSlot } from '../systems/Equipment';
 import type { HandTool } from '../entities/Player';
 import type { CraftId } from '../systems/Crafting';
 import type { ResourceKind } from '../systems/Inventory';
+import type { ArrowHit } from '../systems/BowSystem';
+import type { AnimalSpecies } from '../entities/Wildlife';
 
 /** 客人动作 → Game 方法的参数化分发(以该客人的会话为 actor,由房主权威结算) */
 export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => boolean;
@@ -39,6 +41,21 @@ export const ACTIONS: Record<string, NetAction> = {
   craftAtWorkbench: (g, a, [id, count]) => g.craftAtWorkbench(id as CraftId, count as number, a),
   craftWorkbench: (g, a) => g.craftWorkbench(a),
   upgradeWorkbench: (g, a) => g.upgradeWorkbench(a),
+  // 客人本地判定命中后的权威结算(联机约定的例外:弓箭命中由射手客户端判定)
+  arrowHit: (g, a, [kind, animalId, x, z]) => {
+    const hit: ArrowHit =
+      kind === 'wildlife'
+        ? { kind: 'wildlife', animalId: animalId as number }
+        : kind === 'crab'
+          ? { kind: 'crab' }
+          : { kind: 'bird' };
+    a.archery.settleNetHit(hit, x as number, z as number);
+    return true;
+  },
+  gmSpawnAnimal: (g, a, [species]) => {
+    g.gmSpawnAnimalFor(species as AnimalSpecies, a);
+    return true;
+  },
   gmGiveItem: (g, a, [kind, count]) => {
     g.gmGiveItem(kind as ResourceKind, count as number, a);
     return true;
