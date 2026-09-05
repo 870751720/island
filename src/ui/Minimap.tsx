@@ -209,6 +209,7 @@ function draw(
   }
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, size, size);
+  ctx.imageSmoothingEnabled = true;
   ctx.drawImage(base, 0, 0, size, size);
 
   // 迷雾:网格铺成一张小图再放大,得到柔和的探索边缘
@@ -226,7 +227,8 @@ function draw(
     }
   }
   fctx.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = true;
+  // 迷雾边缘用硬边(最近邻,不做插值柔化)
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(fog, 0, 0, size, size);
 
   // 建筑标记(已在快照里过滤为仅已探索区域)
