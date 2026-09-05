@@ -13,8 +13,8 @@ const WALK_SPEED = 0.9;
 const FLEE_SPEED = 2.6;
 /** 玩家靠到这个距离内,螃蟹会横着溜走 */
 const FLEE_RANGE = 2.2;
-/** 螃蟹被击杀后,延迟多久在海岸其他位置重新刷新 */
-const RESPAWN_TIME = 25;
+/** 种群刷新间隔:死亡个体不复活,每隔该时长补足数量 */
+const REFRESH_INTERVAL = 8;
 /** 螃蟹生命值 */
 const HP = 1;
 
@@ -100,6 +100,8 @@ function makeCrabModel(): CrabModel {
 }
 
 type Crab = {
+  /** 联机同步用稳定 id(死亡个体移除后,新个体用新 id,客人端按 id 补建) */
+  id: number;
   model: CrabModel;
   pos: THREE.Vector3;
   target: THREE.Vector3;
@@ -113,14 +115,52 @@ type Crab = {
   phase: number;
   hp: number;
   alive: boolean;
-  respawnLeft: number;
 };
 
 /** 沙滩上的小螃蟹:沿海岸带横行游荡,被玩家靠近会逃,始终不进海也不进草地 */
 export class Crabs implements Updatable {
   readonly group = new THREE.Group();
   private crabs: Crab[] = [];
+  private nextId = 0;
   private fx = new CreatureFx();
+  /** 种群目标数量(死亡后靠刷新补足) */
+  private desiredCount = 0;
+  /** 种群刷新检查计时 */
+  private refreshLeft = REFRESH_INTERVAL;
+
+  /** 创建一只螃蟹并放入场景(初始生成、种群刷新与客人端补建共用) */
+  private createCrab(id: number, spawn: THREE.Vector3, rng: () => number): Crab {
+    const model = makeCrabModel();
+    model.group.position.copy(spawn);
+    this.group.add(model.group);
+    const crab: Crab = {
+      id,
+      model,
+      pos: spawn.clone(),
+      target: spawn.clone(),
+      heading: rng() * Math.PI * 2,
+      netPos: spawn.clone(),
+      netHeading: 0,
+      walkTime: 0,
+      idleTime: rng() * 4,
+      phase: rng() * Math.PI * 2,
+      hp: HP,
+      alive: true,
+    };
+    this.crabs.push(crab);
+    return crab;
+  }
+
+  /** 当前存活数量(种群刷新用) */
+  private aliveCount(): number {
+    return this.crabs.filter((c) => c.alive).length;
+  }
+
+  /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
+  private removeCrab(crab: Crab): void {
+    this.crabs.splice(this.crabs.indexOf(crab), 1);
+    this.group.remove(crab.model.group);
+  }
 
   constructor(
     scene: THREE.Scene,
@@ -132,27 +172,11 @@ export class Crabs implements Updatable {
     rng: () => number = Math.random
   ) {
     const size = terrain.size;
-    const count = THREE.MathUtils.clamp(Math.round(size / 22), 5, 9);
-    for (let i = 0; i < count; i++) {
+    this.desiredCount = THREE.MathUtils.clamp(Math.round(size / 22), 5, 9);
+    for (let i = 0; i < this.desiredCount; i++) {
       const spawn = this.findBeachSpot(rng);
       if (!spawn) continue;
-      const model = makeCrabModel();
-      model.group.position.copy(spawn);
-      this.group.add(model.group);
-      this.crabs.push({
-        model,
-        pos: spawn.clone(),
-        target: spawn.clone(),
-        heading: rng() * Math.PI * 2,
-        netPos: spawn.clone(),
-        netHeading: 0,
-        walkTime: 0,
-        idleTime: rng() * 4,
-        phase: rng() * Math.PI * 2,
-        hp: HP,
-        alive: true,
-        respawnLeft: 0,
-      });
+      this.createCrab(this.nextId++, spawn, rng);
     }
     scene.add(this.group);
   }
@@ -199,13 +223,19 @@ export class Crabs implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
+    // 种群刷新:死亡个体不再原地复活,定期补足数量(新个体是全新实体)
+    this.refreshLeft -= delta;
+    if (this.refreshLeft <= 0) {
+      this.refreshLeft = REFRESH_INTERVAL;
+      for (let i = this.aliveCount(); i < this.desiredCount; i++) {
+        const spawn = this.findBeachSpot(Math.random);
+        if (!spawn) break;
+        this.createCrab(this.nextId++, spawn, Math.random);
+      }
+    }
     const players = this.playerPositions();
     for (const crab of this.crabs) {
-      if (!crab.alive) {
-        crab.respawnLeft -= delta;
-        if (crab.respawnLeft <= 0) this.respawn(crab);
-        continue;
-      }
+      if (!crab.alive) continue;
       // 找出范围内最近的玩家,背其方向逃跑
       let threat: THREE.Vector3 | null = null;
       let threatDist = FLEE_RANGE;
@@ -275,8 +305,8 @@ export class Crabs implements Updatable {
   }
 
   netPoses(): AmbientPose[] {
-    return this.crabs.map((crab, id) => ({
-      id,
+    return this.crabs.map((crab) => ({
+      id: crab.id,
       x: crab.pos.x,
       y: crab.pos.y,
       z: crab.pos.z,
@@ -286,22 +316,32 @@ export class Crabs implements Updatable {
   }
 
   netApply(poses: AmbientPose[]): void {
-    for (const pose of poses) {
-      const crab = this.crabs[pose.id];
-      if (!crab) continue;
-      // 从死亡到重生直接落位,活着的只更新插值目标,由 netUpdate 逐帧逼近
-      if (pose.visible && !crab.alive) {
-        crab.pos.set(pose.x, pose.y, pose.z);
-        crab.heading = pose.h;
-      }
+    const map = new Map(poses.map((p) => [p.id, p]));
+    for (const crab of this.crabs) {
+      const pose = map.get(crab.id);
+      if (!pose) continue;
       crab.netPos.set(pose.x, pose.y, pose.z);
       crab.netHeading = pose.h;
       if (crab.alive && !pose.visible) {
         this.fx.playDeath(crab.model.group);
-      } else if (!crab.alive && pose.visible) {
-        this.fx.reset(crab.model.group);
       }
       crab.alive = pose.visible;
+    }
+    // 本地没有的 id:房主刷新生成的个体,按快照位置补建
+    for (const pose of poses) {
+      if (!pose.visible || this.crabs.some((c) => c.id === pose.id)) continue;
+      const crab = this.createCrab(pose.id, new THREE.Vector3(pose.x, pose.y, pose.z), Math.random);
+      crab.netPos.copy(crab.pos);
+      crab.netHeading = pose.h;
+      this.nextId = Math.max(this.nextId, pose.id + 1);
+    }
+    // 房主已移除的尸体(快照缺 id):本地死亡动画播完后清理实体
+    for (let i = this.crabs.length - 1; i >= 0; i--) {
+      const crab = this.crabs[i];
+      if (!crab.alive && !crab.model.group.visible && !map.has(crab.id)) {
+        this.crabs.splice(i, 1);
+        this.group.remove(crab.model.group);
+      }
     }
   }
 
@@ -384,24 +424,8 @@ export class Crabs implements Updatable {
       return false;
     }
     best.alive = false;
-    best.respawnLeft = RESPAWN_TIME;
-    this.fx.playDeath(best.model.group);
+    this.fx.playDeath(best.model.group, undefined, () => this.removeCrab(best));
     return true;
   }
 
-  private respawn(crab: Crab): void {
-    const spot = this.findBeachSpot(Math.random);
-    if (!spot) {
-      crab.respawnLeft = RESPAWN_TIME;
-      return;
-    }
-    crab.pos.copy(spot);
-    crab.target.copy(spot);
-    crab.idleTime = 0;
-    crab.walkTime = 0;
-    crab.hp = HP;
-    crab.alive = true;
-    this.fx.reset(crab.model.group);
-    crab.model.group.visible = true;
-  }
 }

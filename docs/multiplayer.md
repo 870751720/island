@@ -405,3 +405,10 @@
 
 - 新增 `src/game/fx/CreatureFx.ts`:受击闪红、死亡倒地(0.45s 侧翻)→ 停留 5s → 1s 渐隐后隐藏。Wildlife/Crabs/Birds 各自持有实例,房主在 `update` 入口、客人在 `netUpdate` 入口统一推进。
 - 死亡触发两端各自本地播放,不走网络事件:房主在权威结算死亡(`applyDamage`/`damageNearby`)时播放;客人在姿态快照 `alive`/`visible` 由 true 翻转为 false 时播放(动物姿态 10Hz,延迟最多约 0.1s,可接受)。快照恢复存活(true)时本地 `reset` 还原透明度与侧翻。协议不变。
+
+### M42 种群刷新替代重生 + GM 攻击倍率(2026-09-05)
+
+- 生物死亡后不再定时复活:尸体渐隐结束时房主直接移除实体;每 8s 的种群刷新生成全新个体(全新 id/模型)。
+- 螃蟹/鸟的 ambient 同步从数组下标改为稳定递增 id(与野兽同约定):客人端 `netApply` 对未知 id 且存活的姿态补建实体(鸟经 `AmbientPose.variant` 羽色序号保持外观一致),对快照缺失且本地尸体动画已播完的 id 清理实体。协议新增可选字段 `variant`,向后兼容。
+- 渐隐时长 1s→5s(倒地 0.45s + 停留 5s + 渐隐 5s)。
+- GM 配置新增 `attackMultiplier`(默认 1),作用于剑/弓的伤害结算,随既有 `gm` 事件同步。

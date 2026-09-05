@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
-import { ActionButton, ToggleRow } from './controls';
+import { ActionButton, StepperRow, ToggleRow } from './controls';
 
-/** 玩家 tab:无敌/死亡开关与状态回满 */
+/** 玩家 tab:无敌/死亡开关、攻击倍率与状态回满 */
 export function PlayerTab({
   onRestoreStatus,
   onSetConfig,
@@ -14,6 +14,7 @@ export function PlayerTab({
 }) {
   const [godMode, setGodMode] = useState(GmSystem.godMode);
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
+  const [attackMultiplier, setAttackMultiplier] = useState(GmSystem.attackMultiplier);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -31,6 +32,15 @@ export function PlayerTab({
         onChange={(v) => {
           onSetConfig({ allowDeath: v });
           setAllowDeath(v);
+        }}
+      />
+      <StepperRow
+        label="攻击力倍率"
+        value={attackMultiplier}
+        min={0}
+        onChange={(v) => {
+          onSetConfig({ attackMultiplier: v });
+          setAttackMultiplier(v);
         }}
       />
       <ActionButton label="状态回满(复活)" tone="primary" onClick={onRestoreStatus} />

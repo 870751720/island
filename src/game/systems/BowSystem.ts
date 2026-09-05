@@ -8,6 +8,7 @@ import type { Inventory, ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { Tools } from './Crafting';
+import { GmSystem } from './GmSystem';
 
 /** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
@@ -336,7 +337,7 @@ export class BowSystem {
 
   /** 权威结算一次命中:扣目标血量/击杀并掉落战利品 */
   private applyHit(hit: ArrowHit, x: number, z: number): void {
-    const damage = this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE;
+    const damage = (this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE) * GmSystem.attackMultiplier;
     if (hit.kind === 'wildlife') {
       const beast = this.wildlife.damage(hit.animalId, damage);
       // 野生动物可中数箭:受伤未死不掉肉

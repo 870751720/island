@@ -25,8 +25,8 @@ export type AnimalLoot = { kind: ResourceKind; count: number }[];
 /** 草地高度带:高于沙滩带上限算草地,动物只在草地上活动 */
 const GRASS_MIN = 0.16;
 /** 玩家死后 / 游泳时不再触发受击与追击 */
-const DAY_RESPAWN = 40;
-const BEAR_RESPAWN = 90;
+/** 种群刷新间隔:死亡个体不复活,每隔该时长补足各物种数量 */
+const REFRESH_INTERVAL = 8;
 
 // —— 熊的威胁行为参数 ——
 /** 力竭后的追击速度:明显慢于玩家步行,给玩家拉开距离的窗口 */
@@ -74,7 +74,6 @@ type SpeciesConfig = {
   hp: number;
   /** 击杀掉落的战利品 */
   loot: AnimalLoot;
-  respawn: number;
 };
 
 const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
@@ -93,7 +92,6 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'gameMeat', count: 1 },
       { kind: 'fur', count: 1 },
     ],
-    respawn: DAY_RESPAWN,
   },
   sheep: {
     label: '绵羊',
@@ -110,7 +108,6 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'gameMeat', count: 2 },
       { kind: 'fur', count: 2 },
     ],
-    respawn: DAY_RESPAWN,
   },
   deer: {
     label: '鹿',
@@ -127,7 +124,6 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'gameMeat', count: 3 },
       { kind: 'fur', count: 2 },
     ],
-    respawn: DAY_RESPAWN,
   },
   bear: {
     label: '熊',
@@ -145,7 +141,6 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'gameMeat', count: 4 },
       { kind: 'fur', count: 4 },
     ],
-    respawn: BEAR_RESPAWN,
   },
 };
 
@@ -165,7 +160,6 @@ type Animal = {
   phase: number;
   hp: number;
   alive: boolean;
-  respawnLeft: number;
   attackLeft: number;
   /** 扑击动画计时(>0 时头部前顶) */
   lungeLeft: number;
@@ -199,6 +193,19 @@ export class Wildlife implements Updatable {
   private animals: Animal[] = [];
   private nextId = 1;
   private creatureFx = new CreatureFx();
+  /** 种群刷新检查计时 */
+  private refreshLeft = REFRESH_INTERVAL;
+
+  /** 当前某物种的存活数量(种群刷新用) */
+  private aliveCount(species: AnimalSpecies): number {
+    return this.animals.filter((a) => a.species === species && a.alive).length;
+  }
+
+  /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
+  private removeAnimal(animal: Animal): void {
+    this.animals.splice(this.animals.indexOf(animal), 1);
+    this.group.remove(animal.model.group);
+  }
 
   constructor(
     scene: THREE.Scene,
@@ -257,7 +264,6 @@ export class Wildlife implements Updatable {
       phase: rng() * Math.PI * 2,
       hp: SPECIES[species].hp,
       alive: true,
-      respawnLeft: 0,
       attackLeft: 0,
       lungeLeft: 0,
       alerted: false,
@@ -355,12 +361,21 @@ export class Wildlife implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.creatureFx.update(delta);
-    for (const animal of this.animals) {
-      if (!animal.alive) {
-        animal.respawnLeft -= delta;
-        if (animal.respawnLeft <= 0) this.respawn(animal);
-        continue;
+    // 种群刷新:死亡个体不再原地复活,定期补足各物种数量(新个体是全新实体,联机时经 species 快照同步给客人)
+    this.refreshLeft -= delta;
+    if (this.refreshLeft <= 0) {
+      this.refreshLeft = REFRESH_INTERVAL;
+      for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
+        const missing = SPECIES[species].count - this.aliveCount(species);
+        for (let i = 0; i < missing; i++) {
+          const spawn = this.findGrassSpot(Math.random);
+          if (!spawn) break;
+          this.createAnimal(species, spawn, Math.random() * Math.PI * 2);
+        }
       }
+    }
+    for (const animal of this.animals) {
+      if (!animal.alive) continue;
       // 对最近的一名玩家做出反应(联机时熊追离得最近的那个人)
       const target = this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
@@ -656,9 +671,7 @@ export class Wildlife implements Updatable {
     }
     const species = animal.species;
     animal.alive = false;
-    animal.respawnLeft = animal.config.respawn;
-    animal.hp = animal.config.hp;
-    this.creatureFx.playDeath(animal.model.group);
+    this.creatureFx.playDeath(animal.model.group, undefined, () => this.removeAnimal(animal));
     return { species };
   }
 
@@ -720,10 +733,16 @@ export class Wildlife implements Updatable {
       if (wasAlive && !p.alive) {
         // 房主权威判定死亡:本地立即播放倒地—停留—渐隐,而不是瞬间消失
         this.creatureFx.playDeath(a.model.group);
-      } else if (!wasAlive && p.alive) {
-        this.creatureFx.reset(a.model.group);
       }
       a.alive = p.alive;
+    }
+    // 房主已移除的尸体(快照缺 id):本地死亡动画播完(模型已隐藏)后清理实体
+    for (let i = this.animals.length - 1; i >= 0; i--) {
+      const a = this.animals[i];
+      if (!a.alive && !a.model.group.visible && !map.has(a.id)) {
+        this.animals.splice(i, 1);
+        this.group.remove(a.model.group);
+      }
     }
     // 本地没有的 id:房主新生成的动物,按快照物种补建
     for (const p of poses) {
@@ -758,26 +777,4 @@ export class Wildlife implements Updatable {
     }
   }
 
-  private respawn(animal: Animal): void {
-    const spot = this.findGrassSpot(Math.random);
-    if (!spot) {
-      animal.respawnLeft = animal.config.respawn;
-      return;
-    }
-    animal.pos.copy(spot);
-    animal.target.copy(spot);
-    animal.idleTime = 0;
-    animal.walkTime = 0;
-    animal.alerted = false;
-    animal.viewHeading = animal.heading;
-    animal.stamina = BEAR_SPRINT_TIME;
-    animal.tiredLeft = 0;
-    animal.rageLeft = 0;
-    animal.roarLeft = 0;
-    animal.roared = false;
-    animal.pounce = null;
-    animal.alive = true;
-    this.creatureFx.reset(animal.model.group);
-    animal.model.group.visible = true;
-  }
 }

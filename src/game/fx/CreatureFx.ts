@@ -5,7 +5,7 @@ const FALL_TIME = 0.45;
 /** 倒地后尸体停留的时长,之后才开始渐隐 */
 export const DEATH_HOLD = 5;
 /** 渐隐时长 */
-const FADE_TIME = 1;
+const FADE_TIME = 5;
 /** 受击闪红时长 */
 const FLASH_TIME = 0.25;
 const FLASH_COLOR = new THREE.Color('#c8321e');
@@ -18,6 +18,8 @@ type DeathAnim = {
   /** 空中生物死亡时坠落到该高度(地面生物不填) */
   fallFromY: number | null;
   fallToY: number;
+  /** 尸体完全消失后回调(房主用于移除实体;客人端实体清理由姿态快照缺失驱动,不传) */
+  onDone?: () => void;
 };
 
 type FlashAnim = {
@@ -48,7 +50,7 @@ export class CreatureFx {
   }
 
   /** 播放死亡:先侧翻倒地(空中生物同时坠落),停留 DEATH_HOLD 秒后渐隐,结束由 update 隐藏模型 */
-  playDeath(group: THREE.Group, groundY?: number): void {
+  playDeath(group: THREE.Group, groundY?: number, onDone?: () => void): void {
     if (this.deaths.has(group)) return;
     const fall = groundY !== undefined && group.position.y > groundY + 0.05;
     this.deaths.set(group, {
@@ -57,6 +59,7 @@ export class CreatureFx {
       materials: this.collectMaterials(group),
       fallFromY: fall ? group.position.y : null,
       fallToY: groundY ?? group.position.y,
+      onDone,
     });
   }
 
@@ -113,6 +116,7 @@ export class CreatureFx {
             group.visible = false;
             this.deaths.delete(group);
             this.reset(group);
+            death.onDone?.();
           }
         }
       }

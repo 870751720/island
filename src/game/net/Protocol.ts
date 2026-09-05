@@ -38,6 +38,8 @@ export type AmbientPose = {
   h: number;
   visible: boolean;
   state?: string;
+  /** 外观变体(鸟的羽色序号),客人端补建新个体时使用 */
+  variant?: number;
 };
 
 export type AmbientState = {

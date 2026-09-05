@@ -23,8 +23,8 @@ const WALK_SPEED = 0.7;
 /** 巡航目标点选在玩家周围这个环内,保证玩家总能偶尔看到鸟 */
 const WANDER_MIN = 8;
 const WANDER_MAX = 26;
-/** 鸟被击杀后,延迟多久在别处高空重新起飞 */
-const RESPAWN_TIME = 30;
+/** 种群刷新间隔:死亡个体不复活,每隔该时长补足数量 */
+const REFRESH_INTERVAL = 8;
 /** 鸟生命值 */
 const HP = 1;
 /** 每次落地在原地遗落一粒种子的概率 */
@@ -112,6 +112,10 @@ function makeBirdModel(color: string): BirdModel {
 type BirdState = 'fly' | 'land' | 'walk' | 'flee';
 
 type Bird = {
+  /** 联机同步用稳定 id(死亡个体移除后,新个体用新 id,客人端按 id 补建) */
+  id: number;
+  /** 羽色变体序号(BODY_COLORS 下标,联机补建时保持外观一致) */
+  variant: number;
   model: BirdModel;
   pos: THREE.Vector3;
   heading: number;
@@ -132,14 +136,57 @@ type Bird = {
   phase: number;
   hp: number;
   alive: boolean;
-  respawnLeft: number;
 };
 
 /** 海鸥般的小鸟:多数时间在玩家周围盘旋巡航,偶尔落到浆果丛旁、水洼边或空地上踱步啄食;落地时被玩家靠近会惊飞,飞行中不怕人 */
 export class Birds implements Updatable {
   readonly group = new THREE.Group();
   private birds: Bird[] = [];
+  private nextId = 0;
   private fx = new CreatureFx();
+  /** 种群目标数量(死亡后靠刷新补足) */
+  private readonly desiredCount = 3;
+  /** 种群刷新检查计时 */
+  private refreshLeft = REFRESH_INTERVAL;
+
+  /** 创建一只鸟并放入场景:出生在高空巡航(初始生成、种群刷新与客人端补建共用) */
+  private createBird(id: number, variant: number, pos: THREE.Vector3, rng: () => number): Bird {
+    const model = makeBirdModel(BODY_COLORS[variant]);
+    this.group.add(model.group);
+    const heading = rng() * Math.PI * 2;
+    const bird: Bird = {
+      id,
+      variant,
+      model,
+      pos: pos.clone(),
+      heading,
+      netPos: pos.clone(),
+      netHeading: heading,
+      state: 'fly',
+      target: this.pickWanderTarget(rng),
+      alt: 4 + rng() * 5,
+      stateTime: rng() * 5,
+      walkLeft: 0,
+      stepTarget: null,
+      fleeHeading: 0,
+      phase: rng() * Math.PI * 2,
+      hp: HP,
+      alive: true,
+    };
+    this.birds.push(bird);
+    return bird;
+  }
+
+  /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
+  private removeBird(bird: Bird): void {
+    this.birds.splice(this.birds.indexOf(bird), 1);
+    this.group.remove(bird.model.group);
+  }
+
+  /** 当前存活数量(种群刷新用) */
+  private aliveCount(): number {
+    return this.birds.filter((b) => b.alive).length;
+  }
 
   constructor(
     scene: THREE.Scene,
@@ -148,37 +195,15 @@ export class Birds implements Updatable {
     private players: () => { group: THREE.Group }[],
     rng: () => number = Math.random
   ) {
-    const count = 3;
-    for (let i = 0; i < count; i++) {
-      const model = makeBirdModel(BODY_COLORS[Math.floor(rng() * BODY_COLORS.length)]);
+    for (let i = 0; i < this.desiredCount; i++) {
       const p = this.players()[0]?.group.position ?? new THREE.Vector3();
       const pos = new THREE.Vector3(
         p.x + (rng() * 2 - 1) * WANDER_MAX,
         0,
         p.z + (rng() * 2 - 1) * WANDER_MAX
       );
-      const alt = 4 + rng() * 5;
-      pos.y = this.terrain.getHeight(pos.x, pos.z) + alt;
-      this.group.add(model.group);
-      const heading = rng() * Math.PI * 2;
-      this.birds.push({
-        model,
-        pos,
-        heading,
-        netPos: pos.clone(),
-        netHeading: heading,
-        state: 'fly',
-        target: this.pickWanderTarget(rng),
-        alt,
-        stateTime: rng() * 5,
-        walkLeft: 0,
-        stepTarget: null,
-        fleeHeading: 0,
-        phase: rng() * Math.PI * 2,
-        hp: HP,
-        alive: true,
-        respawnLeft: 0,
-      });
+      pos.y = this.terrain.getHeight(pos.x, pos.z) + 4 + rng() * 5;
+      this.createBird(this.nextId++, Math.floor(rng() * BODY_COLORS.length), pos, rng);
     }
     scene.add(this.group);
   }
@@ -241,12 +266,17 @@ export class Birds implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
-    for (const bird of this.birds) {
-      if (!bird.alive) {
-        bird.respawnLeft -= delta;
-        if (bird.respawnLeft <= 0) this.respawn(bird);
-        continue;
+    // 种群刷新:死亡个体不再原地复活,定期在别处高空补足数量(新个体是全新实体)
+    this.refreshLeft -= delta;
+    if (this.refreshLeft <= 0) {
+      this.refreshLeft = REFRESH_INTERVAL;
+      for (let i = this.aliveCount(); i < this.desiredCount; i++) {
+        const spawn = this.pickWanderTarget(Math.random);
+        this.createBird(this.nextId++, Math.floor(Math.random() * BODY_COLORS.length), spawn, Math.random);
       }
+    }
+    for (const bird of this.birds) {
+      if (!bird.alive) continue;
       bird.stateTime += delta;
       let p = bird.pos;
       let dist = Infinity;
@@ -376,21 +406,23 @@ export class Birds implements Updatable {
   }
 
   netPoses(): AmbientPose[] {
-    return this.birds.map((bird, id) => ({
-      id,
+    return this.birds.map((bird) => ({
+      id: bird.id,
       x: bird.pos.x,
       y: bird.pos.y,
       z: bird.pos.z,
       h: bird.heading,
       visible: bird.alive,
       state: bird.state,
+      variant: bird.variant,
     }));
   }
 
   netApply(poses: AmbientPose[], elapsed: number): void {
-    for (const pose of poses) {
-      const bird = this.birds[pose.id];
-      if (!bird) continue;
+    const map = new Map(poses.map((p) => [p.id, p]));
+    for (const bird of this.birds) {
+      const pose = map.get(bird.id);
+      if (!pose) continue;
       const wasAlive = bird.alive;
       bird.netPos.set(pose.x, pose.y, pose.z);
       bird.netHeading = pose.h;
@@ -401,12 +433,26 @@ export class Birds implements Updatable {
       if (pose.state === 'walk' || pose.state === 'fly' || pose.state === 'flee' || pose.state === 'land') {
         bird.state = pose.state;
       }
-      if (bird.alive && !pose.visible) {
+      if (wasAlive && !pose.visible) {
         this.fx.playDeath(bird.model.group, this.terrain.getHeight(pose.x, pose.z));
-      } else if (!bird.alive && pose.visible) {
-        this.fx.reset(bird.model.group);
       }
       bird.alive = pose.visible;
+    }
+    // 本地没有的 id:房主刷新生成的个体,按快照位置与羽色补建
+    for (const pose of poses) {
+      if (!pose.visible || this.birds.some((b) => b.id === pose.id)) continue;
+      const bird = this.createBird(pose.id, pose.variant ?? 0, new THREE.Vector3(pose.x, pose.y, pose.z), Math.random);
+      bird.netPos.copy(bird.pos);
+      bird.netHeading = pose.h;
+      this.nextId = Math.max(this.nextId, pose.id + 1);
+    }
+    // 房主已移除的尸体(快照缺 id):本地死亡动画播完后清理实体
+    for (let i = this.birds.length - 1; i >= 0; i--) {
+      const bird = this.birds[i];
+      if (!bird.alive && !bird.model.group.visible && !map.has(bird.id)) {
+        this.birds.splice(i, 1);
+        this.group.remove(bird.model.group);
+      }
     }
   }
 
@@ -480,24 +526,11 @@ export class Birds implements Updatable {
       return false;
     }
     best.alive = false;
-    best.respawnLeft = RESPAWN_TIME;
     // 空中被击中:翻滚坠落到地面再倒地渐隐,而不是悬在半空
-    this.fx.playDeath(best.model.group, this.terrain.getHeight(best.pos.x, best.pos.z));
+    this.fx.playDeath(best.model.group, this.terrain.getHeight(best.pos.x, best.pos.z), () => this.removeBird(best));
     return true;
   }
 
-  private respawn(bird: Bird): void {
-    bird.pos.copy(this.pickWanderTarget(Math.random));
-    bird.heading = Math.random() * Math.PI * 2;
-    bird.state = 'fly';
-    bird.stateTime = 0;
-    bird.walkLeft = 0;
-    bird.stepTarget = null;
-    bird.hp = HP;
-    bird.alive = true;
-    this.fx.reset(bird.model.group);
-    bird.model.group.visible = true;
-  }
 
   /** 沿水平朝目标转向并前进,返回是否已抵达(水平距离);到达阈值取转弯半径的 1.3 倍以上,否则目标会进入转弯圈内永远绕圈 */
   private flyToward(bird: Bird, target: THREE.Vector3, speed: number, delta: number): boolean {

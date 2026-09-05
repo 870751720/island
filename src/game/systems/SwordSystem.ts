@@ -3,6 +3,7 @@ import type { Wildlife } from '../entities/Wildlife';
 import type { ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import { GmSystem } from './GmSystem';
 
 /** 近战攻击范围:范围内有动物才会挥砍 */
 const RANGE = 1.4;
@@ -86,7 +87,7 @@ export class SwordSystem {
 
   /** 权威结算一次命中:扣动物血量,击杀则掉落战利品 */
   private settle(animalId: number): void {
-    const beast = this.wildlife.damage(animalId, DAMAGE);
+    const beast = this.wildlife.damage(animalId, DAMAGE * GmSystem.attackMultiplier);
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)
     if (!beast || beast === 'hit') return;
     const p = this.player.group.position;

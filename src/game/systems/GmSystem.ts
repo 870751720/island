@@ -16,6 +16,8 @@ export const GmSystem = {
   showFps: false,
   /** 是否显示网络流量浮层(TrafficOverlay 轮询此标记,仅本机显示) */
   showTraffic: false,
+  /** 玩家攻击力倍率(作用于剑与弓箭对生物的伤害结算) */
+  attackMultiplier: 1,
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
@@ -32,6 +34,7 @@ export function gmSnapshot(): GmConfig {
     fishingTierWeights: [...GmSystem.fishingTierWeights],
     showFps: GmSystem.showFps,
     showTraffic: GmSystem.showTraffic,
+    attackMultiplier: GmSystem.attackMultiplier,
   };
 }
 
@@ -53,4 +56,7 @@ export function gmApply(config: Partial<GmConfig>): void {
   }
   if (typeof config.showFps === 'boolean') GmSystem.showFps = config.showFps;
   if (typeof config.showTraffic === 'boolean') GmSystem.showTraffic = config.showTraffic;
+  if (typeof config.attackMultiplier === 'number' && Number.isFinite(config.attackMultiplier)) {
+    GmSystem.attackMultiplier = Math.min(1000, Math.max(0.1, config.attackMultiplier));
+  }
 }
