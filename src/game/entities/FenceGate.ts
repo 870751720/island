@@ -90,10 +90,11 @@ export class FenceGate {
     return this.gz + (this.dir === 'z' ? 2 : 0);
   }
 
-  /** 玩家是否在门边(自动开门范围);side 为玩家相对门局部 +z/-z 侧,门向另一侧打开 */
+  /** 玩家是否在门边(自动开门范围);side 为玩家相对门局部 +z/-z 侧,门向另一侧打开。
+   *  开向只在门完全合上时判定一次:玩家穿门而过会让侧别翻转,若中途改摆向,开着的门会瞬移甚至扫过玩家。 */
   setPlayerNear(near: boolean, side: 1 | -1 = 1): void {
     this.openTarget = near;
-    this.swing = near ? ((-side) as 1 | -1) : this.swing;
+    if (near && this.open === 0) this.swing = (-side) as 1 | -1;
   }
 
   /** 门扇缓缓对开/合拢(开启方向背离靠近的玩家) */
