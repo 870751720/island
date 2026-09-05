@@ -192,13 +192,16 @@ export class Birds implements Updatable {
     private onHit: (birdId: number) => void = () => {},
     rng: () => number = Math.random
   ) {
+    // 初始生成散布在全岛干地上空,不聚在玩家出生点附近;
+    // 后续巡航目标才会自然偏向玩家周围
+    const halfX = this.terrain.halfWidth * 0.9;
+    const halfZ = this.terrain.halfLength * 0.9;
     for (let i = 0; i < this.desiredCount; i++) {
-      const p = this.players()[0]?.group.position ?? new THREE.Vector3();
-      const pos = new THREE.Vector3(
-        p.x + (rng() * 2 - 1) * WANDER_MAX,
-        0,
-        p.z + (rng() * 2 - 1) * WANDER_MAX
-      );
+      const pos = new THREE.Vector3();
+      for (let tries = 0; tries < 20; tries++) {
+        pos.set((rng() * 2 - 1) * halfX, 0, (rng() * 2 - 1) * halfZ);
+        if (this.terrain.getHeight(pos.x, pos.z) > 0.3) break;
+      }
       pos.y = this.terrain.getHeight(pos.x, pos.z) + 4 + rng() * 5;
       this.createBird(this.nextId++, Math.floor(rng() * BODY_COLORS.length), pos, rng);
     }
