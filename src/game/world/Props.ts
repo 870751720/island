@@ -10,6 +10,7 @@ import {
 } from './TreeSpecies';
 import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
+import { generatePropSpots, type PropSpot } from './PropSpawner';
 
 const SHAKE_TIME = 0.4;
 
@@ -361,6 +362,10 @@ export class Props implements Updatable {
   private swayTime = 0;
   private onChanged?: EntityChangeSink;
 
+  // —— 空间哈希网格:资源数量随岛面积增长后,碰撞/占位查询不再全表扫描 ——
+  private static readonly GRID_CELL = 8;
+  private grid = new Map<number, Prop[]>();
+
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
@@ -370,63 +375,45 @@ export class Props implements Updatable {
     rng: () => number = Math.random
   ) {
     if (!generate) return;
-    const maxX = terrain.halfWidth * 0.85;
-    const maxZ = terrain.halfLength * 0.85;
-    const spawn = (kind: PropKind, count: number) => {
-      for (let i = 0; i < count; i++) {
-        let x = 0;
-        let z = 0;
-        let y = -1;
-        for (let tries = 0; tries < 20; tries++) {
-          x = (rng() * 2 - 1) * maxX;
-          z = (rng() * 2 - 1) * maxZ;
-          y = terrain.getHeight(x, z);
-          if (y > 0.3) break;
-        }
-        if (y <= 0.3) continue;
-        // 避开水面及其边缘
-        if (terrain.isNearWater(new THREE.Vector3(x, y, z), 1)) continue;
-        let berries: THREE.Mesh[] | null = null;
-        let group: THREE.Group;
-        if (kind === 'tree') group = new THREE.Group();
-        else if (kind === 'rock') group = makeRock();
-        else if (kind === 'gravel') group = makeGravel();
-        else if (kind === 'shrub') group = makeShrub();
-        else if (kind === 'grass') group = makeGrassTuft();
-        else if (kind === 'worm') group = makeWormMound();
-        else {
-          const made = makeBerryBush();
-          group = made.group;
-          berries = made.berries;
-        }
-        group.position.set(x, y - 0.05, z);
-        group.rotation.y = rng() * Math.PI * 2;
-        scene.add(group);
-        const prop: Prop = {
-          id: createWorldEntityId('prop'),
-          kind,
-          group,
-          position: group.position.clone(),
-          ready: true,
-          regrowLeft: 0,
-        };
-        if (kind === 'tree') {
-          // 岛上的树分三种,随机分布,自然生成的都是成树
-          prop.species = TREE_SPECIES_OF(rng);
-          prop.growth = 'mature';
-        }
-        if (kind === 'tree') this.applyTreeLook(prop);
-        this.list.push(prop);
-        if (berries) this.berries.set(prop, berries);
-      }
+    for (const spot of generatePropSpots(terrain, rng)) this.createWildProp(spot, rng);
+  }
+
+  /** 按撒点结果创建一个自然资源(仅初始生成用,不触发联机增量) */
+  private createWildProp(spot: PropSpot, rng: () => number): void {
+    const { kind, x, z } = spot;
+    const y = this.terrain.getHeight(x, z);
+    let berries: THREE.Mesh[] | null = null;
+    let group: THREE.Group;
+    if (kind === 'tree') group = new THREE.Group();
+    else if (kind === 'rock') group = makeRock();
+    else if (kind === 'gravel') group = makeGravel();
+    else if (kind === 'shrub') group = makeShrub();
+    else if (kind === 'grass') group = makeGrassTuft();
+    else if (kind === 'worm') group = makeWormMound();
+    else {
+      const made = makeBerryBush();
+      group = made.group;
+      berries = made.berries;
+    }
+    group.position.set(x, y - 0.05, z);
+    group.rotation.y = rng() * Math.PI * 2;
+    this.scene.add(group);
+    const prop: Prop = {
+      id: createWorldEntityId('prop'),
+      kind,
+      group,
+      position: group.position.clone(),
+      ready: true,
+      regrowLeft: 0,
     };
-    spawn('tree', 60);
-    spawn('rock', 18);
-    spawn('gravel', 32);
-    spawn('berry', 20);
-    spawn('shrub', 30);
-    spawn('grass', 26);
-    spawn('worm', 12);
+    if (kind === 'tree') {
+      // 岛上的树分三种,按纬度分布,自然生成的都是成树
+      prop.species = spot.species ?? 'oak';
+      prop.growth = 'mature';
+      this.applyTreeLook(prop);
+    }
+    this.addProp(prop);
+    if (berries) this.berries.set(prop, berries);
   }
 
   /** 玩家种下一棵树:在落点生成发芽阶段的树并纳入管理 */
@@ -448,7 +435,7 @@ export class Props implements Updatable {
       growth: 'sprout',
     };
     this.applyTreeLook(prop);
-    this.list.push(prop);
+    this.addProp(prop);
     this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
     return prop;
   }
@@ -467,7 +454,7 @@ export class Props implements Updatable {
       ready: true,
       regrowLeft: 0,
     };
-    this.list.push(prop);
+    this.addProp(prop);
     this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
     return prop;
   }
@@ -498,7 +485,7 @@ export class Props implements Updatable {
       ready: false,
       regrowLeft: PROP_CONFIG[kind].regrow,
     };
-    this.list.push(prop);
+    this.addProp(prop);
     if (berries) this.berries.set(prop, berries);
     this.syncAppearance(prop);
     this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
@@ -507,17 +494,55 @@ export class Props implements Updatable {
 
   /** 锄头整棵挖走资源点:永久从场上消失(不再再生,也不占位) */
   removeProp(prop: Prop): void {
-    const index = this.list.indexOf(prop);
-    if (index >= 0) this.list.splice(index, 1);
+    this.dropProp(prop);
     this.scene.remove(prop.group);
     this.berries.delete(prop);
     this.shakes.delete(prop);
     this.onChanged?.({ op: 'remove', id: prop.id });
   }
 
+  private gridKey(x: number, z: number): number {
+    const cx = Math.floor(x / Props.GRID_CELL) + 2048;
+    const cz = Math.floor(z / Props.GRID_CELL) + 2048;
+    return cx * 4096 + cz;
+  }
+
+  private addProp(prop: Prop): void {
+    this.list.push(prop);
+    const key = this.gridKey(prop.position.x, prop.position.z);
+    const cell = this.grid.get(key);
+    if (cell) cell.push(prop);
+    else this.grid.set(key, [prop]);
+  }
+
+  private dropProp(prop: Prop): void {
+    const index = this.list.indexOf(prop);
+    if (index >= 0) this.list.splice(index, 1);
+    const cell = this.grid.get(this.gridKey(prop.position.x, prop.position.z));
+    if (!cell) return;
+    const i = cell.indexOf(prop);
+    if (i >= 0) cell.splice(i, 1);
+    if (cell.length === 0) this.grid.delete(this.gridKey(prop.position.x, prop.position.z));
+  }
+
+  /** 查询点所在格子及周边一圈格子内的资源(格子 8 米,足够覆盖最大阻挡半径) */
+  private nearby(x: number, z: number): Prop[] {
+    const cell = Props.GRID_CELL;
+    const cx = Math.floor(x / cell);
+    const cz = Math.floor(z / cell);
+    const out: Prop[] = [];
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const propsInCell = this.grid.get((cx + i + 2048) * 4096 + (cz + j + 2048));
+        if (propsInCell) out.push(...propsInCell);
+      }
+    }
+    return out;
+  }
+
   /** 落点附近是否有占位的资源点(被挖走的不算) */
   isOccupied(p: THREE.Vector3, range: number): boolean {
-    return this.list.some((prop) => prop.position.distanceTo(p) < range);
+    return this.nearby(p.x, p.z).some((prop) => prop.position.distanceTo(p) < range);
   }
 
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
@@ -668,7 +693,7 @@ export class Props implements Updatable {
         ready: state.ready,
         regrowLeft: state.regrowLeft ?? 0,
       };
-      this.list.push(prop);
+      this.addProp(prop);
       this.syncAppearance(prop);
     }
   }
@@ -701,6 +726,7 @@ export class Props implements Updatable {
     for (const prop of this.list.splice(0)) {
       this.scene.remove(prop.group);
     }
+    this.grid.clear();
     this.berries.clear();
     this.shakes.clear();
   }
@@ -716,7 +742,7 @@ export class Props implements Updatable {
 
   /** 将圆形实体沿 XZ 推出有阻挡的物件(成树、树桩与大石),原地修改位置 */
   resolveCollision(p: THREE.Vector3, radius: number): void {
-    for (const prop of this.list) {
+    for (const prop of this.nearby(p.x, p.z)) {
       const blockR = this.blockRadiusOf(prop);
       if (!blockR) continue;
       const dx = p.x - prop.position.x;
@@ -732,7 +758,7 @@ export class Props implements Updatable {
 
   /** 动物绕行判定:点在任一有阻挡物件的半径内即视为不可走 */
   isBlocked(x: number, z: number, radius = 0.3): boolean {
-    for (const prop of this.list) {
+    for (const prop of this.nearby(x, z)) {
       const blockR = this.blockRadiusOf(prop);
       if (!blockR) continue;
       const dx = x - prop.position.x;
@@ -840,10 +866,4 @@ export class Props implements Updatable {
       this.onChanged?.({ op: 'set', id: prop.id, fields: { growth: prop.growth, ready: true } });
     }
   }
-}
-
-/** 用生成种子对应的随机流挑一个树种 */
-function TREE_SPECIES_OF(rng: () => number): TreeSpecies {
-  const species: TreeSpecies[] = ['oak', 'pine', 'fruit'];
-  return species[Math.floor(rng() * species.length)];
 }

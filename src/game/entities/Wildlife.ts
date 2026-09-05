@@ -81,6 +81,8 @@ type BearPounce = { phase: 'windup' | 'leap' | 'recover'; left: number; dir: num
 type SpeciesConfig = {
   label: string;
   count: number;
+  /** 刷新分区:只出现在纬度 from 及以北(0=全岛;南端为 0、北端为 1,危险动物越住越北) */
+  zoneFrom?: number;
   /** 平时游荡速度 */
   walkSpeed: number;
   /** 被玩家靠近时的逃跑速度(熊为追击速度) */
@@ -151,6 +153,8 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   wolf: {
     label: '狼',
     count: 2,
+    // 只在岛北面的 80% 区域出没(出生点附近安全)
+    zoneFrom: 0.2,
     walkSpeed: 1.25,
     rushSpeed: 3.2,
     senseRange: 6,
@@ -167,6 +171,8 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   bear: {
     label: '熊',
     count: 1,
+    // 只在岛北面的 60% 区域出没(深入北方才遇到)
+    zoneFrom: 0.4,
     walkSpeed: 0.8,
     /** 追击冲刺速度:略快于玩家步行,必须靠耐力机制给出喘息窗口 */
     rushSpeed: 3.9,
@@ -296,7 +302,7 @@ export class Wildlife implements Updatable {
     for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
       const config = SPECIES[species];
       for (let i = 0; i < config.count; i++) {
-        const spawn = this.findGrassSpot(rng);
+        const spawn = this.findGrassSpot(rng, config.zoneFrom ?? 0);
         if (!spawn) continue;
         this.createAnimal(species, spawn, rng() * Math.PI * 2, rng);
       }
@@ -390,12 +396,16 @@ export class Wildlife implements Updatable {
   }
 
   /** 在岛上随机撒点找一处草地(离所有玩家远一点,避免刷新在脸上) */
-  private findGrassSpot(rng: () => number): THREE.Vector3 | null {
+  /** 找一处草地落脚点;fromT > 0 时只在纬度 fromT 及以北采样(危险动物分区) */
+  private findGrassSpot(rng: () => number, fromT = 0): THREE.Vector3 | null {
     const maxX = this.terrain.halfWidth - 3;
     const maxZ = this.terrain.halfLength - 3;
+    // 南端 z 为 +maxZ,纬度从南往北递增 → z 上限随分区北移而降低
+    const zMin = -maxZ;
+    const zMax = maxZ - fromT * this.terrain.length;
     for (let i = 0; i < 40; i++) {
       const x = (rng() * 2 - 1) * maxX;
-      const z = (rng() * 2 - 1) * maxZ;
+      const z = zMin + rng() * (zMax - zMin);
       if (!this.isGrass(x, z)) continue;
       let near = false;
       for (const t of this.players()) {
@@ -466,7 +476,7 @@ export class Wildlife implements Updatable {
       for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
         const missing = SPECIES[species].count - this.aliveCount(species);
         for (let i = 0; i < missing; i++) {
-          const spawn = this.findGrassSpot(Math.random);
+          const spawn = this.findGrassSpot(Math.random, SPECIES[species].zoneFrom ?? 0);
           if (!spawn) break;
           this.createAnimal(species, spawn, Math.random() * Math.PI * 2);
         }
