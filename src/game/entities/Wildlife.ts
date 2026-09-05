@@ -69,7 +69,7 @@ type SpeciesConfig = {
   attackRange: number;
   damage: number;
   attackCooldown: number;
-  /** 中几箭倒下 */
+  /** 生命值 */
   hp: number;
   /** 击杀掉落的战利品 */
   loot: AnimalLoot;
@@ -87,7 +87,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
-    hp: 1,
+    hp: 50,
     loot: [
       { kind: 'gameMeat', count: 1 },
       { kind: 'fur', count: 1 },
@@ -104,7 +104,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
-    hp: 1,
+    hp: 100,
     loot: [
       { kind: 'gameMeat', count: 2 },
       { kind: 'fur', count: 2 },
@@ -121,7 +121,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackRange: 0,
     damage: 0,
     attackCooldown: 0,
-    hp: 1,
+    hp: 150,
     loot: [
       { kind: 'gameMeat', count: 3 },
       { kind: 'fur', count: 2 },
@@ -139,7 +139,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackRange: 1.3,
     damage: 45,
     attackCooldown: 1.6,
-    hp: 3,
+    hp: 1000,
     loot: [
       { kind: 'gameMeat', count: 4 },
       { kind: 'fur', count: 4 },

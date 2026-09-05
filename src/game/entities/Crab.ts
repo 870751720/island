@@ -14,6 +14,8 @@ const FLEE_SPEED = 2.6;
 const FLEE_RANGE = 2.2;
 /** 螃蟹被击杀后,延迟多久在海岸其他位置重新刷新 */
 const RESPAWN_TIME = 25;
+/** 螃蟹生命值 */
+const HP = 1;
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -108,6 +110,7 @@ type Crab = {
   walkTime: number;
   idleTime: number;
   phase: number;
+  hp: number;
   alive: boolean;
   respawnLeft: number;
 };
@@ -144,6 +147,7 @@ export class Crabs implements Updatable {
         walkTime: 0,
         idleTime: rng() * 4,
         phase: rng() * Math.PI * 2,
+        hp: HP,
         alive: true,
         respawnLeft: 0,
       });
@@ -351,10 +355,10 @@ export class Crabs implements Updatable {
   }
 
   /**
-   * 击杀某点附近的一只活螃蟹(供后续攻击手段调用),返回是否命中。
+   * 对某点附近最近的一只活螃蟹结算一次伤害(供后续攻击手段调用),返回是否击杀。
    * 螃蟹死后消失,经过 RESPAWN_TIME 在海岸其他位置重新刷新。
    */
-  killNearby(pos: THREE.Vector3, range: number): boolean {
+  damageNearby(pos: THREE.Vector3, range: number, damage: number): boolean {
     let best: Crab | null = null;
     let bestDist = range * range;
     for (const crab of this.crabs) {
@@ -366,6 +370,8 @@ export class Crabs implements Updatable {
       }
     }
     if (!best) return false;
+    best.hp -= damage;
+    if (best.hp > 0) return false;
     best.alive = false;
     best.respawnLeft = RESPAWN_TIME;
     best.model.group.visible = false;
@@ -382,6 +388,7 @@ export class Crabs implements Updatable {
     crab.target.copy(spot);
     crab.idleTime = 0;
     crab.walkTime = 0;
+    crab.hp = HP;
     crab.alive = true;
     crab.model.group.visible = true;
   }

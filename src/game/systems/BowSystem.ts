@@ -11,9 +11,9 @@ import type { Tools } from './Crafting';
 
 /** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
-/** 每支箭对野生动物的伤害(精致弓更高) */
-const ARROW_DAMAGE = 1;
-const REFINED_ARROW_DAMAGE = 2;
+/** 每支箭的伤害(二级弓更高) */
+const ARROW_DAMAGE = 25;
+const REFINED_ARROW_DAMAGE = 50;
 /** 开弓瞄准时间(秒):移动瞄准满这段时间后,松手才会放箭 */
 const DRAW_TIME = 0.45;
 /** 放箭动作时长(秒):播完即可重新开弓,没有额外冷却 */
@@ -344,9 +344,9 @@ export class BowSystem {
       return;
     }
     const point = this.tmpV.set(x, 0, z);
-    if (hit.kind === 'crab' && this.crabs.killNearby(point, HIT_RANGE)) {
+    if (hit.kind === 'crab' && this.crabs.damageNearby(point, HIT_RANGE, damage)) {
       this.onLoot([{ kind: 'crabMeat', count: 1 }], x, z);
-    } else if (hit.kind === 'bird' && this.birds.killNearby(point, HIT_RANGE)) {
+    } else if (hit.kind === 'bird' && this.birds.damageNearby(point, HIT_RANGE, damage)) {
       this.onLoot([{ kind: 'birdMeat', count: 1 }], x, z);
     }
   }

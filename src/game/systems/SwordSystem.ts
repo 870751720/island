@@ -6,8 +6,8 @@ import type { GameAudio } from '../audio/GameAudio';
 
 /** 近战攻击范围:范围内有动物才会挥砍 */
 const RANGE = 1.4;
-/** 每次挥砍对动物造成的伤害(兔/羊/鹿一刀,熊三刀) */
-const DAMAGE = 1;
+/** 每次挥砍造成的伤害 */
+const DAMAGE = 10;
 /** 挥砍间隔(秒) */
 const ATTACK_INTERVAL = 0.8;
 /** 挥砍动作时长(秒) */

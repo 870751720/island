@@ -24,6 +24,8 @@ const WANDER_MIN = 8;
 const WANDER_MAX = 26;
 /** 鸟被击杀后,延迟多久在别处高空重新起飞 */
 const RESPAWN_TIME = 30;
+/** 鸟生命值 */
+const HP = 1;
 /** 每次落地在原地遗落一粒种子的概率 */
 const SEED_DROP_CHANCE = 1 / 20;
 /** 与播种系统一致:离资源点近于该值时无处下种 */
@@ -127,6 +129,7 @@ type Bird = {
   stepTarget: THREE.Vector3 | null;
   fleeHeading: number;
   phase: number;
+  hp: number;
   alive: boolean;
   respawnLeft: number;
 };
@@ -170,6 +173,7 @@ export class Birds implements Updatable {
         stepTarget: null,
         fleeHeading: 0,
         phase: rng() * Math.PI * 2,
+        hp: HP,
         alive: true,
         respawnLeft: 0,
       });
@@ -449,8 +453,8 @@ export class Birds implements Updatable {
     return nearestToSegmentXZ(this.birds, from, to, range);
   }
 
-  /** 击杀某点附近的一只活鸟(箭矢命中调用),返回是否命中;死后经 RESPAWN_TIME 在别处高空重新起飞 */
-  killNearby(pos: THREE.Vector3, range: number): boolean {
+  /** 对某点附近最近的一只活鸟结算一次伤害(箭矢命中调用),返回是否击杀;死后经 RESPAWN_TIME 在别处高空重新起飞 */
+  damageNearby(pos: THREE.Vector3, range: number, damage: number): boolean {
     let best: Bird | null = null;
     let bestDist = range * range;
     for (const bird of this.birds) {
@@ -462,6 +466,8 @@ export class Birds implements Updatable {
       }
     }
     if (!best) return false;
+    best.hp -= damage;
+    if (best.hp > 0) return false;
     best.alive = false;
     best.respawnLeft = RESPAWN_TIME;
     best.model.group.visible = false;
@@ -475,6 +481,7 @@ export class Birds implements Updatable {
     bird.stateTime = 0;
     bird.walkLeft = 0;
     bird.stepTarget = null;
+    bird.hp = HP;
     bird.alive = true;
     bird.model.group.visible = true;
   }
