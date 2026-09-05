@@ -69,20 +69,15 @@ export class OceanMaterial {
           '#include <normal_fragment_begin>',
           `#include <normal_fragment_begin>
            {
-             // 缓慢低频涌浪 + 细碎高频涟漪的解析梯度,倾斜法线让光照带出波光
+             // 两组缓慢低频波纹的解析梯度,轻微倾斜法线让光照带出稀疏波光
              vec2 p = vOceanWorld;
              float a = sin(p.x * 0.35 + uTime * 0.6);
              float b = sin(p.y * 0.28 - uTime * 0.45);
              float c = sin((p.x + p.y) * 0.15 + uTime * 0.3);
-             float e = sin(p.x * 0.9 + p.y * 0.6 + uTime * 0.8);
-             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6)
-                       + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)
-                       + 0.9  * cos(p.x * 0.9 + p.y * 0.6 + uTime * 0.8) * 0.06) * 0.09;
-             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45)
-                       + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)
-                       + 0.6  * cos(p.x * 0.9 + p.y * 0.6 + uTime * 0.8) * 0.06) * 0.09;
+             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
+             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
              normal = normalize(normal + vec3(-dx, 0.0, -dz));
-             diffuseColor.rgb *= 1.0 + (a + b + c + e) * 0.02;
+             diffuseColor.rgb *= 1.0 + (a + b + c) * 0.012;
            }`
         );
     };
