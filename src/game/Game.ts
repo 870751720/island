@@ -1783,7 +1783,10 @@ export class Game {
         return 'axe';
       }
       if (
-        (nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor') &&
+        (nearby.kind === 'rock' ||
+          nearby.kind === 'meteor' ||
+          // 铁矿只有石镐敲得动,没升级前不自动切换
+          (nearby.kind === 'iron' && this.tools.pickaxe >= 2)) &&
         this.tools.pickaxe &&
         this.player.currentTool !== 'pickaxe'
       ) {
@@ -3005,8 +3008,10 @@ export class Game {
       label =
         nearby.kind === 'tree'
           ? '砍树'
-          : nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor'
-            ? '采石'
+          : nearby.kind === 'iron'
+            ? '采铁'
+            : nearby.kind === 'rock' || nearby.kind === 'meteor'
+              ? '采石'
             : nearby.kind === 'gravel'
               ? '捡石头'
               : nearby.kind === 'shrub'
@@ -3037,12 +3042,18 @@ export class Game {
             : session.tools.axe
               ? '需要手持斧子'
               : '需要斧子'
-          : nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor'
+          : nearby.kind === 'iron'
             ? switching
               ? '切换镐子…'
-              : session.tools.pickaxe
+              : session.tools.pickaxe >= 2
                 ? '需要手持镐子'
-                : '需要镐子'
+                : '需要石镐'
+            : nearby.kind === 'rock' || nearby.kind === 'meteor'
+              ? switching
+                ? '切换镐子…'
+                : session.tools.pickaxe
+                  ? '需要手持镐子'
+                  : '需要镐子'
             : nearby.kind === 'worm'
               ? switching
                 ? '切换锄头…'

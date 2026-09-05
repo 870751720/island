@@ -21,5 +21,5 @@
 - 系统 `systems/BaitBarrelSystem.ts`:完全对齐木箱 `CrateSystem` 的模式——摆放校验(干地、无资源点/桶重叠)、锄头站定自动挖走(整桶 + 桶内食物 + 鱼饵回背包/掉落)、`nearby` 靠近判定、`snapshot/restore/netApply` 存档与网络重放、`EntityChangeSink` 增量上报。发酵计时只在权威端结算(`update(delta, elapsed, authority)`),客人端本地倒数只做进度表现,状态由 `baitBarrels` 世界增量回流。
 - 兑换表 `BAIT_YIELD`(`systems/Food.ts`):按获取难度定价——基础采集物(橡果/松果/浆果/可乐)1,小鱼/蟹肉 2,鸟肉 3,大鱼/兽肉 5,黄金鱼 20;熟食与对应生食兑换相同。不在表内的食物不可投喂。
 - UI `ui/BaitBarrelPanel.tsx`:上半桶内食物队列(每格角标显示单个可换鱼饵数)+ 发酵进度条 + 待收鱼饵与「全部收取」;下半背包可投喂食物格(点击整格投喂)。工具按钮接入 `baitBarrel` 模式(🪣),持锄头时不劫持(可挖走)。
-- 桶容量上限 20 个食物,防止无限囤积。
+- 桶容量无上限(曾设 20 上限,后取消)。
 - 存档:`SaveData` 新增可选字段 `baitBarrels`(落点 + foods/bait/tickLeft),旧档缺省视为无桶,`SAVE_VERSION` 保持 29 不变。

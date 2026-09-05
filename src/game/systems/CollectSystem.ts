@@ -268,7 +268,9 @@ export class CollectSystem {
     if (kind === 'tree' || kind === 'stump' || kind === 'sapling') {
       return this.player.currentTool === 'axe';
     }
-    if (prop.kind === 'rock' || prop.kind === 'iron' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
+    if (prop.kind === 'rock' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
+    // 铁矿岩体更坚硬,只有二级镐(石镐)才敲得动
+    if (prop.kind === 'iron') return this.player.currentTool === 'pickaxe' && this.tools.pickaxe >= 2;
     // 蚯蚓土坑要用锄头挖
     if (prop.kind === 'worm') return this.player.currentTool === 'hoe';
     return true;

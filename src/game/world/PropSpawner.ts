@@ -9,7 +9,7 @@ type Rule = { kind: PropKind; density: number; radius: number; patch: number; we
 const RULES: Rule[] = [
   { kind: 'tree', density: 60, radius: 1.8, patch: 12, weights: [0.9, 1.1, 1, 1.2] },
   { kind: 'rock', density: 18, radius: 1.2, patch: 6, weights: [0.5, 0.7, 1.4, 2] },
-  { kind: 'iron', density: 10, radius: 1.2, patch: 4, weights: [0.4, 0.6, 1, 1.3], minT: 0.5 },
+  { kind: 'iron', density: 40, radius: 1.2, patch: 4, weights: [0.4, 0.6, 1, 1.3], minT: 0.5 },
   { kind: 'gravel', density: 23, radius: 0.7, patch: 1, weights: [1, 0.8, 1.2, 1.5] },
   { kind: 'berry', density: 12, radius: 0.8, patch: 4, weights: [1.8, 1.3, 0.7, 0.4] },
   { kind: 'shrub', density: 21, radius: 0.8, patch: 5, weights: [1.3, 1.2, 0.9, 0.7] },

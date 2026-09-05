@@ -20,8 +20,6 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每 5 秒发酵 1 个食物为对应数量的鱼饵 */
 export const BAIT_CONVERT_INTERVAL = 5;
-/** 桶内最多存放的食物总数 */
-export const BAIT_BARREL_FOOD_CAP = 20;
 
 /** 饵料桶存档/网络快照(落点 + 桶内食物队列与鱼饵存量) */
 export type BaitBarrelSave = {
@@ -147,7 +145,6 @@ export class BaitBarrelSystem {
     const barrel = this.nearby(actor);
     const n = actor.inventory.count(kind);
     if (!barrel || n <= 0 || BAIT_YIELD[kind] === undefined) return false;
-    if (barrel.foodCount + n > BAIT_BARREL_FOOD_CAP) return false;
     actor.inventory.remove(kind, n);
     barrel.addFood(kind, n);
     this.emitState(barrel);

@@ -68,11 +68,6 @@ export class BaitBarrel {
     return this.foods.length > 0;
   }
 
-  /** 桶内食物总数 */
-  get foodCount(): number {
-    return this.foods.reduce((sum, f) => sum + f.count, 0);
-  }
-
   /** 投入一个食物(同种合并到已有格,新食物排到队尾) */
   addFood(kind: ResourceKind, count: number): void {
     const slot = this.foods.find((f) => f.kind === kind);

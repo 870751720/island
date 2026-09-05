@@ -18,8 +18,6 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每 5 秒炼出 1 块铁锭 */
 export const SMELT_INTERVAL = 5;
-/** 炉内最多存放的铁矿石数 */
-export const SMELTER_ORE_CAP = 20;
 
 /** 冶炼炉存档/网络快照(落点 + 炉内矿石与铁锭存量) */
 export type SmelterSave = {
@@ -145,7 +143,6 @@ export class SmelterSystem {
     const smelter = this.nearby(actor);
     const n = actor.inventory.count('ironOre');
     if (!smelter || n <= 0) return false;
-    if (smelter.ore + n > SMELTER_ORE_CAP) return false;
     actor.inventory.remove('ironOre', n);
     smelter.ore += n;
     this.emitState(smelter);
