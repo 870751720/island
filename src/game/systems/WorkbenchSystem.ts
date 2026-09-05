@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
-import { WORKBENCH_COST, WORKBENCH_UPGRADE_STONES } from './Crafting';
+import { WORKBENCH_COST, WORKBENCH_UPGRADE_FUR } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -146,7 +146,7 @@ export class WorkbenchSystem {
     const bench = this.nearby(actor);
     if (!bench || this.isWorking(actor) || this.isDigging(actor)) return false;
     if (bench.level >= WORKBENCH_MAX_LEVEL) return false;
-    return actor.inventory.count('stone') >= WORKBENCH_UPGRADE_STONES;
+    return actor.inventory.count('fur') >= WORKBENCH_UPGRADE_FUR;
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点占住) */
@@ -232,7 +232,7 @@ export class WorkbenchSystem {
         // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
         if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
       } else {
-        actor.inventory.remove('stone', WORKBENCH_UPGRADE_STONES);
+        actor.inventory.remove('fur', WORKBENCH_UPGRADE_FUR);
         st.upgradeTarget!.upgrade();
         this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
         st.upgradeTarget = null;

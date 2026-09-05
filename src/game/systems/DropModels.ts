@@ -72,11 +72,11 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   shrubBush: '#6b8f4e',
   grassTuft: '#a4c46a',
   workbench1: '#8a6239',
-  workbench2: '#8d99a6',
+  workbench2: '#a5836b',
   workbench3: '#8a6239',
   workbench4: '#c9a15c',
   bed1: '#c9a15c',
-  bed2: '#d8c3a5',
+  bed2: '#a5836b',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -869,24 +869,22 @@ function makeGrassTuftDrop(): THREE.Object3D {
   return g;
 }
 
-/** 床掉落物:微型床架 + 床垫 + 枕头(按等级区分床架材质) */function makeBedDrop(level: number): THREE.Object3D {
+/** 床掉落物:微型床架 + 床垫 + 枕头(二级床为木框皮毛垫) */function makeBedDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
-  const frame = clay(level >= 2 ? '#8d99a6' : '#8a6239');
+  const frame = clay('#8a6239');
   const mattress = clay(DROP_COLORS[level >= 2 ? 'bed2' : 'bed1']);
   const base = mesh(new THREE.BoxGeometry(0.44, 0.06, 0.24), frame);
   base.position.y = 0.08;
   g.add(base);
-  if (level < 2) {
-    for (const [x, z] of [
-      [-0.18, -0.08],
-      [0.18, -0.08],
-      [-0.18, 0.08],
-      [0.18, 0.08],
-    ]) {
+  for (const [x, z] of [
+    [-0.18, -0.08],
+    [0.18, -0.08],
+    [-0.18, 0.08],
+    [0.18, 0.08],
+  ]) {
       const leg = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 5), frame);
       leg.position.set(x, 0.04, z);
       g.add(leg);
-    }
   }
   const pad = mesh(new THREE.BoxGeometry(0.4, 0.05, 0.2), mattress);
   pad.position.y = 0.14;

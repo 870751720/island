@@ -49,6 +49,7 @@ const INITIAL_HUD: HudSnapshot = {
   health: 100,
   dead: false,
   wood: 0,
+  log: 0,
   stone: 0,
   berry: 0,
   fiber: 0,

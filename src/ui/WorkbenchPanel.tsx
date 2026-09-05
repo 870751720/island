@@ -10,7 +10,7 @@ import {
   recipeIconKind,
   recipeIconLevel,
   recipeVisible,
-  WORKBENCH_UPGRADE_STONES,
+  WORKBENCH_UPGRADE_FUR,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -52,7 +52,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.stone, hud.fiber, hud.rope, hud.bed1, hud.hasFishingrod, hud.hasBow]);
+  }, [hud.wood, hud.log, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.hasFishingrod, hud.hasBow]);
 
   return (
     <div
@@ -148,23 +148,23 @@ export function WorkbenchPanel({
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
               <div style={{ fontSize: 12, color: upgradeHint ? '#c62828' : '#888' }}>
-                {upgradeHint ?? `${WORKBENCH_UPGRADE_STONES}石`}
+                {upgradeHint ?? `皮毛×${WORKBENCH_UPGRADE_FUR}`}
               </div>
             </div>
             <button
-              style={craftButtonStyle(hud.stone >= WORKBENCH_UPGRADE_STONES)}
+              style={craftButtonStyle(hud.fur >= WORKBENCH_UPGRADE_FUR)}
               onPointerDown={(e) => {
                 e.preventDefault();
-                if (hud.stone >= WORKBENCH_UPGRADE_STONES) {
+                if (hud.fur >= WORKBENCH_UPGRADE_FUR) {
                   if (onUpgrade()) onClose();
                 } else {
                   setUpgradeHint(
-                    `需要 ${WORKBENCH_UPGRADE_STONES} 个石头(现有 ${hud.stone})`
+                    `需要 ${WORKBENCH_UPGRADE_FUR} 张皮毛(现有 ${hud.fur})`
                   );
                 }
               }}
             >
-              {hud.stone >= WORKBENCH_UPGRADE_STONES ? '升级' : '材料不足'}
+              {hud.fur >= WORKBENCH_UPGRADE_FUR ? '升级' : '材料不足'}
             </button>
           </div>
         )}

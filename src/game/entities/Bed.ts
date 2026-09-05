@@ -9,43 +9,38 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 
 /**
  * 程序化拼装的床模型,随等级升级:
- * Lv1 木框 + 稻草垫 + 叶子枕;Lv2 石料床架 + 皮毛床垫 + 皮毛枕 + 床头板
+ * Lv1 木框 + 稻草垫 + 叶子枕;Lv2 加高木框 + 皮毛床垫 + 皮毛枕 + 床头板(升级材料是皮毛)
  */
 function makeBedMesh(level: number): THREE.Group {
   const g = new THREE.Group();
   const woodMat = clayMaterial('#8a6239');
-  const stoneMat = clayMaterial('#8d99a6');
-  const mattressMat = clayMaterial(level >= 2 ? '#d8c3a5' : '#c9a15c');
+  const mattressMat = clayMaterial(level >= 2 ? '#a5836b' : '#c9a15c');
   const pillowMat = clayMaterial(level >= 2 ? '#efe3d0' : '#7a9b4e');
 
-  const isStone = level >= 2;
+  const isFur = level >= 2;
   // 床架
-  const frame = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, isStone ? 0.3 : 0.16, 0.7),
-    isStone ? stoneMat : woodMat
-  );
-  frame.position.y = isStone ? 0.15 : 0.2;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.4, isFur ? 0.26 : 0.16, 0.7), woodMat);
+  frame.position.y = isFur ? 0.16 : 0.2;
   frame.castShadow = true;
   g.add(frame);
 
-  if (!isStone) {
-    // Lv1:四条短床腿
-    for (const [x, z] of [
-      [-0.6, -0.26],
-      [0.6, -0.26],
-      [-0.6, 0.26],
-      [0.6, 0.26],
-    ]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.14, 5), woodMat);
-      leg.position.set(x, 0.07, z);
-      leg.castShadow = true;
-      g.add(leg);
-    }
+  // 床腿(二级床腿更高,床架抬高)
+  const legH = isFur ? 0.24 : 0.14;
+  for (const [x, z] of [
+    [-0.6, -0.26],
+    [0.6, -0.26],
+    [-0.6, 0.26],
+    [0.6, 0.26],
+  ]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, legH, 5), woodMat);
+    leg.position.set(x, legH / 2, z);
+    leg.castShadow = true;
+    g.add(leg);
   }
 
   // 床垫
   const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.14, 0.58), mattressMat);
-  mattress.position.y = (isStone ? 0.15 : 0.2) + (isStone ? 0.15 : 0.08) + 0.07;
+  mattress.position.y = (isFur ? 0.16 : 0.2) + (isFur ? 0.13 : 0.08) + 0.07;
   mattress.castShadow = true;
   g.add(mattress);
 
@@ -55,9 +50,9 @@ function makeBedMesh(level: number): THREE.Group {
   pillow.castShadow = true;
   g.add(pillow);
 
-  if (isStone) {
-    // Lv2:床头板
-    const headboard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.66), stoneMat);
+  if (isFur) {
+    // Lv2:木质床头板
+    const headboard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.66), woodMat);
     headboard.position.set(-0.7, 0.42, 0);
     headboard.castShadow = true;
     g.add(headboard);
@@ -66,7 +61,7 @@ function makeBedMesh(level: number): THREE.Group {
   // 一床盖到一半的草席/皮毯
   const blanket = new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 0.05, 0.6),
-    clayMaterial(isStone ? '#a5836b' : '#9b7b4e')
+    clayMaterial(isFur ? '#8a6239' : '#9b7b4e')
   );
   blanket.position.set(0.24, mattress.position.y + 0.09, 0);
   blanket.castShadow = true;

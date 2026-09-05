@@ -251,7 +251,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'arrow',
     name: '箭',
     icon: '🏹',
-    description: '用树枝削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
+    description: '用木头削成的箭,搭配弓使用;手持弓时会自动射向附近的猎物。',
   },
   bait: {
     kind: 'bait',
@@ -422,7 +422,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '二级床',
     icon: '🛏️',
     description:
-      '石头床架垫上柔软皮毛的舒服床。点击「使用」放到脚下;睡觉效果与一级床相同,睡相更体面。',
+      '加高木框垫上柔软皮毛的舒服床。在工作台用一级床和 4 张皮毛升级而来(需二级工作台),点击「使用」放到脚下;睡觉效果与一级床相同,睡相更体面。',
   },
   berryBush: {
     kind: 'berryBush',

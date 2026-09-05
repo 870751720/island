@@ -9,7 +9,7 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 
 /**
  * 程序化拼装的工作台模型,随等级升级:
- * Lv1 木桌 + 砧石;Lv2 石板桌面 + 抽屉;Lv3 背后工具架 + 锤子;Lv4 工具架加顶棚 + 锯子
+ * Lv1 木桌 + 砧石;Lv2 木桌铺皮毛工作垫 + 抽屉;Lv3 石板桌面 + 背后工具架 + 锤子;Lv4 工具架加顶棚 + 锯子
  */
 function makeWorkbenchMesh(level: number): THREE.Group {
   const g = new THREE.Group();
@@ -17,8 +17,9 @@ function makeWorkbenchMesh(level: number): THREE.Group {
   const stoneMat = clayMaterial('#8d99a6');
   const strawMat = clayMaterial('#c9a15c');
   const metalMat = clayMaterial('#5f6b78');
+  const furMat = clayMaterial('#a5836b');
 
-  const isStoneTop = level >= 2;
+  const isStoneTop = level >= 3;
   const topThick = isStoneTop ? 0.18 : 0.14;
   const topY = 0.62;
   const top = new THREE.Mesh(
@@ -43,8 +44,12 @@ function makeWorkbenchMesh(level: number): THREE.Group {
     g.add(leg);
   }
 
-  if (isStoneTop) {
-    // Lv2:桌前小抽屉
+  if (level >= 2) {
+    // Lv2:桌面铺一张厚皮毛工作垫 + 桌前小抽屉(升级材料是皮毛,表现上也换成皮毛台面)
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.07, 0.62), furMat);
+    pad.position.set(-0.08, topY + topThick / 2 + 0.035, 0);
+    pad.castShadow = true;
+    g.add(pad);
     const drawer = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.08), woodMat);
     drawer.position.set(-0.2, 0.5, 0.42);
     drawer.castShadow = true;

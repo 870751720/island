@@ -85,6 +85,7 @@ export type HudSnapshot = {
   health: number;
   dead: boolean;
   wood: number;
+  log: number;
   stone: number;
   berry: number;
   fiber: number;
@@ -2658,6 +2659,7 @@ export class Game {
     return {
       ...s.survival.state,
       wood: s.inventory.count('wood'),
+      log: s.inventory.count('log'),
       stone: s.inventory.count('stone'),
       berry: s.inventory.count('berry'),
       fiber: s.inventory.count('fiber'),

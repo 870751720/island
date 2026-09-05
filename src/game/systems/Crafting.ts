@@ -184,23 +184,23 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'arrow',
-    name: '箭 ×10',
-    cost: { wood: 1 },
+    name: '箭 ×5',
+    cost: { log: 1 },
     station: 'workbench',
     output: 'arrow',
-    outputCount: 10,
+    outputCount: 5,
   },
   {
     id: 'crate',
     name: '木箱',
-    cost: { wood: 4 },
+    cost: { log: 3 },
     station: 'workbench',
     output: 'crate',
   },
   {
     id: 'fenceWood',
     name: '木围栏 ×2',
-    cost: { wood: 1 },
+    cost: { log: 1 },
     station: 'workbench',
     output: 'fenceWood',
     outputCount: 2,
@@ -233,9 +233,10 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed2',
     name: '二级床',
-    cost: { bed1: 1, stone: 10 },
+    cost: { bed1: 1, fur: 4 },
     station: 'workbench',
     output: 'bed2',
+    minBenchLevel: 2,
   },
   {
     id: 'baitBarrel',
@@ -318,8 +319,8 @@ export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2,
 /** 工作台卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const WORKBENCH_PROMPT_PRIORITY = 4;
 
-/** 工作台每升一级消耗的石头数 */
-export const WORKBENCH_UPGRADE_STONES = 10;
+/** 工作台每升一级消耗的皮毛数 */
+export const WORKBENCH_UPGRADE_FUR = 4;
 
 /** 按资源数量表判断材料是否足够(背包与 HUD 快照均可传入) */
 export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKind, number>>): boolean {
