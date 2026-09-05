@@ -906,6 +906,7 @@ export class Game {
           z: p.z,
           rotY: s.player.group.rotation.y,
           tool: s.player.currentTool as string,
+          toolTier: (s.tools as Record<string, number>)[s.player.currentTool],
           hunger: sv.hunger,
           thirst: sv.thirst,
           health: sv.health,
@@ -1053,6 +1054,8 @@ export class Game {
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
+        if (p.toolTier)
+          s.player.setToolTier(p.tool as Exclude<HandTool, 'hand'>, p.toolTier);
           // 远程玩家钓鱼表现:作业动作出现即本地起播浮漂钓线,动作消失即收线;
           // 交互音效只给发起者本人听,远程会话起播时静音
           this.audio.silent = true;
@@ -1258,6 +1261,7 @@ export class Game {
       if (gained > 0) this.emitPickup(kind, gained);
     }
     Object.assign(this.local.tools, snap.toolTiers);
+    this.syncToolTiers(this.local);
     this.local.player.setTool(snap.tool);
     // 装备穿戴由房主权威结算:快照回流后同步本地装备状态,触发外观/背包容量刷新
     const equipChanged = SLOT_ORDER.some(
@@ -1406,6 +1410,7 @@ export class Game {
     for (const [id, tier] of Object.entries(data.tools)) {
       if (tier > 0) session.tools[id as ToolId] = tier;
     }
+    this.syncToolTiers(session);
     if (data.handTool === 'hand' || this.hasToolFor(session, data.handTool)) {
       session.player.setTool(data.handTool);
     }
@@ -1799,6 +1804,7 @@ export class Game {
 
     if ((TOOL_IDS as string[]).includes(kind)) {
       actor.tools[kind as ToolId] = 1;
+      this.syncToolTiers(actor);
       return;
     }
     this.giveItem(kind, count, actor);
@@ -1813,6 +1819,12 @@ export class Game {
     }
 
     actor.tools[tool] = Math.max(actor.tools[tool], tier);
+    this.syncToolTiers(actor);
+  }
+
+  /** 会话工具等级同步到角色模型(升级/读档/快照对账后调用) */
+  private syncToolTiers(actor: Actor): void {
+    for (const id of TOOL_IDS) actor.player.setToolTier(id, actor.tools[id]);
   }
 
   /** 产物入包,背包放不下的部分掉在玩家身旁地上 */
@@ -1841,6 +1853,7 @@ export class Game {
     session.inventory.reset();
     session.equipment.reset();
     for (const id of TOOL_IDS) session.tools[id] = 0;
+    this.syncToolTiers(session);
     const survival = session.survival.state;
     survival.hunger = survival.thirst = survival.health = survival.stamina = 100;
     survival.dead = false;

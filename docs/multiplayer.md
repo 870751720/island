@@ -465,3 +465,5 @@
 - 火把作为新 `ShrineKind 'torch'` 完全复用神龛联机链路,零新增协议。
 - 放置:客人背包「使用」走既有 `useShrine` action 上行,房主 `ShrineSystem.place` 权威结算;挖掘:房主/客人各自经 `updateActor` 本地挥击,实际移除与入包由所在端权威结算后经 `shrines` 世界增量快照(`add/remove`)回流对端补播,与波塞冬神像一致。
 - 火把 PointLight 为纯客户端表现,随神龛实体增删自动创建/销毁,不同步光强闪烁。
+
+- 2026-09-05:工具等级模型区分。`PlayerState` 姿态快照新增 `toolTier`(当前手持工具的 1/2 级),客人端据此刷新远程玩家的手持模型;本地工具等级仍经 HUD 快照 `toolTiers` 回流对账。`NET_PROTOCOL_VERSION` 16 → 17,旧版本客人会被拒连。

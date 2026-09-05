@@ -59,43 +59,68 @@ export type HandTool =
   | 'fence'
   | 'fenceGate';
 
-function makeFishingRodModel(): THREE.Group {
+function makeFishingRodModel(tier: 1 | 2): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
+  // 二级(木鱼竿):竿身更直更粗,柄部缠绳线
   const g = new THREE.Group();
   const rod = new THREE.Mesh(
     new THREE.CylinderGeometry(0.025, 0.04, 0.85, 5),
     clayMaterial('#8a6239')
   );
+  g.add(rod);
+  if (tier === 2) {
+    rod.rotation.z = 0.04;
+    const grip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 0.16, 5),
+      clayMaterial('#c9b588')
+    );
+    grip.position.y = -0.32;
+    g.add(grip);
+  }
   const tip = new THREE.Object3D();
-  tip.position.y = 0.42;
-  g.add(rod, tip);
+  tip.position.set(0.035, 0.42, 0);
+  g.add(tip);
   g.userData.tip = tip;
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
 
-function makeAxeModel(): THREE.Group {
-  // 斧柄 + 斧刃,握在右手
+function makeAxeModel(tier: 1 | 2): THREE.Group {
+  // 一级(木斧):树枝柄 + 绑上去的小石刃;二级(石斧):更大的磨制石刃 + 绑绳
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
     clayMaterial('#8a6239')
   );
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.16), clayMaterial('#9a9a9a'));
-  blade.position.set(0, 0.26, 0.1);
+  const big = tier === 2;
+  const blade = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, big ? 0.28 : 0.2, big ? 0.2 : 0.14),
+    clayMaterial(big ? '#7d7d82' : '#9a9a9a')
+  );
+  blade.position.set(0, big ? 0.28 : 0.25, big ? 0.12 : 0.09);
   g.add(handle, blade);
+  if (big) {
+    const binding = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, 0.05, 5),
+      clayMaterial('#c9b588')
+    );
+    binding.position.set(0, 0.24, 0.02);
+    g.add(binding);
+  }
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
 
-function makeBowModel(): THREE.Group {
+function makeBowModel(tier: 1 | 2): THREE.Group {
   // 弓:细杆弯成弓形(用弧形排布的短柱近似)+ 一根弓弦
+  // 二级(木弓):弓臂更粗,中段缠绳握把
   const g = new THREE.Group();
   const wood = clayMaterial('#8a6239');
+  const r = tier === 2 ? 0.028 : 0.02;
   const segments = 7;
   for (let i = 0; i < segments; i++) {
     const t = i / (segments - 1);
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 4), wood);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.14, 4), wood);
     seg.position.set(0, (t - 0.5) * 0.78, Math.sin(t * Math.PI) * 0.1 - 0.1);
     seg.rotation.x = -Math.cos(t * Math.PI) * 0.5;
     g.add(seg);
@@ -106,26 +131,45 @@ function makeBowModel(): THREE.Group {
   );
   string.position.set(0, 0, -0.1);
   g.add(string);
+  if (tier === 2) {
+    const grip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.042, 0.042, 0.14, 5),
+      clayMaterial('#c9b588')
+    );
+    grip.position.set(0, 0, -0.06);
+    g.add(grip);
+  }
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
 
-function makePickaxeModel(): THREE.Group {
-  // 镐柄 + 弧形镐尖
+function makePickaxeModel(tier: 1 | 2): THREE.Group {
+  // 一级(木镐):树枝柄 + 小镐头;二级(石镐):更长更尖的磨制镐头 + 绑绳
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
     clayMaterial('#8a6239')
   );
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.5), clayMaterial('#8a8a8a'));
+  const big = tier === 2;
+  const stone = clayMaterial(big ? '#7d7d82' : '#8a8a8a');
+  const len = big ? 0.6 : 0.5;
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.05, big ? 0.1 : 0.08, len), stone);
   head.position.y = 0.27;
-  const tipL = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 4), clayMaterial('#8a8a8a'));
+  const tipL = new THREE.Mesh(new THREE.ConeGeometry(big ? 0.06 : 0.05, big ? 0.18 : 0.14, 4), stone);
   tipL.rotation.z = Math.PI / 2;
-  tipL.position.set(0, 0.27, -0.3);
+  tipL.position.set(0, 0.27, -len / 2);
   const tipR = tipL.clone();
   tipR.rotation.z = -Math.PI / 2;
-  tipR.position.z = 0.3;
+  tipR.position.z = len / 2;
   g.add(handle, head, tipL, tipR);
+  if (big) {
+    const binding = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, 0.05, 5),
+      clayMaterial('#c9b588')
+    );
+    binding.position.y = 0.25;
+    g.add(binding);
+  }
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -145,8 +189,8 @@ function makeHoeModel(): THREE.Group {
   return g;
 }
 
-/** 木剑:木柄 + 十字护手 + 扁木剑身,握在右手 */
-function makeSwordModel(): THREE.Group {
+/** 剑:木柄 + 十字护手 + 扁剑身;一级(木剑)木色剑身,二级(石剑)更短的磨石剑身 */
+function makeSwordModel(tier: 1 | 2): THREE.Group {
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.035, 0.04, 0.16, 5),
@@ -155,10 +199,13 @@ function makeSwordModel(): THREE.Group {
   handle.position.y = -0.06;
   const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), clayMaterial('#a97b48'));
   guard.position.y = 0.03;
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.02), clayMaterial('#d9c27a'));
-  blade.position.y = 0.28;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.1, 4), clayMaterial('#d9c27a'));
-  tip.position.y = 0.56;
+  const stone = tier === 2;
+  const bladeMat = clayMaterial(stone ? '#7d7d82' : '#d9c27a');
+  const bladeLen = stone ? 0.38 : 0.46;
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(stone ? 0.075 : 0.06, bladeLen, stone ? 0.03 : 0.02), bladeMat);
+  blade.position.y = 0.03 + bladeLen / 2;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(stone ? 0.052 : 0.042, 0.1, 4), bladeMat);
+  tip.position.y = 0.03 + bladeLen + 0.04;
   g.add(handle, guard, blade, tip);
   g.rotation.x = Math.PI / 2.4;
   return g;
@@ -301,7 +348,10 @@ export class Player implements Updatable {
   /** 减速 debuff 剩余时长(熊扑击命中时施加) */
   private slowLeft = 0;
   private handTool: HandTool = 'hand';
-  private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group>> = {};
+  /** 每件工具按等级的模型(下标 = 等级 - 1;锄头/围栏只有 1 级) */
+  private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group[]>> = {};
+  /** 各工具当前等级(缺省 1),决定展示哪一档模型 */
+  private toolTiers: Partial<Record<Exclude<HandTool, 'hand'>, number>> = {};
   private obstacles: ObstacleSolver[] = [];
   /** 躺床睡觉的目标姿态(非空表示睡着:位置/朝向由睡眠姿态接管) */
   private sleepPose: { pos: THREE.Vector3; rotY: number; returnPos: THREE.Vector3 } | null = null;
@@ -368,21 +418,25 @@ export class Player implements Updatable {
     this.arms = [armL, armR];
     this.legs = [legL, legR];
 
-    // 工具握在右手(armR)末端
-    const axe = makeAxeModel();
-    const pickaxe = makePickaxeModel();
-    const hoe = makeHoeModel();
-    const fishingrod = makeFishingRodModel();
-    const bow = makeBowModel();
-    const sword = makeSwordModel();
-    const fence = makeFenceBundleModel('#a97b48', false);
-    const fenceGate = makeFenceBundleModel('#8a6239', true);
-    for (const t of [axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate]) {
-      t.position.set(0, -0.3, 0.05);
-      t.visible = false;
+    // 工具握在右手(armR)末端;可升级工具各备一二级两套模型
+    const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
+      ['axe', [makeAxeModel(1), makeAxeModel(2)]],
+      ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2)]],
+      ['hoe', [makeHoeModel()]],
+      ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2)]],
+      ['bow', [makeBowModel(1), makeBowModel(2)]],
+      ['sword', [makeSwordModel(1), makeSwordModel(2)]],
+      ['fence', [makeFenceBundleModel('#a97b48', false)]],
+      ['fenceGate', [makeFenceBundleModel('#8a6239', true)]],
+    ];
+    for (const [, models] of tiers) {
+      for (const t of models) {
+        t.position.set(0, -0.3, 0.05);
+        t.visible = false;
+      }
+      armR.add(...models);
     }
-    armR.add(axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate);
-    this.toolModels = { axe, pickaxe, hoe, fishingrod, bow, sword, fence, fenceGate };
+    this.toolModels = Object.fromEntries(tiers);
 
     // 帽子戴在头顶,背包背在背后,装备前不显示
     const strawHat = makeStrawHatModel();
@@ -423,8 +477,22 @@ export class Player implements Updatable {
   /** 切换手持工具(仅视觉,不影响采集资格) */
   setTool(tool: HandTool): void {
     this.handTool = tool;
-    for (const [name, model] of Object.entries(this.toolModels)) {
-      model!.visible = name === tool;
+    this.refreshToolModels();
+  }
+
+  /** 更新工具等级(升级/读档/快照对账),正持有时即时换模型 */
+  setToolTier(tool: Exclude<HandTool, 'hand'>, tier: number): void {
+    this.toolTiers[tool] = tier;
+    if (this.handTool === tool) this.refreshToolModels();
+  }
+
+  /** 按当前手持与等级刷新工具模型显隐 */
+  private refreshToolModels(): void {
+    for (const [name, models] of Object.entries(this.toolModels) as Array<
+      [Exclude<HandTool, 'hand'>, THREE.Group[]]
+    >) {
+      const tier = Math.min(this.toolTiers[name] ?? 1, models.length) - 1;
+      models.forEach((m, i) => (m.visible = name === this.handTool && i === tier));
     }
   }
 
@@ -444,8 +512,9 @@ export class Player implements Updatable {
 
   /** 手持鱼竿时取竿梢世界坐标(钓线起点),未持竿返回 false */
   getRodTip(out: THREE.Vector3): boolean {
-    const rod = this.toolModels.fishingrod;
-    if (!rod || this.handTool !== 'fishingrod') return false;
+    const rods = this.toolModels.fishingrod;
+    if (!rods || this.handTool !== 'fishingrod') return false;
+    const rod = rods[Math.min(this.toolTiers.fishingrod ?? 1, rods.length) - 1];
     (rod.userData.tip as THREE.Object3D).getWorldPosition(out);
     return true;
   }
@@ -481,7 +550,7 @@ export class Player implements Updatable {
     this.sleepPose = { pos: pos.clone(), rotY, returnPos: this.group.position.clone() };
     this.action = null;
     this.group.rotation.y = rotY;
-    for (const model of Object.values(this.toolModels)) model!.visible = false;
+    for (const model of Object.values(this.toolModels).flat()) model.visible = false;
   }
 
   /** 起床:回到入睡前的站位并站直 */
@@ -502,7 +571,7 @@ export class Player implements Updatable {
     this.dead = true;
     this.action = null;
     this.sleepPose = null;
-    for (const model of Object.values(this.toolModels)) model!.visible = false;
+    for (const model of Object.values(this.toolModels).flat()) model.visible = false;
   }
 
   /** 从死亡姿态恢复站立，并传送到出生点。 */
@@ -616,13 +685,11 @@ export class Player implements Updatable {
       this.animateSwim(elapsed);
       this.waterFx.updateSwimming(delta, p, 0.4, waterY);
       // 游泳时收起工具,避免抡着斧子划水
-      for (const model of Object.values(this.toolModels)) model!.visible = false;
+      for (const model of Object.values(this.toolModels).flat()) model.visible = false;
     } else {
       // 涉水移动时脚下泛涟漪
       if (this.wading && this.moving) this.waterFx.updateSwimming(delta, p, 0.55, waterY);
-      for (const [name, model] of Object.entries(this.toolModels)) {
-        model!.visible = name === this.handTool;
-      }
+      this.refreshToolModels();
       if (this.action === 'slash') {
         // 挥剑可以边走边砍:双腿照常走路摆动,右臂单独抡一个横斩
         this.actionTime += delta;

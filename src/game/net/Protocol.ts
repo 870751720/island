@@ -8,7 +8,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 16;
+export const NET_PROTOCOL_VERSION = 17;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -19,6 +19,8 @@ export type PlayerState = {
   z: number;
   rotY: number;
   tool: string;
+  /** 当前手持工具的等级(1/2,决定他人看到的工具模型;非工具手持时缺省) */
+  toolTier?: number;
   hunger: number;
   thirst: number;
   health: number;
