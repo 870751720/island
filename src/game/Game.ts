@@ -552,7 +552,8 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z),
       Math.random,
       // 营地判定:篝火 6 米内不刷新动物,新个体不在玩家的营地出现
-      (x, z) => this.campfire.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6)
+      // (Wildlife 先于 CampfireSystem 构造,初始生成时篝火尚未建立)
+      (x, z) => this.campfire?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6) ?? false
     );
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {
