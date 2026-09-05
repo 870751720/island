@@ -55,6 +55,7 @@ import { SurvivalSystem } from './systems/SurvivalSystem';
 import { GmSystem, gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
+import { OceanDepth } from './world/OceanDepth';
 import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
@@ -271,6 +272,7 @@ export class Game {
   private windFx: Wind;
   private terrain: IslandTerrain;
   private ocean: Ocean;
+  private oceanDepth: OceanDepth;
   private waterDebug: WaterDebugOverlay;
   private minimap: MinimapSystem;
   private crabs: Crabs;
@@ -399,7 +401,8 @@ export class Game {
     this.terrain = terrain;
     this.minimap = new MinimapSystem(terrain.size);
     this.scene.add(terrain.mesh);
-    this.ocean = new Ocean(terrain.seaLevel);
+    this.oceanDepth = new OceanDepth(terrain);
+    this.ocean = new Ocean(terrain.seaLevel, this.oceanDepth);
     this.scene.add(this.ocean.mesh);
     this.waterDebug = new WaterDebugOverlay(terrain);
     this.scene.add(this.waterDebug.mesh);
@@ -724,7 +727,7 @@ export class Game {
         });
         this.updateIndicator(delta);
         this.updateCamera(delta);
-        this.ocean.update(this.camera);
+        this.ocean.update(this.camera, elapsed);
         this.renderer.render(this.scene, this.camera);
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
@@ -2462,6 +2465,7 @@ export class Game {
     this.footprints.dispose();
     this.waterDebug.dispose();
     this.ocean.dispose();
+    this.oceanDepth.dispose();
     this.audio.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
