@@ -29,6 +29,7 @@ const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 const SEA_FISH_RANGE = 1.5;
 /** 沿玩家朝向探测浮漂落点的最远距离 */
 const CAST_RANGE = 8;
+const CAST_MIN_RANGE = 2;
 /** 水岸资格与抛竿射线的采样间隔；足够细以避免低模岸线漏判。 */
 const WATER_TRACE_STEP = 0.1;
 
@@ -145,7 +146,7 @@ export class FishingSystem {
   canFishHere(): boolean {
     const p = this.player.group.position;
     if (this.player.isSwimming || this.terrain.getWaterKind(p.x, p.z)) return false;
-    return this.traceFacingWater(SEA_FISH_RANGE) !== null;
+    return this.traceFacingWater(SEA_FISH_RANGE) !== null && this.facingWaterSamples().length > 0;
   }
 
   /** 是否满足发起条件(可钓点 + 手持鱼竿 + 站定 + 空闲) */
@@ -212,7 +213,7 @@ export class FishingSystem {
   /** 移动或其他占用双手的行为会中断钓鱼 */
   update(delta: number, busy: boolean): void {
     if (!this.state) return;
-    if (this.player.isMoving || this.player.isSwimming || busy) {
+    if (this.player.isMoving || this.player.isSwimming || this.player.currentTool !== 'fishingrod' || busy) {
       this.stop();
       return;
     }
@@ -294,6 +295,7 @@ export class FishingSystem {
           this.tease = null;
           this.removeBobber();
           this.removeLine();
+          this.clearFishingAction();
         }
         break;
       }
@@ -306,6 +308,7 @@ export class FishingSystem {
     this.tease = null;
     this.removeBobber();
     this.removeLine();
+    this.clearFishingAction();
   }
 
   /** 客人端表现驱动:进入钓鱼时本地起播浮漂与钓线,阶段与中断由房主快照纠正 */
@@ -404,10 +407,11 @@ export class FishingSystem {
     this.line.quaternion.setFromUnitVectors(this.up, dir.normalize());
   }
 
-  /** 浮漂严格沿玩家朝向落入实际水体，最远 8m；资格检测保证 1.5m 内先碰到水。 */
+  /** 浮漂严格沿玩家朝向，在 2~8m 内随机选一个实际水面；资格检测保证 1.5m 内先碰到水。 */
   private findBobberTarget(): THREE.Vector3 | null {
     if (!this.traceFacingWater(SEA_FISH_RANGE)) return null;
-    return this.traceFacingWater(CAST_RANGE, true);
+    const samples = this.facingWaterSamples();
+    return samples.length > 0 ? samples[Math.floor(Math.random() * samples.length)] : null;
   }
 
   /** 沿角色正前方找实际水面。farthest=true 返回范围内最远水点，否则返回首个水点。 */
@@ -425,5 +429,29 @@ export class FishingSystem {
       if (!farthest) return result;
     }
     return result;
+  }
+
+  /** 玩家正前方 2~8m 内的全部实际水面采样，随机取样即可得到随机远近且保证落水。 */
+  private facingWaterSamples(): THREE.Vector3[] {
+    const p = this.player.group.position;
+    const rot = this.player.group.rotation.y;
+    const dx = Math.sin(rot);
+    const dz = Math.cos(rot);
+    const samples: THREE.Vector3[] = [];
+    for (let distance = CAST_MIN_RANGE; distance <= CAST_RANGE + 0.001; distance += WATER_TRACE_STEP) {
+      const x = p.x + dx * distance;
+      const z = p.z + dz * distance;
+      if (this.terrain.getWaterKind(x, z)) {
+        samples.push(new THREE.Vector3(x, this.terrain.getWaterLevel(x, z), z));
+      }
+    }
+    return samples;
+  }
+
+  /** 只清理由本系统设置的动作，避免覆盖同帧接管的其他交互。 */
+  private clearFishingAction(): void {
+    if (this.player.currentAction === 'cast' || this.player.currentAction === 'fish') {
+      this.player.setAction(null);
+    }
   }
 }
