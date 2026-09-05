@@ -173,7 +173,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-fishingrod',
     name: '木鱼竿',
-    cost: { branch: 3, rope: 2 },
+    cost: { wood: 3, rope: 2 },
     station: 'workbench',
     tool: 'fishingrod',
     tier: 2,
@@ -182,7 +182,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-bow',
     name: '木弓',
-    cost: { branch: 1, rope: 5 },
+    cost: { wood: 1, rope: 5 },
     station: 'workbench',
     tool: 'bow',
     tier: 2,
@@ -302,7 +302,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed2',
     name: '二级床',
-    cost: { bed1: 1, fur: 4 },
+    cost: { bed1: 1, fur: 4, wood: 4, stone: 4 },
     station: 'workbench',
     output: 'bed2',
     minBenchLevel: 2,
