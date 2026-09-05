@@ -22,6 +22,7 @@ import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
+import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { ShrineSystem } from './systems/ShrineSystem';
@@ -113,6 +114,8 @@ export type HudSnapshot = {
   /** 背包里是否有种子(可切换到种子播种) */
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
   nearCrate: boolean;
+  /** 玩家在饵料桶旁(工具按钮变为饵料桶,点击打开投喂/收取面板) */
+  nearBaitBarrel: boolean;
   /** 玩家在床旁(工具按钮变为床,点击开始睡觉) */
   nearBed: boolean;
   /** 睡觉过渡进行中与进度 */
@@ -120,6 +123,8 @@ export type HudSnapshot = {
   bedSleepProgress: number;
   /** 身旁木箱的 10 格快照(不在木箱旁为 null) */
   crateSlots: InventorySlot[] | null;
+  /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
+  baitBarrelInfo: BaitBarrelInfo | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
   equipped: Record<EquipSlot, EquipKind | null>;
   tool: HandTool;
@@ -200,6 +205,7 @@ type InteractionKind =
   | 'workbench'
   | 'campfire'
   | 'crates'
+  | 'baitBarrels'
   | 'fences'
   | 'beds'
   | 'shrines';
@@ -261,6 +267,7 @@ export class Game {
   }
   private workbench: WorkbenchSystem;
   private crates: CrateSystem;
+  private baitBarrels: BaitBarrelSystem;
   private fences: FenceSystem;
   private beds: BedSystem;
   private shrines: ShrineSystem;
@@ -546,6 +553,17 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'crates')
     );
+    this.baitBarrels = new BaitBarrelSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 收取鱼饵/挖回饵料桶与桶内食物入包,背包放不下的部分掉到玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'baitBarrels')
+    );
     this.beds = new BedSystem(
       this.scene,
       this.terrain,
@@ -712,6 +730,7 @@ export class Game {
           // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
           s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
           this.crates.updateActor(s, delta);
+          this.baitBarrels.updateActor(s, delta);
           this.fences.updateActor(s, delta);
           this.beds.updateActor(s, delta);
           this.shrines.updateActor(s, delta);
@@ -735,6 +754,7 @@ export class Game {
         this.fences.update(delta, this.sessions.map((s) => s.player.group.position));
         this.campfire.update(delta, elapsed);
         this.shrines.update(delta, elapsed);
+        this.baitBarrels.update(delta, elapsed, !this.guestMode);
         this.drops.update(delta, elapsed);
         this.mumbles.update(delta, {
           elapsed,
@@ -948,6 +968,7 @@ export class Game {
       workbenches: this.workbench.snapshot(),
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
+      baitBarrels: this.baitBarrels.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
@@ -968,6 +989,7 @@ export class Game {
       }
     });
     this.crates.setChangeSink(send('crates'));
+    this.baitBarrels.setChangeSink(send('baitBarrels'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
     this.beds.setChangeSink(send('beds'));
     this.shrines.setChangeSink(send('shrines'));
@@ -1232,6 +1254,9 @@ export class Game {
     if (state.crates) {
       this.crates.netApply(state.crates);
     }
+    if (state.baitBarrels) {
+      this.baitBarrels.netApply(state.baitBarrels);
+    }
     if (state.fences || state.fenceGates) {
       this.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
     }
@@ -1387,6 +1412,7 @@ export class Game {
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
+    if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
     this.shrines.restore(save.shrines ?? []);
@@ -1450,6 +1476,7 @@ export class Game {
       workbenches: this.workbench.snapshot(),
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
+      baitBarrels: this.baitBarrels.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
@@ -2204,8 +2231,46 @@ export class Game {
     return true;
   }
 
-  /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
-  campfireAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+  /** 背包里点击「使用」饵料桶:校验通过后在玩家脚下原地放下,不满足时给出提示 */
+  useBaitBarrel(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useBaitBarrel', []);
+
+    if (this.asleepFor(actor) || !this.baitBarrels.use(actor)) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
+  /** 把背包里该种类全部食物丢进身旁饵料桶(每 5 秒发酵 1 个),失败时给出提示 */
+  baitBarrelFeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('baitBarrelFeed', [kind]);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.baitBarrels.feed(actor, kind)) {
+      this.notify('桶里装不下了');
+      return false;
+    }
+    return true;
+  }
+
+  /** 收取身旁饵料桶里发酵好的全部鱼饵,失败时给出提示 */
+  baitBarrelCollect(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('baitBarrelCollect', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.baitBarrels.collect(actor)) {
+      this.notify('背包满了,装不下更多东西');
+      return false;
+    }
+    return true;
+  }
+
+  /** 向身旁火堆添加 1 个可燃物,返回是否成功 */  campfireAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('campfireAddFuel', [kind]);
 
@@ -2341,6 +2406,7 @@ export class Game {
     this.campfire.detach(session);
     this.workbench.detach(session);
     this.crates.detach(session);
+    this.baitBarrels.detach(session);
     this.fences.detach(session);
     this.beds.detach(session);
     this.shrines.detach(session);
@@ -2368,6 +2434,7 @@ export class Game {
       return true;
     if (exclude !== 'campfire' && this.campfire.isBusy(s)) return true;
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
+    if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
       return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
@@ -2618,10 +2685,12 @@ export class Game {
       hasSword: !!s.tools.sword,
       toolTiers: { ...s.tools },
       nearCrate: !!this.crates.nearby(s),
+      nearBaitBarrel: !!this.baitBarrels.nearby(s),
       nearBed: !!this.beds.nearby(s),
       bedSleeping: this.beds.isSleeping(s),
       bedSleepProgress: this.beds.getSleepProgress(s) ?? 0,
       crateSlots: this.crates.nearbySlots(s),
+      baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
       equipped: s.equipment.snapshot(),
       tool: s.player.currentTool,
       craftId: s.crafting.currentRecipe?.id ?? null,
@@ -2788,6 +2857,9 @@ export class Game {
     } else if (this.crates.isDigging(session)) {
       label = '挖木箱…';
       progress = this.crates.getDigProgress(session);
+    } else if (this.baitBarrels.isDigging(session)) {
+      label = '挖饵料桶…';
+      progress = this.baitBarrels.getDigProgress(session);
     } else if (this.fences.isPlacing(session)) {
       label = session.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
       progress = this.fences.getPlaceProgress(session);

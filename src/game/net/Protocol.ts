@@ -59,6 +59,7 @@ export type WorldPatch = Partial<
     | 'workbenches'
     | 'workbenchCrafted'
     | 'crates'
+    | 'baitBarrels'
     | 'fences'
     | 'fenceGates'
     | 'beds'

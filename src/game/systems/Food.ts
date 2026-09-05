@@ -44,9 +44,39 @@ export const FOODS: Food[] = [
   { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🥩', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
 ];
 
+/** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);大体按获取难度定价:基础采集 1、小鱼/肉 2-3、大鱼 5、兽肉 10、传说鱼 40,熟食比生食更值钱 */
+export const BAIT_YIELD: Partial<Record<ResourceKind, number>> = {
+  oakFruit: 1,
+  pineFruit: 1,
+  berry: 1,
+  cola: 1,
+  colaZero: 1,
+  fruitFruit: 2,
+  sardine: 2,
+  shrimp: 2,
+  loach: 2,
+  perch: 2,
+  puffer: 2,
+  cuttlefish: 2,
+  crabMeat: 2,
+  birdMeat: 3,
+  grouper: 5,
+  catfish: 5,
+  swordfish: 5,
+  manta: 5,
+  gameMeat: 10,
+  goldenFish: 40,
+  cookedBerry: 2,
+  cookedCrabMeat: 3,
+  cookedBirdMeat: 3,
+  cookedSmallFish: 4,
+  cookedBigFish: 8,
+  cookedGameMeat: 12,
+  cookedGoldenFish: 80,
+};
+
 /** 烹饪映射:生食在燃烧的火堆上烤成熟食,效果增强;不可烤的食材不在表中 */
-export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {
-  berry: 'cookedBerry',
+export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {  berry: 'cookedBerry',
   sardine: 'cookedSmallFish',
   shrimp: 'cookedSmallFish',
   loach: 'cookedSmallFish',

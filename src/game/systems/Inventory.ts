@@ -60,6 +60,7 @@ export type ResourceKind =
   | 'furHat'
   | 'furBackpack'
   | 'crate'
+  | 'baitBarrel'
   | 'fenceWood'
   | 'fenceStone'
   | 'fenceGate'

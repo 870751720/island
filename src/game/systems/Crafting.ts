@@ -22,9 +22,7 @@ export type CraftId =
   | 'fenceGate'
   | 'bed'
   | 'bed2'
-  | 'baitCrab'
-  | 'baitBird'
-  | 'baitGame'
+  | 'baitBarrel'
   | 'torch'
   | EquipKind;
 
@@ -44,8 +42,6 @@ export type Recipe = {
   outputCount?: number;
   /** 需要的工作台等级(缺省 1 级即可,二级工具需 2 级) */
   minBenchLevel?: number;
-  /** 鱼饵类手搓配方:只在手持鱼竿且背包没有鱼饵时弹出制作卡片 */
-  baitPrompt?: boolean;
   /** 仅允许从背包制作页发起,不在场景中弹出快捷制作卡片 */
   hidePrompt?: boolean;
   /** 手搓卡片弹出优先级:数字越小越先弹;同一时刻只显示优先级最高的一张(station 为 hand 的配方必填,见 RECIPES 定义后的校验) */
@@ -242,34 +238,12 @@ export const RECIPES: Recipe[] = [
     output: 'bed2',
   },
   {
-    id: 'baitCrab',
-    name: '鱼饵 ×2',
-    cost: { crabMeat: 1 },
-    station: 'hand',
-    promptPriority: 9,
-    output: 'bait',
-    outputCount: 2,
-    baitPrompt: true,
-  },
-  {
-    id: 'baitBird',
-    name: '鱼饵 ×3',
-    cost: { birdMeat: 1 },
-    station: 'hand',
-    promptPriority: 10,
-    output: 'bait',
-    outputCount: 3,
-    baitPrompt: true,
-  },
-  {
-    id: 'baitGame',
-    name: '鱼饵 ×10',
-    cost: { gameMeat: 1 },
-    station: 'hand',
-    promptPriority: 11,
-    output: 'bait',
-    outputCount: 10,
-    baitPrompt: true,
+    id: 'baitBarrel',
+    name: '饵料桶',
+    cost: { wood: 4, rope: 1 },
+    station: 'workbench',
+    output: 'baitBarrel',
+    minBenchLevel: 2,
   },
   {
     id: 'grassShirt',

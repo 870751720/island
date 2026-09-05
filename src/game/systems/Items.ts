@@ -257,7 +257,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'bait',
     name: '鱼饵',
     icon: '🪱',
-    description: '用肉搓成的小鱼饵,也可以用锄头从蚯蚓土坑里挖。每次抛竿消耗 1 个;没有鱼饵时很难钓到好东西。',
+    description: '发酵好的小鱼饵,用饵料桶把食物发酵而成,也可以用锄头从蚯蚓土坑里挖。每次抛竿消耗 1 个;没有鱼饵时很难钓到好东西。',
   },
   oakSeed: {
     kind: 'oakSeed',
@@ -384,6 +384,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '木箱',
     icon: '📦',
     description: '木板钉成的收纳箱。点击「使用」把它放到脚下(不能在水里,脚下也不能有别的东西),之后靠近可以打开,存取 10 格物品。',
+  },
+  baitBarrel: {
+    kind: 'baitBarrel',
+    name: '饵料桶',
+    icon: '🪣',
+    description:
+      '木板箍成的发酵桶。点击「使用」放到脚下(不能在水里,脚下也不能有别的东西),靠近打开桶盖,把食物丢进去:每 5 秒发酵 1 个食物变成鱼饵,桶里食物没消化完时桶口会冒出诱饵香;手持锄头靠近可以把整桶挖走。',
   },
   fenceWood: {
     kind: 'fenceWood',

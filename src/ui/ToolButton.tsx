@@ -23,6 +23,7 @@ export function ToolButton({
   workbench,
   campfire = false,
   crate = false,
+  baitBarrel = false,
   bed = false,
   arrowCount = 0,
   baitCount = 0,
@@ -32,6 +33,7 @@ export function ToolButton({
   onWorkbench,
   onCampfire,
   onCrate,
+  onBaitBarrel,
   onBed,
 }: {
   tool: HandTool;
@@ -42,6 +44,8 @@ export function ToolButton({
   campfire?: boolean;
   /** 是否显示为木箱模式(靠近木箱) */
   crate?: boolean;
+  /** 是否显示为饵料桶模式(靠近饵料桶) */
+  baitBarrel?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
   bed?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
@@ -56,6 +60,7 @@ export function ToolButton({
   onWorkbench: () => void;
   onCampfire: () => void;
   onCrate: () => void;
+  onBaitBarrel: () => void;
   onBed: () => void;
 }) {
   return (
@@ -68,9 +73,11 @@ export function ToolButton({
             ? onCampfire()
             : crate
               ? onCrate()
-              : bed
-                ? onBed()
-                : onCycle();
+              : baitBarrel
+                ? onBaitBarrel()
+                : bed
+                  ? onBed()
+                  : onCycle();
       }}
       style={{
         position: 'absolute',
@@ -87,24 +94,27 @@ export function ToolButton({
             ? 'rgba(214, 92, 44, 0.9)'
             : crate
               ? 'rgba(154, 118, 62, 0.9)'
-              : bed
-                ? 'rgba(106, 110, 160, 0.9)'
-                : 'rgba(90, 110, 140, 0.8)',
+              : baitBarrel
+                ? 'rgba(151, 124, 74, 0.9)'
+                : bed
+                  ? 'rgba(106, 110, 160, 0.9)'
+                  : 'rgba(90, 110, 140, 0.8)',
         fontSize: 30,
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire || crate || bed
+          pulse || workbench || campfire || crate || baitBarrel || bed
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
         ...fadeStyle(dimmed),
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : bed ? '🛏️' : TOOL_ICONS[tool]}
+      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : bed ? '🛏️' : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&
+        !baitBarrel &&
         !bed &&
         (tool === 'bow' ||
           tool === 'fishingrod' ||

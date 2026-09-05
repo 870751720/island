@@ -467,3 +467,10 @@
 - 火把 PointLight 为纯客户端表现,随神龛实体增删自动创建/销毁,不同步光强闪烁。
 
 - 2026-09-05:工具等级模型区分。`PlayerState` 姿态快照新增 `toolTier`(当前手持工具的 1/2 级),客人端据此刷新远程玩家的手持模型;本地工具等级仍经 HUD 快照 `toolTiers` 回流对账。`NET_PROTOCOL_VERSION` 16 → 17,旧版本客人会被拒连。
+
+### M52 饵料桶(2026-09-05)
+
+- 饵料桶作为新的世界摆件段 `baitBarrels`(落点 + foods/bait/tickLeft)加入 `WorldPatch`,随既有 worldDelta 增量/welcome 全量快照回流,实体按稳定 id 增删改,与木箱同款。
+- 放置/投喂/收取均为房主权威:客人上行新动作 `useBaitBarrel` / `baitBarrelFeed(kind)` / `baitBarrelCollect`,房主以该客人会话结算;桶状态变化经 `set` 字段(foods/bait/tickLeft)增量下发。
+- 发酵(每 5 秒消耗 1 个食物产出鱼饵)只在权威端推进,客人端对 `tickLeft` 本地倒数仅做进度条表现;桶口发光鱼饵团为各端本地特效,不同步。
+- 挖掘与木箱一致:客人本地挥击,移除与入包由所在端权威结算后经 `remove` 增量回流对端补播。协议版本不变;存档新增可选字段 `baitBarrels`,SAVE_VERSION 保持 29。

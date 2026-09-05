@@ -64,6 +64,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   strawBackpack: '#c9a56a',
   furBackpack: '#8a5a2b',
   crate: '#a97b48',
+  baitBarrel: '#9a6b3f',
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
   fenceGate: '#8a6239',
@@ -782,6 +783,23 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
       const strip = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.17, 0.03), band);
       strip.position.z = z;
       g.add(strip);
+    }
+    return g;
+  },
+  baitBarrel: () => {
+    // 饵料桶:小木桶身 + 两道桶箍
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: DROP_COLORS.baitBarrel, flatShading: true, roughness: 1 });
+    const band = new THREE.MeshStandardMaterial({ color: '#5f452a', flatShading: true, roughness: 1 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.18, 8), wood);
+    body.position.y = 0.09;
+    body.castShadow = true;
+    g.add(body);
+    for (const y of [0.04, 0.14]) {
+      const hoop = new THREE.Mesh(new THREE.TorusGeometry(y === 0.04 ? 0.088 : 0.098, 0.01, 5, 10), band);
+      hoop.rotation.x = Math.PI / 2;
+      hoop.position.y = y;
+      g.add(hoop);
     }
     return g;
   },
