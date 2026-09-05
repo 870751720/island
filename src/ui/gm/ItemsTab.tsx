@@ -12,7 +12,7 @@ export function ItemsTab({
   onGiveTool,
 }: {
   onGiveItem: (kind: ResourceKind, count: number) => void;
-  onGiveTool: (tool: ToolId, tier: 1 | 2) => void;
+  onGiveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
 }) {
   const [query, setQuery] = useState('');
   const toolSet = useMemo(() => new Set<string>(TOOL_IDS), []);
@@ -49,7 +49,7 @@ export function ItemsTab({
         {tools.map((id) => (
           <div key={id} style={rowStyle}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <ItemIcon kind={id} size={20} /> {toolName(id, 1)} / {toolName(id, 2)}
+              <ItemIcon kind={id} size={20} /> {toolName(id, 1)} / {toolName(id, 2)} / {toolName(id, 3)}
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => onGiveTool(id, 1)} style={giveStyle}>
@@ -57,6 +57,9 @@ export function ItemsTab({
               </button>
               <button onClick={() => onGiveTool(id, 2)} style={giveStyle}>
                 二级
+              </button>
+              <button onClick={() => onGiveTool(id, 3)} style={giveStyle}>
+                三级
               </button>
             </span>
           </div>

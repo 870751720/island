@@ -7,13 +7,17 @@ export type ToolId = 'axe' | 'pickaxe' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
 /** 二级工具配方 id(refined- 前缀区分基础工具) */
 export type RefinedToolId = `refined-${ToolId}`;
 
-/** 工具等级:0 未拥有、1 基础、2 二级(二级工作台升级) */
+/** 三级铁制工具配方 id */
+export type IronToolId = `iron-${ToolId}`;
+
+/** 工具等级:0 未拥有、1 基础、2 二级(二级工作台升级)、3 三级(三级工作台铁制) */
 export type Tools = Record<ToolId, number>;
 
 /** 配方 id:工具与其同名,材料类与装备类为产物入口 */
 export type CraftId =
   | ToolId
   | RefinedToolId
+  | IronToolId
   | 'rope'
   | 'arrow'
   | 'crate'
@@ -36,8 +40,8 @@ export type Recipe = {
   station: 'hand' | 'workbench';
   /** 工具类:制作完成即永久拥有(不进背包、不可丢弃) */
   tool?: ToolId;
-  /** 工具类产物的等级(基础工具缺省 1,二级工具为 2) */
-  tier?: 2;
+  /** 工具类产物的等级(基础工具缺省 1,二级工具为 2,三级铁制工具为 3) */
+  tier?: 2 | 3;
   /** 材料类:产物进背包,可反复制作 */
   output?: ResourceKind;
   /** 单次制作的产物个数(默认 1,如 1 根树枝削 10 只箭) */
@@ -50,18 +54,18 @@ export type Recipe = {
   promptPriority?: number;
 };
 
-/** 各工具按等级的名称(工具 tab 与制作面板展示用);锄头暂无二级 */
-const TOOL_NAMES: Record<ToolId, [string, string]> = {
-  axe: ['木斧', '石斧'],
-  pickaxe: ['木镐', '石镐'],
-  hoe: ['木锄', '木锄'],
-  fishingrod: ['树枝鱼竿', '木鱼竿'],
-  bow: ['树枝弓', '木弓'],
-  sword: ['木剑', '石剑'],
+/** 各工具按等级的名称(工具 tab 与制作面板展示用) */
+const TOOL_NAMES: Record<ToolId, [string, string, string]> = {
+  axe: ['木斧', '石斧', '铁斧'],
+  pickaxe: ['木镐', '石镐', '铁镐'],
+  hoe: ['木锄', '石锄', '铁锄'],
+  fishingrod: ['树枝鱼竿', '木鱼竿', '铁鱼竿'],
+  bow: ['树枝弓', '木弓', '铁弓'],
+  sword: ['木剑', '石剑', '铁剑'],
 };
 
 export function toolName(tool: ToolId, tier: number): string {
-  return TOOL_NAMES[tool][Math.min(tier, 2) - 1] ?? TOOL_NAMES[tool][0];
+  return TOOL_NAMES[tool][Math.min(tier, 3) - 1] ?? TOOL_NAMES[tool][0];
 }
 
 /** 全部工具(工具 tab 展示顺序) */
@@ -183,6 +187,69 @@ export const RECIPES: Recipe[] = [
     tool: 'bow',
     tier: 2,
     minBenchLevel: 2,
+  },
+  {
+    id: 'refined-hoe',
+    name: '石锄',
+    cost: { wood: 2, stone: 1 },
+    station: 'workbench',
+    tool: 'hoe',
+    tier: 2,
+    minBenchLevel: 2,
+  },
+  {
+    id: 'iron-sword',
+    name: '铁剑',
+    cost: { wood: 3, ironIngot: 2 },
+    station: 'workbench',
+    tool: 'sword',
+    tier: 3,
+    minBenchLevel: 3,
+  },
+  {
+    id: 'iron-pickaxe',
+    name: '铁镐',
+    cost: { wood: 2, ironIngot: 3 },
+    station: 'workbench',
+    tool: 'pickaxe',
+    tier: 3,
+    minBenchLevel: 3,
+  },
+  {
+    id: 'iron-axe',
+    name: '铁斧',
+    cost: { wood: 3, ironIngot: 2 },
+    station: 'workbench',
+    tool: 'axe',
+    tier: 3,
+    minBenchLevel: 3,
+  },
+  {
+    id: 'iron-fishingrod',
+    name: '铁鱼竿',
+    cost: { ironIngot: 1, rope: 5 },
+    station: 'workbench',
+    tool: 'fishingrod',
+    tier: 3,
+    minBenchLevel: 3,
+  },
+  {
+    id: 'iron-bow',
+    name: '铁弓',
+    cost: { ironIngot: 3, rope: 5 },
+    station: 'workbench',
+    tool: 'bow',
+    tier: 3,
+    minBenchLevel: 3,
+  },
+  {
+    id: 'iron-hoe',
+    name: '铁锄',
+    cost: { wood: 2, ironIngot: 1 },
+    station: 'workbench',
+    tool: 'hoe',
+    tier: 3,
+    minBenchLevel: 3,
   },
   {
     id: 'arrow',

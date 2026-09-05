@@ -86,7 +86,7 @@ export const ACTIONS: Record<string, NetAction> = {
     return true;
   },
   gmGiveTool: (g, a, [tool, tier]) => {
-    g.gmGiveTool(tool as never, tier as 1 | 2, a);
+    g.gmGiveTool(tool as never, tier as 1 | 2 | 3, a);
     return true;
   },
   gmRestoreStatus: (g, a) => {

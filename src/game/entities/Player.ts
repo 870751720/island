@@ -60,16 +60,16 @@ export type HandTool =
   | 'fence'
   | 'fenceGate';
 
-function makeFishingRodModel(tier: 1 | 2): THREE.Group {
+function makeFishingRodModel(tier: 1 | 2 | 3): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
-  // 二级(木鱼竿):竿身更直更粗,柄部缠绳线
+  // 二级(木鱼竿):竿身更直更粗,柄部缠绳线;三级(铁鱼竿):金属竿身 + 绳柄
   const g = new THREE.Group();
   const rod = new THREE.Mesh(
     new THREE.CylinderGeometry(0.025, 0.04, 0.85, 5),
-    clayMaterial('#8a6239')
+    clayMaterial(tier === 3 ? '#aab2ba' : '#8a6239')
   );
   g.add(rod);
-  if (tier === 2) {
+  if (tier >= 2) {
     rod.rotation.z = 0.04;
     const grip = new THREE.Mesh(
       new THREE.CylinderGeometry(0.045, 0.045, 0.16, 5),
@@ -86,17 +86,17 @@ function makeFishingRodModel(tier: 1 | 2): THREE.Group {
   return g;
 }
 
-function makeAxeModel(tier: 1 | 2): THREE.Group {
-  // 一级(木斧):树枝柄 + 绑上去的小石刃;二级(石斧):更大的磨制石刃 + 绑绳
+function makeAxeModel(tier: 1 | 2 | 3): THREE.Group {
+  // 一级(木斧):树枝柄 + 绑上去的小石刃;二级(石斧):更大的磨制石刃 + 绑绳;三级(铁斧):铁刃更宽
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
     clayMaterial('#8a6239')
   );
-  const big = tier === 2;
+  const big = tier >= 2;
   const blade = new THREE.Mesh(
-    new THREE.BoxGeometry(0.06, big ? 0.28 : 0.2, big ? 0.2 : 0.14),
-    clayMaterial(big ? '#7d7d82' : '#9a9a9a')
+    new THREE.BoxGeometry(0.06, big ? 0.28 : 0.2, tier === 3 ? 0.26 : big ? 0.2 : 0.14),
+    clayMaterial(tier === 3 ? '#aab2ba' : big ? '#7d7d82' : '#9a9a9a')
   );
   blade.position.set(0, big ? 0.28 : 0.25, big ? 0.12 : 0.09);
   g.add(handle, blade);
@@ -112,12 +112,12 @@ function makeAxeModel(tier: 1 | 2): THREE.Group {
   return g;
 }
 
-function makeBowModel(tier: 1 | 2): THREE.Group {
+function makeBowModel(tier: 1 | 2 | 3): THREE.Group {
   // 弓:细杆弯成弓形(用弧形排布的短柱近似)+ 一根弓弦
-  // 二级(木弓):弓臂更粗,中段缠绳握把
+  // 二级(木弓):弓臂更粗,中段缠绳握把;三级(铁弓):金属弓臂
   const g = new THREE.Group();
-  const wood = clayMaterial('#8a6239');
-  const r = tier === 2 ? 0.028 : 0.02;
+  const wood = clayMaterial(tier === 3 ? '#aab2ba' : '#8a6239');
+  const r = tier >= 2 ? 0.028 : 0.02;
   const segments = 7;
   for (let i = 0; i < segments; i++) {
     const t = i / (segments - 1);
@@ -132,7 +132,7 @@ function makeBowModel(tier: 1 | 2): THREE.Group {
   );
   string.position.set(0, 0, -0.1);
   g.add(string);
-  if (tier === 2) {
+  if (tier >= 2) {
     const grip = new THREE.Mesh(
       new THREE.CylinderGeometry(0.042, 0.042, 0.14, 5),
       clayMaterial('#c9b588')
@@ -144,16 +144,16 @@ function makeBowModel(tier: 1 | 2): THREE.Group {
   return g;
 }
 
-function makePickaxeModel(tier: 1 | 2): THREE.Group {
-  // 一级(木镐):树枝柄 + 小镐头;二级(石镐):更长更尖的磨制镐头 + 绑绳
+function makePickaxeModel(tier: 1 | 2 | 3): THREE.Group {
+  // 一级(木镐):树枝柄 + 小镐头;二级(石镐):更长更尖的磨制镐头 + 绑绳;三级(铁镐):铁镐头
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.6, 5),
     clayMaterial('#8a6239')
   );
-  const big = tier === 2;
-  const stone = clayMaterial(big ? '#7d7d82' : '#8a8a8a');
-  const len = big ? 0.6 : 0.5;
+  const big = tier >= 2;
+  const stone = clayMaterial(tier === 3 ? '#aab2ba' : big ? '#7d7d82' : '#8a8a8a');
+  const len = tier === 3 ? 0.68 : big ? 0.6 : 0.5;
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.05, big ? 0.1 : 0.08, len), stone);
   head.position.y = 0.27;
   const tipL = new THREE.Mesh(new THREE.ConeGeometry(big ? 0.06 : 0.05, big ? 0.18 : 0.14, 4), stone);
@@ -175,14 +175,15 @@ function makePickaxeModel(tier: 1 | 2): THREE.Group {
   return g;
 }
 
-/** 锄头:木柄 + 宽扁石刃,握在右手 */
-function makeHoeModel(): THREE.Group {
+/** 锄头:木柄 + 宽扁刃,握在右手;一级木刃、二级石刃、三级铁刃(刃更宽) */
+function makeHoeModel(tier: 1 | 2 | 3): THREE.Group {
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.62, 5),
     clayMaterial('#8a6239')
   );
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.14), clayMaterial('#8a8266'));
+  const bladeColor = tier === 3 ? '#aab2ba' : tier === 2 ? '#7d7d82' : '#8a8266';
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(tier === 3 ? 0.24 : 0.2, 0.04, 0.14), clayMaterial(bladeColor));
   blade.position.set(0.05, 0.28, 0.08);
   blade.rotation.z = 0.35;
   g.add(handle, blade);
@@ -190,8 +191,8 @@ function makeHoeModel(): THREE.Group {
   return g;
 }
 
-/** 剑:木柄 + 十字护手 + 扁剑身;一级(木剑)木色剑身,二级(石剑)更短的磨石剑身 */
-function makeSwordModel(tier: 1 | 2): THREE.Group {
+/** 剑:木柄 + 十字护手 + 扁剑身;一级(木剑)木色剑身,二级(石剑)更短的磨石剑身,三级(铁剑)铁色长剑身 */
+function makeSwordModel(tier: 1 | 2 | 3): THREE.Group {
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.035, 0.04, 0.16, 5),
@@ -200,12 +201,12 @@ function makeSwordModel(tier: 1 | 2): THREE.Group {
   handle.position.y = -0.06;
   const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), clayMaterial('#a97b48'));
   guard.position.y = 0.03;
-  const stone = tier === 2;
-  const bladeMat = clayMaterial(stone ? '#7d7d82' : '#d9c27a');
-  const bladeLen = stone ? 0.38 : 0.46;
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(stone ? 0.075 : 0.06, bladeLen, stone ? 0.03 : 0.02), bladeMat);
+  const bladeMat = clayMaterial(tier === 3 ? '#aab2ba' : tier === 2 ? '#7d7d82' : '#d9c27a');
+  const bladeLen = tier === 3 ? 0.5 : tier === 2 ? 0.38 : 0.46;
+  const bladeWidth = tier === 1 ? 0.06 : 0.075;
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(bladeWidth, bladeLen, tier === 1 ? 0.02 : 0.03), bladeMat);
   blade.position.y = 0.03 + bladeLen / 2;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(stone ? 0.052 : 0.042, 0.1, 4), bladeMat);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(tier === 1 ? 0.042 : 0.052, 0.1, 4), bladeMat);
   tip.position.y = 0.03 + bladeLen + 0.04;
   g.add(handle, guard, blade, tip);
   g.rotation.x = Math.PI / 2.4;
@@ -419,14 +420,14 @@ export class Player implements Updatable {
     this.arms = [armL, armR];
     this.legs = [legL, legR];
 
-    // 工具握在右手(armR)末端;可升级工具各备一二级两套模型
+    // 工具握在右手(armR)末端;可升级工具各备一二三级三套模型
     const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
-      ['axe', [makeAxeModel(1), makeAxeModel(2)]],
-      ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2)]],
-      ['hoe', [makeHoeModel()]],
-      ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2)]],
-      ['bow', [makeBowModel(1), makeBowModel(2)]],
-      ['sword', [makeSwordModel(1), makeSwordModel(2)]],
+      ['axe', [makeAxeModel(1), makeAxeModel(2), makeAxeModel(3)]],
+      ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2), makePickaxeModel(3)]],
+      ['hoe', [makeHoeModel(1), makeHoeModel(2), makeHoeModel(3)]],
+      ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2), makeFishingRodModel(3)]],
+      ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
+      ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
       ['fence', [makeFenceBundleModel('#a97b48', false)]],
       ['fenceGate', [makeFenceBundleModel('#8a6239', true)]],
     ];

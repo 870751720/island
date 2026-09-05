@@ -562,7 +562,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           e,
                           <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <ItemIcon kind={id} level={tier >= 2 ? 2 : undefined} size={20} />
+                              <ItemIcon kind={id} level={tier >= 2 ? Math.min(tier, 3) : undefined} size={20} />
                               <span style={{ fontWeight: 700, flex: 1 }}>{name}</span>
                               <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
                                 {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
@@ -582,7 +582,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         userSelect: 'none',
                       }}
                     >
-                      <ItemIcon kind={id} level={tier >= 2 ? 2 : undefined} size={22} />
+                      <ItemIcon kind={id} level={tier >= 2 ? Math.min(tier, 3) : undefined} size={22} />
                       <div style={{ flex: 1, minWidth: 0 }}>{name}</div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
                         {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}

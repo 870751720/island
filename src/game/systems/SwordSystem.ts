@@ -7,8 +7,8 @@ import { GmSystem } from './GmSystem';
 
 /** 近战攻击范围:范围内有动物才会挥砍 */
 const RANGE = 1.4;
-/** 每次挥砍造成的伤害(按等级:木剑 10,石剑 16) */
-const DAMAGE = [10, 16];
+/** 每次挥砍造成的伤害(按等级:木剑 10,石剑 16,铁剑 24) */
+const DAMAGE = [10, 16, 24];
 /** 挥砍间隔(秒) */
 const ATTACK_INTERVAL = 0.8;
 /** 挥砍动作时长(秒) */
@@ -40,7 +40,7 @@ export class SwordSystem {
     ) => void,
     /** 客人端注入:本地判定命中后上行房主权威结算(伤害/掉落) */
     private onNetHit?: (animalId: number) => void,
-    /** 当前剑等级(1 木剑 / 2 石剑),缺省 1 */
+    /** 当前剑等级(1 木剑 / 2 石剑 / 3 铁剑),缺省 1 */
     private getSwordTier: () => number = () => 1
   ) {}
 

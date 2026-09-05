@@ -19,7 +19,7 @@ export type GmActions = {
   setWeather: (type: 'sunny' | 'rain') => void;
   setConfig: (patch: Partial<GmConfig>) => void;
   giveItem: (kind: ResourceKind, count: number) => void;
-  giveTool: (tool: ToolId, tier: 1 | 2) => void;
+  giveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
   spawnAnimal: (species: AnimalSpecies) => void;
   triggerCrocodile: () => void;
 };

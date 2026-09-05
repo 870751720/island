@@ -1885,7 +1885,7 @@ export class Game {
   }
 
   /** GM 直接把工具点亮到指定等级(1 基础 / 2 高级) */
-  gmGiveTool(tool: ToolId, tier: 1 | 2, actor: PlayerSession = this.local): void {
+  gmGiveTool(tool: ToolId, tier: 1 | 2 | 3, actor: PlayerSession = this.local): void {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) {
       this.guestNet.action('gmGiveTool', [tool, tier]);
