@@ -2,7 +2,7 @@
 
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
@@ -38,7 +38,6 @@ import { Notice } from './Notice';
 import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
-import { Minimap, type MinimapSource } from './Minimap';
 import { SettingsPanel } from './SettingsPanel';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
@@ -314,25 +313,6 @@ export function GameplayUI({
     hud.tool === 'hoe' &&
     hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearBed);
 
-  // 小地图数据源:稳定引用,rAF 里直接读 Game,不触发 React 重渲染
-  const minimapSource: MinimapSource = useMemo(
-    () => ({
-      getMinimapSnapshot: () =>
-        gameRef.current?.getMinimapSnapshot() ?? {
-          islandWidth: 0,
-          islandLength: 0,
-          player: { x: 0, z: 0 },
-          others: [],
-          markers: [],
-          explored: new Uint8Array(0),
-          gridW: 0,
-          gridL: 0,
-        },
-      getGroundKind: (x: number, z: number) => gameRef.current?.getGroundKind(x, z) ?? 'water',
-    }),
-    []
-  );
-
   return (
     <div
       ref={containerRef}
@@ -372,7 +352,6 @@ export function GameplayUI({
           >
             ⚙️
           </button>
-          <Minimap source={minimapSource} dimmed={hud.busy} />
         </div>
       )}
       {settingsOpen && (

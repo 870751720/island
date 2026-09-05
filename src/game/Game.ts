@@ -63,7 +63,6 @@ import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
-import { MinimapSystem, type GroundKind, type MinimapMarker, type MinimapSnapshot } from './systems/MinimapSystem';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { VitalLevels } from '../ui/VitalWarn';
 
@@ -291,7 +290,6 @@ export class Game {
   private ocean: Ocean;
   private oceanDepth: OceanDepth;
   private waterDebug: WaterDebugOverlay;
-  private minimap: MinimapSystem;
   private crabs: Crabs;
   private butterflies: Butterflies;
   private birds: Birds;
@@ -416,7 +414,6 @@ export class Game {
 
     const terrain = new IslandTerrain(200, 1000, this.terrainSeed);
     this.terrain = terrain;
-    this.minimap = new MinimapSystem(terrain.width, terrain.length);
     this.scene.add(terrain.mesh);
     this.oceanDepth = new OceanDepth(terrain);
     this.ocean = new Ocean(terrain.seaLevel, this.oceanDepth);
@@ -624,7 +621,6 @@ export class Game {
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
         for (const session of this.sessions) session.player.update(delta, elapsed);
-        this.minimap.update(this.player.group.position.x, this.player.group.position.z);
         this.dayNight.update(delta);
         this.meteor.update(delta);
         this.weather.update(delta);
@@ -1404,12 +1400,11 @@ export class Game {
     this.applyWorldSave(save);
   }
 
-  /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗/迷雾),客人收到世界快照时复用 */
+  /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
     this.dayNight.time = save.dayTime;
     if (save.day) this.dayNight.day = save.day;
     this.props.applySave(save.props);
-    if (save.fog) this.minimap.restore(save.fog);
     this.campfire.restore(save.campfires);
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
@@ -1485,40 +1480,6 @@ export class Game {
       shrines: this.shrines.snapshot(),
       drops: this.drops.snapshot(),
       dog: this.dog.snapshot(),
-      fog: this.minimap.serialize(),
-    };
-  }
-
-  /** 小地图地面采样(绘制底图颜色用):高度低于水面为水,岸边为沙,高处为深草 */
-  getGroundKind(x: number, z: number): GroundKind {
-    const h = this.terrain.getHeight(x, z);
-    if (h < this.terrain.getWaterLevel(x, z) - 0.02) return 'water';
-    if (h < 0.05) return 'sand';
-    return h < 1.8 ? 'grass' : 'dark';
-  }
-
-  /** 供小地图每帧拉取:岛屿尺寸、玩家落点、已探索迷雾与建筑标记 */
-  getMinimapSnapshot(): MinimapSnapshot {
-    const p = this.player.group.position;
-    const markers: MinimapMarker[] = [];
-    for (const pos of this.workbench.positions) markers.push({ kind: 'workbench', ...pos });
-    for (const pos of this.campfire.positions) markers.push({ kind: 'campfire', ...pos });
-    for (const pos of this.beds.positions) markers.push({ kind: 'bed', ...pos });
-    return {
-      islandWidth: this.terrain.width,
-      islandLength: this.terrain.length,
-      player: { x: p.x, z: p.z },
-      others: this.sessions
-        .filter((s) => s !== this.local)
-        .map((s) => ({
-          x: s.player.group.position.x,
-          z: s.player.group.position.z,
-          name: s.name,
-        })),
-      markers: markers.filter((m) => this.minimap.isExplored(m.x, m.z)),
-      explored: this.minimap.grid,
-      gridW: this.minimap.gridW,
-      gridL: this.minimap.gridL,
     };
   }
 

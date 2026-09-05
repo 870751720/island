@@ -81,8 +81,6 @@ export type SaveData = {
   drops: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };
-  /** 小地图探索迷雾网格(按行展开的 0/1 数组,缺省视为全新探索) */
-  fog?: number[];
   /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */
   others?: SessionSave[];
 };

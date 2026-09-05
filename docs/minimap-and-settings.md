@@ -78,3 +78,9 @@
 - `MinimapSystem` 导出 `CELL` 常量供 UI 侧把世界窗口换算成迷雾网格源矩形。
 - 修复:满幅迷雾之上叠加的探索网格窗口改为「已探索格不透明」,以 `destination-out` 合成在迷雾层上打洞——此前已探索格为透明叠加,无法擦掉底下的满幅迷雾,导致整张地图(含已探索区)都呈迷雾色,窗口范围还因双层迷雾显出矩形边界。
 
+### 2026-09-06 七版
+
+- **整体移除地图功能**(小地图、放大地图与战争迷雾):删除 `src/ui/Minimap.tsx` 与 `src/game/systems/MinimapSystem.ts`,移除 `Game` 的 `getMinimapSnapshot()/getGroundKind()`、主循环里的迷雾点亮调用,以及 `GameplayUI` 的小地图组件与数据源。
+- 存档移除 `fog` 字段(可选字段,旧档里的 `fog` 读取时被忽略,`SAVE_VERSION` 不变)。
+- 设置面板 ⚙️ 及音量调节功能不受影响,仍保留;右上角仅剩设置按钮。
+
