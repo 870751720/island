@@ -72,10 +72,10 @@ export class OceanMaterial {
              // 两组缓慢低频波纹的解析梯度,轻微倾斜法线让光照带出稀疏波光
              vec2 p = vOceanWorld;
              float a = sin(p.x * 0.35 + uTime * 0.6);
-             float b = sin(p.z * 0.28 - uTime * 0.45);
-             float c = sin((p.x + p.z) * 0.15 + uTime * 0.3);
-             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6) + 0.15 * cos((p.x + p.z) * 0.15 + uTime * 0.3)) * 0.05;
-             float dz = (0.28 * cos(p.z * 0.28 - uTime * 0.45) + 0.15 * cos((p.x + p.z) * 0.15 + uTime * 0.3)) * 0.05;
+             float b = sin(p.y * 0.28 - uTime * 0.45);
+             float c = sin((p.x + p.y) * 0.15 + uTime * 0.3);
+             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
+             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
              normal = normalize(normal + vec3(-dx, 0.0, -dz));
              diffuseColor.rgb *= 1.0 + (a + b + c) * 0.012;
            }`
