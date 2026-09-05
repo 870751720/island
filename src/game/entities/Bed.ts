@@ -76,9 +76,9 @@ function makeBedMesh(level: number): THREE.Group {
 /** 三级床帐篷罩:两片斜坡布帘 + 床头三角墙,床尾敞开能看见里面的皮毛床 */
 function addTent(g: THREE.Group): void {
   const clothMat = new THREE.MeshStandardMaterial({ color: '#7d9a6e', flatShading: true, roughness: 1 });
-  const ridge = 1.05; // 屋脊高
-  const halfW = 0.62; // 半跨
-  const len = 1.9; // 帐篷沿床身方向长
+  const ridge = 1.55; // 屋脊高
+  const halfW = 0.72; // 半跨
+  const len = 2.1; // 帐篷沿床身方向长
   const slope = Math.hypot(ridge, halfW);
   const tilt = Math.atan2(halfW, ridge);
 
