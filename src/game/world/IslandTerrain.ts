@@ -119,11 +119,13 @@ export class IslandTerrain {
     const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
     geometry.rotateX(-Math.PI / 2);
     const pos = geometry.attributes.position as THREE.BufferAttribute;
+    const vertexHeights = new Float32Array(pos.count);
     const colors = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
       const y = this.heightAt(x, z);
+      vertexHeights[i] = y;
       pos.setY(i, y);
       const waterY = this.waterLevelAt(x, z);
       let c: THREE.Color;
@@ -139,6 +141,26 @@ export class IslandTerrain {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
+
+    // 玩法高度按渲染网格的两个三角形插值。此前继续使用连续噪声函数，
+    // 而屏幕上看到的是约 1.8m 间距的三角网格，水岸视觉与判定因此错位。
+    const stride = segments + 1;
+    const cellSize = size / segments;
+    this.heightAt = (x: number, z: number) => {
+      const gx = THREE.MathUtils.clamp((x + half) / cellSize, 0, segments - Number.EPSILON);
+      const gz = THREE.MathUtils.clamp((z + half) / cellSize, 0, segments - Number.EPSILON);
+      const ix = Math.floor(gx);
+      const iz = Math.floor(gz);
+      const u = gx - ix;
+      const v = gz - iz;
+      const a = vertexHeights[iz * stride + ix];
+      const b = vertexHeights[(iz + 1) * stride + ix];
+      const c = vertexHeights[(iz + 1) * stride + ix + 1];
+      const d = vertexHeights[iz * stride + ix + 1];
+      return u + v <= 1
+        ? a + u * (d - a) + v * (b - a)
+        : c + (1 - u) * (b - c) + (1 - v) * (d - c);
+    };
 
     this.mesh = new THREE.Mesh(
       geometry,
@@ -202,6 +224,16 @@ export class IslandTerrain {
   /** 某处的水面高度:在水洼内返回洼面,否则为海面 */
   getWaterLevel(x: number, z: number): number {
     return this.waterLevelAt(x, z);
+  }
+
+  /** 该点实际被玩法视作哪种水体；null 表示地面没有没入水面。 */
+  getWaterKind(x: number, z: number): 'sea' | 'pond' | null {
+    const pond = this.waterAreas.find(
+      (w) => Math.hypot(x - w.x, z - w.z) < w.radius * 0.96
+    );
+    const waterY = pond?.waterY ?? this.seaLevel;
+    if (this.getHeight(x, z) >= waterY - 0.02) return null;
+    return pond ? 'pond' : 'sea';
   }
 
   private waterLevelAt(x: number, z: number): number {

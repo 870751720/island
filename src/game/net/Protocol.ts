@@ -8,7 +8,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 15;
+export const NET_PROTOCOL_VERSION = 16;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {

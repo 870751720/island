@@ -52,9 +52,10 @@ import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } fr
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import { SurvivalSystem } from './systems/SurvivalSystem';
-import { gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
+import { GmSystem, gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
+import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
 import { SEED_OF } from './world/TreeSpecies';
@@ -269,6 +270,7 @@ export class Game {
   private rainImpact: RainImpact;
   private windFx: Wind;
   private terrain: IslandTerrain;
+  private waterDebug: WaterDebugOverlay;
   private minimap: MinimapSystem;
   private crabs: Crabs;
   private butterflies: Butterflies;
@@ -397,6 +399,8 @@ export class Game {
     this.minimap = new MinimapSystem(terrain.size);
     this.scene.add(terrain.mesh);
     this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
+    this.waterDebug = new WaterDebugOverlay(terrain);
+    this.scene.add(this.waterDebug.mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
     this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain, !save);
@@ -595,6 +599,7 @@ export class Game {
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
+        this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
           this.crabs.update(delta, elapsed);
           this.butterflies.update(delta, elapsed);
@@ -2452,6 +2457,7 @@ export class Game {
     this.rain.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
+    this.waterDebug.dispose();
     this.audio.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

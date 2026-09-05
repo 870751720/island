@@ -30,6 +30,7 @@ export function WorldTab({
   const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
+  const [showWaterDebug, setShowWaterDebug] = useState(GmSystem.showWaterDebug);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -47,6 +48,14 @@ export function WorldTab({
         onChange={(v) => {
           onSetConfig({ showTraffic: v });
           setShowTraffic(v);
+        }}
+      />
+      <ToggleRow
+        label="显示水体判定（洋红海/亮绿水洼）"
+        value={showWaterDebug}
+        onChange={(v) => {
+          onSetConfig({ showWaterDebug: v });
+          setShowWaterDebug(v);
         }}
       />
       <ToggleRow
