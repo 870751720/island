@@ -20,8 +20,12 @@ function createNoise(seed: number) {
   };
 }
 
-const SAND = new THREE.Color('#e8d8a0');
-const GRASS = new THREE.Color('#7cb45b');
+/** 近岸抬升带宽:低于草线的低平地向岛内最多延伸这么多米 */
+const BEACH_WIDTH = 8;
+/** 近岸抬升的满额高度:压过岛内噪声低谷,使 8 米外地面稳定高于草线 */
+const BEACH_RISE = 2.6;
+
+const SAND = new THREE.Color('#e8d8a0');const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
 /** 水下的湿沙:沙色加深偏棕,不出现蓝色;随水深再向深棕渐变以区分浅滩与深水 */
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
@@ -73,17 +77,33 @@ export class IslandTerrain {
     const baseHeight = (x: number, z: number) => {
       // 基准椭圆按最大扰动幅度收缩,保证扰动后的海岸不会超出地形平面边界
       const shrink = 1.3;
+      const wob = coastWobble(x, z);
       const nd = Math.sqrt((x * x) / (hw * hw) + (z * z) / (hl * hl)) / shrink;
-      const dist = nd * coastWobble(x, z);
+      const dist = nd * wob;
+      // 到海岸(dist=1 等值线)的真实米数符号距离近似,内侧为正:
+      // 归一化椭圆的梯度在长轴两端对应几百米真实距离,若直接用它做坡度,
+      // 岛两端的低平地/沙滩会拉到几十米宽;换成实距后各段海岸过渡同宽
+      const grad = Math.max(
+        1e-4,
+        (wob * Math.hypot(x / (hw * hw), z / (hl * hl))) / (Math.max(nd, 1e-4) * shrink)
+      );
+      const shoreDist = (1 - dist) / grad;
       const falloff = Math.max(0, 1 - dist * dist);
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
-      // 近岸下坡陡度用噪声调制:水线与浅滩边界宽窄不一(不规整),且始终不缓于基准,
-      // 沙滩宽度稳定收紧在个位数米内
+      // 近岸下坡陡度用噪声调制:水线与浅滩边界宽窄不一(不规整),且始终不缓于基准
       const shoreSteep = 1.1 + noise(x * f2 + 91, z * f2 + 45) * 0.8;
       // 岛外海底逐渐加深到约 -2.1,保证外海水深足够进入游泳;
       // 下压偏移随 falloff 淡出,使内陆噪声低谷不低于海平面,避免出现无法交互的内陆积水
       const f2sq = falloff * falloff;
-      return f2sq * h - 0.6 * (1 - f2sq) - (1 - falloff) * (1 - falloff) * 1.5 * shoreSteep;
+      // 近岸实距抬升:水线向内 BEACH_WIDTH 米内抬到 BEACH_RISE,
+      // 保证低于草线(0.05)的低平地不向岛内延伸超过 BEACH_WIDTH
+      const ramp = THREE.MathUtils.clamp(shoreDist / BEACH_WIDTH, 0, 1);
+      return (
+        f2sq * h -
+        0.6 * (1 - f2sq) -
+        (1 - falloff) * (1 - falloff) * 1.5 * shoreSteep +
+        BEACH_RISE * ramp
+      );
     };
 
     const rng = (i: number) => {
