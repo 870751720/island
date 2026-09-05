@@ -43,7 +43,7 @@ export function WorkbenchPanel({
   const upgradeCounts = {
     fur: hud.fur,
     stone: hud.stone,
-    wood: hud.wood,
+    branch: hud.branch,
     rope: hud.rope,
     adventureBook: hud.adventureBook,
   };
@@ -63,7 +63,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.log, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.bed2, hud.hasFishingrod, hud.hasBow]);
+  }, [hud.branch, hud.wood, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.bed2, hud.hasFishingrod, hud.hasBow]);
 
   return (
     <div

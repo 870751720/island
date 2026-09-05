@@ -11,15 +11,15 @@ export type ItemDef = {
 };
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
-  wood: {
-    kind: 'wood',
+  branch: {
+    kind: 'branch',
     name: '树枝',
     icon: '🪾',
     description: '砍树、捡灌木丛获得,细而易燃,是制作工具的基础材料,也可以当火堆的柴。',
     burnTime: 20,
   },
-  log: {
-    kind: 'log',
+  wood: {
+    kind: 'wood',
     name: '木头',
     icon: '🪵',
     description: '砍树获得的木段,耐烧的好柴火,也是搭建火堆的材料。',

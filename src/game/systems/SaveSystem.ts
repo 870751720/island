@@ -10,7 +10,7 @@ import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { SmelterSave } from './SmelterSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 29;
+export const SAVE_VERSION = 30;
 
 /** 资源点完整世界状态；所有资源都直接保存落点，不依赖种子复算布局。 */
 export type PropSave = {
@@ -78,7 +78,7 @@ export type SaveData = {
   /** 场上所有冶炼炉(落点与炉内矿石/铁锭,旧档缺省视为无) */
   smelters?: SmelterSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
-  fences: { id?: string; x: number; z: number; kind: 'wood' | 'stone' }[];
+  fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[];
   drops: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];

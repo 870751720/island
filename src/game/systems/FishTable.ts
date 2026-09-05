@@ -20,7 +20,7 @@ export type LootEntry = {
 /** 各档位的战利品池 */
 export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
   1: [
-    { kind: 'wood', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
+    { kind: 'branch', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
     { kind: 'fiber', weight: 4, size: 0.7, color: '#7cb36a', shape: 'junk' },
     { kind: 'stone', weight: 4, size: 0.8, color: '#9a9a9a', shape: 'junk' },
     { kind: 'cola', weight: 2, size: 0.7, color: '#c0392b', shape: 'can' },

@@ -57,12 +57,12 @@ export class Campfire {
     this.logs = new THREE.Group();
     this.logMat = clayMaterial('#7a5230');
     for (let i = 0; i < 3; i++) {
-      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.8, 5), this.logMat);
+      const wood = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.8, 5), this.logMat);
       const a = (i / 3) * Math.PI;
-      log.rotation.set(Math.PI / 2 - 0.5, a, 0);
-      log.position.y = 0.15;
-      log.castShadow = true;
-      this.logs.add(log);
+      wood.rotation.set(Math.PI / 2 - 0.5, a, 0);
+      wood.position.y = 0.15;
+      wood.castShadow = true;
+      this.logs.add(wood);
     }
     this.group.add(this.logs);
 

@@ -84,8 +84,8 @@ export type HudSnapshot = {
   thirst: number;
   health: number;
   dead: boolean;
+  branch: number;
   wood: number;
-  log: number;
   stone: number;
   berry: number;
   fiber: number;
@@ -835,7 +835,7 @@ export class Game {
           phase: this.dayNight.state.phase,
           rainIntensity: this.weather.rainIntensity,
           freeSlots: this.inventory.freeSlots,
-          wood: this.inventory.count('wood'),
+          branch: this.inventory.count('branch'),
           stone: this.inventory.count('stone'),
           tools: this.tools,
           collecting: this.collect.isWorking,
@@ -2745,8 +2745,8 @@ export class Game {
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
     return {
       ...s.survival.state,
+      branch: s.inventory.count('branch'),
       wood: s.inventory.count('wood'),
-      log: s.inventory.count('log'),
       stone: s.inventory.count('stone'),
       berry: s.inventory.count('berry'),
       fiber: s.inventory.count('fiber'),

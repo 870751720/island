@@ -85,7 +85,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'axe',
     name: '木斧',
-    cost: { wood: 1, stone: 1 },
+    cost: { branch: 1, stone: 1 },
     station: 'hand',
     promptPriority: 1,
     tool: 'axe',
@@ -93,7 +93,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'pickaxe',
     name: '木镐',
-    cost: { wood: 1, stone: 1 },
+    cost: { branch: 1, stone: 1 },
     station: 'hand',
     promptPriority: 2,
     tool: 'pickaxe',
@@ -101,7 +101,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'torch',
     name: '火把',
-    cost: { wood: 1, flint: 1 },
+    cost: { branch: 1, flint: 1 },
     station: 'hand',
     output: 'torch',
     promptPriority: 4,
@@ -117,21 +117,21 @@ export const RECIPES: Recipe[] = [
   {
     id: 'fishingrod',
     name: '树枝鱼竿',
-    cost: { wood: 1, rope: 1 },
+    cost: { branch: 1, rope: 1 },
     station: 'workbench',
     tool: 'fishingrod',
   },
   {
     id: 'bow',
     name: '树枝弓',
-    cost: { wood: 1, rope: 1 },
+    cost: { branch: 1, rope: 1 },
     station: 'workbench',
     tool: 'bow',
   },
   {
     id: 'hoe',
     name: '木锄',
-    cost: { wood: 1, stone: 2 },
+    cost: { branch: 1, stone: 2 },
     station: 'workbench',
     tool: 'hoe',
     hidePrompt: true,
@@ -173,7 +173,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-fishingrod',
     name: '木鱼竿',
-    cost: { wood: 3, rope: 2 },
+    cost: { branch: 3, rope: 2 },
     station: 'workbench',
     tool: 'fishingrod',
     tier: 2,
@@ -182,7 +182,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'refined-bow',
     name: '木弓',
-    cost: { wood: 1, rope: 5 },
+    cost: { branch: 1, rope: 5 },
     station: 'workbench',
     tool: 'bow',
     tier: 2,
@@ -254,7 +254,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'arrow',
     name: '箭 ×5',
-    cost: { log: 1 },
+    cost: { wood: 1 },
     station: 'workbench',
     output: 'arrow',
     outputCount: 5,
@@ -262,14 +262,14 @@ export const RECIPES: Recipe[] = [
   {
     id: 'crate',
     name: '木箱',
-    cost: { log: 3 },
+    cost: { wood: 3 },
     station: 'workbench',
     output: 'crate',
   },
   {
     id: 'fenceWood',
     name: '木围栏 ×2',
-    cost: { log: 1 },
+    cost: { wood: 1 },
     station: 'workbench',
     output: 'fenceWood',
     outputCount: 2,
@@ -295,7 +295,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed',
     name: '床',
-    cost: { wood: 8, stone: 2, rope: 2 },
+    cost: { branch: 8, stone: 2, rope: 2 },
     station: 'workbench',
     output: 'bed1',
   },
@@ -318,7 +318,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'baitBarrel',
     name: '饵料桶',
-    cost: { log: 4, rope: 1 },
+    cost: { wood: 4, rope: 1 },
     station: 'workbench',
     output: 'baitBarrel',
     minBenchLevel: 2,
@@ -334,7 +334,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'grassShirt',
     name: '草衣',
-    cost: { wood: 1, fiber: 1 },
+    cost: { branch: 1, fiber: 1 },
     station: 'hand',
     promptPriority: 6,
     output: 'grassShirt',
@@ -342,7 +342,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'grassPants',
     name: '草裤',
-    cost: { wood: 1, fiber: 1 },
+    cost: { branch: 1, fiber: 1 },
     station: 'hand',
     promptPriority: 7,
     output: 'grassPants',
@@ -398,8 +398,8 @@ for (const r of RECIPES) {
   }
 }
 
-/** 全局唯一工作台的配方:2 石头 + 1 树枝 */
-export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2, wood: 1 };
+/** 全局唯一工作台的配方:2 石头 + 1 树枝(branch) */
+export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2, branch: 1 };
 
 /** 工作台卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const WORKBENCH_PROMPT_PRIORITY = 4;
@@ -407,7 +407,7 @@ export const WORKBENCH_PROMPT_PRIORITY = 4;
 /** 工作台升到对应等级(键为目标等级)消耗的材料;三级起需要猎熊掉落的冒险家的经验书 */
 export const WORKBENCH_UPGRADE_COST: Record<number, Partial<Record<ResourceKind, number>>> = {
   2: { fur: 4 },
-  3: { adventureBook: 1, stone: 20, wood: 20, rope: 5 },
+  3: { adventureBook: 1, stone: 20, branch: 20, rope: 5 },
   4: { fur: 4 },
 };
 

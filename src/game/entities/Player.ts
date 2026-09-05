@@ -116,12 +116,12 @@ function makeBowModel(tier: 1 | 2 | 3): THREE.Group {
   // 弓:细杆弯成弓形(用弧形排布的短柱近似)+ 一根弓弦
   // 二级(木弓):弓臂更粗,中段缠绳握把;三级(铁弓):金属弓臂
   const g = new THREE.Group();
-  const wood = clayMaterial(tier === 3 ? '#aab2ba' : '#8a6239');
+  const branch = clayMaterial(tier === 3 ? '#aab2ba' : '#8a6239');
   const r = tier >= 2 ? 0.028 : 0.02;
   const segments = 7;
   for (let i = 0; i < segments; i++) {
     const t = i / (segments - 1);
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.14, 4), wood);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.14, 4), branch);
     seg.position.set(0, (t - 0.5) * 0.78, Math.sin(t * Math.PI) * 0.1 - 0.1);
     seg.rotation.x = -Math.cos(t * Math.PI) * 0.5;
     g.add(seg);
@@ -311,12 +311,12 @@ function makeStrawBackpackModel(): THREE.Group {
 /** 皮包:木框上架一个皮料背囊 */
 function makeFurBackpackModel(): THREE.Group {
   const g = new THREE.Group();
-  const wood = clayMaterial('#8a6239');
-  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), wood);
+  const branch = clayMaterial('#8a6239');
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), branch);
   railL.position.set(-0.16, 0.05, 0.02);
   const railR = railL.clone();
   railR.position.x = 0.16;
-  const crossTop = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.04, 0.04), wood);
+  const crossTop = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.04, 0.04), branch);
   crossTop.position.y = 0.3;
   const crossBottom = crossTop.clone();
   crossBottom.position.y = -0.2;

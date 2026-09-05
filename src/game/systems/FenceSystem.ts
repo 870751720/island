@@ -64,7 +64,7 @@ type PlayerSessionState = {
 
 /** 围栏物品 → 场上围栏种类 */
 export function fenceKindOfItem(kind: ResourceKind): FenceKind | null {
-  if (kind === 'fenceWood') return 'wood';
+  if (kind === 'fenceWood') return 'branch';
   if (kind === 'fenceStone') return 'stone';
   return null;
 }
@@ -292,7 +292,7 @@ export class FenceSystem implements ObstacleSolver {
 
   /** 背包里点击「使用」围栏:按「就近连接优先」吸附放下 */
   useFence(actor: PlayerSession, kind: FenceKind): boolean {
-    const item: ResourceKind = kind === 'wood' ? 'fenceWood' : 'fenceStone';
+    const item: ResourceKind = kind === 'branch' ? 'fenceWood' : 'fenceStone';
     const target = this.pickVertex(actor);
     if (actor.inventory.count(item) <= 0 || !target) return false;
     const { gx, gz } = target;
@@ -306,7 +306,7 @@ export class FenceSystem implements ObstacleSolver {
     this.markPlaced(actor);
     this.audio.play('success');
     const fxPos = new THREE.Vector3(gx, y + 0.5, gz);
-    this.fx.burst(fxPos, kind === 'wood' ? '#a97b48' : '#9a9a9a', 10);
+    this.fx.burst(fxPos, kind === 'branch' ? '#a97b48' : '#9a9a9a', 10);
     return true;
   }
 
@@ -461,7 +461,7 @@ export class FenceSystem implements ObstacleSolver {
     const fenceKind = this.heldFenceKind(actor);
     const gate = actor.player.currentTool === 'fenceGate';
     const item: ResourceKind | null = fenceKind
-      ? fenceKind === 'wood'
+      ? fenceKind === 'branch'
         ? 'fenceWood'
         : 'fenceStone'
       : gate
@@ -651,7 +651,7 @@ export class FenceSystem implements ObstacleSolver {
       fence.remove(this.scene);
       this.fences.delete(key);
       this.onFenceChanged?.({ op: 'remove', id: this.fenceIds.get(fence) });
-      this.give(fence.kind === 'wood' ? 'fenceWood' : 'fenceStone', 1, actor);
+      this.give(fence.kind === 'branch' ? 'fenceWood' : 'fenceStone', 1, actor);
     } else {
       const gate = this.gates.get(key)!;
       gx = gate.gx;

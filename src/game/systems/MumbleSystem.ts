@@ -12,7 +12,7 @@ export type MumbleContext = {
   phase: DayPhase;
   rainIntensity: number;
   freeSlots: number;
-  wood: number;
+  branch: number;
   stone: number;
   tools: Tools;
   collecting: boolean;
@@ -61,7 +61,7 @@ const TRIGGER_RULES: TriggerRule[] = [
   {
     id: 'chopWood',
     cooldown: 150,
-    test: (c) => c.tools.axe > 0 && c.wood < 2 && !c.collecting,
+    test: (c) => c.tools.axe > 0 && c.branch < 2 && !c.collecting,
   },
   {
     id: 'craftPickaxe',
@@ -78,7 +78,7 @@ const TRIGGER_RULES: TriggerRule[] = [
     cooldown: 0,
     once: true,
     test: (c) =>
-      c.elapsed > 15 && c.wood === 0 && c.stone === 0 && !c.tools.axe && !c.tools.pickaxe,
+      c.elapsed > 15 && c.branch === 0 && c.stone === 0 && !c.tools.axe && !c.tools.pickaxe,
   },
 ];
 

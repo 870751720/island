@@ -176,7 +176,7 @@ export class WorkbenchSystem {
   canStart(actor: PlayerSession): boolean {
     if (this.crafted || this.isWorking(actor) || this.isDigging(actor)) return false;
     if (actor.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
-    if (actor.inventory.count('wood') < (WORKBENCH_COST.wood ?? 0)) return false;
+    if (actor.inventory.count('branch') < (WORKBENCH_COST.branch ?? 0)) return false;
     return this.canPlace(actor);
   }
 
@@ -232,7 +232,7 @@ export class WorkbenchSystem {
       st.timer = 0;
       if (st.mode === 'build') {
         actor.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
-        actor.inventory.remove('wood', WORKBENCH_COST.wood ?? 0);
+        actor.inventory.remove('branch', WORKBENCH_COST.branch ?? 0);
         const bench = new Workbench(this.scene, actor.player.group.position, 1, cardinalRotY(actor.player.group.rotation.y));
         this.benches.push(bench);
         const bp = bench.group.position;

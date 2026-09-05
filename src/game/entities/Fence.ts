@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** 围栏种类:木头 / 石头 */
-export type FenceKind = 'wood' | 'stone';
+export type FenceKind = 'branch' | 'stone';
 
 /** 四个方向的连接标记(相邻格点有围栏或门时伸横杆) */
 export type FenceConnections = { px: boolean; nx: boolean; pz: boolean; nz: boolean };
@@ -38,17 +38,17 @@ function stonePost(): THREE.Group {
  */
 function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
   const g = new THREE.Group();
-  const wood = kind === 'wood';
-  g.add(wood ? woodPost(clayMaterial('#a97b48')) : stonePost());
+  const branch = kind === 'branch';
+  g.add(branch ? woodPost(clayMaterial('#a97b48')) : stonePost());
 
-  const railMat = clayMaterial(wood ? '#b08a5a' : '#8f8f8f');
+  const railMat = clayMaterial(branch ? '#b08a5a' : '#8f8f8f');
   const railLen = 0.46;
   const makeRail = (alongX: boolean, y: number): THREE.Mesh => {
     const rail = new THREE.Mesh(
       new THREE.BoxGeometry(
-        alongX ? railLen : wood ? 0.05 : 0.1,
-        wood ? 0.09 : 0.14,
-        alongX ? (wood ? 0.05 : 0.1) : railLen
+        alongX ? railLen : branch ? 0.05 : 0.1,
+        branch ? 0.09 : 0.14,
+        alongX ? (branch ? 0.05 : 0.1) : railLen
       ),
       railMat
     );
@@ -56,7 +56,7 @@ function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
     rail.castShadow = true;
     return rail;
   };
-  for (const y of wood ? [0.3, 0.6] : [0.24, 0.56]) {
+  for (const y of branch ? [0.3, 0.6] : [0.24, 0.56]) {
     if (conns.px) {
       const r = makeRail(true, y);
       r.position.x = 0.27;

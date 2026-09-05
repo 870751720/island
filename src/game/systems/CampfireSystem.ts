@@ -16,7 +16,7 @@ const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#e0862e';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
-export const CAMPFIRE_COST = { flint: 1, log: 2 };
+export const CAMPFIRE_COST = { flint: 1, wood: 2 };
 /** 火堆卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const CAMPFIRE_PROMPT_PRIORITY = 5;
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
@@ -161,7 +161,7 @@ export class CampfireSystem {
   canBuild(actor: PlayerSession): boolean {
     if (this.isBusy(actor)) return false;
     if (actor.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
-    if (actor.inventory.count('log') < CAMPFIRE_COST.log) return false;
+    if (actor.inventory.count('wood') < CAMPFIRE_COST.wood) return false;
     return this.canPlace(actor);
   }
 
@@ -217,7 +217,7 @@ export class CampfireSystem {
     if (st.timer >= CRAFT_TIME) {
       st.timer = 0;
       actor.inventory.remove('flint', CAMPFIRE_COST.flint);
-      actor.inventory.remove('log', CAMPFIRE_COST.log);
+      actor.inventory.remove('wood', CAMPFIRE_COST.wood);
       const fire = new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL);
       this.fires.push(fire);
       const firePos = fire.group.position;

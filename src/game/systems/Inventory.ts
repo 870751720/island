@@ -1,6 +1,6 @@
 export type ResourceKind =
+  | 'branch'
   | 'wood'
-  | 'log'
   | 'stone'
   | 'flint'
   | 'ironOre'

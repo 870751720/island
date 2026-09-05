@@ -52,8 +52,8 @@ const HARVEST_CONFIG: Record<
     hits: 3,
     fxColor: '#4f9440',
     yield: (inv, prop) => {
-      inv.add('wood', 2);
-      inv.add('log', 1);
+      inv.add('branch', 2);
+      inv.add('wood', 1);
       // 第一阶段砍倒树冠时,按树种概率掉落种子与可食用果实
       const species = prop.species ?? 'oak';
       if (Math.random() < SEED_DROP_CHANCE) inv.add(SEED_OF[species], 1);
@@ -65,7 +65,7 @@ const HARVEST_CONFIG: Record<
     hits: 1,
     fxColor: '#7fae55',
     yield: (inv) => {
-      inv.add('wood', 1);
+      inv.add('branch', 1);
     },
   },
   stump: {
@@ -73,8 +73,8 @@ const HARVEST_CONFIG: Record<
     hits: 2,
     fxColor: '#8a6239',
     yield: (inv) => {
-      inv.add('wood', 1);
-      inv.add('log', 2);
+      inv.add('branch', 1);
+      inv.add('wood', 2);
     },
   },
   rock: {
@@ -125,7 +125,7 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 2,
     fxColor: '#6b8f4e',
-    yield: (inv) => inv.add('wood', 1),
+    yield: (inv) => inv.add('branch', 1),
   },
   grass: {
     action: 'pick',

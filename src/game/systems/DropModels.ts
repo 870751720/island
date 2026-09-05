@@ -3,8 +3,8 @@ import type { ResourceKind } from './Inventory';
 
 /** 各道具掉落物的主题色(粒子特效与造型细节共用) */
 export const DROP_COLORS: Record<ResourceKind, string> = {
-  wood: '#8b5a2b',
-  log: '#7a5230',
+  branch: '#8b5a2b',
+  wood: '#7a5230',
   stone: '#9a9a9a',
   flint: '#5f6a72',
   ironOre: '#b07a5a',
@@ -98,7 +98,7 @@ function mesh(geometry: THREE.BufferGeometry, material: THREE.MeshStandardMateri
 /** 树枝:两根细枝斜搭在一起,带浅色断口 */
 function makeWood(): THREE.Object3D {
   const g = new THREE.Group();
-  const bark = clay(DROP_COLORS.wood);
+  const bark = clay(DROP_COLORS.branch);
   const endMat = clay('#c8a066');
   const twig = (len: number, r: number) => {
     const twigGroup = new THREE.Group();
@@ -123,7 +123,7 @@ function makeWood(): THREE.Object3D {
 /** 木头:一截粗圆木,浅色端面盖 */
 function makeLog(): THREE.Object3D {
   const g = new THREE.Group();
-  const bark = clay(DROP_COLORS.log);
+  const bark = clay(DROP_COLORS.wood);
   const endMat = clay('#c8a066');
   const body = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.6, 6), bark);
   body.rotation.z = Math.PI / 2;
@@ -771,8 +771,8 @@ function makeWorkbenchDrop(level: number): THREE.Object3D {
 }
 
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
-  wood: makeWood,
-  log: makeLog,
+  branch: makeWood,
+  wood: makeLog,
   stone: makeStone,
   flint: makeFlint,
   ironOre: makeIronOre,
@@ -852,9 +852,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   crate: () => {
     // 木箱:小箱体 + 两条封边条
     const g = new THREE.Group();
-    const wood = new THREE.MeshStandardMaterial({ color: DROP_COLORS.crate, flatShading: true, roughness: 1 });
+    const branch = new THREE.MeshStandardMaterial({ color: DROP_COLORS.crate, flatShading: true, roughness: 1 });
     const band = new THREE.MeshStandardMaterial({ color: '#7a5a32', flatShading: true, roughness: 1 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.16), wood);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.16), branch);
     body.castShadow = true;
     g.add(body);
     for (const z of [-0.07, 0.07]) {
@@ -867,9 +867,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   baitBarrel: () => {
     // 饵料桶:小木桶身 + 两道桶箍
     const g = new THREE.Group();
-    const wood = new THREE.MeshStandardMaterial({ color: DROP_COLORS.baitBarrel, flatShading: true, roughness: 1 });
+    const branch = new THREE.MeshStandardMaterial({ color: DROP_COLORS.baitBarrel, flatShading: true, roughness: 1 });
     const band = new THREE.MeshStandardMaterial({ color: '#5f452a', flatShading: true, roughness: 1 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.18, 8), wood);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.18, 8), branch);
     body.position.y = 0.09;
     body.castShadow = true;
     g.add(body);
@@ -881,7 +881,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
     }
     return g;
   },
-  fenceWood: () => makeFenceDrop('wood'),
+  fenceWood: () => makeFenceDrop('branch'),
   fenceStone: () => makeFenceDrop('stone'),
   fenceGate: () => makeGateDrop(),
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
@@ -897,11 +897,11 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
 };
 
 /** 围栏道具掉落物:一段柱 + 两根横杆 */
-function makeFenceDrop(kind: 'wood' | 'stone'): THREE.Object3D {
+function makeFenceDrop(kind: 'branch' | 'stone'): THREE.Object3D {
   const g = new THREE.Group();
-  const color = DROP_COLORS[kind === 'wood' ? 'fenceWood' : 'fenceStone'];
+  const color = DROP_COLORS[kind === 'branch' ? 'fenceWood' : 'fenceStone'];
   const post = mesh(
-    kind === 'wood'
+    kind === 'branch'
       ? new THREE.CylinderGeometry(0.035, 0.045, 0.28, 6)
       : new THREE.BoxGeometry(0.09, 0.28, 0.09),
     clay(color)
@@ -909,7 +909,7 @@ function makeFenceDrop(kind: 'wood' | 'stone'): THREE.Object3D {
   post.position.y = 0.14;
   g.add(post);
   for (const y of [0.08, 0.2]) {
-    const rail = mesh(new THREE.BoxGeometry(0.3, kind === 'wood' ? 0.04 : 0.06, 0.03), clay(color));
+    const rail = mesh(new THREE.BoxGeometry(0.3, kind === 'branch' ? 0.04 : 0.06, 0.03), clay(color));
     rail.position.y = y;
     g.add(rail);
   }
