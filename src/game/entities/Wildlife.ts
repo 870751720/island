@@ -896,9 +896,11 @@ export class Wildlife implements Updatable {
     return { species };
   }
 
-  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同) */
+  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;熊另有 30% 概率掉落冒险家的经验书) */
   lootOf(species: AnimalSpecies): AnimalLoot {
-    return SPECIES[species].loot;
+    const loot = SPECIES[species].loot.map((item) => ({ ...item }));
+    if (species === 'bear' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
+    return loot;
   }
 
   /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物;鳄鱼改为在最近水洼里带出场扑咬生成 */

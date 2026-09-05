@@ -6,11 +6,12 @@ import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import {
   RECIPES,
+  hasCost,
   maxCraftCount,
   recipeIconKind,
   recipeIconLevel,
   recipeVisible,
-  WORKBENCH_UPGRADE_FUR,
+  workbenchUpgradeCost,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -37,6 +38,16 @@ export function WorkbenchPanel({
       recipeVisible(r, hud, toolsOf(hud), hud.equipped, hud.slots)
   );
   const [bookOpen, setBookOpen] = useState(false);
+  // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
+  const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
+  const upgradeCounts = {
+    fur: hud.fur,
+    stone: hud.stone,
+    wood: hud.wood,
+    rope: hud.rope,
+    adventureBook: hud.adventureBook,
+  };
+  const upgradeReady = hasCost(upgradeCost, upgradeCounts);
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(recipes.map((r) => [r.id, 1]))
@@ -148,23 +159,30 @@ export function WorkbenchPanel({
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
               <div style={{ fontSize: 12, color: upgradeHint ? '#c62828' : '#888' }}>
-                {upgradeHint ?? `皮毛×${WORKBENCH_UPGRADE_FUR}`}
+                {upgradeHint ?? costLabel(upgradeCost)}
               </div>
             </div>
             <button
-              style={craftButtonStyle(hud.fur >= WORKBENCH_UPGRADE_FUR)}
+              style={craftButtonStyle(upgradeReady)}
               onPointerDown={(e) => {
                 e.preventDefault();
-                if (hud.fur >= WORKBENCH_UPGRADE_FUR) {
+                if (upgradeReady) {
                   if (onUpgrade()) onClose();
                 } else {
                   setUpgradeHint(
-                    `需要 ${WORKBENCH_UPGRADE_FUR} 张皮毛(现有 ${hud.fur})`
+                    `还缺:${costLabel(
+                      Object.fromEntries(
+                        Object.entries(upgradeCost).map(([kind, n]) => [
+                          kind,
+                          Math.max((n ?? 0) - upgradeCounts[kind as keyof typeof upgradeCounts], 0),
+                        ])
+                      )
+                    )}`
                   );
                 }
               }}
             >
-              {hud.fur >= WORKBENCH_UPGRADE_FUR ? '升级' : '材料不足'}
+              {upgradeReady ? '升级' : '材料不足'}
             </button>
           </div>
         )}

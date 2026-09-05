@@ -78,6 +78,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   bed1: '#c9a15c',
   bed2: '#a5836b',
   bed3: '#7d9a6e',
+  adventureBook: '#c0392b',
 };
 
 /** 黏土质感材质:flatShading + 高粗糙度 */
@@ -284,6 +285,21 @@ function makeFur(): THREE.Object3D {
     tuft.rotation.z = x > 0 ? -0.5 : 0.5;
     g.add(tuft);
   }
+  return g;
+}
+
+/** 冒险家的经验书:红皮小书,带书脊与烫金书名条 */
+function makeAdventureBook(): THREE.Object3D {
+  const g = new THREE.Group();
+  const cover = mesh(new THREE.BoxGeometry(0.3, 0.34, 0.07), clay(DROP_COLORS.adventureBook));
+  cover.position.y = 0.17;
+  const pages = mesh(new THREE.BoxGeometry(0.27, 0.31, 0.05), clay('#f2ead8'));
+  pages.position.set(-0.02, 0.17, 0);
+  const spine = mesh(new THREE.BoxGeometry(0.05, 0.34, 0.09), clay('#8e2a20'));
+  spine.position.set(-0.16, 0.17, 0);
+  const title = mesh(new THREE.BoxGeometry(0.16, 0.05, 0.02), clay('#e6b422'));
+  title.position.set(0.02, 0.24, 0.045);
+  g.add(cover, pages, spine, title);
   return g;
 }
 
@@ -729,6 +745,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,
   fur: makeFur,
+  adventureBook: makeAdventureBook,
   cookedBerry: makeCookedBerry,
   cookedSmallFish: () => makeRoast(DROP_COLORS.cookedSmallFish),
   cookedBigFish: () => makeRoast(DROP_COLORS.cookedBigFish, 1.3),

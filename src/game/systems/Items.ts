@@ -473,4 +473,10 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🛠️',
     description: '挖工作台搬来的满级工作台。点击「使用」放到脚下即可继续使用。',
   },
+  adventureBook: {
+    kind: 'adventureBook',
+    name: '冒险家的经验书',
+    icon: '📕',
+    description: '不知哪位冒险家遗落的笔记,猎杀熊有 30% 概率掉落;唯一用途是把工作台升级到三级。',
+  },
 };

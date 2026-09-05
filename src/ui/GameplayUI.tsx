@@ -58,6 +58,7 @@ const INITIAL_HUD: HudSnapshot = {
   birdMeat: 0,
   gameMeat: 0,
   rope: 0,
+  adventureBook: 0,
   arrow: 0,
   bait: 0,
   bed1: 0,

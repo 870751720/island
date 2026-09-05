@@ -93,6 +93,8 @@ export type HudSnapshot = {
   birdMeat: number;
   gameMeat: number;
   rope: number;
+  /** 背包里冒险家的经验书数(工作台面板升级校验用) */
+  adventureBook: number;
   arrow: number;
   /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
   bait: number;
@@ -2682,6 +2684,7 @@ export class Game {
       birdMeat: s.inventory.count('birdMeat'),
       gameMeat: s.inventory.count('gameMeat'),
       rope: s.inventory.count('rope'),
+      adventureBook: s.inventory.count('adventureBook'),
       arrow: s.inventory.count('arrow'),
       bait: s.inventory.count('bait'),
       bed1: s.inventory.count('bed1'),

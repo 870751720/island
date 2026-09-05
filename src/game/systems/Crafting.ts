@@ -328,8 +328,17 @@ export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2,
 /** 工作台卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const WORKBENCH_PROMPT_PRIORITY = 4;
 
-/** 工作台每升一级消耗的皮毛数 */
-export const WORKBENCH_UPGRADE_FUR = 4;
+/** 工作台升到对应等级(键为目标等级)消耗的材料;三级起需要猎熊掉落的冒险家的经验书 */
+export const WORKBENCH_UPGRADE_COST: Record<number, Partial<Record<ResourceKind, number>>> = {
+  2: { fur: 4 },
+  3: { adventureBook: 1, stone: 20, wood: 20, rope: 5 },
+  4: { fur: 4 },
+};
+
+/** 把工作台从 level 升到下一级的材料表(满级为空表) */
+export function workbenchUpgradeCost(level: number): Partial<Record<ResourceKind, number>> {
+  return WORKBENCH_UPGRADE_COST[level + 1] ?? {};
+}
 
 /** 按资源数量表判断材料是否足够(背包与 HUD 快照均可传入) */
 export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKind, number>>): boolean {

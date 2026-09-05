@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import type { ResourceKind } from './Inventory';
 import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
-import { WORKBENCH_COST, WORKBENCH_UPGRADE_FUR } from './Crafting';
+import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -141,12 +142,20 @@ export class WorkbenchSystem {
     return !!this.states.get(actor)?.digTarget;
   }
 
-  /** 是否满足升级条件(身旁有工作台、未满级、石头够、不在敲打中) */
+  /** 是否满足升级条件(身旁有工作台、未满级、材料够、不在敲打中) */
   canUpgrade(actor: PlayerSession): boolean {
     const bench = this.nearby(actor);
     if (!bench || this.isWorking(actor) || this.isDigging(actor)) return false;
     if (bench.level >= WORKBENCH_MAX_LEVEL) return false;
-    return actor.inventory.count('fur') >= WORKBENCH_UPGRADE_FUR;
+    return hasCost(workbenchUpgradeCost(bench.level), this.countsOf(actor, bench.level));
+  }
+
+  /** 升级材料在背包中的现存量(供 hasCost 校验) */
+  private countsOf(actor: PlayerSession, level: number): Partial<Record<ResourceKind, number>> {
+    const cost = workbenchUpgradeCost(level);
+    return Object.fromEntries(
+      (Object.keys(cost) as ResourceKind[]).map((kind) => [kind, actor.inventory.count(kind)])
+    );
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点占住) */
@@ -232,7 +241,9 @@ export class WorkbenchSystem {
         // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
         if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
       } else {
-        actor.inventory.remove('fur', WORKBENCH_UPGRADE_FUR);
+        for (const [kind, n] of Object.entries(workbenchUpgradeCost(st.upgradeTarget!.level))) {
+          actor.inventory.remove(kind as ResourceKind, n ?? 0);
+        }
         st.upgradeTarget!.upgrade();
         this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
         st.upgradeTarget = null;
