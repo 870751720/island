@@ -22,6 +22,7 @@ export type CraftId =
   | 'fenceGate'
   | 'bed'
   | 'bed2'
+  | 'bed3'
   | 'baitBarrel'
   | 'torch'
   | EquipKind;
@@ -237,6 +238,14 @@ export const RECIPES: Recipe[] = [
     station: 'workbench',
     output: 'bed2',
     minBenchLevel: 2,
+  },
+  {
+    id: 'bed3',
+    name: '三级床',
+    cost: { bed2: 1, fur: 10 },
+    station: 'workbench',
+    output: 'bed3',
+    minBenchLevel: 3,
   },
   {
     id: 'baitBarrel',

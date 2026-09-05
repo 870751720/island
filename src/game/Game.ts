@@ -97,8 +97,9 @@ export type HudSnapshot = {
   arrow: number;
   /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
   bait: number;
-  /** 背包里的床数(工作台面板判断二级床配方可见性) */
+  /** 背包里的床数(工作台面板判断床升级配方可见性) */
   bed1: number;
+  bed2: number;
   /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
   heldFenceCount: number;
   /** 背包格子快照(空格为 null)与容量 */
@@ -2671,6 +2672,7 @@ export class Game {
       arrow: s.inventory.count('arrow'),
       bait: s.inventory.count('bait'),
       bed1: s.inventory.count('bed1'),
+      bed2: s.inventory.count('bed2'),
       heldFenceCount:
         s.player.currentTool === 'fence'
           ? s.inventory.count('fenceWood') + s.inventory.count('fenceStone')

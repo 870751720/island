@@ -52,7 +52,7 @@ export function WorkbenchPanel({
       }
       return next;
     });
-  }, [hud.wood, hud.log, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.hasFishingrod, hud.hasBow]);
+  }, [hud.wood, hud.log, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.bed2, hud.hasFishingrod, hud.hasBow]);
 
   return (
     <div

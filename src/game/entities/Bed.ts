@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** 床等级上限 */
-export const BED_MAX_LEVEL = 2;
+export const BED_MAX_LEVEL = 3;
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -9,7 +9,8 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 
 /**
  * 程序化拼装的床模型,随等级升级:
- * Lv1 木框 + 稻草垫 + 叶子枕;Lv2 加高木框 + 皮毛床垫 + 皮毛枕 + 床头板(升级材料是皮毛)
+ * Lv1 木框 + 稻草垫 + 叶子枕;Lv2 加高木框 + 皮毛床垫 + 皮毛枕 + 床头板;
+ * Lv3 皮毛床外加一顶布帘帐篷(A 形坡面 + 床头三角墙,床尾敞开)
  */
 function makeBedMesh(level: number): THREE.Group {
   const g = new THREE.Group();
@@ -67,7 +68,42 @@ function makeBedMesh(level: number): THREE.Group {
   blanket.castShadow = true;
   g.add(blanket);
 
+  if (level >= 3) addTent(g);
+
   return g;
+}
+
+/** 三级床帐篷罩:两片斜坡布帘 + 床头三角墙,床尾敞开能看见里面的皮毛床 */
+function addTent(g: THREE.Group): void {
+  const clothMat = new THREE.MeshStandardMaterial({ color: '#7d9a6e', flatShading: true, roughness: 1 });
+  const ridge = 1.05; // 屋脊高
+  const halfW = 0.62; // 半跨
+  const len = 1.9; // 帐篷沿床身方向长
+  const slope = Math.hypot(ridge, halfW);
+  const tilt = Math.atan2(halfW, ridge);
+
+  for (const side of [-1, 1]) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(len, 0.04, slope), clothMat);
+    panel.rotation.x = side * tilt;
+    panel.position.set(0, ridge / 2, (side * halfW) / 2);
+    panel.castShadow = true;
+    g.add(panel);
+  }
+
+  // 床头(枕头端)三角墙封住帐内,床尾敞开
+  const wallShape = new THREE.Shape([
+    new THREE.Vector2(-halfW, 0),
+    new THREE.Vector2(halfW, 0),
+    new THREE.Vector2(0, ridge),
+  ]);
+  const wall = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(wallShape, { depth: 0.06, bevelEnabled: false }),
+    clothMat
+  );
+  wall.rotation.y = Math.PI / 2;
+  wall.position.set(-len / 2, 0, 0);
+  wall.castShadow = true;
+  g.add(wall);
 }
 
 /** 场景中的床摆件(可放置多个),靠近可睡觉跳到第二天清晨 */

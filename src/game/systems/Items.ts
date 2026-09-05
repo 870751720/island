@@ -424,6 +424,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     description:
       '加高木框垫上柔软皮毛的舒服床。在工作台用一级床和 4 张皮毛升级而来(需二级工作台),点击「使用」放到脚下;睡觉效果与一级床相同,睡相更体面。',
   },
+  bed3: {
+    kind: 'bed3',
+    name: '三级床',
+    icon: '🛏️',
+    description:
+      '皮毛床外罩一顶布帘帐篷,风吹不着的过夜好去处。在工作台用二级床和 10 张皮毛升级而来(需三级工作台),点击「使用」放到脚下;睡觉效果与低级床相同。',
+  },
   berryBush: {
     kind: 'berryBush',
     name: '浆果丛',

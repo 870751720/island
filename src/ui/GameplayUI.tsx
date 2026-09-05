@@ -61,6 +61,7 @@ const INITIAL_HUD: HudSnapshot = {
   arrow: 0,
   bait: 0,
   bed1: 0,
+  bed2: 0,
   slots: [],
   capacity: 10,
   hasAxe: false,

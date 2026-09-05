@@ -66,6 +66,7 @@ export type ResourceKind =
   | 'fenceGate'
   | 'bed1'
   | 'bed2'
+  | 'bed3'
   | 'berryBush'
   | 'shrubBush'
   | 'grassTuft'

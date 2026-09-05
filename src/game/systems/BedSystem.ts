@@ -24,7 +24,7 @@ const LIE_HEIGHT = 0.56;
 const LIE_FEET_OFFSET = 0.72;
 
 /** 各等级床对应的道具 */
-const BED_ITEM: Record<number, 'bed1' | 'bed2'> = { 1: 'bed1', 2: 'bed2' };
+const BED_ITEM: Record<number, 'bed1' | 'bed2' | 'bed3'> = { 1: 'bed1', 2: 'bed2', 3: 'bed3' };
 
 /** 床道具对应的等级(非床道具为 null) */
 export function bedItemLevel(kind: string): number | null {
