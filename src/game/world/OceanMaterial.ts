@@ -3,8 +3,8 @@ import type { OceanDepth } from './OceanDepth';
 
 /**
  * 海水材质:在 MeshStandardMaterial 基础上按世界坐标采样深度,
- * 浅水偏青透底、深水完全遮蔽海底边缘;叠加缓慢的低频波纹扰动法线,
- * 借助场景光照自然产生克制的波光,不移动实际水位。
+ * 浅水透底、深水遮蔽海底边缘;程序波纹、浅滩光纹与沿岸碎浪共用一个绘制批次。
+ * 法线在世界空间构造后转换到视图空间,保持镜头移动时的光照一致。
  */
 export class OceanMaterial {
   readonly material: THREE.MeshStandardMaterial;
@@ -19,7 +19,7 @@ export class OceanMaterial {
     this.uniforms.uHalfExtent.value.set(depth.halfExtentX, depth.halfExtentZ);
     this.material = new THREE.MeshStandardMaterial({
       color: '#3d97b8',
-      roughness: 0.36,
+      roughness: 0.3,
       metalness: 0,
       transparent: true,
     });
@@ -57,27 +57,51 @@ export class OceanMaterial {
           `#include <color_fragment>
            {
              float d = oceanDepth(vOceanWorld);
-             // 浅滩透出沙底,近岸偏青,远处过渡到深蓝
-             vec3 shallow = vec3(0.46, 0.78, 0.78);
-             vec3 deep = vec3(0.03, 0.24, 0.44);
-             diffuseColor.rgb = mix(shallow, deep, smoothstep(0.06, 0.6, d));
+             vec2 p = vOceanWorld;
+             vec3 shallow = vec3(0.32, 0.76, 0.65);
+             vec3 lagoon = vec3(0.055, 0.49, 0.56);
+             vec3 deep = vec3(0.025, 0.19, 0.34);
+             vec3 sea = mix(shallow, lagoon, smoothstep(0.015, 0.24, d));
+             sea = mix(sea, deep, smoothstep(0.22, 0.6, d));
+             float swell = sin(dot(p, vec2(0.38, 0.22)) - uTime * 0.65);
+             float ripple = sin(dot(p, vec2(-0.57, 0.83)) - uTime * 0.85
+               + swell * 0.65);
+             sea *= 1.0 + swell * 0.035 + ripple * 0.025;
+
+             // 宽而柔和的交错光纹只出现在浅滩,缩远时自然淡出。
+             float detail = 1.0 - smoothstep(0.35, 1.2, length(fwidth(p)));
+             float lattice = sin(p.x * 2.1 + ripple * 0.6 + uTime * 0.38)
+               * sin(p.y * 1.8 + swell * 0.7 - uTime * 0.32);
+             float caustic = smoothstep(0.58, 0.94, lattice) * detail
+               * smoothstep(0.015, 0.07, d) * (1.0 - smoothstep(0.13, 0.38, d));
+             sea += vec3(0.10, 0.15, 0.10) * caustic;
+
+             // 等深线上的浪峰向岸推进,沿岸相位与强度变化打散整齐的白环。
+             float breakup = sin(p.x * 0.73 + sin(p.y * 0.51))
+               * sin(p.y * 0.91 - uTime * 0.24);
+             float surf = sin(d * 65.0 + uTime * 1.15 + swell * 0.65);
+             float aa = max(fwidth(surf), 0.045);
+             float foam = smoothstep(0.78 - aa, 0.92 + aa, surf)
+               * smoothstep(0.008, 0.035, d) * (1.0 - smoothstep(0.12, 0.24, d))
+               * smoothstep(-0.65, 0.5, breakup) * 0.75;
+             diffuseColor.rgb = mix(sea, vec3(0.82, 0.91, 0.85), foam);
              // 边缘水深约 0.67(1.75/2.6),过渡在其之前完成,遮住方形海底终止线
-             diffuseColor.a = mix(0.55, 1.0, smoothstep(0.22, 0.55, d));
+             diffuseColor.a = mix(0.42, 1.0, smoothstep(0.015, 0.55, d));
+             diffuseColor.a = mix(diffuseColor.a, 0.96, foam);
            }`
         )
         .replace(
           '#include <normal_fragment_begin>',
           `#include <normal_fragment_begin>
            {
-             // 两组缓慢低频波纹的解析梯度,轻微倾斜法线让光照带出稀疏波光
              vec2 p = vOceanWorld;
-             float a = sin(p.x * 0.35 + uTime * 0.6);
-             float b = sin(p.y * 0.28 - uTime * 0.45);
-             float c = sin((p.x + p.y) * 0.15 + uTime * 0.3);
-             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
-             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
-             normal = normalize(normal + vec3(-dx, 0.0, -dz));
-             diffuseColor.rgb *= 1.0 + (a + b + c) * 0.012;
+             vec2 slope = vec2(0.38, 0.22) * 0.16
+               * cos(dot(p, vec2(0.38, 0.22)) - uTime * 0.65);
+             slope += vec2(-0.57, 0.83) * 0.075
+               * cos(dot(p, vec2(-0.57, 0.83)) - uTime * 0.85);
+             slope += vec2(1.7, 1.1) * 0.018
+               * cos(dot(p, vec2(1.7, 1.1)) - uTime * 1.1);
+             normal = normalize(mat3(viewMatrix) * vec3(-slope.x, 1.0, -slope.y));
            }`
         );
     };

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { IslandTerrain } from './IslandTerrain';
 
-/** 纹理单轴分辨率上限(像素):按覆盖范围换算,保持每像素约 3 米 */
+/** 纹理单轴分辨率上限(像素):目标每像素约 1 米,让近岸碎浪贴合浅滩 */
 const MAX_RESOLUTION = 320;
 /** 深度归一化上限(米):纹理只存 0-1,边缘水深约 1.75,留出裕量 */
 const MAX_DEPTH = 2.6;
@@ -21,13 +21,13 @@ export class OceanDepth {
   constructor(terrain: IslandTerrain) {
     this.halfExtentX = terrain.halfWidth + MARGIN;
     this.halfExtentZ = terrain.halfLength + MARGIN;
-    const resX = Math.min(MAX_RESOLUTION, Math.max(8, Math.round((this.halfExtentX * 2) / 3)));
-    const resZ = Math.min(MAX_RESOLUTION, Math.max(8, Math.round((this.halfExtentZ * 2) / 3)));
+    const resX = Math.min(MAX_RESOLUTION, Math.max(8, Math.ceil(this.halfExtentX * 2)));
+    const resZ = Math.min(MAX_RESOLUTION, Math.max(8, Math.ceil(this.halfExtentZ * 2)));
     const data = new Uint8Array(resX * resZ);
     for (let j = 0; j < resZ; j++) {
-      const z = ((j / (resZ - 1)) * 2 - 1) * this.halfExtentZ;
+      const z = (((j + 0.5) / resZ) * 2 - 1) * this.halfExtentZ;
       for (let i = 0; i < resX; i++) {
-        const x = ((i / (resX - 1)) * 2 - 1) * this.halfExtentX;
+        const x = (((i + 0.5) / resX) * 2 - 1) * this.halfExtentX;
         const depth = Math.max(0, terrain.seaLevel - terrain.getHeight(x, z));
         data[j * resX + i] = Math.round(THREE.MathUtils.clamp(depth / MAX_DEPTH, 0, 1) * 255);
       }
