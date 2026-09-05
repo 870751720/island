@@ -14,15 +14,15 @@ type MapPanelProps = {
 export function MapIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M3 7.5 11 4l10 3.5L29 4v20.5L21 28l-10-3.5L3 28Z" fill="#f3df9b" stroke="#624b32" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M11 4v20.5M21 7.5V28" fill="none" stroke="#9b7547" strokeWidth="1.8" />
-      <path d="m14 15 3-3 4 3.5 4-4" fill="none" stroke="#4f8d66" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="14" cy="15" r="2" fill="#d55342" />
+      <rect x="3" y="3" width="26" height="26" rx="7" fill="#75b7ca" stroke="#4b6870" strokeWidth="2" />
+      <path d="M7 20c2.5-1.2 3.4-3.7 5.8-4.1 1.8-.3 2.5 1 4.1.4 2.2-.8 2-3.4 4.5-3.6 2.7-.2 3.4 2.8 3.6 5.3.2 2.8-1.6 5.8-5.1 6.6-4.6 1-11.4.2-12.9-4.6Z" fill="#a9c978" stroke="#f3dda1" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M16 7.2a4.2 4.2 0 0 0-4.2 4.2c0 3.2 4.2 7.2 4.2 7.2s4.2-4 4.2-7.2A4.2 4.2 0 0 0 16 7.2Z" fill="#e45b4d" stroke="#fff5df" strokeWidth="1.4" />
+      <circle cx="16" cy="11.4" r="1.5" fill="#fff5df" />
     </svg>
   );
 }
 
-const MINI_VIEW_METERS = 180;
+const MAP_VIEW_METERS = 60;
 
 const TERRAIN_COLORS = ['#6caec5', '#ead394', '#9dbb6c', '#628c4e', '#4f9dbb'] as const;
 
@@ -59,13 +59,9 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
   if (!local) return null;
 
   const width = expanded ? 340 : 132;
-  const height = expanded ? 460 : 132;
-  // 小地图保持易读的附近视野；大地图仍以玩家居中，并缩放到能容纳整座岛。
-  const farthestIslandX = snapshot.island.width / 2 + Math.abs(local.x);
-  const farthestIslandZ = snapshot.island.length / 2 + Math.abs(local.z);
-  const scale = expanded
-    ? Math.min((width - 24) / (farthestIslandX * 2), (height - 24) / (farthestIslandZ * 2))
-    : width / MINI_VIEW_METERS;
+  const height = width;
+  // 大小地图使用完全相同的玩家中心与世界范围，大地图只做等比例放大。
+  const scale = width / MAP_VIEW_METERS;
   const px = (x: number) => width / 2 + (x - local.x) * scale;
   const py = (z: number) => height / 2 + (z - local.z) * scale;
   const markerSize = expanded ? 8 : 6;
@@ -80,17 +76,14 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
       height="100%"
       role="img"
       aria-label="以玩家为中心的岛屿地图"
-      style={{ display: 'block', background: '#86bed0' }}
+      style={{ display: 'block', background: TERRAIN_COLORS[0] }}
     >
       <defs>
-        <pattern id={`waves-${expanded}`} width="18" height="12" patternUnits="userSpaceOnUse">
-          <path d="M0 6q4-4 8 0t8 0" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="1" />
-        </pattern>
         <filter id={`shadow-${expanded}`} x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity=".45" />
         </filter>
       </defs>
-      <rect width={width} height={height} fill={`url(#waves-${expanded})`} />
+      <rect width={width} height={height} fill={TERRAIN_COLORS[0]} />
       {terrainImage && (
         <image
           href={terrainImage}
@@ -172,7 +165,7 @@ export function MapPanel({ snapshot, expanded, onExpand, onClose }: MapPanelProp
         onPointerDown={(event) => event.stopPropagation()}
         style={{
           width: 'min(88vw, 390px)',
-          height: 'min(76dvh, 560px)',
+          aspectRatio: '1',
           padding: 7,
           borderRadius: 22,
           overflow: 'hidden',
