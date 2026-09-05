@@ -15,6 +15,7 @@ export class CraftingSystem {
   private totalQueue = 0; // 本次排队的总个数
   private timer = 0;
   private tickTimer = 0;
+  private working = false;
 
   constructor(
     private player: Player,
@@ -54,11 +55,16 @@ export class CraftingSystem {
 
   update(delta: number): void {
     const recipe = this.recipe;
-    if (!recipe) return;
-    if (this.player.isMoving || this.player.isSwimming) {
-      this.cancel();
+    if (!recipe) {
+      this.endWork();
       return;
     }
+    if (this.player.isMoving || this.player.isSwimming) {
+      this.cancel();
+      this.endWork();
+      return;
+    }
+    this.working = true;
     this.player.setAction('craft');
     this.timer += delta;
     this.tickTimer += delta;
@@ -81,6 +87,7 @@ export class CraftingSystem {
       this.queue -= 1;
       if (this.queue <= 0) {
         this.recipe = null;
+        this.endWork();
       } else {
         this.timer = 0;
         this.tickTimer = 0;
@@ -90,6 +97,13 @@ export class CraftingSystem {
 
   cancel(): void {
     this.recipe = null;
+  }
+
+  /** 结束合成作业时释放一次自己持有的动作(每帧调用,只在边沿生效) */
+  private endWork(): void {
+    if (!this.working) return;
+    this.working = false;
+    this.player.releaseAction('craft');
   }
 
   get isWorking(): boolean {

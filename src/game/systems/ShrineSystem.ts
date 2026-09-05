@@ -7,6 +7,7 @@ import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
+import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const SHRINE_BLOCK_RANGE = 1.2; // 与其他神像重叠距离小于该值时无处摆放
@@ -17,7 +18,7 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 export const SHRINE_JUNK_CUT = 1;
 
 /** 每玩家的挖掘进度(神像是世界共享的) */
-type PlayerSessionState = { swingTimer: number; hits: number; digTarget: Shrine | null };
+type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Shrine | null };
 
 /**
  * 波塞冬神像系统(世界单实例,按发起者 actor 结算,可放置多个):
@@ -47,7 +48,7 @@ export class ShrineSystem {
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { swingTimer: 0, hits: 0, digTarget: null };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null };
       this.states.set(actor, st);
     }
     return st;
@@ -105,9 +106,10 @@ export class ShrineSystem {
     for (const shrine of this.shrines) shrine.update(delta, elapsed);
   }
 
-  /** 每帧推进该玩家的挖掘 */
+  /** 每帧推进该玩家的挖掘;帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
+    try {
     const p = actor.player.group.position;
     let target: Shrine | null = null;
     if (
@@ -131,7 +133,7 @@ export class ShrineSystem {
       return;
     }
     st.digTarget = target;
-    actor.player.setAction('mine');
+    st.hold.hold(actor.player, 'mine');
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;
@@ -145,6 +147,9 @@ export class ShrineSystem {
     this.scene.remove(target.group);
     this.give('poseidonBlessing', 1, actor);
     this.fx.burst(target.group.position, '#2ec4b6', 14);
+    } finally {
+      st.hold.commit(actor.player);
+    }
   }
 
   /** 正在挖神像 */

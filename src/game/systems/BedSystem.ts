@@ -8,6 +8,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
+import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const BED_BLOCK_RANGE = 1.1; // 与其他床重叠距离小于该值时无处摆放
@@ -33,6 +34,7 @@ export function bedItemLevel(kind: string): number | null {
 
 /** 每玩家的挖掘与睡觉进度(床是世界共享的,进度各自算) */
 type PlayerSessionState = {
+  hold: ActionHold;
   swingTimer: number;
   hits: number;
   digTarget: Bed | null;
@@ -70,7 +72,7 @@ export class BedSystem {
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { swingTimer: 0, hits: 0, digTarget: null, sleepTimer: 0, snoreTimer: 0, onWake: null };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, sleepTimer: 0, snoreTimer: 0, onWake: null };
       this.states.set(actor, st);
     }
     return st;
@@ -167,11 +169,12 @@ export class BedSystem {
     return true;
   }
 
-  /** 每帧推进该玩家的挖掘与睡觉 */
+  /** 每帧推进该玩家的挖掘与睡觉;帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
-    this.updateDig(actor, st, delta);
-    if (st.sleepTimer <= 0) return;
+    try {
+      this.updateDig(actor, st, delta);
+      if (st.sleepTimer <= 0) return;
     // 一旦睡着就必须睡满,移动不会打断(睡觉期间输入被忽略)
     st.sleepTimer += delta;
     st.snoreTimer += delta;
@@ -185,6 +188,9 @@ export class BedSystem {
     const wake = st.onWake;
     st.onWake = null;
     wake?.();
+    } finally {
+      st.hold.commit(actor.player);
+    }
   }
 
   /** 手持锄头站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */
@@ -213,7 +219,7 @@ export class BedSystem {
       return;
     }
     st.digTarget = target;
-    actor.player.setAction('mine');
+    st.hold.hold(actor.player, 'mine');
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;

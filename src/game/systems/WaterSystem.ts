@@ -25,7 +25,8 @@ export class WaterSystem {
       standingInPond && thirsty && !this.player.isMoving && !harvestBusy;
 
     if (!this.active) {
-      // 中途走开等取消喝水时,切断仍在播的吞咽声
+      // 中途走开/口渴满等结束喝水时,释放喝水动作并切断仍在播的吞咽声
+      this.player.releaseAction('drink');
       if (this.timer > 0) this.audio.stop('drink');
       this.timer = 0;
       return;

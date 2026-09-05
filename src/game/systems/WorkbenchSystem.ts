@@ -8,6 +8,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
+import { ActionHold } from './ActionHold';
 
 const CRAFT_TIME = 2.4; // 制作总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -34,6 +35,7 @@ export function workbenchItemLevel(kind: string): number | null {
 
 /** 每玩家的搭建/升级/挖掘进度(工作台本身是世界共享的) */
 type PlayerSessionState = {
+  hold: ActionHold;
   timer: number;
   tickTimer: number;
   /** 当前计时流程是搭建新工作台还是升级现有工作台 */
@@ -77,7 +79,7 @@ export class WorkbenchSystem {
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { timer: 0, tickTimer: 0, mode: 'build', upgradeTarget: null, digTarget: null, swingTimer: 0, hits: 0 };
+      st = { hold: new ActionHold(), timer: 0, tickTimer: 0, mode: 'build', upgradeTarget: null, digTarget: null, swingTimer: 0, hits: 0 };
       this.states.set(actor, st);
     }
     return st;
@@ -189,17 +191,25 @@ export class WorkbenchSystem {
     return true;
   }
 
-  /** 每帧推进该玩家的搭建/升级/挖掘 */
+  /** 每帧推进该玩家的搭建/升级/挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
-    this.updateDig(actor, st, delta);
-    if (st.timer <= 0) return;
-    if (st.mode === 'upgrade' && !st.upgradeTarget) return;
-    if (actor.player.isMoving || actor.player.isSwimming) {
-      this.cancel(st);
-      return;
+    try {
+      this.updateDig(actor, st, delta);
+      if (st.timer <= 0) return;
+      if (st.mode === 'upgrade' && !st.upgradeTarget) return;
+      if (actor.player.isMoving || actor.player.isSwimming) {
+        this.cancel(st);
+        return;
+      }
+      this.updateWork(actor, st, delta);
+    } finally {
+      st.hold.commit(actor.player);
     }
-    actor.player.setAction('craft');
+  }
+
+  private updateWork(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
+    st.hold.hold(actor.player, 'craft');
     st.timer += delta;
     st.tickTimer += delta;
     if (st.tickTimer >= CRAFT_TICK) {
@@ -260,7 +270,7 @@ export class WorkbenchSystem {
       return;
     }
     st.digTarget = target;
-    actor.player.setAction('mine');
+    st.hold.hold(actor.player, 'mine');
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;

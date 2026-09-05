@@ -450,8 +450,7 @@ export class FishingSystem {
 
   /** 只清理由本系统设置的动作，避免覆盖同帧接管的其他交互。 */
   private clearFishingAction(): void {
-    if (this.player.currentAction === 'cast' || this.player.currentAction === 'fish') {
-      this.player.setAction(null);
-    }
+    this.player.releaseAction('cast');
+    this.player.releaseAction('fish');
   }
 }

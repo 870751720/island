@@ -255,8 +255,7 @@ function draw(
 
   // 其他联机玩家:橙心白圈圆点,放大时带昵称
   for (const o of snap.others) {
-    const ox = toPixel(o.x, snap.islandSize, size);
-    const oy = toPixel(o.z, snap.islandSize, size);
+    const [ox, oy] = playerMapPoint(o.x, o.z, snap.islandSize, size);
     const or = Math.max(size * 0.02, 3.5);
     ctx.beginPath();
     ctx.arc(ox, oy, or, 0, Math.PI * 2);
@@ -275,8 +274,7 @@ function draw(
   }
 
   // 本地玩家:白心蓝圈圆点
-  const px = toPixel(snap.player.x, snap.islandSize, size);
-  const py = toPixel(snap.player.z, snap.islandSize, size);
+  const [px, py] = playerMapPoint(snap.player.x, snap.player.z, snap.islandSize, size);
   const r = Math.max(size * 0.025, 4);
   ctx.beginPath();
   ctx.arc(px, py, r, 0, Math.PI * 2);
@@ -285,4 +283,15 @@ function draw(
   ctx.lineWidth = r * 0.4;
   ctx.fill();
   ctx.stroke();
+}
+
+/** 远海玩家沿岛心方向投到地图内沿，保留返岛方位。 */
+function playerMapPoint(x: number, z: number, islandSize: number, size: number): [number, number] {
+  const limit = islandSize / 2;
+  const scale = Math.max(1, Math.abs(x) / limit, Math.abs(z) / limit);
+  const inset = size * 0.06;
+  return [
+    Math.max(inset, Math.min(size - inset, toPixel(x / scale, islandSize, size))),
+    Math.max(inset, Math.min(size - inset, toPixel(z / scale, islandSize, size))),
+  ];
 }

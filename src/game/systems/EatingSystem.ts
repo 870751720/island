@@ -37,7 +37,7 @@ export class EatingSystem {
       // 中断进食时切断仍在播的咀嚼声
       this.audio.stop('munch');
       this.food = null;
-      this.releaseAction(food);
+      this.player.releaseAction(food.action);
       return;
     }
     this.player.setAction(food.action);
@@ -53,17 +53,12 @@ export class EatingSystem {
     }
     if (this.timer >= EAT_TIME) {
       this.food = null;
-      this.releaseAction(food);
+      this.player.releaseAction(food.action);
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
         this.audio.play('eatFinish');
       }
     }
-  }
-
-  /** 只释放进食系统自己持有的动作,不得清掉同帧被剑/弓等系统接管的动作。 */
-  private releaseAction(food: Food): void {
-    if (this.player.currentAction === food.action) this.player.setAction(null);
   }
 
   get isWorking(): boolean {

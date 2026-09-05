@@ -270,6 +270,7 @@ export class Game {
   private rainImpact: RainImpact;
   private windFx: Wind;
   private terrain: IslandTerrain;
+  private ocean: Ocean;
   private waterDebug: WaterDebugOverlay;
   private minimap: MinimapSystem;
   private crabs: Crabs;
@@ -398,7 +399,8 @@ export class Game {
     this.terrain = terrain;
     this.minimap = new MinimapSystem(terrain.size);
     this.scene.add(terrain.mesh);
-    this.scene.add(new Ocean(Math.max(500, terrain.size * 3)).mesh);
+    this.ocean = new Ocean(terrain.seaLevel);
+    this.scene.add(this.ocean.mesh);
     this.waterDebug = new WaterDebugOverlay(terrain);
     this.scene.add(this.waterDebug.mesh);
     this.clouds = new Clouds(terrain.size * 0.95);
@@ -722,6 +724,7 @@ export class Game {
         });
         this.updateIndicator(delta);
         this.updateCamera(delta);
+        this.ocean.update(this.camera);
         this.renderer.render(this.scene, this.camera);
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
@@ -2458,6 +2461,7 @@ export class Game {
     this.windFx.dispose();
     this.footprints.dispose();
     this.waterDebug.dispose();
+    this.ocean.dispose();
     this.audio.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

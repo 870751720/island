@@ -9,6 +9,7 @@ import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
+import { ActionHold } from './ActionHold';
 
 const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -35,6 +36,7 @@ export type CampfireInfo = {
 
 /** 每玩家的搭建/烹饪/挖掘进度(火堆本身是世界共享的) */
 type PlayerSessionState = {
+  hold: ActionHold;
   timer: number;
   tickTimer: number;
   swingTimer: number;
@@ -81,6 +83,7 @@ export class CampfireSystem {
     let st = this.states.get(actor);
     if (!st) {
       st = {
+        hold: new ActionHold(),
         timer: 0, tickTimer: 0, swingTimer: 0, hits: 0, digTarget: null,
         cookKind: null, cookFire: null, cookQueue: 0, cookTotal: 0, cookTimer: 0, cookTickTimer: 0,
       };
@@ -184,12 +187,16 @@ export class CampfireSystem {
     }
   }
 
-  /** 每帧推进该玩家的搭建/挖掘/烹饪 */
+  /** 每帧推进该玩家的搭建/挖掘/烹饪;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
-    this.updateDig(actor, st, delta);
-    if (st.timer > 0) return this.updateBuild(actor, st, delta);
-    this.updateCooking(actor, st, delta);
+    try {
+      this.updateDig(actor, st, delta);
+      if (st.timer > 0) return this.updateBuild(actor, st, delta);
+      this.updateCooking(actor, st, delta);
+    } finally {
+      st.hold.commit(actor.player);
+    }
   }
 
   private updateBuild(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
@@ -197,7 +204,7 @@ export class CampfireSystem {
       st.timer = 0;
       return;
     }
-    actor.player.setAction('craft');
+    st.hold.hold(actor.player, 'craft');
     st.timer += delta;
     st.tickTimer += delta;
     if (st.tickTimer >= CRAFT_TICK) {
@@ -277,7 +284,7 @@ export class CampfireSystem {
       st.cookFire = null;
       return;
     }
-    actor.player.setAction('cook');
+    st.hold.hold(actor.player, 'cook');
     st.cookTimer += delta;
     st.cookTickTimer += delta;
     if (st.cookTickTimer >= COOK_TICK) {
@@ -354,7 +361,7 @@ export class CampfireSystem {
       return;
     }
     st.digTarget = target;
-    actor.player.setAction('mine');
+    st.hold.hold(actor.player, 'mine');
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;

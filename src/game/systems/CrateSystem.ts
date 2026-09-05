@@ -8,6 +8,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
+import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
@@ -17,7 +18,7 @@ const DIG_HITS = 2; // 锄头挖木箱的命中次数(精致石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每玩家的挖掘进度(世界里的木箱是共享的,进度各自算) */
-type DigState = { swingTimer: number; hits: number; digTarget: Crate | null };
+type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Crate | null };
 
 /**
  * 木箱系统(世界单实例,按发起者 actor 结算):
@@ -50,7 +51,7 @@ export class CrateSystem {
   private st(actor: PlayerSession): DigState {
     let st = this.digStates.get(actor);
     if (!st) {
-      st = { swingTimer: 0, hits: 0, digTarget: null };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null };
       this.digStates.set(actor, st);
     }
     return st;
@@ -114,9 +115,10 @@ export class CrateSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落) */
+  /** 手持锄头站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
+    try {
     const p = actor.player.group.position;
     const holding = actor.player.currentTool === 'hoe';
     let target: Crate | null = null;
@@ -137,7 +139,7 @@ export class CrateSystem {
       return;
     }
     st.digTarget = target;
-    actor.player.setAction('mine');
+    st.hold.hold(actor.player, 'mine');
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;
@@ -154,6 +156,9 @@ export class CrateSystem {
       if (slot) this.give(slot.kind, slot.count, actor);
     }
     this.fx.burst(target.group.position, '#a97b48', 14);
+    } finally {
+      st.hold.commit(actor.player);
+    }
   }
 
   /** 当前挖掘进度 0-1,未在挖掘时为 null */

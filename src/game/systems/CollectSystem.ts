@@ -144,6 +144,8 @@ export class CollectSystem {
   private swingTimer = 0;
   /** 本帧是否真的在作业(update 里含让位判定后写入):让位期间(如弓瞄准中)不算占用,否则会把让位给它的系统反向挤掉 */
   private workingNow = false;
+  /** 作业期间最后持有的动作,结束时只释放它 */
+  private workAction: ActionType | null = null;
   /** 已命中次数记在资源点上,走开后回来可继续 */
   private hitCounts = new Map<Prop, number>();
 
@@ -208,14 +210,14 @@ export class CollectSystem {
       !!this.nearby && this.canCollect(this.nearby) && !this.player.isMoving && !this.isBusy();
     const wasWorking = this.workingNow;
     this.workingNow = working;
-    // 只在作业期间持有动作、结束时清一次;不作业时不能每帧清动作,
+    // 只在作业期间持有动作、结束时释放一次自己最后持有的动作;不作业时不能每帧清动作,
     // 否则会把挥剑/放箭等其他系统刚设的动作抹掉(动画只播一帧)
     if (working) {
-      this.player.setAction(
-        this.isDigging(this.nearby!) ? 'mine' : HARVEST_CONFIG[kindOf(this.nearby!)].action
-      );
+      this.workAction = this.isDigging(this.nearby!) ? 'mine' : HARVEST_CONFIG[kindOf(this.nearby!)].action;
+      this.player.setAction(this.workAction);
     } else if (wasWorking) {
-      this.player.setAction(null);
+      if (this.workAction) this.player.releaseAction(this.workAction);
+      this.workAction = null;
     }
     if (!working) {
       this.swingTimer = 0;

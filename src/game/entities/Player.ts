@@ -457,6 +457,11 @@ export class Player implements Updatable {
     }
   }
 
+  /** 只在该动作仍由调用方持有时清掉,避免抹掉同帧被剑/弓等其他系统接管的动作。 */
+  releaseAction(action: ActionType): void {
+    if (this.action === action) this.setAction(null);
+  }
+
   /** 是否处于作业动画中(砍树/凿石/制作/吃喝/钓鱼等交互动作) */
   get isActing(): boolean {
     return this.action !== null;
@@ -588,9 +593,6 @@ export class Player implements Updatable {
       const step = speed * delta;
       p.x += (this.moveVec.x / len) * step;
       p.z += (this.moveVec.y / len) * step;
-      const half = this.terrain.size / 2 - 1;
-      p.x = THREE.MathUtils.clamp(p.x, -half, half);
-      p.z = THREE.MathUtils.clamp(p.z, -half, half);
       // 静态阻挡:被推出树、大石等不可穿越的物件(游泳时不管)
       if (!this.swimming) for (const o of this.obstacles) o.resolveCollision(p, PLAYER_RADIUS);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);

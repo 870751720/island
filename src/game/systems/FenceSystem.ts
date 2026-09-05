@@ -8,6 +8,7 @@ import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
+import { ActionHold } from './ActionHold';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
 /** 围栏网格边长:围栏柱吸附在整数格点上,相邻柱间距 1 */
@@ -49,6 +50,7 @@ type Segment = { ax: number; az: number; bx: number; bz: number };
 
 /** 每玩家的放置/挖掘进度与落点幽灵预览(围栏与门本身是世界共享的) */
 type PlayerSessionState = {
+  hold: ActionHold;
   swingTimer: number;
   hits: number;
   digTarget: { kind: 'fence' | 'gate'; key: string } | null;
@@ -150,7 +152,7 @@ export class FenceSystem implements ObstacleSolver {
       gatePreview.visible = false;
       this.scene.add(gatePreview);
 
-      st = { swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
       this.states.set(actor, st);
     }
     return st;
@@ -476,7 +478,7 @@ export class FenceSystem implements ObstacleSolver {
       st.placeTimer = 0;
       return;
     }
-    actor.player.setAction('craft');
+    st.hold.hold(actor.player, 'craft');
     st.placeTimer += delta;
     const need = gate ? GATE_PLACE_TIME : PLACE_TIME;
     if (st.placeTimer < need) return;
@@ -566,36 +568,40 @@ export class FenceSystem implements ObstacleSolver {
     this.st(actor).lastPlaceX = actor.player.group.position.x;
   }
 
-  /** 每帧推进该玩家的落点预览、自动放置与自动挖掘 */
+  /** 每帧推进该玩家的落点预览、自动放置与自动挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
-    this.updatePreview(actor, st);
-    this.updateAutoPlace(actor, st, delta);
+    try {
+      this.updatePreview(actor, st);
+      this.updateAutoPlace(actor, st, delta);
 
-    const holding = actor.player.currentTool === 'hoe';
-    let target: { kind: 'fence' | 'gate'; key: string } | null = null;
-    if (holding && !actor.player.isSwimming && !this.isBusy(actor)) {
-      target = this.findDigTarget(actor);
-    }
-    if (!target || actor.player.isMoving) {
-      st.digTarget = null;
+      const holding = actor.player.currentTool === 'hoe';
+      let target: { kind: 'fence' | 'gate'; key: string } | null = null;
+      if (holding && !actor.player.isSwimming && !this.isBusy(actor)) {
+        target = this.findDigTarget(actor);
+      }
+      if (!target || actor.player.isMoving) {
+        st.digTarget = null;
+        st.swingTimer = 0;
+        st.hits = 0;
+        return;
+      }
+      st.digTarget = target;
+      st.hold.hold(actor.player, 'mine');
+      st.swingTimer += delta;
+      if (st.swingTimer < SWING_TIME) return;
       st.swingTimer = 0;
+      st.hits += 1;
+      this.fx.burst(this.digCenter(target), '#a97b48', 6);
+      if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
       st.hits = 0;
-      return;
+      st.digTarget = null;
+      const center = this.digCenter(target);
+      this.removeByKey(actor, target.kind, target.key);
+      this.fx.burst(center, '#a97b48', 14);
+    } finally {
+      st.hold.commit(actor.player);
     }
-    st.digTarget = target;
-    actor.player.setAction('mine');
-    st.swingTimer += delta;
-    if (st.swingTimer < SWING_TIME) return;
-    st.swingTimer = 0;
-    st.hits += 1;
-    this.fx.burst(this.digCenter(target), '#a97b48', 6);
-    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
-    st.hits = 0;
-    st.digTarget = null;
-    const center = this.digCenter(target);
-    this.removeByKey(actor, target.kind, target.key);
-    this.fx.burst(center, '#a97b48', 14);
   }
 
   /** 挖掘目标的世界中心点 */

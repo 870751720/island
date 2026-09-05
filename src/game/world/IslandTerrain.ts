@@ -147,10 +147,11 @@ export class IslandTerrain {
     const stride = segments + 1;
     const cellSize = size / segments;
     this.heightAt = (x: number, z: number) => {
-      const gx = THREE.MathUtils.clamp((x + half) / cellSize, 0, segments - Number.EPSILON);
-      const gz = THREE.MathUtils.clamp((z + half) / cellSize, 0, segments - Number.EPSILON);
-      const ix = Math.floor(gx);
-      const iz = Math.floor(gz);
+      if (Math.abs(x) > half || Math.abs(z) > half) return -2.1;
+      const gx = THREE.MathUtils.clamp((x + half) / cellSize, 0, segments);
+      const gz = THREE.MathUtils.clamp((z + half) / cellSize, 0, segments);
+      const ix = Math.min(Math.floor(gx), segments - 1);
+      const iz = Math.min(Math.floor(gz), segments - 1);
       const u = gx - ix;
       const v = gz - iz;
       const a = vertexHeights[iz * stride + ix];
