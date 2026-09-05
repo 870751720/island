@@ -25,6 +25,13 @@ const BEACH_WIDTH = 22;
 /** 近岸抬升的满额高度:压过岛内噪声低谷,使 8 米外地面稳定高于草线 */
 const BEACH_RISE = 2.6;
 
+/** 近岸垂向压缩系数范围:水线以上的近岸高度按该系数向水线压扁,越小沙滩越宽 */
+const BEACH_FLATTEN_MIN = 0.1;
+const BEACH_FLATTEN_MAX = 0.3;
+/** 压缩淡出区间(岸内米数):超过后恢复原始高度,避免削平岛内丘陵 */
+const BEACH_FLATTEN_FADE_START = 20;
+const BEACH_FLATTEN_FADE_END = 32;
+
 const SAND = new THREE.Color('#e8d8a0');const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
 /** 水下的湿沙:沙色加深偏棕,不出现蓝色;随水深再向深棕渐变以区分浅滩与深水 */
@@ -98,12 +105,24 @@ export class IslandTerrain {
       // 近岸实距抬升:水线向内 BEACH_WIDTH 米内抬到 BEACH_RISE,
       // 保证低于草线(0.05)的低平地不向岛内延伸超过 BEACH_WIDTH
       const ramp = THREE.MathUtils.clamp(shoreDist / BEACH_WIDTH, 0, 1);
-      return (
+      const raw =
         f2sq * h -
         0.6 * (1 - f2sq) -
         (1 - falloff) * (1 - falloff) * 1.5 * shoreSteep +
-        BEACH_RISE * ramp
+        BEACH_RISE * ramp;
+      // 干沙滩加宽:近岸(水线以上)高度按噪声调制的系数向水线压扁,坡度随之变缓,
+      // 水线到草线的水平距离从约 1.5 米拓宽到约 5~8 米;水下与淡出区外完全不变
+      const flatten =
+        BEACH_FLATTEN_MIN +
+        noise(x * f2 + 201, z * f2 + 77) * (BEACH_FLATTEN_MAX - BEACH_FLATTEN_MIN);
+      const flat =
+        raw < this.seaLevel ? raw : this.seaLevel + (raw - this.seaLevel) * flatten;
+      const fade = THREE.MathUtils.smoothstep(
+        shoreDist,
+        BEACH_FLATTEN_FADE_START,
+        BEACH_FLATTEN_FADE_END
       );
+      return flat + (raw - flat) * fade;
     };
 
     const rng = (i: number) => {
