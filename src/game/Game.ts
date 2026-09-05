@@ -1246,8 +1246,9 @@ export class Game {
     });
   }
 
-  /** 房主收到客人放箭动作:补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
+  /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
   netArrowShot(actor: PlayerSession, dx: number, dz: number): void {
+    actor.inventory.remove('arrow', 1);
     actor.shotAnimLeft = 0.35;
     actor.archery.netPlayShot(dx, dz);
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });

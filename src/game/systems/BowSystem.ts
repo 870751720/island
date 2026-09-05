@@ -351,9 +351,8 @@ export class BowSystem {
     }
   }
 
-  /** 房主收到客人上行命中后的权威结算:扣一支箭并结算伤害/掉落(表现已在客人端播过) */
+  /** 房主收到客人上行命中后的权威结算:结算伤害/掉落(表现已在客人端播过;箭在放箭瞬间经 arrowShot 扣除) */
   settleNetHit(hit: ArrowHit, x: number, z: number): void {
-    if (!this.inventory.remove('arrow', 1)) return;
     this.applyHit(hit, x, z);
   }
 
