@@ -37,6 +37,18 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '⚡',
     description: '敲碎石头时偶尔蹦出的尖锐石片,与木头摩擦就能生起火堆。',
   },
+  ironOre: {
+    kind: 'ironOre',
+    name: '铁矿石',
+    icon: '🧲',
+    description: '北岛铁矿和陨石里挖出的含铁矿石,放进冶炼炉每 5 秒炼出 1 块铁锭。',
+  },
+  ironIngot: {
+    kind: 'ironIngot',
+    name: '铁锭',
+    icon: '⚙️',
+    description: '冶炼炉里炼出的铁块,坚硬可靠,是高级制作的核心材料。',
+  },
   berry: {
     kind: 'berry',
     name: '浆果',
@@ -391,6 +403,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🪣',
     description:
       '木板箍成的发酵桶。点击「使用」放到脚下(不能在水里,脚下也不能有别的东西),靠近打开桶盖,把食物丢进去:每 5 秒发酵 1 个食物变成鱼饵,桶里食物没消化完时桶口会冒出诱饵香;手持锄头靠近可以把整桶挖走。',
+  },
+  smelter: {
+    kind: 'smelter',
+    name: '冶炼炉',
+    icon: '🏭',
+    description:
+      '石块垒成的冶炼炉。点击「使用」放到脚下(不能在水里,脚下也不能有别的东西),靠近打开炉门,把铁矿石丢进去:每 5 秒炼出 1 块铁锭;手持锄头靠近可以把整炉挖走。',
   },
   fenceWood: {
     kind: 'fenceWood',

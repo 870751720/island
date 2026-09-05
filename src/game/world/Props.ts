@@ -26,12 +26,14 @@ const SWAY_CONFIG: Partial<Record<PropKind, { amp: number; freq: number }>> = {
 const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
   tree: 0.3,
   rock: 0.6,
+  iron: 0.6,
   meteor: 0.6,
 };
 
 export type PropKind =
   | 'tree'
   | 'rock'
+  | 'iron'
   | 'gravel'
   | 'berry'
   | 'shrub'
@@ -58,6 +60,7 @@ export type PropState = {
 const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   tree: { regrow: 0 },
   rock: { regrow: 0 },
+  iron: { regrow: 0 },
   gravel: { regrow: 0 },
   meteor: { regrow: 0 },
   berry: { regrow: 60 },
@@ -262,6 +265,34 @@ function makeMeteor(): THREE.Group {
   return g;
 }
 
+/** 铁矿:灰岩体表面嵌着锈红色铁斑 */
+function makeIron(): THREE.Group {
+  const g = new THREE.Group();
+  const rock = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.55, 0),
+    clayMaterial('#8a8a8a')
+  );
+  rock.scale.set(1, 0.85, 0.9);
+  rock.position.y = 0.4;
+  rock.castShadow = true;
+  g.add(rock);
+  const oreMat = clayMaterial('#b0714f');
+  const bits: [number, number, number][] = [
+    [0.3, 0.5, 0.22],
+    [-0.35, 0.42, 0.18],
+    [0.08, 0.62, -0.3],
+    [-0.18, 0.3, 0.45],
+    [0.42, 0.32, -0.2],
+  ];
+  for (const [x, y, z] of bits) {
+    const bit = new THREE.Mesh(new THREE.TetrahedronGeometry(0.11, 0), oreMat);
+    bit.position.set(x, y, z);
+    bit.rotation.set(0.4, 0.8, 0.2);
+    g.add(bit);
+  }
+  return g;
+}
+
 function makeGravel(): THREE.Group {
   const g = new THREE.Group();
   const mat = clayMaterial('#b5b0a8');
@@ -386,6 +417,7 @@ export class Props implements Updatable {
     let group: THREE.Group;
     if (kind === 'tree') group = new THREE.Group();
     else if (kind === 'rock') group = makeRock();
+    else if (kind === 'iron') group = makeIron();
     else if (kind === 'gravel') group = makeGravel();
     else if (kind === 'shrub') group = makeShrub();
     else if (kind === 'grass') group = makeGrassTuft();
@@ -587,6 +619,7 @@ export class Props implements Updatable {
         prop.group.visible = prop.growth === 'sprout' || prop.ready;
         break;
       case 'rock':
+      case 'iron':
       case 'meteor':
       case 'gravel':
       case 'worm':
@@ -681,7 +714,7 @@ export class Props implements Updatable {
         continue;
       }
       const y = this.terrain.getHeight(state.x, state.z);
-      const group = state.kind === 'rock' ? makeRock() : state.kind === 'gravel' ? makeGravel() : makeWormMound();
+      const group = state.kind === 'rock' ? makeRock() : state.kind === 'iron' ? makeIron() : state.kind === 'gravel' ? makeGravel() : makeWormMound();
       group.position.set(state.x, y - 0.05, state.z);
       group.rotation.y = state.rotationY;
       this.scene.add(group);

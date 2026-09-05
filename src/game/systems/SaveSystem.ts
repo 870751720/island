@@ -7,6 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
+import type { SmelterSave } from './SmelterSystem';
 
 const SAVE_KEY = 'island.save.v1';
 export const SAVE_VERSION = 29;
@@ -74,6 +75,8 @@ export type SaveData = {
   crates: (PlacementSave & { slots: InventorySlot[] })[];
   /** 场上所有饵料桶(落点与桶内食物/鱼饵,旧档缺省视为无) */
   baitBarrels?: BaitBarrelSave[];
+  /** 场上所有冶炼炉(落点与炉内矿石/铁锭,旧档缺省视为无) */
+  smelters?: SmelterSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
   fences: { id?: string; x: number; z: number; kind: 'wood' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */

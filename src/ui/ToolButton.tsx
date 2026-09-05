@@ -24,6 +24,7 @@ export function ToolButton({
   campfire = false,
   crate = false,
   baitBarrel = false,
+  smelter = false,
   bed = false,
   arrowCount = 0,
   baitCount = 0,
@@ -34,6 +35,7 @@ export function ToolButton({
   onCampfire,
   onCrate,
   onBaitBarrel,
+  onSmelter,
   onBed,
 }: {
   tool: HandTool;
@@ -46,6 +48,8 @@ export function ToolButton({
   crate?: boolean;
   /** 是否显示为饵料桶模式(靠近饵料桶) */
   baitBarrel?: boolean;
+  /** 是否显示为冶炼炉模式(靠近冶炼炉) */
+  smelter?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
   bed?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
@@ -61,6 +65,7 @@ export function ToolButton({
   onCampfire: () => void;
   onCrate: () => void;
   onBaitBarrel: () => void;
+  onSmelter: () => void;
   onBed: () => void;
 }) {
   return (
@@ -75,7 +80,9 @@ export function ToolButton({
               ? onCrate()
               : baitBarrel
                 ? onBaitBarrel()
-                : bed
+                : smelter
+                  ? onSmelter()
+                  : bed
                   ? onBed()
                   : onCycle();
       }}
@@ -96,7 +103,9 @@ export function ToolButton({
               ? 'rgba(154, 118, 62, 0.9)'
               : baitBarrel
                 ? 'rgba(151, 124, 74, 0.9)'
-                : bed
+                : smelter
+                  ? 'rgba(125, 130, 136, 0.9)'
+                  : bed
                   ? 'rgba(106, 110, 160, 0.9)'
                   : 'rgba(90, 110, 140, 0.8)',
         fontSize: 30,
@@ -104,17 +113,18 @@ export function ToolButton({
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire || crate || baitBarrel || bed
+          pulse || workbench || campfire || crate || baitBarrel || smelter || bed
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
         ...fadeStyle(dimmed),
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : bed ? '🛏️' : TOOL_ICONS[tool]}
+      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : smelter ? '🏭' : bed ? '🛏️' : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&
         !baitBarrel &&
+        !smelter &&
         !bed &&
         (tool === 'bow' ||
           tool === 'fishingrod' ||

@@ -7,6 +7,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   log: '#7a5230',
   stone: '#9a9a9a',
   flint: '#5f6a72',
+  ironOre: '#b07a5a',
+  ironIngot: '#c9ccd1',
+  smelter: '#7d8288',
   berry: '#c0392b',
   fiber: '#a4c46a',
   rope: '#d9c27a',
@@ -156,6 +159,60 @@ function makeStone(): THREE.Object3D {
   small.position.set(0.26, 0.05, 0.12);
   small.rotation.set(0.4, 1.2, 0.3);
   g.add(big, small);
+  return g;
+}
+
+/** 铁矿石:灰岩块上嵌着几粒锈红的铁斑 */
+function makeIronOre(): THREE.Object3D {
+  const g = new THREE.Group();
+  const rock = mesh(new THREE.DodecahedronGeometry(0.24, 0), clay(DROP_COLORS.stone));
+  rock.scale.set(1.05, 0.85, 0.95);
+  rock.rotation.set(0.25, 0.5, 0.15);
+  rock.position.y = 0.15;
+  g.add(rock);
+  const oreMat = clay(DROP_COLORS.ironOre);
+  const bits: [number, number, number][] = [
+    [0.14, 0.22, 0.1],
+    [-0.12, 0.2, -0.12],
+    [0.02, 0.26, 0.18],
+  ];
+  for (const [x, y, z] of bits) {
+    const bit = mesh(new THREE.TetrahedronGeometry(0.07, 0), oreMat);
+    bit.position.set(x, y, z);
+    bit.rotation.set(0.4, 0.8, 0.2);
+    g.add(bit);
+  }
+  return g;
+}
+
+/** 铁锭:上窄下宽的梯形金属块 */
+function makeIronIngot(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(DROP_COLORS.ironIngot);
+  const ingot = mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.12, 4), mat);
+  ingot.rotation.y = Math.PI / 4;
+  ingot.position.y = 0.07;
+  g.add(ingot);
+  return g;
+}
+
+/** 冶炼炉掉落物:小石炉身 + 炉口火光 */
+function makeSmelterDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const stoneMat = clay(DROP_COLORS.smelter);
+  const body = mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.2, 6), stoneMat);
+  body.position.y = 0.1;
+  g.add(body);
+  const glow = new THREE.MeshStandardMaterial({
+    color: '#e8703a',
+    emissive: '#c0392b',
+    emissiveIntensity: 0.9,
+    flatShading: true,
+    roughness: 1,
+  });
+  const mouth = mesh(new THREE.BoxGeometry(0.1, 0.07, 0.03), glow);
+  mouth.position.set(0, 0.08, 0.14);
+  g.add(mouth);
   return g;
 }
 
@@ -718,6 +775,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   log: makeLog,
   stone: makeStone,
   flint: makeFlint,
+  ironOre: makeIronOre,
+  ironIngot: makeIronIngot,
+  smelter: makeSmelterDrop,
   berry: makeBerry,
   fiber: makeFiber,
   rope: makeRope,

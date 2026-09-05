@@ -86,6 +86,16 @@ const HARVEST_CONFIG: Record<
       if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
     },
   },
+  iron: {
+    action: 'mine',
+    hits: 4,
+    fxColor: '#b0714f',
+    yield: (inv) => {
+      inv.add('stone', 2);
+      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
+      inv.add('ironOre', 2 + Math.floor(Math.random() * 3));
+    },
+  },
   meteor: {
     action: 'mine',
     hits: 4,
@@ -93,6 +103,7 @@ const HARVEST_CONFIG: Record<
     yield: (inv) => {
       inv.add('stone', 2);
       if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
+      inv.add('ironOre', 2 + Math.floor(Math.random() * 3));
     },
   },
   gravel: {
@@ -137,6 +148,7 @@ const REFINED_HITS: Partial<Record<HarvestKind, number>> = {
   tree: 2,
   stump: 1,
   rock: 3,
+  iron: 3,
   meteor: 3,
 };
 
@@ -256,7 +268,7 @@ export class CollectSystem {
     if (kind === 'tree' || kind === 'stump' || kind === 'sapling') {
       return this.player.currentTool === 'axe';
     }
-    if (prop.kind === 'rock' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
+    if (prop.kind === 'rock' || prop.kind === 'iron' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
     // 蚯蚓土坑要用锄头挖
     if (prop.kind === 'worm') return this.player.currentTool === 'hoe';
     return true;

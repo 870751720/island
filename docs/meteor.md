@@ -25,3 +25,9 @@
 - `src/game/systems/CollectSystem.ts`:`HARVEST_CONFIG` 增加 meteor 条目(采石动作、4 次命中、石头×2 + 25% 燧石,命中特效橙色);`canCollect` 要求手持镐子,同岩石。
 - `src/game/Game.ts`:头顶提示/工具自动切换中陨石与岩石同文案(「采石」/镐子);`MeteorSystem` 挂在昼夜系统之后每帧更新。
 - 存档:`SAVE_VERSION` 2→3(meteor 种类进 PropKind,结构变化按约定弃旧档)。
+
+## 迭代记录
+
+### 铁矿石产出(2026-09)
+
+- 陨石采集产出在石头 ×2 + 25% 燧石基础上新增铁矿石 ×2-4(见 `iron.md`)。

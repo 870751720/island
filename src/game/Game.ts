@@ -23,6 +23,7 @@ import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
+import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { ShrineSystem } from './systems/ShrineSystem';
@@ -119,6 +120,8 @@ export type HudSnapshot = {
   nearCrate: boolean;
   /** 玩家在饵料桶旁(工具按钮变为饵料桶,点击打开投喂/收取面板) */
   nearBaitBarrel: boolean;
+  /** 玩家在冶炼炉旁(工具按钮变为冶炼炉,点击打开投料/收取面板) */
+  nearSmelter: boolean;
   /** 玩家在床旁(工具按钮变为床,点击开始睡觉) */
   nearBed: boolean;
   /** 睡觉过渡进行中与进度 */
@@ -128,6 +131,8 @@ export type HudSnapshot = {
   crateSlots: InventorySlot[] | null;
   /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
   baitBarrelInfo: BaitBarrelInfo | null;
+  /** 身旁冶炼炉的状态(炉内矿石/铁锭与冶炼进度,不在炉旁为 null) */
+  smelterInfo: SmelterInfo | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
   equipped: Record<EquipSlot, EquipKind | null>;
   tool: HandTool;
@@ -220,6 +225,7 @@ type InteractionKind =
   | 'campfire'
   | 'crates'
   | 'baitBarrels'
+  | 'smelters'
   | 'fences'
   | 'beds'
   | 'shrines';
@@ -317,6 +323,7 @@ export class Game {
   private workbench: WorkbenchSystem;
   private crates: CrateSystem;
   private baitBarrels: BaitBarrelSystem;
+  private smelters: SmelterSystem;
   private fences: FenceSystem;
   private beds: BedSystem;
   private shrines: ShrineSystem;
@@ -615,6 +622,17 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'baitBarrels')
     );
+    this.smelters = new SmelterSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 收取铁锭/挖回冶炼炉与炉内矿石入包,背包放不下的部分掉到玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'smelters')
+    );
     this.beds = new BedSystem(
       this.scene,
       this.terrain,
@@ -781,6 +799,7 @@ export class Game {
           s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
           this.crates.updateActor(s, delta);
           this.baitBarrels.updateActor(s, delta);
+          this.smelters.updateActor(s, delta);
           this.fences.updateActor(s, delta);
           this.beds.updateActor(s, delta);
           this.shrines.updateActor(s, delta);
@@ -805,6 +824,7 @@ export class Game {
         this.campfire.update(delta, elapsed);
         this.shrines.update(delta, elapsed);
         this.baitBarrels.update(delta, elapsed, !this.guestMode);
+    this.smelters.update(delta, elapsed, !this.guestMode);
         this.drops.update(delta, elapsed);
         this.mumbles.update(delta, {
           elapsed,
@@ -1019,6 +1039,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      smelters: this.smelters.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
@@ -1040,6 +1061,7 @@ export class Game {
     });
     this.crates.setChangeSink(send('crates'));
     this.baitBarrels.setChangeSink(send('baitBarrels'));
+    this.smelters.setChangeSink(send('smelters'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
     this.beds.setChangeSink(send('beds'));
     this.shrines.setChangeSink(send('shrines'));
@@ -1307,6 +1329,9 @@ export class Game {
     if (state.baitBarrels) {
       this.baitBarrels.netApply(state.baitBarrels);
     }
+    if (state.smelters) {
+      this.smelters.netApply(state.smelters);
+    }
     if (state.fences || state.fenceGates) {
       this.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
     }
@@ -1462,6 +1487,7 @@ export class Game {
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
     if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
+    if (save.smelters) this.smelters.restore(save.smelters);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
     this.shrines.restore(save.shrines ?? []);
@@ -1526,6 +1552,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      smelters: this.smelters.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
@@ -1756,7 +1783,7 @@ export class Game {
         return 'axe';
       }
       if (
-        (nearby.kind === 'rock' || nearby.kind === 'meteor') &&
+        (nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor') &&
         this.tools.pickaxe &&
         this.player.currentTool !== 'pickaxe'
       ) {
@@ -2287,6 +2314,45 @@ export class Game {
     return true;
   }
 
+  /** 背包里点击「使用」冶炼炉:校验通过后在玩家脚下原地放下,不满足时给出提示 */
+  useSmelter(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useSmelter', []);
+
+    if (this.asleepFor(actor) || !this.smelters.use(actor)) {
+      this.notify('这里放不下,找个没东西的干地试试');
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
+  /** 把背包里全部铁矿石丢进身旁冶炼炉(每 5 秒炼 1 块铁锭),失败时给出提示 */
+  smelterFeed(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('smelterFeed', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.smelters.feed(actor)) {
+      this.notify('炉里装不下了');
+      return false;
+    }
+    return true;
+  }
+
+  /** 收取身旁冶炼炉里炼好的全部铁锭,失败时给出提示 */
+  smelterCollect(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('smelterCollect', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.smelters.collect(actor)) {
+      this.notify('背包满了,装不下更多东西');
+      return false;
+    }
+    return true;
+  }
+
   /** 向身旁火堆添加 1 个可燃物,返回是否成功 */  campfireAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('campfireAddFuel', [kind]);
@@ -2424,6 +2490,7 @@ export class Game {
     this.workbench.detach(session);
     this.crates.detach(session);
     this.baitBarrels.detach(session);
+    this.smelters.detach(session);
     this.fences.detach(session);
     this.beds.detach(session);
     this.shrines.detach(session);
@@ -2452,6 +2519,7 @@ export class Game {
     if (exclude !== 'campfire' && this.campfire.isBusy(s)) return true;
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
     if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
+    if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
       return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
@@ -2706,11 +2774,13 @@ export class Game {
       toolTiers: { ...s.tools },
       nearCrate: !!this.crates.nearby(s),
       nearBaitBarrel: !!this.baitBarrels.nearby(s),
+      nearSmelter: !!this.smelters.nearby(s),
       nearBed: !!this.beds.nearby(s),
       bedSleeping: this.beds.isSleeping(s),
       bedSleepProgress: this.beds.getSleepProgress(s) ?? 0,
       crateSlots: this.crates.nearbySlots(s),
       baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
+      smelterInfo: this.smelters.nearbyInfo(s),
       equipped: s.equipment.snapshot(),
       tool: s.player.currentTool,
       craftId: s.crafting.currentRecipe?.id ?? null,
@@ -2794,7 +2864,7 @@ export class Game {
       const tool =
         nearby?.kind === 'tree'
           ? '斧子'
-          : nearby?.kind === 'rock' || nearby?.kind === 'meteor'
+          : nearby?.kind === 'rock' || nearby?.kind === 'iron' || nearby?.kind === 'meteor'
             ? '镐子'
             : nearby?.kind === 'worm'
               ? '锄头'
@@ -2880,6 +2950,9 @@ export class Game {
     } else if (this.baitBarrels.isDigging(session)) {
       label = '挖饵料桶…';
       progress = this.baitBarrels.getDigProgress(session);
+    } else if (this.smelters.isDigging(session)) {
+      label = '挖冶炼炉…';
+      progress = this.smelters.getDigProgress(session);
     } else if (this.fences.isPlacing(session)) {
       label = session.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
       progress = this.fences.getPlaceProgress(session);
@@ -2932,7 +3005,7 @@ export class Game {
       label =
         nearby.kind === 'tree'
           ? '砍树'
-          : nearby.kind === 'rock' || nearby.kind === 'meteor'
+          : nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor'
             ? '采石'
             : nearby.kind === 'gravel'
               ? '捡石头'
@@ -2964,7 +3037,7 @@ export class Game {
             : session.tools.axe
               ? '需要手持斧子'
               : '需要斧子'
-          : nearby.kind === 'rock' || nearby.kind === 'meteor'
+          : nearby.kind === 'rock' || nearby.kind === 'iron' || nearby.kind === 'meteor'
             ? switching
               ? '切换镐子…'
               : session.tools.pickaxe

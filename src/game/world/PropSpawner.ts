@@ -5,10 +5,11 @@ import type { TreeSpecies } from './TreeSpecies';
 import { isPassage, landCells, latitude, SpawnSpacing, type GroundPoint } from './SpawnLayout';
 
 export type PropSpot = { kind: PropKind; x: number; z: number; species?: TreeSpecies };
-type Rule = { kind: PropKind; density: number; radius: number; patch: number; weights: number[] };
+type Rule = { kind: PropKind; density: number; radius: number; patch: number; weights: number[]; minT?: number };
 const RULES: Rule[] = [
   { kind: 'tree', density: 60, radius: 1.8, patch: 12, weights: [0.9, 1.1, 1, 1.2] },
   { kind: 'rock', density: 18, radius: 1.2, patch: 6, weights: [0.5, 0.7, 1.4, 2] },
+  { kind: 'iron', density: 10, radius: 1.2, patch: 4, weights: [0.4, 0.6, 1, 1.3], minT: 0.5 },
   { kind: 'gravel', density: 23, radius: 0.7, patch: 1, weights: [1, 0.8, 1.2, 1.5] },
   { kind: 'berry', density: 12, radius: 0.8, patch: 4, weights: [1.8, 1.3, 0.7, 0.4] },
   { kind: 'shrub', density: 21, radius: 0.8, patch: 5, weights: [1.3, 1.2, 0.9, 0.7] },
@@ -42,6 +43,8 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
   const place = (rule: Rule, x: number, z: number): boolean => {
     p.set(x, terrain.getHeight(x, z), z);
     if (p.y <= 0.3 || terrain.isNearWater(p, 1)) return false;
+    // 有硬性纬度下限的资源(铁矿)不出现在下限以北
+    if (rule.minT !== undefined && latitude(terrain, z) < rule.minT) return false;
     if (Math.abs(x - camp.x) < 6 && Math.abs(z - camp.z) < 6) return false;
     if (rule.radius > 1 && isPassage(x, z)) return false;
     if (!spacing.accepts(x, z, rule.radius)) return false;
@@ -76,7 +79,7 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
     }
   }
   for (const rule of RULES) {
-    const usable = cells.filter(c => !(rule.radius > 1 && isPassage(c.x, c.z)) && !(Math.abs(c.x - camp.x) < 6 && Math.abs(c.z - camp.z) < 6));
+    const usable = cells.filter(c => !(rule.radius > 1 && isPassage(c.x, c.z)) && !(Math.abs(c.x - camp.x) < 6 && Math.abs(c.z - camp.z) < 6) && !(rule.minT !== undefined && latitude(terrain, c.z) < rule.minT));
     const target = Math.max(counts.get(rule.kind) ?? 0, Math.round(usable.length * 16 * rule.density / 10000));
     const maxWeight = Math.max(...rule.weights), anchors: GroundPoint[] = [];
     const anchorCount = Math.ceil(target * 0.7 / rule.patch);

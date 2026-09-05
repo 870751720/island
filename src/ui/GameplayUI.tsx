@@ -30,6 +30,7 @@ import { bedItemLevel } from '@/game/systems/BedSystem';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { BaitBarrelPanel } from './BaitBarrelPanel';
+import { SmelterPanel } from './SmelterPanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { TreasureWheel } from './TreasureWheel';
@@ -74,11 +75,13 @@ const INITIAL_HUD: HudSnapshot = {
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
   nearCrate: false,
   nearBaitBarrel: false,
+  nearSmelter: false,
   nearBed: false,
   bedSleeping: false,
   bedSleepProgress: 0,
   crateSlots: null,
   baitBarrelInfo: null,
+  smelterInfo: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
   craftId: null,
@@ -121,9 +124,10 @@ const INITIAL_HUD: HudSnapshot = {
  * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
  * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
  */
-const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'bed', boolean>> = {
+const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'smelter' | 'bed', boolean>> = {
   crate: true,
   baitBarrel: true,
+  smelter: true,
   workbench: true,
   bed: true,
 };
@@ -134,12 +138,14 @@ function hijackerDiggable(
   nearCampfire: boolean,
   nearCrate: boolean,
   nearBaitBarrel: boolean,
+  nearSmelter: boolean,
   nearBed: boolean
 ): boolean {
   if (nearWorkbench) return !!HIJACK_DIGGABLE.workbench;
   if (nearCampfire) return !!HIJACK_DIGGABLE.campfire;
   if (nearCrate) return !!HIJACK_DIGGABLE.crate;
   if (nearBaitBarrel) return !!HIJACK_DIGGABLE.baitBarrel;
+  if (nearSmelter) return !!HIJACK_DIGGABLE.smelter;
   if (nearBed) return !!HIJACK_DIGGABLE.bed;
   return false;
 }
@@ -167,6 +173,7 @@ export function GameplayUI({
   const [campfireOpen, setCampfireOpen] = useState(false);
   const [crateOpen, setCrateOpen] = useState(false);
   const [baitBarrelOpen, setBaitBarrelOpen] = useState(false);
+  const [smelterOpen, setSmelterOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
   const dogEmojiRef = useRef<HTMLDivElement>(null);
   const vitalWarnRef = useRef<VitalWarnHandle>(null);
@@ -230,6 +237,9 @@ export function GameplayUI({
   useEffect(() => {
     if (!hud.nearBaitBarrel) setBaitBarrelOpen(false);
   }, [hud.nearBaitBarrel]);
+  useEffect(() => {
+    if (!hud.nearSmelter) setSmelterOpen(false);
+  }, [hud.nearSmelter]);
   // 死亡后关闭所有弹出的面板
   useEffect(() => {
     if (hud.dead) {
@@ -238,6 +248,7 @@ export function GameplayUI({
       setCampfireOpen(false);
       setCrateOpen(false);
       setBaitBarrelOpen(false);
+      setSmelterOpen(false);
     }
   }, [hud.dead]);
 
@@ -333,7 +344,7 @@ export function GameplayUI({
   // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
     hud.tool === 'hoe' &&
-    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearBed);
+    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearSmelter, hud.nearBed);
 
   return (
     <div
@@ -467,6 +478,11 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'smelter') {
+            gameRef.current?.useSmelter();
+            setBackpackOpen(false);
+            return;
+          }
           if (kind === 'fenceWood' || kind === 'fenceStone' || kind === 'fenceGate') {
             gameRef.current?.useFenceItem(kind);
             setBackpackOpen(false);
@@ -516,6 +532,7 @@ export function GameplayUI({
             hud.nearCampfire ||
             hud.nearCrate ||
             hud.nearBaitBarrel ||
+            hud.nearSmelter ||
             hud.nearBed) && (
             <ToolButton
               tool={hud.tool}
@@ -531,12 +548,22 @@ export function GameplayUI({
                 hud.craftId === null &&
                 !digHijack
               }
+              smelter={
+                hud.nearSmelter &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                hud.craftId === null &&
+                !digHijack
+              }
               bed={
                 hud.nearBed &&
                 !hud.nearWorkbench &&
                 !hud.nearCampfire &&
                 !hud.nearCrate &&
                 !hud.nearBaitBarrel &&
+                !hud.nearSmelter &&
                 hud.craftId === null &&
                 !hud.bedSleeping &&
                 !digHijack
@@ -550,6 +577,7 @@ export function GameplayUI({
               onCampfire={() => setCampfireOpen(true)}
               onCrate={() => setCrateOpen(true)}
               onBaitBarrel={() => setBaitBarrelOpen(true)}
+              onSmelter={() => setSmelterOpen(true)}
               onBed={() => gameRef.current?.sleep()}
             />
           )}
@@ -588,6 +616,14 @@ export function GameplayUI({
               onFeed={(kind) => gameRef.current?.baitBarrelFeed(kind)}
               onCollect={() => gameRef.current?.baitBarrelCollect()}
               onClose={() => setBaitBarrelOpen(false)}
+            />
+          )}
+          {smelterOpen && hud.nearSmelter && (
+            <SmelterPanel
+              hud={hud}
+              onFeed={() => gameRef.current?.smelterFeed()}
+              onCollect={() => gameRef.current?.smelterCollect()}
+              onClose={() => setSmelterOpen(false)}
             />
           )}
           <CraftPrompt
