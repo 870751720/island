@@ -1212,8 +1212,12 @@ export class Game {
     } else {
       this.netEatTick = 0;
     }
-    // 自动切工具进度由客人本地计时(房主不知道客人端该值),覆盖后再下发 UI
-    this.onHud({ ...snap, autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY });
+    // 自动切工具进度由客人本地计时(房主不知道客人端该值),提示也只用客人本地 notice,覆盖后再下发 UI
+    this.onHud({
+      ...snap,
+      autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
+      notice: this.notice,
+    });
   }
 
   /** 熊击某玩家的最终结算:减伤掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
@@ -1574,7 +1578,7 @@ export class Game {
     }
   }
 
-  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子、水边→鱼竿),不满足条件返回 null */
+  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子),不满足条件返回 null;钓鱼不自动切换 */
   private wantedTool(): HandTool | null {
     if (
       this.player.isMoving ||
@@ -1603,13 +1607,6 @@ export class Game {
         return 'hoe';
       }
       return null;
-    }
-    if (
-      this.tools.fishingrod &&
-      this.player.currentTool !== 'fishingrod' &&
-      this.fishing.canFishHere()
-    ) {
-      return 'fishingrod';
     }
     return null;
   }
@@ -2351,15 +2348,15 @@ export class Game {
     this.lastBusy = busy;
     if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged) return;
     this.hudTimer = 0;
-    this.onHud(this.snapshotHud(this.local, busy));
+    this.onHud({ ...this.snapshotHud(this.local, busy), notice: this.notice });
   }
 
-  /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发) */
-  hudFor(s: PlayerSession): HudSnapshot {
+  /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发;notice 是房主本地提示,不下发) */
+  hudFor(s: PlayerSession): Omit<HudSnapshot, 'notice'> {
     return this.snapshotHud(s, false);
   }
 
-  private snapshotHud(s: PlayerSession, busy: boolean): HudSnapshot {
+  private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
     return {
       ...s.survival.state,
       wood: s.inventory.count('wood'),
@@ -2421,7 +2418,6 @@ export class Game {
       biteClicks: s.fishing.biteClicks,
       biteNeed: s.fishing.biteNeed,
       nearDrop: this.drops.getNearby(s),
-      notice: this.notice,
       day: this.dayNight.day,
       busy,
       indicator: this.indicatorFor(s),

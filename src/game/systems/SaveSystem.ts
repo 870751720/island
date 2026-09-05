@@ -37,8 +37,8 @@ export type SessionSave = {
   handTool: HandTool;
 };
 
-/** 火堆/工作台/掉落物等摆件的落点 */
-export type PlacementSave = { id?: string; x: number; y: number; z: number };
+/** 火堆/工作台/掉落物等摆件的落点(朝向仅上下左右四向,旧档缺省视为 0) */
+export type PlacementSave = { id?: string; x: number; y: number; z: number; rotY?: number };
 
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {

@@ -535,10 +535,21 @@ export class FenceSystem implements ObstacleSolver {
     return !!this.states.get(actor)?.digTarget;
   }
 
-  /** 世界侧每帧更新:门对任一玩家的靠近自动开合;各玩家的放置/挖掘由 updateActor 推进 */
+  /** 世界侧每帧更新:门对最近玩家的靠近自动开合,并向玩家所在一侧的对侧打开;各玩家的放置/挖掘由 updateActor 推进 */
   update(delta: number, players = [...this.states.keys()].map((actor) => actor.player.group.position)): void {
     for (const gate of this.gates.values()) {
-      gate.setPlayerNear(players.some((p) => Math.hypot(p.x - gate.centerX, p.z - gate.centerZ) < GATE_AUTO_RANGE));
+      // 门局部 +z 轴在世界系中的方向(门朝向只可能是 0 或 90 度,轴向无误差)
+      const localZ = gate.dir === 'x' ? { x: 0, z: 1 } : { x: 1, z: 0 };
+      let near: boolean = false;
+      let side: 1 | -1 = 1;
+      for (const p of players) {
+        if (Math.hypot(p.x - gate.centerX, p.z - gate.centerZ) < GATE_AUTO_RANGE) {
+          near = true;
+          side = (p.x - gate.centerX) * localZ.x + (p.z - gate.centerZ) * localZ.z >= 0 ? 1 : -1;
+          break;
+        }
+      }
+      gate.setPlayerNear(near, side);
       gate.update(delta);
     }
     // 门开合会改变阻挡,统一在帧末重算

@@ -82,13 +82,14 @@ export class Bed {
   constructor(
     scene: THREE.Scene,
     position: THREE.Vector3,
-    public level = 1
+    public level = 1,
+    rotY = 0
   ) {
     this.level = Math.min(Math.max(level, 1), BED_MAX_LEVEL);
     this.group = new THREE.Group();
     this.group.position.copy(position);
     this.group.position.y -= 0.02;
-    this.group.rotation.y = Math.random() * Math.PI * 2;
+    this.group.rotation.y = rotY;
     scene.add(this.group);
     this.group.add(makeBedMesh(this.level));
   }

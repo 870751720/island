@@ -357,3 +357,9 @@
 - 四档奖池新增「复活石」与「波塞冬的祝福」。复活:房主权威端在死亡瞬间结算复活石(客人端不本地尝试,避免与房主背包权威冲突),碎裂一颗立即在出生点无惩罚复活,`NET_PROTOCOL_VERSION` 升至 13,新增 `NetEvent reviveFx { target }` 补播表现——客人本人当帧不会看到 dead,提示与音效靠该事件;其他玩家看到出生点光效。
 - 神像:走既有世界摆件同步管线,`WorldPatch` 新增 `shrines` section(放置/挖除经 change sink 广播增量,客人 `netApply` 重放);放置动作上行 `useShrine`(Actions 表)由房主权威结算。祝福为全岛全局效果,杂物概率削减只发生在房主抽档处(`rollTier(baited, junkCut)`),客人档位本就由快照回流,天然一致。
 - Buff 展示:`HudSnapshot` 新增 `buffs: HudBuff[]`(来源:全局 `poseidon` 神像祝福 + 个人 `bearSlow` 熊扑减速)。房主按会话计算(远程会话的减速由房主 applyWildlifeHit 施加,数据同源)随 HUD 快照定向下发;波塞冬祝福所有玩家都显示,熊扑减速只显示在被扑玩家自己的界面上。均为展示数据,不新增权威状态。
+
+### M34 提示私有化/围栏门双向开/摆件四向朝向(2026-09-05)
+
+- 修复:房主本地提示(notice,如复活石苏醒提示)此前包含在 `hudFor` 下发给客人的 HUD 快照里,房主收到任何提示客人也会看到同一条。`snapshotHud` 不再产出 `notice`(类型改为 `Omit<HudSnapshot,'notice'>`),单机/房主本地 UI 与客人端 `netApplyHud` 各自合并本地 notice 后再交 UI,提示彻底私有化;客人本人的复活提示仍由 `reviveFx` 事件触发。
+- 围栏门开向:门扇摆向不再固定,由靠近玩家站在门带的哪一侧决定,总是向玩家背侧打开(各端表现本地计算,不影响阻挡同步)。
+- 摆件朝向:工作台/床/木箱放置时朝向取玩家面向并量化为上下左右四向(`core/Facing.cardinalRotY`),替代原来的随机朝向/固定朝向;`PlacementSave` 与世界增量 value 新增可选 `rotY`(旧档缺省 0,存档版本不变),客人端 `netApply` 与存档 `restore` 均按 `rotY` 重建。

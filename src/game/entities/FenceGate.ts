@@ -18,6 +18,8 @@ export class FenceGate {
   private leafR: THREE.Object3D;
   private openTarget = false;
   private open = 0;
+  /** 门扇摆向(门局部 +z 或 -z):由靠近的玩家站在门的哪一侧决定,总是背离玩家打开 */
+  private swing: 1 | -1 = 1;
   /** 门是否已开到位(开着的门不阻挡) */
   get isOpen(): boolean {
     return this.open > 0.5;
@@ -88,12 +90,13 @@ export class FenceGate {
     return this.gz + (this.dir === 'z' ? 2 : 0);
   }
 
-  /** 玩家是否在门边(自动开门范围) */
-  setPlayerNear(near: boolean): void {
+  /** 玩家是否在门边(自动开门范围);side 为玩家相对门局部 +z/-z 侧,门向另一侧打开 */
+  setPlayerNear(near: boolean, side: 1 | -1 = 1): void {
     this.openTarget = near;
+    this.swing = near ? ((-side) as 1 | -1) : this.swing;
   }
 
-  /** 门扇缓缓对开/合拢 */
+  /** 门扇缓缓对开/合拢(开启方向背离靠近的玩家) */
   update(delta: number): void {
     const speed = 4;
     this.open = THREE.MathUtils.clamp(
@@ -101,8 +104,8 @@ export class FenceGate {
       0,
       1
     );
-    this.leafL.rotation.y = -OPEN_ANGLE * this.open;
-    this.leafR.rotation.y = OPEN_ANGLE * this.open;
+    this.leafL.rotation.y = -OPEN_ANGLE * this.open * this.swing;
+    this.leafR.rotation.y = OPEN_ANGLE * this.open * this.swing;
   }
 
   remove(scene: THREE.Scene): void {

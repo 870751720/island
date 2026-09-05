@@ -104,11 +104,12 @@ export class Workbench {
   readonly group: THREE.Group;
   private currentLevel: number;
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, level = 1) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, level = 1, rotY = 0) {
     this.currentLevel = Math.min(Math.max(level, 1), WORKBENCH_MAX_LEVEL);
     this.group = new THREE.Group();
     this.group.position.copy(position);
     this.group.position.y -= 0.05;
+    this.group.rotation.y = rotY;
     scene.add(this.group);
     this.rebuild();
   }

@@ -34,7 +34,7 @@ type Guest = {
   birds: Map<string | number, AmbientPose>;
   butterflies: Map<string | number, AmbientPose>;
   dog: AmbientPose | null;
-  hud: HudSnapshot | null;
+  hud: Omit<HudSnapshot, 'notice'> | null;
   climate: string;
 };
 

@@ -32,11 +32,11 @@ export class Crate {
   readonly group: THREE.Group;
   readonly storage: Inventory;
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
     this.group.position.y -= 0.02;
-    this.group.rotation.y = Math.random() * Math.PI * 2;
+    this.group.rotation.y = rotY;
     scene.add(this.group);
     this.group.add(makeCrateMesh());
     this.storage = new Inventory();
