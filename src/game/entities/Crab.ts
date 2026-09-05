@@ -169,6 +169,8 @@ export class Crabs implements Updatable {
     private playerPositions: () => THREE.Vector3[],
     /** 围栏等静态阻挡:点在阻挡内时螃蟹不可走 */
     private isBlocked: (x: number, z: number) => boolean = () => false,
+    /** 螃蟹受击未死时通知联机层广播(客人端补播闪红);单机/离线无回调 */
+    private onHit: (crabId: number) => void = () => {},
     rng: () => number = Math.random
   ) {
     const size = terrain.size;
@@ -304,6 +306,12 @@ export class Crabs implements Updatable {
     }
   }
 
+  /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */
+  netFlash(id: number): void {
+    const crab = this.crabs.find((c) => c.id === id);
+    if (crab?.alive) this.fx.flash(crab.model.group);
+  }
+
   netPoses(): AmbientPose[] {
     return this.crabs.map((crab) => ({
       id: crab.id,
@@ -421,6 +429,7 @@ export class Crabs implements Updatable {
     best.hp -= damage;
     if (best.hp > 0) {
       this.fx.flash(best.model.group);
+      this.onHit(best.id);
       return false;
     }
     best.alive = false;

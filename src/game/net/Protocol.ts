@@ -70,6 +70,8 @@ export type NetEvent =
   | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }
   | { kind: 'wildlifeHit'; target: string; damage: number; pounce: boolean }
   | { kind: 'wildlifeAttack'; animalId: number }
+  /** 房主结算生物受击(未死):客人端补播受击闪红(死亡表现由姿态快照翻转驱动) */
+  | { kind: 'creatureHit'; target: 'wildlife' | 'crab' | 'bird'; id: number }
   /** 玩家放箭的视觉广播(命中由射手端判定、arrowHit 动作结算):他人端复现箭矢飞行与放箭动作 */
   | { kind: 'arrowShot'; actor: string; dx: number; dz: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }

@@ -435,7 +435,9 @@ export class Game {
       // 螃蟹躲着所有玩家跑,联机时客人靠近同样会惊跑
       () => this.sessions.map((s) => s.player.group.position),
       // 挡玩家的物件也挡地上的动物(成树/树桩/大石/围栏),鸟和蝴蝶会飞不受限
-      (x, z) => this.isGroundBlocked(x, z)
+      (x, z) => this.isGroundBlocked(x, z),
+      // 受击未死:广播给客人补播闪红
+      (id) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'crab', id })
     );
     // 蝴蝶会被场上任意玩家惊飞(联机时客人靠近同样惊飞)
     this.butterflies = new Butterflies(
@@ -447,7 +449,9 @@ export class Game {
       this.scene,
       this.terrain,
       this.props,
-      () => this.sessions.filter((s) => !s.survival.state.dead).map((s) => s.player)
+      () => this.sessions.filter((s) => !s.survival.state.dead).map((s) => s.player),
+      // 受击未死:广播给客人补播闪红
+      (id) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'bird', id })
     );
     // 熊扑击玩家的结算:装备防御减伤(至少 1 点)+ 头顶伤害数字 + 泛红特效与音效
     this.wildlife = new Wildlife(
@@ -458,6 +462,8 @@ export class Game {
         this.applyWildlifeHit(this.sessionOf(player), damage, !!pounce);
       },
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
+      // 动物受击未死:广播给客人补播闪红
+      (animalId) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'wildlife', id: animalId }),
       (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'collectFx', x, y, z, color: '#b3a284', count: 10 }),
       (player: Player) => {
         const session = this.sessionOf(player);
@@ -1096,6 +1102,13 @@ export class Game {
     }
     if (event.kind === 'wildlifeAttack') {
       this.wildlife.netPlayAttack(event.animalId);
+      return;
+    }
+    // 生物受击未死的补播:闪红表现(血量与死亡由房主权威结算,经快照回流)
+    if (event.kind === 'creatureHit') {
+      if (event.target === 'wildlife') this.wildlife.netFlash(event.id);
+      else if (event.target === 'crab') this.crabs.netFlash(event.id);
+      else if (event.target === 'bird') this.birds.netFlash(event.id);
       return;
     }
     // 他人放箭:本地复现箭矢飞行(放箭动作随姿态快照回流,命中由射手端判定)

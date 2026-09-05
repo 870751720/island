@@ -412,3 +412,7 @@
 - 螃蟹/鸟的 ambient 同步从数组下标改为稳定递增 id(与野兽同约定):客人端 `netApply` 对未知 id 且存活的姿态补建实体(鸟经 `AmbientPose.variant` 羽色序号保持外观一致),对快照缺失且本地尸体动画已播完的 id 清理实体。协议新增可选字段 `variant`,向后兼容。
 - 渐隐时长 1s→5s(倒地 0.45s + 停留 5s + 渐隐 5s)。
 - GM 配置新增 `attackMultiplier`(默认 1),作用于剑/弓的伤害结算,随既有 `gm` 事件同步。
+
+### M43 客人端补播生物受击闪红(2026-09-05)
+
+- 受击闪红是短时表现,不进姿态快照:房主在 `applyDamage`/`damageNearby` 结算受击未死时经可靠事件 `creatureHit {target: wildlife|crab|bird, id}` 广播(仅发客人,房主本地已播),客人端按 id 调各系统 `netFlash` 补播;死亡表现仍由姿态快照 `alive/visible` 翻转驱动,不变。

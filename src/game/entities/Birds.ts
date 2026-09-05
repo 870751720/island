@@ -193,6 +193,8 @@ export class Birds implements Updatable {
     private terrain: IslandTerrain,
     private props: Props,
     private players: () => { group: THREE.Group }[],
+    /** 鸟受击未死时通知联机层广播(客人端补播闪红);单机/离线无回调 */
+    private onHit: (birdId: number) => void = () => {},
     rng: () => number = Math.random
   ) {
     for (let i = 0; i < this.desiredCount; i++) {
@@ -405,6 +407,12 @@ export class Birds implements Updatable {
     }
   }
 
+  /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */
+  netFlash(id: number): void {
+    const bird = this.birds.find((b) => b.id === id);
+    if (bird?.alive) this.fx.flash(bird.model.group);
+  }
+
   netPoses(): AmbientPose[] {
     return this.birds.map((bird) => ({
       id: bird.id,
@@ -523,6 +531,7 @@ export class Birds implements Updatable {
     best.hp -= damage;
     if (best.hp > 0) {
       this.fx.flash(best.model.group);
+      this.onHit(best.id);
       return false;
     }
     best.alive = false;

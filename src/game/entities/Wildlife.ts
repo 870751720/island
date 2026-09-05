@@ -216,6 +216,8 @@ export class Wildlife implements Updatable {
     private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => void,
     /** 熊开始普通挥击时通知联机层；这是短时动作，走可靠事件而不是姿态采样。 */
     private onAttack: (animalId: number) => void,
+    /** 动物受击未死时通知联机层广播(客人端补播闪红);死亡表现由姿态快照翻转驱动,不走这里 */
+    private onHit: (animalId: number) => void = () => {},
     /** 熊扑击落地时把权威落点交给联机层补播扬尘。 */
     private onPounceLand: (x: number, y: number, z: number) => void,
     /** 某玩家当前是否可被攻击(死亡时不追击) */
@@ -661,6 +663,7 @@ export class Wildlife implements Updatable {
     animal.hp -= damage;
     if (animal.hp > 0) {
       this.creatureFx.flash(animal.model.group);
+      this.onHit(animal.id);
       // 熊中箭未死:立刻无视距离锁定玩家并暴怒(加速 + 红眼 + 咆哮),远程偷袭有代价
       if (animal.species === 'bear') {
         animal.alerted = true;
@@ -751,6 +754,12 @@ export class Wildlife implements Updatable {
       animal.netPos.copy(animal.pos);
       animal.netHeading = p.h;
     }
+  }
+
+  /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */
+  netFlash(id: number): void {
+    const animal = this.animals.find((a) => a.id === id);
+    if (animal?.alive) this.creatureFx.flash(animal.model.group);
   }
 
   /** 客人侧由可靠网络事件立即触发熊的普通挥击，不等待下一帧姿态快照。 */
