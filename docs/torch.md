@@ -14,5 +14,3 @@
 - 放置、锄头挖掘回收、存档(`shrines` 快照带 kind)、联机同步(place 走 `useShrine` action、增删走 `shrines` 世界增量快照)全部沿用 `ShrineSystem`,零新增协议。
 - `DropModels.ts` 补火把掉落物造型(横躺树枝 + 布头),`Backpack.tsx`/`GameplayUI.tsx` 加入可使用神龛道具列表。
 - 存档兼容:沿用 `shrines` 数组与缺省 kind 解释规则,`SAVE_VERSION` 不变。
-## 迭代记录
-- 2026-09-05:首个版本,手搓火把(1 树枝 + 1 燧石),插地小范围永久照明,锄头可挖走回收。
