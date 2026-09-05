@@ -10,7 +10,7 @@ export type SfxName =
   | 'stoke' // 添柴:木柴落火与火焰腾起
   | 'sizzle' // 烹饪:食材下锅的滋滋油响
   | 'munch' // 进食
-  | 'eatFinish' // 进食完成:吞咽与满足收尾
+  | 'eatFinish' // 进食完成:吞咽收尾
   | 'drink' // 喝下一轮水
   | 'whoosh' // 抛竿挥动
   | 'shoot' // 放箭:弦弹与箭矢破空
@@ -149,11 +149,9 @@ export class Sfx {
         }
         break;
       case 'eatFinish':
-        // 吃完收尾:柔和的吞咽下滑,接两个轻快上行音,避免像任务完成提示
-        noiseBurst(this.ctx, dest, t, { attack: 0.015, decay: 0.11, peak: v * 0.35 }, 'bandpass', detune(720), 360, 1.3);
-        tone(this.ctx, dest, detune(520), t + 0.015, { attack: 0.012, decay: 0.16, peak: v * 0.42 }, 'sine', detune(330));
-        pianoTone(this.ctx, dest, midiToFreq(76), t + 0.13, 0.32, v * 0.42);
-        pianoTone(this.ctx, dest, midiToFreq(81), t + 0.23, 0.38, v * 0.34);
+        // 吃完收尾:一声短促的喉部吞咽,不叠加奖励旋律或呼气
+        noiseBurst(this.ctx, dest, t, { attack: 0.012, decay: 0.1, peak: v * 0.32 }, 'bandpass', detune(760), 340, 1.4);
+        tone(this.ctx, dest, detune(480), t + 0.012, { attack: 0.01, decay: 0.2, peak: v * 0.5 }, 'sine', detune(270));
         break;
       case 'drink':
         // 「咕咕」吞咽贯穿整轮喝水:八声水泡音由低滑高,间隔铺满约 2 秒的喝水时长
