@@ -31,7 +31,7 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-/** 作业动画类型:砍树/凿石/拾取/喝水/钓鱼(抛竿/持竿) */
+/** 作业动画类型:砍树/凿石/拾取/喝水/钓鱼(抛竿/持竿)/挥剑 */
 export type ActionType =
   | 'chop'
   | 'mine'
@@ -44,6 +44,7 @@ export type ActionType =
   | 'cast'
   | 'fish'
   | 'shoot'
+  | 'slash'
   | 'sleep';
 
 /** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/围栏(木/石通用)与围栏门(用于沿途立栏) */
@@ -620,7 +621,20 @@ export class Player implements Updatable {
       for (const [name, model] of Object.entries(this.toolModels)) {
         model!.visible = name === this.handTool;
       }
-      if (this.action && !this.moving) {
+      if (this.action === 'slash') {
+        // 挥剑可以边走边砍:双腿照常走路摆动,右臂单独抡一个横斩
+        this.actionTime += delta;
+        const swing = this.moving ? 0.7 : 0;
+        for (const limb of this.limbs) {
+          limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
+          limb.mesh.rotation.z = 0;
+        }
+        this.group.rotation.x = 0;
+        const p = Math.min(this.actionTime / 0.35, 1);
+        this.arms[0].rotation.x = -0.3;
+        this.arms[1].rotation.x = -2.1 + p * 1.6;
+        this.arms[1].rotation.z = 0.7 - p * 1.4;
+      } else if (this.action && !this.moving) {
         this.actionTime += delta;
         this.animateAction(elapsed);
       } else {

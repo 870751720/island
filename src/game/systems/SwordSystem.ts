@@ -66,7 +66,7 @@ export class SwordSystem {
     if (animalId === null) return;
     this.cooldownLeft = ATTACK_INTERVAL;
     this.swingLeft = SWING_TIME;
-    this.player.setAction('chop');
+    this.player.setAction('slash');
     // 客人端音效由房主经 feedback 事件补播(与放箭同约定),本地不播避免重声
     if (!this.onNetHit) this.audio.play('chop');
     this.fx.burst(p.clone().setY(p.y + 0.9), '#e8e2d4', 4);
@@ -94,7 +94,7 @@ export class SwordSystem {
   /** 房主复现客人的挥砍动作(补放 chop 动作窗口,经姿态快照同步给各端) */
   netPlaySwing(): void {
     this.swingLeft = SWING_TIME;
-    this.player.setAction('chop');
+    this.player.setAction('slash');
     this.audio.play('chop');
   }
 }
