@@ -32,6 +32,8 @@ export class WaterFx {
     );
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set(x, y + 0.03, z);
+    // 涟漪必须画在海面之后:透明物体按距离排序,顺序会随镜头方向翻转导致涟漪被海面盖住
+    mesh.renderOrder = 1;
     this.scene.add(mesh);
     this.ripples.push({ mesh, life: RIPPLE_LIFETIME });
   }

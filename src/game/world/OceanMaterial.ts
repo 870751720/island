@@ -19,7 +19,7 @@ export class OceanMaterial {
     this.uniforms.uHalfExtent.value = depth.halfExtent;
     this.material = new THREE.MeshStandardMaterial({
       color: '#3d97b8',
-      roughness: 0.5,
+      roughness: 0.36,
       metalness: 0,
       transparent: true,
     });
@@ -59,8 +59,8 @@ export class OceanMaterial {
              float d = oceanDepth(vOceanWorld);
              // 浅滩透出沙底,近岸偏青,远处过渡到深蓝
              vec3 shallow = vec3(0.46, 0.78, 0.78);
-             vec3 deep = vec3(0.10, 0.38, 0.56);
-             diffuseColor.rgb = mix(shallow, deep, smoothstep(0.08, 0.62, d));
+             vec3 deep = vec3(0.03, 0.24, 0.44);
+             diffuseColor.rgb = mix(shallow, deep, smoothstep(0.06, 0.6, d));
              // 边缘水深约 0.67(1.75/2.6),过渡在其之前完成,遮住方形海底终止线
              diffuseColor.a = mix(0.55, 1.0, smoothstep(0.22, 0.55, d));
            }`
@@ -69,15 +69,20 @@ export class OceanMaterial {
           '#include <normal_fragment_begin>',
           `#include <normal_fragment_begin>
            {
-             // 两组缓慢低频波纹的解析梯度,轻微倾斜法线让光照带出稀疏波光
+             // 缓慢低频涌浪 + 细碎高频涟漪的解析梯度,倾斜法线让光照带出波光
              vec2 p = vOceanWorld;
              float a = sin(p.x * 0.35 + uTime * 0.6);
              float b = sin(p.y * 0.28 - uTime * 0.45);
              float c = sin((p.x + p.y) * 0.15 + uTime * 0.3);
-             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
-             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45) + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)) * 0.05;
+             float e = sin(p.x * 0.9 + p.y * 0.6 + uTime * 0.8);
+             float dx = (0.35 * cos(p.x * 0.35 + uTime * 0.6)
+                       + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)
+                       + 0.9  * cos(p.x * 0.9 + p.y * 0.6 + uTime * 0.8) * 0.06) * 0.09;
+             float dz = (0.28 * cos(p.y * 0.28 - uTime * 0.45)
+                       + 0.15 * cos((p.x + p.y) * 0.15 + uTime * 0.3)
+                       + 0.6  * cos(p.x * 0.9 + p.y * 0.6 + uTime * 0.8) * 0.06) * 0.09;
              normal = normalize(normal + vec3(-dx, 0.0, -dz));
-             diffuseColor.rgb *= 1.0 + (a + b + c) * 0.012;
+             diffuseColor.rgb *= 1.0 + (a + b + c + e) * 0.02;
            }`
         );
     };
