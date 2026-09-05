@@ -41,6 +41,7 @@ function makeLeg(
 /** 兔子:梨形躯干、饱满后胯、短前爪、长脚掌和可随跳跃摆动的长耳 */
 function makeRabbitModel(): AnimalModel {
   const group = new THREE.Group();
+  group.scale.setScalar(0.6);
   const fur = clay('#a9937f');
   const lightFur = clay('#d9cbb9');
   const innerEar = clay('#c98f8e');
@@ -151,6 +152,78 @@ function makeRabbitModel(): AnimalModel {
     tail,
     rabbitRig: { body: bodyPivot, ears, frontPaws, hindLegs },
   };
+}
+
+/** 狼:低伏的灰色躯干、楔形长吻、尖耳、蓬松尾和修长四肢 */
+function makeWolfModel(): AnimalModel {
+  const group = new THREE.Group();
+  const coat = clay('#6f746f');
+  const darkCoat = clay('#4c514e');
+  const lightCoat = clay('#b8b3a8');
+  const dark = clay('#242724');
+  const tooth = clay('#eee8d8');
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 7, 6), coat);
+  body.scale.set(0.82, 0.78, 1.48);
+  body.position.set(0, 0.48, -0.02);
+  body.castShadow = true;
+  group.add(body);
+
+  const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.22, 7, 5), darkCoat);
+  shoulders.scale.set(0.9, 1.08, 0.82);
+  shoulders.position.set(0, 0.57, 0.25);
+  shoulders.castShadow = true;
+  group.add(shoulders);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.66, 0.39);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 7, 6), coat);
+  head.scale.set(0.9, 0.92, 1.12);
+  head.castShadow = true;
+  headPivot.add(head);
+  const muzzle = new THREE.Mesh(new THREE.ConeGeometry(0.115, 0.28, 5), lightCoat);
+  muzzle.rotation.x = Math.PI / 2;
+  muzzle.position.set(0, -0.045, 0.22);
+  headPivot.add(muzzle);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), dark);
+  nose.scale.set(1.15, 0.8, 0.8);
+  nose.position.set(0, -0.045, 0.365);
+  headPivot.add(nose);
+
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.2, 4), darkCoat);
+    ear.position.set(side * 0.105, 0.19, -0.015);
+    ear.rotation.z = side * -0.12;
+    headPivot.add(ear);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 5, 4), dark);
+    eye.position.set(side * 0.12, 0.045, 0.13);
+    headPivot.add(eye);
+    const fang = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.055, 4), tooth);
+    fang.position.set(side * 0.055, -0.115, 0.245);
+    fang.rotation.x = Math.PI;
+    headPivot.add(fang);
+  }
+  group.add(headPivot);
+
+  const legs = [
+    makeLeg(darkCoat, -0.14, 0.43, 0.24, 0.43, 0.72),
+    makeLeg(darkCoat, 0.14, 0.43, 0.24, 0.43, 0.72),
+    makeLeg(coat, -0.14, 0.43, -0.25, 0.43, 0.76),
+    makeLeg(coat, 0.14, 0.43, -0.25, 0.43, 0.76),
+  ];
+  legs.forEach((leg) => group.add(leg));
+
+  const tailPivot = new THREE.Group();
+  tailPivot.position.set(0, 0.55, -0.42);
+  tailPivot.rotation.x = -0.65;
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.42, 6), darkCoat);
+  tail.rotation.x = -Math.PI / 2;
+  tail.position.z = -0.18;
+  tail.castShadow = true;
+  tailPivot.add(tail);
+  group.add(tailPivot);
+
+  return { group, legs, head: headPivot, tail: tailPivot };
 }
 
 /** 绵羊:奶白色蓬松羊毛身 + 深色小脸和细腿 */
@@ -325,5 +398,6 @@ export const ANIMAL_BUILDERS = {
   rabbit: makeRabbitModel,
   sheep: makeSheepModel,
   deer: makeDeerModel,
+  wolf: makeWolfModel,
   bear: makeBearModel,
 } as const;

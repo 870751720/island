@@ -71,7 +71,7 @@ export function fenceKindOfItem(kind: ResourceKind): FenceKind | null {
  * 围栏系统(世界单实例,按发起者 actor 结算):
  * - 围栏柱吸附在整数格点上,相邻柱/门之间自动伸出横杆,沿边逐个放置即可围出无缝闭合的圈;
  * - 围栏门占一条格点边,玩家靠近自动开、走远自动关,动物不会开门;
- * - 围栏连接与关着的门构成阻挡线段:玩家移动被推出,动物(兔/羊/鹿/熊/蟹)绕行判定被挡住;
+ * - 围栏连接与关着的门构成阻挡线段:玩家移动被推出,动物(兔/羊/鹿/狼/熊/蟹)绕行判定被挡住;
  * - 手持锄头靠近站定自动把围栏/门挖回道具。
  */
 export class FenceSystem implements ObstacleSolver {

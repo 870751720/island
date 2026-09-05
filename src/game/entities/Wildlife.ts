@@ -9,13 +9,14 @@ import type { Particles } from '../fx/Particles';
 import { CreatureFx } from '../fx/CreatureFx';
 import type { SfxName } from '../audio/Sfx';
 
-export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'bear';
+export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'wolf' | 'bear';
 
 /** 物种中文名(GM 面板等展示用) */
 export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
   rabbit: '兔子',
   sheep: '绵羊',
   deer: '鹿',
+  wolf: '狼',
   bear: '熊',
 };
 
@@ -125,6 +126,22 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'fur', count: 2 },
     ],
   },
+  wolf: {
+    label: '狼',
+    count: 2,
+    walkSpeed: 1.25,
+    rushSpeed: 3.2,
+    senseRange: 6,
+    deaggroRange: 10,
+    attackRange: 0.95,
+    damage: 5,
+    attackCooldown: 1.2,
+    hp: 75,
+    loot: [
+      { kind: 'gameMeat', count: 2 },
+      { kind: 'fur', count: 2 },
+    ],
+  },
   bear: {
     label: '熊',
     count: 1,
@@ -185,7 +202,7 @@ type Animal = {
 };
 
 /**
- * 草地上的野生动物:兔、羊、鹿见玩家靠近就逃;熊会追击并扑击玩家。
+ * 草地上的野生动物:兔、羊、鹿见玩家靠近就逃;狼会追咬玩家;熊会追击并扑击玩家。
  * 都可用弓箭猎捕,倒下后掉落兽肉,隔段时间在岛上别处重新刷新。
  */
 export class Wildlife implements Updatable {
@@ -378,12 +395,13 @@ export class Wildlife implements Updatable {
     }
     for (const animal of this.animals) {
       if (!animal.alive) continue;
-      // 对最近的一名玩家做出反应(联机时熊追离得最近的那个人)
+      // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人)
       const target = this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
       const vulnerable = target ? this.isPlayerVulnerable(target) : false;
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
-      const hostile = animal.species === 'bear';
+      const hostile = animal.config.damage > 0;
+      const bear = animal.species === 'bear';
       // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动
       if (dist < animal.config.senseRange) animal.alerted = true;
       else if (dist > animal.config.deaggroRange) animal.alerted = false;
@@ -399,7 +417,7 @@ export class Wildlife implements Updatable {
       animal.rageLeft = Math.max(0, animal.rageLeft - delta);
       animal.roarLeft = Math.max(0, animal.roarLeft - delta);
       // 进入警戒的上升沿:熊仰头咆哮警告(吼声 + 口鼻扬尘),食草动物无声逃窜
-      if (hostile && animal.alerted && !animal.roared) this.roar(animal);
+      if (bear && animal.alerted && !animal.roared) this.roar(animal);
       if (!animal.alerted) animal.roared = false;
       // 玩家脱离追击(死亡/游泳/平息)时中止进行中的扑击
       if (!rushed) animal.pounce = null;
@@ -445,14 +463,14 @@ export class Wildlife implements Updatable {
           this.onPlayerHit(target!, animal.config.damage);
         }
       } else if (rushed) {
-        // 逃跑(草食)/ 追击(熊):清掉游荡目标,平息后重新选路
+        // 逃跑(草食)/追击(狼、熊):清掉游荡目标,平息后重新选路
         animal.target.copy(animal.pos);
         animal.idleTime = 0;
         animal.walkTime = 0;
         const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
         const angle = hostile ? away + Math.PI : away;
         let speed = animal.config.rushSpeed;
-        if (hostile) {
+        if (bear) {
           if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
             // 扑击窗口:中距离人立蓄力后腾跃,用短低吼预警而不重复完整咆哮
             animal.attackLeft = animal.config.attackCooldown;
@@ -593,7 +611,7 @@ export class Wildlife implements Updatable {
         mat.emissive.set(rage ? '#8c1a10' : '#000000');
       });
     }
-    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : 0.4) + bob;
+    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
     // 兔尾以轻颤为主,其余动物左右摆尾。
     animal.model.tail.rotation.y = hop
@@ -691,9 +709,9 @@ export class Wildlife implements Updatable {
     if (animal.hp > 0) {
       this.creatureFx.flash(animal.model.group);
       this.onHit(animal.id);
-      // 熊中箭未死:立刻无视距离锁定玩家并暴怒(加速 + 红眼 + 咆哮),远程偷袭有代价
+      // 主动攻击生物受伤后立刻警戒；熊还会进入暴怒状态。
+      if (animal.config.damage > 0) animal.alerted = true;
       if (animal.species === 'bear') {
-        animal.alerted = true;
         animal.rageLeft = BEAR_RAGE_TIME;
         this.roar(animal);
       }
