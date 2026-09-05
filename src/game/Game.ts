@@ -1430,6 +1430,13 @@ export class Game {
     return {
       islandSize: this.terrain.size,
       player: { x: p.x, z: p.z },
+      others: this.sessions
+        .filter((s) => s !== this.local)
+        .map((s) => ({
+          x: s.player.group.position.x,
+          z: s.player.group.position.z,
+          name: s.name,
+        })),
       markers: markers.filter((m) => this.minimap.isExplored(m.x, m.z)),
       explored: this.minimap.grid,
       gridLen: this.minimap.gridLen,

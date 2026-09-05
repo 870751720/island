@@ -23,18 +23,34 @@ const MARKER_STYLE: Record<string, { icon: string; label: string }> = {
   bed: { icon: '🛏️', label: '床' },
 };
 
-/** 底图分辨率(采样一次后缓存,不随帧重绘) */
-const BASE_RES = 128;
+/** 底图分辨率(采样一次后缓存,不随帧重绘;越高海岸线越锐利) */
+const BASE_RES = 256;
 /** 迷雾颜色:未探索区域整体盖住 */
 const FOG_COLOR = [16, 24, 36, 235] as const;
 
 /**
  * 右上角小地图(定位由外层容器负责):
  * - 战争迷雾——只有玩家走过(周围一圈)的区域可见,地形与标记都不透出;
- * - 点击地图放大查看,放大后有文字标注(工作台/火堆/床);
- * - 地图左上角有折叠按钮,可收起只留按钮;
- * - 玩家移动/交互中(busy)折叠按钮淡出。
+ * - 点击地图放大查看,放大后有文字标注(工作台/火堆/床)与其他玩家昵称;
+ * - 大地图关闭时自动收起小地图(回到右上角按钮态)。
  */
+
+/** 折叠态按钮上的地图图标(描边风格,浅色线条适配浅底) */
+function MapIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 4.5 3.5 6.6v13L9 17.4l6 2.1 5.5-2.1v-13L15 6.6 9 4.5Z"
+        stroke="#4a6b8a"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        fill="rgba(116,163,203,0.35)"
+      />
+      <path d="M9 4.5v12.9M15 6.6v12.9" stroke="#4a6b8a" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="12" cy="11" r="1.7" fill="#e67e22" stroke="#fff" strokeWidth="0.9" />
+    </svg>
+  );
+}
 export function Minimap({ source, dimmed = false }: { source: MinimapSource | null; dimmed?: boolean }) {
   // 默认收起,只留右上角小按钮,点开才显示地图
   const [folded, setFolded] = useState(true);
@@ -74,18 +90,20 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
         onClick={() => setFolded(false)}
         aria-label="展开小地图"
         style={{
-          width: 38,
-          height: 38,
-          fontSize: 17,
-          lineHeight: 1,
+          width: 42,
+          height: 42,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           border: 'none',
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.75)',
+          borderRadius: 12,
+          background: 'rgba(255,255,255,0.78)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
           cursor: 'pointer',
           ...fadeStyle(dimmed),
         }}
       >
-        🗺️
+        <MapIcon size={24} />
       </button>
     );
   }
@@ -95,50 +113,27 @@ export function Minimap({ source, dimmed = false }: { source: MinimapSource | nu
   return (
     <>
       <div>
-        <div style={{ position: 'relative' }}>
-          <canvas
-            ref={smallRef}
-            onClick={() => setEnlarged(true)}
-            style={{
-              display: 'block',
-              width: smallSize,
-              height: smallSize,
-              borderRadius: 10,
-              border: '2px solid rgba(255,255,255,0.85)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-              cursor: 'pointer',
-            }}
-          />
-          {/* 折叠按钮:固定在小地图左上角 */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setFolded(true);
-            }}
-            aria-label="收起小地图"
-            style={{
-              position: 'absolute',
-              top: 4,
-              left: 4,
-              width: 22,
-              height: 22,
-              fontSize: 13,
-              lineHeight: 1,
-              padding: 0,
-              border: 'none',
-              borderRadius: 6,
-              background: 'rgba(255,255,255,0.85)',
-              color: '#4a3b2a',
-              cursor: 'pointer',
-            }}
-          >
-            −
-          </button>
-        </div>
+        <canvas
+          ref={smallRef}
+          onClick={() => setEnlarged(true)}
+          style={{
+            display: 'block',
+            width: smallSize,
+            height: smallSize,
+            borderRadius: 10,
+            border: '2px solid rgba(255,255,255,0.85)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            cursor: 'pointer',
+          }}
+        />
       </div>
       {enlarged && (
         <div
-          onClick={() => setEnlarged(false)}
+          onClick={() => {
+            setEnlarged(false);
+            // 大地图关闭时自动收起小地图,回到右上角按钮态
+            setFolded(true);
+          }}
         style={{
           position: 'fixed',
           inset: 0,
@@ -256,7 +251,28 @@ function draw(
     }
   }
 
-  // 玩家:白心蓝圈圆点
+  // 其他联机玩家:橙心白圈圆点,放大时带昵称
+  for (const o of snap.others) {
+    const ox = toPixel(o.x, snap.islandSize, size);
+    const oy = toPixel(o.z, snap.islandSize, size);
+    const or = Math.max(size * 0.02, 3.5);
+    ctx.beginPath();
+    ctx.arc(ox, oy, or, 0, Math.PI * 2);
+    ctx.fillStyle = '#e67e22';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = or * 0.45;
+    ctx.fill();
+    ctx.stroke();
+    if (withLabels) {
+      ctx.font = `600 ${Math.max(size * 0.035, 12)}px sans-serif`;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillText(o.name, ox + 1, oy + or * 1.8 + 1);
+      ctx.fillStyle = '#ffd9b3';
+      ctx.fillText(o.name, ox, oy + or * 1.8);
+    }
+  }
+
+  // 本地玩家:白心蓝圈圆点
   const px = toPixel(snap.player.x, snap.islandSize, size);
   const py = toPixel(snap.player.z, snap.islandSize, size);
   const r = Math.max(size * 0.025, 4);

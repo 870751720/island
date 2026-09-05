@@ -295,6 +295,7 @@ export function GameplayUI({
         gameRef.current?.getMinimapSnapshot() ?? {
           islandSize: 0,
           player: { x: 0, z: 0 },
+          others: [],
           markers: [],
           explored: new Uint8Array(0),
           gridLen: 0,

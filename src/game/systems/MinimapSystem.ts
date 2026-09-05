@@ -17,6 +17,8 @@ export type MinimapSnapshot = {
   /** 岛屿世界尺寸(正方形边长,世界原点在中心) */
   islandSize: number;
   player: { x: number; z: number };
+  /** 其他联机玩家落点(房主与客人各自从本地会话镜像取) */
+  others: { x: number; z: number; name: string }[];
   markers: MinimapMarker[];
   /** 探索网格(按行展开,边长 gridLen) */
   explored: Uint8Array;
