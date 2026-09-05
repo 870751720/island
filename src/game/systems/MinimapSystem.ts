@@ -30,7 +30,7 @@ export type MinimapSnapshot = {
 /** 探索半径(米):玩家周围多大范围被点亮 */
 const REVEAL_RADIUS = 24;
 /** 一格的边长(米) */
-const CELL = 2;
+export const CELL = 2;
 
 export class MinimapSystem {
   readonly gridW: number;
