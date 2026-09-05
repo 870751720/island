@@ -2249,11 +2249,12 @@ export class Game {
 
   /** 该会话是否被任一交互占用;exclude 用来排除询问方自身(“别人忙吗”) */
   private isSessionBusy(s: PlayerSession, exclude?: InteractionKind): boolean {
+    // 弓优先级最高:瞄准中(虚线可见)或放箭动作期间,其他站定交互(采集/喝水等)让位,先放箭再交互
+    if (exclude !== 'archery' && (s.archery.isWorking || s.archery.isAiming)) return true;
     if (exclude !== 'collect' && s.collect.isWorking) return true;
     if (exclude !== 'crafting' && s.crafting.isWorking) return true;
     if (exclude !== 'eating' && s.eating.isWorking) return true;
     if (exclude !== 'fishing' && s.fishing.isWorking) return true;
-    if (exclude !== 'archery' && s.archery.isWorking) return true;
     if (exclude !== 'water' && s.water.isActive) return true;
     if (exclude !== 'workbench' && (this.workbench.isWorking(s) || this.workbench.isDigging(s)))
       return true;
