@@ -414,7 +414,7 @@ export class Game {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    const terrain = new IslandTerrain(160, 800, this.terrainSeed);
+    const terrain = new IslandTerrain(200, 1000, this.terrainSeed);
     this.terrain = terrain;
     this.minimap = new MinimapSystem(terrain.width, terrain.length);
     this.scene.add(terrain.mesh);

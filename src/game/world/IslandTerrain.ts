@@ -26,11 +26,14 @@ const BEACH_WIDTH = 22;
 const BEACH_RISE = 2.6;
 
 /** 近岸垂向压缩系数范围:水线以上的近岸高度按该系数向水线压扁,越小沙滩越宽 */
-const BEACH_FLATTEN_MIN = 0.1;
-const BEACH_FLATTEN_MAX = 0.3;
+const BEACH_FLATTEN_MIN = 0.16;
+const BEACH_FLATTEN_MAX = 0.38;
 /** 压缩淡出区间(岸内米数):超过后恢复原始高度,避免削平岛内丘陵 */
 const BEACH_FLATTEN_FADE_START = 20;
 const BEACH_FLATTEN_FADE_END = 32;
+/** 水下岸坡恢复宽度范围(米):下坡项从满额深度向岛内恢复完的距离,决定湿沙带宽(约 5~15 米) */
+const SHORE_DESCENT_MIN = 30;
+const SHORE_DESCENT_MAX = 56;
 
 const SAND = new THREE.Color('#e8d8a0');const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
@@ -59,7 +62,7 @@ export class IslandTerrain {
   readonly halfLength: number;
   private heightAt: (x: number, z: number) => number;
 
-  constructor(width = 160, length = 800, seed = Math.random() * 1000) {
+  constructor(width = 200, length = 1000, seed = Math.random() * 1000) {
     this.width = width;
     this.length = length;
     const hw = width / 2;
@@ -99,19 +102,21 @@ export class IslandTerrain {
       const h = noise(x * f1, z * f1) * 4 + noise(x * f2, z * f2) * 1.1;
       // 近岸下坡陡度用噪声调制:水线与浅滩边界宽窄不一(不规整),且始终不缓于基准
       const shoreSteep = 1.1 + noise(x * f2 + 91, z * f2 + 45) * 0.8;
+      // 水下岸坡按真实米数恢复:下坡深度在岸内 SHORE_DESCENT_MIN~MAX 米内 smoothstep 恢复到 0,
+      // 水线到 2 米深的湿沙带宽度由此直接决定(约 5~15 米,各段海岸一致);
+      // 此前用 falloff(归一化距离)控制,各段海岸换算速率不同导致湿沙带宽差异过大
+      const descent =
+        SHORE_DESCENT_MIN + noise(x * f2 * 0.4 + 301, z * f2 * 0.4 + 55) * (SHORE_DESCENT_MAX - SHORE_DESCENT_MIN);
+      const shoreDown = 1.5 * shoreSteep * Math.pow(1 - THREE.MathUtils.smoothstep(shoreDist, 0, descent), 2);
       // 岛外海底逐渐加深到约 -2.1,保证外海水深足够进入游泳;
       // 下压偏移随 falloff 淡出,使内陆噪声低谷不低于海平面,避免出现无法交互的内陆积水
       const f2sq = falloff * falloff;
       // 近岸实距抬升:水线向内 BEACH_WIDTH 米内抬到 BEACH_RISE,
       // 保证低于草线(0.05)的低平地不向岛内延伸超过 BEACH_WIDTH
       const ramp = THREE.MathUtils.clamp(shoreDist / BEACH_WIDTH, 0, 1);
-      const raw =
-        f2sq * h -
-        0.6 * (1 - f2sq) -
-        (1 - falloff) * (1 - falloff) * 1.5 * shoreSteep +
-        BEACH_RISE * ramp;
+      const raw = f2sq * h - 0.6 * (1 - f2sq) - shoreDown + BEACH_RISE * ramp;
       // 干沙滩加宽:近岸(水线以上)高度按噪声调制的系数向水线压扁,坡度随之变缓,
-      // 水线到草线的水平距离从约 1.5 米拓宽到约 5~8 米;水下与淡出区外完全不变
+      // 水线到草线的水平距离约 3~6 米;水下与淡出区外完全不变
       const flatten =
         BEACH_FLATTEN_MIN +
         noise(x * f2 + 201, z * f2 + 77) * (BEACH_FLATTEN_MAX - BEACH_FLATTEN_MIN);
