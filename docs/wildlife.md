@@ -42,3 +42,5 @@
 - 2026-09-05:新增 `Wildlife.gmSpawnNear(species, x, z)`(GM 在指定点附近草地生成动物)与按 id 结算箭伤的 `Wildlife.damage(id, damage)`(客人端上行命中由房主权威结算);动物姿态快照 `netPoses` 增加 `species` 字段,客人端 `netApply` 遇到未知 id 且带物种时补建模型(支持房主运行时生成的动物同步)。初始生成与 GM 生成统一走 `createAnimal`。
 
 - 2026-09-05:血量改为真实数值并统一伤害体系——兔 50、绵羊 100、鹿 150、熊 1000(原均为「中几箭」计数:1/1/1/3);一级弓箭伤害 25、二级弓 50、木剑 10(见 docs/bow.md、docs/sword.md)。
+
+- 2026-09-05:死亡与受击表现——死亡不再瞬间消失,改为倒地(0.45s 侧翻 90°,方向随机)→ 停留 5s → 1s 材质渐隐后隐藏;受击未死时模型短暂泛红(emissive 闪红 0.25s)。三套生物共用新模块 `src/game/fx/CreatureFx.ts`,客人端在姿态快照 `alive` 翻转为 false 时本地触发同样的死亡动画(见 docs/multiplayer.md)。

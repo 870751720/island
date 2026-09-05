@@ -5,6 +5,7 @@ import type { AmbientPose } from '../net/Protocol';
 import type { Props } from '../world/Props';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import { TREE_SPECIES, type TreeSpecies } from '../world/TreeSpecies';
+import { CreatureFx } from '../fx/CreatureFx';
 
 /** 玩家靠到这个距离内,落地踱步中的鸟会被惊飞(飞行中不怕人) */
 const FLEE_RANGE = 5;
@@ -138,6 +139,7 @@ type Bird = {
 export class Birds implements Updatable {
   readonly group = new THREE.Group();
   private birds: Bird[] = [];
+  private fx = new CreatureFx();
 
   constructor(
     scene: THREE.Scene,
@@ -238,6 +240,7 @@ export class Birds implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    this.fx.update(delta);
     for (const bird of this.birds) {
       if (!bird.alive) {
         bird.respawnLeft -= delta;
@@ -398,13 +401,18 @@ export class Birds implements Updatable {
       if (pose.state === 'walk' || pose.state === 'fly' || pose.state === 'flee' || pose.state === 'land') {
         bird.state = pose.state;
       }
+      if (bird.alive && !pose.visible) {
+        this.fx.playDeath(bird.model.group, this.terrain.getHeight(pose.x, pose.z));
+      } else if (!bird.alive && pose.visible) {
+        this.fx.reset(bird.model.group);
+      }
       bird.alive = pose.visible;
-      bird.model.group.visible = pose.visible;
     }
   }
 
   /** 客人端逐帧平滑 10Hz 权威快照。 */
   netUpdate(delta: number, elapsed: number): void {
+    this.fx.update(delta);
     const k = 1 - Math.exp(-14 * delta);
     for (const bird of this.birds) {
       if (!bird.alive) continue;
@@ -467,10 +475,14 @@ export class Birds implements Updatable {
     }
     if (!best) return false;
     best.hp -= damage;
-    if (best.hp > 0) return false;
+    if (best.hp > 0) {
+      this.fx.flash(best.model.group);
+      return false;
+    }
     best.alive = false;
     best.respawnLeft = RESPAWN_TIME;
-    best.model.group.visible = false;
+    // 空中被击中:翻滚坠落到地面再倒地渐隐,而不是悬在半空
+    this.fx.playDeath(best.model.group, this.terrain.getHeight(best.pos.x, best.pos.z));
     return true;
   }
 
@@ -483,6 +495,7 @@ export class Birds implements Updatable {
     bird.stepTarget = null;
     bird.hp = HP;
     bird.alive = true;
+    this.fx.reset(bird.model.group);
     bird.model.group.visible = true;
   }
 

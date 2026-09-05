@@ -400,3 +400,8 @@
 
 - 修复:M39 的 `netPlaySwing` 只设置了动作(`swingLeft`/`slash`),但房主主循环对远程会话只推进弓的视觉(`archery.updateVisuals`),剑没有任何推进逻辑——动作窗口永不结束,且早前版本还会被采集系统的每帧清动作当帧抹掉,房主观感上完全看不到客人挥剑。
 - 方案:与弓的 `shotAnimLeft` 同约定,`SwordSystem` 拆出 `updateVisuals(delta)`(只递减挥砍窗口、结束时清动作,不做攻击判定),房主主循环对远程会话每帧调用;动作经既有姿态快照 `action` 字段同步给其他客人。协议不变。
+
+### M41 生物死亡/受击表现(2026-09-05)
+
+- 新增 `src/game/fx/CreatureFx.ts`:受击闪红、死亡倒地(0.45s 侧翻)→ 停留 5s → 1s 渐隐后隐藏。Wildlife/Crabs/Birds 各自持有实例,房主在 `update` 入口、客人在 `netUpdate` 入口统一推进。
+- 死亡触发两端各自本地播放,不走网络事件:房主在权威结算死亡(`applyDamage`/`damageNearby`)时播放;客人在姿态快照 `alive`/`visible` 由 true 翻转为 false 时播放(动物姿态 10Hz,延迟最多约 0.1s,可接受)。快照恢复存活(true)时本地 `reset` 还原透明度与侧翻。协议不变。

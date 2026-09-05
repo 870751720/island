@@ -3,6 +3,7 @@ import type { Updatable } from '../core/GameLoop';
 import type { AmbientPose } from '../net/Protocol';
 import { nearestToSegmentXZ } from '../core/HitSegment';
 import { IslandTerrain } from '../world/IslandTerrain';
+import { CreatureFx } from '../fx/CreatureFx';
 
 /** 沙滩高度带:低于该值为海/湿沙,高于该值为草地;螃蟹只在带内活动 */
 const SAND_MIN = 0.02;
@@ -119,6 +120,7 @@ type Crab = {
 export class Crabs implements Updatable {
   readonly group = new THREE.Group();
   private crabs: Crab[] = [];
+  private fx = new CreatureFx();
 
   constructor(
     scene: THREE.Scene,
@@ -196,6 +198,7 @@ export class Crabs implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    this.fx.update(delta);
     const players = this.playerPositions();
     for (const crab of this.crabs) {
       if (!crab.alive) {
@@ -293,13 +296,18 @@ export class Crabs implements Updatable {
       }
       crab.netPos.set(pose.x, pose.y, pose.z);
       crab.netHeading = pose.h;
+      if (crab.alive && !pose.visible) {
+        this.fx.playDeath(crab.model.group);
+      } else if (!crab.alive && pose.visible) {
+        this.fx.reset(crab.model.group);
+      }
       crab.alive = pose.visible;
-      crab.model.group.visible = pose.visible;
     }
   }
 
   /** 客人端:朝房主快照的目标位姿平滑插值,并保持腿部/钳子动画 */
   netUpdate(delta: number, elapsed: number): void {
+    this.fx.update(delta);
     const k = 1 - Math.exp(-14 * delta);
     for (const crab of this.crabs) {
       if (!crab.alive) continue;
@@ -371,10 +379,13 @@ export class Crabs implements Updatable {
     }
     if (!best) return false;
     best.hp -= damage;
-    if (best.hp > 0) return false;
+    if (best.hp > 0) {
+      this.fx.flash(best.model.group);
+      return false;
+    }
     best.alive = false;
     best.respawnLeft = RESPAWN_TIME;
-    best.model.group.visible = false;
+    this.fx.playDeath(best.model.group);
     return true;
   }
 
@@ -390,6 +401,7 @@ export class Crabs implements Updatable {
     crab.walkTime = 0;
     crab.hp = HP;
     crab.alive = true;
+    this.fx.reset(crab.model.group);
     crab.model.group.visible = true;
   }
 }

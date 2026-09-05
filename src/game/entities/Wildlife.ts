@@ -6,6 +6,7 @@ import type { Player } from './Player';
 import { ANIMAL_BUILDERS } from './WildlifeModels';
 import type { ResourceKind } from '../systems/Inventory';
 import type { Particles } from '../fx/Particles';
+import { CreatureFx } from '../fx/CreatureFx';
 import type { SfxName } from '../audio/Sfx';
 
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'bear';
@@ -197,6 +198,7 @@ export class Wildlife implements Updatable {
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
   private nextId = 1;
+  private creatureFx = new CreatureFx();
 
   constructor(
     scene: THREE.Scene,
@@ -352,6 +354,7 @@ export class Wildlife implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    this.creatureFx.update(delta);
     for (const animal of this.animals) {
       if (!animal.alive) {
         animal.respawnLeft -= delta;
@@ -642,6 +645,7 @@ export class Wildlife implements Updatable {
   private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
     animal.hp -= damage;
     if (animal.hp > 0) {
+      this.creatureFx.flash(animal.model.group);
       // 熊中箭未死:立刻无视距离锁定玩家并暴怒(加速 + 红眼 + 咆哮),远程偷袭有代价
       if (animal.species === 'bear') {
         animal.alerted = true;
@@ -654,7 +658,7 @@ export class Wildlife implements Updatable {
     animal.alive = false;
     animal.respawnLeft = animal.config.respawn;
     animal.hp = animal.config.hp;
-    animal.model.group.visible = false;
+    this.creatureFx.playDeath(animal.model.group);
     return { species };
   }
 
@@ -713,8 +717,13 @@ export class Wildlife implements Updatable {
         a.heading = p.h;
         a.viewHeading = p.h;
       }
+      if (wasAlive && !p.alive) {
+        // 房主权威判定死亡:本地立即播放倒地—停留—渐隐,而不是瞬间消失
+        this.creatureFx.playDeath(a.model.group);
+      } else if (!wasAlive && p.alive) {
+        this.creatureFx.reset(a.model.group);
+      }
       a.alive = p.alive;
-      a.model.group.visible = p.alive;
     }
     // 本地没有的 id:房主新生成的动物,按快照物种补建
     for (const p of poses) {
@@ -734,6 +743,7 @@ export class Wildlife implements Updatable {
 
   /** 客人端只平滑权威姿态并播放视觉动画，不运行 AI 或伤害结算。 */
   netUpdate(delta: number, elapsed: number): void {
+    this.creatureFx.update(delta);
     const k = 1 - Math.exp(-14 * delta);
     for (const a of this.animals) {
       if (!a.alive) continue;
@@ -767,6 +777,7 @@ export class Wildlife implements Updatable {
     animal.roared = false;
     animal.pounce = null;
     animal.alive = true;
+    this.creatureFx.reset(animal.model.group);
     animal.model.group.visible = true;
   }
 }
