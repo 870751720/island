@@ -3,7 +3,7 @@
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
-import { Game, type HudSnapshot, type PickupToast } from '@/game/Game';
+import { Game, type HudSnapshot, type MapSnapshot, type PickupToast } from '@/game/Game';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
@@ -41,6 +41,7 @@ import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
+import { MapIcon, MapPanel } from './MapPanel';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -177,6 +178,9 @@ export function GameplayUI({
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
@@ -308,6 +312,23 @@ export function GameplayUI({
     };
   }, []);
 
+  // 地图打开期间低频读取表现快照，足够跟随移动且避免把位置数据塞进高频 HUD。
+  useEffect(() => {
+    if (!mapOpen) return;
+    const update = () => {
+      const snapshot = gameRef.current?.getMapSnapshot();
+      if (snapshot) setMapSnapshot(snapshot);
+    };
+    update();
+    const timer = window.setInterval(update, 200);
+    return () => window.clearInterval(timer);
+  }, [mapOpen]);
+
+  const closeMap = () => {
+    setMapExpanded(false);
+    setMapOpen(false);
+  };
+
   // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
     hud.tool === 'hoe' &&
@@ -322,7 +343,7 @@ export function GameplayUI({
       <FpsOverlay />
       <TrafficOverlay />
       <Hud hud={hud} onHeartTap={handleHeartTap} />
-      {/* 右上角:设置按钮在小地图按钮左边,玩家移动/交互中一起淡出 */}
+      {/* 右上角:设置按钮左、地图入口或小地图右；玩家移动/交互中一起淡出 */}
       {!hud.dead && (
         <div
           style={{
@@ -339,8 +360,8 @@ export function GameplayUI({
             onClick={() => setSettingsOpen(true)}
             aria-label="设置"
             style={{
-              width: 38,
-              height: 38,
+              width: 44,
+              height: 44,
               fontSize: 17,
               lineHeight: 1,
               border: 'none',
@@ -352,7 +373,35 @@ export function GameplayUI({
           >
             ⚙️
           </button>
+          {!mapOpen && (
+            <button
+              onClick={() => setMapOpen(true)}
+              aria-label="打开地图"
+              style={{
+                width: 44,
+                height: 44,
+                padding: 8,
+                lineHeight: 1,
+                border: 'none',
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.82)',
+                cursor: 'pointer',
+                touchAction: 'manipulation',
+                ...fadeStyle(hud.busy),
+              }}
+            >
+              <MapIcon size={28} />
+            </button>
+          )}
+          {mapOpen && !mapExpanded && mapSnapshot && (
+            <div style={fadeStyle(hud.busy)}>
+              <MapPanel snapshot={mapSnapshot} expanded={false} onExpand={() => setMapExpanded(true)} onClose={closeMap} />
+            </div>
+          )}
         </div>
+      )}
+      {mapOpen && mapExpanded && mapSnapshot && (
+        <MapPanel snapshot={mapSnapshot} expanded onExpand={() => {}} onClose={closeMap} />
       )}
       {settingsOpen && (
         <SettingsPanel

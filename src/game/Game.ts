@@ -187,6 +187,16 @@ const VIEW_SIZE = 18;
 /** 拾取提示(玩家头顶飘图标):道具、数量与诞生时的屏幕坐标 */
 export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: number; y: number };
 
+/** 地图只读快照：UI 定时读取当前已同步到本机的玩家与放置物位置。 */
+export type MapSnapshot = {
+  island: { width: number; length: number };
+  localPlayerId: string;
+  players: { id: string; name: string; x: number; z: number; dead: boolean }[];
+  workbenches: { x: number; z: number }[];
+  beds: { x: number; z: number }[];
+  campfires: { x: number; z: number }[];
+};
+
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
@@ -227,6 +237,24 @@ export class Game {
   /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
   playUiSfx(name: SfxName): void {
     this.audio.playLocal(name);
+  }
+
+  /** 获取地图表现所需的即时状态；客人端读取的玩家/设施均已由房主快照回流。 */
+  getMapSnapshot(): MapSnapshot {
+    return {
+      island: { width: this.terrain.width, length: this.terrain.length },
+      localPlayerId: this.local.id,
+      players: this.sessions.map((session) => ({
+        id: session.id,
+        name: session.name,
+        x: session.player.group.position.x,
+        z: session.player.group.position.z,
+        dead: session.survival.state.dead,
+      })),
+      workbenches: this.workbench.positions,
+      beds: this.beds.positions,
+      campfires: this.campfire.positions,
+    };
   }
   private waterFx: WaterFx;
   private pondLife: PondLife;
