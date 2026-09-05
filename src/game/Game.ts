@@ -549,7 +549,10 @@ export class Game {
         this.hostRef?.broadcastEvent({ kind: 'sfxAt', sfx: name, x, y: 1, z });
       },
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走
-      (x, z) => this.isGroundBlocked(x, z)
+      (x, z) => this.isGroundBlocked(x, z),
+      Math.random,
+      // 营地判定:篝火 6 米内不刷新动物,新个体不在玩家的营地出现
+      (x, z) => this.campfire.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6)
     );
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {

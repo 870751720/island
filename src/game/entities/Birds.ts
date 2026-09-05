@@ -23,8 +23,8 @@ const WALK_SPEED = 0.7;
 /** 巡航目标点选在玩家周围这个环内,保证玩家总能偶尔看到鸟 */
 const WANDER_MIN = 8;
 const WANDER_MAX = 26;
-/** 种群刷新间隔:死亡个体不复活,每隔该时长补足数量 */
-const REFRESH_INTERVAL = 8;
+/** 死亡个体的补充冷却区间(真实秒);逐只计时,不整批补满 */
+const RECOVERY: [number, number] = [180, 300];
 /** 鸟生命值 */
 const HP = 1;
 /** 每次落地在原地遗落一粒种子的概率 */
@@ -144,10 +144,10 @@ export class Birds implements Updatable {
   private birds: Bird[] = [];
   private nextId = 0;
   private fx = new CreatureFx();
-  /** 种群目标数量(死亡后靠刷新补足) */
-  private readonly desiredCount = 3;
-  /** 种群刷新检查计时 */
-  private refreshLeft = REFRESH_INTERVAL;
+  /** 种群目标数量(死亡后靠冷却补充) */
+  private readonly desiredCount = 10;
+  /** 每个死亡个体的剩余补充冷却;归零后在远离玩家的高空补充 */
+  private respawns: number[] = [];
 
   /** 创建一只鸟并放入场景:出生在高空巡航(初始生成、种群刷新与客人端补建共用) */
   private createBird(id: number, variant: number, pos: THREE.Vector3, rng: () => number): Bird {
@@ -183,11 +183,6 @@ export class Birds implements Updatable {
     this.group.remove(bird.model.group);
   }
 
-  /** 当前存活数量(种群刷新用) */
-  private aliveCount(): number {
-    return this.birds.filter((b) => b.alive).length;
-  }
-
   constructor(
     scene: THREE.Scene,
     private terrain: IslandTerrain,
@@ -210,9 +205,10 @@ export class Birds implements Updatable {
     scene.add(this.group);
   }
 
-  /** 巡航目标:玩家周围环内随机一点的高空 */
+  /** 巡航目标:随机一名玩家周围环内的高空,避免所有鸟都跟着同一个人 */
   private pickWanderTarget(rng: () => number): THREE.Vector3 {
-    const p = this.players()[0]?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
+    const list = this.players();
+    const p = (list.length ? list[Math.floor(rng() * list.length)] : undefined)?.group.position ?? this.birds[0]?.pos ?? new THREE.Vector3();
     const halfX = this.terrain.halfWidth * 0.9;
     const halfZ = this.terrain.halfLength * 0.9;
     for (let tries = 0; tries < 10; tries++) {
@@ -270,14 +266,13 @@ export class Birds implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
-    // 种群刷新:死亡个体不再原地复活,定期在别处高空补足数量(新个体是全新实体)
-    this.refreshLeft -= delta;
-    if (this.refreshLeft <= 0) {
-      this.refreshLeft = REFRESH_INTERVAL;
-      for (let i = this.aliveCount(); i < this.desiredCount; i++) {
-        const spawn = this.pickWanderTarget(Math.random);
-        this.createBird(this.nextId++, Math.floor(Math.random() * BODY_COLORS.length), spawn, Math.random);
-      }
+    // 种群补充:每个空位独立冷却到期后,在别处高空补入全新实体
+    for (let i = this.respawns.length - 1; i >= 0; i--) {
+      this.respawns[i] -= delta;
+      if (this.respawns[i] > 0) continue;
+      this.respawns.splice(i, 1);
+      const spawn = this.pickWanderTarget(Math.random);
+      this.createBird(this.nextId++, Math.floor(Math.random() * BODY_COLORS.length), spawn, Math.random);
     }
     for (const bird of this.birds) {
       if (!bird.alive) continue;
@@ -538,6 +533,7 @@ export class Birds implements Updatable {
     }
     best.alive = false;
     // 空中被击中:翻滚坠落到地面再倒地渐隐,而不是悬在半空
+    this.respawns.push(RECOVERY[0] + Math.random() * (RECOVERY[1] - RECOVERY[0]));
     this.fx.playDeath(best.model.group, this.terrain.getHeight(best.pos.x, best.pos.z), () => this.removeBird(best));
     return true;
   }

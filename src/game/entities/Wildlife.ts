@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { HabitatPopulation, type HabitatSlot } from '../world/HabitatPopulation';
+import { landCells, latitude } from '../world/SpawnLayout';
 import type { Updatable } from '../core/GameLoop';
 import { nearestToSegmentXZ } from '../core/HitSegment';
 import { IslandTerrain } from '../world/IslandTerrain';
@@ -27,8 +29,7 @@ export type AnimalLoot = { kind: ResourceKind; count: number }[];
 /** 草地高度带:高于沙滩带上限算草地,动物只在草地上活动 */
 const GRASS_MIN = 0.16;
 /** 玩家死后 / 游泳时不再触发受击与追击 */
-/** 种群刷新间隔:死亡个体不复活,每隔该时长补足各物种数量 */
-const REFRESH_INTERVAL = 8;
+
 
 // —— 熊的威胁行为参数 ——
 /** 力竭后的追击速度:明显慢于玩家步行,给玩家拉开距离的窗口 */
@@ -81,6 +82,9 @@ type BearPounce = { phase: 'windup' | 'leap' | 'recover'; left: number; dir: num
 type SpeciesConfig = {
   label: string;
   count: number;
+  habitats: number;
+  zoneTo: number;
+  recovery: [number, number];
   /** 刷新分区:只出现在纬度 from 及以北(0=全岛;南端为 0、北端为 1,危险动物越住越北) */
   zoneFrom?: number;
   /** 平时游荡速度 */
@@ -104,7 +108,11 @@ type SpeciesConfig = {
 const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   rabbit: {
     label: '兔子',
-    count: 5,
+    count: 18,
+    zoneFrom: 0,
+    habitats: 6,
+    zoneTo: 0.65,
+    recovery: [120, 180],
     walkSpeed: 1.2,
     rushSpeed: 3.4,
     senseRange: 2.6,
@@ -120,7 +128,11 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   },
   sheep: {
     label: '绵羊',
-    count: 4,
+    count: 12,
+    zoneFrom: 0.15,
+    habitats: 4,
+    zoneTo: 0.55,
+    recovery: [240, 360],
     walkSpeed: 0.9,
     rushSpeed: 2.4,
     senseRange: 3,
@@ -136,7 +148,11 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   },
   deer: {
     label: '鹿',
-    count: 4,
+    count: 12,
+    zoneFrom: 0.3,
+    habitats: 4,
+    zoneTo: 0.9,
+    recovery: [240, 360],
     walkSpeed: 1.4,
     rushSpeed: 3.6,
     senseRange: 3.4,
@@ -152,9 +168,11 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   },
   wolf: {
     label: '狼',
-    count: 2,
-    // 只在岛北面的 80% 区域出没(出生点附近安全)
-    zoneFrom: 0.2,
+    count: 6,
+    zoneFrom: 0.45,
+    habitats: 3,
+    zoneTo: 0.9,
+    recovery: [360, 480],
     walkSpeed: 1.25,
     rushSpeed: 3.2,
     senseRange: 6,
@@ -170,9 +188,11 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   },
   bear: {
     label: '熊',
-    count: 1,
-    // 只在岛北面的 60% 区域出没(深入北方才遇到)
-    zoneFrom: 0.4,
+    count: 2,
+    zoneFrom: 0.75,
+    habitats: 2,
+    zoneTo: 1,
+    recovery: [600, 900],
     walkSpeed: 0.8,
     /** 追击冲刺速度:略快于玩家步行,必须靠耐力机制给出喘息窗口 */
     rushSpeed: 3.9,
@@ -191,6 +211,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   crocodile: {
     label: '鳄鱼',
     count: 0,
+    zoneFrom: 0,
+    habitats: 0,
+    zoneTo: 1,
+    recovery: [600, 900],
     walkSpeed: 0.7,
     rushSpeed: 3.5,
     senseRange: 7,
@@ -207,6 +231,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
 };
 
 type Animal = {
+  habitat?: HabitatSlot<AnimalSpecies>;
   /** 同步用短 id(房主递增分配,状态快照按 id 对应) */
   id: number;
   species: AnimalSpecies;
@@ -260,13 +285,8 @@ export class Wildlife implements Updatable {
   private animals: Animal[] = [];
   private nextId = 1;
   private creatureFx = new CreatureFx();
-  /** 种群刷新检查计时 */
-  private refreshLeft = REFRESH_INTERVAL;
-
-  /** 当前某物种的存活数量(种群刷新用) */
-  private aliveCount(species: AnimalSpecies): number {
-    return this.animals.filter((a) => a.species === species && a.alive).length;
-  }
+  private population = new HabitatPopulation<AnimalSpecies>();
+  private safeSpawn: THREE.Vector3;
 
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeAnimal(animal: Animal): void {
@@ -297,16 +317,36 @@ export class Wildlife implements Updatable {
     private playSound: (name: SfxName, x: number, z: number) => void,
     /** 围栏等静态阻挡:点在阻挡内时动物不可走(围栏闭合即被圈住) */
     private isBlocked: (x: number, z: number) => boolean = () => false,
-    rng: () => number = Math.random
+    rng: () => number = Math.random,
+    private nearCamp: (x: number, z: number) => boolean = () => false
   ) {
+    this.safeSpawn = terrain.findSpawnPoint();
+    const cells = landCells(terrain, 8);
+    const hostileHomes: { x: number; z: number }[] = [];
     for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
       const config = SPECIES[species];
-      for (let i = 0; i < config.count; i++) {
-        const spawn = this.findGrassSpot(rng, config.zoneFrom ?? 0);
-        if (!spawn) continue;
-        this.createAnimal(species, spawn, rng() * Math.PI * 2, rng);
+      const candidates = cells.filter(p => {
+        const t = latitude(terrain, p.z);
+        return t >= (config.zoneFrom ?? 0) && t <= config.zoneTo &&
+          (config.damage === 0 || (Math.hypot(p.x - this.safeSpawn.x, p.z - this.safeSpawn.z) > 85 && Math.abs(p.x - Math.sin(p.z / 55) * 9) > 16));
+      });
+      const homes: { x: number; z: number }[] = [];
+      for (let i = 0; i < config.habitats; i++) {
+        // Stratify over available ground so narrow island tips do not lose their quota.
+        const sorted = [...candidates].sort((a, b) => b.z - a.z);
+        const band = sorted.slice(Math.floor(i * sorted.length / config.habitats), Math.floor((i + 1) * sorted.length / config.habitats));
+        for (let tries = 0; tries < 300 && band.length; tries++) {
+          const home = band[Math.floor(rng() * band.length)];
+          if (!this.isGrass(home.x, home.z) || homes.some(h => Math.hypot(home.x - h.x, home.z - h.z) < 35)) continue;
+          if (config.damage > 0 && hostileHomes.some(h => Math.hypot(home.x - h.x, home.z - h.z) < 45)) continue;
+          homes.push(home);
+          if (config.damage > 0) hostileHomes.push(home);
+          this.population.add(species, home, config.count / config.habitats, config.damage > 0 ? 14 : 20, config.recovery);
+          break;
+        }
       }
     }
+    for (const slot of this.population.slots) slot.occupied = this.spawnResident(slot, rng, true);
     scene.add(this.group);
   }
 
@@ -395,32 +435,27 @@ export class Wildlife implements Updatable {
     return best;
   }
 
-  /** 在岛上随机撒点找一处草地(离所有玩家远一点,避免刷新在脸上) */
-  /** 找一处草地落脚点;fromT > 0 时只在纬度 fromT 及以北采样(危险动物分区) */
-  private findGrassSpot(rng: () => number, fromT = 0): THREE.Vector3 | null {
-    const maxX = this.terrain.halfWidth - 3;
-    const maxZ = this.terrain.halfLength - 3;
-    // 南端 z 为 +maxZ,纬度从南往北递增 → z 上限随分区北移而降低
-    const zMin = -maxZ;
-    const zMax = maxZ - fromT * this.terrain.length;
-    for (let i = 0; i < 40; i++) {
-      const x = (rng() * 2 - 1) * maxX;
-      const z = zMin + rng() * (zMax - zMin);
-      if (!this.isGrass(x, z)) continue;
-      let near = false;
-      for (const t of this.players()) {
-        const p = t.group.position;
-        if (Math.hypot(x - p.x, z - p.z) < 8) near = true;
-      }
-      if (near) continue;
-      return new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
+  private spawnResident(slot: HabitatSlot<AnimalSpecies>, rng: () => number, initial = false): boolean {
+    for (let i = 0; i < 60; i++) {
+      const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * slot.radius;
+      const x = slot.home.x + Math.cos(a) * d, z = slot.home.z + Math.sin(a) * d;
+      if (!this.isGrass(x, z) || this.nearCamp(x, z)) continue;
+      if (SPECIES[slot.kind].damage > 0 && Math.hypot(x - this.safeSpawn.x, z - this.safeSpawn.z) < 60) continue;
+      if (this.players().some(p => Math.hypot(x - p.group.position.x, z - p.group.position.z) < (initial ? 12 : 45))) continue;
+      if (this.animals.some(a => a.alive && Math.hypot(x - a.pos.x, z - a.pos.z) < 2)) continue;
+      const animal = this.createAnimal(slot.kind, new THREE.Vector3(x, this.terrain.getHeight(x, z), z), rng() * Math.PI * 2, rng);
+      animal.habitat = slot;
+      return true;
     }
-    return null;
+    return false;
   }
 
   /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围 */
   private canStand(animal: Animal, x: number, z: number): boolean {
-    if (animal.species !== 'crocodile') return this.isGrass(x, z);
+    if (animal.species !== 'crocodile') {
+      if (animal.config.damage > 0 && animal.habitat && Math.hypot(x - this.safeSpawn.x, z - this.safeSpawn.z) < 60) return false;
+      return this.isGrass(x, z);
+    }
     const inPond = this.terrain.getWaterKind(x, z) === 'pond';
     if (!inPond && !this.isGrass(x, z)) return false;
     const pond = animal.pond;
@@ -441,6 +476,9 @@ export class Wildlife implements Updatable {
       } else {
         x = animal.pos.x + Math.cos(a) * d;
         z = animal.pos.z + Math.sin(a) * d;
+      }
+      if (animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
+        x = animal.habitat.home.x; z = animal.habitat.home.z;
       }
       if (this.canStand(animal, x, z)) {
         animal.target.set(x, this.terrain.getHeight(x, z), z);
@@ -469,19 +507,7 @@ export class Wildlife implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.creatureFx.update(delta);
-    // 种群刷新:死亡个体不再原地复活,定期补足各物种数量(新个体是全新实体,联机时经 species 快照同步给客人)
-    this.refreshLeft -= delta;
-    if (this.refreshLeft <= 0) {
-      this.refreshLeft = REFRESH_INTERVAL;
-      for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
-        const missing = SPECIES[species].count - this.aliveCount(species);
-        for (let i = 0; i < missing; i++) {
-          const spawn = this.findGrassSpot(Math.random, SPECIES[species].zoneFrom ?? 0);
-          if (!spawn) break;
-          this.createAnimal(species, spawn, Math.random() * Math.PI * 2);
-        }
-      }
-    }
+    this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
       // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人)
@@ -865,6 +891,7 @@ export class Wildlife implements Updatable {
     }
     const species = animal.species;
     animal.alive = false;
+    this.population.release(animal.habitat);
     this.creatureFx.playDeath(animal.model.group, undefined, () => this.removeAnimal(animal));
     return { species };
   }

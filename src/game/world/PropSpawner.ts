@@ -2,123 +2,104 @@ import * as THREE from 'three';
 import type { IslandTerrain } from './IslandTerrain';
 import type { PropKind } from './Props';
 import type { TreeSpecies } from './TreeSpecies';
-
-/**
- * 长条岛的资源撒点算法:固定数量均匀撒点在 5 倍面积的岛上不再适用,
- * 改为「密度 × 实际陆地面积」定总量、按纬度分带调节密度与树种、
- * 低频噪声聚簇让植被成片出现(林子与空地交替)。
- * 纬度 t 以岛南端(出生侧)为 0、北端为 1。
- */
+import { isPassage, landCells, latitude, SpawnSpacing, type GroundPoint } from './SpawnLayout';
 
 export type PropSpot = { kind: PropKind; x: number; z: number; species?: TreeSpecies };
-
-type SpawnRule = {
-  kind: PropKind;
-  /** 每平方米陆地的目标密度(按旧圆形岛的手感标定) */
-  density: number;
-  /** 只在纬度 from 及以北出现(0 = 全岛) */
-  from: number;
-  /** 密度随纬度的缩放(南多还是北多) */
-  mul?: (t: number) => number;
-  /** 参与噪声聚簇(成片出现) */
-  clustered: boolean;
-};
-
-/** 与旧岛固定数量(tree60/rock18/gravel32/berry20/shrub30/grass26/worm12)手感一致的基础密度,整体上浮 0.3 倍 */
-const RULES: SpawnRule[] = [
-  { kind: 'tree', density: 0.0060, from: 0, clustered: true },
-  { kind: 'rock', density: 0.0018, from: 0, mul: (t) => 0.6 + 1.4 * t, clustered: false },
-  { kind: 'gravel', density: 0.0033, from: 0, mul: (t) => 0.6 + 1.2 * t, clustered: false },
-  { kind: 'berry', density: 0.0020, from: 0, mul: (t) => 1.4 - 0.7 * t, clustered: true },
-  { kind: 'shrub', density: 0.0030, from: 0, clustered: true },
-  { kind: 'grass', density: 0.0026, from: 0, mul: (t) => 1.25 - 0.5 * t, clustered: false },
-  { kind: 'worm', density: 0.0012, from: 0, clustered: false },
+type Rule = { kind: PropKind; density: number; radius: number; patch: number; weights: number[] };
+const RULES: Rule[] = [
+  { kind: 'tree', density: 60, radius: 1.8, patch: 12, weights: [0.9, 1.1, 1, 1.2] },
+  { kind: 'rock', density: 18, radius: 1.2, patch: 6, weights: [0.5, 0.7, 1.4, 2] },
+  { kind: 'gravel', density: 23, radius: 0.7, patch: 1, weights: [1, 0.8, 1.2, 1.5] },
+  { kind: 'berry', density: 12, radius: 0.8, patch: 4, weights: [1.8, 1.3, 0.7, 0.4] },
+  { kind: 'shrub', density: 21, radius: 0.8, patch: 5, weights: [1.3, 1.2, 0.9, 0.7] },
+  { kind: 'grass', density: 25, radius: 0.65, patch: 7, weights: [1.4, 1.3, 0.8, 0.6] },
+  { kind: 'worm', density: 7, radius: 0.65, patch: 3, weights: [1.2, 1.2, 1, 0.7] },
 ];
-
-/** 生成自己的 2D 值噪声(与地形噪声实现一致,种子独立) */
-function createNoise(seed: number) {
-  const hash = (x: number, y: number) => {
-    const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
-    return n - Math.floor(n);
-  };
-  const smooth = (t: number) => t * t * (3 - 2 * t);
-  return (x: number, y: number) => {
-    const xi = Math.floor(x);
-    const yi = Math.floor(y);
-    const xf = smooth(x - xi);
-    const yf = smooth(y - yi);
-    const a = hash(xi, yi);
-    const b = hash(xi + 1, yi);
-    const c = hash(xi, yi + 1);
-    const d = hash(xi + 1, yi + 1);
-    return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
-  };
-}
-
 /** 支持递减方向的 smoothstep */
 function smoothstep(a: number, b: number, t: number): number {
-  const x = Math.min(1, Math.max(0, (t - a) / (b - a)));
+  const x = THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
   return x * x * (3 - 2 * x);
 }
 
-/** 按纬度挑树种:南端果树多,北端松树多,橡树全岛打底 */
-function treeSpeciesAt(t: number, rng: () => number): TreeSpecies {
-  const weights: Record<TreeSpecies, number> = {
-    fruit: 0.15 + smoothstep(0.55, 0.15, t) * 0.65,
-    pine: 0.15 + smoothstep(0.3, 0.75, t) * 0.75,
-    oak: 0.55,
-  };
-  let roll = rng() * (weights.oak + weights.pine + weights.fruit);
-  for (const species of Object.keys(weights) as TreeSpecies[]) {
-    roll -= weights[species];
-    if (roll <= 0) return species;
+function weight(rule: Rule, t: number): number {
+  const stops = [0.1, 0.325, 0.6, 0.875];
+  for (let i = 0; i < 3; i++) if (t < stops[i + 1]) {
+    const f = THREE.MathUtils.clamp((t - stops[i]) / (stops[i + 1] - stops[i]), 0, 1);
+    return THREE.MathUtils.lerp(rule.weights[i], rule.weights[i + 1], f);
   }
-  return 'oak';
+  return rule.weights[3];
 }
 
-/** 采样估算法线以上的陆地面积(定总量的基准) */
-function estimateLandArea(terrain: IslandTerrain): number {
-  const step = 8;
-  let land = 0;
-  for (let x = -terrain.halfWidth; x <= terrain.halfWidth; x += step) {
-    for (let z = -terrain.halfLength; z <= terrain.halfLength; z += step) {
-      if (terrain.getHeight(x, z) > 0.3) land++;
+/** Host-only initial layout; saved games restore their full resource list. */
+export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Math.random): PropSpot[] {
+  const cells = landCells(terrain);
+  if (!cells.length) return [];
+  const spawn = terrain.findSpawnPoint(), spacing = new SpawnSpacing();
+  const spots: PropSpot[] = [], p = new THREE.Vector3();
+  const counts = new Map<PropKind, number>();
+  const camp = cells.filter(c => Math.hypot(c.x - spawn.x, c.z - spawn.z) < 30)
+    .sort((a, b) => Math.hypot(a.x - spawn.x, a.z - spawn.z + 18) - Math.hypot(b.x - spawn.x, b.z - spawn.z + 18))[0] ?? spawn;
+  const place = (rule: Rule, x: number, z: number): boolean => {
+    p.set(x, terrain.getHeight(x, z), z);
+    if (p.y <= 0.3 || terrain.isNearWater(p, 1)) return false;
+    if (Math.abs(x - camp.x) < 6 && Math.abs(z - camp.z) < 6) return false;
+    if (rule.radius > 1 && isPassage(x, z)) return false;
+    if (!spacing.accepts(x, z, rule.radius)) return false;
+    const spot: PropSpot = { kind: rule.kind, x, z };
+    if (rule.kind === 'tree') {
+      const t = latitude(terrain, z);
+      const weights: Record<TreeSpecies, number> = {
+        fruit: 0.15 + smoothstep(0.55, 0.15, t) * 0.65,
+        pine: 0.15 + smoothstep(0.3, 0.75, t) * 0.75,
+        oak: 0.55,
+      };
+      let roll = rng() * (weights.oak + weights.pine + weights.fruit);
+      spot.species = (Object.keys(weights) as TreeSpecies[]).find((s) => (roll -= weights[s]) <= 0) ?? 'oak';
+    }
+    spots.push(spot);
+    spacing.add(x, z, rule.radius);
+    counts.set(rule.kind, (counts.get(rule.kind) ?? 0) + 1);
+    return true;
+  };
+  // Starter supplies count towards each resource's budget, with bounded shoreline fallback.
+  const starter = [...cells].sort((a, b) => Math.hypot(a.x - spawn.x, a.z - spawn.z) - Math.hypot(b.x - spawn.x, b.z - spawn.z));
+  for (const [kind, count, range] of [
+    ['shrub', 3, 15], ['gravel', 3, 15], ['berry', 3, 15], ['grass', 3, 15], ['tree', 8, 35], ['rock', 3, 35],
+  ] as [PropKind, number, number][]) {
+    const rule = RULES.find(r => r.kind === kind)!;
+    for (const limit of [range, range + 10, range + 20]) {
+      for (const c of starter) {
+        if ((counts.get(kind) ?? 0) >= count || Math.hypot(c.x - spawn.x, c.z - spawn.z) > limit) break;
+        place(rule, c.x, c.z);
+      }
+      if ((counts.get(kind) ?? 0) >= count) break;
     }
   }
-  return land * step * step;
-}
-
-/** 生成全岛自然资源落点(模型创建仍由 Props 负责) */
-export function generatePropSpots(
-  terrain: IslandTerrain,
-  rng: () => number = Math.random
-): PropSpot[] {
-  const noise = createNoise(rng() * 1000);
-  const landArea = estimateLandArea(terrain);
-  const spots: PropSpot[] = [];
-  const maxX = terrain.halfWidth * 0.92;
-  const pos = new THREE.Vector3();
   for (const rule of RULES) {
-    const count = Math.round(rule.density * landArea);
-    let placed = 0;
-    for (let tries = 0; tries < count * 12 && placed < count; tries++) {
-      const t = rule.from + rng() * (1 - rule.from);
-      const x = (rng() * 2 - 1) * maxX;
-      const z = terrain.halfLength - t * terrain.length;
-      const y = terrain.getHeight(x, z);
-      if (y <= 0.3) continue;
-      pos.set(x, y, z);
-      if (terrain.isNearWater(pos, 1)) continue;
-      if (rule.mul && rng() > rule.mul(t)) continue;
-      if (rule.clustered) {
-        // 噪声掩码 + 抖动:高于阈值处成片,低于阈值处留出空地
-        const mask = noise(x * 0.016 + 31, z * 0.016 + 77);
-        if (mask + (rng() - 0.5) * 0.4 < 0.45) continue;
-      }
-      const spot: PropSpot = { kind: rule.kind, x, z };
-      if (rule.kind === 'tree') spot.species = treeSpeciesAt(t, rng);
-      spots.push(spot);
-      placed++;
+    const usable = cells.filter(c => !(rule.radius > 1 && isPassage(c.x, c.z)) && !(Math.abs(c.x - camp.x) < 6 && Math.abs(c.z - camp.z) < 6));
+    const target = Math.max(counts.get(rule.kind) ?? 0, Math.round(usable.length * 16 * rule.density / 10000));
+    const maxWeight = Math.max(...rule.weights), anchors: GroundPoint[] = [];
+    const anchorCount = Math.ceil(target * 0.7 / rule.patch);
+    for (let tries = 0; tries < anchorCount * 100 && anchors.length < anchorCount; tries++) {
+      const c = usable[Math.floor(rng() * usable.length)];
+      if (!c || rng() * maxWeight > weight(rule, latitude(terrain, c.z))) continue;
+      if (rule.kind === 'worm' && !terrain.waterAreas.some(w => Math.hypot(c.x - w.x, c.z - w.z) < w.radius + 14)) continue;
+      if (anchors.some(a => Math.hypot(a.x - c.x, a.z - c.z) < 18)) continue;
+      anchors.push(c);
+    }
+    const patchCounts = anchors.map(() => 0);
+    for (let tries = 0; tries < target * 100 && (counts.get(rule.kind) ?? 0) < target; tries++) {
+      const clustered = rule.patch > 1 && anchors.length > 0 && rng() < 0.7;
+      const index = Math.floor(rng() * anchors.length);
+      if (clustered && patchCounts[index] >= rule.patch) continue;
+      const c = clustered ? anchors[index] : usable[Math.floor(rng() * usable.length)];
+      if (!c) break;
+      const angle = rng() * Math.PI * 2;
+      const radius = clustered ? Math.sqrt(rng()) * (rule.kind === 'tree' ? 13 : 6) : 2;
+      const x = c.x + Math.cos(angle) * radius, z = c.z + Math.sin(angle) * radius;
+      if (!clustered && rng() * maxWeight > weight(rule, latitude(terrain, z))) continue;
+      if (rule.kind === 'worm' && !terrain.waterAreas.some(w => Math.hypot(x - w.x, z - w.z) < w.radius + 18)) continue;
+      if (place(rule, x, z) && clustered) patchCounts[index]++;
     }
   }
   return spots;

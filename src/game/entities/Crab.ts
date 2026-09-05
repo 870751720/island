@@ -13,8 +13,11 @@ const WALK_SPEED = 0.9;
 const FLEE_SPEED = 2.6;
 /** 玩家靠到这个距离内,螃蟹会横着溜走 */
 const FLEE_RANGE = 2.2;
-/** 种群刷新间隔:死亡个体不复活,每隔该时长补足数量 */
-const REFRESH_INTERVAL = 8;
+/** 死亡个体的补充冷却区间(真实秒);逐只计时,不整批补满 */
+const RECOVERY: [number, number] = [120, 180];
+/** 沙滩分段数与每段螃蟹数:全岛约 21 只,分段保证海岸各处都可能遇到 */
+const SEGMENTS = 7;
+const PER_SEGMENT = 3;
 /** 螃蟹生命值 */
 const HP = 1;
 
@@ -123,10 +126,10 @@ export class Crabs implements Updatable {
   private crabs: Crab[] = [];
   private nextId = 0;
   private fx = new CreatureFx();
-  /** 种群目标数量(死亡后靠刷新补足) */
-  private desiredCount = 0;
-  /** 种群刷新检查计时 */
-  private refreshLeft = REFRESH_INTERVAL;
+  /** 种群目标数量(死亡后靠冷却补充) */
+  private readonly desiredCount = SEGMENTS * PER_SEGMENT;
+  /** 每个死亡个体的剩余补充冷却;归零后尝试在远离玩家的海岸补充 */
+  private respawns: number[] = [];
 
   /** 创建一只螃蟹并放入场景(初始生成、种群刷新与客人端补建共用) */
   private createCrab(id: number, spawn: THREE.Vector3, rng: () => number): Crab {
@@ -151,11 +154,6 @@ export class Crabs implements Updatable {
     return crab;
   }
 
-  /** 当前存活数量(种群刷新用) */
-  private aliveCount(): number {
-    return this.crabs.filter((c) => c.alive).length;
-  }
-
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeCrab(crab: Crab): void {
     this.crabs.splice(this.crabs.indexOf(crab), 1);
@@ -173,9 +171,11 @@ export class Crabs implements Updatable {
     private onHit: (crabId: number) => void = () => {},
     rng: () => number = Math.random
   ) {
-    this.desiredCount = THREE.MathUtils.clamp(Math.round(terrain.width / 22), 5, 9);
     for (let i = 0; i < this.desiredCount; i++) {
-      const spawn = this.findBeachSpot(rng);
+      // 按角度均分到各沙滩段,同段内再抖动,避免全挤在同一片海岸
+      const base = (Math.floor(i / PER_SEGMENT) / SEGMENTS) * Math.PI * 2;
+      const angle = base + rng() * (Math.PI * 2 / SEGMENTS);
+      const spawn = this.findBeachSpot(rng, angle);
       if (!spawn) continue;
       this.createCrab(this.nextId++, spawn, rng);
     }
@@ -189,9 +189,8 @@ export class Crabs implements Updatable {
     return y >= SAND_MIN && y <= SAND_MAX;
   }
 
-  /** 沿随机方向从岛外向内找第一处沙滩带上的点 */
-  private findBeachSpot(rng: () => number): THREE.Vector3 | null {
-    const angle = rng() * Math.PI * 2;
+  /** 沿随机方向从岛外向内找第一处沙滩带上的点;给定 angle 时只在该方向寻找 */
+  private findBeachSpot(rng: () => number, angle = rng() * Math.PI * 2): THREE.Vector3 | null {
     // 从椭圆边界外侧一点向内步进;长条岛各方向半径不同,按角度求边界
     const ca = Math.cos(angle);
     const sa = Math.sin(angle);
@@ -229,15 +228,18 @@ export class Crabs implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
-    // 种群刷新:死亡个体不再原地复活,定期补足数量(新个体是全新实体)
-    this.refreshLeft -= delta;
-    if (this.refreshLeft <= 0) {
-      this.refreshLeft = REFRESH_INTERVAL;
-      for (let i = this.aliveCount(); i < this.desiredCount; i++) {
-        const spawn = this.findBeachSpot(Math.random);
-        if (!spawn) break;
-        this.createCrab(this.nextId++, spawn, Math.random);
+    // 种群补充:每个空位独立冷却到期后,找一处远离所有玩家的海岸落脚
+    for (let i = this.respawns.length - 1; i >= 0; i--) {
+      this.respawns[i] -= delta;
+      if (this.respawns[i] > 0) continue;
+      const players = this.playerPositions();
+      const spawn = this.findBeachSpot(Math.random);
+      if (spawn && players.some(p => Math.hypot(p.x - spawn.x, p.z - spawn.z) < 20)) {
+        this.respawns[i] = 10; // 玩家眼前不刷,稍后再试
+        continue;
       }
+      this.respawns.splice(i, 1);
+      if (spawn) this.createCrab(this.nextId++, spawn, Math.random);
     }
     const players = this.playerPositions();
     for (const crab of this.crabs) {
@@ -437,6 +439,7 @@ export class Crabs implements Updatable {
       return false;
     }
     best.alive = false;
+    this.respawns.push(RECOVERY[0] + Math.random() * (RECOVERY[1] - RECOVERY[0]));
     this.fx.playDeath(best.model.group, undefined, () => this.removeCrab(best));
     return true;
   }
