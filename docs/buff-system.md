@@ -52,10 +52,12 @@
 - 效果:
   - 蜂巢神龛(全局,多座不叠加):`CollectSystem` 构造注入 `berryBlessed` 回调,采集浆果丛结算时 10% 概率额外 `add('berry', 1)`;
   - 治愈水晶(30 米光环):权威端生存循环内累计 `PlayerSession.healTick`,满 10 秒 +1 血(上限 100,死亡不回);
-  - 雨神祭坛(30 米光环):光环内 `survival.drainMultiplier` 乘 0,饥饿与口渴冻结(夜间的 1.5 倍与雨具修正同乘归零)。
+  - 雨神祭坛(30 米光环):光环内 `survival.thirstDrainMultiplier` 乘 0,仅口渴冻结(夜间倍率与雨具修正同乘归零);饥饿不受影响。
 - 光环类效果只在房主/单机权威端结算:血量/饥渴本就随玩家姿态快照回流客人,客人无需本地模拟;HUD 的 buff 图标两端各自按同步后的神龛位置判定(全局两项 + 光环两项 + 熊扑减速)。
 - 存档:`shrines` 条目新增可选 `kind`(`ShrineSave`),旧档缺省按波塞冬解释,`SAVE_VERSION` 保持 28;`useShrine` 动作带 `kind` 参数上行。
 
 ## 迭代记录(追加)
 
 - 2026-09-05:新增蜂巢神龛(全岛浆果丛 10% 概率 +1)、治愈水晶(30 米每 10 秒回 1 血)、雨神祭坛(30 米饥渴冻结);`Shrine`/`ShrineSystem` 泛化为多类型神龛;HUD buff 列表补三项祝福图标。
+
+- 2026-09-05:雨神祭坛光环收窄为只冻结口渴值,饥饿恢复正常消耗(结算从 `drainMultiplier` 挪到 `thirstDrainMultiplier`)。

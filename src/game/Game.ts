@@ -642,11 +642,11 @@ export class Game {
           }
           // 交互音效只给发起者本人听:远程会话的模拟音效本地静音,只广播给对应客人补播
           this.audio.silent = s !== this.local;
-          // 雨神祭坛光环内饥渴值冻结(消耗速率归零,乘 0 即不下降)
+          // 雨神祭坛光环内口渴值冻结(口渴速率归零,饥饿不受影响)
           const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
-          s.survival.drainMultiplier = (this.dayNight.isNight ? 1.5 : 1) * (rainAltar ? 0 : 1);
+          s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
           s.survival.thirstDrainMultiplier =
-            this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier();
+            this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier() * (rainAltar ? 0 : 1);
           s.survival.swimming = s.player.isSwimming;
           s.survival.sleeping = s.player.isSleeping;
           // 治愈水晶光环内每 10 秒回复 1 血(与生存结算同源,数值随玩家快照回流客人)

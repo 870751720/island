@@ -38,7 +38,7 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     id: 'rainAltar',
     name: '雨神祭坛',
     icon: '🌧️',
-    description: '身处雨神祭坛 30 米光环内,饥饿与口渴值不再下降。',
+    description: '身处雨神祭坛 30 米光环内,口渴值不再下降。',
     good: true,
   },
   bearSlow: {

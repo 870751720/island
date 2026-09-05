@@ -172,7 +172,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '雨神祭坛',
     icon: '🌧️',
     description:
-      '供奉雨神的蓝陶钵。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间 30 米内的所有玩家饥饿与口渴值不再下降。',
+      '供奉雨神的蓝陶钵。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间 30 米内的所有玩家口渴值不再下降。',
   },
   crabMeat: {
     kind: 'crabMeat',

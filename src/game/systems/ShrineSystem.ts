@@ -32,7 +32,7 @@ type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; 
  * - 波塞冬的祝福:全岛钓鱼杂物概率降低
  * - 蜂巢神龛:全岛采集浆果丛时 10% 概率多掉 1 颗
  * - 治愈水晶:30 米内玩家缓慢回血
- * - 雨神祭坛:30 米内玩家饥渴值不再下降
+ * - 雨神祭坛:30 米内玩家口渴值不再下降
  */
 export class ShrineSystem {
   private shrines: Shrine[] = [];
