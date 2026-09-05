@@ -7,10 +7,16 @@ function clay(color: string): THREE.MeshStandardMaterial {
 /** 四足动物模型的动画部件:腿根在髋部(绕 X 轴摆动),头颈可点动;eyes 供熊暴怒变红眼 */
 export type AnimalModel = {
   group: THREE.Group;
-  legs: THREE.Mesh[];
+  legs: THREE.Object3D[];
   head: THREE.Object3D;
   tail: THREE.Object3D;
   eyes?: THREE.Mesh[];
+  rabbitRig?: {
+    body: THREE.Object3D;
+    ears: THREE.Object3D[];
+    frontPaws: THREE.Object3D[];
+    hindLegs: THREE.Object3D[];
+  };
 };
 
 /** 一条腿:锥形杆从髋部垂下,根部落在一端以便摆动;thickness 调整粗细(鹿等纤腿动物 < 1) */
@@ -32,53 +38,119 @@ function makeLeg(
   return leg;
 }
 
-/** 兔子:圆润的浅灰身躯 + 长耳朵 + 白色绒球尾,后腿粗壮 */
+/** 兔子:梨形躯干、饱满后胯、短前爪、长脚掌和可随跳跃摆动的长耳 */
 function makeRabbitModel(): AnimalModel {
   const group = new THREE.Group();
-  const fur = clay('#b8ada0');
-  const belly = clay('#d9d2c7');
-  const dark = clay('#4a423c');
+  const fur = clay('#a9937f');
+  const lightFur = clay('#d9cbb9');
+  const innerEar = clay('#c98f8e');
+  const dark = clay('#302925');
+  const noseMat = clay('#8d6260');
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 7, 6), fur);
-  body.scale.set(0.9, 0.95, 1.25);
-  body.position.y = 0.26;
+  const bodyPivot = new THREE.Group();
+  bodyPivot.position.y = 0.3;
+  group.add(bodyPivot);
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.23, 8, 6), fur);
+  body.scale.set(0.92, 0.92, 1.35);
+  body.rotation.x = -0.12;
   body.castShadow = true;
-  group.add(body);
+  bodyPivot.add(body);
+
+  // 兔子的轮廓重点是高而圆的后胯，而不是均匀的椭圆身体。
+  const haunch = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), fur);
+  haunch.scale.set(1.08, 1.08, 1.12);
+  haunch.position.set(0, 0.03, -0.18);
+  haunch.castShadow = true;
+  bodyPivot.add(haunch);
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.15, 7, 6), lightFur);
+  chest.scale.set(0.78, 1, 0.55);
+  chest.position.set(0, -0.03, 0.2);
+  bodyPivot.add(chest);
 
   const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.42, 0.22);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 7, 6), fur);
-  head.scale.set(0.9, 0.95, 1.1);
+  headPivot.position.set(0, 0.46, 0.2);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), fur);
+  head.scale.set(0.92, 1.02, 1.06);
   head.castShadow = true;
   headPivot.add(head);
-  // 长耳朵:两片竖起的扁盒
+  const ears: THREE.Object3D[] = [];
   for (const side of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.03), fur);
-    ear.position.set(side * 0.06, 0.17, -0.02);
-    ear.rotation.x = -0.15;
-    headPivot.add(ear);
+    const earPivot = new THREE.Group();
+    earPivot.position.set(side * 0.065, 0.105, -0.015);
+    earPivot.rotation.z = side * -0.1;
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5), fur);
+    ear.scale.set(0.55, 2.15, 0.3);
+    ear.position.y = 0.14;
+    ear.castShadow = true;
+    earPivot.add(ear);
+    const pink = new THREE.Mesh(new THREE.SphereGeometry(0.057, 6, 5), innerEar);
+    pink.scale.set(0.5, 1.85, 0.18);
+    pink.position.set(0, 0.145, 0.022);
+    earPivot.add(pink);
+    headPivot.add(earPivot);
+    ears.push(earPivot);
   }
-  // 鼻尖与眼睛
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 5, 4), dark);
-  nose.position.set(0, -0.01, 0.15);
+
+  // 双颊和短吻让正面、侧面都能读出兔脸。
+  for (const side of [-1, 1]) {
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.067, 6, 5), lightFur);
+    cheek.scale.set(1, 0.78, 1.05);
+    cheek.position.set(side * 0.045, -0.045, 0.125);
+    headPivot.add(cheek);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.027, 6, 5), dark);
+    eye.position.set(side * 0.105, 0.025, 0.095);
+    headPivot.add(eye);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 5, 4), noseMat);
+  nose.scale.set(1.15, 0.75, 0.8);
+  nose.position.set(0, -0.035, 0.188);
   headPivot.add(nose);
   group.add(headPivot);
 
-  // 短前腿 + 粗后腿
-  const legs = [
-    makeLeg(belly, -0.1, 0.24, 0.16, 0.24),
-    makeLeg(belly, 0.1, 0.24, 0.16, 0.24),
-    makeLeg(fur, -0.11, 0.26, -0.16, 0.26),
-    makeLeg(fur, 0.11, 0.26, -0.16, 0.26),
-  ];
-  legs.forEach((l) => group.add(l));
+  const frontPaws: THREE.Object3D[] = [];
+  const hindLegs: THREE.Object3D[] = [];
+  for (const side of [-1, 1]) {
+    const front = new THREE.Group();
+    front.position.set(side * 0.095, 0.27, 0.17);
+    const foreleg = makeLeg(lightFur, 0, 0, 0, 0.2, 0.72);
+    front.add(foreleg);
+    const forefoot = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 4), lightFur);
+    forefoot.scale.set(0.75, 0.48, 1.45);
+    forefoot.position.set(0, -0.19, 0.035);
+    front.add(forefoot);
+    group.add(front);
+    frontPaws.push(front);
+
+    const hind = new THREE.Group();
+    hind.position.set(side * 0.13, 0.31, -0.15);
+    const thigh = new THREE.Mesh(new THREE.SphereGeometry(0.115, 7, 5), fur);
+    thigh.scale.set(0.8, 1.05, 1.15);
+    thigh.position.set(0, -0.04, -0.025);
+    thigh.castShadow = true;
+    hind.add(thigh);
+    const hindFoot = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 4), lightFur);
+    hindFoot.scale.set(0.78, 0.52, 1.75);
+    hindFoot.position.set(0, -0.19, 0.035);
+    hind.add(hindFoot);
+    group.add(hind);
+    hindLegs.push(hind);
+  }
+  const legs = [...frontPaws, ...hindLegs];
 
   // 绒球尾
-  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), belly);
-  tail.position.set(0, 0.3, -0.28);
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.075, 7, 6), lightFur);
+  tail.scale.set(1, 1.05, 0.9);
+  tail.position.set(0, 0.37, -0.36);
   group.add(tail);
 
-  return { group, legs, head: headPivot, tail };
+  return {
+    group,
+    legs,
+    head: headPivot,
+    tail,
+    rabbitRig: { body: bodyPivot, ears, frontPaws, hindLegs },
+  };
 }
 
 /** 绵羊:奶白色蓬松羊毛身 + 深色小脸和细腿 */

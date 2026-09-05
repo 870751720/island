@@ -507,10 +507,29 @@ export class Wildlife implements Updatable {
   private animate(animal: Animal, delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
-    // 兔子蹦着走:移动时整体做抛物线小跳,四腿收起
+    // 兔子使用完整蹦跳周期:后腿压缩蓄力 → 腾空收腿 → 前爪探地 → 落地回弹。
     const hop = animal.species === 'rabbit';
-    if (hop && moving) {
-      g.position.y += Math.abs(Math.sin(elapsed * (excited ? 13 : 8) + animal.phase)) * 0.24;
+    const rabbitRig = animal.model.rabbitRig;
+    if (hop && rabbitRig) {
+      const cycle = elapsed * (excited ? 10.5 : 6.8) + animal.phase;
+      const lift = moving ? Math.max(0, Math.sin(cycle)) : 0;
+      const launch = moving ? Math.cos(cycle) : 0;
+      g.position.y += lift * lift * (excited ? 0.3 : 0.22);
+      rabbitRig.body.rotation.x = moving ? -0.12 - launch * 0.1 : -0.12;
+      rabbitRig.body.scale.y = moving ? 1 - Math.max(0, -launch) * 0.09 : 1;
+      rabbitRig.frontPaws.forEach((paw) => {
+        paw.rotation.x = moving ? -0.25 - lift * 0.85 + Math.max(0, -launch) * 0.35 : 0;
+      });
+      rabbitRig.hindLegs.forEach((leg) => {
+        leg.rotation.x = moving ? 0.2 + lift * 1.05 - Math.max(0, -launch) * 0.45 : 0;
+      });
+      rabbitRig.ears.forEach((ear, i) => {
+        ear.rotation.x = moving
+          ? -0.08 + lift * 0.42 + launch * 0.12
+          : -0.08 + Math.sin(elapsed * 1.7 + animal.phase + i * 0.8) * 0.06;
+      });
+      const tailPulse = moving ? lift * 0.1 : Math.sin(elapsed * 2 + animal.phase) * 0.025;
+      animal.model.tail.scale.set(1 + tailPulse, 1.05 + tailPulse, 0.9 + tailPulse);
     }
     // 模型面朝 +Z,朝向按移动方向角换算;沿最短弧平滑转向,避免状态切换时硬切
     const diff = Math.atan2(
@@ -521,15 +540,21 @@ export class Wildlife implements Updatable {
     g.rotation.y = Math.PI / 2 - animal.viewHeading;
 
     const speed = moving ? (excited ? 12 : 6) : 0;
-    animal.model.legs.forEach((leg, i) => {
-      // 前左/后右一组,前右/后左一组,交替摆动
-      const pair = i === 0 || i === 3 ? 0 : Math.PI;
-      const swing = Math.sin(elapsed * speed + animal.phase + pair);
-      leg.rotation.x = moving && !hop ? swing * 0.6 : 0;
-    });
-    // 头颈:平时轻晃,近身挥击瞬间向前顶
+    if (!hop) {
+      animal.model.legs.forEach((leg, i) => {
+        // 前左/后右一组,前右/后左一组,交替摆动
+        const pair = i === 0 || i === 3 ? 0 : Math.PI;
+        const swing = Math.sin(elapsed * speed + animal.phase + pair);
+        leg.rotation.x = moving ? swing * 0.6 : 0;
+      });
+    }
+    // 头颈:兔子停下时会轻微嗅闻,其他动物平时轻晃;近身挥击瞬间向前顶。
     let bob = animal.lungeLeft > 0 ? 0.28 : Math.sin(elapsed * 2 + animal.phase) * 0.04;
     let headPitch = animal.lungeLeft > 0 ? -0.4 : 0;
+    if (hop) {
+      bob = moving ? Math.max(0, Math.sin(elapsed * (excited ? 10.5 : 6.8) + animal.phase)) * 0.035 : Math.sin(elapsed * 3.4 + animal.phase) * 0.018;
+      headPitch = moving ? -0.08 : Math.sin(elapsed * 2.2 + animal.phase) * 0.055;
+    }
     if (animal.species === 'bear') {
       // 身体俯仰:扑击蓄力人立后仰 → 腾跃前倾 → 落地硬直低伏 → 冲刺轻前倾 → 力竭喘息下沉
       const pounce = animal.pounce;
@@ -570,8 +595,10 @@ export class Wildlife implements Updatable {
     }
     animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
-    // 尾巴轻摆
-    animal.model.tail.rotation.y = Math.sin(elapsed * 3 + animal.phase) * 0.3;
+    // 兔尾以轻颤为主,其余动物左右摆尾。
+    animal.model.tail.rotation.y = hop
+      ? Math.sin(elapsed * 7 + animal.phase) * 0.09
+      : Math.sin(elapsed * 3 + animal.phase) * 0.3;
   }
 
   /** 熊咆哮:警戒/暴怒播完整咆哮,扑击蓄力只播短低吼 */
