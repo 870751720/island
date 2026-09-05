@@ -15,6 +15,8 @@ import type { GameAudio } from '../audio/GameAudio';
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
+/** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
+const BERRY_BONUS_CHANCE = 0.1;
 const DIG_HITS = 2; // 锄头挖丛的命中次数(精致石锄 1 次)
 /** 锄头挖走的丛对应的道具 */
 const DIG_YIELD: Partial<
@@ -161,7 +163,9 @@ export class CollectSystem {
     /** 将资源点处的命中/完成粒子同步给联机客人。 */
     private onFx: (position: Vector3, color: string, count: number) => void = () => {},
     /** 资源点产出入包时上报飞行起点(本地玩家的入包飞行表现用) */
-    private onYield: (position: Vector3) => void = () => {}
+    private onYield: (position: Vector3) => void = () => {},
+    /** 蜂巢神龛是否在场(浆果丛产量祝福,全岛生效) */
+    private berryBlessed: () => boolean = () => false
   ) {}
 
   /** 手持锄头靠近浆果丛/灌木丛/草丛时是在挖整棵丛,而不是徒手采集 */
@@ -286,6 +290,9 @@ export class CollectSystem {
     } else {
       this.props.harvest(prop);
       config.yield(this.inventory, prop);
+      if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
+        this.inventory.add('berry', 1);
+      }
     }
     this.fx.burst(prop.position, config.fxColor, 14);
     this.onFx(prop.position, config.fxColor, 14);

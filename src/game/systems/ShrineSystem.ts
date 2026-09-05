@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Shrine } from '../entities/Shrine';
+import { Shrine, SHRINE_COLORS, type ShrineKind } from '../entities/Shrine';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -16,14 +16,23 @@ const DIG_HITS = 2; // 锄头挖神像的命中次数(精致石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 波塞冬的祝福:每座神像降低的钓鱼杂物概率(百分点) */
 export const SHRINE_JUNK_CUT = 1;
+/** 光环类神龛(治愈水晶/雨神祭坛)的生效半径(米) */
+export const SHRINE_AURA_RANGE = 30;
+
+/** 存档/快照里的一座神龛;旧档缺 kind 时按波塞冬解释 */
+export type ShrineSave = { id?: string; kind?: ShrineKind; x: number; y: number; z: number };
 
 /** 每玩家的挖掘进度(神像是世界共享的) */
 type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Shrine | null };
 
 /**
- * 波塞冬神像系统(世界单实例,按发起者 actor 结算,可放置多个):
- * 钓鱼稀世珍宝「波塞冬的祝福」点击「使用」放到脚下;放置期间全岛(所有玩家)
- * 钓鱼钓到杂物的概率降低;手持锄头靠近站定可整座挖走,变回道具。
+ * 神龛系统(世界共享,按发起者 actor 结算,可放置多个):
+ * 钓鱼稀世珍宝「使用」后放到脚下立起对应神龛;放置期间提供各自的全岛/光环祝福,
+ * 手持锄头靠近站定可整座挖走,变回道具。
+ * - 波塞冬的祝福:全岛钓鱼杂物概率降低
+ * - 蜂巢神龛:全岛采集浆果丛时 10% 概率多掉 1 颗
+ * - 治愈水晶:30 米内玩家缓慢回血
+ * - 雨神祭坛:30 米内玩家饥渴值不再下降
  */
 export class ShrineSystem {
   private shrines: Shrine[] = [];
@@ -59,14 +68,34 @@ export class ShrineSystem {
     this.states.delete(actor);
   }
 
-  /** 岛上是否放有神像(祝福对全岛生效,多座不叠加) */
+  /** 岛上是否放有波塞冬神像(祝福对全岛生效,多座不叠加) */
   get blessed(): boolean {
-    return this.shrines.length > 0;
+    return this.has('poseidonBlessing');
   }
 
   /** 钓鱼杂物概率的降低量(百分点,当前多座不叠加) */
   get junkCut(): number {
     return this.blessed ? SHRINE_JUNK_CUT : 0;
+  }
+
+  /** 蜂巢神龛是否在岛上(浆果丛产量祝福,全岛生效,多座不叠加) */
+  get berryBlessed(): boolean {
+    return this.has('beehiveShrine');
+  }
+
+  private has(kind: ShrineKind): boolean {
+    return this.shrines.some((s) => s.kind === kind);
+  }
+
+  /** 位置是否处于某光环类神龛(治愈水晶/雨神祭坛)的半径内 */
+  inAura(kind: 'healCrystal' | 'rainAltar', position: THREE.Vector3): boolean {
+    for (const shrine of this.shrines) {
+      if (shrine.kind !== kind) continue;
+      this.scratch.copy(shrine.group.position);
+      this.scratch.y = position.y;
+      if (this.scratch.distanceTo(position) <= SHRINE_AURA_RANGE) return true;
+    }
+    return false;
   }
 
   /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他神像占住) */
@@ -86,18 +115,19 @@ export class ShrineSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」波塞冬的祝福:校验通过后在玩家脚下原地立起神像 */
-  place(actor: PlayerSession): boolean {
-    if (actor.inventory.count('poseidonBlessing') <= 0 || !this.canPlace(actor)) return false;
-    actor.inventory.remove('poseidonBlessing', 1);
-    const shrine = new Shrine(this.scene, actor.player.group.position);
+  /** 背包里点击「使用」神龛道具:校验通过后在玩家脚下原地立起对应神像 */
+  place(actor: PlayerSession, kind: ShrineKind): boolean {
+    if (actor.inventory.count(kind) <= 0 || !this.canPlace(actor)) return false;
+    actor.inventory.remove(kind, 1);
+    const shrine = new Shrine(this.scene, actor.player.group.position, kind);
     this.shrines.push(shrine);
     const sp = shrine.group.position;
-    this.onChanged?.({ op: 'add', id: this.ids.get(shrine), value: { id: this.ids.get(shrine), x: sp.x, y: sp.y, z: sp.z } });
+    const id = this.ids.get(shrine);
+    this.onChanged?.({ op: 'add', id, value: { id, kind, x: sp.x, y: sp.y, z: sp.z } });
     this.audio.play('success');
     const fxPos = actor.player.group.position.clone();
     fxPos.y += 0.8;
-    this.fx.burst(fxPos, '#2ec4b6', 14);
+    this.fx.burst(fxPos, SHRINE_COLORS[kind], 14);
     return true;
   }
 
@@ -145,8 +175,8 @@ export class ShrineSystem {
     this.shrines.splice(this.shrines.indexOf(target), 1);
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
-    this.give('poseidonBlessing', 1, actor);
-    this.fx.burst(target.group.position, '#2ec4b6', 14);
+    this.give(target.kind, 1, actor);
+    this.fx.burst(target.group.position, SHRINE_COLORS[target.kind], 14);
     } finally {
       st.hold.commit(actor.player);
     }
@@ -165,11 +195,11 @@ export class ShrineSystem {
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 
-  /** 当前所有神像的存档快照(落点) */
-  snapshot(): { id: string; x: number; y: number; z: number }[] {
+  /** 当前所有神像的存档快照(种类与落点) */
+  snapshot(): ShrineSave[] {
     return this.shrines.map((shrine) => {
       const p = shrine.group.position;
-      return { id: this.ids.get(shrine), x: p.x, y: p.y, z: p.z };
+      return { id: this.ids.get(shrine), kind: shrine.kind, x: p.x, y: p.y, z: p.z };
     });
   }
 
@@ -179,16 +209,17 @@ export class ShrineSystem {
     this.shrines = [];
   }
 
-  /** 从存档恢复全部神像 */
-  restore(list: { id?: string; x: number; y: number; z: number }[]): void {
+  /** 从存档恢复全部神像(旧档没有 kind,一律按波塞冬解释) */
+  restore(list: ShrineSave[]): void {
     for (const s of list) {
-      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z));
+      const kind = s.kind ?? 'poseidonBlessing';
+      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z), kind);
       this.ids.set(shrine, s.id);
       this.shrines.push(shrine);
     }
   }
 
-  netApply(list: { id?: string; x: number; y: number; z: number }[]): void {
+  netApply(list: ShrineSave[]): void {
     const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
     for (let i = this.shrines.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.shrines[i]))) continue;
@@ -198,7 +229,7 @@ export class ShrineSystem {
     const current = new Map(this.shrines.map((s) => [this.ids.get(s), s]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z));
+      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'poseidonBlessing');
       this.ids.set(shrine, value.id);
       this.shrines.push(shrine);
     }

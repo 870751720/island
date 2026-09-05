@@ -25,6 +25,7 @@ import { CrateSystem } from './systems/CrateSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { ShrineSystem } from './systems/ShrineSystem';
+import type { ShrineKind } from './entities/Shrine';
 import { BUFFS, type HudBuff } from './systems/BuffSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
@@ -639,11 +640,26 @@ export class Game {
           }
           // 交互音效只给发起者本人听:远程会话的模拟音效本地静音,只广播给对应客人补播
           this.audio.silent = s !== this.local;
-          s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
+          // 雨神祭坛光环内饥渴值冻结(消耗速率归零,乘 0 即不下降)
+          const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
+          s.survival.drainMultiplier = (this.dayNight.isNight ? 1.5 : 1) * (rainAltar ? 0 : 1);
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier();
           s.survival.swimming = s.player.isSwimming;
           s.survival.sleeping = s.player.isSleeping;
+          // 治愈水晶光环内每 10 秒回复 1 血(与生存结算同源,数值随玩家快照回流客人)
+          if (
+            !s.survival.state.dead &&
+            this.shrines.inAura('healCrystal', s.player.group.position)
+          ) {
+            s.healTick += delta;
+            if (s.healTick >= 10) {
+              s.healTick -= 10;
+              s.survival.state.health = Math.min(100, s.survival.state.health + 1);
+            }
+          } else {
+            s.healTick = 0;
+          }
           s.survival.update(delta);
           // 血量下降(受击/饥饿/溺水)触发角色模型闪红与受伤音(音效带间隔节流,持续掉血不成串响)
           if (s.survival.state.health < s.lastHealth - 0.001) {
@@ -1988,12 +2004,12 @@ export class Game {
     return true;
   }
 
-  /** 背包里点击「使用」波塞冬的祝福:校验通过后在玩家脚下原地立起神像,不满足时给出提示 */
-  useShrine(actor: PlayerSession = this.local): boolean {
+  /** 背包里点击「使用」神龛道具:校验通过后在玩家脚下原地立起对应神像,不满足时给出提示 */
+  useShrine(actor: PlayerSession = this.local, kind: ShrineKind = 'poseidonBlessing'): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useShrine', []);
+    if (this.guestNet) return this.guestNet.action('useShrine', [kind]);
 
-    if (this.asleepFor(actor) || !this.shrines.place(actor)) {
+    if (this.asleepFor(actor) || !this.shrines.place(actor, kind)) {
       this.notify('这里放不下,找个没东西的干地试试');
       return false;
     }
@@ -2374,7 +2390,9 @@ export class Game {
         });
       },
       // 记录采集产出的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
-      (position) => this.markPickupOrigin(position, s)
+      (position) => this.markPickupOrigin(position, s),
+      // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
+      () => this.shrines.berryBlessed
     );
     s.crafting = new CraftingSystem(
       s.player,
@@ -2609,10 +2627,14 @@ export class Game {
       buffs: this.buffsFor(s),
 };
   }
-  /** 某会话当前生效的 buff:全局祝福(波塞冬神像) + 个人减速(熊扑),供 HUD 图标展示 */
+  /** 某会话当前生效的 buff:全局祝福(波塞冬/蜂巢) + 光环祝福(治愈水晶/雨神祭坛) + 个人减速(熊扑),供 HUD 图标展示 */
   private buffsFor(s: PlayerSession): HudBuff[] {
     const list: HudBuff[] = [];
     if (this.shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
+    if (this.shrines.berryBlessed) list.push({ ...BUFFS.beehive, remain: null });
+    const pos = s.player.group.position;
+    if (this.shrines.inAura('healCrystal', pos)) list.push({ ...BUFFS.healCrystal, remain: null });
+    if (this.shrines.inAura('rainAltar', pos)) list.push({ ...BUFFS.rainAltar, remain: null });
     const slow = s.player.slowSeconds;
     if (slow > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(slow) });
     return list;

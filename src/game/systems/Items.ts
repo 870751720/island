@@ -153,6 +153,27 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     description:
       '海神赐福的三叉戟石像。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间全岛所有人钓鱼钓到杂物的概率降低 1%。',
   },
+  beehiveShrine: {
+    kind: 'beehiveShrine',
+    name: '蜂巢神龛',
+    icon: '🍯',
+    description:
+      '浸满蜂蜜的神龛。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间全岛所有人采集浆果丛时有 10% 概率多掉 1 颗浆果。',
+  },
+  healCrystal: {
+    kind: 'healCrystal',
+    name: '治愈水晶',
+    icon: '💗',
+    description:
+      '散发着暖光的粉晶。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间 30 米内的所有玩家每 10 秒回复 1 点生命。',
+  },
+  rainAltar: {
+    kind: 'rainAltar',
+    name: '雨神祭坛',
+    icon: '🌧️',
+    description:
+      '供奉雨神的蓝陶钵。点击「使用」把它立到脚下(不能在水里,脚下也不能有别的东西),放置期间 30 米内的所有玩家饥饿与口渴值不再下降。',
+  },
   crabMeat: {
     kind: 'crabMeat',
     name: '蟹肉',

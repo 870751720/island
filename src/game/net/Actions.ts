@@ -6,6 +6,7 @@ import type { CraftId } from '../systems/Crafting';
 import type { ResourceKind } from '../systems/Inventory';
 import type { ArrowHit } from '../systems/BowSystem';
 import type { AnimalSpecies } from '../entities/Wildlife';
+import type { ShrineKind } from '../entities/Shrine';
 
 /** 客人动作 → Game 方法的参数化分发(以该客人的会话为 actor,由房主权威结算) */
 export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => boolean;
@@ -22,7 +23,7 @@ export const ACTIONS: Record<string, NetAction> = {
   useCrate: (g, a) => g.useCrate(a),
   useWorkbenchItem: (g, a, [kind]) => g.useWorkbenchItem(kind as ResourceKind, a),
   useBedItem: (g, a, [kind]) => g.useBedItem(kind as ResourceKind, a),
-  useShrine: (g, a) => g.useShrine(a),
+  useShrine: (g, a, [kind]) => g.useShrine(a, kind as ShrineKind),
   useFenceItem: (g, a, [kind]) => g.useFenceItem(kind as ResourceKind, a),
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,

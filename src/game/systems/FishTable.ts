@@ -46,6 +46,9 @@ export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
     { kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' },
     { kind: 'reviveStone', weight: 1, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
     { kind: 'poseidonBlessing', weight: 1, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
+    { kind: 'beehiveShrine', weight: 1, size: 1.2, color: '#e8a13a', shape: 'bottle' },
+    { kind: 'healCrystal', weight: 1, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
+    { kind: 'rainAltar', weight: 1, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
   ],
 };
 

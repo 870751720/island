@@ -26,6 +26,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   goldenFish: '#e6b422',
   reviveStone: '#7fd8e8',
   poseidonBlessing: '#2ec4b6',
+  beehiveShrine: '#e8a13a',
+  healCrystal: '#ff9ecb',
+  rainAltar: '#6fa8dc',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
   gameMeat: '#b04a3a',
@@ -628,6 +631,22 @@ function makePoseidonDrop(): THREE.Object3D {
   return g;
 }
 
+/** 神龛类道具:迷你石座 + 各自主题的发光宝石 */
+function makeShrineDrop(color: string, emissive: string, gemScaleY = 1): THREE.Object3D {
+  const g = new THREE.Group();
+  const base = mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.07, 6), clay('#8d99a6'));
+  base.position.y = 0.04;
+  g.add(base);
+  const gem = mesh(
+    new THREE.OctahedronGeometry(0.07, 0),
+    new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.4, emissive })
+  );
+  gem.scale.y = gemScaleY;
+  gem.position.y = 0.15;
+  g.add(gem);
+  return g;
+}
+
 /** 工作台道具:小桌面 + 四条腿,等级越高桌面材质与点缀越讲究 */
 function makeWorkbenchDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
@@ -685,6 +704,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   goldenFish: () => makeFishShape(DROP_COLORS.goldenFish, 1.1, 1.1, 1.2),
   reviveStone: makeReviveStone,
   poseidonBlessing: makePoseidonDrop,
+  beehiveShrine: () => makeShrineDrop(DROP_COLORS.beehiveShrine, '#9c6a1a', 1.3),
+  healCrystal: () => makeShrineDrop(DROP_COLORS.healCrystal, '#c4537f', 1.7),
+  rainAltar: () => makeShrineDrop(DROP_COLORS.rainAltar, '#2b5f9e', 1.5),
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,
   gameMeat: makeGameMeat,

@@ -452,3 +452,5 @@
 - 鳄鱼为房主权威 AI(追击/伤害/ leash),随既有战斗频段动物姿态快照同步(`AnimalPose.species` 客人端补建),不新增快照字段。
 - 新增可靠事件 `crocodileBurst {x,y,z}`:鳄鱼跃出水面时广播,各端本地补水花粒子,距声源 20m 内播 splash 音;出场咬人复用 `wildlifeAttack`(咬合动画)与 `wildlifeHit`(客人受击表现)。
 - GM「特殊事件」触发走既有模式:客人上行 `gmTriggerCrocodile` 动作,房主 `gmTriggerCrocodileFor` 结算;概率调整走既有 `gmConfig` 动作 + `gm` 事件全房间同步。协议版本不变。
+
+- 2026-09-05:神龛系统泛化为多类型(波塞冬/蜂巢/治愈水晶/雨神祭坛)。`useShrine` 动作新增 `kind` 参数;世界快照 `shrines` 条目带 `kind`(旧档/旧协议缺省按波塞冬解释);光环效果(回血/饥渴冻结)与浆果加成全部在房主权威端结算,数值经既有玩家快照回流,无新增事件。

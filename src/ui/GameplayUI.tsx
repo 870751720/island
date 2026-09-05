@@ -15,6 +15,16 @@ import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
+import type { ResourceKind } from '@/game/systems/Inventory';
+import type { ShrineKind } from '@/game/entities/Shrine';
+
+/** 神龛类道具:背包里「使用」后在脚下立起对应神像 */
+const SHRINE_ITEM_KINDS: readonly ShrineKind[] = [
+  'poseidonBlessing',
+  'beehiveShrine',
+  'healCrystal',
+  'rainAltar',
+];
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
@@ -420,8 +430,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'poseidonBlessing') {
-            gameRef.current?.useShrine();
+          if ((SHRINE_ITEM_KINDS as readonly ResourceKind[]).includes(kind)) {
+            gameRef.current?.useShrine(undefined, kind as ShrineKind);
             setBackpackOpen(false);
             return;
           }

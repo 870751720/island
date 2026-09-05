@@ -1,7 +1,7 @@
 /** Buff 的静态定义与快照结构。
  * 生效判定不在这里:各 buff 由对应系统(神像/玩家减速)驱动,这里只承载
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
-export type BuffId = 'poseidon' | 'bearSlow';
+export type BuffId = 'poseidon' | 'beehive' | 'healCrystal' | 'rainAltar' | 'bearSlow';
 
 export type BuffDef = {
   id: BuffId;
@@ -18,6 +18,27 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     name: '波塞冬的祝福',
     icon: '🔱',
     description: '岛上放置着波塞冬的祝福,全岛钓鱼钓到杂物的概率降低 1%。',
+    good: true,
+  },
+  beehive: {
+    id: 'beehive',
+    name: '蜂巢神龛',
+    icon: '🍯',
+    description: '岛上放置着蜂巢神龛,全岛采集浆果丛时有 10% 概率多掉 1 颗浆果。',
+    good: true,
+  },
+  healCrystal: {
+    id: 'healCrystal',
+    name: '治愈水晶',
+    icon: '💗',
+    description: '身处治愈水晶 30 米光环内,每 10 秒回复 1 点生命。',
+    good: true,
+  },
+  rainAltar: {
+    id: 'rainAltar',
+    name: '雨神祭坛',
+    icon: '🌧️',
+    description: '身处雨神祭坛 30 米光环内,饥饿与口渴值不再下降。',
     good: true,
   },
   bearSlow: {

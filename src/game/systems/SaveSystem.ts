@@ -5,6 +5,7 @@ import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 import type { DropSource } from './DropSystem';
+import type { ShrineSave } from './ShrineSystem';
 
 const SAVE_KEY = 'island.save.v1';
 export const SAVE_VERSION = 28;
@@ -66,8 +67,8 @@ export type SaveData = {
   workbenchCrafted: boolean;
   /** 场上所有床(落点与等级;可放置多个) */
   beds: (PlacementSave & { level: number })[];
-  /** 场上所有波塞冬神像(落点;可放置多个,缺省视为没有) */
-  shrines?: PlacementSave[];
+  /** 场上所有神龛(种类与落点;可放置多个,旧档缺 kind 时按波塞冬解释) */
+  shrines?: ShrineSave[];
   /** 场上所有木箱(落点与箱内格子) */
   crates: (PlacementSave & { slots: InventorySlot[] })[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
