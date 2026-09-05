@@ -252,16 +252,15 @@ function draw(
   const fctx = fog.getContext('2d')!;
   const img = fctx.createImageData(snap.gridW, snap.gridL);
   for (let i = 0; i < snap.explored.length; i++) {
-    if (!snap.explored[i]) {
-      img.data[i * 4] = FOG_COLOR[0];
-      img.data[i * 4 + 1] = FOG_COLOR[1];
-      img.data[i * 4 + 2] = FOG_COLOR[2];
-      img.data[i * 4 + 3] = FOG_COLOR[3];
+    if (snap.explored[i]) {
+      // 已探索格设为不透明,用 destination-out 在满幅迷雾上打洞透出地形
+      img.data[i * 4 + 3] = 255;
     }
   }
   fctx.putImageData(img, 0, 0);
   // 迷雾边缘用硬边(最近邻,不做插值柔化)
   ctx.imageSmoothingEnabled = false;
+  ctx.globalCompositeOperation = 'destination-out';
   ctx.drawImage(
     fog,
     (snap.player.x - view / 2 + snap.islandWidth / 2) / CELL,
@@ -273,6 +272,7 @@ function draw(
     w,
     h
   );
+  ctx.globalCompositeOperation = 'source-over';
 
   // 建筑标记(已在快照里过滤为仅已探索区域);窗口外的直接跳过
   const size = Math.min(w, h);
