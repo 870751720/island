@@ -172,6 +172,12 @@ export class Pomeranian {
   private spinCd = 0;
   /** 刨坑扬尘的粒子和倒计时 */
   private digDustTimer = 0;
+  /** 展示朝向(向逻辑朝向平滑过渡,避免绕障换向时模型瞬间甩转) */
+  private viewHeading = 0;
+  /** 绕圈被挡后翻转方向的最小间隔:避免在不可走边界上每帧左右横跳 */
+  private orbitFlipCd = 0;
+  /** 上次绕障用过的偏航角(±45°/±90°):优先沿用,走出平滑的绕行弧线而不是锯齿 */
+  private lastDetour = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -261,18 +267,24 @@ export class Pomeranian {
     this.animate(delta, elapsed, moving, this.play === 'spin');
   }
 
-  /** 朝目标走一步,返回是否仍在途中;直路被挡时沿切线方向绕行(参考螃蟹的兜底策略) */
+  /** 朝目标走一步,返回是否仍在途中;直路被挡时优先沿用上次的绕行方向,再试切线方向 */
   private stepTo(target: THREE.Vector3, speed: number, delta: number): boolean {
     const dirX = target.x - this.pos.x;
     const dirZ = target.z - this.pos.z;
     const dist = Math.hypot(dirX, dirZ);
     if (dist < 0.15) return false;
     const angle = Math.atan2(dirZ, dirX);
-    for (const a of [angle, angle + Math.PI / 4, angle - Math.PI / 4, angle + Math.PI / 2, angle - Math.PI / 2]) {
+    const detours = [Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
+    const order = this.lastDetour === 0
+      ? detours
+      : [this.lastDetour, ...detours.filter((d) => d !== this.lastDetour)];
+    const options = [angle, ...order.map((d) => angle + d)];
+    for (const a of options) {
       const nx = this.pos.x + Math.cos(a) * speed * delta;
       const nz = this.pos.z + Math.sin(a) * speed * delta;
       if (!this.walkable(nx, nz)) continue;
       this.heading = a;
+      this.lastDetour = a === angle ? 0 : a - angle;
       this.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
       return true;
     }
@@ -337,7 +349,11 @@ export class Pomeranian {
     const nx = this.pos.x + (dirX / len) * speed * delta;
     const nz = this.pos.z + (dirZ / len) * speed * delta;
     if (!this.walkable(nx, nz)) {
-      this.orbitDir *= -1;
+      // 被挡住:至少间隔 0.6s 才翻转绕行方向,防止在不可走边界上每帧左右横跳
+      if (this.orbitFlipCd <= 0) {
+        this.orbitDir *= -1;
+        this.orbitFlipCd = 0.6;
+      }
       return false;
     }
     this.heading = Math.atan2(dirZ, dirX);
@@ -437,6 +453,7 @@ export class Pomeranian {
     if (this.digCd > 0) this.digCd -= delta;
     if (this.sleepCd > 0) this.sleepCd -= delta;
     if (this.spinCd > 0) this.spinCd -= delta;
+    if (this.orbitFlipCd > 0) this.orbitFlipCd -= delta;
     if (this.play === 'dig' && this.eatLeft <= 0) {
       this.digDustTimer -= delta;
       if (this.digDustTimer <= 0) {
@@ -458,7 +475,13 @@ export class Pomeranian {
   private animate(delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = this.model.group;
     g.position.set(this.pos.x, this.pos.y, this.pos.z);
-    g.rotation.y = -this.heading + Math.PI / 2;
+    // 朝向沿最短弧平滑过渡:绕障换向/坐下转向时不再瞬间甩转
+    const diff = Math.atan2(
+      Math.sin(this.heading - this.viewHeading),
+      Math.cos(this.heading - this.viewHeading)
+    );
+    this.viewHeading += diff * Math.min(1, delta * 10);
+    g.rotation.y = -this.viewHeading + Math.PI / 2;
 
     // 睡姿平滑过渡
     const target = this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
