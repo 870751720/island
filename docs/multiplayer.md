@@ -395,3 +395,8 @@
 - 联机沿用弓箭 M35 的约定例外:**命中由持剑客户端本地判定,房主权威结算**。客人本地跑索敌与挥砍表现,命中上行 `action: swordHit {animalId}`;房主校验该会话持剑后 `netPlaySwing` 补放 0.35s 挥砍动作(写入 `action` 姿态快照,各端可见)+ `settleNetHit` 权威结算伤害与掉落(战利品经 DropSystem 掉落在玩家身旁,随世界增量回流)。
 - 挥砍音效复用 `chop`:挥剑者本人的音效由房主经 feedback 事件补播(客人本地不播避免重声),近旁动物会被挥砍声惊动。
 - `InteractionKind` 新增 `sword`(挥砍期间其他站定交互让位);快照 `toolTiers`/手持 `tool` 自动携带 sword,旧端/旧档缺省 0,协议与存档版本不变。
+
+### M40 修复房主看不到客人挥剑动作(2026-09-05)
+
+- 修复:M39 的 `netPlaySwing` 只设置了动作(`swingLeft`/`slash`),但房主主循环对远程会话只推进弓的视觉(`archery.updateVisuals`),剑没有任何推进逻辑——动作窗口永不结束,且早前版本还会被采集系统的每帧清动作当帧抹掉,房主观感上完全看不到客人挥剑。
+- 方案:与弓的 `shotAnimLeft` 同约定,`SwordSystem` 拆出 `updateVisuals(delta)`(只递减挥砍窗口、结束时清动作,不做攻击判定),房主主循环对远程会话每帧调用;动作经既有姿态快照 `action` 字段同步给其他客人。协议不变。

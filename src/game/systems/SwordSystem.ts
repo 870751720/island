@@ -77,6 +77,13 @@ export class SwordSystem {
     }
   }
 
+  /** 房主对远程会话:只推进挥砍动作窗口(不做攻击判定),与弓的 updateVisuals 同约定 */
+  updateVisuals(delta: number): void {
+    if (this.swingLeft <= 0) return;
+    this.swingLeft -= delta;
+    if (this.swingLeft <= 0) this.player.setAction(null);
+  }
+
   /** 权威结算一次命中:扣动物血量,击杀则掉落战利品 */
   private settle(animalId: number): void {
     const beast = this.wildlife.damage(animalId, DAMAGE);

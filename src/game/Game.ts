@@ -663,8 +663,10 @@ export class Game {
             s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
             s.sword.update(delta, this.isSessionBusy(s, 'sword') || s.survival.state.dead);
           } else {
-            // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失
+            // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失;
+            // 剑的 swordHit 复现挥砍动作窗口也要照常推进与收尾
             s.archery.updateVisuals(delta);
+            s.sword.updateVisuals(delta);
           }
           // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
           s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
