@@ -19,11 +19,12 @@ import {
   type TeaseStage,
 } from './FishTable';
 
-const CAST_TIME = 0.7; // 抛竿(秒,二级鱼竿更快)
-const REFINED_CAST_TIME = 0.5;
+const CAST_TIME = 0.7; // 抛竿(秒,各级鱼竿相同)
 const REEL_TIME = 0.45; // 中鱼后鱼线收回(纯表现,期间已入包)
-/** 二级鱼竿咬钩反应窗口的放大倍数 */
-const REFINED_BITE_WINDOW = 1.5;
+/** 各级鱼竿(下标 = 等级 - 1)对等待时长的乘数:高竿等得更快 */
+const ROD_WAIT_SCALE = [1, 0.8, 0.6];
+/** 各级鱼竿对咬钩反应窗口的放大倍数 */
+const ROD_BITE_SCALE = [1, 1.2, 1.5];
 const RIPPLE_INTERVAL = 2.2; // 等待期间浮漂周围泛涟漪的间隔
 /** 海边可下竿的水线水平距离(米) */
 const SEA_FISH_RANGE = 1.5;
@@ -87,17 +88,18 @@ export class FishingSystem {
     private junkCut: () => number = () => 0
   ) {}
 
-  private get refined(): boolean {
-    return this.tools.fishingrod >= 2;
+  /** 当前鱼竿等级(夹到 1-3 查表) */
+  private get rodTier(): number {
+    return Math.min(Math.max(this.tools.fishingrod, 1), 3);
   }
 
-  private get castTime(): number {
-    return this.refined ? REFINED_CAST_TIME : CAST_TIME;
+  private get waitScale(): number {
+    return ROD_WAIT_SCALE[this.rodTier - 1];
   }
 
-  /** 咬钩反应窗口(二级鱼竿更宽裕) */
+  /** 咬钩反应窗口(高级鱼竿更宽裕) */
   private get biteWindow(): number {
-    return TIER_BITE[this.tier].window * (this.refined ? REFINED_BITE_WINDOW : 1);
+    return TIER_BITE[this.tier].window * ROD_BITE_SCALE[this.rodTier - 1];
   }
 
   /** 当前是否在钓鱼(其他系统让位用) */
@@ -135,7 +137,7 @@ export class FishingSystem {
 
   /** 进度 0-1:抛竿/咬钩倒计时,等待/收线/空闲为 null */
   getProgress(): number | null {
-    if (this.state === 'casting') return Math.min(this.timer / this.castTime, 1);
+    if (this.state === 'casting') return Math.min(this.timer / CAST_TIME, 1);
     if (this.state === 'bite') {
       return 1 - Math.max(this.timer, 0) / this.biteWindow;
     }
@@ -254,11 +256,11 @@ export class FishingSystem {
         this.bobber!.visible = true;
         this.bobber!.position.lerpVectors(from, this.bobberTarget, t);
         this.bobber!.position.y += Math.sin(t * Math.PI) * 1.2;
-        if (this.timer >= this.castTime) {
+        if (this.timer >= CAST_TIME) {
           this.state = 'waiting';
           this.audio.play('splash');
           // 客人端若已收到房主的剩余等待时长则直接采用,否则(房主端)本地随机
-          this.waitTotal = this.pendingWait ?? rollWait(this.tier);
+          this.waitTotal = this.pendingWait ?? rollWait(this.tier) * this.waitScale;
           this.pendingWait = null;
           this.timer = 0;
           this.rippleTimer = 0;

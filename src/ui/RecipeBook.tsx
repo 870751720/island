@@ -18,7 +18,7 @@ const REFINED_EFFECTS: Record<string, string> = {
   'refined-pickaxe': '解锁铁矿开采;岩石 4 下、铁矿 5 下,制作后替换木镐。',
   'refined-hoe': '挖掘放置物 2 下挖走,制作后替换木锄。',
   'refined-sword': '近战武器,制作后替换木剑。',
-  'refined-fishingrod': '抛竿更快,咬钩反应窗口 ×1.5,制作后替换树枝鱼竿。',
+  'refined-fishingrod': '等待咬钩时间 ×0.8,咬钩反应窗口 ×1.2,制作后替换树枝鱼竿。',
   'refined-bow': '箭矢伤害 2 点,射击冷却 3 秒 → 2 秒,制作后替换树枝弓。',
 };
 
@@ -27,6 +27,7 @@ const IRON_EFFECTS: Record<string, string> = {
   'iron-axe': '砍树 1 下、树桩 1 下,制作后替换石斧。',
   'iron-pickaxe': '解锁陨石开采;岩石 2 下、铁矿 3 下、陨石 5 下,制作后替换石镐。',
   'iron-hoe': '挖掘放置物 1 下挖走,制作后替换石锄。',
+  'iron-fishingrod': '等待咬钩时间 ×0.6,咬钩反应窗口 ×1.5,制作后替换木鱼竿。',
 };
 
 /** 单条配方的产物说明:装备评分/背包扩容,其他道具用道具描述首句 */
