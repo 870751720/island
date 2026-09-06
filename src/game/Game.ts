@@ -23,6 +23,7 @@ import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
+import type { CrateKind } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
@@ -118,8 +119,10 @@ export type HudSnapshot = {
   /** 睡觉过渡进行中与进度 */
   bedSleeping: boolean;
   bedSleepProgress: number;
-  /** 身旁木箱的 10 格快照(不在木箱旁为 null) */
+  /** 身旁木箱的格子快照(不在木箱旁为 null) */
   crateSlots: InventorySlot[] | null;
+  /** 身旁木箱的收纳格数(木箱 10 / 铁箱 40,不在木箱旁为 null) */
+  crateCapacity: number | null;
   /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
   baitBarrelInfo: BaitBarrelInfo | null;
   /** 身旁冶炼炉的状态(炉内矿石/铁锭与冶炼进度,不在炉旁为 null) */
@@ -2069,13 +2072,13 @@ export class Game {
     return actor.player.isSleeping;
   }
 
-  /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下,不满足时给出提示 */
-  useCrate(actor: PlayerSession = this.local): boolean {
+  /** 背包里点击「使用」木箱/铁箱:校验通过后在玩家脚下原地放下,不满足时给出提示 */
+  useCrate(kind: CrateKind = 'crate', actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useCrate', []);
+    if (this.guestNet) return this.guestNet.action('useCrate', [kind]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.crates.use(actor)) {
+    if (!this.crates.use(actor, kind)) {
       this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
@@ -2898,6 +2901,7 @@ export class Game {
       bedSleeping: this.beds.isSleeping(s),
       bedSleepProgress: this.beds.getSleepProgress(s) ?? 0,
       crateSlots: this.crates.nearbySlots(s),
+      crateCapacity: this.crates.nearbyCapacity(s),
       baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
       smelterInfo: this.smelters.nearbyInfo(s),
       loomInfo: this.looms.nearbyInfo(s),

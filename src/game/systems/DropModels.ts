@@ -73,6 +73,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   ironHat: '#7a8288',
   ironBackpack: '#7a8288',
   crate: '#a97b48',
+  ironCrate: '#9aa3ab',
   baitBarrel: '#9a6b3f',
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
@@ -199,6 +200,21 @@ function makeIronIngot(): THREE.Object3D {
   ingot.rotation.y = Math.PI / 4;
   ingot.position.y = 0.07;
   g.add(ingot);
+  return g;
+}
+
+/** 箱类掉落物:小箱体 + 两条封边条(木箱/铁箱同模型不同配色) */
+function makeCrateDrop(bodyColor: string, bandColor: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.BoxGeometry(0.22, 0.16, 0.16), clay(bodyColor));
+  body.castShadow = true;
+  g.add(body);
+  const band = clay(bandColor);
+  for (const z of [-0.07, 0.07]) {
+    const strip = mesh(new THREE.BoxGeometry(0.23, 0.17, 0.03), band);
+    strip.position.z = z;
+    g.add(strip);
+  }
   return g;
 }
 
@@ -892,21 +908,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironPants: () => makePants(DROP_COLORS.ironPants),
   ironHat: () => makeHat(DROP_COLORS.ironHat, '#5a6066'),
   ironBackpack: () => makeBackpack(DROP_COLORS.ironBackpack),
-  crate: () => {
-    // 木箱:小箱体 + 两条封边条
-    const g = new THREE.Group();
-    const branch = new THREE.MeshStandardMaterial({ color: DROP_COLORS.crate, flatShading: true, roughness: 1 });
-    const band = new THREE.MeshStandardMaterial({ color: '#7a5a32', flatShading: true, roughness: 1 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.16), branch);
-    body.castShadow = true;
-    g.add(body);
-    for (const z of [-0.07, 0.07]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.17, 0.03), band);
-      strip.position.z = z;
-      g.add(strip);
-    }
-    return g;
-  },
+  crate: () => makeCrateDrop('#a97b48', '#7a5a32'),
+  ironCrate: () => makeCrateDrop(DROP_COLORS.ironCrate, '#697076'),
   baitBarrel: () => {
     // 饵料桶:小木桶身 + 两道桶箍
     const g = new THREE.Group();

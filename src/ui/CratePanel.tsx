@@ -59,6 +59,7 @@ function countBadge(count: number): React.ReactNode {
 /** 木箱储物面板:上半为木箱 10 格,下半为背包;点按格子整格转移,长按连发步进转移(越按越快) */
 export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const crateSlots = hud.crateSlots ?? [];
+  const crateCapacity = hud.crateCapacity ?? CRATE_CAPACITY;
   /** 进行中的长按连发停止函数(松手/取消时调用) */
   const holdRef = useRef<(() => void) | null>(null);
   const stopHold = () => {
@@ -136,8 +137,10 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
           boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
         }}
       >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>📦 木箱(点按取回,长按步进)</div>
-        {renderGrid(crateSlots, CRATE_CAPACITY, onTake)}
+        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>
+          {crateCapacity > CRATE_CAPACITY ? '🗃️ 铁箱' : '📦 木箱'}(点按取回,长按步进)
+        </div>
+        {renderGrid(crateSlots, crateCapacity, onTake)}
         <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}>🎒 背包(点按存入,长按步进)</div>
         {renderGrid(hud.slots, hud.capacity, onStore)}
         <button

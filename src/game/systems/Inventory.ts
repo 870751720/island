@@ -67,6 +67,7 @@ export type ResourceKind =
   | 'ironHat'
   | 'ironBackpack'
   | 'crate'
+  | 'ironCrate'
   | 'baitBarrel'
   | 'smelter'
   | 'loom'

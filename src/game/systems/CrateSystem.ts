@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { hoeHits } from './ToolTiers';
-import { Crate } from '../entities/Crate';
+import { Crate, type CrateKind } from '../entities/Crate';
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -20,12 +20,23 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 每玩家的挖掘进度(世界里的木箱是共享的,进度各自算) */
 type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Crate | null };
 
+/** 木箱的存档/网络快照(落点、箱种与箱内格子;kind 缺省为木箱,兼容旧档) */
+export type CrateSave = {
+  id?: string;
+  x: number;
+  y: number;
+  z: number;
+  rotY?: number;
+  kind?: CrateKind;
+  slots: InventorySlot[];
+};
+
 /**
  * 木箱系统(世界单实例,按发起者 actor 结算):
  * - 背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
  *   (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住);
  * - 手持锄头靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
- * 木箱自带 10 格收纳,靠近后可整格存入背包物品或取回。
+ * 木箱自带 10 格、铁箱 40 格收纳,靠近后可整格存入背包物品或取回。
  */
 export class CrateSystem {
   private crates: Crate[] = [];
@@ -95,18 +106,18 @@ export class CrateSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」木箱:校验通过后在玩家脚下原地放下 */
-  use(actor: PlayerSession): boolean {
-    if (actor.inventory.count('crate') <= 0 || !this.canPlace(actor)) return false;
-    actor.inventory.remove('crate', 1);
-    const crate = new Crate(this.scene, actor.player.group.position, cardinalRotY(actor.player.group.rotation.y));
+  /** 背包里点击「使用」木箱/铁箱:校验通过后在玩家脚下原地放下 */
+  use(actor: PlayerSession, kind: CrateKind = 'crate'): boolean {
+    if (actor.inventory.count(kind) <= 0 || !this.canPlace(actor)) return false;
+    actor.inventory.remove(kind, 1);
+    const crate = new Crate(this.scene, actor.player.group.position, kind, cardinalRotY(actor.player.group.rotation.y));
     this.crates.push(crate);
     const cp = crate.group.position;
-    this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, slots: crate.storage.snapshot() } });
+    this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() } });
     this.audio.play('success');
     const fxPos = actor.player.group.position.clone();
     fxPos.y += 0.5;
-    this.fx.burst(fxPos, '#a97b48', 10);
+    this.fx.burst(fxPos, crate.color, 10);
     return true;
   }
 
@@ -148,7 +159,7 @@ export class CrateSystem {
     st.swingTimer += delta;
     if (st.swingTimer < SWING_TIME) return;
     st.swingTimer = 0;
-    this.fx.burst(target.group.position, '#a97b48', 6);
+    this.fx.burst(target.group.position, target.color, 6);
     st.hits += 1;
     if (st.hits < (hoeHits(actor.tools.hoe))) return;
     st.hits = 0;
@@ -156,11 +167,11 @@ export class CrateSystem {
     this.crates.splice(this.crates.indexOf(target), 1);
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
-    this.give('crate', 1, actor);
+    this.give(target.kind, 1, actor);
     for (const slot of target.storage.snapshot()) {
       if (slot) this.give(slot.kind, slot.count, actor);
     }
-    this.fx.burst(target.group.position, '#a97b48', 14);
+    this.fx.burst(target.group.position, target.color, 14);
     } finally {
       st.hold.commit(actor.player);
     }
@@ -177,6 +188,11 @@ export class CrateSystem {
   /** 身旁木箱的格子快照(不在木箱旁为 null) */
   nearbySlots(actor: PlayerSession): InventorySlot[] | null {
     return this.nearby(actor)?.storage.snapshot() ?? null;
+  }
+
+  /** 身旁木箱的收纳格数(不在木箱旁为 null) */
+  nearbyCapacity(actor: PlayerSession): number | null {
+    return this.nearby(actor)?.storage.capacity ?? null;
   }
 
   /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),返回是否存入任何数量 */
@@ -206,11 +222,11 @@ export class CrateSystem {
     return true;
   }
 
-  /** 当前所有木箱的存档快照(落点与 10 格内容) */
-  snapshot(): { id: string; x: number; y: number; z: number; rotY: number; slots: InventorySlot[] }[] {
+  /** 当前所有木箱的存档快照(落点、箱种与箱内内容) */
+  snapshot(): CrateSave[] {
     return this.crates.map((crate) => {
       const p = crate.group.position;
-      return { id: this.ids.get(crate), x: p.x, y: p.y, z: p.z, rotY: crate.group.rotation.y, slots: crate.storage.snapshot() };
+      return { id: this.ids.get(crate), x: p.x, y: p.y, z: p.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() };
     });
   }
 
@@ -221,12 +237,10 @@ export class CrateSystem {
   }
 
   /** 从存档恢复木箱(含箱内物品) */
-  restore(
-    list: { id?: string; x: number; y: number; z: number; rotY?: number; slots: InventorySlot[] }[]
-  ): void {
+  restore(list: CrateSave[]): void {
     for (const c of list) {
-      const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.rotY ?? 0);
-      crate.storage.load(c.slots);
+      const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.kind ?? 'crate', c.rotY ?? 0);
+      crate.storage.load(c.slots, crate.storage.capacity);
       crate.updateIcon();
       this.ids.set(crate, c.id);
       this.crates.push(crate);
@@ -243,7 +257,7 @@ export class CrateSystem {
   }
 
   /** 客人端按稳定 id 原地增删改；箱内格子变化只 reload 对应木箱。 */
-  netApply(list: { id?: string; x: number; y: number; z: number; rotY?: number; slots: InventorySlot[] }[]): void {
+  netApply(list: CrateSave[]): void {
     const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
     for (let i = this.crates.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.crates[i]))) continue;
@@ -254,11 +268,11 @@ export class CrateSystem {
     for (const value of list) {
       let crate = value.id ? current.get(value.id) : undefined;
       if (!crate) {
-        crate = new Crate(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
+        crate = new Crate(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'crate', value.rotY ?? 0);
         this.ids.set(crate, value.id);
         this.crates.push(crate);
       }
-      crate.storage.load(value.slots);
+      crate.storage.load(value.slots, crate.storage.capacity);
       crate.updateIcon();
     }
   }

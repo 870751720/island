@@ -70,6 +70,7 @@ const INITIAL_HUD: HudSnapshot = {
   bedSleeping: false,
   bedSleepProgress: 0,
   crateSlots: null,
+  crateCapacity: null,
   baitBarrelInfo: null,
   smelterInfo: null,
   loomInfo: null,
@@ -467,8 +468,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'crate') {
-            gameRef.current?.useCrate();
+          if (kind === 'crate' || kind === 'ironCrate') {
+            gameRef.current?.useCrate(kind);
             setBackpackOpen(false);
             return;
           }

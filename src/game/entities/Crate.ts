@@ -3,7 +3,22 @@ import { Inventory } from '../systems/Inventory';
 import { makeDropModel } from '../systems/DropModels';
 import type { ResourceKind } from '../systems/Inventory';
 
+/** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 40 格) */
+export type CrateKind = 'crate' | 'ironCrate';
+
+/** 木箱收纳格数 */
 export const CRATE_CAPACITY = 10;
+
+/** 各箱种的静态属性:收纳格数与模型配色 */
+const CRATE_STYLES: Record<CrateKind, { capacity: number; body: string; band: string }> = {
+  crate: { capacity: 10, body: '#a97b48', band: '#7a5a32' },
+  ironCrate: { capacity: 40, body: '#9aa3ab', band: '#697076' },
+};
+
+/** 按道具种类取收纳格数 */
+export function crateCapacity(kind: CrateKind): number {
+  return CRATE_STYLES[kind].capacity;
+}
 
 const BODY_HALF = 0.33; // 箱体半宽(X/Z)
 const BODY_H = 0.5; // 箱体高
@@ -13,11 +28,12 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
 
-/** 程序化拼装的木箱模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
-function makeCrateMesh(): THREE.Group {
+/** 程序化拼装的箱体模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
+function makeCrateMesh(kind: CrateKind): THREE.Group {
   const g = new THREE.Group();
-  const woodMat = clayMaterial('#a97b48');
-  const bandMat = clayMaterial('#7a5a32');
+  const style = CRATE_STYLES[kind];
+  const woodMat = clayMaterial(style.body);
+  const bandMat = clayMaterial(style.band);
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, BODY_H, BODY_HALF * 2), woodMat);
   body.position.y = BODY_H / 2;
@@ -47,22 +63,28 @@ function makeCrateMesh(): THREE.Group {
   return g;
 }
 
-/** 场景中的木箱摆件:自带 10 格收纳空间,靠近可存取物品;顶面展示第一个格子的道具模型 */
+/** 场景中的木箱/铁箱摆件:自带收纳空间(木箱 10 格、铁箱 40 格),靠近可存取物品;顶面展示第一个格子的道具模型 */
 export class Crate {
   readonly group: THREE.Group;
   readonly storage: Inventory;
+  readonly kind: CrateKind;
+  /** 箱体主色(挖掘粒子等表现用) */
+  readonly color: string;
   private iconLayer = new THREE.Group();
   private iconKind: ResourceKind | null = null;
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, kind: CrateKind = 'crate', rotY = 0) {
+    this.kind = kind;
+    this.color = CRATE_STYLES[kind].body;
     this.group = new THREE.Group();
     this.group.position.copy(position);
     this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
-    this.group.add(makeCrateMesh());
+    this.group.add(makeCrateMesh(kind));
     this.group.add(this.iconLayer);
     this.storage = new Inventory();
+    this.storage.setCapacity(CRATE_STYLES[kind].capacity);
   }
 
   /** 顶面内容标识缓慢自转 */

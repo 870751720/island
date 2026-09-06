@@ -36,3 +36,10 @@
 - 储物面板的存入/取出交互改为「点按 = 整格转移,长按 = 连发步进转移」:按住超过 350ms 进入连发,间隔从 160ms 随按住时长加速到 45ms,步进 0.8s 后升到 5、1.6s 后升到 10,松手即停。
 - 通用调度抽到 `src/ui/holdRepeat.ts`(`startHoldTap`),背包丢弃数量的 ± 步进按钮复用同一模块。
 - 链路:`CrateSystem.store/take` 与 `Game.crateStore/crateTake` 新增 `count` 参数(默认 `Infinity` 表示整格);联机动作 `crateStore/crateTake` 携带数量,`Infinity` 以 `null` 传输、房主端还原。
+
+### 新增铁箱
+
+- 新增「铁箱」道具(`ironCrate`,🗃️):逻辑与木箱完全一致(放置/挖掘回收/存取),但收纳扩到 40 格;模型与木箱相同,仅换成铁皮配色(场景模型与掉落物均同款换色)。
+- 配方:三级以上工作台制作,材料 1 木箱 + 2 铁锭(`Crafting.ts` 新增 `ironCrate` 配方,`minBenchLevel: 3`)。
+- 实现:`Crate.ts` 引入 `CrateKind`(`crate | ironCrate`)与各箱种样式表(格数/配色),构造函数按箱种建仓与上色;`CrateSystem` 的放置 `use`、挖掘返还(`target.kind`)、存档/联机快照(`CrateSave.kind`,缺省木箱兼容旧档)均携带箱种;`SAVE_VERSION` 不变。
+- HUD:`HudSnapshot` 新增 `crateCapacity`(身旁箱子的格数),`CratePanel` 按其渲染格盘并区分标题(木箱/铁箱);背包「使用」与联机动作 `useCrate` 均携带箱种参数。
