@@ -43,14 +43,17 @@ export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
     { kind: 'manta', weight: 2, size: 1.7, color: '#4a5568', shape: 'flat' },
   ],
   4: [
-    { kind: 'goldenFish', weight: 2, size: 1.3, color: '#e6b422', shape: 'fish' },
-    { kind: 'reviveStone', weight: 1, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
-    { kind: 'poseidonBlessing', weight: 1, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
-    { kind: 'beehiveShrine', weight: 1, size: 1.2, color: '#e8a13a', shape: 'bottle' },
-    { kind: 'healCrystal', weight: 1, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
-    { kind: 'rainAltar', weight: 1, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
+    { kind: 'goldenFish', weight: 40, size: 1.3, color: '#e6b422', shape: 'fish' },
+    { kind: 'reviveStone', weight: 20, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
+    { kind: 'poseidonBlessing', weight: 10, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
+    { kind: 'beehiveShrine', weight: 10, size: 1.2, color: '#e8a13a', shape: 'bottle' },
+    { kind: 'healCrystal', weight: 10, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
+    { kind: 'rainAltar', weight: 10, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
   ],
 };
+
+/** 珍宝保底节奏:已抽中的珍宝档内权重乘数,集齐全部珍宝后整体重置 */
+export const TREASURE_PITY_SCALE = 0.2;
 
 /** 各档位的咬钩交互:反应窗口秒数与所需点击次数 */
 export const TIER_BITE: Record<FishTier, { window: number; clicks: number }> = {
@@ -184,16 +187,30 @@ export function rollTier(baited = true, junkCut = 0): FishTier {
   return 4;
 }
 
-/** 按档内权重随机战利品 */
-export function rollLoot(tier: FishTier): LootEntry {
+/**
+ * 按档内权重随机战利品。
+ * 四档传入 drawnTreasures 时启用珍宝保底:已抽中的珍宝权重乘 TREASURE_PITY_SCALE,
+ * 抽中后记入集合;集齐全部珍宝时清空集合,所有权重回归正常。
+ */
+export function rollLoot(tier: FishTier, drawnTreasures?: Set<ResourceKind>): LootEntry {
   const pool = TIER_LOOT[tier];
-  const total = pool.reduce((s, e) => s + e.weight, 0);
+  const drawn = tier === 4 ? drawnTreasures : undefined;
+  const weightOf = (e: LootEntry) => (drawn?.has(e.kind) ? e.weight * TREASURE_PITY_SCALE : e.weight);
+  const total = pool.reduce((s, e) => s + weightOf(e), 0);
   let r = Math.random() * total;
+  let picked = pool[pool.length - 1];
   for (const e of pool) {
-    if (r < e.weight) return e;
-    r -= e.weight;
+    if (r < weightOf(e)) {
+      picked = e;
+      break;
+    }
+    r -= weightOf(e);
   }
-  return pool[pool.length - 1];
+  if (drawn) {
+    drawn.add(picked.kind);
+    if (pool.every((e) => drawn.has(e.kind))) drawn.clear();
+  }
+  return picked;
 }
 
 /** 按档位抽等待时长(秒) */

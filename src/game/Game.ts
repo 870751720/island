@@ -242,6 +242,8 @@ export class Game {
   private mapTerrain?: MapSnapshot['terrain'];
   private local: PlayerSession;
   private props: Props;
+  /** 本局已抽中过的珍宝(保底权重用,集齐全部珍宝后清空;房主权威,随存档持久化) */
+  private drawnTreasures = new Set<ResourceKind>();
   private fx: Particles;
   private itemFly: ItemFlyFx;
   private audio = new GameAudio();
@@ -1610,6 +1612,7 @@ export class Game {
     this.shrines.restore(save.shrines ?? []);
     this.drops.restore(save.drops);
     if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
+    this.drawnTreasures = new Set(save.drawnTreasures ?? []);
   }
 
   /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */
@@ -1682,6 +1685,7 @@ export class Game {
       drops: this.drops.snapshot(),
       burrows: this.burrows.snapshot(),
       dog: this.dog.snapshot(),
+      drawnTreasures: [...this.drawnTreasures],
     };
   }
 
@@ -2823,7 +2827,9 @@ export class Game {
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => this.markPickupOrigin(position, s),
       // 波塞冬神像放置期间杂物概率降低
-      () => this.shrines.junkCut
+      () => this.shrines.junkCut,
+      // 珍宝保底:共享的已抽珍宝集合
+      () => this.drawnTreasures
     );
     s.archery = new BowSystem(
       this.scene,

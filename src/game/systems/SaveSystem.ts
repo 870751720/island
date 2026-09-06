@@ -95,6 +95,8 @@ export type SaveData = {
   drops: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };
+  /** 本局已抽中过的珍宝(保底权重用,集齐后清空;旧档缺省视为无) */
+  drawnTreasures?: ResourceKind[];
   /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */
   others?: SessionSave[];
 };

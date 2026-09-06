@@ -85,7 +85,9 @@ export class FishingSystem {
     /** 中鱼瞬间回调(浮漂落点):通知外层把入包飞行起点定在浮漂处 */
     private onCatch: (position: THREE.Vector3) => void,
     /** 钓鱼杂物概率的降低量(百分点,波塞冬神像放置期间为 1) */
-    private junkCut: () => number = () => 0
+    private junkCut: () => number = () => 0,
+    /** 已抽中过的珍宝集合(珍宝保底权重用,房主权威持有,随存档持久化) */
+    private drawnTreasures: () => Set<ResourceKind> = () => new Set()
   ) {}
 
   /** 当前鱼竿等级(夹到 1-3 查表) */
@@ -177,7 +179,7 @@ export class FishingSystem {
     const baited = this.inventory.count('bait') > 0;
     if (baited) this.inventory.remove('bait', 1);
     this.tier = rollTier(baited, this.junkCut());
-    this.loot = rollLoot(this.tier);
+    this.loot = rollLoot(this.tier, this.drawnTreasures());
     this.tease = null;
     this.teaseStageDone = null;
     this.pendingWait = null;
