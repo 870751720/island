@@ -44,12 +44,14 @@ import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
+import { firstFoodIn } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
   thirst: 100,
   health: 100,
+  moving: false,
   dead: false,
   arrow: 0,
   bait: 0,
@@ -703,13 +705,36 @@ export function GameplayUI({
               onClose={() => setLoomOpen(false)}
             />
           )}
-          <CraftPrompt
-            hud={hud}
-            onCraft={(id) => gameRef.current?.craftTool(id)}
-            onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
-            onCraftCampfire={() => gameRef.current?.craftCampfire()}
-          />
-          <EatPrompt hud={hud} onEat={() => gameRef.current?.eatFood()} />
+          {(() => {
+            // 左侧弹出卡片三选一,优先级:捡回 > 进食 > 手搓;各自组件内再判定自身细条件
+            const dropActive = !!hud.nearDrop && !hud.dead && !hud.moving && !backpackOpen;
+            const eatActive =
+              !dropActive &&
+              hud.eatName === null &&
+              hud.hunger < 50 &&
+              !hud.dead &&
+              !hud.moving &&
+              !!firstFoodIn(hud.slots);
+            return (
+              <>
+                <CraftPrompt
+                  hud={hud}
+                  onCraft={(id) => gameRef.current?.craftTool(id)}
+                  onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
+                  onCraftCampfire={() => gameRef.current?.craftCampfire()}
+                  suppressed={dropActive || eatActive}
+                />
+                <EatPrompt
+                  hud={hud}
+                  onEat={() => gameRef.current?.eatFood()}
+                  suppressed={dropActive}
+                />
+                {!backpackOpen && (
+                  <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
+                )}
+              </>
+            );
+          })()}
           <FishingControls
             hud={hud}
             onStart={() => gameRef.current?.startFishing()}
@@ -721,9 +746,6 @@ export function GameplayUI({
             onClaim={() => gameRef.current?.claimTreasure()}
             onSfx={(name) => gameRef.current?.playUiSfx(name)}
           />
-          {!backpackOpen && (
-            <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
-          )}
           <Notice notice={hud.notice} />
         </>
       )}

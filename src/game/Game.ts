@@ -187,6 +187,8 @@ export type HudSnapshot = {
   day: number;
   /** 玩家正在移动或处于任一交互进行中(用于淡化非必要 HUD 按钮) */
   busy: boolean;
+  /** 玩家正在移动(移动中不显示左侧弹出卡片) */
+  moving: boolean;
   /** 房主权威计算的头顶交互提示；联机客人不在本地推进交互系统。 */
   indicator: { label: string | null; progress: number | null; color?: string };
   /** 当前生效的 buff(全局祝福 + 个人减速),点图标看效果 tip */
@@ -348,6 +350,7 @@ export class Game {
   private lastFishingState: FishingState | null = null;
   /** 上次推送的 busy 状态,变化时立即推送让按钮淡出更跟手 */
   private lastBusy = false;
+  private lastMoving = false;
   private lastBiteClicks = 0;
   /** 连续未移动且无交互的时长:达到 IDLE_HIDE_DELAY 后 HUD 淡出 */
   private idleTime = 0;
@@ -3075,7 +3078,12 @@ export class Game {
     const busy = !active && this.idleTime >= IDLE_HIDE_DELAY;
     const busyChanged = busy !== this.lastBusy;
     this.lastBusy = busy;
-    if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged) return;
+    // 移动开始/结束立即推送,弹出卡片随移动隐藏/恢复要跟手
+    const moving = this.local.player.isMoving;
+    const movingChanged = moving !== this.lastMoving;
+    this.lastMoving = moving;
+    if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged && !movingChanged)
+      return;
     this.hudTimer = 0;
     this.onHud({ ...this.snapshotHud(this.local, busy), notice: this.notice });
   }
@@ -3151,6 +3159,7 @@ export class Game {
       nearDrop: this.drops.getNearby(s),
       day: this.dayNight.day,
       busy,
+      moving: s.player.isMoving,
       indicator: this.indicatorFor(s),
       buffs: this.buffsFor(s),
 };

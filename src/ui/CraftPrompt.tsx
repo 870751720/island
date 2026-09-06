@@ -1,7 +1,7 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import { countsFromSlots } from '@/game/systems/Inventory';
 import {
@@ -17,7 +17,7 @@ import {
 } from '@/game/systems/Crafting';
 import { CAMPFIRE_COST, CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
 import { costLabel } from './materials';
-import { fadeStyle } from './fade';
+import { promptCardStyle, promptWrapStyle } from './promptCard';
 
 /** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
 type PromptCard = {
@@ -28,20 +28,23 @@ type PromptCard = {
   onCraft: () => void;
 };
 
-/** 材料齐且尚未拥有时,在工具按钮上方弹出的手搓合成卡片;同一时刻只显示优先级最高的一张 */
+/** 材料齐且尚未拥有时弹出的手搓合成卡片;同一时刻只显示优先级最高的一张(移动中不显示,捡回/进食卡片出现时让位) */
 export function CraftPrompt({
   hud,
   onCraft,
   onCraftWorkbench,
   onCraftCampfire,
+  suppressed,
 }: {
   hud: HudSnapshot;
   onCraft: (id: Recipe['id']) => void;
   onCraftWorkbench: () => void;
   onCraftCampfire: () => void;
+  suppressed: boolean;
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
-  if (hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting) return null;
+  if (suppressed || hud.moving || hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting)
+    return null;
   const ownedTools = hud.toolTiers;
   const counts = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const cards: PromptCard[] = RECIPES.filter(
@@ -79,22 +82,13 @@ export function CraftPrompt({
   if (cards.length === 0) return null;
   const best = cards.reduce((a, b) => (b.priority < a.priority ? b : a));
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: 'max(12px, env(safe-area-inset-left))',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        fontFamily: 'sans-serif',
-        ...fadeStyle(hud.busy),
-      }}
-    >
+    <div style={promptWrapStyle(hud)}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();
           best.onCraft();
         }}
-        style={cardStyle}
+        style={promptCardStyle}
       >
         {best.icon}
         <span>
@@ -106,21 +100,3 @@ export function CraftPrompt({
     </div>
   );
 }
-
-const cardStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  minWidth: 150,
-  minHeight: 56,
-  padding: '8px 16px',
-  borderRadius: 14,
-  border: '2px solid #4caf50',
-  background: 'rgba(255,255,255,0.92)',
-  color: '#333',
-  fontSize: 15,
-  textAlign: 'left',
-  touchAction: 'none',
-  userSelect: 'none',
-  boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
-};

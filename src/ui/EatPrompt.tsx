@@ -3,48 +3,37 @@
 import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/Game';
 import { firstFoodIn } from '@/game/systems/Food';
-import { fadeStyle } from './fade';
+import { promptCardStyle, promptWrapStyle } from './promptCard';
 
-/** 饥饿低于 50% 且背包有食物时弹出的进食卡片,点击吃背包里最前面的食物 */
-export function EatPrompt({ hud, onEat }: { hud: HudSnapshot; onEat: () => void }) {
-  if (hud.eatName !== null || hud.hunger >= 50 || hud.dead) return null;
+/** 饥饿低于 50% 且背包有食物时弹出的进食卡片,点击吃背包里最前面的食物(移动中不显示,捡回卡片出现时让位) */
+export function EatPrompt({
+  hud,
+  onEat,
+  suppressed,
+}: {
+  hud: HudSnapshot;
+  onEat: () => void;
+  suppressed: boolean;
+}) {
+  if (suppressed || hud.eatName !== null || hud.hunger >= 50 || hud.dead || hud.moving) return null;
   const food = firstFoodIn(hud.slots);
   if (!food) return null;
   return (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onEat();
-      }}
-      style={{
-        position: 'absolute',
-        left: 'max(12px, env(safe-area-inset-left))',
-        top: 'calc(50% + 84px)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        minWidth: 150,
-        minHeight: 56,
-        padding: '8px 16px',
-        borderRadius: 14,
-        border: '2px solid #e67e22',
-        background: 'rgba(255,255,255,0.92)',
-        color: '#333',
-        fontFamily: 'sans-serif',
-        fontSize: 15,
-        textAlign: 'left',
-        touchAction: 'none',
-        userSelect: 'none',
-        boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
-        ...fadeStyle(hud.busy),
-      }}
-    >
-      <ItemIcon kind={food.kind} size={28} />
-      <span>
-        吃{food.name}
-        <br />
-        <span style={{ fontSize: 12, color: '#888' }}>你有点饿了({Math.floor(hud.hunger)}%)</span>
-      </span>
-    </button>
+    <div style={promptWrapStyle(hud)}>
+      <button
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onEat();
+        }}
+        style={promptCardStyle}
+      >
+        <ItemIcon kind={food.kind} size={28} />
+        <span>
+          吃{food.name}
+          <br />
+          <span style={{ fontSize: 12, color: '#888' }}>你有点饿了({Math.floor(hud.hunger)}%)</span>
+        </span>
+      </button>
+    </div>
   );
 }
