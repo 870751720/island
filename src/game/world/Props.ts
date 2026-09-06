@@ -808,8 +808,8 @@ export class Props implements Updatable {
     this.shakes.set(prop, SHAKE_TIME);
   }
 
-  update(delta: number, _elapsed?: number, wind?: WindParams): void {
-    for (const prop of this.list) {
+  update(delta: number, _elapsed?: number, wind?: WindParams, authoritative = true): void {
+    for (const prop of authoritative ? this.list : []) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
       prop.regrowLeft -= delta;
       if (prop.regrowLeft > 0) continue;
@@ -824,7 +824,7 @@ export class Props implements Updatable {
         prop.group.scale.setScalar(1);
       }
     }
-    this.updateTreeGrowth(delta);
+    if (authoritative) this.updateTreeGrowth(delta);
     for (const [prop, left] of this.shakes) {
       const t = left - delta;
       if (t <= 0) {

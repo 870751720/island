@@ -241,7 +241,7 @@ export class NetHost {
     this.normalElapsed += FAST_TICK_MS;
     this.hudElapsed += FAST_TICK_MS;
     this.recoveryElapsed += FAST_TICK_MS;
-    // 实时通道允许丢包：低频全量关键帧只用于自动修复漏掉的增量，不承担日常同步。
+    // 增量走可靠有序通道；低频完整集合用于核对实体成员。
     const recoveryFrame = this.recoveryElapsed >= RECOVERY_MS;
     const normalFrame = this.normalElapsed >= NORMAL_TICK_MS;
     const hudFrame = this.hudElapsed >= HUD_TICK_MS;
@@ -267,16 +267,18 @@ export class NetHost {
       }
 
       const quantizeAnimals = (list: AnimalPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
-      if (recoveryFrame) guest.combatAnimals.clear();
-      const combatAnimals = diffEntities(quantizeAnimals(game.netCombatAnimalsState()), guest.combatAnimals);
-      let passiveAnimals = null;
-      if (normalFrame || recoveryFrame) {
-        if (recoveryFrame) guest.passiveAnimals.clear();
-        passiveAnimals = diffEntities(quantizeAnimals(game.netPassiveAnimalsState()), guest.passiveAnimals);
+      const fullAnimals = recoveryFrame || guest.hud === null;
+      const combatAnimals = diffEntities(quantizeAnimals(game.netCombatAnimalsState()), guest.combatAnimals, fullAnimals);
+      const passiveAnimals = normalFrame || fullAnimals
+        ? diffEntities(quantizeAnimals(game.netPassiveAnimalsState()), guest.passiveAnimals, fullAnimals)
+        : null;
+      if (fullAnimals) {
+        guest.net.send({ t: 'animals', animals: { full: [...(combatAnimals?.full ?? []), ...(passiveAnimals?.full ?? [])] } });
+      } else {
+        const set = [...(combatAnimals?.set ?? []), ...(passiveAnimals?.set ?? [])];
+        const remove = [...(combatAnimals?.remove ?? []), ...(passiveAnimals?.remove ?? [])];
+        if (set.length || remove.length) guest.net.send({ t: 'animals', animals: { set, remove } });
       }
-      const animalSets = [...(combatAnimals?.set ?? []), ...(passiveAnimals?.set ?? [])];
-      const animalRemoves = [...(combatAnimals?.remove ?? []), ...(passiveAnimals?.remove ?? [])];
-      if (animalSets.length || animalRemoves.length) guest.net.send({ t: 'animals', animals: { set: animalSets.length ? animalSets : undefined, remove: animalRemoves.length ? animalRemoves : undefined } });
 
       if (normalFrame || recoveryFrame) {
       const ambient = game.netAmbientState();

@@ -989,7 +989,11 @@ export class Wildlife implements Updatable {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
-      if (!p) continue;
+      if (!p) {
+        a.alive = false;
+        a.model.group.visible = false;
+        continue;
+      }
       const wasAlive = a.alive;
       a.netPos.set(p.x, this.terrain.getHeight(p.x, p.z), p.z);
       a.netHeading = p.h;
@@ -1016,6 +1020,8 @@ export class Wildlife implements Updatable {
     for (const p of poses) {
       if (this.animals.some((a) => a.id === p.id) || !p.alive || !p.species) continue;
       const animal = this.createAnimal(p.species, new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z), p.z), p.h);
+      animal.id = p.id;
+      this.nextId = Math.max(this.nextId, p.id + 1);
       animal.netPos.copy(animal.pos);
       animal.netHeading = p.h;
     }

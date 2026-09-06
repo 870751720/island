@@ -749,7 +749,7 @@ export class Game {
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
         }
-        this.props.update(delta, elapsed, this.weather.wind);
+        this.props.update(delta, elapsed, this.weather.wind, !this.guestMode);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
         this.itemFly.update(delta);
@@ -1054,6 +1054,7 @@ export class Game {
           thirst: sv.thirst,
           health: sv.health,
           stamina: sv.stamina,
+          equipped: s.equipment.snapshot(),
           dead: sv.dead,
           action: s.player.currentAction,
         };
@@ -1175,6 +1176,9 @@ export class Game {
       let s = this.sessions.find((session) => session.id === p.id);
       if (!s) s = this.addRemoteSession(true, p.id, p.name);
       s.setName(s === this.local ? '我' : p.name);
+      if (s !== this.local && SLOT_ORDER.some((slot) => s.equipment.getEquipped(slot) !== p.equipped[slot])) {
+        s.equipment.restore(p.equipped, s.inventory);
+      }
       if (s === this.local) {
         const pos = s.player.group.position;
         let targetX = p.x;

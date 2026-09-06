@@ -43,6 +43,8 @@ export class NetGuest {
   private sentInputZ = Number.NaN;
   private lastHeartbeatSent = 0;
   private disposed = false;
+  private ready = false;
+  private pending: NetMsg[] = [];
   private players = new Map<string | number, PlayerState>();
   private animals = new Map<string | number, AnimalPose>();
   private crabs = new Map<string | number, AmbientPose>();
@@ -99,6 +101,8 @@ export class NetGuest {
 
   /** 收到 start 后由 Game 调用:开始按频率上行摇杆并应用下行数据 */
   begin(): void {
+    this.ready = true;
+    for (const msg of this.pending.splice(0)) this.onMessage(msg);
     this.startInput();
   }
 
@@ -110,6 +114,10 @@ export class NetGuest {
   }
 
   private onMessage(msg: NetMsg): void {
+    if (!this.ready && !['welcome', 'start', 'reject'].includes(msg.t)) {
+      this.pending.push(msg);
+      return;
+    }
     switch (msg.t) {
       case 'welcome':
         if (msg.protocol !== NET_PROTOCOL_VERSION) {

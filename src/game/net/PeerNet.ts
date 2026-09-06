@@ -11,7 +11,7 @@ const STATE_HIGH_WATER = 128 * 1024;
 const STATE_LOW_WATER = 32 * 1024;
 const CONTROL_HIGH_WATER = 512 * 1024;
 const CONTROL_LOW_WATER = 128 * 1024;
-const STATE_TYPES = new Set(['input', 'players', 'animals', 'ambient']);
+const STATE_TYPES = new Set(['input']);
 
 export type PeerSignal =
   | { description: RTCSessionDescriptionInit }

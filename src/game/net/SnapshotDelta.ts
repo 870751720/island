@@ -25,7 +25,7 @@ export function diffEntities<T extends { id: Id }>(
     const patch: Record<string, unknown> = { id: item.id };
     let changed = !old;
     for (const [key, value] of Object.entries(item)) {
-      if (key !== 'id' && (!old || old[key as keyof T] !== value)) {
+      if (key !== 'id' && (!old || (old[key as keyof T] !== value && (typeof value !== 'object' || JSON.stringify(old[key as keyof T]) !== JSON.stringify(value))))) {
         patch[key] = value;
         changed = true;
       }
