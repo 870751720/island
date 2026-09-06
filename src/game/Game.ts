@@ -102,6 +102,8 @@ export type HudSnapshot = {
   hasSword: boolean;
   /** 各工具当前等级(0 未拥有、1 基础、2 高级) */
   toolTiers: Tools;
+  /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示) */
+  craftedIds: CraftId[];
   /** 背包里是否有种子(可切换到种子播种) */
   /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
   nearCrate: boolean;
@@ -1377,6 +1379,8 @@ export class Game {
       if (gained > 0) this.emitPickup(kind, gained);
     }
     Object.assign(this.local.tools, snap.toolTiers);
+    this.local.craftedIds.clear();
+    for (const id of snap.craftedIds) this.local.craftedIds.add(id);
     this.syncToolTiers(this.local);
     this.local.player.setTool(snap.tool);
     // 装备穿戴由房主权威结算:快照回流后同步本地装备状态,触发外观/背包容量刷新
@@ -1528,6 +1532,8 @@ export class Game {
     for (const [id, tier] of Object.entries(data.tools)) {
       if (tier > 0) session.tools[id as ToolId] = tier;
     }
+    session.craftedIds.clear();
+    for (const id of data.crafted ?? []) session.craftedIds.add(id);
     this.syncToolTiers(session);
     if (data.handTool === 'hand' || this.hasToolFor(session, data.handTool)) {
       session.player.setTool(data.handTool);
@@ -1546,6 +1552,7 @@ export class Game {
       slots: session.inventory.snapshot(),
       capacity: session.inventory.capacity,
       tools: { ...session.tools },
+      crafted: [...session.craftedIds],
       equipped: session.equipment.snapshotForSave(),
       handTool: session.player.currentTool,
     };
@@ -2672,7 +2679,8 @@ export class Game {
       // 装备做出来且评分高于身上这件时直接上身
       (kind) => {
         if (isEquipKind(kind)) s.equipment.equip(kind, s.inventory);
-      }
+      },
+      s.craftedIds
     );
     s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio);
     s.fishing = new FishingSystem(
@@ -2847,6 +2855,7 @@ export class Game {
       hasBow: !!s.tools.bow,
       hasSword: !!s.tools.sword,
       toolTiers: { ...s.tools },
+      craftedIds: [...s.craftedIds],
       nearCrate: !!this.crates.nearby(s),
       nearBaitBarrel: !!this.baitBarrels.nearby(s),
       nearSmelter: !!this.smelters.nearby(s),

@@ -3,7 +3,13 @@
 import { ItemIcon } from './ItemIcon';
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { RECIPES, recipeIconKind, recipeIconLevel, type Recipe } from '@/game/systems/Crafting';
+import {
+  RECIPES,
+  recipeIconKind,
+  recipeIconLevel,
+  type CraftId,
+  type Recipe,
+} from '@/game/systems/Crafting';
 import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/systems/Items';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { costLabel } from './materials';
@@ -59,10 +65,13 @@ function recipeCategory(recipe: Recipe): ItemCategory {
 export function RecipeBook({
   onClose,
   maxBenchLevel,
+  craftedIds,
 }: {
   onClose: () => void;
   /** 传入时隐藏需求等级更高的配方(如工作台面板内查看) */
   maxBenchLevel?: number;
+  /** 已制作过的配方 id(展示「已制作」标签) */
+  craftedIds?: readonly CraftId[];
 }) {
   const grouped = useMemo(
     () =>
@@ -77,6 +86,7 @@ export function RecipeBook({
     [maxBenchLevel]
   );
   const [category, setCategory] = useState(grouped[0].category);
+  const crafted = useMemo(() => new Set(craftedIds ?? []), [craftedIds]);
 
   return (
     <div
@@ -111,6 +121,7 @@ export function RecipeBook({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{r.name}</span>
+                    {crafted.has(r.id) && <span style={craftedTagStyle}>已制作</span>}
                     <span style={tagStyle}>
                       {STATION_NAMES[r.station]}
                       {r.minBenchLevel && r.minBenchLevel > 1 ? `·Lv${r.minBenchLevel}` : ''}
@@ -172,6 +183,14 @@ const tagStyle: CSSProperties = {
   borderRadius: 6,
   background: 'rgba(0,0,0,0.08)',
   color: '#777',
+  fontSize: 11,
+};
+
+const craftedTagStyle: CSSProperties = {
+  padding: '1px 8px',
+  borderRadius: 6,
+  background: 'rgba(76,175,80,0.15)',
+  color: '#2e7d32',
   fontSize: 11,
 };
 

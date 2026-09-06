@@ -1,5 +1,5 @@
 import type { Player } from '../entities/Player';
-import { craft, type Recipe, type Tools } from './Crafting';
+import { craft, type CraftId, type Recipe, type Tools } from './Crafting';
 import type { Inventory, ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -26,7 +26,9 @@ export class CraftingSystem {
     /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n),
     /** 每完成一件产物时回调(产物种类),供装备自动上身等后续处理 */
-    private onFinish: (kind: ResourceKind) => void = () => {}
+    private onFinish: (kind: ResourceKind) => void = () => {},
+    /** 已制作配方记录(完成时写入,供图鉴标记与存档) */
+    private craftedIds: Set<CraftId> = new Set()
   ) {}
 
   start(recipe: Recipe, count = 1): boolean {
@@ -77,6 +79,7 @@ export class CraftingSystem {
     }
     if (this.timer >= CRAFT_TIME) {
       craft(recipe, this.inventory, this.tools, this.give);
+      this.craftedIds.add(recipe.id);
       // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
       // 锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖刚做的产物/设施
       if (recipe.tool) {

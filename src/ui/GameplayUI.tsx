@@ -61,6 +61,7 @@ const INITIAL_HUD: HudSnapshot = {
   hasBow: false,
   hasSword: false,
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
+  craftedIds: [],
   nearCrate: false,
   nearBaitBarrel: false,
   nearSmelter: false,

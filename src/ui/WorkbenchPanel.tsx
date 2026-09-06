@@ -33,12 +33,14 @@ export function WorkbenchPanel({
 }) {
   // 材料数统一从背包格子快照统计,新增道具无需在 HUD 快照加计数字段
   const materials = countsFromSlots(hud.slots);
-  // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),做不出的不占位置
+  // 列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),
+  // 另外未制作过的配方即使材料不足也列出(按钮置灰提示),制作过的做不出则不再占位
+  const crafted = new Set(hud.craftedIds);
   const recipes = RECIPES.filter(
     (r) =>
       r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots)
+      (recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots) || !crafted.has(r.id))
   );
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
@@ -188,7 +190,11 @@ export function WorkbenchPanel({
         </button>
       </div>
       {bookOpen && (
-        <RecipeBook maxBenchLevel={hud.workbenchLevel} onClose={() => setBookOpen(false)} />
+        <RecipeBook
+          maxBenchLevel={hud.workbenchLevel}
+          craftedIds={hud.craftedIds}
+          onClose={() => setBookOpen(false)}
+        />
       )}
     </div>
   );

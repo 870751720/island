@@ -47,6 +47,11 @@
 
 ## 迭代记录
 
+### 已制作配方记录同步(2026-09)
+
+- `PlayerSession.craftedIds` 记录每名玩家制作过的配方 id:制作在房主权威端 `CraftingSystem` 完成时写入,随 `SessionSave.crafted` 存档(可选字段,旧档缺省为空,版本不变)。
+- 客人端经 HUD 快照新增字段 `craftedIds` 回流,供工作台列表(未制作配方置灰展示)与合成图鉴「已制作」标签使用;离散集合,快照增量整组下发。
+
 ### 冶炼炉同步(2026-09)
 
 - 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed/smelterCollect`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。

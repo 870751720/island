@@ -1,5 +1,5 @@
 import type { InventorySlot, ResourceKind } from './Inventory';
-import type { ToolId } from './Crafting';
+import type { CraftId, ToolId } from './Crafting';
 import type { EquipKind, EquipSlot } from './Equipment';
 import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
@@ -39,6 +39,8 @@ export type SessionSave = {
   tools: Partial<Record<ToolId, number>>;
   equipped: Partial<Record<EquipSlot, EquipKind>>;
   handTool: HandTool;
+  /** 已制作过的配方 id(旧档缺省为空) */
+  crafted?: CraftId[];
 };
 
 /** 火堆/工作台/掉落物等摆件的落点(朝向仅上下左右四向,旧档缺省视为 0) */

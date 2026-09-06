@@ -2,7 +2,7 @@ import { Player } from '../entities/Player';
 import { SurvivalSystem } from '../systems/SurvivalSystem';
 import { Inventory } from '../systems/Inventory';
 import { Equipment } from '../systems/Equipment';
-import type { Tools } from '../systems/Crafting';
+import type { CraftId, Tools } from '../systems/Crafting';
 import type { CollectSystem } from '../systems/CollectSystem';
 import type { CraftingSystem } from '../systems/CraftingSystem';
 import type { EatingSystem } from '../systems/EatingSystem';
@@ -26,6 +26,8 @@ export class PlayerSession implements Actor {
   readonly inventory = new Inventory();
   readonly equipment = new Equipment();
   readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 };
+  /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示用) */
+  readonly craftedIds: Set<CraftId> = new Set();
   collect!: CollectSystem;
   crafting!: CraftingSystem;
   eating!: EatingSystem;
