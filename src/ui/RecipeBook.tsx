@@ -5,12 +5,13 @@ import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   RECIPES,
+  recipeCategory,
   recipeIconKind,
   recipeIconLevel,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
-import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/systems/Items';
+import { ITEMS, ITEM_CATEGORIES } from '@/game/systems/Items';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { costLabel } from './materials';
 
@@ -52,13 +53,6 @@ function effectText(recipe: Recipe): string | null {
     return desc.split('。')[0] + '。';
   }
   return null;
-}
-
-/** 配方分类:工具类为「工具」,装备产物为「装备」,其余按产物道具分类 */
-function recipeCategory(recipe: Recipe): ItemCategory {
-  if (recipe.tool) return '工具';
-  if (recipe.output && isEquipKind(recipe.output)) return '装备';
-  return itemCategory(recipe.output!);
 }
 
 /** 合成图鉴:按分类 tab 列出配方(产物、材料、站点与效果),随时可查,不判断材料够不够 */

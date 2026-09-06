@@ -1,5 +1,6 @@
 import type { InventorySlot, ResourceKind, Inventory } from './Inventory';
 import { EQUIPMENT, isEquipKind, type EquipKind, type EquipSlot } from './Equipment';
+import { ITEM_CATEGORIES, itemCategory, type ItemCategory } from './Items';
 
 /** 可拥有的工具 */
 export type ToolId = 'axe' | 'pickaxe' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
@@ -85,6 +86,18 @@ const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
 /** 单件配方:设施与装备一次只能制作一个,不提供数量调节与排队 */
 export function isSingleCraft(recipe: Recipe): boolean {
   return !!recipe.output && (isEquipKind(recipe.output) || SINGLE_OUTPUTS.has(recipe.output));
+}
+
+/** 配方分类:工具类为「工具」,装备产物为「装备」,其余按产物道具分类(材料/食物/设施/作物) */
+export function recipeCategory(recipe: Recipe): ItemCategory {
+  if (recipe.tool) return '工具';
+  if (recipe.output && isEquipKind(recipe.output)) return '装备';
+  return itemCategory(recipe.output!);
+}
+
+/** 配方分类的展示序号(材料→工具→装备→食物→设施→作物,列表排序用) */
+export function recipeCategoryOrder(recipe: Recipe): number {
+  return ITEM_CATEGORIES.indexOf(recipeCategory(recipe));
 }
 
 /** 配方图标的级别角标(二级工具为 2,其余无) */

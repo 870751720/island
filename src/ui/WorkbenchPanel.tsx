@@ -14,6 +14,7 @@ import {
   recipeVisible,
   workbenchUpgradeCost,
   isSingleCraft,
+  recipeCategoryOrder,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -39,13 +40,16 @@ export function WorkbenchPanel({
   const crafted = new Set(hud.craftedIds);
   const visible = (r: Recipe) =>
     recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots);
-  // 可制作的排在前面,未制作的(材料不足置灰)排在后面,各自保持配方表顺序
+  // 可制作的排在前面,其次按分类排序(材料→工具→装备→设施),同组保持配方表顺序
   const recipes = RECIPES.filter(
     (r) =>
       r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
       (visible(r) || !crafted.has(r.id))
-  ).sort((a, b) => Number(visible(b)) - Number(visible(a)));
+  ).sort(
+    (a, b) =>
+      Number(visible(b)) - Number(visible(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
+  );
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
   const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
