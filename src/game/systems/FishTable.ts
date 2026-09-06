@@ -4,6 +4,9 @@ import { GmSystem } from './GmSystem';
 /** 钓鱼档位:1 杂物 / 2 普通鱼 / 3 大鱼 / 4 稀世珍宝 */
 export type FishTier = 1 | 2 | 3 | 4;
 
+/** 钓点水域:海水 / 内陆水洼,二三档鱼池按水域区分 */
+export type WaterKind = 'sea' | 'pond';
+
 /** 一条可钓起的战利品:背包道具 + 上钩挣扎的体型与配色 */
 export type LootEntry = {
   kind: ResourceKind;
@@ -17,40 +20,65 @@ export type LootEntry = {
   shape: 'fish' | 'long' | 'flat' | 'junk' | 'can' | 'bottle';
 };
 
-/** 各档位的战利品池 */
-export const TIER_LOOT: Record<FishTier, LootEntry[]> = {
-  1: [
-    { kind: 'branch', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
-    { kind: 'fiber', weight: 4, size: 0.7, color: '#7cb36a', shape: 'junk' },
-    { kind: 'stone', weight: 4, size: 0.8, color: '#9a9a9a', shape: 'junk' },
-    { kind: 'cola', weight: 2, size: 0.7, color: '#c0392b', shape: 'can' },
-    { kind: 'colaZero', weight: 2, size: 0.7, color: '#2c3e50', shape: 'can' },
-    { kind: 'bottle', weight: 1, size: 0.8, color: '#a8d4d6', shape: 'bottle' },
-  ],
+/** 杂物池(一档,海水与水洼共用) */
+const JUNK_LOOT: LootEntry[] = [
+  { kind: 'branch', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
+  { kind: 'fiber', weight: 4, size: 0.7, color: '#7cb36a', shape: 'junk' },
+  { kind: 'stone', weight: 4, size: 0.8, color: '#9a9a9a', shape: 'junk' },
+  { kind: 'cola', weight: 2, size: 0.7, color: '#c0392b', shape: 'can' },
+  { kind: 'colaZero', weight: 2, size: 0.7, color: '#2c3e50', shape: 'can' },
+  { kind: 'bottle', weight: 1, size: 0.8, color: '#a8d4d6', shape: 'bottle' },
+];
+
+/** 海水鱼池(二三档) */
+const SEA_FISH: Record<2 | 3, LootEntry[]> = {
   2: [
+    { kind: 'anchovy', weight: 4, size: 0.7, color: '#a9c3cc', shape: 'fish' },
     { kind: 'sardine', weight: 4, size: 0.85, color: '#b8cdd9', shape: 'fish' },
+    { kind: 'horseMackerel', weight: 3, size: 0.9, color: '#8ba3a0', shape: 'fish' },
+    { kind: 'yellowCroaker', weight: 3, size: 0.9, color: '#e3c56d', shape: 'fish' },
+    { kind: 'saury', weight: 2, size: 1.0, color: '#7d97a8', shape: 'long' },
+    { kind: 'hairtail', weight: 2, size: 1.0, color: '#cfd8dc', shape: 'long' },
+    { kind: 'cuttlefish', weight: 2, size: 1.0, color: '#6b5f8a', shape: 'flat' },
+  ],
+  3: [
+    { kind: 'grouper', weight: 3, size: 1.5, color: '#6d7b5a', shape: 'fish' },
+    { kind: 'swordfish', weight: 2, size: 1.7, color: '#5a7d9e', shape: 'long' },
+    { kind: 'manta', weight: 2, size: 1.7, color: '#4a5568', shape: 'flat' },
+  ],
+};
+
+/** 水洼(淡水)鱼池(二三档) */
+const POND_FISH: Record<2 | 3, LootEntry[]> = {
+  2: [
     { kind: 'perch', weight: 3, size: 1.0, color: '#8fa87b', shape: 'fish' },
     { kind: 'shrimp', weight: 3, size: 0.8, color: '#e8927c', shape: 'fish' },
     { kind: 'loach', weight: 3, size: 1.0, color: '#8a7a4a', shape: 'long' },
     { kind: 'puffer', weight: 2, size: 1.05, color: '#d9c15a', shape: 'fish' },
-    { kind: 'cuttlefish', weight: 2, size: 1.0, color: '#6b5f8a', shape: 'flat' },
     { kind: 'crabMeat', weight: 2, size: 0.9, color: '#e2793a', shape: 'flat' },
   ],
   3: [
-    { kind: 'grouper', weight: 3, size: 1.5, color: '#6d7b5a', shape: 'fish' },
     { kind: 'catfish', weight: 3, size: 1.6, color: '#5b664f', shape: 'long' },
-    { kind: 'swordfish', weight: 2, size: 1.7, color: '#5a7d9e', shape: 'long' },
-    { kind: 'manta', weight: 2, size: 1.7, color: '#4a5568', shape: 'flat' },
-  ],
-  4: [
-    { kind: 'goldenFish', weight: 40, size: 1.3, color: '#e6b422', shape: 'fish' },
-    { kind: 'reviveStone', weight: 20, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
-    { kind: 'poseidonBlessing', weight: 10, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
-    { kind: 'beehiveShrine', weight: 10, size: 1.2, color: '#e8a13a', shape: 'bottle' },
-    { kind: 'healCrystal', weight: 10, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
-    { kind: 'rainAltar', weight: 10, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
+    { kind: 'grassCarp', weight: 3, size: 1.5, color: '#7ba05b', shape: 'fish' },
   ],
 };
+
+/** 稀世珍宝池(四档,海水与水洼共用;转盘格位顺序固定,勿改动次序) */
+export const TREASURE_LOOT: LootEntry[] = [
+  { kind: 'goldenFish', weight: 40, size: 1.3, color: '#e6b422', shape: 'fish' },
+  { kind: 'reviveStone', weight: 20, size: 1.1, color: '#7fd8e8', shape: 'bottle' },
+  { kind: 'poseidonBlessing', weight: 10, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
+  { kind: 'beehiveShrine', weight: 10, size: 1.2, color: '#e8a13a', shape: 'bottle' },
+  { kind: 'healCrystal', weight: 10, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
+  { kind: 'rainAltar', weight: 10, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
+];
+
+/** 取某水域某档位的战利品池(一、四档共用,二三档按水域区分) */
+function lootPool(tier: FishTier, water: WaterKind): LootEntry[] {
+  if (tier === 1) return JUNK_LOOT;
+  if (tier === 4) return TREASURE_LOOT;
+  return (water === 'sea' ? SEA_FISH : POND_FISH)[tier];
+}
 
 /** 珍宝保底节奏:已抽中的珍宝档内权重乘数,集齐全部珍宝后整体重置 */
 export const TREASURE_PITY_SCALE = 0.2;
@@ -182,12 +210,12 @@ export function rollTier(baited = true, junkCut = 0): FishTier {
 }
 
 /**
- * 按档内权重随机战利品。
+ * 按档内权重随机战利品;二三档鱼池按钓点水域区分,一、四档共用。
  * 四档传入 drawnTreasures 时启用珍宝保底:已抽中的珍宝权重乘 TREASURE_PITY_SCALE,
  * 抽中后记入集合;集齐全部珍宝时清空集合,所有权重回归正常。
  */
-export function rollLoot(tier: FishTier, drawnTreasures?: Set<ResourceKind>): LootEntry {
-  const pool = TIER_LOOT[tier];
+export function rollLoot(tier: FishTier, water: WaterKind, drawnTreasures?: Set<ResourceKind>): LootEntry {
+  const pool = lootPool(tier, water);
   const drawn = tier === 4 ? drawnTreasures : undefined;
   const weightOf = (e: LootEntry) => (drawn?.has(e.kind) ? e.weight * TREASURE_PITY_SCALE : e.weight);
   const total = pool.reduce((s, e) => s + weightOf(e), 0);

@@ -28,7 +28,8 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   食物: [
     'berry', 'cola', 'colaZero', 'bottle',
     'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
-    'grouper', 'catfish', 'swordfish', 'manta', 'goldenFish',
+    'anchovy', 'horseMackerel', 'yellowCroaker', 'saury', 'hairtail',
+    'grouper', 'catfish', 'grassCarp', 'swordfish', 'manta', 'goldenFish',
     'crabMeat', 'birdMeat', 'gameMeat',
     'cookedBerry', 'cookedSmallFish', 'cookedBigFish', 'cookedGoldenFish',
     'cookedCrabMeat', 'cookedBirdMeat', 'cookedGameMeat',
@@ -188,6 +189,36 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🦑',
     description: '扁扁的墨鱼,喷出的墨汁染黑了半片海水。',
   },
+  anchovy: {
+    kind: 'anchovy',
+    name: '鳀鱼',
+    icon: '🐟',
+    description: '成群结队的小银鱼,一口一条的海中零嘴。',
+  },
+  horseMackerel: {
+    kind: 'horseMackerel',
+    name: '竹荚鱼',
+    icon: '🐠',
+    description: '青背银腹的近海小鱼,肉质紧实。',
+  },
+  yellowCroaker: {
+    kind: 'yellowCroaker',
+    name: '小黄鱼',
+    icon: '🐠',
+    description: '通体姜黄的小鱼,海里捞到的黄金小炮弹。',
+  },
+  saury: {
+    kind: 'saury',
+    name: '秋刀鱼',
+    icon: '🐟',
+    description: '身形细长的秋刀鱼,烤着吃最香。',
+  },
+  hairtail: {
+    kind: 'hairtail',
+    name: '带鱼',
+    icon: '🐟',
+    description: '银亮如刀的带鱼,牙齿锋利,别被咬到。',
+  },
   grouper: {
     kind: 'grouper',
     name: '石斑鱼',
@@ -199,6 +230,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '巨鲶',
     icon: '🐡',
     description: '水洼深处的庞然大物,浑身滑腻,力气大得吓人。',
+  },
+  grassCarp: {
+    kind: 'grassCarp',
+    name: '草鱼',
+    icon: '🐠',
+    description: '水洼里养得膘肥体壮的大草鱼,一顿吃不完。',
   },
   swordfish: {
     kind: 'swordfish',

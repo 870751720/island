@@ -15,6 +15,7 @@ import {
   TIER_BITE,
   type FishTier,
   type LootEntry,
+  type WaterKind,
   type Tease,
   type TeaseStage,
 } from './FishTable';
@@ -61,6 +62,8 @@ export class FishingSystem {
   private waitTotal = 0;
   private rippleTimer = 0;
   private tier: FishTier = 1;
+  /** 本轮钓点水域(浮漂落点),决定二三档鱼池 */
+  private waterKind: WaterKind = 'sea';
   private loot: LootEntry | null = null;
   private tease: Tease | null = null;
   private teaseStageDone: TeaseStage | null = null;
@@ -172,6 +175,7 @@ export class FishingSystem {
     if (!this.canStart()) return false;
     const target = this.findBobberTarget();
     if (!target) return false;
+    this.waterKind = this.terrain.getWaterKind(target.x, target.z) ?? 'sea';
     this.state = 'casting';
     this.audio.play('whoosh');
     this.timer = 0;
@@ -179,7 +183,7 @@ export class FishingSystem {
     const baited = this.inventory.count('bait') > 0;
     if (baited) this.inventory.remove('bait', 1);
     this.tier = rollTier(baited, this.junkCut());
-    this.loot = rollLoot(this.tier, this.drawnTreasures());
+    this.loot = rollLoot(this.tier, this.waterKind, this.drawnTreasures());
     this.tease = null;
     this.teaseStageDone = null;
     this.pendingWait = null;

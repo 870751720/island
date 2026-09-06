@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import { TIER_LOOT } from '@/game/systems/FishTable';
+import { TREASURE_LOOT } from '@/game/systems/FishTable';
 import { ITEMS } from '@/game/systems/Items';
 import { ItemIcon } from './ItemIcon';
 
 /** 滚轮格位:四档奖池的顺序固定,保证客户端与快照回流的落点一致 */
-const SLOTS: ResourceKind[] = TIER_LOOT[4].map((e) => e.kind);
+const SLOTS: ResourceKind[] = TREASURE_LOOT.map((e) => e.kind);
 /** 滚轮上循环的圈数:越多转动越久,末段缓慢爬格落定 */
 const LOOP_TURNS = 5;
 const SPIN_SECONDS = 4.2;
