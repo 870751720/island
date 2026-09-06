@@ -115,24 +115,48 @@ function makeSproutParts(): THREE.Mesh[] {
   return [stem, leafL, leafR];
 }
 
-/** 小树:接近成树三分之二大的幼树(按树种配色) */
+/** 小树:细瘦树干 + 稀疏的少量叶子,一眼能看出还没长成(按树种区分造型) */
 function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.1, 0.15, 1.3, 5),
+    new THREE.CylinderGeometry(0.03, 0.05, 0.7, 5),
     clayMaterial('#8a6239')
   );
-  trunk.position.y = 0.65;
-  const crown = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.55, 0),
-    clayMaterial(CROWN_COLORS[species])
+  trunk.position.y = 0.35;
+  if (species === 'pine') {
+    // 松树苗:光杆上顶一个瘦小尖锥,不是成树的圆团
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.18, 0.45, 6),
+      clayMaterial(CROWN_COLORS.pine)
+    );
+    cone.position.y = 0.85;
+    return [trunk, cone];
+  }
+  if (species === 'fruit') {
+    // 果树苗:三片零散的小叶
+    const leaves: [number, number, number, number][] = [
+      // [半径, x, y, z]
+      [0.16, 0, 0.75, 0],
+      [0.12, 0.14, 0.88, 0.06],
+      [0.1, -0.12, 0.82, -0.08],
+    ];
+    return [trunk, ...leaves.map(([r, x, y, z]) => {
+      const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), clayMaterial(CROWN_COLORS.fruit));
+      leaf.position.set(x, y, z);
+      return leaf;
+    })];
+  }
+  // 橡树苗:两片错开的小叶
+  const leafL = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.15, 0),
+    clayMaterial(CROWN_COLORS.oak)
   );
-  crown.position.y = 1.6;
-  const crown2 = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.36, 0),
+  leafL.position.set(-0.08, 0.78, 0);
+  const leafR = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.11, 0),
     clayMaterial('#4f9440')
   );
-  crown2.position.set(0.16, 2.1, 0.12);
-  return [trunk, crown, crown2];
+  leafR.position.set(0.11, 0.9, 0.06);
+  return [trunk, leafL, leafR];
 }
 
 /** 成树:按树种拼装三种造型 */
