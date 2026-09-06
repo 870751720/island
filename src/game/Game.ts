@@ -10,6 +10,7 @@ import type { NetEvent } from './net/Protocol';
 import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
+import { Worms } from './entities/Worm';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
@@ -342,6 +343,7 @@ export class Game {
   private oceanDepth: OceanDepth;
   private waterDebug: WaterDebugOverlay;
   private crabs: Crabs;
+  private worms: Worms;
   private butterflies: Butterflies;
   private birds: Birds;
   private wildlife: Wildlife;
@@ -513,6 +515,14 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z),
       // 受击未死:广播给客人补播闪红
       (id) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'crab', id })
+    );
+    this.worms = new Worms(
+      this.scene,
+      terrain,
+      // 任一玩家靠近蚯蚓都会触发钻土(联机时含全部玩家)
+      () => this.sessions.map((s) => s.player.group.position),
+      // 权威端在钻土处掉落蚯蚓道具,客人端由世界增量回流补建掉落物
+      (x, z) => this.drops.dropAt('worm', 1, x, z)
     );
     // 蝴蝶会被场上任意玩家惊飞(联机时客人靠近同样惊飞)
     this.butterflies = new Butterflies(
@@ -712,12 +722,14 @@ export class Game {
         this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
           this.crabs.update(delta, elapsed);
+          this.worms.update(delta, elapsed);
           this.butterflies.update(delta, elapsed);
           this.birds.update(delta, elapsed);
           this.wildlife.update(delta, elapsed);
           this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
         } else {
           this.crabs.netUpdate(delta, elapsed);
+          this.worms.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
@@ -1048,6 +1060,7 @@ export class Game {
   netAmbientState(): AmbientState {
     return {
         crabs: this.crabs.netPoses(),
+      worms: this.worms.netPoses(),
         birds: this.birds.netPoses(),
         butterflies: this.butterflies.netPoses(),
         dog: this.dog.netPose(),
@@ -1346,6 +1359,7 @@ export class Game {
   netApplyAmbient(state: AmbientState): void {
     const elapsed = performance.now() / 1000;
     this.crabs.netApply(state.crabs);
+    this.worms.netApply(state.worms);
     this.birds.netApply(state.birds, elapsed);
     this.butterflies.netApply(state.butterflies, elapsed);
     this.dog.netApply(state.dog, elapsed);
@@ -1838,9 +1852,6 @@ export class Game {
         this.player.currentTool !== 'pickaxe'
       ) {
         return 'pickaxe';
-      }
-      if (nearby.kind === 'worm' && this.tools.hoe && this.player.currentTool !== 'hoe') {
-        return 'hoe';
       }
       return null;
     }
@@ -2990,9 +3001,7 @@ export class Game {
           ? '斧子'
           : nearby?.kind === 'rock' || nearby?.kind === 'iron' || nearby?.kind === 'meteor'
             ? '镐子'
-            : nearby?.kind === 'worm'
-              ? '锄头'
-              : '鱼竿';
+            : '鱼竿';
       indicator = {
         ...indicator,
         label: `切换${tool}…`,
@@ -3146,11 +3155,9 @@ export class Game {
                   ? digging
                     ? '挖草丛'
                     : '采纤维'
-                  : nearby.kind === 'worm'
-                    ? '挖蚯蚓'
-                    : digging
-                      ? '挖浆果丛'
-                      : '采浆果';
+                  : digging
+                    ? '挖浆果丛'
+                    : '采浆果';
     } else if (session.water.isActive) {
       label = '喝水';
       progress = session.water.getProgress();
@@ -3184,13 +3191,7 @@ export class Game {
                   : session.tools.pickaxe >= 3
                     ? '需要手持镐子'
                     : '需要铁镐'
-                : nearby.kind === 'worm'
-              ? switching
-                ? '切换锄头…'
-                : session.tools.hoe
-                  ? '需要手持锄头'
-                  : '需要锄头'
-              : null;
+                : null;
       if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
     }
     return { label, progress, color };

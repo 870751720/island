@@ -46,6 +46,7 @@ export class NetGuest {
   private players = new Map<string | number, PlayerState>();
   private animals = new Map<string | number, AnimalPose>();
   private crabs = new Map<string | number, AmbientPose>();
+  private worms = new Map<string | number, AmbientPose>();
   private birds = new Map<string | number, AmbientPose>();
   private butterflies = new Map<string | number, AmbientPose>();
   private dog: AmbientPose | null = null;
@@ -136,10 +137,11 @@ export class NetGuest {
         break;
       case 'ambient':
         if (msg.crabs) applyEntityDelta(msg.crabs, this.crabs);
+        if (msg.worms) applyEntityDelta(msg.worms, this.worms);
         if (msg.birds) applyEntityDelta(msg.birds, this.birds);
         if (msg.butterflies) applyEntityDelta(msg.butterflies, this.butterflies);
         if (msg.dog) this.dog = { ...(this.dog ?? msg.dog), ...msg.dog } as AmbientPose;
-        if (this.dog) this.onAmbient({ crabs: [...this.crabs.values()], birds: [...this.birds.values()], butterflies: [...this.butterflies.values()], dog: this.dog });
+        if (this.dog) this.onAmbient({ crabs: [...this.crabs.values()], worms: [...this.worms.values()], birds: [...this.birds.values()], butterflies: [...this.butterflies.values()], dog: this.dog });
         break;
       case 'worldDelta':
         this.onWorldDelta(msg.revision, msg.ops);

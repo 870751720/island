@@ -133,12 +133,6 @@ const HARVEST_CONFIG: Record<
     fxColor: '#a4c46a',
     yield: (inv) => inv.add('fiber', 1),
   },
-  worm: {
-    action: 'mine',
-    hits: 1,
-    fxColor: '#6b4f35',
-    yield: (inv) => inv.add('bait', 1 + Math.floor(Math.random() * 3)),
-  },
 };
 
 export type HarvestInfo = { progress: number };
@@ -262,8 +256,6 @@ export class CollectSystem {
     if (prop.kind === 'rock' || prop.kind === 'iron' || prop.kind === 'meteor') {
       return this.player.currentTool === 'pickaxe' && pickaxeUnlocked(prop.kind, this.tools.pickaxe);
     }
-    // 蚯蚓土坑要用锄头挖
-    if (prop.kind === 'worm') return this.player.currentTool === 'hoe';
     return true;
   }
 

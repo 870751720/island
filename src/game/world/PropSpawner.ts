@@ -14,7 +14,6 @@ const RULES: Rule[] = [
   { kind: 'berry', density: 12, radius: 0.8, patch: 4, weights: [1.8, 1.3, 0.7, 0.4] },
   { kind: 'shrub', density: 21, radius: 0.8, patch: 5, weights: [1.3, 1.2, 0.9, 0.7] },
   { kind: 'grass', density: 25, radius: 0.65, patch: 7, weights: [1.4, 1.3, 0.8, 0.6] },
-  { kind: 'worm', density: 7, radius: 0.65, patch: 3, weights: [1.2, 1.2, 1, 0.7] },
 ];
 /** 支持递减方向的 smoothstep */
 function smoothstep(a: number, b: number, t: number): number {
@@ -86,7 +85,6 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
     for (let tries = 0; tries < anchorCount * 100 && anchors.length < anchorCount; tries++) {
       const c = usable[Math.floor(rng() * usable.length)];
       if (!c || rng() * maxWeight > weight(rule, latitude(terrain, c.z))) continue;
-      if (rule.kind === 'worm' && !terrain.waterAreas.some(w => Math.hypot(c.x - w.x, c.z - w.z) < w.radius + 14)) continue;
       if (anchors.some(a => Math.hypot(a.x - c.x, a.z - c.z) < 18)) continue;
       anchors.push(c);
     }
@@ -101,7 +99,6 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
       const radius = clustered ? Math.sqrt(rng()) * (rule.kind === 'tree' ? 13 : 6) : 2;
       const x = c.x + Math.cos(angle) * radius, z = c.z + Math.sin(angle) * radius;
       if (!clustered && rng() * maxWeight > weight(rule, latitude(terrain, z))) continue;
-      if (rule.kind === 'worm' && !terrain.waterAreas.some(w => Math.hypot(x - w.x, z - w.z) < w.radius + 18)) continue;
       if (place(rule, x, z) && clustered) patchCounts[index]++;
     }
   }

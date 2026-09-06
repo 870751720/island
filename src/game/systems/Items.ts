@@ -17,7 +17,7 @@ export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'torch', 'adventureBook',
+    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'worm', 'torch', 'adventureBook',
   ],
   工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
@@ -333,8 +333,14 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   bait: {
     kind: 'bait',
     name: '鱼饵',
-    icon: '🪱',
+    icon: '🧆',
     description: '发酵好的小鱼饵,散发着鱼儿无法抗拒的香气。',
+  },
+  worm: {
+    kind: 'worm',
+    name: '蚯蚓',
+    icon: '🪱',
+    description: '水边湿土里钻出来的蚯蚓,是鱼儿最爱的天然饵。',
   },
   oakSeed: {
     kind: 'oakSeed',

@@ -48,6 +48,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedGameMeat: '#9c4a2f',
   arrow: '#a97c50',
   bait: '#c98a7a',
+  worm: '#d98a8a',
   oakSeed: '#b5813f',
   pineSeed: '#8a6b45',
   fruitSeed: '#a0784e',
@@ -882,6 +883,20 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
       ball.position.set(x, 0.05, 0);
       g.add(ball);
     }
+    return g;
+  },
+  worm: () => {
+    // 蚯蚓:一截弯折的粉色蠕虫
+    const g = new THREE.Group();
+    const mat = clay(DROP_COLORS.worm);
+    const seg = mesh(new THREE.CapsuleGeometry(0.055, 0.14, 2, 5), mat);
+    seg.rotation.z = Math.PI / 2 - 0.35;
+    seg.position.y = 0.06;
+    g.add(seg);
+    const tail = mesh(new THREE.CapsuleGeometry(0.04, 0.1, 2, 5), mat);
+    tail.rotation.z = Math.PI / 2 + 0.7;
+    tail.position.set(-0.14, 0.05, 0.03);
+    g.add(tail);
     return g;
   },
   oakSeed: () => makeSeed(DROP_COLORS.oakSeed),

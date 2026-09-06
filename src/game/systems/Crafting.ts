@@ -351,7 +351,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'baitBarrel',
     name: '饵料桶',
-    cost: { wood: 4, rope: 1 },
+    cost: { wood: 4, rope: 1, worm: 3 },
     station: 'workbench',
     output: 'baitBarrel',
     minBenchLevel: 2,

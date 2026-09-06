@@ -46,6 +46,7 @@ export type AmbientPose = {
 
 export type AmbientState = {
   crabs: AmbientPose[];
+  worms: AmbientPose[];
   birds: AmbientPose[];
   butterflies: AmbientPose[];
   dog: AmbientPose;
@@ -124,7 +125,7 @@ export type NetMsg =
       players: EntityDelta<PlayerState>;
     }
   | { t: 'animals'; animals: EntityDelta<AnimalPose> }
-  | { t: 'ambient'; crabs?: EntityDelta<AmbientPose>; birds?: EntityDelta<AmbientPose>; butterflies?: EntityDelta<AmbientPose>; dog?: Partial<AmbientPose> }
+  | { t: 'ambient'; crabs?: EntityDelta<AmbientPose>; worms?: EntityDelta<AmbientPose>; birds?: EntityDelta<AmbientPose>; butterflies?: EntityDelta<AmbientPose>; dog?: Partial<AmbientPose> }
   | { t: 'worldDelta'; revision: number; ops: WorldDeltaOp[] }
   | { t: 'worldResync'; revision: number }
   | { t: 'worldFull'; revision: number; state: WorldPatch }

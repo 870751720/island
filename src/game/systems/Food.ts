@@ -46,6 +46,7 @@ export const FOODS: Food[] = [
 
 /** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);熟食与生食兑换相同,大体按获取难度定价:基础采集 1、小鱼/肉 2-3、大鱼 5、兽肉 5、黄金鱼 20 */
 export const BAIT_YIELD: Partial<Record<ResourceKind, number>> = {
+  worm: 1,
   oakFruit: 1,
   pineFruit: 1,
   berry: 1,
