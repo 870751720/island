@@ -2,11 +2,11 @@
 
 import { ItemIcon } from '../ItemIcon';
 import { useMemo, useState } from 'react';
-import { ITEMS } from '@/game/systems/Items';
+import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/systems/Items';
 import { TOOL_IDS, toolName, type ToolId } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
-/** 物品 tab:全物品发放 + 工具按等级发放(一级/二级),可按名称筛选 */
+/** 物品 tab:按分类二级 tab 归类发放,工具按等级发放,可按名称筛选 */
 export function ItemsTab({
   onGiveItem,
   onGiveTool,
@@ -15,15 +15,19 @@ export function ItemsTab({
   onGiveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
 }) {
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<ItemCategory>('材料');
   const toolSet = useMemo(() => new Set<string>(TOOL_IDS), []);
   const kinds = useMemo(
     () =>
       (Object.keys(ITEMS) as ResourceKind[]).filter(
-        (k) => !toolSet.has(k) && ITEMS[k].name.includes(query.trim())
+        (k) => !toolSet.has(k) && itemCategory(k) === category && ITEMS[k].name.includes(query.trim())
       ),
-    [query, toolSet]
+    [query, toolSet, category]
   );
-  const tools = TOOL_IDS.filter((id) => toolName(id, 1).includes(query.trim()));
+  const tools =
+    category === '工具'
+      ? TOOL_IDS.filter((id) => toolName(id, 1).includes(query.trim()))
+      : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -45,6 +49,13 @@ export function ItemsTab({
           boxSizing: 'border-box',
         }}
       />
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {ITEM_CATEGORIES.map((c) => (
+          <button key={c} onClick={() => setCategory(c)} style={category === c ? catTabActiveStyle : catTabStyle}>
+            {c}
+          </button>
+        ))}
+      </div>
       <div style={{ maxHeight: '42vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tools.map((id) => (
           <div key={id} style={rowStyle}>
@@ -110,4 +121,23 @@ const giveStyle = {
   fontSize: 13,
   fontWeight: 700,
   cursor: 'pointer',
+} as const;
+
+const catTabStyle = {
+  minHeight: 32,
+  padding: '4px 12px',
+  border: 'none',
+  borderRadius: 16,
+  background: 'rgba(0,0,0,0.06)',
+  color: '#4a3b2a',
+  fontSize: 13,
+  fontFamily: 'sans-serif',
+  cursor: 'pointer',
+} as const;
+
+const catTabActiveStyle = {
+  ...catTabStyle,
+  background: '#8a6f4b',
+  color: '#fff',
+  fontWeight: 700,
 } as const;

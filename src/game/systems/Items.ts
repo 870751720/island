@@ -10,6 +10,55 @@ export type ItemDef = {
   burnTime?: number;
 };
 
+/** 物品分类(GM 面板二级 tab),顺序即展示顺序 */
+export const ITEM_CATEGORIES = ['材料', '工具', '装备', '食物', '设施', '作物'] as const;
+export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
+  材料: [
+    'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
+    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'torch',
+  ],
+  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
+  装备: [
+    'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
+    'furShirt', 'furPants', 'furHat', 'furBackpack',
+    'ironShirt', 'ironPants', 'ironHat', 'ironBackpack',
+  ],
+  食物: [
+    'berry', 'cola', 'colaZero', 'bottle',
+    'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
+    'grouper', 'catfish', 'swordfish', 'manta', 'goldenFish',
+    'crabMeat', 'birdMeat', 'gameMeat',
+    'cookedBerry', 'cookedSmallFish', 'cookedBigFish', 'cookedGoldenFish',
+    'cookedCrabMeat', 'cookedBirdMeat', 'cookedGameMeat',
+  ],
+  设施: [
+    'reviveStone', 'poseidonBlessing', 'beehiveShrine', 'healCrystal',
+    'rainAltar', 'adventureBook',
+    'crate', 'baitBarrel', 'smelter', 'loom',
+    'fenceWood', 'fenceStone', 'fenceGate',
+    'bed1', 'bed2', 'bed3',
+    'workbench1', 'workbench2', 'workbench3', 'workbench4',
+  ],
+  作物: [
+    'oakSeed', 'pineSeed', 'fruitSeed',
+    'oakFruit', 'pineFruit', 'fruitFruit',
+    'berryBush', 'shrubBush', 'grassTuft',
+  ],
+};
+
+const CATEGORY_BY_KIND = new Map<ResourceKind, ItemCategory>(
+  ITEM_CATEGORIES.flatMap((category) =>
+    CATEGORY_MEMBERS[category].map((kind) => [kind, category] as const)
+  )
+);
+
+/** 查询物品所属分类;新物品未登记时归入「材料」并保持可发放 */
+export function itemCategory(kind: ResourceKind): ItemCategory {
+  return CATEGORY_BY_KIND.get(kind) ?? '材料';
+}
+
 export const ITEMS: Record<ResourceKind, ItemDef> = {
   branch: {
     kind: 'branch',
