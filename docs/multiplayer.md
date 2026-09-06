@@ -75,6 +75,13 @@
 - `Game.notify(text, actor)` 增加目标会话参数:房主代客人权威结算产生的临时提示(放置失败、箱/桶/炉/机装不下、背包满、睡觉提示、复活提示、GM 鳄鱼提示等)不再播在房主屏幕,而是通过定向事件 `{ kind: 'notice', target, text }` 广播,客人在 `netApplyEvent` 中按本人 id 过滤后走本地 notice 展示(同 `bottle` 事件的定向模式)。
 - 存档版本不变;提示不进快照,断线重连期间的提示自然丢弃。
 
+### 联机死亡掉落(2026-09)
+
+- 联机死亡重生不再「随身全清」:房主在 `respawnMultiplayerSession` 重生前先执行 `dropDeathLoot`,在死亡位置生成地面掉落物(走 `drops` 世界增量,客人端可见、任何人可捡回)。
+- 掉落规则:背包中的丛类植株(`berryBush`/`shrubBush`/`grassTuft`)必定全部掉落;其余背包装备按每格数量 60%(`DEATH_DROP_RATIO`,四舍五入)掉落;四个穿戴栏位与每件已拥有工具各有 60% 概率掉落,未掉落部分随重生清零直接丢失。
+- 工具掉落物携带可选 `tier` 字段(存档 `drops` 与世界增量同步,旧档缺省视为无等级):捡回工具类掉落物时不进背包,而是把该工具重新点亮到掉落时的等级(`pickupDrop` 内特殊处理);等级只升不降。
+- 复活石免死不触发掉落(不走重生流程)。
+
 ### 全局系统提示(2026-09)
 
 - 新增全局事件 `{ kind: 'sysNotice', text }`(`NET_PROTOCOL_VERSION` 升至 18):房主经 `Game.sysNotify` 广播给所有客人并在本地展示,客人在 `netApplyEvent` 直接走本地 notice,无需过滤。

@@ -4,7 +4,7 @@ import type { EquipKind, EquipSlot } from './Equipment';
 import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
-import type { DropSource } from './DropSystem';
+import type { DropEntry } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { WaterPurifierSave } from './WaterPurifierSystem';
@@ -92,7 +92,7 @@ export type SaveData = {
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[];
-  drops: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[];
+  drops: DropEntry[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };
   /** 本局已抽中过的珍宝(保底权重用,集齐后清空;旧档缺省视为无) */

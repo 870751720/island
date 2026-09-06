@@ -208,6 +208,10 @@ const SWORD_AUTO_EQUIP_DELAY = 1.5; // 持续移动且动物近身多久后自�
 const SWORD_AUTO_EQUIP_RANGE = 3; // 动物近身判定范围(米)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
+/** 联机死亡掉落比例:三种丛类道具必定掉落,其余随身物品(含穿戴装备与工具)按此比例掉在原地 */
+const DEATH_DROP_RATIO = 0.6;
+/** 必定掉落的丛类道具(挖走待种回的植株) */
+const PLANT_DROP_KINDS: readonly ResourceKind[] = ['berryBush', 'shrubBush', 'grassTuft'];
 /** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
 const BEAR_SFX_RANGE = 20;
 
@@ -2067,8 +2071,9 @@ export class Game {
     s.dead = false;
   }
 
-  /** 房主权威执行联机重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
+  /** 房主权威执行联机重生：随身物品按死亡掉落规则掉在原地，个人携带进度清零，岛屿与其他玩家保持不变。 */
   private respawnMultiplayerSession(session: PlayerSession): void {
+    this.dropDeathLoot(session);
     session.inventory.reset();
     session.equipment.reset();
     for (const id of TOOL_IDS) session.tools[id] = 0;
@@ -2082,6 +2087,23 @@ export class Game {
     session.player.respawn(this.terrain.findSpawnPoint());
   }
 
+  /** 联机死亡的随身掉落(房主权威,掉落物经世界增量同步给客人):
+   * 丛类植株必定掉落;其余背包道具按 DEATH_DROP_RATIO 掉落份数;穿戴装备与已拥有工具各有该比例的概率掉落(工具保留等级,捡回即重新点亮)。 */
+  private dropDeathLoot(session: PlayerSession): void {
+    for (const slot of session.inventory.snapshot()) {
+      if (!slot) continue;
+      const ratio = PLANT_DROP_KINDS.includes(slot.kind) ? 1 : DEATH_DROP_RATIO;
+      const n = Math.round(slot.count * ratio);
+      if (n > 0) this.drops.drop(slot.kind, n, session);
+    }
+    for (const kind of Object.values(session.equipment.snapshot())) {
+      if (kind && Math.random() < DEATH_DROP_RATIO) this.drops.drop(kind, 1, session);
+    }
+    for (const id of TOOL_IDS) {
+      const tier = session.tools[id];
+      if (tier > 0 && Math.random() < DEATH_DROP_RATIO) this.drops.drop(id, 1, session, tier);
+    }
+  }
   /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午;客人端上行车主权威结算,时刻随快照回流 */
   gmSetTime(t: number): void {
     if (this.guestNet) {
@@ -2374,12 +2396,19 @@ export class Game {
     if (this.asleepFor(a)) return false;
     const near = this.drops.getNearby(a);
     if (!near) return false;
-    if (!a.inventory.canFit(near.kind)) {
+    if (!(TOOL_IDS as string[]).includes(near.kind) && !a.inventory.canFit(near.kind)) {
       this.notify('背包满了,装不下更多东西', a);
       return false;
     }
     this.markPickupOrigin(near.position, a);
-    return this.drops.pickupNearby(a);
+    // 工具类掉落物(死亡掉落的斧/镐等)捡回即重新点亮对应等级,不进背包
+    return this.drops.pickupNearby(a, (d) => {
+      if (!(TOOL_IDS as string[]).includes(d.kind)) return a.inventory.add(d.kind, d.count);
+      const tool = d.kind as ToolId;
+      a.tools[tool] = Math.max(a.tools[tool], d.tier ?? 1);
+      this.syncToolTiers(a);
+      return d.count;
+    });
   }
 
   /** 通用临时提示(由 UI 自动消失);联机时代客人权威结算产生的提示定向发回本人屏幕 */

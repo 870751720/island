@@ -25,6 +25,18 @@ export const MEAT_KINDS: readonly ResourceKind[] = [
 /** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 / 背包放不下溢出 */
 export type DropSource = 'discarded' | 'loot' | 'overflow';
 
+/** 掉落物的持久化/同步形态(存档、世界增量与客人镜像共用) */
+export type DropEntry = {
+  id?: string;
+  kind: ResourceKind;
+  count: number;
+  x: number;
+  z: number;
+  source: DropSource;
+  /** 工具类掉落物携带的等级(1 基础/2 石制/3 铁制),非工具无此字段 */
+  tier?: number;
+};
+
 export type DropInfo = {
   kind: ResourceKind;
   count: number;
@@ -39,6 +51,8 @@ type Drop = {
   kind: ResourceKind;
   count: number;
   source: DropSource;
+  /** 工具类掉落物的等级,非工具为 undefined */
+  tier?: number;
   mesh: THREE.Object3D;
   age: number;
   baseY: number;
@@ -60,8 +74,8 @@ export class DropSystem {
     private audio: GameAudio
   ) {}
 
-  /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下) */
-  drop(kind: ResourceKind, count: number, actor: Actor): void {
+  /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下;工具可带等级) */
+  drop(kind: ResourceKind, count: number, actor: Actor, tier?: number): void {
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.7 + Math.random() * 0.5;
     const p = actor.player.group.position;
@@ -70,7 +84,8 @@ export class DropSystem {
       count,
       'discarded',
       p.x + Math.cos(angle) * radius,
-      p.z + Math.sin(angle) * radius
+      p.z + Math.sin(angle) * radius,
+      tier
     );
   }
 
@@ -93,14 +108,25 @@ export class DropSystem {
     this.spawn(kind, count, 'loot', x, z);
   }
 
-  private spawn(kind: ResourceKind, count: number, source: DropSource, x: number, z: number): void {
+  private spawn(
+    kind: ResourceKind,
+    count: number,
+    source: DropSource,
+    x: number,
+    z: number,
+    tier?: number
+  ): void {
     const mesh = makeDropModel(kind);
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
     const id = createWorldEntityId('drop');
-    this.drops.push({ id, kind, count, source, mesh, age: 0, baseY });
-    this.onChanged?.({ op: 'add', id, value: { id, kind, count, source, x, z } });
+    this.drops.push({ id, kind, count, source, tier, mesh, age: 0, baseY });
+    this.onChanged?.({
+      op: 'add',
+      id,
+      value: { id, kind, count, source, x, z, ...(tier !== undefined ? { tier } : {}) },
+    });
     this.audio.play('drop');
   }
 
@@ -128,15 +154,19 @@ export class DropSystem {
       : null;
   }
 
-  /** 捡回附近掉落物;背包放不下时返回 false(掉落物留在地上) */
-  pickupNearby(actor: Actor): boolean {
+  /** 捡回附近掉落物;收集回调返回实际收下数量(默认入背包),收不满时返回 false 掉落物留在地上 */
+  pickupNearby(
+    actor: Actor,
+    collect: (drop: { kind: ResourceKind; count: number; tier?: number }) => number = (d) =>
+      actor.inventory.add(d.kind, d.count)
+  ): boolean {
     const p = actor.player.group.position;
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
       if (drop.age < PICKUP_DELAY) continue;
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
-      if (actor.inventory.add(drop.kind, drop.count) < drop.count) return false;
+      if (collect({ kind: drop.kind, count: drop.count, tier: drop.tier }) < drop.count) return false;
       this.fx.burst(drop.mesh.position, DROP_COLORS[drop.kind], 8);
       this.remove(i);
       return true;
@@ -198,7 +228,7 @@ export class DropSystem {
   }
 
   /** 当前所有地面掉落物的存档快照 */
-  snapshot(): { id: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[] {
+  snapshot(): DropEntry[] {
     return this.drops.map((drop) => ({
       id: drop.id,
       kind: drop.kind,
@@ -206,24 +236,23 @@ export class DropSystem {
       source: drop.source,
       x: drop.mesh.position.x,
       z: drop.mesh.position.z,
+      ...(drop.tier !== undefined ? { tier: drop.tier } : {}),
     }));
   }
 
   /** 从存档恢复掉落物(不播丢落音效) */
-  restore(
-    list: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]
-  ): void {
+  restore(list: DropEntry[]): void {
     for (const d of list) {
       if (d.count <= 0) continue;
       const mesh = makeDropModel(d.kind);
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
-      this.drops.push({ id: d.id ?? createWorldEntityId('drop'), kind: d.kind, count: d.count, source: d.source, mesh, age: 0, baseY });
+      this.drops.push({ id: d.id ?? createWorldEntityId('drop'), kind: d.kind, count: d.count, source: d.source, tier: d.tier, mesh, age: 0, baseY });
     }
   }
 
-  netApply(list: { id?: string; kind: ResourceKind; count: number; x: number; z: number; source: DropSource }[]): void {
+  netApply(list: DropEntry[]): void {
     const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
     for (let i = this.drops.length - 1; i >= 0; i--) {
       if (incoming.has(this.drops[i].id)) continue;
@@ -240,7 +269,7 @@ export class DropSystem {
       const baseY = Math.max(this.terrain.getHeight(value.x, value.z), 0) + 0.5;
       mesh.position.set(value.x, baseY, value.z);
       this.scene.add(mesh);
-      this.drops.push({ id: value.id || createWorldEntityId('drop'), kind: value.kind, count: value.count, source: value.source, mesh, age: 0, baseY });
+      this.drops.push({ id: value.id || createWorldEntityId('drop'), kind: value.kind, count: value.count, source: value.source, tier: value.tier, mesh, age: 0, baseY });
     }
   }
 
