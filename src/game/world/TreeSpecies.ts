@@ -23,7 +23,7 @@ export const FRUIT_OF: Record<TreeSpecies, ResourceKind> = {
 };
 
 /** 砍倒成树第一阶段后额外掉落种子/果实的概率 */
-export const SEED_DROP_CHANCE = 1 / 3;
+export const SEED_DROP_CHANCE = 0.6;
 export const FRUIT_DROP_CHANCE = 1 / 10;
 
 /** 每 60 秒一次生长判定,每次有 1/2 概率长到下一阶段 */
