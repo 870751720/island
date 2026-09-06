@@ -21,6 +21,7 @@ import {
   type Recipe,
 } from '@/game/systems/Crafting';
 import { RecipeBook } from './RecipeBook';
+import { StepButton } from './StepButton';
 import { costLabel, recipeCostLabel } from './materials';
 
 /** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
@@ -119,29 +120,25 @@ export function WorkbenchPanel({
                 </div>
                 {r.output && !isSingleCraft(r) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button
+                    <StepButton
+                      step={-1}
                       style={stepButtonStyle}
                       disabled={count <= 1}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        setCounts((c) => ({ ...c, [r.id]: Math.max(1, count - 1) }));
-                      }}
-                    >
-                      −
-                    </button>
+                      onChange={(s) =>
+                        setCounts((c) => ({ ...c, [r.id]: Math.max(1, (c[r.id] ?? 1) + s) }))
+                      }
+                    />
                     <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>
                       {count}
                     </span>
-                    <button
+                    <StepButton
+                      step={1}
                       style={stepButtonStyle}
                       disabled={count >= max}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        setCounts((c) => ({ ...c, [r.id]: Math.min(max, count + 1) }));
-                      }}
-                    >
-                      +
-                    </button>
+                      onChange={(s) =>
+                        setCounts((c) => ({ ...c, [r.id]: Math.min(max, (c[r.id] ?? 1) + s) }))
+                      }
+                    />
                   </div>
                 )}
                 <button

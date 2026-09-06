@@ -12,7 +12,7 @@ import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
 import { fadeStyle } from './fade';
-import { startHoldTap } from './holdRepeat';
+import { StepButton } from './StepButton';
 
 type Props = {
   open: boolean;
@@ -145,43 +145,6 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
       }}
     >
       {label}
-    </button>
-  );
-}
-
-/** 数量步进按钮:点按一次 ±1;长按连发,按住越久步进越大、间隔越短(快速调大数量) */
-function StepButton({ step, onChange }: { step: 1 | -1; onChange: (step: number) => void }) {
-  const hold = useRef<(() => void) | null>(null);
-
-  const stop = () => {
-    hold.current?.();
-    hold.current = null;
-  };
-
-  return (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        onChange(step);
-        hold.current = startHoldTap({ onTap: () => {}, onRepeat: (s) => onChange(step * s) });
-      }}
-      onPointerUp={stop}
-      onPointerCancel={stop}
-      onPointerLeave={stop}
-      style={{
-        width: 44,
-        borderRadius: 10,
-        border: 'none',
-        background: 'rgba(0,0,0,0.08)',
-        color: '#555',
-        fontSize: 20,
-        fontWeight: 700,
-        touchAction: 'none',
-        userSelect: 'none',
-      }}
-    >
-      {step < 0 ? '−' : '+'}
     </button>
   );
 }
@@ -520,6 +483,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           <StepButton
                             key={step}
                             step={step}
+                            style={{ width: 44, borderRadius: 10, border: 'none', background: 'rgba(0,0,0,0.08)', color: '#555', fontSize: 20, fontWeight: 700 }}
                             onChange={(s) =>
                               setDropCount((c) => Math.min(selected.count, Math.max(1, c + s)))
                             }

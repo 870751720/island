@@ -1,6 +1,7 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { StepButton } from './StepButton';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
@@ -111,27 +112,29 @@ export function CampfirePanel({
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
+                  <StepButton
+                    step={-1}
                     style={stepButtonStyle}
                     disabled={n <= 1}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      setCookCounts((c) => ({ ...c, [food.kind]: Math.max(1, n - 1) }));
-                    }}
-                  >
-                    −
-                  </button>
+                    onChange={(s) =>
+                      setCookCounts((c) => ({
+                        ...c,
+                        [food.kind]: Math.max(1, (c[food.kind] ?? 1) + s),
+                      }))
+                    }
+                  />
                   <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>{n}</span>
-                  <button
+                  <StepButton
+                    step={1}
                     style={stepButtonStyle}
                     disabled={n >= max}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      setCookCounts((c) => ({ ...c, [food.kind]: Math.min(max, n + 1) }));
-                    }}
-                  >
-                    +
-                  </button>
+                    onChange={(s) =>
+                      setCookCounts((c) => ({
+                        ...c,
+                        [food.kind]: Math.min(max, (c[food.kind] ?? 1) + s),
+                      }))
+                    }
+                  />
                 </div>
                 <button
                   disabled={!lit}
