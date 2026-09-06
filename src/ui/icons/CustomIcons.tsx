@@ -226,25 +226,80 @@ const FruitSeedIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 草衣:草编上衣,下摆垂草须 */
+/** 草衣:草编上衣,领口、衣袖与下摆草须,衣身织纹 */
 const GrassShirtIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <path d="M22 12 L29 9 Q32 7 35 9 L42 12 L50 20 L44 26 L44 50 L20 50 L20 26 L14 20 Z" fill="#7cb342" />
-    <g stroke="#558b2f" strokeWidth={2} strokeLinecap="round">
-      <path d="M22 50 v6 M27 50 v8 M32 50 v7 M37 50 v8 M42 50 v6" />
-      <path d="M25 30 h14 M25 38 h14" />
+    {/* 衣袖 */}
+    <path d="M20 14 L10 22 L12 32 L22 27 Z" fill="#8f9e3e" />
+    <path d="M44 14 L54 22 L52 32 L42 27 Z" fill="#8f9e3e" />
+    {/* 衣身 */}
+    <path d="M20 13 Q32 8 44 13 L44 48 L20 48 Z" fill="#a9b24a" />
+    {/* 领口 */}
+    <path d="M27 12 Q32 18 37 12 Q32 9 27 12 Z" fill="#6f7a2e" />
+    {/* 织纹:横向草束 + 交错针脚 */}
+    <g stroke="#8f9e3e" strokeWidth={2} strokeLinecap="round">
+      <path d="M21 22 h22 M21 30 h22 M21 38 h22" />
+    </g>
+    <g stroke="#c3ca6e" strokeWidth={1.6} strokeLinecap="round">
+      <path d="M24 26 l4 -3 M32 26 l4 -3 M24 34 l4 -3 M32 34 l4 -3 M24 42 l4 -3 M32 42 l4 -3" />
+    </g>
+    {/* 下摆草须 */}
+    <g stroke="#8f9e3e" strokeWidth={2.2} strokeLinecap="round">
+      <path d="M22 48 v8 M27 48 v10 M32 48 v9 M37 48 v10 M42 48 v8" />
     </g>
   </Svg>
 );
 
-/** 草裤:草编短裤,裤脚垂草须 */
+/** 草裤:草编短裤,腰带 + 织纹 + 裤脚草须 */
 const GrassPantsIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <path d="M18 12 h28 v8 l-4 32 h-9 l-1 -20 -1 20 h-9 l-4 -32 Z" fill="#7cb342" />
-    <g stroke="#558b2f" strokeWidth={2} strokeLinecap="round">
-      <path d="M21 52 v6 M25 52 v7 M39 52 v7 M43 52 v6" />
-      <path d="M20 20 h24" />
+    {/* 裤身 */}
+    <path d="M18 16 L46 16 L44 46 L36 46 L33 28 L30 46 L20 46 Z" fill="#a9b24a" />
+    {/* 腰带 */}
+    <rect x={17} y={11} width={30} height={7} rx={2} fill="#8f9e3e" />
+    <rect x={29} y={10} width={6} height={9} rx={2} fill="#6f7a2e" />
+    {/* 织纹:横向草束 + 交错针脚 */}
+    <g stroke="#8f9e3e" strokeWidth={2} strokeLinecap="round">
+      <path d="M20 24 h12 M33 24 h11 M20 32 h10 M32 32 h11 M21 40 h9 M33 40 h10" />
     </g>
+    <g stroke="#c3ca6e" strokeWidth={1.6} strokeLinecap="round">
+      <path d="M23 28 l4 -3 M38 28 l4 -3 M24 36 l4 -3 M38 36 l4 -3" />
+    </g>
+    {/* 裤脚草须 */}
+    <g stroke="#8f9e3e" strokeWidth={2.2} strokeLinecap="round">
+      <path d="M21 46 v8 M25 46 v9 M39 46 v9 M43 46 v8" />
+    </g>
+  </Svg>
+);
+
+/** 铁矿石:灰岩断面嵌金属铁矿斑 */
+const IronOreIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M12 40 L18 18 L34 10 L50 20 L54 42 L40 56 L20 54 Z" fill="#7d858f" />
+    <path d="M18 18 L34 10 L38 26 L24 32 Z" fill="#8f97a1" />
+    <path d="M38 26 L50 20 L54 42 L40 48 Z" fill="#6c747e" />
+    <g fill="#4d5560">
+      <circle cx={27} cy={38} r={5} />
+      <circle cx={41} cy={34} r={4} />
+      <circle cx={33} cy={47} r={4.5} />
+    </g>
+    <g fill="#c6d0da">
+      <circle cx={25.5} cy={36.5} r={1.6} />
+      <circle cx={40} cy={33} r={1.3} />
+      <circle cx={32} cy={46} r={1.3} />
+    </g>
+  </Svg>
+);
+
+/** 火把:木柄缠布,顶端火苗 */
+const TorchIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <rect x={28} y={28} width={8} height={30} rx={3} fill="#8a6b45" />
+    <path d="M28 34 q4 3 8 0 M28 42 q4 3 8 0" stroke="#6b4f33" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+    <rect x={25} y={22} width={14} height={10} rx={3} fill="#a3572e" />
+    <path d="M25 26 h14" stroke="#8a4522" strokeWidth={1.8} />
+    <path d="M32 22 Q20 16 26 6 Q28 12 32 12 Q30 5 38 3 Q36 9 40 13 Q43 17 38 21 Q35 23 32 22 Z" fill="#e67e22" />
+    <path d="M32 20 Q27 16 30 10 Q31 14 33 14 Q33 10 36 8 Q36 12 37 14 Q38 18 34 20 Q33 21 32 20 Z" fill="#f7c948" />
   </Svg>
 );
 
@@ -320,4 +375,6 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   fenceStone: FenceStoneIcon,
   berryBush: BerryBushIcon,
   arrow: ArrowIcon,
+  ironOre: IronOreIcon,
+  torch: TorchIcon,
 };
