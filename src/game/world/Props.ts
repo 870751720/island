@@ -4,7 +4,6 @@ import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
 import {
   GROWTH_CHANCE,
-  GROWTH_INTERVAL,
   type TreeSpecies,
   type TreeStage,
 } from './TreeSpecies';
@@ -885,11 +884,12 @@ export class Props implements Updatable {
     if (intensity >= 0.02) this.swayTime += delta;
   }
 
-  /** 未成树每分钟有 1/2 概率长到下一阶段,长成成树后才可砍伐;GM 倍率调节奏,0 为暂停 */
+  /** 未成树每隔 GM 配置的间隔有 1/2 概率长到下一阶段,长成成树后才可砍伐 */
   private updateTreeGrowth(delta: number): void {
-    this.growthTimer += delta * GmSystem.treeGrowthMultiplier;
-    if (this.growthTimer < GROWTH_INTERVAL) return;
-    this.growthTimer -= GROWTH_INTERVAL;
+    this.growthTimer += delta;
+    const interval = GmSystem.treeGrowthInterval;
+    if (this.growthTimer < interval) return;
+    this.growthTimer -= interval;
     for (const prop of this.list) {
       if (prop.kind !== 'tree' || prop.growth === 'mature' || prop.stage === 'stump') continue;
       if (Math.random() >= GROWTH_CHANCE) continue;

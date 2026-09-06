@@ -24,8 +24,8 @@ export const GmSystem = {
   speedMultiplier: 1,
   /** 喝水触发鳄鱼袭击的概率(0~1,特殊事件调试用) */
   crocodileChance: 0.005,
-  /** 树生长节奏倍率(1 为正常,>1 长得更快,0 为暂停;作用于房主侧生长判定) */
-  treeGrowthMultiplier: 1,
+  /** 树生长判定间隔(秒,每次判定有 1/2 概率升阶;作用于房主侧生长判定) */
+  treeGrowthInterval: 60,
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
@@ -46,7 +46,7 @@ export function gmSnapshot(): GmConfig {
     attackMultiplier: GmSystem.attackMultiplier,
     speedMultiplier: GmSystem.speedMultiplier,
     crocodileChance: GmSystem.crocodileChance,
-    treeGrowthMultiplier: GmSystem.treeGrowthMultiplier,
+    treeGrowthInterval: GmSystem.treeGrowthInterval,
   };
 }
 
@@ -78,7 +78,7 @@ export function gmApply(config: Partial<GmConfig>): void {
   if (typeof config.crocodileChance === 'number' && Number.isFinite(config.crocodileChance)) {
     GmSystem.crocodileChance = Math.min(1, Math.max(0, config.crocodileChance));
   }
-  if (typeof config.treeGrowthMultiplier === 'number' && Number.isFinite(config.treeGrowthMultiplier)) {
-    GmSystem.treeGrowthMultiplier = Math.min(100, Math.max(0, config.treeGrowthMultiplier));
+  if (typeof config.treeGrowthInterval === 'number' && Number.isFinite(config.treeGrowthInterval)) {
+    GmSystem.treeGrowthInterval = Math.min(3600, Math.max(1, config.treeGrowthInterval));
   }
 }
