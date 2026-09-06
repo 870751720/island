@@ -39,9 +39,10 @@ export class PlayerIndicator {
     scene.add(this.group);
   }
 
-  /** 头顶作业进度(0-1 或 null),并同步朝向相机 */
-  setProgress(progress: number | null): void {
+  /** 头顶作业进度(0-1 或 null),并同步朝向相机;raised 时抬高避让屏幕中央的全屏提示 */
+  setProgress(progress: number | null, raised = false): void {
     this.head.visible = progress !== null;
+    this.head.position.y = raised ? 3.2 : 2.1;
     this.head.quaternion.copy(this.camera.quaternion);
     this.headProgress.setArc(progress);
   }

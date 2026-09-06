@@ -3096,14 +3096,16 @@ export class Game {
     }
     const { label, progress, color } = indicator;
     const p = this.player.group.position;
+    // 咬钩连点时头顶进度环与文字抬高,避开屏幕中央的全屏连点提示
+    const bite = this.local.fishing.currentState === 'bite';
     this.indicator.group.position.copy(p);
-    this.indicator.setProgress(progress);
+    this.indicator.setProgress(progress, bite);
     this.indicator.setStamina(
       this.player.isSwimming ? this.survival.state.stamina / 100 : null
     );
 
     // 头顶文字投影为屏幕坐标(预告彩字时带颜色)
-    const head = new THREE.Vector3(p.x, p.y + 2.75, p.z).project(this.camera);
+    const head = new THREE.Vector3(p.x, p.y + (bite ? 3.85 : 2.75), p.z).project(this.camera);
     const w = this.renderer.domElement.clientWidth;
     const h = this.renderer.domElement.clientHeight;
     this.onLabel(
