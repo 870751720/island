@@ -25,6 +25,7 @@ const JUNK_LOOT: LootEntry[] = [
   { kind: 'branch', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
   { kind: 'fiber', weight: 4, size: 0.7, color: '#7cb36a', shape: 'junk' },
   { kind: 'stone', weight: 4, size: 0.8, color: '#9a9a9a', shape: 'junk' },
+  { kind: 'flint', weight: 2, size: 0.75, color: '#b8a888', shape: 'junk' },
   { kind: 'cola', weight: 2, size: 0.7, color: '#c0392b', shape: 'can' },
   { kind: 'colaZero', weight: 2, size: 0.7, color: '#2c3e50', shape: 'can' },
   { kind: 'bottle', weight: 1, size: 0.8, color: '#a8d4d6', shape: 'bottle' },

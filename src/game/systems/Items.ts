@@ -133,7 +133,8 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'cloth',
     name: '布料',
     icon: '🧶',
-    description: '纺织机上一梭一梭织出来的整幅布,柔软又透气。',
+    description: '纺织机上一梭一梭织出来的整幅布,柔软又透气,也能投进火堆当柴。',
+    burnTime: 35,
   },
   cola: {
     kind: 'cola',
@@ -317,7 +318,8 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fur',
     name: '皮毛',
     icon: '🐾',
-    description: '猎捕野兽剥下的皮毛,御寒耐磨。',
+    description: '猎捕野兽剥下的皮毛,御寒耐磨,烧起来也顶一阵子。',
+    burnTime: 30,
   },
   cookedBerry: {
     kind: 'cookedBerry',
