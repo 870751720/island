@@ -7,7 +7,6 @@ export const CRATE_CAPACITY = 10;
 
 const BODY_HALF = 0.33; // 箱体半宽(X/Z)
 const BODY_H = 0.5; // 箱体高
-const ICON_SCALE = 0.45; // 面上标识模型的缩放
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -47,18 +46,7 @@ function makeCrateMesh(): THREE.Group {
   return g;
 }
 
-/** 在指定朝向的面上挂一个小型道具模型作为内容标识 */
-function makeFaceIcon(kind: ResourceKind, rotY: number, y: number, offset: number): THREE.Group {
-  const holder = new THREE.Group();
-  holder.rotation.y = rotY;
-  const icon = makeDropModel(kind);
-  icon.scale.setScalar(ICON_SCALE);
-  icon.position.set(0, y, offset);
-  holder.add(icon);
-  return holder;
-}
-
-/** 场景中的木箱摆件:自带 10 格收纳空间,靠近可存取物品;四个侧面与顶面展示第一个格子的道具模型 */
+/** 场景中的木箱摆件:自带 10 格收纳空间,靠近可存取物品;顶面展示第一个格子的道具模型 */
 export class Crate {
   readonly group: THREE.Group;
   readonly storage: Inventory;
@@ -84,12 +72,7 @@ export class Crate {
     this.group.remove(this.iconLayer);
     this.iconLayer = new THREE.Group();
     if (kind) {
-      const faceOffset = BODY_HALF + 0.06;
-      for (let i = 0; i < 4; i++) {
-        this.iconLayer.add(makeFaceIcon(kind, (i * Math.PI) / 2, BODY_H / 2, faceOffset));
-      }
       const topIcon = makeDropModel(kind);
-      topIcon.scale.setScalar(ICON_SCALE);
       topIcon.position.y = BODY_H + 0.1;
       this.iconLayer.add(topIcon);
     }
