@@ -10,6 +10,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   ironOre: '#b07a5a',
   ironIngot: '#c9ccd1',
   smelter: '#7d8288',
+  loom: '#8a6239',
+  cloth: '#e8e2d4',
   berry: '#c0392b',
   fiber: '#a4c46a',
   rope: '#d9c27a',
@@ -217,6 +219,37 @@ function makeSmelterDrop(): THREE.Object3D {
   const mouth = mesh(new THREE.BoxGeometry(0.1, 0.07, 0.03), glow);
   mouth.position.set(0, 0.08, 0.14);
   g.add(mouth);
+  return g;
+}
+
+/** 布料:叠成整摞的两层折布 */
+function makeCloth(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(DROP_COLORS.cloth);
+  const sheet1 = mesh(new THREE.BoxGeometry(0.3, 0.08, 0.24), mat);
+  sheet1.position.y = 0.05;
+  const sheet2 = mesh(new THREE.BoxGeometry(0.26, 0.07, 0.2), mat);
+  sheet2.rotation.y = 0.2;
+  sheet2.position.y = 0.12;
+  g.add(sheet1, sheet2);
+  return g;
+}
+
+/** 纺织机掉落物:小木机架 + 一小片布 */
+function makeLoomDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const woodMat = clay(DROP_COLORS.loom);
+  for (const x of [-0.1, 0.1]) {
+    const post = mesh(new THREE.BoxGeometry(0.03, 0.24, 0.04), woodMat);
+    post.position.set(x, 0.12, 0);
+    g.add(post);
+  }
+  const beam = mesh(new THREE.BoxGeometry(0.24, 0.03, 0.04), woodMat);
+  beam.position.y = 0.25;
+  g.add(beam);
+  const cloth = mesh(new THREE.BoxGeometry(0.18, 0.1, 0.02), clay(DROP_COLORS.cloth));
+  cloth.position.y = 0.07;
+  g.add(cloth);
   return g;
 }
 
@@ -782,6 +815,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironOre: makeIronOre,
   ironIngot: makeIronIngot,
   smelter: makeSmelterDrop,
+  loom: makeLoomDrop,
+  cloth: makeCloth,
   berry: makeBerry,
   fiber: makeFiber,
   rope: makeRope,

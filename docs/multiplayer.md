@@ -50,3 +50,4 @@
 ### 冶炼炉同步(2026-09)
 
 - 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed/smelterCollect`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。
+- 纺织机同款约定:世界段 `looms` 与动作 `useLoom/loomFeed/loomCollect`,机内 `rope/cloth/tickLeft` 经世界增量回流,织布计时只在房主端推进。

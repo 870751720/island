@@ -8,6 +8,7 @@ import type { DropSource } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { SmelterSave } from './SmelterSystem';
+import type { LoomSave } from './LoomSystem';
 
 const SAVE_KEY = 'island.save.v1';
 export const SAVE_VERSION = 30;
@@ -77,6 +78,8 @@ export type SaveData = {
   baitBarrels?: BaitBarrelSave[];
   /** 场上所有冶炼炉(落点与炉内矿石/铁锭,旧档缺省视为无) */
   smelters?: SmelterSave[];
+  /** 场上所有纺织机(落点与机内绳线/布料,旧档缺省视为无) */
+  looms?: LoomSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */

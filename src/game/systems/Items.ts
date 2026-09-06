@@ -67,6 +67,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🧵',
     description: '用植物纤维搓成的细绳,结实有韧性。',
   },
+  cloth: {
+    kind: 'cloth',
+    name: '布料',
+    icon: '🧶',
+    description: '纺织机上一梭一梭织出来的整幅布,柔软又透气。',
+  },
   cola: {
     kind: 'cola',
     name: '可乐',
@@ -431,6 +437,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏭',
     description: '石块垒成的冶炼炉,能把铁矿石炼成铁锭。',
   },
+  loom: {
+    kind: 'loom',
+    name: '纺织机',
+    icon: '🪡',
+    description: '木架绷线的纺织机,能把绳线织成布料。',
+  },
   fenceWood: {
     kind: 'fenceWood',
     name: '木围栏',
@@ -465,7 +477,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'bed3',
     name: '三级床',
     icon: '🛏️',
-    description: '皮毛床外罩一顶布帘帐篷,风吹不着的过夜好去处。',
+    description: '铺着整幅软布的皮毛大床,外罩一顶布帘帐篷,过夜的好去处。',
   },
   berryBush: {
     kind: 'berryBush',

@@ -10,13 +10,15 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
 /**
  * 程序化拼装的床模型,随等级升级:
  * Lv1 木框 + 稻草垫 + 叶子枕;Lv2 加高木框 + 皮毛床垫 + 皮毛枕 + 床头板;
- * Lv3 皮毛床外加一顶布帘帐篷(A 形坡面 + 床头三角墙,床尾敞开)
+ * Lv3 铺整幅软布床垫与白布枕头、床尾垂帘毛毯,外罩一顶米白布帘帐篷
+ * (A 形坡面 + 床头三角墙 + 门帘垂布,床尾敞开)
  */
 function makeBedMesh(level: number): THREE.Group {
   const g = new THREE.Group();
   const woodMat = clayMaterial('#8a6239');
-  const mattressMat = clayMaterial(level >= 2 ? '#a5836b' : '#c9a15c');
-  const pillowMat = clayMaterial(level >= 2 ? '#efe3d0' : '#7a9b4e');
+  const luxury = level >= 3;
+  const mattressMat = clayMaterial(luxury ? '#efe9dc' : level >= 2 ? '#a5836b' : '#c9a15c');
+  const pillowMat = clayMaterial(luxury ? '#fdfaf2' : level >= 2 ? '#efe3d0' : '#7a9b4e');
 
   const isFur = level >= 2;
   // 床架
@@ -52,31 +54,51 @@ function makeBedMesh(level: number): THREE.Group {
   g.add(pillow);
 
   if (isFur) {
-    // Lv2:木质床头板
+    // Lv2 起的木质床头板;三级床再加两根雕花床头柱
     const headboard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.66), woodMat);
     headboard.position.set(-0.7, 0.42, 0);
     headboard.castShadow = true;
     g.add(headboard);
+    if (luxury) {
+      for (const z of [-0.26, 0.26]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.75, 6), woodMat);
+        post.position.set(-0.66, 0.62, z);
+        post.castShadow = true;
+        g.add(post);
+        const knob = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), woodMat);
+        knob.position.set(-0.66, 1.02, z);
+        g.add(knob);
+      }
+    }
   }
 
-  // 一床盖到一半的草席/皮毯
+  // 一床盖到一半的草席/皮毯;三级床盖白布毯并多一条搭在床尾的垂帘毛毯
   const blanket = new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 0.05, 0.6),
-    clayMaterial(isFur ? '#8a6239' : '#9b7b4e')
+    clayMaterial(luxury ? '#e3dccb' : isFur ? '#8a6239' : '#9b7b4e')
   );
   blanket.position.set(0.24, mattress.position.y + 0.09, 0);
   blanket.castShadow = true;
   g.add(blanket);
+  if (luxury) {
+    const drape = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.3, 0.6),
+      clayMaterial('#a5836b')
+    );
+    drape.position.set(0.62, mattress.position.y - 0.06, 0);
+    drape.castShadow = true;
+    g.add(drape);
+  }
 
   if (level >= 3) addTent(g);
 
   return g;
 }
 
-/** 三级床帐篷罩:两面拼接布帘坡面 + 前后三角墙(正面留门洞),床头封住、床尾开门 */
+/** 三级床帐篷罩:两面拼接的米白布帘坡面 + 前后三角墙(正面留门洞),床头封住、床尾开门挂门帘 */
 function addTent(g: THREE.Group): void {
-  const clothMat = new THREE.MeshStandardMaterial({ color: '#7d9a6e', flatShading: true, roughness: 1 });
-  const clothAltMat = new THREE.MeshStandardMaterial({ color: '#6f8c62', flatShading: true, roughness: 1 });
+  const clothMat = new THREE.MeshStandardMaterial({ color: '#e8e0cd', flatShading: true, roughness: 1 });
+  const clothAltMat = new THREE.MeshStandardMaterial({ color: '#d9d0ba', flatShading: true, roughness: 1 });
   const woodMat = new THREE.MeshStandardMaterial({ color: '#8a6239', flatShading: true, roughness: 1 });
   const ridge = 1.35; // 屋脊高
   const halfW = 0.85; // 半跨
@@ -144,6 +166,21 @@ function addTent(g: THREE.Group): void {
     wall.castShadow = true;
     g.add(wall);
   }
+
+  // 床尾门洞上沿垂下两片掀开的门帘,屋脊正中插一面小旗
+  for (const z of [-0.32, 0.32]) {
+    const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.5, 0.24), clothAltMat);
+    curtain.position.set(len / 2 - 0.03, ridge * 0.28, z);
+    curtain.rotation.x = z > 0 ? 0.12 : -0.12;
+    curtain.castShadow = true;
+    g.add(curtain);
+  }
+  const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.24, 5), woodMat);
+  flagPole.position.set(0, ridge + 0.1, 0);
+  g.add(flagPole);
+  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.015), clothAltMat);
+  flag.position.set(0.09, ridge + 0.16, 0);
+  g.add(flag);
 }
 
 /** 场景中的床摆件(可放置多个),靠近可睡觉跳到第二天清晨 */

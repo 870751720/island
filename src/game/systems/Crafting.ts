@@ -29,6 +29,7 @@ export type CraftId =
   | 'bed3'
   | 'baitBarrel'
   | 'smelter'
+  | 'loom'
   | 'torch'
   | EquipKind;
 
@@ -310,7 +311,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed3',
     name: '三级床',
-    cost: { bed2: 1, fur: 10 },
+    cost: { bed2: 1, cloth: 5, fur: 5 },
     station: 'workbench',
     output: 'bed3',
     minBenchLevel: 3,
@@ -329,6 +330,14 @@ export const RECIPES: Recipe[] = [
     cost: { stone: 10, flint: 3 },
     station: 'workbench',
     output: 'smelter',
+    minBenchLevel: 3,
+  },
+  {
+    id: 'loom',
+    name: '纺织机',
+    cost: { wood: 15, branch: 5, rope: 5, fur: 5 },
+    station: 'workbench',
+    output: 'loom',
     minBenchLevel: 3,
   },
   {

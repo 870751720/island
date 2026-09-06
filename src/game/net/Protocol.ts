@@ -61,6 +61,7 @@ export type WorldPatch = Partial<
     | 'crates'
     | 'baitBarrels'
     | 'smelters'
+    | 'looms'
     | 'fences'
     | 'fenceGates'
     | 'beds'
