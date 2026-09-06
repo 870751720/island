@@ -179,10 +179,10 @@ export class CrateSystem {
     return this.nearby(actor)?.storage.snapshot() ?? null;
   }
 
-  /** 把背包里该种类全部道具整格存入身旁木箱,返回是否存入任何数量 */
-  store(actor: PlayerSession, kind: ResourceKind): boolean {
+  /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),返回是否存入任何数量 */
+  store(actor: PlayerSession, kind: ResourceKind, count = Infinity): boolean {
     const crate = this.nearby(actor);
-    const n = actor.inventory.count(kind);
+    const n = Math.min(actor.inventory.count(kind), count);
     if (!crate || n <= 0 || !crate.storage.canFit(kind)) return false;
     const before = crate.storage.snapshot();
     actor.inventory.remove(kind, n);
@@ -193,10 +193,10 @@ export class CrateSystem {
     return true;
   }
 
-  /** 把身旁木箱里该种类全部道具整格取回背包,返回是否取回任何数量 */
-  take(actor: PlayerSession, kind: ResourceKind): boolean {
+  /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回),返回是否取回任何数量 */
+  take(actor: PlayerSession, kind: ResourceKind, count = Infinity): boolean {
     const crate = this.nearby(actor);
-    const n = crate ? crate.storage.count(kind) : 0;
+    const n = Math.min(crate ? crate.storage.count(kind) : 0, count);
     if (!crate || n <= 0 || !actor.inventory.canFit(kind)) return false;
     const before = crate.storage.snapshot();
     crate.storage.remove(kind, n);

@@ -623,8 +623,8 @@ export function GameplayUI({
           {crateOpen && hud.nearCrate && (
             <CratePanel
               hud={hud}
-              onStore={(kind) => gameRef.current?.crateStore(kind)}
-              onTake={(kind) => gameRef.current?.crateTake(kind)}
+              onStore={(kind, count) => gameRef.current?.crateStore(kind, count)}
+              onTake={(kind, count) => gameRef.current?.crateTake(kind, count)}
               onClose={() => setCrateOpen(false)}
             />
           )}

@@ -12,6 +12,7 @@ import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
 import { fadeStyle } from './fade';
+import { startHoldTap } from './holdRepeat';
 
 type Props = {
   open: boolean;
@@ -150,24 +151,11 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
 
 /** 数量步进按钮:点按一次 ±1;长按连发,按住越久步进越大、间隔越短(快速调大数量) */
 function StepButton({ step, onChange }: { step: 1 | -1; onChange: (step: number) => void }) {
-  const hold = useRef<number | null>(null);
+  const hold = useRef<(() => void) | null>(null);
 
   const stop = () => {
-    if (hold.current !== null) {
-      clearTimeout(hold.current);
-      hold.current = null;
-    }
-  };
-
-  /** 连发节拍:延迟从 160ms 逐渐加速到 45ms;步进按住 0.8s 后升到 5、1.6s 后升到 10 */
-  const tick = (start: number) => {
-    const held = Date.now() - start;
-    const delay = Math.max(160 - held / 20, 45);
-    const stepSize = held > 1600 ? 10 : held > 800 ? 5 : 1;
-    hold.current = window.setTimeout(() => {
-      onChange(step * stepSize);
-      if (hold.current !== null) tick(start);
-    }, delay);
+    hold.current?.();
+    hold.current = null;
   };
 
   return (
@@ -176,7 +164,7 @@ function StepButton({ step, onChange }: { step: 1 | -1; onChange: (step: number)
         e.preventDefault();
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         onChange(step);
-        tick(Date.now());
+        hold.current = startHoldTap({ onTap: () => {}, onRepeat: (s) => onChange(step * s) });
       }}
       onPointerUp={stop}
       onPointerCancel={stop}

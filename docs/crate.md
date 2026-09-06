@@ -28,3 +28,11 @@
 - `src/ui/ToolButton.tsx`:靠近木箱时按钮显示 📦、棕色底、持续缩放(优先级:工作台 > 火堆 > 木箱)。
 - `src/ui/CratePanel.tsx`:储物面板,上下两格盘(木箱/背包),点击即整格转移。
 - 存档:结构新增 `crates` 字段,`SAVE_VERSION` 升至 11(旧档丢弃)。
+
+## 迭代记录
+
+### 存取支持长按步进
+
+- 储物面板的存入/取出交互改为「点按 = 整格转移,长按 = 连发步进转移」:按住超过 350ms 进入连发,间隔从 160ms 随按住时长加速到 45ms,步进 0.8s 后升到 5、1.6s 后升到 10,松手即停。
+- 通用调度抽到 `src/ui/holdRepeat.ts`(`startHoldTap`),背包丢弃数量的 ± 步进按钮复用同一模块。
+- 链路:`CrateSystem.store/take` 与 `Game.crateStore/crateTake` 新增 `count` 参数(默认 `Infinity` 表示整格);联机动作 `crateStore/crateTake` 携带数量,`Infinity` 以 `null` 传输、房主端还原。

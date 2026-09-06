@@ -1,17 +1,18 @@
 'use client';
 
+import { useRef } from 'react';
 import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/Game';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
-import { ITEMS } from '@/game/systems/Items';
 import { CRATE_CAPACITY } from '@/game/entities/Crate';
+import { startHoldTap } from './holdRepeat';
 
 type Props = {
   hud: HudSnapshot;
-  /** 把背包里该种类全部道具整格存入木箱 */
-  onStore: (kind: ResourceKind) => void;
-  /** 把木箱里该种类全部道具整格取回背包 */
-  onTake: (kind: ResourceKind) => void;
+  /** 把背包里该种类道具存入木箱(count 为 Infinity 时整格存入) */
+  onStore: (kind: ResourceKind, count: number) => void;
+  /** 把木箱里该种类道具取回背包(count 为 Infinity 时整格取回) */
+  onTake: (kind: ResourceKind, count: number) => void;
   onClose: () => void;
 };
 
@@ -55,9 +56,15 @@ function countBadge(count: number): React.ReactNode {
   );
 }
 
-/** 木箱储物面板:上半为木箱 10 格(点击取回背包),下半为背包(点击存入木箱),均为整格转移 */
+/** 木箱储物面板:上半为木箱 10 格,下半为背包;点按格子整格转移,长按连发步进转移(越按越快) */
 export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const crateSlots = hud.crateSlots ?? [];
+  /** 进行中的长按连发停止函数(松手/取消时调用) */
+  const holdRef = useRef<(() => void) | null>(null);
+  const stopHold = () => {
+    holdRef.current?.();
+    holdRef.current = null;
+  };
   const gridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
@@ -67,7 +74,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const renderGrid = (
     slots: InventorySlot[],
     capacity: number,
-    onTap: (kind: ResourceKind) => void
+    transfer: (kind: ResourceKind, count: number) => void
   ) => (
     <div style={gridStyle}>
       {Array.from({ length: capacity }, (_, i) => {
@@ -77,8 +84,15 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
             key={i}
             onPointerDown={(e) => {
               e.preventDefault();
-              if (slot) onTap(slot.kind);
+              if (!slot) return;
+              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              holdRef.current = startHoldTap({
+                onTap: () => transfer(slot.kind, Infinity),
+                onRepeat: (step) => transfer(slot.kind, step),
+              });
             }}
+            onPointerUp={stopHold}
+            onPointerCancel={stopHold}
             style={slotStyle(!!slot)}
           >
             {slot && (
@@ -122,9 +136,9 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
           boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
         }}
       >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>📦 木箱(点击格子取回)</div>
+        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>📦 木箱(点按取回,长按步进)</div>
         {renderGrid(crateSlots, CRATE_CAPACITY, onTake)}
-        <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}>🎒 背包(点击格子存入)</div>
+        <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}>🎒 背包(点按存入,长按步进)</div>
         {renderGrid(hud.slots, hud.capacity, onStore)}
         <button
           onPointerDown={(e) => {
