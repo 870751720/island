@@ -71,12 +71,12 @@ function makeBedMesh(level: number): THREE.Group {
       cap.position.set(-0.7, 0.42 + headH / 2 + 0.03, 0);
       cap.castShadow = true;
       g.add(cap);
-      // 四角雕花柱(圆柱 + 顶球),撑起整张大床的气势
+      // 四角雕花柱(圆柱 + 顶球):立在床垫四角、与床头/床尾板完全脱开,不嵌入板中
       for (const [x, z] of [
-        [-0.66, -0.28],
-        [-0.66, 0.28],
-        [0.66, -0.28],
-        [0.66, 0.28],
+        [-0.58, -0.27],
+        [-0.58, 0.27],
+        [0.56, -0.27],
+        [0.56, 0.27],
       ]) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.78, 6), woodMat);
         post.position.set(x, 0.58, z);
