@@ -49,9 +49,9 @@ export function ItemsTab({
           boxSizing: 'border-box',
         }}
       />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4 }}>
         {ITEM_CATEGORIES.map((c) => (
-          <button key={c} onClick={() => setCategory(c)} style={category === c ? catTabActiveStyle : catTabStyle}>
+          <button key={c} onClick={() => setCategory(c)} style={{ ...(category === c ? catTabActiveStyle : catTabStyle), flex: 1 }}>
             {c}
           </button>
         ))}
@@ -124,14 +124,15 @@ const giveStyle = {
 } as const;
 
 const catTabStyle = {
-  minHeight: 32,
-  padding: '4px 12px',
+  minHeight: 28,
+  padding: '2px 0',
   border: 'none',
-  borderRadius: 16,
+  borderRadius: 14,
   background: 'rgba(0,0,0,0.06)',
   color: '#4a3b2a',
-  fontSize: 13,
+  fontSize: 12,
   fontFamily: 'sans-serif',
+  whiteSpace: 'nowrap',
   cursor: 'pointer',
 } as const;
 

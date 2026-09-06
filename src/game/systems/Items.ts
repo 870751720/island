@@ -17,7 +17,7 @@ export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'torch',
+    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'torch', 'adventureBook',
   ],
   工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
@@ -35,7 +35,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   ],
   设施: [
     'reviveStone', 'poseidonBlessing', 'beehiveShrine', 'healCrystal',
-    'rainAltar', 'adventureBook',
+    'rainAltar',
     'crate', 'baitBarrel', 'smelter', 'loom',
     'fenceWood', 'fenceStone', 'fenceGate',
     'bed1', 'bed2', 'bed3',
