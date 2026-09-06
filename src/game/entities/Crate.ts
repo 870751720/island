@@ -7,6 +7,7 @@ export const CRATE_CAPACITY = 10;
 
 const BODY_HALF = 0.33; // 箱体半宽(X/Z)
 const BODY_H = 0.5; // 箱体高
+const ICON_SPIN_SPEED = Math.PI / 3; // 顶面标识自转速度(弧度/秒)
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -62,6 +63,11 @@ export class Crate {
     this.group.add(makeCrateMesh());
     this.group.add(this.iconLayer);
     this.storage = new Inventory();
+  }
+
+  /** 顶面内容标识缓慢自转 */
+  update(delta: number): void {
+    this.iconLayer.rotation.y += ICON_SPIN_SPEED * delta;
   }
 
   /** 按当前箱内第一个格子刷新各面上的内容标识(无物品时清空) */

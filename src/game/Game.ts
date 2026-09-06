@@ -696,6 +696,7 @@ export class Game {
         this.loopElapsed = elapsed;
         for (const session of this.sessions) session.player.update(delta, elapsed);
         this.dayNight.update(delta);
+        this.crates.update(delta);
         this.meteor.update(delta);
         this.weather.update(delta);
         this.audio.setNight(this.dayNight.isNight);

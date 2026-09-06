@@ -110,6 +110,11 @@ export class CrateSystem {
     return true;
   }
 
+  /** 帧更新:顶面内容标识自转 */
+  update(delta: number): void {
+    for (const crate of this.crates) crate.update(delta);
+  }
+
   /** 正在挖木箱 */
   isDigging(actor: PlayerSession): boolean {
     return !!this.digStates.get(actor)?.digTarget;
