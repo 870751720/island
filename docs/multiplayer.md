@@ -51,3 +51,8 @@
 
 - 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed/smelterCollect`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。
 - 纺织机同款约定:世界段 `looms` 与动作 `useLoom/loomFeed/loomCollect`,机内 `rope/cloth/tickLeft` 经世界增量回流,织布计时只在房主端推进。
+
+### 定向提示同步(2026-09)
+
+- `Game.notify(text, actor)` 增加目标会话参数:房主代客人权威结算产生的临时提示(放置失败、箱/桶/炉/机装不下、背包满、睡觉提示、复活提示、GM 鳄鱼提示等)不再播在房主屏幕,而是通过定向事件 `{ kind: 'notice', target, text }` 广播,客人在 `netApplyEvent` 中按本人 id 过滤后走本地 notice 展示(同 `bottle` 事件的定向模式)。
+- 存档版本不变;提示不进快照,断线重连期间的提示自然丢弃。

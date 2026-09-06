@@ -1204,6 +1204,11 @@ export class Game {
       if (event.target === this.local.id) this.onBottleMessage(event.text);
       return;
     }
+    // 房主定向发回的临时提示:只播在触发者本人屏幕上
+    if (event.kind === 'notice') {
+      if (event.target === this.local.id) this.notify(event.text);
+      return;
+    }
     if (event.kind === 'collectFx') {
       this.fx.burst(
         new THREE.Vector3(event.x, event.y, event.z),
@@ -2002,14 +2007,11 @@ export class Game {
   /** GM 生成落点:在该玩家附近的草地上生成指定动物并提示 */
   gmSpawnAnimalFor(species: AnimalSpecies, actor: PlayerSession = this.local): void {
     const p = actor.player.group.position;
-    if (actor !== this.local) {
-      this.wildlife.gmSpawnNear(species, p.x, p.z);
-      return;
-    }
     this.notify(
       this.wildlife.gmSpawnNear(species, p.x, p.z)
         ? `已在附近生成${ANIMAL_LABELS[species]}`
-        : '附近没有合适的草地,挪个位置再试'
+        : '附近没有合适的草地,挪个位置再试',
+      actor
     );
   }
 
@@ -2023,7 +2025,7 @@ export class Game {
   }
 
   gmTriggerCrocodileFor(actor: PlayerSession): void {
-    if (!this.spawnCrocodileNear(actor) && actor === this.local) this.notify('站在水洼边上再试');
+    if (!this.spawnCrocodileNear(actor)) this.notify('站在水洼边上再试', actor);
   }
 
   /** GM 开关调整:本地立即生效;联机时全房间同步同一份配置 */  gmSetConfig(patch: Partial<GmConfig>): void {
@@ -2050,7 +2052,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.use(actor)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2064,7 +2066,7 @@ export class Game {
 
     const level = workbenchItemLevel(kind);
     if (this.asleepFor(actor) || level === null || !this.workbench.placeItem(actor, level)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2078,7 +2080,7 @@ export class Game {
 
     const level = bedItemLevel(kind);
     if (this.asleepFor(actor) || level === null || !this.beds.place(actor, level)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2103,7 +2105,7 @@ export class Game {
     const stats = Game.SLEEP_STATS[bed.level];
     const s = a.survival.state;
     if (s.hunger < stats.need || s.thirst < stats.need) {
-      if (a === this.local) this.notify('又饿又渴睡不着,先吃点喝点再睡吧');
+      this.notify('又饿又渴睡不着,先吃点喝点再睡吧', a);
       return false;
     }
     const skipped = this.dayNight.beginSleep();
@@ -2120,7 +2122,7 @@ export class Game {
         const p = a.player.group.position.clone();
         p.y += 0.8;
         this.fx.burst(p, '#cfe8ff', 14);
-        if (a === this.local) this.notify('一觉睡到了第二天清晨');
+        this.notify('一觉睡到了第二天清晨', a);
       }
     );
   }
@@ -2139,7 +2141,7 @@ export class Game {
         ? this.fences.useGate(a)
         : false;
     if (!ok) {
-      this.notify('这里放不下,找块没东西的干地正对着要围的方向试试');
+      this.notify('这里放不下,找块没东西的干地正对着要围的方向试试', a);
       return false;
     }
     this.afterPlaceDiggable(a);
@@ -2152,7 +2154,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useShrine', [kind]);
 
     if (this.asleepFor(actor) || !this.shrines.place(actor, kind)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2177,10 +2179,8 @@ export class Game {
   private playReviveFx(session: PlayerSession): void {
     const p = session.player.group.position;
     this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#7fd8e8', 22);
-    if (session === this.local) {
-      this.audio.play('success');
-      this.notify('复活石发出微光碎裂了,你在出生点苏醒');
-    }
+    if (session === this.local) this.audio.play('success');
+    this.notify('复活石发出微光碎裂了,你在出生点苏醒', session);
   }
 
   /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
@@ -2215,7 +2215,7 @@ export class Game {
       this.terrain.getHeight(p.x, p.z) <= 0 ||
       this.props.isOccupied(p, 1)
     ) {
-      this.notify('这里种不了,找个没东西的干地试试');
+      this.notify('这里种不了,找个没东西的干地试试', a);
       return false;
     }
     a.inventory.remove(kind, 1);
@@ -2242,7 +2242,7 @@ export class Game {
       this.terrain.getHeight(p.x, p.z) <= 0 ||
       this.props.isOccupied(p, 1)
     ) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', a);
       return false;
     }
     a.inventory.remove(kind, 1);
@@ -2270,15 +2270,19 @@ export class Game {
     const near = this.drops.getNearby(a);
     if (!near) return false;
     if (!a.inventory.canFit(near.kind)) {
-      this.notify('背包满了,装不下更多东西');
+      this.notify('背包满了,装不下更多东西', a);
       return false;
     }
     this.markPickupOrigin(near.position, a);
     return this.drops.pickupNearby(a);
   }
 
-  /** 通用临时提示(由 UI 自动消失) */
-  notify(text: string): void {
+  /** 通用临时提示(由 UI 自动消失);联机时代客人权威结算产生的提示定向发回本人屏幕 */
+  notify(text: string, actor: PlayerSession = this.local): void {
+    if (actor !== this.local && this.hostRef) {
+      this.hostRef.broadcastEvent({ kind: 'notice', target: actor.id, text });
+      return;
+    }
     this.notice = { id: ++this.noticeId, text };
     this.hudTimer = 1; // 跳过节流立即推送
     this.pushHud(0);
@@ -2300,7 +2304,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.store(actor, kind)) {
-      this.notify('木箱装不下了');
+      this.notify('木箱装不下了', actor);
       return false;
     }
     return true;
@@ -2313,7 +2317,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.take(actor, kind)) {
-      this.notify('背包满了,装不下更多东西');
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2325,7 +2329,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useBaitBarrel', []);
 
     if (this.asleepFor(actor) || !this.baitBarrels.use(actor)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2339,7 +2343,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.baitBarrels.feed(actor, kind)) {
-      this.notify('桶里装不下了');
+      this.notify('桶里装不下了', actor);
       return false;
     }
     return true;
@@ -2352,7 +2356,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.baitBarrels.collect(actor)) {
-      this.notify('背包满了,装不下更多东西');
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2364,7 +2368,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useSmelter', []);
 
     if (this.asleepFor(actor) || !this.smelters.use(actor)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2378,7 +2382,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.smelters.feed(actor)) {
-      this.notify('炉里装不下了');
+      this.notify('炉里装不下了', actor);
       return false;
     }
     return true;
@@ -2391,7 +2395,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.smelters.collect(actor)) {
-      this.notify('背包满了,装不下更多东西');
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2403,7 +2407,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useLoom', []);
 
     if (this.asleepFor(actor) || !this.looms.use(actor)) {
-      this.notify('这里放不下,找个没东西的干地试试');
+      this.notify('这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2417,7 +2421,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.looms.feed(actor)) {
-      this.notify('机里织不上了');
+      this.notify('机里织不上了', actor);
       return false;
     }
     return true;
@@ -2430,7 +2434,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.looms.collect(actor)) {
-      this.notify('背包满了,装不下更多东西');
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2759,11 +2763,11 @@ export class Game {
       this.terrain.waterAreas[0]
     );
     if (!pond || Math.hypot(p.x - pond.x, p.z - pond.z) > pond.radius + 2) {
-      if (session === this.local) this.notify('附近没有水洼,鳄鱼没来');
+      this.notify('附近没有水洼,鳄鱼没来', session);
       return false;
     }
     this.wildlife.spawnCrocodile({ x: pond.x, z: pond.z, radius: pond.radius }, session.player);
-    if (session === this.local) this.notify('水面翻涌,一条鳄鱼窜了出来!');
+    this.notify('水面翻涌,一条鳄鱼窜了出来!', session);
     return true;
   }
 

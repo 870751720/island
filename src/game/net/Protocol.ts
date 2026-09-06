@@ -85,7 +85,8 @@ export type NetEvent =
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }
   | { kind: 'reviveFx'; target: string }
-  | { kind: 'bottle'; target: string; text: string };
+  | { kind: 'bottle'; target: string; text: string }
+  | { kind: 'notice'; target: string; text: string };
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */
 export type NetMsg =
