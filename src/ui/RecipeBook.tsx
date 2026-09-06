@@ -1,9 +1,10 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { RECIPES, recipeIconKind, recipeIconLevel, type Recipe } from '@/game/systems/Crafting';
-import { ITEMS } from '@/game/systems/Items';
+import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/systems/Items';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { costLabel } from './materials';
 
@@ -47,8 +48,25 @@ function effectText(recipe: Recipe): string | null {
   return null;
 }
 
-/** 合成图鉴:列出全部配方(产物、材料、站点与效果),随时可查,不判断材料够不够 */
+/** 配方分类:工具类为「工具」,装备产物为「装备」,其余按产物道具分类 */
+function recipeCategory(recipe: Recipe): ItemCategory {
+  if (recipe.tool) return '工具';
+  if (recipe.output && isEquipKind(recipe.output)) return '装备';
+  return itemCategory(recipe.output!);
+}
+
+/** 合成图鉴:按分类 tab 列出配方(产物、材料、站点与效果),随时可查,不判断材料够不够 */
 export function RecipeBook({ onClose }: { onClose: () => void }) {
+  const grouped = useMemo(
+    () =>
+      ITEM_CATEGORIES.map((category) => ({
+        category,
+        recipes: RECIPES.filter((r) => recipeCategory(r) === category),
+      })).filter((g) => g.recipes.length > 0),
+    []
+  );
+  const [category, setCategory] = useState(grouped[0].category);
+
   return (
     <div
       style={overlayStyle}
@@ -59,27 +77,43 @@ export function RecipeBook({ onClose }: { onClose: () => void }) {
     >
       <div style={panelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>📖 合成图鉴</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {RECIPES.map((r) => (
-            <div key={r.id} style={rowStyle}>
-              <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>{r.name}</span>
-                  <span style={tagStyle}>
-                    {STATION_NAMES[r.station]}
-                    {r.minBenchLevel && r.minBenchLevel > 1 ? `·Lv${r.minBenchLevel}` : ''}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: '#888' }}>
-                  {costLabel(r.cost, ' + ')}
-                </div>
-                {effectText(r) && (
-                  <div style={{ fontSize: 12, color: '#999' }}>{effectText(r)}</div>
-                )}
-              </div>
-            </div>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+          {grouped.map(({ category: c, recipes }) => (
+            <button
+              key={c}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setCategory(c);
+              }}
+              style={{ ...(category === c ? tabActiveStyle : tabStyle), flex: 1 }}
+            >
+              {c}
+            </button>
           ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {grouped
+            .find((g) => g.category === category)!
+            .recipes.map((r) => (
+              <div key={r.id} style={rowStyle}>
+                <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{r.name}</span>
+                    <span style={tagStyle}>
+                      {STATION_NAMES[r.station]}
+                      {r.minBenchLevel && r.minBenchLevel > 1 ? `·Lv${r.minBenchLevel}` : ''}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888' }}>
+                    {costLabel(r.cost, ' + ')}
+                  </div>
+                  {effectText(r) && (
+                    <div style={{ fontSize: 12, color: '#999' }}>{effectText(r)}</div>
+                  )}
+                </div>
+              </div>
+            ))}
         </div>
         <button style={closeButtonStyle} onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
           关闭
@@ -129,6 +163,26 @@ const tagStyle: CSSProperties = {
   color: '#777',
   fontSize: 11,
 };
+
+const tabStyle = {
+  minHeight: 28,
+  padding: '2px 0',
+  border: 'none',
+  borderRadius: 14,
+  background: 'rgba(0,0,0,0.06)',
+  color: '#4a3b2a',
+  fontSize: 12,
+  fontFamily: 'sans-serif',
+  whiteSpace: 'nowrap',
+  cursor: 'pointer',
+} as const;
+
+const tabActiveStyle = {
+  ...tabStyle,
+  background: '#8a6f4b',
+  color: '#fff',
+  fontWeight: 700,
+} as const;
 
 const closeButtonStyle: CSSProperties = {
   width: '100%',
