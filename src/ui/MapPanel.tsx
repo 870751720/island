@@ -102,17 +102,7 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
           <path d={`M${-markerSize * .65} ${markerSize * .55}v${markerSize * .55}M${markerSize * .65} ${markerSize * .55}v${markerSize * .55}`} stroke="#5d3b24" strokeWidth="2" />
         </g>
       ))}
-      {snapshot.beds.map((point, index) => (
-        <g key={`bed-${index}`} transform={`translate(${px(point.x)} ${py(point.z)})`} filter={`url(#shadow-${expanded})`}>
-          <rect x={-markerSize} y={-markerSize * .65} width={markerSize * 2} height={markerSize * 1.3} rx="2" fill="#e8c88f" stroke="#79573b" strokeWidth="1.5" />
-          <rect x={-markerSize * .75} y={-markerSize * .45} width={markerSize * .55} height={markerSize * .55} rx="1" fill="#fff3d5" />
-        </g>
-      ))}
-      {snapshot.campfires.map((point, index) => (
-        <g key={`campfire-${index}`} transform={`translate(${px(point.x)} ${py(point.z)})`} filter={`url(#shadow-${expanded})`}>
-          <path d={`M0 ${-markerSize * 1.25}C${markerSize} ${-markerSize * .35} ${markerSize * .8} ${markerSize} 0 ${markerSize}C${-markerSize * .8} ${markerSize} ${-markerSize} ${-markerSize * .35} 0 ${-markerSize * 1.25}Z`} fill="#f26b32" stroke="#ffe29a" strokeWidth="1.5" />
-        </g>
-      ))}
+
 
       {snapshot.players.filter((player) => !player.dead).map((player) => {
         const isLocal = player.id === snapshot.localPlayerId;

@@ -192,8 +192,6 @@ export type MapSnapshot = {
   localPlayerId: string;
   players: { id: string; name: string; x: number; z: number; dead: boolean }[];
   workbenches: { x: number; z: number }[];
-  beds: { x: number; z: number }[];
-  campfires: { x: number; z: number }[];
 };
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
@@ -272,8 +270,6 @@ export class Game {
         dead: session.survival.state.dead,
       })),
       workbenches: this.workbench.positions,
-      beds: this.beds.positions,
-      campfires: this.campfire.positions,
     };
   }
   private waterFx: WaterFx;
