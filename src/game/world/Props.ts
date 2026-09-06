@@ -9,6 +9,7 @@ import {
   type TreeStage,
 } from './TreeSpecies';
 import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
+import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
 
@@ -884,9 +885,9 @@ export class Props implements Updatable {
     if (intensity >= 0.02) this.swayTime += delta;
   }
 
-  /** 未成树每分钟有 1/2 概率长到下一阶段,长成成树后才可砍伐 */
+  /** 未成树每分钟有 1/2 概率长到下一阶段,长成成树后才可砍伐;GM 倍率调节奏,0 为暂停 */
   private updateTreeGrowth(delta: number): void {
-    this.growthTimer += delta;
+    this.growthTimer += delta * GmSystem.treeGrowthMultiplier;
     if (this.growthTimer < GROWTH_INTERVAL) return;
     this.growthTimer -= GROWTH_INTERVAL;
     for (const prop of this.list) {
