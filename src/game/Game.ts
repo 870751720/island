@@ -923,6 +923,7 @@ export class Game {
             if (this.guestMode || !this.tryReviveWithStone(s)) {
               s.player.setDead();
               if (this.hostRef) {
+                this.dropDeathLoot(s);
                 s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
                 this.sysNotify(`${s.name} 倒下了`);
               }
@@ -2071,9 +2072,8 @@ export class Game {
     s.dead = false;
   }
 
-  /** 房主权威执行联机重生：随身物品按死亡掉落规则掉在原地，个人携带进度清零，岛屿与其他玩家保持不变。 */
+  /** 房主权威执行联机重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
   private respawnMultiplayerSession(session: PlayerSession): void {
-    this.dropDeathLoot(session);
     session.inventory.reset();
     session.equipment.reset();
     for (const id of TOOL_IDS) session.tools[id] = 0;

@@ -41,6 +41,8 @@ export type DropInfo = {
   kind: ResourceKind;
   count: number;
   source: DropSource;
+  /** 工具类掉落物的等级(非工具为 undefined) */
+  tier?: number;
   /** 掉落物当前位置(入包飞行表现等用,引用自掉落物网格) */
   position: THREE.Vector3;
 };
@@ -150,7 +152,13 @@ export class DropSystem {
       if (!nearest || drop.age > nearest.age) nearest = drop;
     }
     return nearest
-      ? { kind: nearest.kind, count: nearest.count, source: nearest.source, position: nearest.mesh.position }
+      ? {
+          kind: nearest.kind,
+          count: nearest.count,
+          source: nearest.source,
+          tier: nearest.tier,
+          position: nearest.mesh.position,
+        }
       : null;
   }
 
