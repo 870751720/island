@@ -6,13 +6,13 @@
 
 ## 需求描述
 
-- 三张卡片(捡回掉落物、进食、手搓合成)统一样式、统一位置(屏幕左侧,上边缘约 70% 屏高)。
+- 三张卡片(捡回掉落物、进食、手搓合成)统一样式、统一位置(屏幕左侧,上边缘约 30% 屏高)。
 - 玩家移动过程中不显示任何一张,停下后按条件恢复。
 - 同一时刻最多显示一张,优先级:捡回 > 进食 > 手搓合成。
 
 ## 设计方案
 
-- **共享样式**:卡片按钮样式与外层定位抽到 `src/ui/promptCard.ts`(`promptCardStyle` + `promptWrapStyle`),三张卡片组件统一引用;边框统一为绿色 `#4caf50`,位置 `left: max(12px, safe-area-inset-left); top: 70%`,沿用闲置 5s 淡出(`fade.ts` 的 `fadeStyle(hud.busy)`)。
+- **共享样式**:卡片按钮样式与外层定位抽到 `src/ui/promptCard.ts`(`promptCardStyle` + `promptWrapStyle`),三张卡片组件统一引用;边框统一为绿色 `#4caf50`,位置 `left: max(12px, safe-area-inset-left); top: 30%`,沿用闲置 5s 淡出(`fade.ts` 的 `fadeStyle(hud.busy)`)。合成卡不展示材料清单,标题用「制作××」并缩小尺寸(去掉 minWidth/更小内边距)。
 - **移动中隐藏**:`HudSnapshot` 新增 `moving: boolean`(取 `PlayerSession.player.isMoving`)。房主在 `pushHud` 里对本地玩家检测移动状态变化并立即推送(不等 0.25s 节流),保证卡片隐藏/恢复跟手;客人端随房主 HUD 快照回流拿到该字段。三张卡片组件在 `hud.moving` 时返回 null。
 - **互斥**:`GameplayUI.tsx` 中按优先级计算 `dropActive` / `eatActive`(各自复现组件的显式条件,含背包未打开、有食物等),向下传 `suppressed` prop:进食卡在捡回卡激活时让位,手搓卡在捡回或进食卡激活时让位;手搓卡内部的配方筛选与「只显示优先级最高一张」逻辑不变。
 - **联机**:`moving` 由房主权威计算并随快照下发,客人端表现与房主一致。
@@ -27,4 +27,5 @@
 
 ## 迭代记录
 
-- 2026-09-07:三卡统一样式与位置(左上 70%),移动中隐藏,互斥优先级定为捡回 > 进食 > 手搓;`HudSnapshot` 新增 `moving` 字段(向后兼容,不改 `SAVE_VERSION`,HUD 快照不落盘)。
+- 2026-09-07:三卡统一样式与位置(左侧上边缘 30% 屏高),移动中隐藏,互斥优先级定为捡回 > 进食 > 手搓;`HudSnapshot` 新增 `moving` 字段(向后兼容,不改 `SAVE_VERSION`,HUD 快照不落盘)。
+- 2026-09-07:卡片位置由 70% 调整为 30%;合成卡去掉材料清单行,「手搓××」改为「制作××」,尺寸缩小。

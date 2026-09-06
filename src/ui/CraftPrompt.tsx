@@ -6,7 +6,6 @@ import type { HudSnapshot } from '@/game/Game';
 import { countsFromSlots } from '@/game/systems/Inventory';
 import {
   RECIPES,
-  WORKBENCH_COST,
   countsWithEquipped,
   WORKBENCH_PROMPT_PRIORITY,
   hasCost,
@@ -15,8 +14,7 @@ import {
   recipeVisible,
   type Recipe,
 } from '@/game/systems/Crafting';
-import { CAMPFIRE_COST, CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
-import { costLabel } from './materials';
+import { CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
 /** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
@@ -24,11 +22,10 @@ type PromptCard = {
   priority: number;
   icon: ReactNode;
   title: string;
-  cost: Partial<Record<string, number>>;
   onCraft: () => void;
 };
 
-/** 材料齐且尚未拥有时弹出的手搓合成卡片;同一时刻只显示优先级最高的一张(移动中不显示,捡回/进食卡片出现时让位) */
+/** 材料齐且尚未拥有时弹出的合成卡片;同一时刻只显示优先级最高的一张(移动中不显示,捡回/进食卡片出现时让位;不列材料,卡片更小) */
 export function CraftPrompt({
   hud,
   onCraft,
@@ -57,16 +54,14 @@ export function CraftPrompt({
   ).map((r) => ({
     priority: r.promptPriority ?? Number.MAX_SAFE_INTEGER,
     icon: <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />,
-    title: `手搓${r.name}`,
-    cost: r.cost,
+    title: `制作${r.name}`,
     onCraft: () => onCraft(r.id),
   }));
   if (hud.canCraftWorkbench) {
     cards.push({
       priority: WORKBENCH_PROMPT_PRIORITY,
       icon: <span style={{ fontSize: 26 }}>🛠️</span>,
-      title: '手搓工作台',
-      cost: WORKBENCH_COST,
+      title: '制作工作台',
       onCraft: onCraftWorkbench,
     });
   }
@@ -75,7 +70,6 @@ export function CraftPrompt({
       priority: CAMPFIRE_PROMPT_PRIORITY,
       icon: <span style={{ fontSize: 26 }}>🔥</span>,
       title: '原地搭小火堆',
-      cost: CAMPFIRE_COST,
       onCraft: onCraftCampfire,
     });
   }
@@ -88,14 +82,10 @@ export function CraftPrompt({
           e.preventDefault();
           best.onCraft();
         }}
-        style={promptCardStyle}
+        style={{ ...promptCardStyle, minWidth: 0, minHeight: 44, padding: '6px 14px' }}
       >
         {best.icon}
-        <span>
-          {best.title}
-          <br />
-          <span style={{ fontSize: 12, color: '#888' }}>{costLabel(best.cost)}</span>
-        </span>
+        <span>{best.title}</span>
       </button>
     </div>
   );
