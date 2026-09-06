@@ -54,6 +54,18 @@ const CATEGORY_BY_KIND = new Map<ResourceKind, ItemCategory>(
   )
 );
 
+let sortSeq = 0;
+const SORT_INDEX = new Map<ResourceKind, number>(
+  ITEM_CATEGORIES.flatMap((category) =>
+    CATEGORY_MEMBERS[category].map((kind) => [kind, sortSeq++] as const)
+  )
+);
+
+/** 背包整理排序序号:按分类与登记顺序,未登记的道具排在最后 */
+export function itemSortIndex(kind: ResourceKind): number {
+  return SORT_INDEX.get(kind) ?? Number.MAX_SAFE_INTEGER;
+}
+
 /** 查询物品所属分类;新物品未登记时归入「材料」并保持可发放 */
 export function itemCategory(kind: ResourceKind): ItemCategory {
   return CATEGORY_BY_KIND.get(kind) ?? '材料';

@@ -35,7 +35,7 @@ import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { firstFoodIn, FOODS, type Food } from './systems/Food';
-import { ITEMS } from './systems/Items';
+import { ITEMS, itemSortIndex } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import type { FishTier } from './systems/FishTable';
@@ -2483,6 +2483,15 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('moveItem', [from, to]);
 
     return actor.inventory.move(from, to);
+  }
+
+  /** 整理背包:同类合并到一格并按物品分类排序 */
+  sortInventory(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('sortInventory', []);
+
+    actor.inventory.sort(itemSortIndex);
+    return true;
   }
 
   /** 从背包装备一件道具(物品详情点击「装备」),返回是否成功 */

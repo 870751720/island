@@ -33,6 +33,8 @@ type Props = {
   onUnequip: (slot: EquipSlot) => void;
   /** 拖拽背包格:把 from 格道具移到 to 格(同类合并,异类互换) */
   onMoveItem: (from: number, to: number) => void;
+  /** 整理背包:同类合并并按分类排序 */
+  onSort: () => void;
 };
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
@@ -198,7 +200,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onCraftCampfire, onEquip, onUnequip, onMoveItem }: Props) {
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onCraftCampfire, onEquip, onUnequip, onMoveItem, onSort }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -208,6 +210,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const lastTap = useRef<{ index: number; time: number } | null>(null);
   /** 格子拖拽:按住并移动超过阈值后进入拖动,松手落在目标格 */
   const gridRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ from: number; startX: number; startY: number; moved: boolean } | null>(null);
   const [drag, setDrag] = useState<{ from: number; x: number; y: number } | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -296,6 +299,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
           }}
         >
           <div
+            ref={panelRef}
             style={{
               // 顶边对齐旧版居中面板的位置(按旧面板约 520px 高折算),内容增多时向下生长
               marginTop: 'max(12px, calc(50vh - 260px))',
@@ -340,7 +344,29 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
 
             {tab === 'items' ? (
               <>
-                <div style={{ fontWeight: 700, margin: '10px 2px 8px' }}>背包</div>
+                <div style={{ display: 'flex', alignItems: 'center', margin: '10px 2px 8px' }}>
+                  <span style={{ fontWeight: 700, flex: 1 }}>背包</span>
+                  <button
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      setSelectedIndex(null);
+                      onSort();
+                    }}
+                    style={{
+                      padding: '4px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: 'rgba(0,0,0,0.08)',
+                      color: '#555',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      touchAction: 'none',
+                      userSelect: 'none',
+                    }}
+                  >
+                    整理
+                  </button>
+                </div>
                 <div
                   ref={gridRef}
                   style={{
@@ -377,10 +403,21 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           if (!d || d.from !== i) return;
                           if (d.moved) {
                             const target = slotIndexAt(e.clientX, e.clientY);
+                            // 松手在面板外:视为丢弃整格道具到地上
+                            const rect = panelRef.current?.getBoundingClientRect();
+                            const outsidePanel =
+                              !rect ||
+                              e.clientX < rect.left ||
+                              e.clientX > rect.right ||
+                              e.clientY < rect.top ||
+                              e.clientY > rect.bottom;
+                            const dragged = hud.slots[d.from];
                             cancelDrag();
+                            setSelectedIndex(null);
                             if (target !== null && target !== d.from) {
-                              setSelectedIndex(null);
                               onMoveItem(d.from, target);
+                            } else if (target === null && outsidePanel && dragged) {
+                              onDropItem(dragged.kind, dragged.count);
                             }
                             return;
                           }
@@ -489,7 +526,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </>
                   ) : (
                     <div style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>
-                      点击选中物品,双击可直接使用或装备;长按拖动可交换位置
+                      点击选中物品,双击可直接使用或装备;长按拖动可交换位置,拖出面板丢弃
                     </div>
                   )}
                 </div>

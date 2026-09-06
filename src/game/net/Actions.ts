@@ -46,6 +46,7 @@ export const ACTIONS: Record<string, NetAction> = {
   campfireCook: (g, a, [kind, count]) => g.campfireCook(kind as ResourceKind, count as number, a),
   dropItem: (g, a, [kind, count]) => g.dropItem(kind as ResourceKind, count as number, a),
   moveItem: (g, a, [from, to]) => g.moveItem(from as number, to as number, a),
+  sortInventory: (g, a) => g.sortInventory(a),
   equipItem: (g, a, [kind]) => g.equipItem(kind as ResourceKind, a),
   unequipItem: (g, a, [slot]) => g.unequipItem(slot as EquipSlot, a),
   craftTool: (g, a, [id]) => g.craftTool(id as CraftId, a),

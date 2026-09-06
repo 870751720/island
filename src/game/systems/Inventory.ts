@@ -215,6 +215,18 @@ export class Inventory {
     return true;
   }
 
+  /** 整理:同类合并到一格,再按传入权重从小到大排到前面,空格沉底 */
+  sort(weight: (kind: ResourceKind) => number): void {
+    const totals = new Map<ResourceKind, number>();
+    for (const slot of this.slots) {
+      if (slot) totals.set(slot.kind, (totals.get(slot.kind) ?? 0) + slot.count);
+    }
+    const entries = [...totals].sort((a, b) => weight(a[0]) - weight(b[0]));
+    this.slots = this.slots.map((_, i) =>
+      i < entries.length ? { kind: entries[i][0], count: entries[i][1] } : null
+    );
+  }
+
   /** 剩余空格数 */
   get freeSlots(): number {
     return this.slots.filter((slot) => slot === null).length;

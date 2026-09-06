@@ -523,6 +523,7 @@ export function GameplayUI({
         onEquip={(kind) => gameRef.current?.equipItem(kind)}
         onUnequip={(slot) => gameRef.current?.unequipItem(slot)}
         onMoveItem={(from, to) => gameRef.current?.moveItem(from, to)}
+        onSort={() => gameRef.current?.sortInventory()}
       />
       {!hud.dead && (
         <>

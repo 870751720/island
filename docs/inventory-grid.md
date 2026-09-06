@@ -22,3 +22,11 @@
   - 新增 `dropItem(kind)`(丢弃一个到地上);`eatFood(kind?)` 支持指定食物种类(背包「使用」按钮),不带参数时仍吃背包最前面的食物。
 - `src/ui/Backpack.tsx`:重写为格子面板。5 列格子网格,点击有道具的格子选中并在下方显示名称、数量、描述与「使用/丢弃」按钮;使用食物后由外层关闭背包。背包按钮位置与样式不变。
 - 合成消耗(`Crafting`/`WorkbenchSystem`)与进食判定(`EatingSystem`)从读取计数表改为 `inventory.count(kind)`。
+
+## 迭代记录
+
+### 背包整理与拖出丢弃
+
+- 背包「物品」页标题行右侧新增「整理」按钮:`Inventory.sort(weight)` 先把同类道具合并到一格,再按 `itemSortIndex`(物品分类 `ITEM_CATEGORIES` 与类内登记顺序,未登记道具排最后)从前往后排列,空格沉底。
+- 拖拽道具到背包面板外松手 = 丢弃整格道具到地上:`Backpack.tsx` 在拖动松手时若未命中任何格子且指针在面板矩形外,调用 `onDropItem(kind, count)` 丢弃整格(复用既有丢弃链路,掉落物可走近拾回)。
+- 联机:整理走 `Game.sortInventory`(客人经动作 `sortInventory` 上行,房主权威结算后经快照回流);拖出丢弃复用既有 `dropItem` 动作。
