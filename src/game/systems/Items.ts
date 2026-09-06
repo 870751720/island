@@ -40,7 +40,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   ironOre: {
     kind: 'ironOre',
     name: '铁矿石',
-    icon: '🧲',
+    icon: '💎',
     description: '沉甸甸的含铁矿石,断口处隐约透着金属光泽。',
   },
   ironIngot: {
@@ -194,7 +194,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   torch: {
     kind: 'torch',
     name: '火把',
-    icon: '🔥',
+    icon: '🕯️',
     description: '树枝缠布做成的火把,暖暖的火光永不熄灭。',
   },
   crabMeat: {
@@ -350,13 +350,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   grassShirt: {
     kind: 'grassShirt',
     name: '草衣',
-    icon: '🍃',
+    icon: '🌿',
     description: '草茎木片捆成的简易上衣,减伤 16%,防御 +1。',
   },
   grassPants: {
     kind: 'grassPants',
     name: '草裤',
-    icon: '🍂',
+    icon: '🍁',
     description: '草叶围成的遮羞短裤,减伤 14%,防御 +1。',
   },
   strawHat: {
