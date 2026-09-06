@@ -6,6 +6,13 @@ import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/
 import { TOOL_IDS, toolName, type ToolId } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
+/** 各分类的发放数量档:装备只有 +1,材料/食物/作物提供 +50 快捷档,其余 +1/+5 */
+function giveCounts(category: ItemCategory): number[] {
+  if (category === '装备') return [1];
+  if (category === '材料' || category === '食物' || category === '作物') return [1, 5, 50];
+  return [1, 5];
+}
+
 /** 物品 tab:按分类二级 tab 归类发放,工具按等级发放,可按名称筛选 */
 export function ItemsTab({
   onGiveItem,
@@ -83,12 +90,12 @@ export function ItemsTab({
                 <ItemIcon kind={kind} size={20} /> {item.name}
               </span>
               <span style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => onGiveItem(kind, 1)} style={giveStyle}>
-                  +1
-                </button>
-                <button onClick={() => onGiveItem(kind, 5)} style={giveStyle}>
-                  +5
-                </button>
+                {/* 装备一次一件;材料/食物/作物加发 +50 档 */}
+                {giveCounts(category).map((n) => (
+                  <button key={n} onClick={() => onGiveItem(kind, n)} style={giveStyle}>
+                    +{n}
+                  </button>
+                ))}
               </span>
             </div>
           );
