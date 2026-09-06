@@ -4,7 +4,7 @@ import { fadeStyle } from './fade';
 
 /**
  * 左侧弹出卡片(捡回/进食/手搓合成)的共享样式:
- * 三张卡片外观一致、同一位置(左侧上边缘 30% 屏高),移动中不显示,
+ * 三张卡片外观一致、同一位置(左侧上边缘 20% 屏高),移动中不显示,
  * 闲置 5s 后随 HUD 淡出(见 Game.pushHud)。
  */
 export const promptCardStyle: CSSProperties = {
@@ -31,7 +31,7 @@ export function promptWrapStyle(hud: HudSnapshot): CSSProperties {
   return {
     position: 'absolute',
     left: 'max(12px, env(safe-area-inset-left))',
-    top: '30%',
+    top: '20%',
     ...fadeStyle(hud.busy),
   };
 }

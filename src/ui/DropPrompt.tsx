@@ -22,20 +22,12 @@ export function DropPrompt({ hud, onPickup }: { hud: HudSnapshot; onPickup: () =
           e.preventDefault();
           onPickup();
         }}
-        style={promptCardStyle}
+        style={{ ...promptCardStyle, minWidth: 0, minHeight: 44, padding: '6px 14px' }}
       >
         <ItemIcon kind={item.kind} size={28} />
         <span>
           捡回{name}
           {drop.count > 1 ? `×${drop.count}` : ''}
-          <br />
-          <span style={{ fontSize: 12, color: '#888' }}>
-            {drop.source === 'loot'
-              ? '狩猎获得的战利品'
-              : drop.source === 'overflow'
-                ? '背包放不下,先放在地上'
-                : '附近有丢弃的物品'}
-          </span>
         </span>
       </button>
     </div>
