@@ -70,6 +70,19 @@ const CROC_RECOVER_TIME = 0.9;
 /** 水花粒子颜色 */
 const WATER_COLOR = '#bfe3f2';
 
+// —— 兔子洞的避险行为参数 ——
+/** 受惊兔子寻找洞口的范围(米):超出就照旧背向逃跑 */
+const RABBIT_BURROW_SEEK = 16;
+/** 跑到洞口这个距离内即钻入 */
+const BURROW_ENTER_RANGE = 0.5;
+/** 躲藏期间威胁消失后再探头的时间(秒) */
+const HIDE_CALM_TIME = 5;
+
+/** 兔子的避难所:由 RabbitBurrowSystem 注入,只暴露位置查询 */
+export type BurrowSource = {
+  nearestIntact(x: number, z: number, range: number): { x: number; z: number } | null;
+};
+
 /** 鳄鱼出场的三段状态:水下潜伏 → 跃出扑咬 → 落水硬直 */
 type CrocEntrance = { phase: 'lurk' | 'leap' | 'recover'; left: number };
 
@@ -274,6 +287,13 @@ type Animal = {
   pond: CrocPond | null;
   /** 出场扑咬进行中的状态(未出场时为 null) */
   entrance: CrocEntrance | null;
+  // —— 兔子专属状态(其他物种恒为初始值) ——
+  /** 躲进洞里(模型隐藏,无法被攻击) */
+  hidden: boolean;
+  /** 躲藏期间威胁平息倒计时:归零后探头出来 */
+  hideCalm: number;
+  /** 正在/已经钻入的洞口位置(躲藏期间即藏身点) */
+  burrow: { x: number; z: number } | null;
 };
 
 /**
@@ -287,6 +307,8 @@ export class Wildlife implements Updatable {
   private creatureFx = new CreatureFx();
   private population = new HabitatPopulation<AnimalSpecies>();
   private safeSpawn: THREE.Vector3;
+  /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
+  private burrowSource: BurrowSource | null = null;
 
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeAnimal(animal: Animal): void {
@@ -388,6 +410,9 @@ export class Wildlife implements Updatable {
       dustLeft: 0,
       pond: species === 'crocodile' ? this.nearestPond(spawn.x, spawn.z) : null,
       entrance: null,
+      hidden: false,
+      hideCalm: 0,
+      burrow: null,
     };
     this.animals.push(animal);
     return animal;
@@ -510,6 +535,11 @@ export class Wildlife implements Updatable {
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      // 躲进洞里的兔子:等威胁平息后再探头,期间不吃 AI 也不参与任何判定
+      if (animal.hidden) {
+        this.updateHidden(animal, delta);
+        continue;
+      }
       // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人)
       const target = this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
@@ -631,7 +661,18 @@ export class Wildlife implements Updatable {
         animal.idleTime = 0;
         animal.walkTime = 0;
         const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
-        const angle = hostile ? away + Math.PI : away;
+        // 兔子优先往最近的完好洞里钻,超出寻找范围才背向逃窜
+        let angle = hostile ? away + Math.PI : away;
+        const burrow = animal.species === 'rabbit'
+          ? this.burrowSource?.nearestIntact(animal.pos.x, animal.pos.z, RABBIT_BURROW_SEEK)
+          : null;
+        if (burrow) {
+          angle = Math.atan2(burrow.z - animal.pos.z, burrow.x - animal.pos.x);
+          if (Math.hypot(burrow.x - animal.pos.x, burrow.z - animal.pos.z) <= BURROW_ENTER_RANGE) {
+            this.enterBurrow(animal, burrow);
+            continue;
+          }
+        }
         let speed = animal.config.rushSpeed;
         if (bear) {
           if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
@@ -682,6 +723,72 @@ export class Wildlife implements Updatable {
 
       this.animate(animal, delta, elapsed, moving, rushed);
     }
+  }
+
+  /** 注入兔子洞来源(洞系统构造完成后由游戏侧接线) */
+  setBurrowSource(source: BurrowSource): void {
+    this.burrowSource = source;
+  }
+
+  /** 兔子栖息地中心列表(去重),供兔子洞系统开局生成洞 */
+  rabbitHomes(): { x: number; z: number }[] {
+    const homes: { x: number; z: number }[] = [];
+    for (const slot of this.population.slots) {
+      if (slot.kind !== 'rabbit') continue;
+      if (!homes.some((h) => h.x === slot.home.x && h.z === slot.home.z)) {
+        homes.push({ x: slot.home.x, z: slot.home.z });
+      }
+    }
+    return homes;
+  }
+
+  /** 钻入洞口:藏身其中,模型隐藏且无法被攻击 */
+  private enterBurrow(animal: Animal, burrow: { x: number; z: number }): void {
+    animal.hidden = true;
+    animal.hideCalm = HIDE_CALM_TIME;
+    animal.burrow = { ...burrow };
+    animal.pos.set(burrow.x, this.terrain.getHeight(burrow.x, burrow.z), burrow.z);
+    animal.model.group.visible = false;
+  }
+
+  /** 躲藏中的兔子:玩家还守在警戒圈外沿内就继续等,威胁消失满 HIDE_CALM_TIME 后探头恢复游荡 */
+  private updateHidden(animal: Animal, delta: number): void {
+    const burrow = animal.burrow!;
+    const threatened = this.players().some((t) => {
+      if (!this.isPlayerVulnerable(t)) return false;
+      const p = t.group.position;
+      return Math.hypot(burrow.x - p.x, burrow.z - p.z) < animal.config.deaggroRange;
+    });
+    if (threatened) {
+      animal.hideCalm = HIDE_CALM_TIME;
+      return;
+    }
+    animal.hideCalm -= delta;
+    if (animal.hideCalm > 0) return;
+    // 探头出来:在洞口恢复游荡,朝向随机
+    animal.hidden = false;
+    animal.burrow = null;
+    animal.alerted = false;
+    animal.idleTime = 0.5;
+    animal.model.group.visible = true;
+  }
+
+  /**
+   * 挖开 (x,z) 处的兔子洞:把藏在该洞里的兔子全部压死(直接死亡,不做受击表现)。
+   * 返回压死的兔子数量,战利品由游戏侧按普通猎杀掉落。
+   */
+  killHidden(x: number, z: number): number {
+    let killed = 0;
+    for (const animal of [...this.animals]) {
+      if (!animal.hidden || !animal.burrow) continue;
+      if (Math.hypot(x - animal.burrow.x, z - animal.burrow.z) > BURROW_ENTER_RANGE) continue;
+      animal.alive = false;
+      animal.hidden = false;
+      this.population.release(animal.habitat);
+      this.removeAnimal(animal);
+      killed += 1;
+    }
+    return killed;
   }
 
   /** 应用位置朝向;朝向平滑转向目标角,移动时对角迈腿,受惊/追击时加快频率,熊扑击时头部前顶 */
@@ -806,17 +913,17 @@ export class Wildlife implements Updatable {
   /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离) */
   startle(x: number, z: number, range = NOISE_RANGE): void {
     for (const animal of this.animals) {
-      if (!animal.alive) continue;
+      if (!animal.alive || animal.hidden) continue;
       if (Math.hypot(x - animal.pos.x, z - animal.pos.z) < range) animal.alerted = true;
     }
   }
 
-  /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌 */
+  /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子无法被攻击 */
   nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive) continue;
+      if (!animal.alive || animal.hidden) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -831,7 +938,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive) continue;
+      if (!animal.alive || animal.hidden) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -841,9 +948,9 @@ export class Wildlife implements Updatable {
     return best ? best.id : null;
   }
 
-  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null) */
+  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null);躲藏的兔子不可命中 */
   hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Animal | null {
-    return nearestToSegmentXZ(this.animals, from, to, range);
+    return nearestToSegmentXZ(this.animals.filter((a) => !a.hidden), from, to, range);
   }
 
   /**
@@ -858,7 +965,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive) continue;
+      if (!animal.alive || animal.hidden) continue;
       const d = animal.pos.distanceToSquared(pos);
       if (d < bestDist) {
         best = animal;
@@ -869,10 +976,10 @@ export class Wildlife implements Updatable {
     return this.applyDamage(best, damage);
   }
 
-  /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算) */
+  /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子不可命中 */
   damage(id: number, damage: number): { species: AnimalSpecies } | 'hit' | null {
     const animal = this.animals.find((a) => a.id === id);
-    if (!animal?.alive) return null;
+    if (!animal?.alive || animal.hidden) return null;
     return this.applyDamage(animal, damage);
   }
 
@@ -962,14 +1069,15 @@ export class Wildlife implements Updatable {
     return animal;
   }
 
-  /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; species: AnimalSpecies }[] {
+  /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏) */
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; species: AnimalSpecies }[] {
     return this.animals.map((a) => ({
       id: a.id,
       x: a.pos.x,
       z: a.pos.z,
       h: a.heading,
       alive: a.alive,
+      hidden: a.hidden,
       species: a.species,
     }));
   }
@@ -984,8 +1092,8 @@ export class Wildlife implements Updatable {
     return this.netPoses().filter((pose) => !this.animals.find((animal) => animal.id === pose.id)?.config.damage);
   }
 
-  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活状态同步可见性;未知 id 且带物种时新建(GM 生成) */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; species?: AnimalSpecies }[]): void {
+  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏状态同步可见性;未知 id 且带物种时新建(GM 生成) */
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; species?: AnimalSpecies }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -997,16 +1105,18 @@ export class Wildlife implements Updatable {
       const wasAlive = a.alive;
       a.netPos.set(p.x, this.terrain.getHeight(p.x, p.z), p.z);
       a.netHeading = p.h;
+      a.hidden = !!p.hidden;
       if (!wasAlive || a.pos.distanceToSquared(a.netPos) > 64) {
         a.pos.copy(a.netPos);
         a.heading = p.h;
         a.viewHeading = p.h;
       }
-      if (wasAlive && !p.alive) {
+      if (wasAlive && !p.alive && !a.hidden) {
         // 房主权威判定死亡:本地立即播放倒地—停留—渐隐,而不是瞬间消失
         this.creatureFx.playDeath(a.model.group);
       }
       a.alive = p.alive;
+      a.model.group.visible = a.alive && !a.hidden;
     }
     // 房主已移除的尸体(快照缺 id):本地死亡动画播完(模型已隐藏)后清理实体
     for (let i = this.animals.length - 1; i >= 0; i--) {
@@ -1024,6 +1134,8 @@ export class Wildlife implements Updatable {
       this.nextId = Math.max(this.nextId, p.id + 1);
       animal.netPos.copy(animal.pos);
       animal.netHeading = p.h;
+      animal.hidden = !!p.hidden;
+      animal.model.group.visible = !animal.hidden;
     }
   }
 
@@ -1045,7 +1157,7 @@ export class Wildlife implements Updatable {
     this.creatureFx.update(delta);
     const k = 1 - Math.exp(-14 * delta);
     for (const a of this.animals) {
-      if (!a.alive) continue;
+      if (!a.alive || a.hidden) continue;
       a.lungeLeft = Math.max(0, a.lungeLeft - delta);
       const beforeX = a.pos.x;
       const beforeZ = a.pos.z;

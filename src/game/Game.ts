@@ -27,6 +27,7 @@ import { CrateSystem } from './systems/CrateSystem';
 import type { CrateKind } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
+import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
@@ -224,6 +225,7 @@ type InteractionKind =
   | 'crates'
   | 'baitBarrels'
   | 'waterPurifiers'
+  | 'burrows'
   | 'smelters'
   | 'looms'
   | 'fences'
@@ -322,6 +324,7 @@ export class Game {
   private crates: CrateSystem;
   private baitBarrels: BaitBarrelSystem;
   private waterPurifiers: WaterPurifierSystem;
+  private burrows: RabbitBurrowSystem;
   private smelters: SmelterSystem;
   private looms: LoomSystem;
   private fences: FenceSystem;
@@ -574,6 +577,29 @@ export class Game {
       // (Wildlife 先于 CampfireSystem 构造,初始生成时篝火尚未建立)
       (x, z) => this.campfire?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6) ?? false
     );
+    // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,锄头挖开可压死藏在内的兔子。
+    // 客人端不本地生成,由房主的世界快照(欢迎包/世界增量)补建
+    this.burrows = new RabbitBurrowSystem(
+      this.scene,
+      terrain,
+      this.fx,
+      // 洞挖开:藏在内的兔子被塌方压死,战利品像普通猎杀一样散落在洞口周围
+      (x, z) => {
+        const killed = this.wildlife.killHidden(x, z);
+        for (let i = 0; i < killed; i++) {
+          this.wildlife.lootOf('rabbit').forEach((item, j) => {
+            const angle = ((i + j) / (killed + 1)) * Math.PI * 2;
+            this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);
+          });
+        }
+      },
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'burrows')
+    );
+    if (!this.guestMode) {
+      this.burrows.generateFor(this.wildlife.rabbitHomes());
+      this.wildlife.setBurrowSource(this.burrows);
+    }
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {
       if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
@@ -835,6 +861,7 @@ export class Game {
           this.crates.updateActor(s, delta);
           this.baitBarrels.updateActor(s, delta);
           this.waterPurifiers.updateActor(s, delta);
+          this.burrows.updateActor(s, delta);
           this.smelters.updateActor(s, delta);
           this.looms.updateActor(s, delta);
           this.fences.updateActor(s, delta);
@@ -862,6 +889,7 @@ export class Game {
         this.shrines.update(delta, elapsed);
         this.baitBarrels.update(delta, elapsed, !this.guestMode);
         this.waterPurifiers.update(delta, elapsed);
+        this.burrows.update(delta, !this.guestMode);
     this.smelters.update(delta, elapsed, !this.guestMode);
     this.looms.update(delta, elapsed, !this.guestMode);
         this.drops.update(delta, elapsed);
@@ -1102,6 +1130,7 @@ export class Game {
       beds: this.beds.snapshot(),
       shrines: this.shrines.snapshot(),
       drops: this.drops.snapshot(),
+      burrows: this.burrows.netSnapshot(),
     };
   }
 
@@ -1119,6 +1148,7 @@ export class Game {
     this.crates.setChangeSink(send('crates'));
     this.baitBarrels.setChangeSink(send('baitBarrels'));
     this.waterPurifiers.setChangeSink(send('waterPurifiers'));
+    this.burrows.setChangeSink(send('burrows'));
     this.smelters.setChangeSink(send('smelters'));
     this.looms.setChangeSink(send('looms'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
@@ -1405,6 +1435,9 @@ export class Game {
     if (state.waterPurifiers) {
       this.waterPurifiers.netApply(state.waterPurifiers);
     }
+    if (state.burrows) {
+      this.burrows.netApply(state.burrows);
+    }
     if (state.smelters) {
       this.smelters.netApply(state.smelters);
     }
@@ -1569,6 +1602,7 @@ export class Game {
     this.crates.restore(save.crates);
     if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
     if (save.waterPurifiers) this.waterPurifiers.restore(save.waterPurifiers);
+    if (save.burrows) this.burrows.restore(save.burrows);
     if (save.smelters) this.smelters.restore(save.smelters);
     if (save.looms) this.looms.restore(save.looms);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
@@ -1646,6 +1680,7 @@ export class Game {
       beds: this.beds.snapshot(),
       shrines: this.shrines.snapshot(),
       drops: this.drops.snapshot(),
+      burrows: this.burrows.snapshot(),
       dog: this.dog.snapshot(),
     };
   }
@@ -2672,6 +2707,7 @@ export class Game {
     this.crates.detach(session);
     this.baitBarrels.detach(session);
     this.waterPurifiers.detach(session);
+    this.burrows.detach(session);
     this.smelters.detach(session);
     this.looms.detach(session);
     this.fences.detach(session);
@@ -2703,6 +2739,7 @@ export class Game {
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
     if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
     if (exclude !== 'waterPurifiers' && this.waterPurifiers.isDigging(s)) return true;
+    if (exclude !== 'burrows' && this.burrows.isDigging(s)) return true;
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
@@ -3126,6 +3163,9 @@ export class Game {
     } else if (this.baitBarrels.isDigging(session)) {
       label = '挖饵料桶…';
       progress = this.baitBarrels.getDigProgress(session);
+    } else if (this.burrows.isDigging(session)) {
+      label = '挖兔子洞…';
+      progress = this.burrows.getDigProgress(session);
     } else if (this.smelters.isDigging(session)) {
       label = '挖冶炼炉…';
       progress = this.smelters.getDigProgress(session);
