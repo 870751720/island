@@ -13,7 +13,7 @@
 
 ## 设计方案
 
-- 实体 `src/game/entities/Worm.ts`(`Worms` 类,对齐螃蟹 `Crabs` 的模式):程序化低多边形模型(数节粉色胶囊连成的小蠕虫,静止只有轻微蠕动起伏);钻土触发距离 1.3 米,直接移除实体并回调 `onForage`。
+- 实体 `src/game/entities/Worm.ts`(`Worms` 类,对齐螃蟹 `Crabs` 的模式):模型直接复用蚯蚓道具的掉落模型(`makeDropModel('worm')`),静止只有轻微蠕动起伏;钻土触发距离 1.3 米,直接移除实体并回调 `onForage`。
 - 数量与落点:构造时按 `landCells` 数量 × 密度公式定种群目标;落点要求高度 > 0.3、不贴水且在水域半径 +18 米内的干地(沿用原蚯蚓窝的水边分布带)。
 - 掉落:`Game` 在 `onForage` 回调中调用 `drops.dropAt('worm', 1, x, z)`,走统一的「捡回」卡片拾取;蚯蚓不进存档(环境生物,与螃蟹一致,靠种群补充维持数量)。
 - 道具:`worm` 加入 `ResourceKind`/`ITEMS`(材料类)与 `DropModels`(专属掉落模型);鱼饵图标改为 🧆,🪱 让给蚯蚓。

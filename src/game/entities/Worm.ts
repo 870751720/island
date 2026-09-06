@@ -3,6 +3,7 @@ import type { Updatable } from '../core/GameLoop';
 import type { AmbientPose } from '../net/Protocol';
 import { landCells } from '../world/SpawnLayout';
 import type { IslandTerrain } from '../world/IslandTerrain';
+import { makeDropModel } from '../systems/DropModels';
 
 /** 玩家靠到这个距离内,蚯蚓立刻钻土消失并留下战利品 */
 const TOUCH_RANGE = 1.3;
@@ -13,36 +14,10 @@ const WATER_BAND = 18;
 /** 种群目标数量沿用原蚯蚓土坑的密度:每万㎡ 7 只 × 有效陆地面积 */
 const DENSITY_PER_10K = 7;
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
-
-type WormModel = { group: THREE.Group; segments: THREE.Mesh[] };
-
-/** 低多边形蚯蚓:趴在地面的几节粉色胶囊连成一条小蠕虫 */
-function makeWormModel(): WormModel {
-  const group = new THREE.Group();
-  const skin = clayMaterial('#d98a8a');
-  const segments: THREE.Mesh[] = [];
-  const COUNT = 4;
-  for (let i = 0; i < COUNT; i++) {
-    const seg = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.05 - i * 0.006, 0.09, 2, 5),
-      skin
-    );
-    seg.rotation.z = Math.PI / 2;
-    seg.position.set((i - (COUNT - 1) / 2) * 0.11, 0.05, 0);
-    seg.castShadow = true;
-    group.add(seg);
-    segments.push(seg);
-  }
-  return { group, segments };
-}
-
 type Worm = {
   /** 联机同步用稳定 id */
   id: number;
-  model: WormModel;
+  group: THREE.Object3D;
   pos: THREE.Vector3;
   phase: number;
 };
@@ -95,11 +70,12 @@ export class Worms implements Updatable {
   }
 
   private createWorm(id: number, spawn: THREE.Vector3): Worm {
-    const model = makeWormModel();
-    model.group.position.copy(spawn);
-    model.group.rotation.y = Math.random() * Math.PI * 2;
-    this.group.add(model.group);
-    const worm: Worm = { id, model, pos: spawn.clone(), phase: Math.random() * Math.PI * 2 };
+    // 生物直接复用蚯蚓道具的掉落模型
+    const group = makeDropModel('worm');
+    group.position.copy(spawn);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    this.group.add(group);
+    const worm: Worm = { id, group, pos: spawn.clone(), phase: Math.random() * Math.PI * 2 };
     this.worms.push(worm);
     return worm;
   }
@@ -110,16 +86,14 @@ export class Worms implements Updatable {
     for (let i = this.worms.length - 1; i >= 0; i--) {
       const worm = this.worms[i];
       if (players.some((p) => Math.hypot(p.x - worm.pos.x, p.z - worm.pos.z) < TOUCH_RANGE)) {
-        this.group.remove(worm.model.group);
+        this.group.remove(worm.group);
         this.worms.splice(i, 1);
         this.onForage(worm.pos.x, worm.pos.z);
         this.respawns.push(RECOVERY[0] + Math.random() * (RECOVERY[1] - RECOVERY[0]));
         continue;
       }
       // 静止蚯蚓只有轻微的蠕动起伏
-      worm.model.segments.forEach((seg, s) => {
-        seg.position.y = 0.05 + Math.sin(elapsed * 1.6 + worm.phase + s * 0.9) * 0.012;
-      });
+      worm.group.position.y = worm.pos.y + Math.sin(elapsed * 1.6 + worm.phase) * 0.012;
     }
     // 种群补充:冷却到期且落点远离所有玩家时才刷新
     for (let i = this.respawns.length - 1; i >= 0; i--) {
@@ -155,7 +129,7 @@ export class Worms implements Updatable {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (let i = this.worms.length - 1; i >= 0; i--) {
       if (!map.has(this.worms[i].id)) {
-        this.group.remove(this.worms[i].model.group);
+        this.group.remove(this.worms[i].group);
         this.worms.splice(i, 1);
       }
     }
@@ -169,9 +143,7 @@ export class Worms implements Updatable {
   /** 客人侧:蚯蚓静止,只保留蠕动表现 */
   netUpdate(delta: number, elapsed: number): void {
     for (const worm of this.worms) {
-      worm.model.segments.forEach((seg, s) => {
-        seg.position.y = 0.05 + Math.sin(elapsed * 1.6 + worm.phase + s * 0.9) * 0.012;
-      });
+      worm.group.position.y = worm.pos.y + Math.sin(elapsed * 1.6 + worm.phase) * 0.012;
     }
   }
 }
