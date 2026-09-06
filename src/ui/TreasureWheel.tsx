@@ -6,17 +6,17 @@ import { TIER_LOOT } from '@/game/systems/FishTable';
 import { ITEMS } from '@/game/systems/Items';
 import { ItemIcon } from './ItemIcon';
 
-/** 转盘分区:四档奖池的顺序固定,保证客户端与快照回流的落点一致 */
-const SEGMENTS: ResourceKind[] = TIER_LOOT[4].map((e) => e.kind);
-const SEG_ANGLE = 360 / SEGMENTS.length;
-/** 转动总圈数与时长:开局飞快、末段缓慢爬格落定 */
-const SPIN_TURNS = 5;
-const SPIN_SECONDS = 4.6;
+/** 滚轮格位:四档奖池的顺序固定,保证客户端与快照回流的落点一致 */
+const SLOTS: ResourceKind[] = TIER_LOOT[4].map((e) => e.kind);
+/** 滚轮上循环的圈数:越多转动越久,末段缓慢爬格落定 */
+const LOOP_TURNS = 5;
+const SPIN_SECONDS = 4.2;
 /** 减速曲线指数:越大前期越快、末段越慢 */
 const EASE_POWER = 3.2;
-const SECTOR_COLORS = ['#f7d774', '#e8b84b', '#f2cd5e', '#d9a53c', '#f7d774', '#e8b84b'];
+/** 滚轮窗口可见行数:上下各露半行,中心行定格高亮 */
+const VISIBLE_ROWS = 3;
 
-/** 入场与氛围动画:金色光芒旋转、转盘弹跳落位、标题呼吸 */
+/** 入场与氛围动画:金色光芒旋转、滚轮弹跳落位、标题呼吸 */
 const WHEEL_KEYFRAMES = `
 @keyframes treasure-rays { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes treasure-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
@@ -26,15 +26,15 @@ const WHEEL_KEYFRAMES = `
 `;
 
 /** 单个星点装饰:随机方位、错峰闪烁,烘托稀世珍宝的贵气 */
-function sparkleStyle(size: number, i: number): CSSProperties {
+function sparkleStyle(width: number, i: number): CSSProperties {
   const angle = (i / 12) * 360 + i * 37;
-  const radius = size * (0.46 + (i % 3) * 0.06);
+  const radius = width * (0.5 + (i % 3) * 0.07);
   return {
     position: 'absolute',
     left: '50%',
     top: '50%',
-    width: size * 0.035,
-    height: size * 0.035,
+    width: width * 0.03,
+    height: width * 0.03,
     borderRadius: '50%',
     background: 'radial-gradient(circle, #fffbe6, rgba(255,214,102,0))',
     transform: `translate(-50%, -50%) rotate(${angle}deg) translate(${radius}px)`,
@@ -44,9 +44,10 @@ function sparkleStyle(size: number, i: number): CSSProperties {
 }
 
 /**
- * 四档稀世珍宝转盘:连点收竿后不直接结算,弹出转盘由玩家亲手转出珍宝,
- * 转定后才回调 onClaim 入包。目标道具由房主按权重抽定随快照回流,转盘只是表现层。
- * 旋转由 rAF 逐帧驱动 easeOut 曲线(先快后慢),滚过格线播嗒声、定格播中奖号角。
+ * 四档稀世珍宝滚轮:连点收竿后不直接结算,弹出密码锁式单转轮,
+ * 由玩家上下拨动(或点按钮)滚出珍宝,滚定后才回调 onClaim 入包。
+ * 目标道具由房主按权重抽定随快照回流,滚轮只是表现层。
+ * 滚动由 rAF 逐帧驱动 easeOut 曲线(先快后慢),滚过格线播嗒声、定格播中奖号角。
  */
 export function TreasureWheel({
   kind,
@@ -59,38 +60,43 @@ export function TreasureWheel({
   onSfx?: (name: 'wheelTick' | 'treasureWin') => void;
 }) {
   const [phase, setPhase] = useState<'ready' | 'spinning' | 'result'>('ready');
-  const [rotation, setRotation] = useState(0);
+  const [offset, setOffset] = useState(0); // 以格为单位的连续偏移,中心行 = round(offset)
   const rafRef = useRef(0);
+  const spinRef = useRef(false);
+  /** 拨动检测:记录触点起始位置,松手时拨动幅度够大才触发滚动 */
+  const dragStartRef = useRef<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   if (!kind) return null;
 
   const spin = () => {
-    if (phase !== 'ready') return;
-    const index = SEGMENTS.indexOf(kind);
-    // 指针固定在正上方:转盘需转过 -(扇区中心角) 才能让指针落在该扇区;附扇区内随机偏移更自然
-    const jitter = (Math.random() - 0.5) * (SEG_ANGLE - 16);
-    const target = (360 - (index * SEG_ANGLE + SEG_ANGLE / 2) + jitter + 360) % 360;
+    if (phase !== 'ready' || spinRef.current) return;
+    spinRef.current = true;
+    const targetSlot = SLOTS.indexOf(kind);
+    // 从当前格出发,滚整数圈后停在目标格;附格内微偏移在 CSS 上自然吸附到中心
+    const loops = Math.ceil((offset + 1) / SLOTS.length) + LOOP_TURNS;
+    const target = loops * SLOTS.length + targetSlot;
     setPhase('spinning');
 
-    const from = 0;
-    const delta = SPIN_TURNS * 360 + ((target - 0) % 360 + 360) % 360;
+    const from = offset;
+    const delta = target - from;
     const start = performance.now();
-    let lastSlot = 0;
+    let lastSlot = Math.round(from);
 
-    // 逐帧推进:角度走 1-(1-p)^k 的减速曲线,每跨过一条格线播一声「嗒」,
+    // 逐帧推进:偏移走 1-(1-p)^k 的减速曲线,每跨过一条格线播一声「嗒」,
     // 由频率自然呈现「先密集后稀疏」的滚轮减速听感
     const step = (now: number) => {
       const p = Math.min(1, (now - start) / (SPIN_SECONDS * 1000));
       const eased = 1 - Math.pow(1 - p, EASE_POWER);
-      const angle = from + delta * eased;
-      const slot = Math.floor(angle / SEG_ANGLE);
+      const value = from + delta * eased;
+      const slot = Math.round(value);
       if (slot !== lastSlot) {
         lastSlot = slot;
         onSfx?.('wheelTick');
       }
-      setRotation(angle);
+      setOffset(p < 1 ? value : target);
       if (p < 1) rafRef.current = requestAnimationFrame(step);
       else {
         onSfx?.('treasureWin');
@@ -100,56 +106,78 @@ export function TreasureWheel({
     rafRef.current = requestAnimationFrame(step);
   };
 
-  const size = Math.min(300, Math.floor((typeof window === 'undefined' ? 375 : window.innerWidth) * 0.8));
+  /** 触摸拨动:像拨密码锁转轮那样上下滑动,松手时拨动超过半格即触发滚动 */
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (phase !== 'ready') return;
+    dragStartRef.current = e.clientY;
+    setDragging(true);
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (dragStartRef.current == null) return;
+    const dy = e.clientY - dragStartRef.current;
+    dragStartRef.current = null;
+    setDragging(false);
+    if (Math.abs(dy) > 18) spin();
+  };
+
+  const width = Math.min(300, Math.floor((typeof window === 'undefined' ? 375 : window.innerWidth) * 0.8));
+  const rowH = Math.round(width * 0.42);
+  const height = rowH * VISIBLE_ROWS;
+  // 循环条带:起始前多铺一组奖池,保证任意时刻中心行上下相邻行都有内容
+  const strip = Array.from({ length: LOOP_TURNS + 4 }, () => SLOTS).flat();
+  const baseSlot = Math.floor(offset / SLOTS.length) * SLOTS.length;
+  const centerIndex = Math.round(offset) - baseSlot + SLOTS.length;
+  const translate = -(offset - baseSlot + SLOTS.length) * rowH;
 
   return (
     <div style={overlayStyle}>
       <style>{WHEEL_KEYFRAMES}</style>
       <div style={titleStyle}>🎁 钓到了稀世珍宝!</div>
-      <div style={{ position: 'relative', width: size, height: size }}>
-        {/* 金色旋转光芒底座:比转盘大一圈,缓慢旋转滚动 */}
-        <div style={raysStyle(size)} />
+      <div style={{ position: 'relative', width, height }}>
+        {/* 金色旋转光芒底座:比滚轮大一圈,缓慢旋转滚动 */}
+        <div style={raysStyle(width, height)} />
         {/* 环绕星点 */}
         {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} style={sparkleStyle(size, i)} />
+          <div key={i} style={sparkleStyle(width, i)} />
         ))}
-        {/* 顶部指针 */}
-        <div style={pointerStyle(size)} />
         <div
-          onPointerDown={(e) => {
-            e.preventDefault();
-            spin();
-          }}
           style={{
-            ...wheelStyle(size),
-            transform: `rotate(${rotation}deg)`,
+            ...caseStyle(width, height),
             animation: phase === 'ready' ? 'treasure-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both' : undefined,
-            cursor: phase === 'ready' ? 'pointer' : 'default',
           }}
         >
-          {SEGMENTS.map((seg, i) => (
+          {/* 滚轮窗口:上下用渐变遮罩收边,中心行落在高亮带 */}
+          <div style={windowStyle(height)}>
             <div
-              key={seg}
+              onPointerDown={onPointerDown}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
               style={{
-                position: 'absolute',
-                inset: 0,
-                transform: `rotate(${i * SEG_ANGLE + SEG_ANGLE / 2}deg)`,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                paddingTop: size * 0.045,
+                ...drumStyle(rowH),
+                transform: `translateY(${translate}px)`,
+                cursor: phase === 'ready' ? (dragging ? 'grabbing' : 'grab') : 'default',
               }}
             >
-              <ItemIcon kind={seg} size={Math.round(size * 0.085)} />
-              <span style={segNameStyle(size)}>{ITEMS[seg].name}</span>
+              {strip.map((slot, i) => {
+                const isCenter = i === centerIndex;
+                return (
+                  <div key={i} style={{ ...slotStyle(rowH), opacity: isCenter ? 1 : 0.45 }}>
+                    <ItemIcon kind={slot} size={Math.round(rowH * 0.42)} />
+                    <span style={slotNameStyle(rowH)}>{ITEMS[slot].name}</span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+            {/* 中心高亮带与格线压在滚轮上方 */}
+            <div style={centerBandStyle(rowH, height)} />
+          </div>
+          {/* 上下棘轮帽:密码锁转轮的机械质感 */}
+          <div style={notchStyle(width, true)} />
+          <div style={notchStyle(width, false)} />
         </div>
-        {/* 转盘中心轴帽 */}
-        <div style={hubStyle(size)} />
       </div>
       {phase === 'ready' && (
-        <div style={hintStyle}>亲手转动命运之轮,看看海神赐你哪件宝物</div>
+        <div style={hintStyle}>上下拨动锁轮,看看海神赐你哪件宝物</div>
       )}
       {phase === 'ready' && (
         <button
@@ -159,7 +187,7 @@ export function TreasureWheel({
           }}
           style={actionStyle}
         >
-          转动转盘
+          转动锁轮
         </button>
       )}
       {phase === 'result' && (
@@ -208,13 +236,13 @@ const hintStyle: CSSProperties = {
   textShadow: '0 1px 3px rgba(0,0,0,0.6)',
 };
 
-/** 金色光芒底座:锥形渐变明暗辐条,叠在转盘下方缓慢旋转 */
-const raysStyle = (size: number): CSSProperties => ({
+/** 金色光芒底座:锥形渐变明暗辐条,叠在锁轮下方缓慢旋转 */
+const raysStyle = (width: number, height: number): CSSProperties => ({
   position: 'absolute',
   left: '50%',
   top: '50%',
-  width: size * 1.5,
-  height: size * 1.5,
+  width: width * 1.5,
+  height: height * 1.9,
   borderRadius: '50%',
   background:
     'repeating-conic-gradient(rgba(255,214,102,0.22) 0deg 12deg, rgba(255,214,102,0) 12deg 30deg)',
@@ -222,50 +250,78 @@ const raysStyle = (size: number): CSSProperties => ({
   pointerEvents: 'none',
 });
 
-const wheelStyle = (size: number): CSSProperties => ({
-  width: size,
-  height: size,
-  borderRadius: '50%',
+/** 锁轮外壳:铜框宝箱质感,包裹滚轮窗口 */
+const caseStyle = (width: number, height: number): CSSProperties => ({
+  position: 'absolute',
+  inset: 0,
+  borderRadius: 22,
   border: '6px solid #9a6b16',
-  background: `conic-gradient(${SECTOR_COLORS.map((c, i) => `${c} ${i * SEG_ANGLE}deg ${(i + 1) * SEG_ANGLE}deg`).join(', ')})`,
-  boxShadow: '0 6px 24px rgba(0,0,0,0.45), inset 0 0 0 3px rgba(255,255,255,0.35), 0 0 34px rgba(255,214,102,0.5)',
-  position: 'relative',
+  background: 'linear-gradient(#7a5212, #8f6519)',
+  boxShadow: '0 6px 24px rgba(0,0,0,0.45), inset 0 0 0 3px rgba(255,255,255,0.25), 0 0 34px rgba(255,214,102,0.5)',
+  overflow: 'hidden',
 });
 
-const segNameStyle = (size: number): CSSProperties => ({
-  marginTop: 2,
-  fontSize: Math.max(10, Math.round(size * 0.042)),
+/** 滚轮窗口:上下渐变遮罩模拟圆柱曲面的暗角 */
+const windowStyle = (height: number): CSSProperties => ({
+  position: 'absolute',
+  inset: 0,
+  overflow: 'hidden',
+  background:
+    'linear-gradient(rgba(30,20,0,0.55), rgba(30,20,0,0) 32%, rgba(30,20,0,0) 68%, rgba(30,20,0,0.55))',
+});
+
+const drumStyle = (rowH: number): CSSProperties => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  willChange: 'transform',
+  padding: `${rowH}px 0`,
+  touchAction: 'none',
+});
+
+const slotStyle = (rowH: number): CSSProperties => ({
+  height: rowH,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  justifyContent: 'center',
+  width: '100%',
+});
+
+const slotNameStyle = (rowH: number): CSSProperties => ({
+  fontSize: Math.max(13, Math.round(rowH * 0.3)),
   fontWeight: 700,
-  color: '#5b3f0e',
+  color: '#fff3cf',
   whiteSpace: 'nowrap',
-  textShadow: '0 1px 0 rgba(255,255,255,0.4)',
+  textShadow: '0 1px 3px rgba(0,0,0,0.6)',
 });
 
-const hubStyle = (size: number): CSSProperties => ({
+/** 中心高亮带:金边透明带 + 上下格线,标出定格格位 */
+const centerBandStyle = (rowH: number, height: number): CSSProperties => ({
   position: 'absolute',
-  left: '50%',
-  top: '50%',
-  width: size * 0.16,
-  height: size * 0.16,
-  transform: 'translate(-50%, -50%)',
-  borderRadius: '50%',
-  background: 'radial-gradient(circle at 35% 30%, #fff3cf, #d9a53c)',
-  border: '3px solid #9a6b16',
-  boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
+  left: 0,
+  right: 0,
+  top: (height - rowH) / 2,
+  height: rowH,
+  borderTop: '2px solid rgba(255,214,102,0.75)',
+  borderBottom: '2px solid rgba(255,214,102,0.75)',
+  background: 'rgba(255,214,102,0.12)',
+  boxShadow: 'inset 0 0 18px rgba(255,214,102,0.25)',
+  pointerEvents: 'none',
 });
 
-const pointerStyle = (size: number): CSSProperties => ({
+/** 外壳上下棘轮帽:密码锁转轮侧面的机械卡齿装饰 */
+const notchStyle = (width: number, top: boolean): CSSProperties => ({
   position: 'absolute',
   left: '50%',
-  top: -6,
+  top: top ? -2 : undefined,
+  bottom: top ? undefined : -2,
   transform: 'translateX(-50%)',
-  width: 0,
-  height: 0,
-  borderLeft: `${size * 0.045}px solid transparent`,
-  borderRight: `${size * 0.045}px solid transparent`,
-  borderTop: `${size * 0.09}px solid #e74c3c`,
-  filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))',
-  zIndex: 2,
+  width: width * 0.5,
+  height: 8,
+  borderRadius: top ? '8px 8px 0 0' : '0 0 8px 8px',
+  background: 'repeating-linear-gradient(90deg, #b8862c 0 8px, #7a5212 8px 16px)',
+  pointerEvents: 'none',
 });
 
 const actionStyle: CSSProperties = {
