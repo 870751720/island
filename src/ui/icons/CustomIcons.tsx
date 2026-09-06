@@ -137,6 +137,59 @@ const SwordfishIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
+/** 鳀鱼:迷你银蓝小鱼 */
+const AnchovyIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#a9c3cc" rx={15} ry={8} />
+    <path d="M16 34 q12 5 24 0" stroke="#7c98a3" strokeWidth={2} fill="none" strokeLinecap="round" />
+  </Svg>
+);
+
+/** 竹荚鱼:青灰身 + 锐利侧线鳞 */
+const HorseMackerelIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#8ba3a0" rx={18} ry={10} dorsal={6} />
+    <path d="M14 35 q14 7 28 0" stroke="#5c7470" strokeWidth={2.6} fill="none" strokeLinecap="round" />
+  </Svg>
+);
+
+/** 小黄鱼:姜黄圆身 + 金色顶背 */
+const YellowCroakerIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#e3c56d" rx={17} ry={12} dorsal={7} />
+    <path d="M16 24 q12 -6 24 0" stroke="#c9a53e" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+  </Svg>
+);
+
+/** 秋刀鱼:细长银蓝身 + 尖吻 */
+const SauryIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#7d97a8" rx={22} ry={7} sword dorsal={5} />
+    <path d="M12 30 q16 4 32 0" stroke="#5d7586" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+  </Svg>
+);
+
+/** 带鱼:银白长带身 + 立齿吻 */
+const HairtailIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#cfd8dc" rx={23} ry={6} sword />
+    <path d="M18 32 q10 -3 20 0" stroke="#a7b4ba" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+    <path d="M6 30 l3 2 M6 33 l3 -1" stroke="#8fa0a8" strokeWidth={1.4} strokeLinecap="round" />
+  </Svg>
+);
+
+/** 草鱼:草绿大身 + 弧形鳞纹 */
+const GrassCarpIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <FishShape color="#7ba05b" rx={19} ry={13} />
+    <g stroke="#5c8040" strokeWidth={2} fill="none" strokeLinecap="round">
+      <path d="M20 28 q3 4 0 8" />
+      <path d="M26 26 q3 5 0 12" />
+      <path d="M32 27 q3 5 0 10" />
+    </g>
+  </Svg>
+);
+
 /** 魔鬼鱼:俯视菱形翼 + 细尾 */
 const MantaIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
@@ -361,6 +414,12 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   loach: LoachIcon,
   grouper: GrouperIcon,
   catfish: CatfishIcon,
+  anchovy: AnchovyIcon,
+  horseMackerel: HorseMackerelIcon,
+  yellowCroaker: YellowCroakerIcon,
+  saury: SauryIcon,
+  hairtail: HairtailIcon,
+  grassCarp: GrassCarpIcon,
   swordfish: SwordfishIcon,
   manta: MantaIcon,
   goldenFish: GoldenFishIcon,
