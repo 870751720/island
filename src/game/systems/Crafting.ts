@@ -367,6 +367,7 @@ export const RECIPES: Recipe[] = [
     name: '皮衣',
     cost: { fur: 2, rope: 3 },
     station: 'workbench',
+    minBenchLevel: 2,
     output: 'furShirt',
   },
   {
@@ -374,6 +375,7 @@ export const RECIPES: Recipe[] = [
     name: '皮裤',
     cost: { fur: 2, rope: 2 },
     station: 'workbench',
+    minBenchLevel: 2,
     output: 'furPants',
   },
   {
@@ -381,6 +383,7 @@ export const RECIPES: Recipe[] = [
     name: '皮帽',
     cost: { fur: 1, rope: 1 },
     station: 'workbench',
+    minBenchLevel: 2,
     output: 'furHat',
   },
   {
@@ -388,7 +391,40 @@ export const RECIPES: Recipe[] = [
     name: '皮包',
     cost: { fur: 4, rope: 4 },
     station: 'workbench',
+    minBenchLevel: 2,
     output: 'furBackpack',
+  },
+  {
+    id: 'ironShirt',
+    name: '铁甲',
+    cost: { ironIngot: 2, rope: 3 },
+    station: 'workbench',
+    minBenchLevel: 3,
+    output: 'ironShirt',
+  },
+  {
+    id: 'ironPants',
+    name: '铁裤',
+    cost: { ironIngot: 2, rope: 2 },
+    station: 'workbench',
+    minBenchLevel: 3,
+    output: 'ironPants',
+  },
+  {
+    id: 'ironHat',
+    name: '铁帽',
+    cost: { ironIngot: 1, rope: 1 },
+    station: 'workbench',
+    minBenchLevel: 3,
+    output: 'ironHat',
+  },
+  {
+    id: 'ironBackpack',
+    name: '铁包',
+    cost: { ironIngot: 4, rope: 4 },
+    station: 'workbench',
+    minBenchLevel: 3,
+    output: 'ironBackpack',
   },
 ];
 

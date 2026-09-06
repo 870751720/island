@@ -12,7 +12,11 @@ export type EquipKind =
   | 'furShirt'
   | 'furPants'
   | 'furHat'
-  | 'furBackpack';
+  | 'furBackpack'
+  | 'ironShirt'
+  | 'ironPants'
+  | 'ironHat'
+  | 'ironBackpack';
 
 export type EquipmentDef = {
   kind: EquipKind;
@@ -29,16 +33,20 @@ export type EquipmentDef = {
   capacity?: number;
 };
 
-/** 四类装备各两件的静态定义:一级草制、二级皮制 */
+/** 四类装备各三件的静态定义:一级草制、二级皮制、三级铁制(容量为基础 10 格 + 增量) */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
   grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, bodyColor: '#5a8a3a' },
   grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, bodyColor: '#4a7a3a' },
   strawHat: { kind: 'strawHat', slot: 'hat', score: 2, thirstMod: 0.95 },
-  strawBackpack: { kind: 'strawBackpack', slot: 'backpack', score: 2, capacity: 14 },
+  strawBackpack: { kind: 'strawBackpack', slot: 'backpack', score: 2, capacity: 13 },
   furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, bodyColor: '#8a6239' },
   furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, bodyColor: '#75512c' },
   furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, thirstMod: 0.95 },
-  furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 18 },
+  furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 16 },
+  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, bodyColor: '#7a8288' },
+  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, bodyColor: '#697076' },
+  ironHat: { kind: 'ironHat', slot: 'hat', score: 6, defense: 2, thirstMod: 0.95 },
+  ironBackpack: { kind: 'ironBackpack', slot: 'backpack', score: 6, capacity: 20 },
 };
 
 /** 栏位展示顺序与中文名(角色面板用) */

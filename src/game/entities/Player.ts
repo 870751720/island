@@ -252,8 +252,10 @@ const BARE_LEG_COLOR = '#5b4632';
 const EQUIP_COLORS: Partial<Record<EquipKind, string>> = {
   grassShirt: '#5a8a3a',
   furShirt: '#8a6239',
+  ironShirt: '#7a8288',
   grassPants: '#4a7a3a',
   furPants: '#75512c',
+  ironPants: '#697076',
 };
 
 /** 草帽:宽檐圆顶帽 */
@@ -309,8 +311,7 @@ function makeStrawBackpackModel(): THREE.Group {
 }
 
 /** 皮包:木框上架一个皮料背囊 */
-function makeFurBackpackModel(): THREE.Group {
-  const g = new THREE.Group();
+function makeFurBackpackModel(): THREE.Group {  const g = new THREE.Group();
   const branch = clayMaterial('#8a6239');
   const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), branch);
   railL.position.set(-0.16, 0.05, 0.02);
@@ -326,6 +327,46 @@ function makeFurBackpackModel(): THREE.Group {
   roll.rotation.z = Math.PI / 2;
   roll.position.y = 0.33;
   g.add(railL, railR, crossTop, crossBottom, pack, roll);
+  return g;
+}
+
+/** 铁帽:圆顶铁盔 + 护鼻条 */
+function makeIronHatModel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial('#7a8288');
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+  dome.position.y = 0.02;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 4, 9), clayMaterial('#697076'));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.02;
+  const nasal = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.025), mat);
+  nasal.position.set(0, -0.05, 0.21);
+  const crest = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, 0.3), clayMaterial('#8a9298'));
+  crest.position.y = 0.12;
+  g.add(dome, rim, nasal, crest);
+  return g;
+}
+
+/** 铁包:铁框架 + 金属箱体的大背囊 */
+function makeIronBackpackModel(): THREE.Group {
+  const g = new THREE.Group();
+  const frame = clayMaterial('#697076');
+  const body = clayMaterial('#7a8288');
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.58, 0.04), frame);
+  railL.position.set(-0.17, 0.05, 0.02);
+  const railR = railL.clone();
+  railR.position.x = 0.17;
+  const crossTop = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.04), frame);
+  crossTop.position.y = 0.32;
+  const crossBottom = crossTop.clone();
+  crossBottom.position.y = -0.2;
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.42, 0.18), body);
+  box.position.set(0, 0.06, -0.06);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.2), clayMaterial('#8a9298'));
+  lid.position.set(0, 0.29, -0.06);
+  const latch = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.03), clayMaterial('#c9ccd1'));
+  latch.position.set(0, 0.22, 0.04);
+  g.add(railL, railR, crossTop, crossBottom, box, lid, latch);
   return g;
 }
 
@@ -447,8 +488,11 @@ export class Player implements Updatable {
     const furHat = makeFurHatModel();
     furHat.position.y = 0.18;
     furHat.visible = false;
-    head.add(strawHat, furHat);
-    this.hatModels = { strawHat, furHat };
+    const ironHat = makeIronHatModel();
+    ironHat.position.y = 0.18;
+    ironHat.visible = false;
+    head.add(strawHat, furHat, ironHat);
+    this.hatModels = { strawHat, furHat, ironHat };
 
     const strawBackpack = makeStrawBackpackModel();
     strawBackpack.position.set(0, 0.82, -0.28);
@@ -456,8 +500,11 @@ export class Player implements Updatable {
     const furBackpack = makeFurBackpackModel();
     furBackpack.position.set(0, 0.88, -0.34);
     furBackpack.visible = false;
-    this.group.add(strawBackpack, furBackpack);
-    this.backpackModels = { strawBackpack, furBackpack };
+    const ironBackpack = makeIronBackpackModel();
+    ironBackpack.position.set(0, 0.9, -0.36);
+    ironBackpack.visible = false;
+    this.group.add(strawBackpack, furBackpack, ironBackpack);
+    this.backpackModels = { strawBackpack, furBackpack, ironBackpack };
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';

@@ -365,7 +365,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'strawBackpack',
     name: '草包',
     icon: '🎒',
-    description: '草绳编的背包,背上了就能多带 4 件东西(背包 14 格)。',
+    description: '草绳编的背包,背上了就能多带 3 件东西(背包 13 格)。',
   },
   furShirt: {
     kind: 'furShirt',
@@ -389,7 +389,31 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'furBackpack',
     name: '皮包',
     icon: '🧺',
-    description: '皮料缝制的大背囊,装得下半座岛(背包 18 格)。',
+    description: '皮料缝制的大背囊,背上了能多带 6 件东西(背包 16 格)。',
+  },
+  ironShirt: {
+    kind: 'ironShirt',
+    name: '铁甲',
+    icon: '🦺',
+    description: '铁锭锻打的胸甲,防御 +5。',
+  },
+  ironPants: {
+    kind: 'ironPants',
+    name: '铁裤',
+    icon: '🩳',
+    description: '铁片拼成的护腿,防御 +4。',
+  },
+  ironHat: {
+    kind: 'ironHat',
+    name: '铁帽',
+    icon: '⛑️',
+    description: '铁盔护住头,防御 +2,口渴速度 -5%。',
+  },
+  ironBackpack: {
+    kind: 'ironBackpack',
+    name: '铁包',
+    icon: '🧳',
+    description: '铁框大背包,背上了能多带 10 件东西(背包 20 格)。',
   },
   crate: {
     kind: 'crate',

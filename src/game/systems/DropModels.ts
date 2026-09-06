@@ -66,6 +66,10 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   furHat: '#9a7448',
   strawBackpack: '#c9a56a',
   furBackpack: '#8a5a2b',
+  ironShirt: '#7a8288',
+  ironPants: '#697076',
+  ironHat: '#7a8288',
+  ironBackpack: '#7a8288',
   crate: '#a97b48',
   baitBarrel: '#9a6b3f',
   fenceWood: '#a97b48',
@@ -849,6 +853,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   furHat: () => makeHat(DROP_COLORS.furHat, '#6b4a28'),
   strawBackpack: () => makeBackpack(DROP_COLORS.strawBackpack),
   furBackpack: () => makeBackpack(DROP_COLORS.furBackpack),
+  ironShirt: () => makeShirt(DROP_COLORS.ironShirt),
+  ironPants: () => makePants(DROP_COLORS.ironPants),
+  ironHat: () => makeHat(DROP_COLORS.ironHat, '#5a6066'),
+  ironBackpack: () => makeBackpack(DROP_COLORS.ironBackpack),
   crate: () => {
     // 木箱:小箱体 + 两条封边条
     const g = new THREE.Group();
