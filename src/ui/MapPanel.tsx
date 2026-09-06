@@ -69,6 +69,17 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
   const mapX = px(-snapshot.island.width / 2);
   const mapY = py(-snapshot.island.length / 2);
 
+  // 超出可视范围的标记沿相对玩家的方位角吸附到地图边缘，保留方向信息。
+  const edge = width / 2 - markerSize - 2;
+  const anchored = (x: number, z: number) => {
+    const dx = (x - local.x) * scale;
+    const dz = (z - local.z) * scale;
+    const reach = Math.max(Math.abs(dx), Math.abs(dz));
+    if (reach <= edge) return { x: width / 2 + dx, z: height / 2 + dz, outside: false };
+    const t = edge / reach;
+    return { x: width / 2 + dx * t, z: height / 2 + dz * t, outside: true };
+  };
+
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -96,18 +107,22 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
         />
       )}
 
-      {snapshot.workbenches.map((point, index) => (
-        <g key={`workbench-${index}`} transform={`translate(${px(point.x)} ${py(point.z)})`} filter={`url(#shadow-${expanded})`}>
-          <rect x={-markerSize} y={-markerSize * .55} width={markerSize * 2} height={markerSize * 1.1} rx="2" fill="#8b5a35" stroke="#fff2cf" strokeWidth="1.5" />
-          <path d={`M${-markerSize * .65} ${markerSize * .55}v${markerSize * .55}M${markerSize * .65} ${markerSize * .55}v${markerSize * .55}`} stroke="#5d3b24" strokeWidth="2" />
-        </g>
-      ))}
+      {snapshot.workbenches.map((point, index) => {
+        const anchor = anchored(point.x, point.z);
+        return (
+          <g key={`workbench-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter={`url(#shadow-${expanded})`} opacity={anchor.outside ? .55 : 1}>
+            <rect x={-markerSize} y={-markerSize * .55} width={markerSize * 2} height={markerSize * 1.1} rx="2" fill="#8b5a35" stroke="#fff2cf" strokeWidth="1.5" />
+            <path d={`M${-markerSize * .65} ${markerSize * .55}v${markerSize * .55}M${markerSize * .65} ${markerSize * .55}v${markerSize * .55}`} stroke="#5d3b24" strokeWidth="2" />
+          </g>
+        );
+      })}
 
 
       {snapshot.players.filter((player) => !player.dead).map((player) => {
         const isLocal = player.id === snapshot.localPlayerId;
+        const anchor = anchored(player.x, player.z);
         return (
-          <g key={player.id} transform={`translate(${px(player.x)} ${py(player.z)})`} filter={`url(#shadow-${expanded})`}>
+          <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter={`url(#shadow-${expanded})`} opacity={anchor.outside && !isLocal ? .8 : 1}>
             <circle r={isLocal ? markerSize + 2 : markerSize} fill={isLocal ? '#ffd54f' : '#5b8def'} stroke="#fff" strokeWidth="2" />
             <path d={`M0 ${-markerSize - 5} 3 ${-markerSize} -3 ${-markerSize}Z`} fill={isLocal ? '#6d4c41' : '#284a91'} />
             <text y={markerSize + labelSize + 2} textAnchor="middle" fontFamily="sans-serif" fontSize={labelSize} fontWeight="700" fill="#fff" stroke="rgba(30,40,35,.8)" strokeWidth="2.5" paintOrder="stroke">
