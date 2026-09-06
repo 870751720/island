@@ -176,33 +176,36 @@ export function TreasureWheel({
           <div style={notchStyle(width, false)} />
         </div>
       </div>
-      {phase === 'ready' && (
-        <div style={hintStyle}>上下拨动锁轮,看看海神赐你哪件宝物</div>
-      )}
-      {phase === 'ready' && (
-        <button
-          onPointerDown={(e) => {
-            e.preventDefault();
-            spin();
-          }}
-          style={actionStyle}
-        >
-          转动锁轮
-        </button>
-      )}
-      {phase === 'result' && (
-        <div style={{ ...resultBoxStyle, animation: 'treasure-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ItemIcon kind={kind} size={30} />
-            <span style={{ fontSize: 20, fontWeight: 800, color: '#6b4b12' }}>
-              {ITEMS[kind].name}
-            </span>
-          </div>
-          <button onPointerDown={(e) => { e.preventDefault(); onClaim(); }} style={actionStyle}>
-            收入背包
+      {/* 底部操作区固定占位:转动时按钮隐藏也不挪动滚轮位置 */}
+      <div style={footerStyle}>
+        {phase === 'ready' && (
+          <div style={hintStyle}>上下拨动锁轮,看看海神赐你哪件宝物</div>
+        )}
+        {phase === 'ready' && (
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              spin();
+            }}
+            style={actionStyle}
+          >
+            转动锁轮
           </button>
-        </div>
-      )}
+        )}
+        {phase === 'result' && (
+          <div style={{ ...resultBoxStyle, animation: 'treasure-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ItemIcon kind={kind} size={30} />
+              <span style={{ fontSize: 20, fontWeight: 800, color: '#6b4b12' }}>
+                {ITEMS[kind].name}
+              </span>
+            </div>
+            <button onPointerDown={(e) => { e.preventDefault(); onClaim(); }} style={actionStyle}>
+              收入背包
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -236,19 +239,31 @@ const hintStyle: CSSProperties = {
   textShadow: '0 1px 3px rgba(0,0,0,0.6)',
 };
 
-/** 金色光芒底座:锥形渐变明暗辐条,叠在锁轮下方缓慢旋转 */
-const raysStyle = (width: number, height: number): CSSProperties => ({
-  position: 'absolute',
-  left: '50%',
-  top: '50%',
-  width: width * 1.5,
-  height: height * 1.9,
-  borderRadius: '50%',
-  background:
-    'repeating-conic-gradient(rgba(255,214,102,0.22) 0deg 12deg, rgba(255,214,102,0) 12deg 30deg)',
-  animation: 'treasure-rays 14s linear infinite',
-  pointerEvents: 'none',
-});
+/** 底部操作区:固定最小高度占位,内容随阶段切换但布局不跳动 */
+const footerStyle: CSSProperties = {
+  minHeight: 106,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 14,
+};
+
+/** 金色光芒底座:锥形渐变明暗辐条,叠在锁轮下方缓慢旋转(正圆) */
+const raysStyle = (width: number, height: number): CSSProperties => {
+  const d = Math.max(width, height) * 1.5;
+  return {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: d,
+    height: d,
+    borderRadius: '50%',
+    background:
+      'repeating-conic-gradient(rgba(255,214,102,0.22) 0deg 12deg, rgba(255,214,102,0) 12deg 30deg)',
+    animation: 'treasure-rays 14s linear infinite',
+    pointerEvents: 'none',
+  };
+};
 
 /** 锁轮外壳:铜框宝箱质感,包裹滚轮窗口 */
 const caseStyle = (width: number, height: number): CSSProperties => ({
