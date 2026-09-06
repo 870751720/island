@@ -25,14 +25,10 @@ export function EatPrompt({
           e.preventDefault();
           onEat();
         }}
-        style={promptCardStyle}
+        style={{ ...promptCardStyle, minWidth: 0, minHeight: 44, padding: '6px 14px' }}
       >
         <ItemIcon kind={food.kind} size={28} />
-        <span>
-          吃{food.name}
-          <br />
-          <span style={{ fontSize: 12, color: '#888' }}>你有点饿了({Math.floor(hud.hunger)}%)</span>
-        </span>
+        <span>吃{food.name}</span>
       </button>
     </div>
   );

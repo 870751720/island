@@ -739,7 +739,9 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'campfire'),
       // 烹饪好的食物背包放不下时掉在玩家身旁
-      (kind, count, actor) => this.giveItem(kind, count, actor)
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 场上已有烹饪台时不再弹火堆卡片
+      () => this.cookingStations.count > 0
     );
     this.shrines = new ShrineSystem(
       this.scene,

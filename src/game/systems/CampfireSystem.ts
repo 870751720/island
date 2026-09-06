@@ -76,7 +76,9 @@ export class CampfireSystem {
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
     private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
-    private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number
+    private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
+    /** 场上是否已有烹饪台(手搓火堆卡片的弹出条件之一) */
+    private hasCookingStation: () => boolean = () => false
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
@@ -165,9 +167,13 @@ export class CampfireSystem {
     return this.canPlace(actor);
   }
 
-  /** 场景手搓卡片的弹出条件:可制作且场上还没有火堆(避免已造后反复弹卡) */
+  /** 场景手搓卡片的弹出条件:可制作,且场上与背包里都没有火堆/烹饪台(避免已有灶具后反复弹卡) */
   canStart(actor: PlayerSession): boolean {
-    return this.canBuild(actor) && this.fires.length === 0;
+    if (this.fires.length > 0) return false;
+    if (this.hasCookingStation()) return false;
+    if (actor.inventory.count('deadCampfire') > 0) return false;
+    if (actor.inventory.count('cookingStation') > 0) return false;
+    return this.canBuild(actor);
   }
 
   start(actor: PlayerSession): boolean {

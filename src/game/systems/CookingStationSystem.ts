@@ -117,6 +117,11 @@ export class CookingStationSystem {
     this.states.delete(actor);
   }
 
+  /** 场上烹饪台总数(手搓火堆卡片的弹出条件之一) */
+  get count(): number {
+    return this.stations.length;
+  }
+
   /** 玩家身旁最近的烹饪台(范围内的),无则 null */
   nearby(actor: PlayerSession): CookingStation | null {
     let best: CookingStation | null = null;
