@@ -19,12 +19,12 @@ export class WaterSystem {
     private onDrinkRound: () => void = () => {}
   ) {}
 
-  update(delta: number, harvestBusy: boolean): void {
+  update(delta: number, harvestBusy: boolean, nearPurifier = false): void {
     const p = this.player.group.position;
     const standingInPond = this.terrain.getWaterKind(p.x, p.z) === 'pond' && !this.player.isSwimming;
     const thirsty = this.survival.state.thirst < 99;
     this.active =
-      standingInPond && thirsty && !this.player.isMoving && !harvestBusy;
+      (standingInPond || nearPurifier) && thirsty && !this.player.isMoving && !harvestBusy;
 
     if (!this.active) {
       // 中途走开/口渴满等结束喝水时,释放喝水动作并切断仍在播的吞咽声
@@ -41,7 +41,8 @@ export class WaterSystem {
     if (this.timer < DRINK_TIME) return;
     this.timer = 0;
     this.survival.drink();
-    this.onDrinkRound();
+    // 水洼喝水才可能惊动鳄鱼,净化器喝的是清水
+    if (standingInPond) this.onDrinkRound();
   }
 
   get isActive(): boolean {

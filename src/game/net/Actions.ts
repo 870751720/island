@@ -23,6 +23,7 @@ export const ACTIONS: Record<string, NetAction> = {
   sleep: (g, a) => g.sleep(a),
   useCrate: (g, a, [kind]) => g.useCrate(kind as 'crate' | 'ironCrate', a),
   useBaitBarrel: (g, a) => g.useBaitBarrel(a),
+  useWaterPurifier: (g, a) => g.useWaterPurifier(a),
   baitBarrelFeed: (g, a, [kind]) => g.baitBarrelFeed(kind as ResourceKind, a),
   baitBarrelCollect: (g, a) => g.baitBarrelCollect(a),
   useSmelter: (g, a) => g.useSmelter(a),

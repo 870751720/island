@@ -76,6 +76,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   crate: '#a97b48',
   ironCrate: '#9aa3ab',
   baitBarrel: '#9a6b3f',
+  waterPurifier: '#9aa3ab',
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
   fenceGate: '#8a6239',
@@ -940,6 +941,26 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
       hoop.position.y = y;
       g.add(hoop);
     }
+    return g;
+  },
+  waterPurifier: () => {
+    // 海水净化器:铁皮机身 + 顶部小漏斗 + 侧面净水槽
+    const g = new THREE.Group();
+    const iron = new THREE.MeshStandardMaterial({ color: DROP_COLORS.waterPurifier, flatShading: true, roughness: 1 });
+    const dark = new THREE.MeshStandardMaterial({ color: '#697076', flatShading: true, roughness: 1 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.18, 8), iron);
+    body.position.y = 0.09;
+    body.castShadow = true;
+    g.add(body);
+    const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.04, 0.07, 8), iron);
+    funnel.position.y = 0.21;
+    g.add(funnel);
+    const water = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 0.08, 8),
+      new THREE.MeshStandardMaterial({ color: '#3fa7d6', flatShading: true, roughness: 0.4 })
+    );
+    water.position.set(0.1, 0.1, 0.05);
+    g.add(water);
     return g;
   },
   fenceWood: () => makeFenceDrop('branch'),

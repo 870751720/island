@@ -478,6 +478,11 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'waterPurifier') {
+            gameRef.current?.useWaterPurifier();
+            setBackpackOpen(false);
+            return;
+          }
           if (kind === 'smelter') {
             gameRef.current?.useSmelter();
             setBackpackOpen(false);

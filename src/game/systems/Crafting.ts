@@ -30,6 +30,7 @@ export type CraftId =
   | 'bed2'
   | 'bed3'
   | 'baitBarrel'
+  | 'waterPurifier'
   | 'smelter'
   | 'loom'
   | 'torch'
@@ -81,7 +82,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
 
 /** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
 const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
-  'bed1', 'bed2', 'bed3', 'baitBarrel', 'smelter', 'loom',
+  'bed1', 'bed2', 'bed3', 'baitBarrel', 'waterPurifier', 'smelter', 'loom',
 ]);
 
 /** 单件配方:设施与装备一次只能制作一个,不提供数量调节与排队 */
@@ -355,6 +356,14 @@ export const RECIPES: Recipe[] = [
     station: 'workbench',
     output: 'baitBarrel',
     minBenchLevel: 2,
+  },
+  {
+    id: 'waterPurifier',
+    name: '海水净化器',
+    cost: { ironIngot: 10, flint: 5, cloth: 5, adventureBook: 2 },
+    station: 'workbench',
+    output: 'waterPurifier',
+    minBenchLevel: 4,
   },
   {
     id: 'smelter',

@@ -26,6 +26,7 @@ import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import type { CrateKind } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
+import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
@@ -222,6 +223,7 @@ type InteractionKind =
   | 'campfire'
   | 'crates'
   | 'baitBarrels'
+  | 'waterPurifiers'
   | 'smelters'
   | 'looms'
   | 'fences'
@@ -319,6 +321,7 @@ export class Game {
   private workbench: WorkbenchSystem;
   private crates: CrateSystem;
   private baitBarrels: BaitBarrelSystem;
+  private waterPurifiers: WaterPurifierSystem;
   private smelters: SmelterSystem;
   private looms: LoomSystem;
   private fences: FenceSystem;
@@ -629,6 +632,17 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'baitBarrels')
     );
+    this.waterPurifiers = new WaterPurifierSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 挖回净化器入包,背包放不下的部分掉到玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'waterPurifiers')
+    );
     this.smelters = new SmelterSystem(
       this.scene,
       this.terrain,
@@ -816,9 +830,10 @@ export class Game {
             s.archery.updateVisuals(delta);
             s.sword.updateVisuals(delta);
           }
-          s.water.update(delta, this.isSessionBusy(s, 'water'));
+          s.water.update(delta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
           this.crates.updateActor(s, delta);
           this.baitBarrels.updateActor(s, delta);
+          this.waterPurifiers.updateActor(s, delta);
           this.smelters.updateActor(s, delta);
           this.looms.updateActor(s, delta);
           this.fences.updateActor(s, delta);
@@ -845,6 +860,7 @@ export class Game {
         this.campfire.update(delta, elapsed);
         this.shrines.update(delta, elapsed);
         this.baitBarrels.update(delta, elapsed, !this.guestMode);
+        this.waterPurifiers.update(delta, elapsed);
     this.smelters.update(delta, elapsed, !this.guestMode);
     this.looms.update(delta, elapsed, !this.guestMode);
         this.drops.update(delta, elapsed);
@@ -1076,6 +1092,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
       looms: this.looms.snapshot(),
       fences: this.fences.snapshotFences(),
@@ -1099,6 +1116,7 @@ export class Game {
     });
     this.crates.setChangeSink(send('crates'));
     this.baitBarrels.setChangeSink(send('baitBarrels'));
+    this.waterPurifiers.setChangeSink(send('waterPurifiers'));
     this.smelters.setChangeSink(send('smelters'));
     this.looms.setChangeSink(send('looms'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
@@ -1379,6 +1397,9 @@ export class Game {
     if (state.baitBarrels) {
       this.baitBarrels.netApply(state.baitBarrels);
     }
+    if (state.waterPurifiers) {
+      this.waterPurifiers.netApply(state.waterPurifiers);
+    }
     if (state.smelters) {
       this.smelters.netApply(state.smelters);
     }
@@ -1542,6 +1563,7 @@ export class Game {
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
     if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
+    if (save.waterPurifiers) this.waterPurifiers.restore(save.waterPurifiers);
     if (save.smelters) this.smelters.restore(save.smelters);
     if (save.looms) this.looms.restore(save.looms);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
@@ -1611,6 +1633,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
       looms: this.looms.snapshot(),
       fences: this.fences.snapshotFences(),
@@ -2380,6 +2403,19 @@ export class Game {
     return true;
   }
 
+  /** 背包里点击「使用」海水净化器:校验通过后在玩家脚下原地放下,不满足时给出提示 */
+  useWaterPurifier(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行房主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useWaterPurifier', []);
+
+    if (this.asleepFor(actor) || !this.waterPurifiers.use(actor)) {
+      this.notify('净化器只能放在湿沙滩上,去海边浅滩试试', actor);
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
   /** 把背包里该种类全部食物丢进身旁饵料桶(每 5 秒发酵 1 个),失败时给出提示 */
   baitBarrelFeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
@@ -2630,6 +2666,7 @@ export class Game {
     this.workbench.detach(session);
     this.crates.detach(session);
     this.baitBarrels.detach(session);
+    this.waterPurifiers.detach(session);
     this.smelters.detach(session);
     this.looms.detach(session);
     this.fences.detach(session);
@@ -2660,6 +2697,7 @@ export class Game {
     if (exclude !== 'campfire' && this.campfire.isBusy(s)) return true;
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
     if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
+    if (exclude !== 'waterPurifiers' && this.waterPurifiers.isDigging(s)) return true;
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))

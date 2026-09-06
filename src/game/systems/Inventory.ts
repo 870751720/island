@@ -70,6 +70,7 @@ export type ResourceKind =
   | 'crate'
   | 'ironCrate'
   | 'baitBarrel'
+  | 'waterPurifier'
   | 'smelter'
   | 'loom'
   | 'fenceWood'

@@ -36,7 +36,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   设施: [
     'reviveStone', 'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar',
-    'crate', 'ironCrate', 'baitBarrel', 'smelter', 'loom',
+    'crate', 'ironCrate', 'baitBarrel', 'waterPurifier', 'smelter', 'loom',
     'fenceWood', 'fenceStone', 'fenceGate',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
@@ -503,6 +503,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '饵料桶',
     icon: '🪣',
     description: '木板箍成的发酵桶,能把食物慢慢酿成鱼饵。',
+  },
+  waterPurifier: {
+    kind: 'waterPurifier',
+    name: '海水净化器',
+    icon: '🚰',
+    description: '立在湿沙滩上的铁皮净水器,靠近就能喝上干净的清水。',
   },
   smelter: {
     kind: 'smelter',
