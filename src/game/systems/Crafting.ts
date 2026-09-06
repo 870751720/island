@@ -77,6 +77,16 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
   return recipe.tool ?? recipe.output!;
 }
 
+/** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
+const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
+  'bed1', 'bed2', 'bed3', 'baitBarrel', 'smelter', 'loom',
+]);
+
+/** 单件配方:设施与装备一次只能制作一个,不提供数量调节与排队 */
+export function isSingleCraft(recipe: Recipe): boolean {
+  return !!recipe.output && (isEquipKind(recipe.output) || SINGLE_OUTPUTS.has(recipe.output));
+}
+
 /** 配方图标的级别角标(二级工具为 2,其余无) */
 export function recipeIconLevel(recipe: Recipe): number | undefined {
   return recipe.tier;

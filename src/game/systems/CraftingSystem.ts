@@ -1,5 +1,5 @@
 import type { Player } from '../entities/Player';
-import { craft, type CraftId, type Recipe, type Tools } from './Crafting';
+import { craft, isSingleCraft, type CraftId, type Recipe, type Tools } from './Crafting';
 import type { Inventory, ResourceKind } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -32,6 +32,7 @@ export class CraftingSystem {
   ) {}
 
   start(recipe: Recipe, count = 1): boolean {
+    if (isSingleCraft(recipe)) count = 1;
     if (
       this.recipe ||
       (recipe.tool && this.tools[recipe.tool] >= (recipe.tier ?? 1)) ||

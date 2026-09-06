@@ -13,6 +13,7 @@ import {
   recipeIconLevel,
   recipeVisible,
   workbenchUpgradeCost,
+  isSingleCraft,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -98,7 +99,7 @@ export function WorkbenchPanel({
           )}
           {recipes.map((r) => {
             const max = maxCount(r, materials, hud);
-            const count = Math.min(counts[r.id] ?? 1, max);
+            const count = isSingleCraft(r) ? 1 : Math.min(counts[r.id] ?? 1, max);
             const ownedTools = toolsOf(hud);
             return (
               <div key={r.id} style={rowStyle}>
@@ -110,7 +111,7 @@ export function WorkbenchPanel({
                     {r.output && count > 1 ? ` ×${count}` : ''}
                   </div>
                 </div>
-                {r.output && (
+                {r.output && !isSingleCraft(r) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <button
                       style={stepButtonStyle}
