@@ -36,12 +36,15 @@ export function WorkbenchPanel({
   // 列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),
   // 另外未制作过的配方即使材料不足也列出(按钮置灰提示),制作过的做不出则不再占位
   const crafted = new Set(hud.craftedIds);
+  const visible = (r: Recipe) =>
+    recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots);
+  // 可制作的排在前面,未制作的(材料不足置灰)排在后面,各自保持配方表顺序
   const recipes = RECIPES.filter(
     (r) =>
       r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      (recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots) || !crafted.has(r.id))
-  );
+      (visible(r) || !crafted.has(r.id))
+  ).sort((a, b) => Number(visible(b)) - Number(visible(a)));
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
   const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
