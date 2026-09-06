@@ -3,6 +3,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Player } from './Player';
 import type { DropSystem } from '../systems/DropSystem';
 import type { Particles } from '../fx/Particles';
+import type { WaterFx } from '../fx/WaterFx';
 import type { AmbientPose } from '../net/Protocol';
 
 /** 闻到肉块的半径:在这个距离内的地面肉块会把狗狗吸引过去 */
@@ -186,12 +187,15 @@ export class Pomeranian {
   private lastDetour = 0;
   /** 当前是否在狗刨:由所在点水深决定,深水漂浮划水,浅水照常走 */
   private swimming = false;
+  /** 上一帧是否在狗刨:状态切换瞬间触发入水/出水水花 */
+  private wasSwimming = false;
 
   constructor(
     scene: THREE.Scene,
     private terrain: IslandTerrain,
     private player: Player,
     private fx: Particles,
+    private waterFx: WaterFx,
     /** 围栏等静态阻挡:点在阻挡内时不可走 */
     private isBlocked: (x: number, z: number) => boolean = () => false
   ) {
@@ -502,8 +506,19 @@ export class Pomeranian {
     const g = this.model.group;
     // 狗刨状态由所在点水深决定(房主/客人端各自判定,表现一致)
     this.swimming = this.waterDepth(this.pos.x, this.pos.z) > SWIM_DEPTH;
-    const bob = this.swimming ? Math.sin(elapsed * 2.2) * 0.02 : 0;
+    if (this.swimming !== this.wasSwimming) {
+      // 入水/出水瞬间:水花 + 一圈涟漪
+      this.wasSwimming = this.swimming;
+      this.waterFx.splash(new THREE.Vector3(this.pos.x, this.terrain.getWaterLevel(this.pos.x, this.pos.z), this.pos.z));
+    }
+    if (this.swimming) {
+      // 漂浮期间在身后持续泛涟漪,涟漪生成在水面高度
+      this.waterFx.updateSwimming(delta, this.pos, 0.45, this.terrain.getWaterLevel(this.pos.x, this.pos.z));
+    }
+    const bob = this.swimming ? Math.sin(elapsed * 2.2) * 0.04 : 0;
     g.position.set(this.pos.x, this.pos.y + bob, this.pos.z);
+    // 狗刨时身体随浪左右轻晃,上岸恢复水平
+    g.rotation.z = this.swimming ? Math.sin(elapsed * 1.7) * 0.09 : 0;
     // 朝向沿最短弧平滑过渡:绕障换向/坐下转向时不再瞬间甩转
     const diff = Math.atan2(
       Math.sin(this.heading - this.viewHeading),
@@ -524,7 +539,7 @@ export class Pomeranian {
       let swing: number;
       if (this.swimming) {
         // 狗刨:四条腿在水面下交替扒水
-        swing = Math.sin(elapsed * 13 + i * Math.PI * 0.5) * 0.55;
+        swing = Math.sin(elapsed * 15 + i * Math.PI * 0.5) * 0.75;
         leg.rotation.x = swing;
         return;
       }
@@ -550,7 +565,7 @@ export class Pomeranian {
     // 头部:进食低头,刨坑凑近地面闻,睡觉把头搁在爪子上,狗刨时抬起下巴露出水面,平时随呼吸轻点
     const eating = this.eatLeft > 0;
     const nod = this.swimming
-      ? -0.2 + Math.sin(elapsed * 2.5) * 0.06
+      ? -0.28 + Math.sin(elapsed * 2.5) * 0.08
       : eating
         ? 0.7 + Math.sin(elapsed * 12) * 0.12
         : digging

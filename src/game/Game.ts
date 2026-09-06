@@ -592,6 +592,7 @@ export class Game {
       terrain,
       this.player,
       this.fx,
+      this.waterFx,
       (x, z) => this.isGroundBlocked(x, z)
     );
     this.indicator = new PlayerIndicator(this.camera, this.scene);
