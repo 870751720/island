@@ -56,14 +56,25 @@ function recipeCategory(recipe: Recipe): ItemCategory {
 }
 
 /** 合成图鉴:按分类 tab 列出配方(产物、材料、站点与效果),随时可查,不判断材料够不够 */
-export function RecipeBook({ onClose }: { onClose: () => void }) {
+export function RecipeBook({
+  onClose,
+  maxBenchLevel,
+}: {
+  onClose: () => void;
+  /** 传入时隐藏需求等级更高的配方(如工作台面板内查看) */
+  maxBenchLevel?: number;
+}) {
   const grouped = useMemo(
     () =>
       ITEM_CATEGORIES.map((category) => ({
         category,
-        recipes: RECIPES.filter((r) => recipeCategory(r) === category),
+        recipes: RECIPES.filter(
+          (r) =>
+            recipeCategory(r) === category &&
+            (maxBenchLevel === undefined || (r.minBenchLevel ?? 1) <= maxBenchLevel)
+        ),
       })).filter((g) => g.recipes.length > 0),
-    []
+    [maxBenchLevel]
   );
   const [category, setCategory] = useState(grouped[0].category);
 

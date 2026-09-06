@@ -187,7 +187,9 @@ export function WorkbenchPanel({
           关闭
         </button>
       </div>
-      {bookOpen && <RecipeBook onClose={() => setBookOpen(false)} />}
+      {bookOpen && (
+        <RecipeBook maxBenchLevel={hud.workbenchLevel} onClose={() => setBookOpen(false)} />
+      )}
     </div>
   );
 }
