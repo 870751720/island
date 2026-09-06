@@ -25,6 +25,8 @@ export type EquipmentDef = {
   score: number;
   /** 防御:受伤时一次性扣减伤害,各栏位叠加 */
   defense?: number;
+  /** 减伤比例(0~1,如 0.16 表示减免 16%),受伤时先按总减伤折算再扣防御,各栏位叠加 */
+  reduce?: number;
   /** 口渴速度倍率(如 0.95 表示减缓 5%),各栏位相乘 */
   thirstMod?: number;
   /** 衣服/裤子:替换玩家身体/腿部模型颜色 */
@@ -35,17 +37,17 @@ export type EquipmentDef = {
 
 /** 四类装备各三件的静态定义:一级草制、二级皮制、三级铁制(容量为基础 10 格 + 增量) */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
-  grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, bodyColor: '#5a8a3a' },
-  grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, bodyColor: '#4a7a3a' },
-  strawHat: { kind: 'strawHat', slot: 'hat', score: 2, thirstMod: 0.95 },
+  grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, reduce: 0.16, bodyColor: '#5a8a3a' },
+  grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, reduce: 0.14, bodyColor: '#4a7a3a' },
+  strawHat: { kind: 'strawHat', slot: 'hat', score: 2, reduce: 0.1, thirstMod: 0.95 },
   strawBackpack: { kind: 'strawBackpack', slot: 'backpack', score: 2, capacity: 13 },
-  furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, bodyColor: '#8a6239' },
-  furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, bodyColor: '#75512c' },
-  furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, thirstMod: 0.95 },
+  furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, reduce: 0.24, bodyColor: '#8a6239' },
+  furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, reduce: 0.2, bodyColor: '#75512c' },
+  furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, reduce: 0.16, thirstMod: 0.95 },
   furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 16 },
-  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 8, bodyColor: '#7a8288' },
-  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 6, bodyColor: '#697076' },
-  ironHat: { kind: 'ironHat', slot: 'hat', score: 6, defense: 3, thirstMod: 0.95 },
+  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, reduce: 0.3, bodyColor: '#7a8288' },
+  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, reduce: 0.26, bodyColor: '#697076' },
+  ironHat: { kind: 'ironHat', slot: 'hat', score: 6, defense: 2, reduce: 0.19, thirstMod: 0.95 },
   ironBackpack: { kind: 'ironBackpack', slot: 'backpack', score: 6, capacity: 20 },
 };
 
@@ -82,6 +84,14 @@ export class Equipment {
   totalDefense(): number {
     return SLOT_ORDER.reduce(
       (sum, slot) => sum + (this.equipped[slot] ? EQUIPMENT[this.equipped[slot]!].defense ?? 0 : 0),
+      0
+    );
+  }
+
+  /** 全身减伤比例(0~1):各栏位叠加,受伤时先折算再扣防御;裸装为 0 即吃全额伤害 */
+  totalReduce(): number {
+    return SLOT_ORDER.reduce(
+      (sum, slot) => sum + (this.equipped[slot] ? EQUIPMENT[this.equipped[slot]!].reduce ?? 0 : 0),
       0
     );
   }

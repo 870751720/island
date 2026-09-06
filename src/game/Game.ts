@@ -1426,10 +1426,10 @@ export class Game {
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
   }
 
-  /** 熊击某玩家的最终结算:减伤掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
+  /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
   private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
     const player = session.player;
-    const final = Math.max(1, damage - session.equipment.totalDefense());
+    const final = Math.max(1, Math.round(damage * (1 - session.equipment.totalReduce())) - session.equipment.totalDefense());
     session.survival.damage(final);
     // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
     if (pounce) player.applySlow(3);

@@ -178,9 +178,9 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     senseRange: 6,
     deaggroRange: 10,
     attackRange: 0.95,
-    damage: 5,
+    damage: 30,
     attackCooldown: 1.2,
-    hp: 75,
+    hp: 120,
     loot: [
       { kind: 'gameMeat', count: 2 },
       { kind: 'fur', count: 2 },
@@ -199,7 +199,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     senseRange: 7,
     deaggroRange: 13,
     attackRange: 1.3,
-    damage: 40,
+    damage: 100,
     attackCooldown: 1.6,
     hp: 480,
     loot: [
@@ -220,7 +220,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     senseRange: 7,
     deaggroRange: 12,
     attackRange: 1.15,
-    damage: 30,
+    damage: 80,
     attackCooldown: 1.8,
     hp: 250,
     loot: [

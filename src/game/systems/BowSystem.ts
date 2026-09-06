@@ -12,9 +12,8 @@ import { GmSystem } from './GmSystem';
 
 /** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
-/** 每支箭的伤害(二级弓更高) */
-const ARROW_DAMAGE = 25;
-const REFINED_ARROW_DAMAGE = 50;
+/** 每支箭的伤害(按弓等级:树枝弓 8,木弓 15,铁弓 28;同级弓弱于剑,远程换输出) */
+const ARROW_DAMAGE = [8, 15, 28];
 /** 开弓瞄准时间(秒):移动瞄准满这段时间后,松手才会放箭 */
 const DRAW_TIME = 0.45;
 /** 放箭动作时长(秒):播完即可重新开弓,没有额外冷却 */
@@ -337,7 +336,7 @@ export class BowSystem {
 
   /** 权威结算一次命中:扣目标血量/击杀并掉落战利品 */
   private applyHit(hit: ArrowHit, x: number, z: number): void {
-    const damage = (this.tools.bow >= 2 ? REFINED_ARROW_DAMAGE : ARROW_DAMAGE) * GmSystem.attackMultiplier;
+    const damage = ARROW_DAMAGE[Math.min(ARROW_DAMAGE.length, Math.max(1, this.tools.bow)) - 1] * GmSystem.attackMultiplier;
     if (hit.kind === 'wildlife') {
       const beast = this.wildlife.damage(hit.animalId, damage);
       // 野生动物可中数箭:受伤未死不掉肉
