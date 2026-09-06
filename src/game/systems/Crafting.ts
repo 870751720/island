@@ -359,7 +359,8 @@ export const RECIPES: Recipe[] = [
     id: 'strawBackpack',
     name: '草包',
     cost: { fiber: 4 },
-    station: 'workbench',
+    station: 'hand',
+    promptPriority: 9,
     output: 'strawBackpack',
   },
   {
