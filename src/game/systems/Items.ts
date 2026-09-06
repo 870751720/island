@@ -520,6 +520,6 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'adventureBook',
     name: '冒险家的经验书',
     icon: '📕',
-    description: '不知哪位冒险家遗落的笔记,猎杀熊有 30% 概率掉落;唯一用途是把工作台升级到三级。',
+    description: '不知哪位冒险家遗落的笔记,猎杀狼有 30% 概率掉落;唯一用途是把工作台升级到三级。',
   },
 };

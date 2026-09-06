@@ -199,9 +199,9 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     senseRange: 7,
     deaggroRange: 13,
     attackRange: 1.3,
-    damage: 45,
+    damage: 40,
     attackCooldown: 1.6,
-    hp: 1000,
+    hp: 480,
     loot: [
       { kind: 'gameMeat', count: 4 },
       { kind: 'fur', count: 4 },
@@ -222,7 +222,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackRange: 1.15,
     damage: 30,
     attackCooldown: 1.8,
-    hp: 100,
+    hp: 250,
     loot: [
       { kind: 'gameMeat', count: 2 },
       { kind: 'fur', count: 2 },
@@ -896,10 +896,10 @@ export class Wildlife implements Updatable {
     return { species };
   }
 
-  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;熊另有 30% 概率掉落冒险家的经验书) */
+  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书) */
   lootOf(species: AnimalSpecies): AnimalLoot {
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
-    if (species === 'bear' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
+    if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
     return loot;
   }
 

@@ -441,7 +441,7 @@ export const WORKBENCH_COST: Partial<Record<ResourceKind, number>> = { stone: 2,
 /** 工作台卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const WORKBENCH_PROMPT_PRIORITY = 4;
 
-/** 工作台升到对应等级(键为目标等级)消耗的材料;三级起需要猎熊掉落的冒险家的经验书 */
+/** 工作台升到对应等级(键为目标等级)消耗的材料;三级起需要猎狼掉落的冒险家的经验书 */
 export const WORKBENCH_UPGRADE_COST: Record<number, Partial<Record<ResourceKind, number>>> = {
   2: { fur: 4 },
   3: { adventureBook: 1, stone: 20, branch: 20, rope: 5 },
