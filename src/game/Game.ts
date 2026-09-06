@@ -86,24 +86,9 @@ export type HudSnapshot = {
   thirst: number;
   health: number;
   dead: boolean;
-  branch: number;
-  wood: number;
-  stone: number;
-  berry: number;
-  fiber: number;
-  fur: number;
-  crabMeat: number;
-  birdMeat: number;
-  gameMeat: number;
-  rope: number;
-  /** 背包里冒险家的经验书数(工作台面板升级校验用) */
-  adventureBook: number;
   arrow: number;
   /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
   bait: number;
-  /** 背包里的床数(工作台面板判断床升级配方可见性) */
-  bed1: number;
-  bed2: number;
   /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
   heldFenceCount: number;
   /** 背包格子快照(空格为 null)与容量 */
@@ -2815,21 +2800,8 @@ export class Game {
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
     return {
       ...s.survival.state,
-      branch: s.inventory.count('branch'),
-      wood: s.inventory.count('wood'),
-      stone: s.inventory.count('stone'),
-      berry: s.inventory.count('berry'),
-      fiber: s.inventory.count('fiber'),
-      fur: s.inventory.count('fur'),
-      crabMeat: s.inventory.count('crabMeat'),
-      birdMeat: s.inventory.count('birdMeat'),
-      gameMeat: s.inventory.count('gameMeat'),
-      rope: s.inventory.count('rope'),
-      adventureBook: s.inventory.count('adventureBook'),
       arrow: s.inventory.count('arrow'),
       bait: s.inventory.count('bait'),
-      bed1: s.inventory.count('bed1'),
-      bed2: s.inventory.count('bed2'),
       heldFenceCount:
         s.player.currentTool === 'fence'
           ? s.inventory.count('fenceWood') + s.inventory.count('fenceStone')

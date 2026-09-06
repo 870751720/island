@@ -88,6 +88,15 @@ export type ResourceKind =
 /** 一个背包格:道具类型与叠加数量,空格为 null */
 export type InventorySlot = { kind: ResourceKind; count: number } | null;
 
+/** 从背包格子快照统计各道具数量(配方/材料判定的统一入口,新增道具无需再加字段) */
+export function countsFromSlots(slots: (InventorySlot | null)[]): Partial<Record<ResourceKind, number>> {
+  const counts: Partial<Record<ResourceKind, number>> = {};
+  for (const slot of slots) {
+    if (slot) counts[slot.kind] = (counts[slot.kind] ?? 0) + slot.count;
+  }
+  return counts;
+}
+
 /** 初始背包格数,装备背包类道具后可通过 setCapacity 扩容 */
 export const DEFAULT_CAPACITY = 10;
 

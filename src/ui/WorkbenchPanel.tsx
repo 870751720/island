@@ -4,6 +4,7 @@ import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
+import { countsFromSlots, type ResourceKind } from '@/game/systems/Inventory';
 import {
   RECIPES,
   hasCost,
@@ -30,23 +31,19 @@ export function WorkbenchPanel({
   onUpgrade: () => boolean;
   onClose: () => void;
 }) {
+  // 材料数统一从背包格子快照统计,新增道具无需在 HUD 快照加计数字段
+  const materials = countsFromSlots(hud.slots);
   // 只列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),做不出的不占位置
   const recipes = RECIPES.filter(
     (r) =>
       r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      recipeVisible(r, hud, toolsOf(hud), hud.equipped, hud.slots)
+      recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots)
   );
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
   const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
-  const upgradeCounts = {
-    fur: hud.fur,
-    stone: hud.stone,
-    branch: hud.branch,
-    rope: hud.rope,
-    adventureBook: hud.adventureBook,
-  };
+  const upgradeCounts = materials;
   const upgradeReady = hasCost(upgradeCost, upgradeCounts);
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
@@ -58,12 +55,12 @@ export function WorkbenchPanel({
     setCounts((prev) => {
       const next = { ...prev };
       for (const r of recipes) {
-        const max = maxCount(r, hud);
+        const max = maxCount(r, materials, hud);
         if ((next[r.id] ?? 1) > max) next[r.id] = max;
       }
       return next;
     });
-  }, [hud.branch, hud.wood, hud.stone, hud.fiber, hud.rope, hud.fur, hud.bed1, hud.bed2, hud.hasFishingrod, hud.hasBow]);
+  }, [hud.slots, hud.hasFishingrod, hud.hasBow]);
 
   return (
     <div
@@ -95,7 +92,7 @@ export function WorkbenchPanel({
             </div>
           )}
           {recipes.map((r) => {
-            const max = maxCount(r, hud);
+            const max = maxCount(r, materials, hud);
             const count = Math.min(counts[r.id] ?? 1, max);
             const ownedTools = toolsOf(hud);
             return (
@@ -174,7 +171,7 @@ export function WorkbenchPanel({
                       Object.fromEntries(
                         Object.entries(upgradeCost).map(([kind, n]) => [
                           kind,
-                          Math.max((n ?? 0) - upgradeCounts[kind as keyof typeof upgradeCounts], 0),
+                          Math.max((n ?? 0) - (upgradeCounts[kind as ResourceKind] ?? 0), 0),
                         ])
                       )
                     )}`
@@ -199,8 +196,8 @@ function toolsOf(hud: HudSnapshot) {
   return hud.toolTiers;
 }
 
-function maxCount(recipe: Recipe, hud: HudSnapshot): number {
-  return maxCraftCount(recipe, hud, toolsOf(hud));
+function maxCount(recipe: Recipe, counts: Partial<Record<ResourceKind, number>>, hud: HudSnapshot): number {
+  return maxCraftCount(recipe, counts, toolsOf(hud));
 }
 
 const overlayStyle: CSSProperties = {

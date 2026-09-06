@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { HudSnapshot } from '@/game/Game';
-import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
+import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
 import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
@@ -218,7 +218,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) => r.station === 'hand' && recipeVisible(r, hud, tools, hud.equipped, hud.slots)
+    (r) => r.station === 'hand' && recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots)
   );
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
