@@ -12,7 +12,7 @@ export const CRATE_CAPACITY = 10;
 /** 各箱种的静态属性:收纳格数与模型配色 */
 const CRATE_STYLES: Record<CrateKind, { capacity: number; body: string; band: string }> = {
   crate: { capacity: 10, body: '#a97b48', band: '#7a5a32' },
-  ironCrate: { capacity: 40, body: '#9aa3ab', band: '#697076' },
+  ironCrate: { capacity: 20, body: '#9aa3ab', band: '#697076' },
 };
 
 /** 按道具种类取收纳格数 */

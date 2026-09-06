@@ -489,8 +489,8 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   ironCrate: {
     kind: 'ironCrate',
     name: '铁箱',
-    icon: '🗃️',
-    description: '铁皮包边的加固收纳箱,能存 40 格物品。',
+    icon: '🧰',
+    description: '铁皮包边的加固收纳箱,能存 20 格物品。',
   },
   baitBarrel: {
     kind: 'baitBarrel',

@@ -138,7 +138,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         }}
       >
         <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>
-          {crateCapacity > CRATE_CAPACITY ? '🗃️ 铁箱' : '📦 木箱'}(点按取回,长按步进)
+          {crateCapacity > CRATE_CAPACITY ? '🧰 铁箱' : '📦 木箱'}(点按取回,长按步进)
         </div>
         {renderGrid(crateSlots, crateCapacity, onTake)}
         <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}>🎒 背包(点按存入,长按步进)</div>
