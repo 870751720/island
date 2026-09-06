@@ -11,6 +11,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   ironIngot: '#c9ccd1',
   smelter: '#7d8288',
   loom: '#8a6239',
+  deadCampfire: '#3a332c',
+  cookingStation: '#5c5f66',
   cloth: '#e8e2d4',
   berry: '#c0392b',
   fiber: '#a4c46a',
@@ -52,6 +54,13 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedCrabMeat: '#e8703a',
   cookedBirdMeat: '#b5722f',
   cookedGameMeat: '#9c4a2f',
+  boiledBerry: '#7a5cb0',
+  boiledSmallFish: '#d9b98a',
+  boiledBigFish: '#c9a06a',
+  boiledGoldenFish: '#e6b422',
+  boiledCrabMeat: '#e07a5a',
+  boiledBirdMeat: '#c4a06a',
+  boiledGameMeat: '#a06a4a',
   arrow: '#a97c50',
   bait: '#c98a7a',
   worm: '#d98a8a',
@@ -831,6 +840,56 @@ function makeWorkbenchDrop(level: number): THREE.Object3D {
   return g;
 }
 
+/** 汤品:陶碗盛着热汤,汤面浮着两小块配料 */
+function makeSoup(color: string, scale = 1): THREE.Object3D {
+  const g = new THREE.Group();
+  const bowl = mesh(new THREE.CylinderGeometry(0.16, 0.11, 0.12, 7), clay('#b5813f'));
+  bowl.position.y = 0.06;
+  const soup = mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 7), clay(color));
+  soup.position.y = 0.125;
+  const chunk = mesh(new THREE.IcosahedronGeometry(0.035, 0), clay('#8a6a4a'));
+  chunk.position.set(0.04, 0.14, 0.03);
+  const chunk2 = chunk.clone();
+  chunk2.position.set(-0.05, 0.14, -0.02);
+  g.add(bowl, soup, chunk, chunk2);
+  g.scale.setScalar(scale);
+  return g;
+}
+
+/** 熄灭的火堆:烧焦的交叉木柴,围着一圈小石头 */
+function makeDeadCampfireDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const charred = clay(DROP_COLORS.deadCampfire);
+  for (let i = 0; i < 2; i++) {
+    const wood = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 5), charred);
+    wood.rotation.set(Math.PI / 2 - 0.4, (i / 2) * Math.PI, 0);
+    wood.position.y = 0.12;
+    g.add(wood);
+  }
+  const stoneMat = clay('#8d8a82');
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const stone = mesh(new THREE.DodecahedronGeometry(0.06, 0), stoneMat);
+    stone.position.set(Math.cos(a) * 0.22, 0.04, Math.sin(a) * 0.22);
+    stone.rotation.set(0.3, a, 0.2);
+    g.add(stone);
+  }
+  return g;
+}
+
+/** 烹饪台:石座上架着一口小铁锅 */
+function makeCookingStationDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const base = mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.12, 7), clay('#8d8a82'));
+  base.position.y = 0.06;
+  const stand = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 4), clay('#5c5f66'));
+  stand.position.y = 0.26;
+  const pot = mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.16, 8), clay(DROP_COLORS.cookingStation));
+  pot.position.y = 0.42;
+  g.add(base, stand, pot);
+  return g;
+}
+
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   branch: makeWood,
   wood: makeLog,
@@ -840,6 +899,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironIngot: makeIronIngot,
   smelter: makeSmelterDrop,
   loom: makeLoomDrop,
+  deadCampfire: makeDeadCampfireDrop,
+  cookingStation: makeCookingStationDrop,
   cloth: makeCloth,
   berry: makeBerry,
   fiber: makeFiber,
@@ -882,6 +943,13 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedCrabMeat: () => makeRoast(DROP_COLORS.cookedCrabMeat),
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   cookedGameMeat: () => makeRoast(DROP_COLORS.cookedGameMeat),
+  boiledBerry: () => makeSoup(DROP_COLORS.boiledBerry, 0.8),
+  boiledSmallFish: () => makeSoup(DROP_COLORS.boiledSmallFish),
+  boiledBigFish: () => makeSoup(DROP_COLORS.boiledBigFish, 1.2),
+  boiledGoldenFish: () => makeSoup(DROP_COLORS.boiledGoldenFish, 1.3),
+  boiledCrabMeat: () => makeSoup(DROP_COLORS.boiledCrabMeat, 0.85),
+  boiledBirdMeat: () => makeSoup(DROP_COLORS.boiledBirdMeat, 0.85),
+  boiledGameMeat: () => makeSoup(DROP_COLORS.boiledGameMeat, 1.1),
   arrow: makeArrows,
   bait: () => {
     // 鱼饵:一小串蜷曲的粉色肉团

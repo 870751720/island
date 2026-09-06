@@ -31,6 +31,7 @@ import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { BaitBarrelPanel } from './BaitBarrelPanel';
 import { SmelterPanel } from './SmelterPanel';
+import { CookingStationPanel } from './CookingStationPanel';
 import { LoomPanel } from './LoomPanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
@@ -65,6 +66,7 @@ const INITIAL_HUD: HudSnapshot = {
   nearCrate: false,
   nearBaitBarrel: false,
   nearSmelter: false,
+  nearCookingStation: false,
   nearLoom: false,
   nearBed: false,
   bedSleeping: false,
@@ -73,6 +75,7 @@ const INITIAL_HUD: HudSnapshot = {
   crateCapacity: null,
   baitBarrelInfo: null,
   smelterInfo: null,
+  cookingStationInfo: null,
   loomInfo: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
   tool: 'hand' as const,
@@ -116,10 +119,11 @@ const INITIAL_HUD: HudSnapshot = {
  * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
  * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
  */
-const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'smelter' | 'loom' | 'bed', boolean>> = {
+const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'smelter' | 'cookingStation' | 'loom' | 'bed', boolean>> = {
   crate: true,
   baitBarrel: true,
   smelter: true,
+  cookingStation: true,
   loom: true,
   workbench: true,
   bed: true,
@@ -132,6 +136,7 @@ function hijackerDiggable(
   nearCrate: boolean,
   nearBaitBarrel: boolean,
   nearSmelter: boolean,
+  nearCookingStation: boolean,
   nearLoom: boolean,
   nearBed: boolean
 ): boolean {
@@ -140,6 +145,7 @@ function hijackerDiggable(
   if (nearCrate) return !!HIJACK_DIGGABLE.crate;
   if (nearBaitBarrel) return !!HIJACK_DIGGABLE.baitBarrel;
   if (nearSmelter) return !!HIJACK_DIGGABLE.smelter;
+  if (nearCookingStation) return !!HIJACK_DIGGABLE.cookingStation;
   if (nearLoom) return !!HIJACK_DIGGABLE.loom;
   if (nearBed) return !!HIJACK_DIGGABLE.bed;
   return false;
@@ -169,6 +175,7 @@ export function GameplayUI({
   const [crateOpen, setCrateOpen] = useState(false);
   const [baitBarrelOpen, setBaitBarrelOpen] = useState(false);
   const [smelterOpen, setSmelterOpen] = useState(false);
+  const [cookingStationOpen, setCookingStationOpen] = useState(false);
   const [loomOpen, setLoomOpen] = useState(false);
   const mumbleRef = useRef<HTMLDivElement>(null);
   const dogEmojiRef = useRef<HTMLDivElement>(null);
@@ -237,6 +244,9 @@ export function GameplayUI({
     if (!hud.nearSmelter) setSmelterOpen(false);
   }, [hud.nearSmelter]);
   useEffect(() => {
+    if (!hud.nearCookingStation) setCookingStationOpen(false);
+  }, [hud.nearCookingStation]);
+  useEffect(() => {
     if (!hud.nearLoom) setLoomOpen(false);
   }, [hud.nearLoom]);
   // 死亡后关闭所有弹出的面板
@@ -248,6 +258,7 @@ export function GameplayUI({
       setCrateOpen(false);
       setBaitBarrelOpen(false);
       setSmelterOpen(false);
+      setCookingStationOpen(false);
       setLoomOpen(false);
     }
   }, [hud.dead]);
@@ -344,7 +355,7 @@ export function GameplayUI({
   // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
     hud.tool === 'hoe' &&
-    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearSmelter, hud.nearLoom, hud.nearBed);
+    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearSmelter, hud.nearCookingStation, hud.nearLoom, hud.nearBed);
 
   return (
     <div
@@ -488,6 +499,11 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
+          if (kind === 'cookingStation') {
+            gameRef.current?.useCookingStation();
+            setBackpackOpen(false);
+            return;
+          }
           if (kind === 'loom') {
             gameRef.current?.useLoom();
             setBackpackOpen(false);
@@ -544,6 +560,7 @@ export function GameplayUI({
             hud.nearCrate ||
             hud.nearBaitBarrel ||
             hud.nearSmelter ||
+            hud.nearCookingStation ||
             hud.nearLoom ||
             hud.nearBed) && (
             <ToolButton
@@ -569,6 +586,16 @@ export function GameplayUI({
                 hud.craftId === null &&
                 !digHijack
               }
+              cookingStation={
+                hud.nearCookingStation &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                !hud.nearSmelter &&
+                hud.craftId === null &&
+                !digHijack
+              }
               loom={
                 hud.nearLoom &&
                 !hud.nearWorkbench &&
@@ -576,6 +603,7 @@ export function GameplayUI({
                 !hud.nearCrate &&
                 !hud.nearBaitBarrel &&
                 !hud.nearSmelter &&
+                !hud.nearCookingStation &&
                 hud.craftId === null &&
                 !digHijack
               }
@@ -586,6 +614,7 @@ export function GameplayUI({
                 !hud.nearCrate &&
                 !hud.nearBaitBarrel &&
                 !hud.nearSmelter &&
+                !hud.nearCookingStation &&
                 !hud.nearLoom &&
                 hud.craftId === null &&
                 !hud.bedSleeping &&
@@ -601,6 +630,7 @@ export function GameplayUI({
               onCrate={() => setCrateOpen(true)}
               onBaitBarrel={() => setBaitBarrelOpen(true)}
               onSmelter={() => setSmelterOpen(true)}
+              onCookingStation={() => setCookingStationOpen(true)}
               onLoom={() => setLoomOpen(true)}
               onBed={() => gameRef.current?.sleep()}
             />
@@ -648,6 +678,21 @@ export function GameplayUI({
               onFeed={() => gameRef.current?.smelterFeed()}
               onCollect={() => gameRef.current?.smelterCollect()}
               onClose={() => setSmelterOpen(false)}
+            />
+          )}
+          {cookingStationOpen && hud.nearCookingStation && (
+            <CookingStationPanel
+              hud={hud}
+              onAddFuel={(kind) => gameRef.current?.cookingAddFuel(kind)}
+              onRoast={(kind, count) => {
+                gameRef.current?.cookingRoast(kind, count);
+                setCookingStationOpen(false);
+              }}
+              onBoil={(kind, count) => {
+                gameRef.current?.cookingBoil(kind, count);
+              }}
+              onCollect={() => gameRef.current?.cookingCollect()}
+              onClose={() => setCookingStationOpen(false)}
             />
           )}
           {loomOpen && hud.nearLoom && (

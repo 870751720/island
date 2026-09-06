@@ -10,6 +10,7 @@ import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { WaterPurifierSave } from './WaterPurifierSystem';
 import type { RabbitBurrowSave } from './RabbitBurrowSystem';
 import type { SmelterSave } from './SmelterSystem';
+import type { CookingStationSave } from './CookingStationSystem';
 import type { LoomSave } from './LoomSystem';
 
 const SAVE_KEY = 'island.save.v1';
@@ -86,6 +87,8 @@ export type SaveData = {
   burrows?: RabbitBurrowSave[];
   /** 场上所有冶炼炉(落点与炉内矿石/铁锭,旧档缺省视为无) */
   smelters?: SmelterSave[];
+  /** 场上所有烹饪台(落点与燃料/煮制队列/产出,旧档缺省视为无) */
+  cookingStations?: CookingStationSave[];
   /** 场上所有纺织机(落点与机内绳线/布料,旧档缺省视为无) */
   looms?: LoomSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */

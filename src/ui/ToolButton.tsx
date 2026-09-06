@@ -25,6 +25,7 @@ export function ToolButton({
   crate = false,
   baitBarrel = false,
   smelter = false,
+  cookingStation = false,
   loom = false,
   bed = false,
   arrowCount = 0,
@@ -37,6 +38,7 @@ export function ToolButton({
   onCrate,
   onBaitBarrel,
   onSmelter,
+  onCookingStation,
   onLoom,
   onBed,
 }: {
@@ -52,6 +54,8 @@ export function ToolButton({
   baitBarrel?: boolean;
   /** 是否显示为冶炼炉模式(靠近冶炼炉) */
   smelter?: boolean;
+  /** 是否显示为烹饪台模式(靠近烹饪台,点击打开烤制/煮汤面板) */
+  cookingStation?: boolean;
   /** 是否显示为纺织机模式(靠近纺织机) */
   loom?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
@@ -70,6 +74,7 @@ export function ToolButton({
   onCrate: () => void;
   onBaitBarrel: () => void;
   onSmelter: () => void;
+  onCookingStation: () => void;
   onLoom: () => void;
   onBed: () => void;
 }) {
@@ -87,9 +92,11 @@ export function ToolButton({
                 ? onBaitBarrel()
                 : smelter
                   ? onSmelter()
-                  : loom
-                    ? onLoom()
-                    : bed
+                  : cookingStation
+                    ? onCookingStation()
+                    : loom
+                      ? onLoom()
+                      : bed
                   ? onBed()
                   : onCycle();
       }}
@@ -112,8 +119,10 @@ export function ToolButton({
                 ? 'rgba(151, 124, 74, 0.9)'
                 : smelter
                   ? 'rgba(125, 130, 136, 0.9)'
-                  : loom
-                    ? 'rgba(181, 166, 66, 0.9)'
+                  : cookingStation
+                    ? 'rgba(196, 118, 74, 0.9)'
+                    : loom
+                      ? 'rgba(181, 166, 66, 0.9)'
                     : bed
                   ? 'rgba(106, 110, 160, 0.9)'
                   : 'rgba(90, 110, 140, 0.8)',
@@ -122,18 +131,19 @@ export function ToolButton({
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire || crate || baitBarrel || smelter || loom || bed
+          pulse || workbench || campfire || crate || baitBarrel || smelter || cookingStation || loom || bed
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
         ...fadeStyle(dimmed),
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : smelter ? '🏭' : loom ? '🪡' : bed ? '🛏️' : TOOL_ICONS[tool]}
+      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : smelter ? '🏭' : cookingStation ? '🍳' : loom ? '🪡' : bed ? '🛏️' : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&
         !baitBarrel &&
         !smelter &&
+        !cookingStation &&
         !loom &&
         !bed &&
         (tool === 'bow' ||

@@ -29,6 +29,7 @@ import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSyste
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
+import { CookingStationSystem, type CookingStationInfo } from './systems/CookingStationSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
 import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
@@ -130,6 +131,10 @@ export type HudSnapshot = {
   baitBarrelInfo: BaitBarrelInfo | null;
   /** 身旁冶炼炉的状态(炉内矿石/铁锭与冶炼进度,不在炉旁为 null) */
   smelterInfo: SmelterInfo | null;
+  /** 玩家在烹饪台旁(工具按钮变为烹饪台,点击打开烤制/煮汤面板) */
+  nearCookingStation: boolean;
+  /** 身旁烹饪台的状态(燃料/煮制队列/存放的汤品,不在台旁为 null) */
+  cookingStationInfo: CookingStationInfo | null;
   /** 身旁纺织机的状态(机内绳线/布料与织布进度,不在机旁为 null) */
   loomInfo: LoomInfo | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
@@ -231,6 +236,7 @@ type InteractionKind =
   | 'waterPurifiers'
   | 'burrows'
   | 'smelters'
+  | 'cookingStations'
   | 'looms'
   | 'fences'
   | 'beds'
@@ -332,6 +338,7 @@ export class Game {
   private waterPurifiers: WaterPurifierSystem;
   private burrows: RabbitBurrowSystem;
   private smelters: SmelterSystem;
+  private cookingStations: CookingStationSystem;
   private looms: LoomSystem;
   private fences: FenceSystem;
   private beds: BedSystem;
@@ -687,6 +694,17 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'smelters')
     );
+    this.cookingStations = new CookingStationSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 收取汤品/挖回烹饪台与锅里食材入包,背包放不下的部分掉到玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'cookingStations')
+    );
     this.looms = new LoomSystem(
       this.scene,
       this.terrain,
@@ -869,6 +887,7 @@ export class Game {
           this.waterPurifiers.updateActor(s, delta);
           this.burrows.updateActor(s, delta);
           this.smelters.updateActor(s, delta);
+          this.cookingStations.updateActor(s, delta);
           this.looms.updateActor(s, delta);
           this.fences.updateActor(s, delta);
           this.beds.updateActor(s, delta);
@@ -897,6 +916,7 @@ export class Game {
         this.waterPurifiers.update(delta, elapsed);
         this.burrows.update(delta, !this.guestMode);
     this.smelters.update(delta, elapsed, !this.guestMode);
+    this.cookingStations.update(delta, elapsed, !this.guestMode);
     this.looms.update(delta, elapsed, !this.guestMode);
         this.drops.update(delta, elapsed);
         this.mumbles.update(delta, {
@@ -1131,6 +1151,7 @@ export class Game {
       baitBarrels: this.baitBarrels.snapshot(),
       waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
+      cookingStations: this.cookingStations.snapshot(),
       looms: this.looms.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
@@ -1157,6 +1178,7 @@ export class Game {
     this.waterPurifiers.setChangeSink(send('waterPurifiers'));
     this.burrows.setChangeSink(send('burrows'));
     this.smelters.setChangeSink(send('smelters'));
+    this.cookingStations.setChangeSink(send('cookingStations'));
     this.looms.setChangeSink(send('looms'));
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
     this.beds.setChangeSink(send('beds'));
@@ -1448,6 +1470,9 @@ export class Game {
     if (state.smelters) {
       this.smelters.netApply(state.smelters);
     }
+    if (state.cookingStations) {
+      this.cookingStations.netApply(state.cookingStations);
+    }
     if (state.looms) {
       this.looms.netApply(state.looms);
     }
@@ -1611,6 +1636,7 @@ export class Game {
     if (save.waterPurifiers) this.waterPurifiers.restore(save.waterPurifiers);
     if (save.burrows) this.burrows.restore(save.burrows);
     if (save.smelters) this.smelters.restore(save.smelters);
+    if (save.cookingStations) this.cookingStations.restore(save.cookingStations);
     if (save.looms) this.looms.restore(save.looms);
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
@@ -1682,6 +1708,7 @@ export class Game {
       baitBarrels: this.baitBarrels.snapshot(),
       waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
+      cookingStations: this.cookingStations.snapshot(),
       looms: this.looms.snapshot(),
       fences: this.fences.snapshotFences(),
       fenceGates: this.fences.snapshotGates(),
@@ -2242,6 +2269,7 @@ export class Game {
         this.dayNight.endSleep();
         this.props.advance(skipped);
         this.campfire.passTime(skipped, performance.now() / 1000);
+        this.cookingStations.passTime(skipped);
         s.hunger -= stats.cost;
         s.thirst -= stats.cost;
         s.health = Math.min(100, s.health + stats.heal);
@@ -2601,6 +2629,63 @@ export class Game {
     return this.campfire.addFuel(actor, kind) > 0;
   }
 
+  /** 背包里点击「使用」烹饪台:校验通过后在玩家脚下原地放下(未点燃,需添柴),不满足时给出提示 */
+  useCookingStation(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useCookingStation', []);
+
+    if (this.asleepFor(actor) || !this.cookingStations.use(actor)) {
+      this.notify('这里放不下,找个没东西的干地试试', actor);
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
+  /** 向身旁烹饪台添加 1 个可燃物,返回是否成功 */
+  cookingAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('cookingAddFuel', [kind]);
+
+    if (this.asleepFor(actor)) return false;
+    return this.cookingStations.addFuel(actor, kind) > 0;
+  }
+
+  /** 在身旁燃烧的烹饪台上发起烤制(可选份数,与火堆相同),返回是否成功开始 */
+  cookingRoast(kind: ResourceKind, count: number, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('cookingRoast', [kind, count]);
+
+    if (this.asleepFor(actor)) return false;
+    return this.cookingStations.startRoast(actor, kind, count);
+  }
+
+  /** 在身旁燃烧的烹饪台上发起煮汤(选一种食材和份数,每 5 秒煮好 1 份存放台上) */
+  cookingBoil(kind: ResourceKind, count: number, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('cookingBoil', [kind, count]);
+
+    if (this.asleepFor(actor)) return false;
+    const result = this.cookingStations.startBoil(actor, kind, count);
+    if (result === 'notLit') this.notify('火还没点着,先添柴引火吧', actor);
+    else if (result === 'busy') this.notify('锅里还在煮别的,等煮完再下锅', actor);
+    else if (result === 'invalid') return false;
+    return result === 'ok';
+  }
+
+  /** 收取身旁烹饪台上煮好的全部汤品,失败时给出提示 */
+  cookingCollect(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('cookingCollect', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (this.cookingStations.collect(actor) <= 0) {
+      this.notify('还没有煮好的汤', actor);
+      return false;
+    }
+    return true;
+  }
+
   /** 在身旁燃烧的火堆上发起烹饪(可选份数,同工作台),返回是否成功开始 */
   campfireCook(kind: ResourceKind, count: number, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
@@ -2742,6 +2827,7 @@ export class Game {
     this.waterPurifiers.detach(session);
     this.burrows.detach(session);
     this.smelters.detach(session);
+    this.cookingStations.detach(session);
     this.looms.detach(session);
     this.fences.detach(session);
     this.beds.detach(session);
@@ -2774,6 +2860,7 @@ export class Game {
     if (exclude !== 'waterPurifiers' && this.waterPurifiers.isDigging(s)) return true;
     if (exclude !== 'burrows' && this.burrows.isDigging(s)) return true;
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
+    if (exclude !== 'cookingStations' && this.cookingStations.isBusy(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
     if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
       return true;
@@ -3030,6 +3117,8 @@ export class Game {
       crateCapacity: this.crates.nearbyCapacity(s),
       baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
       smelterInfo: this.smelters.nearbyInfo(s),
+      nearCookingStation: !!this.cookingStations.nearby(s),
+      cookingStationInfo: this.cookingStations.nearbyInfo(s),
       loomInfo: this.looms.nearbyInfo(s),
       equipped: s.equipment.snapshot(),
       tool: s.player.currentTool,
@@ -3206,6 +3295,14 @@ export class Game {
     } else if (this.smelters.isDigging(session)) {
       label = '挖冶炼炉…';
       progress = this.smelters.getDigProgress(session);
+    } else if (this.cookingStations.isDigging(session)) {
+      label = '挖烹饪台…';
+      progress = this.cookingStations.getDigProgress(session);
+    } else if (this.cookingStations.isRoasting(session)) {
+      const { total, current } = this.cookingStations.roastInfo(session);
+      const food = ITEMS[this.cookingStations.roastingKind(session)!];
+      label = `烤制中:${food.icon} ${food.name} ${current}/${total}`;
+      progress = this.cookingStations.getProgress(session);
     } else if (this.looms.isDigging(session)) {
       label = '挖纺织机…';
       progress = this.looms.getDigProgress(session);

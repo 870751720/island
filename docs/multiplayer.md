@@ -60,6 +60,12 @@
 - `PlayerSession.craftedIds` 记录每名玩家制作过的配方 id:制作在房主权威端 `CraftingSystem` 完成时写入,随 `SessionSave.crafted` 存档(可选字段,旧档缺省为空,版本不变)。
 - 客人端经 HUD 快照新增字段 `craftedIds` 回流,供工作台列表(未制作配方置灰展示)与合成图鉴「已制作」标签使用;离散集合,快照增量整组下发。
 
+### 烹饪台同步(2026-09)
+
+- 新增世界段 `cookingStations`(落点 + `fuel/boilKind/boilQueue/tickLeft/outKind/outCount`)与动作 `useCookingStation/cookingAddFuel/cookingRoast/cookingBoil/cookingCollect`:放置/添柴/烤制/煮汤/收取由客人上行、房主权威结算,台上状态经世界增量回流。
+- 煮制计时(每 5 秒 1 份)与燃料消耗只在房主端结算产出,客人端本地倒数 `tickLeft`、本地递减 `fuel` 仅做表现,快照增量柔和对账(同冶炼炉约定);烤制(玩家站定逐份烤)与火堆烹饪同款,由各端 `updateActor` 表现、房主侧结算入包。
+- 火堆挖掘回收:挖掉熄灭火堆在房主侧结算掉落「熄灭的火堆」道具,入包经 HUD 快照回流。
+
 ### 冶炼炉同步(2026-09)
 
 - 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed/smelterCollect`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。

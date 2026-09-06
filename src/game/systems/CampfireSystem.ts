@@ -55,7 +55,7 @@ type PlayerSessionState = {
  * 火堆系统(世界单实例,按发起者 actor 结算):材料满足且位置可摆放时通过卡片
  * 发起搭建,站定敲打完成后在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,
  * 可反复添柴续命(无上限),燃尽后熄灭留在原地(不能再烹饪,添柴可复燃),
- * 手持锄头可把熄灭的火堆整座挖掉(直接消失)。烹饪在燃烧的火堆上批量进行,
+ * 手持锄头可把熄灭的火堆整座挖掉(变成「熄灭的火堆」道具回收)。烹饪在燃烧的火堆上批量进行,
  * 一次烤完背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
  */
 export class CampfireSystem {
@@ -333,7 +333,7 @@ export class CampfireSystem {
     }
   }
 
-  /** 手持锄头站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(直接消失,无返还) */
+  /** 手持锄头站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(回收为「熄灭的火堆」道具) */
   private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
     const p = actor.player.group.position;
     let target: Campfire | null = null;
@@ -374,6 +374,7 @@ export class CampfireSystem {
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
     target.dispose();
+    this.give('deadCampfire', 1, actor);
     this.audio.play('pickup');
     this.fx.burst(target.group.position, FX_COLOR, 14);
   }

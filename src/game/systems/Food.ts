@@ -48,6 +48,13 @@ export const FOODS: Food[] = [
   { kind: 'cookedCrabMeat', name: '烤蟹肉', icon: '🍤', action: 'eat_fish', fxColor: '#e8703a', hunger: 8, thirst: 1, health: 2 },
   { kind: 'cookedBirdMeat', name: '烤鸟肉', icon: '🍗', action: 'eat_fish', fxColor: '#b5722f', hunger: 8, thirst: 1, health: 2 },
   { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🍖', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
+  { kind: 'boiledBerry', name: '煮浆果', icon: '🫐', action: 'eat_berry', fxColor: '#7a5cb0', hunger: 10, thirst: 6, health: 2 },
+  { kind: 'boiledSmallFish', name: '鲜鱼汤', icon: '🥣', action: 'eat_fish', fxColor: '#d9b98a', hunger: 15, thirst: 20, health: 12 },
+  { kind: 'boiledBigFish', name: '大鱼汤', icon: '🍲', action: 'eat_fish', fxColor: '#c9a06a', hunger: 25, thirst: 40, health: 24 },
+  { kind: 'boiledGoldenFish', name: '黄金鱼汤', icon: '✨', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
+  { kind: 'boiledCrabMeat', name: '煮蟹肉', icon: '🍲', action: 'eat_fish', fxColor: '#e07a5a', hunger: 10, thirst: 5, health: 3 },
+  { kind: 'boiledBirdMeat', name: '鸟肉汤', icon: '🍜', action: 'eat_fish', fxColor: '#c4a06a', hunger: 10, thirst: 5, health: 3 },
+  { kind: 'boiledGameMeat', name: '兽肉汤', icon: '🍲', action: 'eat_fish', fxColor: '#a06a4a', hunger: 15, thirst: 28, health: 24 },
 ];
 
 /** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);熟食与生食兑换相同,大体按获取难度定价:基础采集 2、小鱼/肉 4-6、大鱼 10、兽肉 10、黄金鱼 40 */
@@ -110,6 +117,34 @@ export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {  berry: '
   crabMeat: 'cookedCrabMeat',
   birdMeat: 'cookedBirdMeat',
   gameMeat: 'cookedGameMeat',
+};
+
+/**
+ * 煮制映射:生食在燃烧的烹饪台上煮成汤品(每份 5 秒,一次只能煮一种食材);
+ * 与烤制同源,但汤品口渴恢复更高、饥饿略低。不可煮的食材不在表中。
+ */
+export const BOILABLE: Partial<Record<ResourceKind, ResourceKind>> = {
+  berry: 'boiledBerry',
+  sardine: 'boiledSmallFish',
+  shrimp: 'boiledSmallFish',
+  loach: 'boiledSmallFish',
+  perch: 'boiledSmallFish',
+  puffer: 'boiledSmallFish',
+  cuttlefish: 'boiledSmallFish',
+  anchovy: 'boiledSmallFish',
+  horseMackerel: 'boiledSmallFish',
+  yellowCroaker: 'boiledSmallFish',
+  saury: 'boiledSmallFish',
+  hairtail: 'boiledSmallFish',
+  grouper: 'boiledBigFish',
+  catfish: 'boiledBigFish',
+  grassCarp: 'boiledBigFish',
+  swordfish: 'boiledBigFish',
+  manta: 'boiledBigFish',
+  goldenFish: 'boiledGoldenFish',
+  crabMeat: 'boiledCrabMeat',
+  birdMeat: 'boiledBirdMeat',
+  gameMeat: 'boiledGameMeat',
 };
 
 /** 按背包格子顺序找第一个食物(「背包里最前面的食物」) */
