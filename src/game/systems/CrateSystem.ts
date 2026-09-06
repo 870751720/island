@@ -182,6 +182,7 @@ export class CrateSystem {
     const before = crate.storage.snapshot();
     actor.inventory.remove(kind, n);
     crate.storage.add(kind, n);
+    crate.updateIcon();
     this.emitSlotChanges(crate, before);
     this.audio.play('drop');
     return true;
@@ -194,6 +195,7 @@ export class CrateSystem {
     if (!crate || n <= 0 || !actor.inventory.canFit(kind)) return false;
     const before = crate.storage.snapshot();
     crate.storage.remove(kind, n);
+    crate.updateIcon();
     this.emitSlotChanges(crate, before);
     actor.inventory.add(kind, n);
     return true;
@@ -220,6 +222,7 @@ export class CrateSystem {
     for (const c of list) {
       const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.rotY ?? 0);
       crate.storage.load(c.slots);
+      crate.updateIcon();
       this.ids.set(crate, c.id);
       this.crates.push(crate);
     }
@@ -251,6 +254,7 @@ export class CrateSystem {
         this.crates.push(crate);
       }
       crate.storage.load(value.slots);
+      crate.updateIcon();
     }
   }
 }

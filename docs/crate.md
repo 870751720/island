@@ -17,7 +17,7 @@
 - `src/game/systems/Inventory.ts`:`ResourceKind` 新增 `crate`;木箱复用 `Inventory`(默认 10 格)作为箱内仓储。
 - `src/game/systems/Items.ts`:新增木箱道具定义(📦)。
 - `src/game/systems/Crafting.ts`:新增工作台配方 `crate`(4 树枝,产物 `crate`)。
-- `src/game/entities/Crate.ts`:程序化木箱模型(箱体木板 + 两条封边条),自带 10 格 `Inventory`。
+- `src/game/entities/Crate.ts`:程序化木箱模型(正方形箱体 + 四面对称的横向封边条与四角护柱,任意朝向观感一致),自带 10 格 `Inventory`;四个侧面与顶面会展示箱内第一个格子的道具模型作为内容标识(存/取/恢复/联机同步后由 `updateIcon()` 刷新,空箱不显示)。
 - `src/game/systems/CrateSystem.ts`:
   - 放置:与 `PlantingSystem` 同一心智——手持木箱、不在水里/水边、脚下与周围 1 格内无资源点、与其他木箱距离 ≥0.8,站定 2 秒完成放置,播放敲击音效与木屑特效,头顶圆环走进度。
   - 附近检测:与工作台/火堆一致的 2.2 范围,取最近木箱。

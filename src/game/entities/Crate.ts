@@ -1,36 +1,69 @@
 import * as THREE from 'three';
 import { Inventory } from '../systems/Inventory';
+import { makeDropModel } from '../systems/DropModels';
+import type { ResourceKind } from '../systems/Inventory';
 
 export const CRATE_CAPACITY = 10;
+
+const BODY_HALF = 0.33; // 箱体半宽(X/Z)
+const BODY_H = 0.5; // 箱体高
+const ICON_SCALE = 0.45; // 面上标识模型的缩放
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
 
-/** 程序化拼装的木箱模型:箱体木板 + 顶部两条封边条 */
+/** 程序化拼装的木箱模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
 function makeCrateMesh(): THREE.Group {
   const g = new THREE.Group();
   const woodMat = clayMaterial('#a97b48');
   const bandMat = clayMaterial('#7a5a32');
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.5, 0.5), woodMat);
-  body.position.y = 0.25;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, BODY_H, BODY_HALF * 2), woodMat);
+  body.position.y = BODY_H / 2;
   body.castShadow = true;
   g.add(body);
 
-  for (const z of [-0.22, 0.22]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.54, 0.07), bandMat);
-    band.position.set(0, 0.25, z);
-    band.castShadow = true;
-    g.add(band);
+  // 四面各两条横向封边(上下),与四角护柱
+  for (let i = 0; i < 4; i++) {
+    const face = new THREE.Group();
+    face.rotation.y = (i * Math.PI) / 2;
+    for (const y of [0.08, 0.42]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.07), bandMat);
+      band.position.set(0, y, BODY_HALF);
+      band.castShadow = true;
+      face.add(band);
+    }
+    g.add(face);
+  }
+  for (const x of [-BODY_HALF, BODY_HALF]) {
+    for (const z of [-BODY_HALF, BODY_HALF]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.08), bandMat);
+      post.position.set(x, BODY_H / 2, z);
+      post.castShadow = true;
+      g.add(post);
+    }
   }
   return g;
 }
 
-/** 场景中的木箱摆件:自带 10 格收纳空间,靠近可存取物品 */
+/** 在指定朝向的面上挂一个小型道具模型作为内容标识 */
+function makeFaceIcon(kind: ResourceKind, rotY: number, y: number, offset: number): THREE.Group {
+  const holder = new THREE.Group();
+  holder.rotation.y = rotY;
+  const icon = makeDropModel(kind);
+  icon.scale.setScalar(ICON_SCALE);
+  icon.position.set(0, y, offset);
+  holder.add(icon);
+  return holder;
+}
+
+/** 场景中的木箱摆件:自带 10 格收纳空间,靠近可存取物品;四个侧面与顶面展示第一个格子的道具模型 */
 export class Crate {
   readonly group: THREE.Group;
   readonly storage: Inventory;
+  private iconLayer = new THREE.Group();
+  private iconKind: ResourceKind | null = null;
 
   constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
@@ -39,6 +72,27 @@ export class Crate {
     this.group.rotation.y = rotY;
     scene.add(this.group);
     this.group.add(makeCrateMesh());
+    this.group.add(this.iconLayer);
     this.storage = new Inventory();
+  }
+
+  /** 按当前箱内第一个格子刷新各面上的内容标识(无物品时清空) */
+  updateIcon(): void {
+    const kind = this.storage.snapshot().find((slot) => slot)?.kind ?? null;
+    if (kind === this.iconKind) return;
+    this.iconKind = kind;
+    this.group.remove(this.iconLayer);
+    this.iconLayer = new THREE.Group();
+    if (kind) {
+      const faceOffset = BODY_HALF + 0.06;
+      for (let i = 0; i < 4; i++) {
+        this.iconLayer.add(makeFaceIcon(kind, (i * Math.PI) / 2, BODY_H / 2, faceOffset));
+      }
+      const topIcon = makeDropModel(kind);
+      topIcon.scale.setScalar(ICON_SCALE);
+      topIcon.position.y = BODY_H + 0.1;
+      this.iconLayer.add(topIcon);
+    }
+    this.group.add(this.iconLayer);
   }
 }
