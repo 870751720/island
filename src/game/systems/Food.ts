@@ -156,3 +156,21 @@ export function firstFoodIn(slots: readonly InventorySlot[]): Food | undefined {
   }
   return undefined;
 }
+
+/** 进食卡片的弹出阈值:饥饿低于该值才提示(%) */
+export const EAT_PROMPT_HUNGER = 20;
+
+/** 按背包格子顺序找第一个食物及其总持有数(进食卡「吃饱」按钮按数量决定是否出现) */
+export function firstFoodEntryIn(
+  slots: readonly InventorySlot[]
+): { food: Food; count: number } | undefined {
+  for (const slot of slots) {
+    if (!slot) continue;
+    const food = FOODS.find((f) => f.kind === slot.kind);
+    if (food) {
+      const count = slots.reduce((n, s) => (s && s.kind === slot.kind ? n + s.count : n), 0);
+      return { food, count };
+    }
+  }
+  return undefined;
+}

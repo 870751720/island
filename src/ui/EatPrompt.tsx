@@ -1,25 +1,35 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
-import { firstFoodIn } from '@/game/systems/Food';
+import { EAT_PROMPT_HUNGER, firstFoodEntryIn } from '@/game/systems/Food';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
-/** 饥饿低于 50% 且背包有食物时弹出的进食卡片,点击吃背包里最前面的食物(移动中不显示,捡回卡片出现时让位) */
+/** 饥饿低于阈值且背包有食物时弹出的进食卡片:单吃一个,或点「吃饱」连续吃到满(移动中不显示,捡回卡片出现时让位) */
 export function EatPrompt({
   hud,
   onEat,
+  onEatFull,
   suppressed,
 }: {
   hud: HudSnapshot;
   onEat: () => void;
+  onEatFull: () => void;
   suppressed: boolean;
 }) {
-  if (suppressed || hud.eatName !== null || hud.hunger >= 50 || hud.dead || hud.moving) return null;
-  const food = firstFoodIn(hud.slots);
-  if (!food) return null;
+  if (
+    suppressed ||
+    hud.eatName !== null ||
+    hud.hunger >= EAT_PROMPT_HUNGER ||
+    hud.dead ||
+    hud.moving
+  )
+    return null;
+  const entry = firstFoodEntryIn(hud.slots);
+  if (!entry) return null;
   return (
-    <div style={promptWrapStyle(hud)}>
+    <div style={{ ...promptWrapStyle(hud), display: 'flex', gap: 6 }}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();
@@ -27,9 +37,33 @@ export function EatPrompt({
         }}
         style={{ ...promptCardStyle, minWidth: 0, minHeight: 44, padding: '6px 14px' }}
       >
-        <ItemIcon kind={food.kind} size={28} />
-        <span>吃{food.name}</span>
+        <ItemIcon kind={entry.food.kind} size={28} />
+        <span>
+          吃{entry.food.name}
+          <span style={{ color: '#4caf50' }}>(+{entry.food.hunger})</span>
+        </span>
       </button>
+      {entry.count > 1 && (
+        <button
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onEatFull();
+          }}
+          style={fullButtonStyle}
+        >
+          吃饱
+        </button>
+      )}
     </div>
   );
 }
+
+const fullButtonStyle: CSSProperties = {
+  ...promptCardStyle,
+  minWidth: 0,
+  minHeight: 44,
+  padding: '6px 10px',
+  fontSize: 14,
+  background: '#4caf50',
+  color: '#fff',
+};

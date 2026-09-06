@@ -44,7 +44,7 @@ import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
-import { firstFoodIn } from '@/game/systems/Food';
+import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 
 const INITIAL_HUD: HudSnapshot = {
@@ -711,10 +711,10 @@ export function GameplayUI({
             const eatActive =
               !dropActive &&
               hud.eatName === null &&
-              hud.hunger < 50 &&
+              hud.hunger < EAT_PROMPT_HUNGER &&
               !hud.dead &&
               !hud.moving &&
-              !!firstFoodIn(hud.slots);
+              !!firstFoodEntryIn(hud.slots);
             return (
               <>
                 <CraftPrompt
@@ -727,6 +727,7 @@ export function GameplayUI({
                 <EatPrompt
                   hud={hud}
                   onEat={() => gameRef.current?.eatFood()}
+                  onEatFull={() => gameRef.current?.eatUntilFull()}
                   suppressed={dropActive}
                 />
                 {!backpackOpen && (

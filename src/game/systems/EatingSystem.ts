@@ -13,6 +13,8 @@ export class EatingSystem {
   private food: Food | null = null;
   private timer = 0;
   private tickTimer = 0;
+  /** 「吃饱」模式:吃完一份后饥饿未满且还有存货则自动继续 */
+  private untilFull = false;
 
   constructor(
     private player: Player,
@@ -27,6 +29,14 @@ export class EatingSystem {
     this.food = food;
     this.timer = 0;
     this.tickTimer = 0;
+    this.untilFull = false;
+    return true;
+  }
+
+  /** 连续吃同一食物直到饥饿满或吃完(吃饱按钮) */
+  startFull(food: Food): boolean {
+    if (!this.start(food)) return false;
+    this.untilFull = true;
     return true;
   }
 
@@ -37,6 +47,7 @@ export class EatingSystem {
       // 中断进食时切断仍在播的咀嚼声
       this.audio.stop('munch');
       this.food = null;
+      this.untilFull = false;
       this.player.releaseAction(food.action);
       return;
     }
@@ -52,12 +63,18 @@ export class EatingSystem {
       this.fx.burst(p, food.fxColor, 3);
     }
     if (this.timer >= EAT_TIME) {
-      this.food = null;
       this.player.releaseAction(food.action);
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
         this.audio.play('eatFinish');
       }
+      if (this.untilFull && this.survival.state.hunger < 100 && this.inventory.count(food.kind) > 0) {
+        this.timer = 0;
+        this.tickTimer = 0;
+        return;
+      }
+      this.food = null;
+      this.untilFull = false;
     }
   }
 

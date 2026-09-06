@@ -17,6 +17,7 @@ export const ACTIONS: Record<string, NetAction> = {
     return true;
   },
   eatFood: (g, a, [kind]) => g.eatFood(kind as ResourceKind | undefined, a),
+  eatUntilFull: (g, a, [kind]) => g.eatUntilFull(kind as ResourceKind | undefined, a),
   startFishing: (g, a) => g.startFishing(a),
   hookFish: (g, a) => g.hookFish(a),
   claimTreasure: (g, a) => g.claimTreasure(a),

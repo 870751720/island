@@ -2001,19 +2001,33 @@ export class Game {
   eatFood(kind?: ResourceKind, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('eatFood', [kind]);
+    if (this.eatBlocked(actor)) return false;
+    const food = this.foodToEat(kind, actor);
+    return food ? actor.eating.start(food) : false;
+  }
 
-    const a = actor;
-    if (
+  /** 连续吃到满饥饿或吃完(进食卡的「吃饱」按钮) */
+  eatUntilFull(kind?: ResourceKind, actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('eatUntilFull', [kind]);
+    if (this.eatBlocked(actor)) return false;
+    const food = this.foodToEat(kind, actor);
+    return food ? actor.eating.startFull(food) : false;
+  }
+
+  /** 进食前置:任一占双手的行为进行中则不可开吃 */
+  private eatBlocked(a: PlayerSession): boolean {
+    return (
       a.crafting.isWorking ||
       this.workbench.isWorking(a) ||
       a.eating.isWorking ||
       a.fishing.isWorking ||
       this.beds.isBusy(a)
-    ) {
-      return false;
-    }
-    const food = kind ? FOODS.find((f) => f.kind === kind) : firstFoodIn(a.inventory.snapshot());
-    return food ? a.eating.start(food) : false;
+    );
+  }
+
+  /** 找要吃的食物:指定了种类用种类,否则吃背包里最前面的 */
+  private foodToEat(kind: ResourceKind | undefined, a: PlayerSession): Food | undefined {
+    return kind ? FOODS.find((f) => f.kind === kind) : firstFoodIn(a.inventory.snapshot());
   }
 
   /** 发起钓鱼(屏幕中心按钮),返回是否成功开始 */

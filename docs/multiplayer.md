@@ -107,3 +107,7 @@
 - 新增世界段 `burrows`(详见 rabbit-burrow.md):洞实体带稳定 id,增删与挖废(`set state=abandoned`)走世界增量;客人端不本地生成,由欢迎包世界状态与增量补建;废弃洞的重生倒计时仅房主推进、不入网络比较(同资源再生)。
 - 挖洞无客人动作上行:客人的锄头挖掘由房主 `updateActor` 对远程会话统一结算(同海水净化器);藏在洞内的兔子被压死由房主 `Wildlife.killHidden` 权威结算,战利品走掉落物世界段回流。
 - 兔子躲藏是房主 AI 状态:姿态快照 `AnimalPose` 新增 `hidden` 标记,客人端同步隐藏/显示模型并跳过躲藏个体索敌;`NET_PROTOCOL_VERSION` 19→20。
+
+### 进食「吃饱」按钮(2026-09)
+
+- 新增动作 `eatUntilFull`(参数同 `eatFood`):客人上行,房主以该客人会话权威结算;连续进食(吃完一份饥饿未满且还有存货则自动吃下一份)在 `EatingSystem.startFull` 内推进,客人端经 `eatName/eatProgress` 快照表现,无需新增字段或事件。
