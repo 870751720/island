@@ -129,7 +129,7 @@ export class Equipment {
   /** 直接消耗身上穿戴的某件装备(制作高一级装备时低级件作为材料),不回到背包 */
   consumeWorn(kind: EquipKind): boolean {
     const def = EQUIPMENT[kind];
-    if (this.equipped[def.slot] !== kind) return false;
+    if (!def || this.equipped[def.slot] !== kind) return false;
     delete this.equipped[def.slot];
     this.onChange?.(def.slot, null);
     return true;

@@ -588,12 +588,15 @@ export function craft(
   } else if (!canCraft(recipe, inventory, equipment)) {
     return false;
   }
+  // 先扣背包里的材料,穿戴件留到最后消耗:消耗穿戴背包会收缩容量,
+  // 若提前触发会把尚未扣除的其他材料挤出背包导致扣料失败
+  const wornCost: EquipKind[] = [];
   for (const [kind, n] of Object.entries(recipe.cost)) {
-    if (!inventory.remove(kind as ResourceKind, n ?? 0)) {
-      // 背包里不够的部分由身上穿戴的装备补足(材料判定已保证可行)
-      equipment?.consumeWorn(kind as EquipKind);
-    }
+    if (inventory.remove(kind as ResourceKind, n ?? 0)) continue;
+    // 背包里不够的部分由身上穿戴的装备补足(材料判定已保证可行)
+    wornCost.push(kind as EquipKind);
   }
+  for (const kind of wornCost) equipment?.consumeWorn(kind);
   if (recipe.tool) {
     // 工具制作完成即永久拥有(二级工具直接替换基础工具),不进背包
     tools[recipe.tool] = recipe.tier ?? 1;
