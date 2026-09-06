@@ -799,8 +799,7 @@ export class Game {
             s.archery.updateVisuals(delta);
             s.sword.updateVisuals(delta);
           }
-          // 手持鱼竿站在水边是准备钓鱼,自动喝水让位
-          s.water.update(delta, this.isSessionBusy(s, 'water') || s.player.currentTool === 'fishingrod');
+          s.water.update(delta, this.isSessionBusy(s, 'water'));
           this.crates.updateActor(s, delta);
           this.baitBarrels.updateActor(s, delta);
           this.smelters.updateActor(s, delta);
