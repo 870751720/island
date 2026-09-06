@@ -23,7 +23,7 @@ export const GmSystem = {
   /** 玩家移动速度倍率(赶路调试用,1 为正常) */
   speedMultiplier: 1,
   /** 喝水触发鳄鱼袭击的概率(0~1,特殊事件调试用) */
-  crocodileChance: 0.02,
+  crocodileChance: 0.005,
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
