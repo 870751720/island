@@ -198,6 +198,8 @@ export type MapSnapshot = {
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)
+const SWORD_AUTO_EQUIP_DELAY = 1.5; // 持续移动且动物近身多久后自动切换到剑(秒)
+const SWORD_AUTO_EQUIP_RANGE = 3; // 动物近身判定范围(米)
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
 /** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
@@ -376,6 +378,7 @@ export class Game {
   private netIndicatorVelocity = 0;
   private netIndicatorAt = 0;
   private autoEquipTimer = 0;
+  private swordEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
   private hostRef: NetHost | null;
@@ -911,6 +914,7 @@ export class Game {
           this.netDrift.multiplyScalar(1 - k);
         }
         this.updateAutoEquip(delta);
+        this.updateSwordAutoEquip(delta);
       },
     });
 
@@ -1827,6 +1831,26 @@ export class Game {
       this.autoEquipTimer = 0;
       // 客人端走 selectTool:本地先切做预测表现,并上行 tool 动作由房主权威结算
       this.selectTool(need);
+    }
+  }
+
+  /** 持续移动且动物近身时自动切剑:有剑、在移动、手上不是弓箭,动物 3 米内持续 1.5 秒后切换 */
+  private updateSwordAutoEquip(delta: number): void {
+    const should =
+      this.tools.sword &&
+      this.player.isMoving &&
+      this.player.currentTool !== 'bow' &&
+      this.player.currentTool !== 'sword' &&
+      !this.survival.state.dead &&
+      this.wildlife.nearestAlive(this.player.group.position, SWORD_AUTO_EQUIP_RANGE) !== null;
+    if (!should) {
+      this.swordEquipTimer = 0;
+      return;
+    }
+    this.swordEquipTimer += delta;
+    if (this.swordEquipTimer >= SWORD_AUTO_EQUIP_DELAY) {
+      this.swordEquipTimer = 0;
+      this.selectTool('sword');
     }
   }
 
