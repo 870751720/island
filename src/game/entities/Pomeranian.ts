@@ -16,6 +16,12 @@ const TROT_SPEED = 2.4;
 const RUN_SPEED = 4.6;
 /** 干地余量:地面高出当地水面(海/水洼)这么多才算可站立的干沙 */
 const LAND_MARGIN = 0.05;
+/** 狗刨速度:比玩家泳速略慢,免得一路冲到玩家前面 */
+const SWIM_SPEED = 2.2;
+/** 水深超过该值后改为狗刨浮游,更浅则照常涉水走过 */
+const SWIM_DEPTH = 0.3;
+/** 狗刨时模型原点(爪尖基准)沉到水面以下这么深,身体半浸、头露出水面 */
+const SWIM_FLOAT = 0.12;
 
 /** 表情气泡持续秒数 */
 const EMOJI_TIME = 2.6;
@@ -178,6 +184,8 @@ export class Pomeranian {
   private orbitFlipCd = 0;
   /** 上次绕障用过的偏航角(±45°/±90°):优先沿用,走出平滑的绕行弧线而不是锯齿 */
   private lastDetour = 0;
+  /** 当前是否在狗刨:由所在点水深决定,深水漂浮划水,浅水照常走 */
+  private swimming = false;
 
   constructor(
     scene: THREE.Scene,
@@ -212,6 +220,17 @@ export class Pomeranian {
   private walkable(x: number, z: number): boolean {
     if (this.isBlocked(x, z)) return false;
     return this.terrain.getHeight(x, z) > this.terrain.getWaterLevel(x, z) + LAND_MARGIN;
+  }
+
+  /** 某点水深(水面高出地面的距离) */
+  private waterDepth(x: number, z: number): number {
+    return this.terrain.getWaterLevel(x, z) - this.terrain.getHeight(x, z);
+  }
+
+  /** 移动落点高度:深水贴水漂浮,浅水/干地贴地 */
+  private stepY(x: number, z: number): number {
+    const waterY = this.terrain.getWaterLevel(x, z);
+    return this.waterDepth(x, z) > SWIM_DEPTH ? waterY - SWIM_FLOAT : this.terrain.getHeight(x, z);
   }
 
   /** 在 anchor 附近找一块干地落脚 */
@@ -282,13 +301,14 @@ export class Pomeranian {
     for (const a of options) {
       const nx = this.pos.x + Math.cos(a) * speed * delta;
       const nz = this.pos.z + Math.sin(a) * speed * delta;
-      if (!this.walkable(nx, nz)) continue;
+      // 深水里围栏挡不住(与玩家游泳一致);干地上仍要避开静态阻挡
+      if (this.isBlocked(nx, nz) && this.waterDepth(nx, nz) <= SWIM_DEPTH) continue;
       this.heading = a;
       this.lastDetour = a === angle ? 0 : a - angle;
-      this.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
+      this.pos.set(nx, this.stepY(nx, nz), nz);
       return true;
     }
-    // 四周都走不通(被围栏圈住或目标在水里):留在原地面向目标
+    // 四周都走不通(被围栏圈住):留在原地面向目标
     this.heading = angle;
     return false;
   }
@@ -392,15 +412,21 @@ export class Pomeranian {
         }
         this.waitingForReturn = false;
         this.wasFollowing = false;
-      } else if (this.player.isSwimming) {
-        // 2) 玩家下水游泳:狗不进水,原地趴坐在岸边面向玩家等待,
-        //    不再沿着水线来回蹭(直路不通时切线方向反复切换造成的抖动)
+      } else if (this.player.isSwimming || this.swimming) {
+        // 2) 玩家下水或自己泡在水里:狗刨着一路跟过去,贴着玩家一起漂;
+        //    上了岸水浅后自然切回走路
         this.wake();
         this.wasFollowing = false;
         if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
-        this.play = 'sit';
-        this.playLeft = 0.5;
-        this.heading = Math.atan2(p.z - this.pos.z, p.x - this.pos.x);
+        if (this.waitingForReturn && playerDist <= FOLLOW_RANGE) {
+          this.waitingForReturn = false;
+          this.showEmoji('🥰');
+        }
+        if (playerDist > FOLLOW_RANGE) {
+          moving = this.stepTo(p, SWIM_SPEED, delta);
+        } else {
+          this.heading = Math.atan2(p.z - this.pos.z, p.x - this.pos.x);
+        }
       } else if (playerDist > FOLLOW_RANGE) {
         // 3) 玩家走远:跟上去
         this.wake();
@@ -474,7 +500,10 @@ export class Pomeranian {
   /** 应用位置与朝向,跑动摆腿、摇尾巴、刨坑扑土、睡觉趴下与咀嚼点头 */
   private animate(delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = this.model.group;
-    g.position.set(this.pos.x, this.pos.y, this.pos.z);
+    // 狗刨状态由所在点水深决定(房主/客人端各自判定,表现一致)
+    this.swimming = this.waterDepth(this.pos.x, this.pos.z) > SWIM_DEPTH;
+    const bob = this.swimming ? Math.sin(elapsed * 2.2) * 0.02 : 0;
+    g.position.set(this.pos.x, this.pos.y + bob, this.pos.z);
     // 朝向沿最短弧平滑过渡:绕障换向/坐下转向时不再瞬间甩转
     const diff = Math.atan2(
       Math.sin(this.heading - this.viewHeading),
@@ -483,16 +512,23 @@ export class Pomeranian {
     this.viewHeading += diff * Math.min(1, delta * 10);
     g.rotation.y = -this.viewHeading + Math.PI / 2;
 
-    // 睡姿平滑过渡
-    const target = this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
+    // 睡姿平滑过渡(水里不会趴下)
+    const target = !this.swimming && this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
     this.sleepBlend += (target - this.sleepBlend) * Math.min(1, delta * 3);
     const lie = this.sleepBlend;
     const up = 1 - lie;
 
-    const digging = this.play === 'dig' && this.eatLeft <= 0;
+    const digging = !this.swimming && this.play === 'dig' && this.eatLeft <= 0;
     const speed = moving ? (excited ? 16 : 10) : 0;
     this.model.legs.forEach((leg, i) => {
-      let swing = moving ? Math.sin(elapsed * speed + i * Math.PI * 0.5) * 0.7 : 0;
+      let swing: number;
+      if (this.swimming) {
+        // 狗刨:四条腿在水面下交替扒水
+        swing = Math.sin(elapsed * 13 + i * Math.PI * 0.5) * 0.55;
+        leg.rotation.x = swing;
+        return;
+      }
+      swing = moving ? Math.sin(elapsed * speed + i * Math.PI * 0.5) * 0.7 : 0;
       if (digging && i < 2) {
         // 刨坑:两条前腿飞快交替扒土
         swing = Math.sin(elapsed * 18 + i * Math.PI) * 0.65;
@@ -502,25 +538,28 @@ export class Pomeranian {
     });
 
     // 尾巴:睡觉时慢悠悠地摇,其余永远在摇,兴奋/追尾巴时摇成残影
-    const wag =
-      lie > 0.5
+    const wag = this.swimming
+      ? Math.sin(elapsed * 6) * 0.3
+      : lie > 0.5
         ? Math.sin(elapsed * 3) * 0.12
         : this.play === 'spin' || this.happyLeft > 0
           ? Math.sin(elapsed * 26) * 0.9
           : Math.sin(elapsed * (excited ? 18 : 9)) * (excited ? 0.6 : 0.4);
     this.model.tail.rotation.y = wag;
 
-    // 头部:进食低头,刨坑凑近地面闻,睡觉把头搁在爪子上,平时随呼吸轻点
+    // 头部:进食低头,刨坑凑近地面闻,睡觉把头搁在爪子上,狗刨时抬起下巴露出水面,平时随呼吸轻点
     const eating = this.eatLeft > 0;
-    const nod = eating
-      ? 0.7 + Math.sin(elapsed * 12) * 0.12
-      : digging
-        ? 0.5
-        : Math.sin(elapsed * 2.2) * 0.04 * up + lie * (0.32 + Math.sin(elapsed * 1.6) * 0.02);
+    const nod = this.swimming
+      ? -0.2 + Math.sin(elapsed * 2.5) * 0.06
+      : eating
+        ? 0.7 + Math.sin(elapsed * 12) * 0.12
+        : digging
+          ? 0.5
+          : Math.sin(elapsed * 2.2) * 0.04 * up + lie * (0.32 + Math.sin(elapsed * 1.6) * 0.02);
     this.model.head.rotation.x = nod;
 
-    // 跑动时轻微起伏;趴下时身体和头都沉下来
-    const bounce = moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
+    // 跑动时轻微起伏;狗刨时随浪轻晃;趴下时身体和头都沉下来
+    const bounce = this.swimming ? bob : moving ? Math.abs(Math.sin(elapsed * speed)) * 0.02 : 0;
     this.model.body.position.y = 0.21 - lie * 0.06 + bounce;
     this.model.head.position.y = 0.39 - lie * 0.13 + bounce;
   }
