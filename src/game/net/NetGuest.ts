@@ -60,6 +60,7 @@ export class NetGuest {
   onStarted: () => void = () => {};
   onClosed: () => void = () => {};
   onRejected: (reason: string) => void = () => {};
+  onConnectionStatus: (status: string) => void = () => {};
   /** 由 Game(guest 模式)注册的数据应用回调 */
   onPlayers: (msg: Extract<NetMsg, { t: 'players' }>) => void = () => {};
   onAnimals: (list: AnimalPose[]) => void = () => {};
@@ -73,22 +74,34 @@ export class NetGuest {
 
   /** 输入五位数字房间码，信令服务会自动完成 WebRTC 握手。 */
   async join(code: string, name: string): Promise<void> {
+    this.dispose();
+    this.disposed = false;
+    this.pending = [];
+    this.welcome = null;
+    this.ready = false;
     const signal = new GuestSignal();
     const net = new PeerNet('guest', (data) => signal.send(data));
     this.signal = signal;
     this.net = net;
-    net.onMessage = (raw) => this.onMessage(raw as NetMsg);
+    net.onMessage = (raw) => {
+      if (this.net === net && !this.disposed) this.onMessage(raw as NetMsg);
+    };
     net.onOpen = () => {
+      if (this.net !== net || this.disposed) return;
+      this.onConnectionStatus('连接成功，等待房主开始游戏');
       signal.close();
       this.signal = null;
     };
     net.onClose = () => {
-      this.stopInput();
-      if (!this.disposed) this.onClosed();
+      if (this.net !== net || this.disposed) return;
+      this.dispose();
+      this.onClosed();
     };
-    signal.onSignal = (data) => void net.receiveSignal(data).catch(() => this.onClosed());
+    signal.onSignal = (data) => {
+      if (this.net === net && !this.disposed) void net.receiveSignal(data).catch(() => net.onClose());
+    };
     signal.onClose = () => {
-      if (!this.disposed && !net.connected) this.onClosed();
+      if (!net.connected) net.onClose();
     };
     let resumeToken: string | undefined;
     try {
@@ -96,7 +109,16 @@ export class NetGuest {
     } catch {}
     net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
     saveLastRoom(code, name);
-    await signal.connect(normalizeRoomCode(code));
+    try {
+      await signal.connect(normalizeRoomCode(code));
+      if (this.net === net && !this.disposed && !net.connected) {
+        this.onConnectionStatus('已找到房间，正在连接房主（最多等待 30 秒）…');
+      }
+    } catch (error) {
+      if (this.net !== net || this.disposed) return;
+      this.dispose();
+      throw error;
+    }
   }
 
   /** 收到 start 后由 Game 调用:开始按频率上行摇杆并应用下行数据 */
@@ -111,6 +133,8 @@ export class NetGuest {
     this.stopInput();
     this.net?.close();
     this.signal?.close();
+    this.net = null;
+    this.signal = null;
   }
 
   private onMessage(msg: NetMsg): void {

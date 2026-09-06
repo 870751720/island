@@ -52,6 +52,11 @@ export function RoomLobby({
   useEffect(() => {
     if (!guest) return;
     guest.onStarted = () => onBegin(guest);
+    guest.onConnectionStatus = setStatus;
+    guest.onClosed = () => {
+      setBusy(false);
+      setStatus('当前网络暂时无法连接房主，可能与运营商网络限制有关。请确认房主在线，或切换 Wi-Fi / 其他网络后重试。');
+    };
     guest.onRejected = (reason) => {
       setBusy(false);
       setStatus(reason);
@@ -85,7 +90,6 @@ export function RoomLobby({
     setStatus('正在连接房间…');
     try {
       await guest.join(roomCode, name.trim());
-      setStatus('连接成功，等待房主开始游戏');
     } catch (error) {
       setBusy(false);
       setStatus(error instanceof Error ? error.message : '房间不存在或连接失败');

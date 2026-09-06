@@ -29,6 +29,7 @@ export class PeerNet {
   private openNotified = false;
   private readonly channelId = allocChannelId();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -38,6 +39,8 @@ export class PeerNet {
     private readonly side: 'host' | 'guest',
     private readonly signal: (signal: PeerSignal) => void,
   ) {
+    // 房主和客人都回收无法完成握手的连接，包括仍停留在 checking 的情况。
+    this.connectTimer = setTimeout(() => this.notifyClosed(), 30_000);
     this.pc.onicecandidate = (event) => {
       if (event.candidate) this.signal({ candidate: event.candidate.toJSON() });
     };
@@ -108,6 +111,7 @@ export class PeerNet {
   private notifyOpenIfReady(): void {
     if (!this.connected || this.openNotified) return;
     this.openNotified = true;
+    if (this.connectTimer) clearTimeout(this.connectTimer);
     this.flushControl();
     this.flushLatestState();
     this.pingTimer = setInterval(() => this.send({ t: 'ping', ts: performance.now() }), PING_INTERVAL);
@@ -192,6 +196,8 @@ export class PeerNet {
   }
 
   close(): void {
+    this.closeNotified = true;
+    if (this.connectTimer) clearTimeout(this.connectTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
     dropRtt(this.channelId);
     this.controlChannel?.close();
@@ -202,6 +208,7 @@ export class PeerNet {
   private notifyClosed(): void {
     if (this.closeNotified) return;
     this.closeNotified = true;
+    if (this.connectTimer) clearTimeout(this.connectTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
     dropRtt(this.channelId);
     this.onClose();

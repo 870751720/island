@@ -120,6 +120,8 @@ export class HostSignal {
 
 export class GuestSignal {
   private client: MqttClient | null = null;
+  private closed = false;
+  private cancelReady: (() => void) | null = null;
   private code = '';
   readonly peer = `${crypto.randomUUID()}-${randomId(6)}`;
   onSignal: (signal: PeerSignal) => void = () => {};
@@ -127,13 +129,21 @@ export class GuestSignal {
 
   async connect(code: string): Promise<void> {
     this.code = code;
-    this.client = await connectBroker('guest');
-    await subscribe(this.client, downlinkTopic(code, this.peer));
+    const client = await connectBroker('guest');
+    if (this.closed) { client.end(true); throw new Error('已取消连接'); }
+    this.client = client;
+    await subscribe(client, downlinkTopic(code, this.peer));
+    if (this.closed) throw new Error('已取消连接');
     let markReady: (() => void) | null = null;
     const ready = new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(() => reject(new Error('房间不存在或房主已离开')), CONNECT_TIMEOUT);
+      this.cancelReady = () => {
+        window.clearTimeout(timer);
+        reject(new Error('已取消连接'));
+      };
       markReady = () => {
         window.clearTimeout(timer);
+        this.cancelReady = null;
         resolve();
       };
     });
@@ -159,6 +169,9 @@ export class GuestSignal {
   }
 
   close(): void {
+    this.closed = true;
+    this.cancelReady?.();
+    this.cancelReady = null;
     this.client?.end(true);
     this.client = null;
   }
