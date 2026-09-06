@@ -21,7 +21,7 @@ import {
   type Recipe,
 } from '@/game/systems/Crafting';
 import { RecipeBook } from './RecipeBook';
-import { costLabel } from './materials';
+import { costLabel, recipeCostLabel } from './materials';
 
 /** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
 export function WorkbenchPanel({
@@ -113,8 +113,8 @@ export function WorkbenchPanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div>{r.name}</div>
                   <div style={{ fontSize: 12, color: '#888' }}>
-                    {costLabel(r.cost)}
-                    {r.output && count > 1 ? ` ×${count}` : ''}
+                        {recipeCostLabel(r)}
+                        {r.output && count > 1 ? ` ×${count}` : ''}
                   </div>
                 </div>
                 {r.output && !isSingleCraft(r) && (

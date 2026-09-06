@@ -13,7 +13,7 @@ import {
 } from '@/game/systems/Crafting';
 import { ITEMS, ITEM_CATEGORIES } from '@/game/systems/Items';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
-import { costLabel } from './materials';
+import { recipeCostLabel } from './materials';
 
 const STATION_NAMES: Record<Recipe['station'], string> = {
   hand: '手搓',
@@ -122,7 +122,7 @@ export function RecipeBook({
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: '#888' }}>
-                    {costLabel(r.cost, ' + ')}
+                    {recipeCostLabel(r, ' + ')}
                   </div>
                   {effectText(r) && (
                     <div style={{ fontSize: 12, color: '#999' }}>{effectText(r)}</div>

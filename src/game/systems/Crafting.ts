@@ -523,6 +523,12 @@ function missingLowerTool(recipe: Recipe, tools: Tools): boolean {
   return !!recipe.tool && (recipe.tier ?? 1) >= 2 && tools[recipe.tool] < (recipe.tier ?? 1) - 1;
 }
 
+/** 二/三级工具的升级前置(视为材料展示):低一级同种工具 ×1,制作后旧工具被替换 */
+export function toolUpgradeFrom(recipe: Recipe): { tool: ToolId; tier: number } | null {
+  if (!recipe.tool || (recipe.tier ?? 1) < 2) return null;
+  return { tool: recipe.tool, tier: (recipe.tier ?? 1) - 1 };
+}
+
 /** 按材料数量表当前最多可制作的个数(工具类为 0 或 1) */
 export function maxCraftCount(
   recipe: Recipe,
