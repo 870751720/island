@@ -212,7 +212,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   gameMeat: {
     kind: 'gameMeat',
     name: '兽肉',
-    icon: '🍖',
+    icon: '🥩',
     description: '猎捕野兽得来的大块兽肉,硬菜的好料。',
   },
   fur: {
@@ -260,7 +260,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   cookedGameMeat: {
     kind: 'cookedGameMeat',
     name: '烤兽肉',
-    icon: '🥩',
+    icon: '🍖',
     description: '烤得焦香的大块兽肉,荒岛盛宴的主菜。',
   },
   arrow: {

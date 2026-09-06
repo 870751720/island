@@ -34,14 +34,14 @@ export const FOODS: Food[] = [
   { kind: 'goldenFish', name: '黄金鱼', icon: '✨', action: 'eat_fish', fxColor: '#e6b422', hunger: 50, thirst: 50, health: 50 },
   { kind: 'crabMeat', name: '蟹肉', icon: '🦀', action: 'eat_fish', fxColor: '#e2793a', hunger: 5, thirst: 2, health: 0 },
   { kind: 'birdMeat', name: '鸟肉', icon: '🐦', action: 'eat_fish', fxColor: '#c98a5a', hunger: 5, thirst: 2, health: 0 },
-  { kind: 'gameMeat', name: '兽肉', icon: '🍖', action: 'eat_fish', fxColor: '#b04a3a', hunger: 10, thirst: 5, health: 0 },
+  { kind: 'gameMeat', name: '兽肉', icon: '🥩', action: 'eat_fish', fxColor: '#b04a3a', hunger: 10, thirst: 5, health: 0 },
   { kind: 'cookedBerry', name: '烤浆果', icon: '🍬', action: 'eat_berry', fxColor: '#a0522d', hunger: 8, thirst: 1, health: 1 },
   { kind: 'cookedSmallFish', name: '烤小鱼', icon: '🍢', action: 'eat_fish', fxColor: '#d99a4e', hunger: 20, thirst: 10, health: 10 },
   { kind: 'cookedBigFish', name: '烤大鱼', icon: '🍡', action: 'eat_fish', fxColor: '#c76b3a', hunger: 40, thirst: 20, health: 20 },
   { kind: 'cookedGoldenFish', name: '烤黄金鱼', icon: '🌟', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
   { kind: 'cookedCrabMeat', name: '烤蟹肉', icon: '🍤', action: 'eat_fish', fxColor: '#e8703a', hunger: 8, thirst: 1, health: 2 },
   { kind: 'cookedBirdMeat', name: '烤鸟肉', icon: '🍗', action: 'eat_fish', fxColor: '#b5722f', hunger: 8, thirst: 1, health: 2 },
-  { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🥩', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
+  { kind: 'cookedGameMeat', name: '烤兽肉', icon: '🍖', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
 ];
 
 /** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);熟食与生食兑换相同,大体按获取难度定价:基础采集 1、小鱼/肉 2-3、大鱼 5、兽肉 5、黄金鱼 20 */
