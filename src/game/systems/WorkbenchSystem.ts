@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hoeHits } from './ToolTiers';
 import type { ResourceKind } from './Inventory';
 import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
 import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
@@ -17,7 +18,6 @@ const FX_COLOR = '#c9a15c';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距工作台小于该值时算在工作范围内
 const DIG_RANGE = 1.6; // 持锄头可开挖工作台的距离
-const DIG_HITS = 2; // 锄头挖工作台的命中次数(二级石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 各等级工作台对应的道具 */
@@ -287,7 +287,7 @@ export class WorkbenchSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#8a6239', 6);
     st.hits += 1;
-    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    if (st.hits < (hoeHits(actor.tools.hoe))) return;
     st.hits = 0;
     st.digTarget = null;
     this.benches.splice(this.benches.indexOf(target), 1);
@@ -301,7 +301,7 @@ export class WorkbenchSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

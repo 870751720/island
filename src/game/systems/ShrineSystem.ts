@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hoeHits } from './ToolTiers';
 import { Shrine, SHRINE_COLORS, type ShrineKind } from '../entities/Shrine';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -12,7 +13,6 @@ import { ActionHold } from './ActionHold';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const SHRINE_BLOCK_RANGE = 1.2; // 与其他神像重叠距离小于该值时无处摆放
 const DIG_RANGE = 1.6; // 持锄头可开挖神像的距离
-const DIG_HITS = 2; // 锄头挖神像的命中次数(二级石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 波塞冬的祝福:每座神像降低的钓鱼杂物概率(百分点) */
 export const SHRINE_JUNK_CUT = 1;
@@ -170,7 +170,7 @@ export class ShrineSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#8d99a6', 6);
     st.hits += 1;
-    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    if (st.hits < (hoeHits(actor.tools.hoe))) return;
     st.hits = 0;
     st.digTarget = null;
     this.shrines.splice(this.shrines.indexOf(target), 1);
@@ -192,7 +192,7 @@ export class ShrineSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

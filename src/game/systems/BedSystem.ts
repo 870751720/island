@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hoeHits } from './ToolTiers';
 import { Bed, BED_MAX_LEVEL } from '../entities/Bed';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -14,7 +15,6 @@ const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const BED_BLOCK_RANGE = 1.1; // 与其他床重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距床小于该值时算在床旁
 const DIG_RANGE = 1.6; // 持锄头可开挖床的距离
-const DIG_HITS = 2; // 锄头挖床的命中次数(二级石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const SLEEP_TIME = 4; // 睡觉过渡时长(秒)
 const SNORE_TICK = 1.2; // 打呼声间隔(秒)
@@ -225,7 +225,7 @@ export class BedSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#c9a15c', 6);
     st.hits += 1;
-    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    if (st.hits < (hoeHits(actor.tools.hoe))) return;
     st.hits = 0;
     st.digTarget = null;
     this.beds.splice(this.beds.indexOf(target), 1);
@@ -239,7 +239,7 @@ export class BedSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hoeHits } from './ToolTiers';
 import { Campfire } from '../entities/Campfire';
 import type { ResourceKind } from './Inventory';
 import { ITEMS } from './Items';
@@ -21,7 +22,6 @@ export const CAMPFIRE_COST = { flint: 1, wood: 2 };
 export const CAMPFIRE_PROMPT_PRIORITY = 5;
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
 const DIG_RANGE = 1.6; // 持锄头可开挖熄灭火堆的距离
-const DIG_HITS = 2; // 锄头挖火堆的命中次数(二级石锄 1 次)
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const COOK_TIME = 1.6; // 每份食物的烹饪时长(秒)
 const COOK_TICK = 0.8; // 烹饪翻动特效间隔(秒)
@@ -367,7 +367,7 @@ export class CampfireSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, FX_COLOR, 6);
     st.hits += 1;
-    if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+    if (st.hits < (hoeHits(actor.tools.hoe))) return;
     st.hits = 0;
     st.digTarget = null;
     this.fires.splice(this.fires.indexOf(target), 1);
@@ -382,7 +382,7 @@ export class CampfireSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

@@ -9,6 +9,7 @@ import {
 } from '../world/TreeSpecies';
 import { Inventory } from './Inventory';
 import type { Tools } from './Crafting';
+import { axeHits, hoeHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -17,7 +18,6 @@ const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
-const DIG_HITS = 2; // 锄头挖丛的命中次数(二级石锄 1 次)
 /** 锄头挖走的丛对应的道具 */
 const DIG_YIELD: Partial<
   Record<'berry' | 'shrub' | 'grass', 'berryBush' | 'shrubBush' | 'grassTuft'>
@@ -79,7 +79,7 @@ const HARVEST_CONFIG: Record<
   },
   rock: {
     action: 'mine',
-    hits: 4,
+    hits: 5,
     fxColor: '#9a9a9a',
     yield: (inv) => {
       inv.add('stone', 2);
@@ -88,7 +88,7 @@ const HARVEST_CONFIG: Record<
   },
   iron: {
     action: 'mine',
-    hits: 4,
+    hits: 5,
     fxColor: '#b0714f',
     yield: (inv) => {
       inv.add('stone', 2);
@@ -98,7 +98,7 @@ const HARVEST_CONFIG: Record<
   },
   meteor: {
     action: 'mine',
-    hits: 4,
+    hits: 5,
     fxColor: '#e8703a',
     yield: (inv) => {
       inv.add('stone', 2);
@@ -143,15 +143,6 @@ const HARVEST_CONFIG: Record<
 
 export type HarvestInfo = { progress: number };
 
-/** 二级斧/镐对应的各资源点命中次数(比基础工具少敲几下) */
-const REFINED_HITS: Partial<Record<HarvestKind, number>> = {
-  tree: 2,
-  stump: 1,
-  rock: 3,
-  iron: 3,
-  meteor: 3,
-};
-
 /** 站定在资源点范围内自动作业:播放动画、逐次命中推进进度,树/石需多次命中;移动即中断 */
 export class CollectSystem {
   private nearby: Prop | null = null;
@@ -188,16 +179,15 @@ export class CollectSystem {
     );
   }
 
-  /** 该资源点需要命中的总次数:二级斧/镐比基础工具少 1 次,二级锄 1 下挖走 */
+  /** 该资源点需要命中的总次数:斧/镐/锄头按当前工具等级查表(ToolTiers) */
   private hitsFor(prop: Prop): number {
     const kind = kindOf(prop);
-    if (this.isDigging(prop)) return this.tools.hoe >= 2 ? 1 : DIG_HITS;
-    if (!REFINED_HITS[kind]) return HARVEST_CONFIG[kind].hits;
-    const refined =
-      kind === 'tree' || kind === 'stump'
-        ? this.tools.axe >= 2
-        : this.tools.pickaxe >= 2;
-    return refined ? REFINED_HITS[kind]! : HARVEST_CONFIG[kind].hits;
+    if (this.isDigging(prop)) return hoeHits(this.tools.hoe);
+    if (kind === 'tree' || kind === 'stump') return axeHits(kind, this.tools.axe);
+    if (kind === 'rock' || kind === 'iron' || kind === 'meteor') {
+      return pickaxeHits(kind, this.tools.pickaxe);
+    }
+    return HARVEST_CONFIG[kind].hits;
   }
 
   /** 扫描范围内可交互的资源点,刷新 nearby(客人端也跑,用于自动切工具等本地判定) */
@@ -268,9 +258,10 @@ export class CollectSystem {
     if (kind === 'tree' || kind === 'stump' || kind === 'sapling') {
       return this.player.currentTool === 'axe';
     }
-    if (prop.kind === 'rock' || prop.kind === 'meteor') return this.player.currentTool === 'pickaxe';
-    // 铁矿岩体更坚硬,只有二级镐(石镐)才敲得动
-    if (prop.kind === 'iron') return this.player.currentTool === 'pickaxe' && this.tools.pickaxe >= 2;
+    // 镐类资源各有解锁等级:岩石任意镐,铁矿要石镐,陨石要铁镐
+    if (prop.kind === 'rock' || prop.kind === 'iron' || prop.kind === 'meteor') {
+      return this.player.currentTool === 'pickaxe' && pickaxeUnlocked(prop.kind, this.tools.pickaxe);
+    }
     // 蚯蚓土坑要用锄头挖
     if (prop.kind === 'worm') return this.player.currentTool === 'hoe';
     return true;

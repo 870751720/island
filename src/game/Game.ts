@@ -15,6 +15,7 @@ import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
+import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
@@ -1784,9 +1785,10 @@ export class Game {
       }
       if (
         (nearby.kind === 'rock' ||
-          nearby.kind === 'meteor' ||
-          // 铁矿只有石镐敲得动,没升级前不自动切换
-          (nearby.kind === 'iron' && this.tools.pickaxe >= 2)) &&
+          nearby.kind === 'iron' ||
+          nearby.kind === 'meteor') &&
+        // 镐类资源各有解锁等级,未解锁前不自动切换
+        pickaxeUnlocked(nearby.kind, this.tools.pickaxe) &&
         this.tools.pickaxe &&
         this.player.currentTool !== 'pickaxe'
       ) {
@@ -3048,13 +3050,19 @@ export class Game {
               : session.tools.pickaxe >= 2
                 ? '需要手持镐子'
                 : '需要石镐'
-            : nearby.kind === 'rock' || nearby.kind === 'meteor'
+            : nearby.kind === 'rock'
               ? switching
                 ? '切换镐子…'
                 : session.tools.pickaxe
                   ? '需要手持镐子'
                   : '需要镐子'
-            : nearby.kind === 'worm'
+              : nearby.kind === 'meteor'
+                ? switching
+                  ? '切换镐子…'
+                  : session.tools.pickaxe >= 3
+                    ? '需要手持镐子'
+                    : '需要铁镐'
+                : nearby.kind === 'worm'
               ? switching
                 ? '切换锄头…'
                 : session.tools.hoe

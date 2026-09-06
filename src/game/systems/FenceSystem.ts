@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hoeHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
 import { Fence, type FenceConnections, type FenceKind } from '../entities/Fence';
 import { FenceGate } from '../entities/FenceGate';
@@ -22,7 +23,6 @@ const GATE_AUTO_RANGE = 1.6;
 /** 持锄头可开挖围栏的距离 */
 const DIG_RANGE = 1.5;
 /** 锄头挖围栏的命中次数(二级锄 1 次) */
-const DIG_HITS = 2;
 const SWING_TIME = 0.6;
 /** 手持围栏站定自动放置的时长(秒) */
 const PLACE_TIME = 2;
@@ -593,7 +593,7 @@ export class FenceSystem implements ObstacleSolver {
       st.swingTimer = 0;
       st.hits += 1;
       this.fx.burst(this.digCenter(target), '#a97b48', 6);
-      if (st.hits < (actor.tools.hoe >= 2 ? 1 : DIG_HITS)) return;
+      if (st.hits < (hoeHits(actor.tools.hoe))) return;
       st.hits = 0;
       st.digTarget = null;
       const center = this.digCenter(target);
@@ -672,7 +672,7 @@ export class FenceSystem implements ObstacleSolver {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = actor.tools.hoe >= 2 ? 1 : DIG_HITS;
+    const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 
