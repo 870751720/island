@@ -61,3 +61,8 @@
 
 - `Game.notify(text, actor)` 增加目标会话参数:房主代客人权威结算产生的临时提示(放置失败、箱/桶/炉/机装不下、背包满、睡觉提示、复活提示、GM 鳄鱼提示等)不再播在房主屏幕,而是通过定向事件 `{ kind: 'notice', target, text }` 广播,客人在 `netApplyEvent` 中按本人 id 过滤后走本地 notice 展示(同 `bottle` 事件的定向模式)。
 - 存档版本不变;提示不进快照,断线重连期间的提示自然丢弃。
+
+### 全局系统提示(2026-09)
+
+- 新增全局事件 `{ kind: 'sysNotice', text }`(`NET_PROTOCOL_VERSION` 升至 18):房主经 `Game.sysNotify` 广播给所有客人并在本地展示,客人在 `netApplyEvent` 直接走本地 notice,无需过滤。
+- 触发点:客人加入(`NetHost.onGuestJoined`,hello 结算时)、客人离开/掉线(`onGuestLeft`,含心跳超时)、任意玩家死亡(房主权威死亡结算沿,复活石免死不触发)。提示文案如「XX 加入了游戏 / 离开了游戏 / XX 倒下了」,所有人(含房主)屏幕可见。

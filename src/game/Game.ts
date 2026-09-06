@@ -856,7 +856,10 @@ export class Game {
             // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
             if (this.guestMode || !this.tryReviveWithStone(s)) {
               s.player.setDead();
-              if (this.hostRef) s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
+              if (this.hostRef) {
+                s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
+                this.sysNotify(`${s.name} 倒下了`);
+              }
               if (s === this.local) {
                 this.audio.play('death');
                 // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
@@ -916,8 +919,11 @@ export class Game {
     });
 
     this.applySave(save);
-    if (this.hostRef) this.bindWorldChangeSinks();
-    if (this.hostRef) this.hostRef.attach(this);
+    if (this.hostRef) {
+      this.bindWorldChangeSinks();
+      this.hostRef.attach(this);
+      this.hookHostNotices(this.hostRef);
+    }
     if (this.guestNet) {
       this.guestNet.onPlayers = (m) => this.netApplyPlayers(m);
       this.guestNet.onInputSent = (seq) => {
@@ -951,6 +957,13 @@ export class Game {
     this.local.setName(loadNickname() || '房主');
     this.bindWorldChangeSinks();
     host.attach(this);
+    this.hookHostNotices(host);
+  }
+
+  /** 房主侧:客人加入/离开时向所有玩家广播全局提示 */
+  private hookHostNotices(host: NetHost): void {
+    host.onGuestJoined = (name) => this.sysNotify(`${name} 加入了游戏`);
+    host.onGuestLeft = (name) => this.sysNotify(`${name} 离开了游戏`);
   }
 
   /** 房主恢复旧联机岛后，按昵称优先认领此前保存的队友角色；excludeIds 为仍在断线保留期内的角色。 */
@@ -1208,6 +1221,11 @@ export class Game {
     // 房主定向发回的临时提示:只播在触发者本人屏幕上
     if (event.kind === 'notice') {
       if (event.target === this.local.id) this.notify(event.text);
+      return;
+    }
+    // 全局系统提示(加入/离开/死亡):所有玩家屏幕都播
+    if (event.kind === 'sysNotice') {
+      this.notify(event.text);
       return;
     }
     if (event.kind === 'collectFx') {
@@ -2292,6 +2310,12 @@ export class Game {
     this.notice = { id: ++this.noticeId, text };
     this.hudTimer = 1; // 跳过节流立即推送
     this.pushHud(0);
+  }
+
+  /** 全局系统提示(加入/离开/死亡):房主广播给所有客人并在本地展示,客人端经 sysNotice 事件触发 */
+  sysNotify(text: string): void {
+    if (this.hostRef) this.hostRef.broadcastEvent({ kind: 'sysNotice', text });
+    this.notify(text);
   }
 
   /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
