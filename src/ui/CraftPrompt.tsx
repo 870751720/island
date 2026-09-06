@@ -7,6 +7,7 @@ import { countsFromSlots } from '@/game/systems/Inventory';
 import {
   RECIPES,
   WORKBENCH_COST,
+  countsWithEquipped,
   WORKBENCH_PROMPT_PRIORITY,
   hasCost,
   recipeIconKind,
@@ -42,7 +43,7 @@ export function CraftPrompt({
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting) return null;
   const ownedTools = hud.toolTiers;
-  const counts = countsFromSlots(hud.slots);
+  const counts = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const cards: PromptCard[] = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&

@@ -1,5 +1,5 @@
 import type { InventorySlot, ResourceKind, Inventory } from './Inventory';
-import { EQUIPMENT, isEquipKind, type EquipKind, type EquipSlot } from './Equipment';
+import { EQUIPMENT, SLOT_ORDER, isEquipKind, type EquipKind, type EquipSlot, type Equipment } from './Equipment';
 import { ITEM_CATEGORIES, itemCategory, type ItemCategory } from './Items';
 
 /** 可拥有的工具 */
@@ -398,7 +398,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furShirt',
     name: '皮衣',
-    cost: { fur: 2, rope: 3 },
+    cost: { grassShirt: 1, fur: 2, rope: 3 },
     station: 'workbench',
     minBenchLevel: 2,
     output: 'furShirt',
@@ -406,7 +406,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furPants',
     name: '皮裤',
-    cost: { fur: 2, rope: 2 },
+    cost: { grassPants: 1, fur: 2, rope: 2 },
     station: 'workbench',
     minBenchLevel: 2,
     output: 'furPants',
@@ -414,7 +414,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furHat',
     name: '皮帽',
-    cost: { fur: 1, rope: 1 },
+    cost: { strawHat: 1, fur: 1, rope: 1 },
     station: 'workbench',
     minBenchLevel: 2,
     output: 'furHat',
@@ -422,7 +422,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'furBackpack',
     name: '皮包',
-    cost: { fur: 4, rope: 4 },
+    cost: { strawBackpack: 1, fur: 4, rope: 4 },
     station: 'workbench',
     minBenchLevel: 2,
     output: 'furBackpack',
@@ -430,7 +430,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'ironShirt',
     name: '铁甲',
-    cost: { ironIngot: 2, rope: 3 },
+    cost: { furShirt: 1, ironIngot: 2, rope: 3 },
     station: 'workbench',
     minBenchLevel: 3,
     output: 'ironShirt',
@@ -438,7 +438,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'ironPants',
     name: '铁裤',
-    cost: { ironIngot: 2, rope: 2 },
+    cost: { furPants: 1, ironIngot: 2, rope: 2 },
     station: 'workbench',
     minBenchLevel: 3,
     output: 'ironPants',
@@ -446,7 +446,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'ironHat',
     name: '铁帽',
-    cost: { ironIngot: 1, rope: 1 },
+    cost: { furHat: 1, ironIngot: 1, rope: 1 },
     station: 'workbench',
     minBenchLevel: 3,
     output: 'ironHat',
@@ -454,7 +454,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'ironBackpack',
     name: '铁包',
-    cost: { ironIngot: 4, rope: 4 },
+    cost: { furBackpack: 1, ironIngot: 4, rope: 4 },
     station: 'workbench',
     minBenchLevel: 3,
     output: 'ironBackpack',
@@ -492,16 +492,35 @@ export function hasCost(cost: Recipe['cost'], counts: Partial<Record<ResourceKin
   );
 }
 
-export function canCraft(recipe: Recipe, inventory: Inventory): boolean {
+/** 各栏位当前穿戴(HUD 快照,未装备为 null) */
+export type EquippedMap = Record<EquipSlot, EquipKind | null>;
+
+/** 材料计数:背包数量叠加身上穿戴的装备(穿戴件在制作时同样作为材料被消耗) */
+export function countsWithEquipped(
+  counts: Partial<Record<ResourceKind, number>>,
+  equipped: EquippedMap
+): Partial<Record<ResourceKind, number>> {
+  const merged = { ...counts };
+  for (const slot of SLOT_ORDER) {
+    const kind = equipped[slot];
+    if (kind) merged[kind] = (merged[kind] ?? 0) + 1;
+  }
+  return merged;
+}
+
+export function canCraft(recipe: Recipe, inventory: Inventory, equipment?: Equipment): boolean {
+  const counts = Object.fromEntries(
+    (Object.keys(recipe.cost) as ResourceKind[]).map((kind) => [kind, inventory.count(kind)])
+  );
   return hasCost(
     recipe.cost,
-    Object.fromEntries(
-      (Object.keys(recipe.cost) as ResourceKind[]).map((kind) => [
-        kind,
-        inventory.count(kind),
-      ])
-    )
+    equipment ? countsWithEquipped(counts, equipment.snapshot()) : counts
   );
+}
+
+/** 二级/三级工具必须先拥有低一级工具(升级制作时直接替换旧工具) */
+function missingLowerTool(recipe: Recipe, tools: Tools): boolean {
+  return !!recipe.tool && (recipe.tier ?? 1) >= 2 && tools[recipe.tool] < (recipe.tier ?? 1) - 1;
 }
 
 /** 按材料数量表当前最多可制作的个数(工具类为 0 或 1) */
@@ -510,18 +529,17 @@ export function maxCraftCount(
   counts: Partial<Record<ResourceKind, number>>,
   tools: Tools
 ): number {
-  // 工具类:已拥有该等级(或更高)则不可再制作
-  if (recipe.tool)
-    return tools[recipe.tool] >= (recipe.tier ?? 1) || !hasCost(recipe.cost, counts) ? 0 : 1;
+  // 工具类:已拥有该等级(或更高)、或还差着低一级工具,都不可制作
+  if (recipe.tool) {
+    if (tools[recipe.tool] >= (recipe.tier ?? 1) || missingLowerTool(recipe, tools)) return 0;
+    return hasCost(recipe.cost, counts) ? 1 : 0;
+  }
   return Object.entries(recipe.cost).reduce(
     (max, [kind, n]) =>
       Math.min(max, Math.floor((counts[kind as ResourceKind] ?? 0) / (n ?? 1))),
     99
   );
 }
-
-/** 各栏位当前穿戴(HUD 快照,未装备为 null) */
-export type EquippedMap = Record<EquipSlot, EquipKind | null>;
 
 /**
  * 配方卡片是否展示:材料足够且工具未拥有;装备类还须比身上穿的与背包里存的同栏位装备都更好
@@ -555,16 +573,20 @@ export function craft(
   inventory: Inventory,
   tools: Tools,
   /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
-  give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n)
+  give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n),
+  /** 穿戴状态:身上穿的低级装备也计为材料并在制作时直接消耗 */
+  equipment?: Equipment
 ): boolean {
-  if (
-    recipe.tool
-      ? tools[recipe.tool] >= (recipe.tier ?? 1)
-      : !canCraft(recipe, inventory)
-  )
+  if (recipe.tool) {
+    if (tools[recipe.tool] >= (recipe.tier ?? 1) || missingLowerTool(recipe, tools)) return false;
+  } else if (!canCraft(recipe, inventory, equipment)) {
     return false;
+  }
   for (const [kind, n] of Object.entries(recipe.cost)) {
-    inventory.remove(kind as ResourceKind, n ?? 0);
+    if (!inventory.remove(kind as ResourceKind, n ?? 0)) {
+      // 背包里不够的部分由身上穿戴的装备补足(材料判定已保证可行)
+      equipment?.consumeWorn(kind as EquipKind);
+    }
   }
   if (recipe.tool) {
     // 工具制作完成即永久拥有(二级工具直接替换基础工具),不进背包

@@ -1,6 +1,7 @@
 import type { Player } from '../entities/Player';
 import { craft, isSingleCraft, type CraftId, type Recipe, type Tools } from './Crafting';
 import type { Inventory, ResourceKind } from './Inventory';
+import type { Equipment, EquipKind } from './Equipment';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -21,6 +22,7 @@ export class CraftingSystem {
     private player: Player,
     private inventory: Inventory,
     private tools: Tools,
+    private equipment: Equipment,
     private fx: Particles,
     private audio: GameAudio,
     /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
@@ -33,12 +35,7 @@ export class CraftingSystem {
 
   start(recipe: Recipe, count = 1): boolean {
     if (isSingleCraft(recipe)) count = 1;
-    if (
-      this.recipe ||
-      (recipe.tool && this.tools[recipe.tool] >= (recipe.tier ?? 1)) ||
-      count < 1 ||
-      !this.canAfford(recipe, count)
-    ) {
+    if (this.recipe || count < 1 || !this.canMake(recipe) || !this.canAfford(recipe, count)) {
       return false;
     }
     this.recipe = recipe;
@@ -49,11 +46,21 @@ export class CraftingSystem {
     return true;
   }
 
-  /** 材料是否够制作指定个数 */
+  /** 工具类是否满足前置:未拥有该等级,且二级/三级需先拥有低一级工具 */
+  private canMake(recipe: Recipe): boolean {
+    if (!recipe.tool) return true;
+    const tier = recipe.tier ?? 1;
+    return this.tools[recipe.tool] < tier && this.tools[recipe.tool] >= tier - 1;
+  }
+
+  /** 材料是否够制作指定个数:背包数量叠加身上穿戴的装备 */
   private canAfford(recipe: Recipe, count: number): boolean {
-    return Object.entries(recipe.cost).every(
-      ([kind, n]) => this.inventory.count(kind as ResourceKind) >= (n ?? 0) * count
-    );
+    const worn = Object.values(this.equipment.snapshot());
+    return Object.entries(recipe.cost).every(([kind, n]) => {
+      let have = this.inventory.count(kind as ResourceKind);
+      if (worn.includes(kind as EquipKind)) have += 1;
+      return have >= (n ?? 0) * count;
+    });
   }
 
   update(delta: number): void {
@@ -79,7 +86,7 @@ export class CraftingSystem {
       this.fx.burst(p, FX_COLOR, 5);
     }
     if (this.timer >= CRAFT_TIME) {
-      craft(recipe, this.inventory, this.tools, this.give);
+      craft(recipe, this.inventory, this.tools, this.give, this.equipment);
       this.craftedIds.add(recipe.id);
       // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
       // 锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖刚做的产物/设施

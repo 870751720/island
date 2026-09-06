@@ -7,6 +7,7 @@ import type { HudSnapshot } from '@/game/Game';
 import { countsFromSlots, type ResourceKind } from '@/game/systems/Inventory';
 import {
   RECIPES,
+  countsWithEquipped,
   hasCost,
   maxCraftCount,
   recipeIconKind,
@@ -15,6 +16,7 @@ import {
   workbenchUpgradeCost,
   isSingleCraft,
   recipeCategoryOrder,
+  toolName,
   type CraftId,
   type Recipe,
 } from '@/game/systems/Crafting';
@@ -33,8 +35,8 @@ export function WorkbenchPanel({
   onUpgrade: () => boolean;
   onClose: () => void;
 }) {
-  // 材料数统一从背包格子快照统计,新增道具无需在 HUD 快照加计数字段
-  const materials = countsFromSlots(hud.slots);
+  // 材料数统一从背包格子快照统计(身上穿戴的装备也计为材料),新增道具无需在 HUD 快照加计数字段
+  const materials = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   // 列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),
   // 另外未制作过的配方即使材料不足也列出(按钮置灰提示),制作过的做不出则不再占位
   const crafted = new Set(hud.craftedIds);
@@ -151,9 +153,11 @@ export function WorkbenchPanel({
                   }}
                 >
                   {max === 0
-                    ? r.tool && ownedTools[r.tool]
+                    ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
                       ? '已拥有'
-                      : '材料不足'
+                      : r.tool && ownedTools[r.tool] < (r.tier ?? 1) - 1
+                        ? `需${toolName(r.tool, (r.tier ?? 1) - 1)}`
+                        : '材料不足'
                     : '制作'}
                 </button>
               </div>

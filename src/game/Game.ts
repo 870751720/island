@@ -2672,6 +2672,7 @@ export class Game {
       s.player,
       s.inventory,
       s.tools,
+      s.equipment,
       this.fx,
       this.audio,
       // 背包放不下的产物掉在玩家身旁
