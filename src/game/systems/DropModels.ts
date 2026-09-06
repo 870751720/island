@@ -991,7 +991,7 @@ function makeGrassTuftDrop(): THREE.Object3D {
   return g;
 }
 
-/** 床掉落物:微型床架 + 床垫 + 枕头(二级床为木框皮毛垫,三级床再罩一顶小帐篷) */
+/** 床掉落物:微型床架 + 床垫 + 枕头(二级床为木框皮毛垫,三级床再添床头板与四角柱) */
 function makeBedDrop(level: number): THREE.Object3D {
   const g = new THREE.Group();
   const frame = clay('#8a6239');
@@ -1016,16 +1016,20 @@ function makeBedDrop(level: number): THREE.Object3D {
   pillow.position.set(-0.13, 0.18, 0);
   g.add(pillow);
   if (level >= 3) {
-    const cloth = clay(DROP_COLORS.bed3);
-    const ridge = 0.3;
-    const halfW = 0.18;
-    const slope = Math.hypot(ridge, halfW);
-    for (const side of [-1, 1]) {
-      const panel = mesh(new THREE.BoxGeometry(0.5, 0.02, slope), cloth);
-      panel.rotation.x = side * Math.atan2(halfW, ridge);
-      panel.position.set(0, ridge / 2, (side * halfW) / 2);
-      g.add(panel);
+    const headboard = mesh(new THREE.BoxGeometry(0.04, 0.22, 0.24), frame);
+    headboard.position.set(-0.22, 0.2, 0);
+    g.add(headboard);
+    for (const z of [-0.1, 0.1]) {
+      const post = mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.3, 5), frame);
+      post.position.set(-0.2, 0.24, z);
+      g.add(post);
+      const knob = mesh(new THREE.IcosahedronGeometry(0.024, 0), frame);
+      knob.position.set(-0.2, 0.4, z);
+      g.add(knob);
     }
+    const blanket = mesh(new THREE.BoxGeometry(0.26, 0.024, 0.21), clay(DROP_COLORS.bed3));
+    blanket.position.set(0.08, 0.18, 0);
+    g.add(blanket);
   }
   return g;
 }

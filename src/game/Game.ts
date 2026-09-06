@@ -2064,8 +2064,12 @@ export class Game {
     return true;
   }
 
-  /** 睡觉消耗/恢复的固定数值 */
-  private static readonly SLEEP_COST = 20;
+  /** 各等级床的睡觉数值:入睡所需的最低饥饿/口渴、睡觉消耗、健康恢复 */
+  private static readonly SLEEP_STATS: Record<number, { need: number; cost: number; heal: number }> = {
+    1: { need: 20, cost: 20, heal: 20 },
+    2: { need: 15, cost: 15, heal: 25 },
+    3: { need: 10, cost: 10, heal: 30 },
+  };
 
   /** 靠近床发起睡觉:玩家躺上床,天空在过渡中日夜流转,醒来后统一结算 */
   sleep(actor: PlayerSession = this.local): boolean {
@@ -2073,9 +2077,11 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('sleep', []);
 
     const a = actor;
-    if (this.beds.isBusy(a) || !this.beds.nearby(a) || a.survival.state.dead) return false;
+    const bed = this.beds.nearby(a);
+    if (this.beds.isBusy(a) || !bed || a.survival.state.dead) return false;
+    const stats = Game.SLEEP_STATS[bed.level];
     const s = a.survival.state;
-    if (s.hunger < Game.SLEEP_COST || s.thirst < Game.SLEEP_COST) {
+    if (s.hunger < stats.need || s.thirst < stats.need) {
       if (a === this.local) this.notify('又饿又渴睡不着,先吃点喝点再睡吧');
       return false;
     }
@@ -2086,9 +2092,9 @@ export class Game {
         this.dayNight.endSleep();
         this.props.advance(skipped);
         this.campfire.passTime(skipped, performance.now() / 1000);
-        s.hunger -= Game.SLEEP_COST;
-        s.thirst -= Game.SLEEP_COST;
-        s.health = Math.min(100, s.health + Game.SLEEP_COST);
+        s.hunger -= stats.cost;
+        s.thirst -= stats.cost;
+        s.health = Math.min(100, s.health + stats.heal);
         this.audio.play('success');
         const p = a.player.group.position.clone();
         p.y += 0.8;

@@ -465,19 +465,19 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'bed1',
     name: '床',
     icon: '🛏️',
-    description: '木框稻草垫拼成的床,睡一觉能缓过不少精神。',
+    description: '木框稻草垫拼成的床,睡一觉缓缓精神。',
   },
   bed2: {
     kind: 'bed2',
     name: '二级床',
     icon: '🛏️',
-    description: '加高木框垫上柔软皮毛的舒服床,睡相更体面。',
+    description: '加高木框垫上柔软皮毛的舒服床,睡得更解乏。',
   },
   bed3: {
     kind: 'bed3',
     name: '三级床',
     icon: '🛏️',
-    description: '铺着整幅软布的皮毛大床,外罩一顶布帘帐篷,过夜的好去处。',
+    description: '铺着整幅软布的四柱皮毛大床,睡得又香又沉。',
   },
   berryBush: {
     kind: 'berryBush',
