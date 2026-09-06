@@ -148,6 +148,56 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
   );
 }
 
+/** 数量步进按钮:点按一次 ±1;长按连发,按住越久步进越大、间隔越短(快速调大数量) */
+function StepButton({ step, onChange }: { step: 1 | -1; onChange: (step: number) => void }) {
+  const hold = useRef<number | null>(null);
+
+  const stop = () => {
+    if (hold.current !== null) {
+      clearTimeout(hold.current);
+      hold.current = null;
+    }
+  };
+
+  /** 连发节拍:延迟从 160ms 逐渐加速到 45ms;步进按住 0.8s 后升到 5、1.6s 后升到 10 */
+  const tick = (start: number) => {
+    const held = Date.now() - start;
+    const delay = Math.max(160 - held / 20, 45);
+    const stepSize = held > 1600 ? 10 : held > 800 ? 5 : 1;
+    hold.current = window.setTimeout(() => {
+      onChange(step * stepSize);
+      if (hold.current !== null) tick(start);
+    }, delay);
+  };
+
+  return (
+    <button
+      onPointerDown={(e) => {
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        onChange(step);
+        tick(Date.now());
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onPointerLeave={stop}
+      style={{
+        width: 44,
+        borderRadius: 10,
+        border: 'none',
+        background: 'rgba(0,0,0,0.08)',
+        color: '#555',
+        fontSize: 20,
+        fontWeight: 700,
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
+    >
+      {step < 0 ? '−' : '+'}
+    </button>
+  );
+}
+
 /** 面板内容区通用纵向布局 */
 const CONTENT_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -477,30 +527,15 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           })}
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                        {/* 丢弃数量步进:- 数量 +,默认 1 */}
-                        {[-1, 1].map((step) => (
-                          <button
+                        {/* 丢弃数量步进:- 数量 +,默认 1,长按连发加速 */}
+                        {([-1, 1] as const).map((step) => (
+                          <StepButton
                             key={step}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              setDropCount((c) =>
-                                Math.min(selected.count, Math.max(1, c + step))
-                              );
-                            }}
-                            style={{
-                              width: 44,
-                              borderRadius: 10,
-                              border: 'none',
-                              background: 'rgba(0,0,0,0.08)',
-                              color: '#555',
-                              fontSize: 20,
-                              fontWeight: 700,
-                              touchAction: 'none',
-                              userSelect: 'none',
-                            }}
-                          >
-                            {step < 0 ? '−' : '+'}
-                          </button>
+                            step={step}
+                            onChange={(s) =>
+                              setDropCount((c) => Math.min(selected.count, Math.max(1, c + s)))
+                            }
+                          />
                         ))}
                         <span
                           style={{
