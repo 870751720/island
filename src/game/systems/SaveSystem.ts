@@ -40,6 +40,8 @@ export type SessionSave = {
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
+  /** 独立弹药存储(箭/鱼饵,不占背包格;旧档缺省为 0,背包格里的旧数据读档时归一化) */
+  ammo?: { arrow: number; bait: number };
   tools: Partial<Record<ToolId, number>>;
   equipped: Partial<Record<EquipSlot, EquipKind>>;
   handTool: HandTool;
@@ -60,6 +62,8 @@ export type SaveData = {
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
+  /** 独立弹药存储(箭/鱼饵,不占背包格;旧档缺省为 0,背包格里的旧数据读档时归一化) */
+  ammo?: { arrow: number; bait: number };
   /** 已拥有的工具及其等级(0/未拥有不入档,1 基础,2 二级;制作一次永久拥有,不进背包) */
   tools: Partial<Record<ToolId, number>>;
   /** 各栏位已装备的道具(未装备的栏位缺省) */

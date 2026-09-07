@@ -4,7 +4,8 @@ import type { Crabs } from '../entities/Crab';
 import type { Birds } from '../entities/Birds';
 import type { Wildlife } from '../entities/Wildlife';
 import type { IslandTerrain } from '../world/IslandTerrain';
-import type { Inventory, ResourceKind } from './Inventory';
+import type { ResourceKind } from './Inventory';
+import type { AmmoStore } from './Ammo';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { Tools } from './Crafting';
@@ -97,7 +98,7 @@ export class BowSystem {
     private scene: THREE.Scene,
     private player: Player,
     private terrain: IslandTerrain,
-    private inventory: Inventory,
+    private ammo: AmmoStore,
     private crabs: Crabs,
     private birds: Birds,
     private wildlife: Wildlife,
@@ -148,7 +149,7 @@ export class BowSystem {
       !busy &&
       !this.player.isSwimming &&
       this.player.currentTool === 'bow' &&
-      this.inventory.count('arrow') > 0 &&
+      this.ammo.count('arrow') > 0 &&
       this.findTarget() !== null;
     if (!canAim) {
       this.cancelAim();
@@ -196,7 +197,7 @@ export class BowSystem {
 
   /** 放箭:扣一支箭,沿瞄准方向生成飞行箭矢,播放箭动作 */
   private release(): void {
-    if (!this.inventory.remove('arrow', 1)) {
+    if (!this.ammo.remove('arrow', 1)) {
       this.cancelAim();
       return;
     }

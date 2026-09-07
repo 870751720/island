@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Player } from '../entities/Player';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Inventory, ResourceKind } from './Inventory';
+import type { AmmoStore } from './Ammo';
 import type { WaterFx } from '../fx/WaterFx';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -81,6 +82,7 @@ export class FishingSystem {
     private player: Player,
     private terrain: IslandTerrain,
     private inventory: Inventory,
+    private ammo: AmmoStore,
     private waterFx: WaterFx,
     private fx: Particles,
     private audio: GameAudio,
@@ -180,8 +182,8 @@ export class FishingSystem {
     this.audio.play('whoosh');
     this.timer = 0;
     // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低)
-    const baited = this.inventory.count('bait') > 0;
-    if (baited) this.inventory.remove('bait', 1);
+    const baited = this.ammo.count('bait') > 0;
+    if (baited) this.ammo.remove('bait', 1);
     this.tier = rollTier(baited, this.junkCut());
     this.loot = rollLoot(this.tier, this.waterKind, this.drawnTreasures());
     this.tease = null;

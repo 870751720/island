@@ -18,7 +18,7 @@
 
 - 道具与配方:`baitBarrel` 加入 `ResourceKind`/`ITEMS`;配方 `station: 'workbench' + minBenchLevel: 2`。删除 `baitCrab/baitBird/baitGame` 配方与 `baitPrompt` 字段(连同 CraftPrompt 的弹出条件)。
 - 实体 `entities/BaitBarrel.ts`:程序化木桶模型(桶身 + 两道桶箍 + 桶口发光鱼饵团);桶状态为 `foods`(投喂队列,同种合并)、`bait`、`tickLeft`;`update(elapsed)` 只驱动表现。
-- 系统 `systems/BaitBarrelSystem.ts`:完全对齐木箱 `CrateSystem` 的模式——摆放校验(干地、无资源点/桶重叠)、锄头站定自动挖走(整桶 + 桶内食物 + 鱼饵回背包/掉落)、`nearby` 靠近判定、`snapshot/restore/netApply` 存档与网络重放、`EntityChangeSink` 增量上报。发酵计时只在权威端结算(`update(delta, elapsed, authority)`),客人端本地倒数只做进度表现,状态由 `baitBarrels` 世界增量回流。
+- 系统 `systems/BaitBarrelSystem.ts`:完全对齐木箱 `CrateSystem` 的模式——摆放校验(干地、无资源点/桶重叠)、锄头站定自动挖走(整桶 + 桶内食物 + 鱼饵发放/掉落)、`nearby` 靠近判定、`snapshot/restore/netApply` 存档与网络重放、`EntityChangeSink` 增量上报。发酵计时只在权威端结算(`update(delta, elapsed, authority)`),客人端本地倒数只做进度表现,状态由 `baitBarrels` 世界增量回流。收取的鱼饵经 `Game.giveItem` 进入独立弹药存储(`PlayerSession.ammo`,鱼饵不进背包,见 `docs/bow.md` 的弹药存储说明)。
 - 兑换表 `BAIT_YIELD`(`systems/Food.ts`):按获取难度定价——基础采集物(橡果/松果/浆果/可乐)2,小鱼/蟹肉 4,鸟肉 6,大鱼/兽肉 10,黄金鱼 40;熟食与对应生食兑换相同。不在表内的食物不可投喂。
 - UI `ui/BaitBarrelPanel.tsx`:上半桶内食物队列(每格角标显示单个可换鱼饵数)+ 发酵进度条 + 待收鱼饵与「全部收取」;下半背包可投喂食物格(点击整格投喂)。工具按钮接入 `baitBarrel` 模式(🪣),持锄头时不劫持(可挖走)。
 - 桶容量无上限(曾设 20 上限,后取消)。

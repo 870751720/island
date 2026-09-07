@@ -2,6 +2,7 @@ import { Player } from '../entities/Player';
 import { SurvivalSystem } from '../systems/SurvivalSystem';
 import { Inventory } from '../systems/Inventory';
 import { Equipment } from '../systems/Equipment';
+import { AmmoStore } from '../systems/Ammo';
 import type { CraftId, Tools } from '../systems/Crafting';
 import type { CollectSystem } from '../systems/CollectSystem';
 import type { CraftingSystem } from '../systems/CraftingSystem';
@@ -26,6 +27,8 @@ export class PlayerSession implements Actor {
   readonly survival = new SurvivalSystem();
   readonly inventory = new Inventory();
   readonly equipment = new Equipment();
+  /** 弹药(箭/鱼饵):不进背包的独立持有物,工具按钮角标展示数量 */
+  readonly ammo = new AmmoStore();
   readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 };
   /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示用) */
   readonly craftedIds: Set<CraftId> = new Set();

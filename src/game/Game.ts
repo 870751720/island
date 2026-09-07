@@ -95,8 +95,9 @@ export type HudSnapshot = {
   thirst: number;
   health: number;
   dead: boolean;
+  /** 剩余箭数(弹药存储,持弓时工具按钮角标展示) */
   arrow: number;
-  /** 背包剩余鱼饵数(持鱼竿时工具按钮角标展示) */
+  /** 剩余鱼饵数(弹药存储,持鱼竿时工具按钮角标展示) */
   bait: number;
   /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
   heldFenceCount: number;
@@ -1566,6 +1567,12 @@ export class Game {
       if (gained > 0) this.emitPickup(kind, gained);
     }
     Object.assign(this.local.tools, snap.toolTiers);
+    // 弹药数以房主快照为准回流,数量增加时补拾取飘字(与背包槽同一策略)
+    for (const kind of ['arrow', 'bait'] as const) {
+      const gained = snap[kind] - this.local.ammo.count(kind);
+      this.local.ammo[kind] = snap[kind];
+      if (gained > 0) this.emitPickup(kind, gained);
+    }
     this.local.craftedIds.clear();
     for (const id of snap.craftedIds) this.local.craftedIds.add(id);
     this.syncToolTiers(this.local);
@@ -1626,7 +1633,7 @@ export class Game {
 
   /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
   netArrowShot(actor: PlayerSession, dx: number, dz: number): void {
-    actor.inventory.remove('arrow', 1);
+    actor.ammo.remove('arrow', 1);
     actor.shotAnimLeft = 0.35;
     actor.archery.netPlayShot(dx, dz);
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
@@ -1782,6 +1789,16 @@ export class Game {
     session.lastHealth = data.survival.health;
     session.survival.state.dead = false;
     session.inventory.load(data.slots, data.capacity);
+    session.ammo.reset();
+    session.ammo.arrow = data.ammo?.arrow ?? 0;
+    session.ammo.bait = data.ammo?.bait ?? 0;
+    // 旧档背包格里的箭/鱼饵归一化到独立弹药存储
+    for (const slot of session.inventory.snapshot()) {
+      if (slot?.kind === 'arrow' || slot?.kind === 'bait') {
+        session.inventory.remove(slot.kind, slot.count);
+        session.ammo.add(slot.kind, slot.count);
+      }
+    }
     session.equipment.restore(data.equipped, session.inventory);
     // 恢复已拥有的工具(含等级)
     for (const [id, tier] of Object.entries(data.tools)) {
@@ -1806,6 +1823,7 @@ export class Game {
       survival: { hunger: sv.hunger, thirst: sv.thirst, health: sv.health, stamina: sv.stamina },
       slots: session.inventory.snapshot(),
       capacity: session.inventory.capacity,
+      ammo: session.ammo.snapshot(),
       tools: { ...session.tools },
       crafted: [...session.craftedIds],
       equipped: session.equipment.snapshotForSave(),
@@ -2265,8 +2283,9 @@ export class Game {
     for (const id of TOOL_IDS) actor.player.setToolTier(id, actor.tools[id]);
   }
 
-  /** 产物入包,背包放不下的部分掉在玩家身旁地上 */
+  /** 产物入账:弹药(箭/鱼饵)进独立弹药存储,其余进背包,背包放不下的部分掉在玩家身旁地上 */
   giveItem(kind: ResourceKind, count: number, actor: Actor = this.local): number {
+    if (kind === 'arrow' || kind === 'bait') return actor.ammo.add(kind, count);
     const added = actor.inventory.add(kind, count);
     const overflow = count - added;
     if (overflow > 0) this.drops.dropOverflow(kind, overflow, actor);
@@ -2290,6 +2309,7 @@ export class Game {
   private respawnMultiplayerSession(session: PlayerSession): void {
     session.inventory.reset();
     session.equipment.reset();
+    session.ammo.reset();
     for (const id of TOOL_IDS) session.tools[id] = 0;
     this.syncToolTiers(session);
     const survival = session.survival.state;
@@ -2302,13 +2322,20 @@ export class Game {
   }
 
   /** 联机死亡的随身掉落(房主权威,掉落物经世界增量同步给客人):
-   * 丛类植株必定掉落;其余背包道具按 DEATH_DROP_RATIO 掉落份数;穿戴装备与已拥有工具各有该比例的概率掉落(工具保留等级,捡回即重新点亮)。 */
+   * 丛类植株必定掉落;其余背包道具按 DEATH_DROP_RATIO 掉落份数;弹药按份数比例掉落;穿戴装备与已拥有工具各有该比例的概率掉落(工具保留等级,捡回即重新点亮)。 */
   private dropDeathLoot(session: PlayerSession): void {
     for (const slot of session.inventory.snapshot()) {
       if (!slot) continue;
       const ratio = PLANT_DROP_KINDS.includes(slot.kind) ? 1 : DEATH_DROP_RATIO;
       const n = Math.round(slot.count * ratio);
       if (n > 0) this.drops.drop(slot.kind, n, session);
+    }
+    for (const kind of ['arrow', 'bait'] as const) {
+      const n = Math.round(session.ammo.count(kind) * DEATH_DROP_RATIO);
+      if (n > 0) {
+        this.drops.drop(kind, n, session);
+        session.ammo.remove(kind, n);
+      }
     }
     for (const kind of Object.values(session.equipment.snapshot())) {
       if (kind && Math.random() < DEATH_DROP_RATIO) this.drops.drop(kind, 1, session);
@@ -2611,13 +2638,19 @@ export class Game {
     if (this.asleepFor(a)) return false;
     const near = this.drops.getNearby(a);
     if (!near) return false;
-    if (!(TOOL_IDS as string[]).includes(near.kind) && !a.inventory.canFit(near.kind)) {
+    if (
+      !(TOOL_IDS as string[]).includes(near.kind) &&
+      near.kind !== 'arrow' &&
+      near.kind !== 'bait' &&
+      !a.inventory.canFit(near.kind)
+    ) {
       this.notify('背包满了,装不下更多东西', a);
       return false;
     }
     this.markPickupOrigin(near.position, a);
     // 工具类掉落物(死亡掉落的斧/镐等)捡回即重新点亮对应等级,不进背包
     return this.drops.pickupNearby(a, (d) => {
+      if (d.kind === 'arrow' || d.kind === 'bait') return a.ammo.add(d.kind, d.count);
       if (!(TOOL_IDS as string[]).includes(d.kind)) return a.inventory.add(d.kind, d.count);
       const tool = d.kind as ToolId;
       a.tools[tool] = Math.max(a.tools[tool], d.tier ?? 1);
@@ -3128,6 +3161,7 @@ export class Game {
       s.player,
       this.terrain,
       s.inventory,
+      s.ammo,
       this.waterFx,
       this.fx,
       this.audio,
@@ -3143,7 +3177,7 @@ export class Game {
       this.scene,
       s.player,
       this.terrain,
-      s.inventory,
+      s.ammo,
       this.crabs,
       this.birds,
       this.wildlife,
@@ -3321,8 +3355,8 @@ export class Game {
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
     return {
       ...s.survival.state,
-      arrow: s.inventory.count('arrow'),
-      bait: s.inventory.count('bait'),
+      arrow: s.ammo.count('arrow'),
+      bait: s.ammo.count('bait'),
       heldFenceCount:
         s.player.currentTool === 'fence'
           ? s.inventory.count('fenceWood') + s.inventory.count('fenceStone')
