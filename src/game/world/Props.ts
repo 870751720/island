@@ -612,7 +612,7 @@ export class Props implements Updatable {
       prop.regrowLeft = regrow;
     }
     if (prop.kind === 'tree' && prop.stage !== 'stump' && prop.growth === 'mature') {
-      // 成树第一段砍掉树冠只留树桩,树桩仍可继续砍;小树砍倒即消失
+      // 成树第一段砍掉树冠只留树桩,树桩仍可继续砍
       prop.stage = 'stump';
       prop.ready = true;
     }
@@ -625,8 +625,8 @@ export class Props implements Updatable {
     switch (prop.kind) {
       case 'tree':
         this.applyTreeLook(prop);
-        // 发芽始终可见;其余阶段被砍倒(成树砍桩后/小树砍倒后)整体隐藏
-        prop.group.visible = prop.growth === 'sprout' || prop.ready;
+        // 发芽与小树始终可见;成树被砍倒(砍桩后)整体隐藏
+        prop.group.visible = prop.growth !== 'mature' || prop.ready;
         break;
       case 'rock':
       case 'iron':
@@ -720,7 +720,8 @@ export class Props implements Updatable {
         prop.stage = state.stage;
         prop.growth = state.growth ?? 'mature';
         prop.group.rotation.y = state.rotationY;
-        if (prop.growth === 'sapling') prop.ready = true;
+        // 未成树一律不可砍,兼容旧档里小树已写入的 ready
+        if (prop.growth !== 'mature') prop.ready = false;
         this.syncAppearance(prop);
         continue;
       }
@@ -907,10 +908,10 @@ export class Props implements Updatable {
       if (prop.kind !== 'tree' || prop.growth === 'mature' || prop.stage === 'stump') continue;
       if (Math.random() >= GROWTH_CHANCE) continue;
       prop.growth = prop.growth === 'sprout' ? 'sapling' : 'mature';
-      // 长成小树后即可砍伐(只出树枝),长成成树产出完整
-      prop.ready = true;
+      // 只有成树可砍;发芽与小树只是外观阶段变化
+      prop.ready = prop.growth === 'mature';
       this.applyTreeLook(prop);
-      this.onChanged?.({ op: 'set', id: prop.id, fields: { growth: prop.growth, ready: true } });
+      this.onChanged?.({ op: 'set', id: prop.id, fields: { growth: prop.growth, ready: prop.ready } });
     }
   }
 }

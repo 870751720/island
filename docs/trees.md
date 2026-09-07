@@ -22,3 +22,9 @@
 - `src/game/systems/CollectSystem.ts`:树第一段砍伐的产出回调改为接收 prop,按树种概率额外入包种子/果实(直接进背包并触发拾取提示)。
 - `src/game/Game.ts` `useSeed(kind)`:背包使用种子时校验落点(不在水中/水边、不被资源点占住),通过后消耗 1 粒种子并原地种树。
 - 道具:`Inventory`/`Items`/`Food`/`DropModels` 注册 3 种种子与 3 种果实(果实可直接食用,恢复少量饥饿/口渴,椰子额外解渴)。
+
+## 迭代记录
+
+### 未成树不可砍(2026-09)
+
+- 明确设计:发芽与小树两个阶段完全不可砍伐、不可交互,只有成树可砍。原实现中小树长出即 `ready = true` 可被砍(1 斧出 1 树枝),已移除:`CollectSystem` 删除 `sapling` 作业配置,`Props.updateTreeGrowth` 仅在长成成树时置 `ready`;存档恢复时未成树强制 `ready = false`(兼容旧档小树已写入的 ready)。

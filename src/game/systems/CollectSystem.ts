@@ -27,13 +27,12 @@ const DIG_YIELD: Partial<
   grass: 'grassTuft',
 };
 
-/** 作业对象种类:树桩是成树的第二段、小树是树的幼年段,单独配置 */
-type HarvestKind = Prop['kind'] | 'stump' | 'sapling';
+/** 作业对象种类:树桩是成树的第二段,单独配置;未成树(发芽/小树)不可砍 */
+type HarvestKind = Prop['kind'] | 'stump';
 
 function kindOf(prop: Prop): HarvestKind {
   if (prop.kind !== 'tree') return prop.kind;
   if (prop.stage === 'stump') return 'stump';
-  if (prop.growth === 'sapling') return 'sapling';
   return 'tree';
 }
 
@@ -58,14 +57,6 @@ const HARVEST_CONFIG: Record<
       const species = prop.species ?? 'oak';
       if (Math.random() < SEED_DROP_CHANCE) inv.add(SEED_OF[species], 1);
       if (Math.random() < FRUIT_DROP_CHANCE) inv.add(FRUIT_OF[species], 1);
-    },
-  },
-  sapling: {
-    action: 'chop',
-    hits: 1,
-    fxColor: '#7fae55',
-    yield: (inv) => {
-      inv.add('branch', 1);
     },
   },
   stump: {
@@ -249,7 +240,7 @@ export class CollectSystem {
   canCollect(prop: Prop = this.nearby!): boolean {
     if (!prop) return false;
     const kind = kindOf(prop);
-    if (kind === 'tree' || kind === 'stump' || kind === 'sapling') {
+    if (kind === 'tree' || kind === 'stump') {
       return this.player.currentTool === 'axe';
     }
     // 镐类资源各有解锁等级:岩石任意镐,铁矿要石镐,陨石要铁镐
