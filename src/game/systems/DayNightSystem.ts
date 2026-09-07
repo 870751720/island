@@ -16,9 +16,9 @@ const MOON_LIGHT = new THREE.Color('#7d9fd4');
 
 export type DayPhase = 'day' | 'dusk' | 'night' | 'dawn';
 
-/** 昼夜循环:驱动太阳/月光、天空色与环境光,t∈[0,1),0 为正午起点 */
+/** 昼夜循环:驱动太阳/月光、天空色与环境光,t∈[0,1),0 为日出起点(sin 峰值 t=0.25 为正午) */
 export class DayNightSystem implements Updatable {
-  private t = 0.1; // 从白天开始
+  private t = DayNightSystem.MORNING_T; // 新的一天从清晨开始(玩家出生/睡醒都停在日出后不久)
   /** 当前是第几天(从 1 开始,跨过正午计一天) */
   private dayCount = 1;
   /** 睡觉过渡的起始时刻(非空表示过渡进行中) */
@@ -173,7 +173,8 @@ export class DayNightSystem implements Updatable {
 
     this.sun.color.copy(sunColor);
     this.scene.background = sky;
-    const hours = Math.floor(((this.t + 0.5) % 1) * 24);
+    // t=0 为日出(06:00)、t=0.25 为正午(12:00)、t=0.75 为午夜(00:00)
+    const hours = Math.floor((this.t * 24 + 6) % 24);
     this.state.clock = `${String(hours).padStart(2, '0')}:00`;
   }
 }
