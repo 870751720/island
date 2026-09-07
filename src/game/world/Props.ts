@@ -12,6 +12,7 @@ import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
+import { landCells } from './SpawnLayout';
 
 const SHAKE_TIME = 0.4;
 
@@ -39,6 +40,7 @@ export type PropKind =
   | 'berry'
   | 'shrub'
   | 'grass'
+  | 'wormNest'
   | 'meteor';
 
 /** 资源点的完整可序列化状态；布局由房主/存档直接持有。 */
@@ -66,6 +68,7 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   berry: { regrow: 180 },
   shrub: { regrow: 180 },
   grass: { regrow: 180 },
+  wormNest: { regrow: 240 },
 };
 
 export type Prop = {
@@ -386,10 +389,47 @@ function makeShrub(): THREE.Group {
   return g;
 }
 
+/** 蚯蚓窝:湿土堆成的小丘,顶上有个小洞,有蚯蚓时洞口只趴着一只蚯蚓 */
+function makeWormNest(): { group: THREE.Group; worm: THREE.Group } {
+  const group = new THREE.Group();
+  const mound = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.32, 1),
+    clayMaterial('#6f5a44')
+  );
+  mound.scale.set(1.15, 0.55, 1.05);
+  mound.position.y = 0.14;
+  mound.castShadow = true;
+  group.add(mound);
+  // 洞口:一小片更深的湿土
+  const hole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.12, 0.06, 6),
+    clayMaterial('#4a3a2c')
+  );
+  hole.position.y = 0.3;
+  group.add(hole);
+  // 趴在洞口的唯一一只蚯蚓
+  const worm = new THREE.Group();
+  const mat = clayMaterial('#d98a8a');
+  const seg = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.12, 2, 5), mat);
+  seg.rotation.z = Math.PI / 2 - 0.3;
+  seg.position.y = 0.04;
+  worm.add(seg);
+  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.09, 2, 5), mat);
+  tail.rotation.z = Math.PI / 2 + 0.7;
+  tail.position.set(-0.12, 0.03, 0.02);
+  worm.add(tail);
+  worm.position.y = 0.3;
+  worm.rotation.y = 0.7;
+  group.add(worm);
+  return { group, worm };
+}
+
 /** 岛上散布的资源点,管理采集后的外观变化、再生与树的生长 */
 export class Props implements Updatable {
   readonly list: Prop[] = [];
   private berries = new Map<Prop, THREE.Mesh[]>();
+  /** 各蚯蚓窝洞口的那只蚯蚓模型(有蚯蚓状态才可见) */
+  private nestWorms = new Map<Prop, THREE.Object3D>();
   private shakes = new Map<Prop, number>();
   private treeLooks = new WeakMap<Prop, string>();
   private growthTimer = 0;
@@ -417,6 +457,7 @@ export class Props implements Updatable {
     const { kind, x, z } = spot;
     const y = this.terrain.getHeight(x, z);
     let berries: THREE.Mesh[] | null = null;
+    let nestWorm: THREE.Object3D | null = null;
     let group: THREE.Group;
     if (kind === 'tree') group = new THREE.Group();
     else if (kind === 'rock') group = makeRock();
@@ -424,7 +465,11 @@ export class Props implements Updatable {
     else if (kind === 'gravel') group = makeGravel();
     else if (kind === 'shrub') group = makeShrub();
     else if (kind === 'grass') group = makeGrassTuft();
-    else {
+    else if (kind === 'wormNest') {
+      const made = makeWormNest();
+      group = made.group;
+      nestWorm = made.worm;
+    } else {
       const made = makeBerryBush();
       group = made.group;
       berries = made.berries;
@@ -448,6 +493,7 @@ export class Props implements Updatable {
     }
     this.addProp(prop);
     if (berries) this.berries.set(prop, berries);
+    if (nestWorm) this.nestWorms.set(prop, nestWorm);
   }
 
   /** 玩家种下一棵树:在落点生成发芽阶段的树并纳入管理 */
@@ -526,13 +572,56 @@ export class Props implements Updatable {
     return prop;
   }
 
-  /** 锄头整棵挖走资源点:永久从场上消失(不再再生,也不占位) */
+  /** 玩家放下一窝挖来的蚯蚓窝:刚放下时没有蚯蚓,过一个再生周期才有 */
+  placeWormNest(x: number, z: number): Prop {
+    const y = this.terrain.getHeight(x, z);
+    const { group, worm } = makeWormNest();
+    group.position.set(x, y - 0.05, z);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    this.scene.add(group);
+    const prop: Prop = {
+      id: createWorldEntityId('prop'),
+      kind: 'wormNest',
+      group,
+      position: group.position.clone(),
+      ready: false,
+      regrowLeft: PROP_CONFIG.wormNest.regrow,
+    };
+    this.addProp(prop);
+    this.nestWorms.set(prop, worm);
+    this.syncAppearance(prop);
+    this.onChanged?.({ op: 'add', id: prop.id, value: this.stateOf(prop) as unknown as Record<string, unknown> });
+    return prop;
+  }
+
+  /** 旧档补撒野生蚯蚓窝:改版前蚯蚓是不入档的环境生物,老档里没有蚯蚓窝资源点 */
+  seedWildWormNests(): void {
+    if (this.list.some((prop) => prop.kind === 'wormNest')) return;
+    const cells = landCells(this.terrain);
+    const target = Math.max(4, Math.round((cells.length * 16 * 7) / 10000));
+    for (let i = 0; i < target * 20 && this.list.filter((prop) => prop.kind === 'wormNest').length < target; i++) {
+      const c = cells[Math.floor(Math.random() * cells.length)];
+      if (!c) break;
+      const x = c.x + (Math.random() - 0.5) * 4;
+      const z = c.z + (Math.random() - 0.5) * 4;
+      const y = this.terrain.getHeight(x, z);
+      const p = new THREE.Vector3(x, y, z);
+      if (y <= 0.3 || this.terrain.isNearWater(p, 1)) continue;
+      if (!this.terrain.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < w.radius + 18)) continue;
+      if (this.isOccupied(p, 1)) continue;
+      const spot: PropSpot = { kind: 'wormNest', x, z };
+      this.createWildProp(spot, Math.random);
+    }
+  }
+
+
   removeProp(prop: Prop): void {
     this.dropProp(prop);
     this.scene.remove(prop.group);
     disposeOwnedMeshes(prop.group);
     this.treeLooks.delete(prop);
     this.berries.delete(prop);
+    this.nestWorms.delete(prop);
     this.shakes.delete(prop);
     this.onChanged?.({ op: 'remove', id: prop.id });
   }
@@ -646,6 +735,12 @@ export class Props implements Updatable {
         // 灌木丛被割后缩成小桩
         prop.group.scale.setScalar(prop.ready ? 1 : 0.35);
         break;
+      case 'wormNest': {
+        // 窝保留,只是洞口的蚯蚓被捉走了
+        const worm = this.nestWorms.get(prop);
+        if (worm) worm.visible = prop.ready;
+        break;
+      }
     }
   }
 
@@ -705,6 +800,15 @@ export class Props implements Updatable {
         const prop = this.placeBush(state.kind, state.x, state.z);
         prop.id = state.id ?? prop.id;
         prop.id = state.id ?? createWorldEntityId('prop');
+        prop.ready = state.ready;
+        prop.regrowLeft = state.regrowLeft ?? 0;
+        prop.group.rotation.y = state.rotationY;
+        this.syncAppearance(prop);
+        continue;
+      }
+      if (state.kind === 'wormNest') {
+        const prop = this.placeWormNest(state.x, state.z);
+        prop.id = state.id ?? prop.id;
         prop.ready = state.ready;
         prop.regrowLeft = state.regrowLeft ?? 0;
         prop.group.rotation.y = state.rotationY;
@@ -775,6 +879,7 @@ export class Props implements Updatable {
     this.treeLooks = new WeakMap();
     this.grid.clear();
     this.berries.clear();
+    this.nestWorms.clear();
     this.shakes.clear();
   }
 
@@ -835,6 +940,8 @@ export class Props implements Updatable {
         prop.group.scale.setScalar(1);
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
+      } else if (prop.kind === 'wormNest') {
+        this.syncAppearance(prop);
       }
     }
     if (authoritative) this.updateTreeGrowth(delta);
@@ -868,6 +975,8 @@ export class Props implements Updatable {
         prop.group.scale.setScalar(1);
       } else if (prop.kind === 'shrub') {
         prop.group.scale.setScalar(1);
+      } else if (prop.kind === 'wormNest') {
+        this.syncAppearance(prop);
       }
     }
     this.updateTreeGrowth(seconds);

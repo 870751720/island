@@ -10,7 +10,6 @@ import type { NetEvent } from './net/Protocol';
 import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
-import { Worms } from './entities/Worm';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
@@ -384,7 +383,6 @@ export class Game {
   private oceanDepth: OceanDepth;
   private waterDebug: WaterDebugOverlay;
   private crabs: Crabs;
-  private worms: Worms;
   private butterflies: Butterflies;
   private birds: Birds;
   private wildlife: Wildlife;
@@ -559,14 +557,6 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z),
       // 受击未死:广播给客人补播闪红
       (id) => this.hostRef?.broadcastEvent({ kind: 'creatureHit', target: 'crab', id })
-    );
-    this.worms = new Worms(
-      this.scene,
-      terrain,
-      // 任一玩家靠近蚯蚓都会触发钻土(联机时含全部玩家)
-      () => this.sessions.map((s) => s.player.group.position),
-      // 权威端在钻土处掉落蚯蚓道具,客人端由世界增量回流补建掉落物
-      (x, z) => this.drops.dropAt('worm', 1, x, z)
     );
     // 蝴蝶会被场上任意玩家惊飞(联机时客人靠近同样惊飞)
     this.butterflies = new Butterflies(
@@ -815,14 +805,12 @@ export class Game {
         this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
           this.crabs.update(delta, elapsed);
-          this.worms.update(delta, elapsed);
           this.butterflies.update(delta, elapsed);
           this.birds.update(delta, elapsed);
           this.wildlife.update(delta, elapsed);
           this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
         } else {
           this.crabs.netUpdate(delta, elapsed);
-          this.worms.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
@@ -1177,9 +1165,8 @@ export class Game {
 
   netAmbientState(): AmbientState {
     return {
-        crabs: this.crabs.netPoses(),
-      worms: this.worms.netPoses(),
-        birds: this.birds.netPoses(),
+      crabs: this.crabs.netPoses(),
+      birds: this.birds.netPoses(),
         butterflies: this.butterflies.netPoses(),
         dog: this.dog.netPose(),
     };
@@ -1500,7 +1487,6 @@ export class Game {
   netApplyAmbient(state: AmbientState): void {
     const elapsed = performance.now() / 1000;
     this.crabs.netApply(state.crabs);
-    this.worms.netApply(state.worms);
     this.birds.netApply(state.birds, elapsed);
     this.butterflies.netApply(state.butterflies, elapsed);
     this.dog.netApply(state.dog, elapsed);
@@ -1753,6 +1739,8 @@ export class Game {
     this.dayNight.time = save.dayTime;
     if (save.day) this.dayNight.day = save.day;
     this.props.applySave(save.props);
+    // 旧档里没有蚯蚓窝资源点(改版前蚯蚓是不入档的环境生物),补撒一批野生的
+    this.props.seedWildWormNests();
     this.campfire.restore(save.campfires);
     if (save.workbenches) this.workbench.restore(save.workbenches);
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
@@ -2596,8 +2584,8 @@ export class Game {
     return true;
   }
 
-  /** 背包里点击「使用」挖来的丛:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
-  useBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft', actor: PlayerSession = this.local): boolean {
+  /** 背包里点击「使用」挖来的丛/蚯蚓窝:校验与工作台摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地放回 */
+  useBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useBush', [kind]);
 
@@ -2615,13 +2603,17 @@ export class Game {
       return false;
     }
     a.inventory.remove(kind, 1);
-    const bushKind = kind === 'berryBush' ? 'berry' : kind === 'grassTuft' ? 'grass' : 'shrub';
-    this.props.placeBush(bushKind, p.x, p.z);
+    if (kind === 'wormNest') {
+      this.props.placeWormNest(p.x, p.z);
+    } else {
+      const bushKind = kind === 'berryBush' ? 'berry' : kind === 'grassTuft' ? 'grass' : 'shrub';
+      this.props.placeBush(bushKind, p.x, p.z);
+    }
     this.afterPlaceDiggable(a);
     this.audio.play('success');
     const fxPos = p.clone();
     fxPos.y += 0.5;
-    this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : kind === 'grassTuft' ? '#a4c46a' : '#6b8f4e', 10);
+    this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : kind === 'grassTuft' ? '#a4c46a' : kind === 'wormNest' ? '#6f5a44' : '#6b8f4e', 10);
     return true;
   }
 

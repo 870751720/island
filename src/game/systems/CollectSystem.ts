@@ -18,13 +18,14 @@ const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
-/** 锄头挖走的丛对应的道具 */
+/** 锄头挖走的丛/窝对应的道具 */
 const DIG_YIELD: Partial<
-  Record<'berry' | 'shrub' | 'grass', 'berryBush' | 'shrubBush' | 'grassTuft'>
+  Record<'berry' | 'shrub' | 'grass' | 'wormNest', 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest'>
 > = {
   berry: 'berryBush',
   shrub: 'shrubBush',
   grass: 'grassTuft',
+  wormNest: 'wormNest',
 };
 
 /** 作业对象种类:树桩是成树的第二段,单独配置;未成树(发芽/小树)不可砍 */
@@ -124,6 +125,13 @@ const HARVEST_CONFIG: Record<
     fxColor: '#a4c46a',
     yield: (inv) => inv.add('fiber', 1),
   },
+  wormNest: {
+    // 捉蚯蚓:空手从窝里捉走蚯蚓,每次 1-3 只
+    action: 'pick',
+    hits: 1,
+    fxColor: '#d98a8a',
+    yield: (inv) => inv.add('worm', 1 + Math.floor(Math.random() * 3)),
+  },
 };
 
 export type HarvestInfo = { progress: number };
@@ -156,11 +164,11 @@ export class CollectSystem {
     private berryBlessed: () => boolean = () => false
   ) {}
 
-  /** 手持锄头靠近浆果丛/灌木丛/草丛时是在挖整棵丛,而不是徒手采集 */
+  /** 手持锄头靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
   private isDigging(prop: Prop): boolean {
     return (
       this.player.currentTool === 'hoe' &&
-      (prop.kind === 'berry' || prop.kind === 'shrub' || prop.kind === 'grass')
+      (prop.kind === 'berry' || prop.kind === 'shrub' || prop.kind === 'grass' || prop.kind === 'wormNest')
     );
   }
 
@@ -274,7 +282,7 @@ export class CollectSystem {
     if (this.isDigging(prop)) {
       // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
-      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass']!, 1);
+      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
     } else {
       this.props.harvest(prop);
       config.yield(this.inventory, prop);

@@ -31,7 +31,6 @@ type Guest = {
   combatAnimals: Map<string | number, AnimalPose>;
   passiveAnimals: Map<string | number, AnimalPose>;
   crabs: Map<string | number, AmbientPose>;
-  worms: Map<string | number, AmbientPose>;
   birds: Map<string | number, AmbientPose>;
   butterflies: Map<string | number, AmbientPose>;
   dog: AmbientPose | null;
@@ -101,7 +100,7 @@ export class NetHost {
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
       lastInputSeq: 0,
-      players: new Map(), combatAnimals: new Map(), passiveAnimals: new Map(), crabs: new Map(), worms: new Map(), birds: new Map(), butterflies: new Map(),
+      players: new Map(), combatAnimals: new Map(), passiveAnimals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
       dog: null, hud: null, climate: '',
     };
     this.guests.push(guest);
@@ -289,13 +288,12 @@ export class NetHost {
       const ambient = game.netAmbientState();
       const qAmbient = (list: AmbientPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .05), y: quantize(p.y, .05), z: quantize(p.z, .05), h: quantize(p.h, .03) }));
       const crabs = diffEntities(qAmbient(ambient.crabs), guest.crabs, recoveryFrame);
-      const worms = diffEntities(qAmbient(ambient.worms), guest.worms, recoveryFrame);
       const birds = diffEntities(qAmbient(ambient.birds), guest.birds, recoveryFrame);
       const butterflies = diffEntities(qAmbient(ambient.butterflies), guest.butterflies, recoveryFrame);
       const dogNow = qAmbient([ambient.dog])[0];
       const dog = recoveryFrame ? dogNow : diffObject(dogNow, guest.dog);
       guest.dog = dogNow;
-      if (crabs || worms || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, worms: worms ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
+      if (crabs || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
       }
 
       if (hudFrame) {

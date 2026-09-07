@@ -45,7 +45,7 @@ export const ACTIONS: Record<string, NetAction> = {
   useFenceItem: (g, a, [kind]) => g.useFenceItem(kind as ResourceKind, a),
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,
-  useBush: (g, a, [kind]) => g.useBush(kind as 'berryBush' | 'shrubBush' | 'grassTuft', a),
+  useBush: (g, a, [kind]) => g.useBush(kind as 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', a),
   pickupDrop: (g, a) => g.pickupDrop(a),
   craftCampfire: (g, a) => g.craftCampfire(a),
   crateStore: (g, a, [kind, count]) => g.crateStore(kind as ResourceKind, (count as number) ?? Infinity, a),

@@ -22,7 +22,7 @@
 
 ### 2026-09-07 鱼饵改为独立弹药存储
 
-鱼饵不再进背包格:数量存于 `PlayerSession.ammo`(`AmmoStore`,与 tools/equipped 同级,无上限叠加),饵料桶收取/掉落物捡回经 `Game.giveItem` 分流入弹药;抛竿消耗改读弹药存储。工具按钮持鱼竿角标显示 🧆+剩余鱼饵数,死亡按 `DEATH_DROP_RATIO` 掉落。蚯蚓(`worm`)仍是背包道具,仅作为饵料桶投喂原料。详见 `docs/bow.md` 的弹药存储说明。
+鱼饵不再进背包格:数量存于 `PlayerSession.ammo`(`AmmoStore`,与 tools/equipped 同级,无上限叠加),饵料桶收取/掉落物捡回经 `Game.giveItem` 分流入弹药;抛竿消耗改读弹药存储。工具按钮持鱼竿角标显示 🧆+剩余鱼饵数,死亡按 `DEATH_DROP_RATIO` 掉落。蚯蚓(`worm`)仍是背包道具,来源为空手捉蚯蚓窝(见 `docs/worm.md`),仅作为饵料桶投喂原料。详见 `docs/bow.md` 的弹药存储说明。
 
 ### 2026-09-07 杂物池新增燧石
 

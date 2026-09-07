@@ -468,7 +468,7 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'berryBush' || kind === 'shrubBush' || kind === 'grassTuft') {
+          if (kind === 'berryBush' || kind === 'shrubBush' || kind === 'grassTuft' || kind === 'wormNest') {
             gameRef.current?.useBush(kind);
             setBackpackOpen(false);
             return;

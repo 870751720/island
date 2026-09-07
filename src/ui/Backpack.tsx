@@ -51,6 +51,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'fruitSeed' ||
     kind === 'shrubBush' ||
     kind === 'grassTuft' ||
+    kind === 'wormNest' ||
     kind === 'crate' ||
     kind === 'ironCrate' ||
     kind === 'baitBarrel' ||

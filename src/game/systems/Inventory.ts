@@ -56,6 +56,7 @@ export type ResourceKind =
   | 'arrow'
   | 'bait'
   | 'worm'
+  | 'wormNest'
   | 'oakSeed'
   | 'pineSeed'
   | 'fruitSeed'

@@ -48,7 +48,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   作物: [
     'oakSeed', 'pineSeed', 'fruitSeed',
     'oakFruit', 'pineFruit', 'fruitFruit',
-    'berryBush', 'shrubBush', 'grassTuft',
+    'berryBush', 'shrubBush', 'grassTuft', 'wormNest',
   ],
 };
 
@@ -677,6 +677,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '草丛',
     icon: '🌱',
     description: '连根带土的完整草丛,根上还沾着湿润的泥。',
+  },
+  wormNest: {
+    kind: 'wormNest',
+    name: '蚯蚓窝',
+    icon: '🪹',
+    description: '连土挖起的完整蚯蚓窝,放下后等蚯蚓回来安家。',
   },
   workbench1: {
     kind: 'workbench1',

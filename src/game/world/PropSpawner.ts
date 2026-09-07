@@ -5,7 +5,7 @@ import type { TreeSpecies } from './TreeSpecies';
 import { isPassage, landCells, latitude, SpawnSpacing, type GroundPoint } from './SpawnLayout';
 
 export type PropSpot = { kind: PropKind; x: number; z: number; species?: TreeSpecies };
-type Rule = { kind: PropKind; density: number; radius: number; patch: number; weights: number[]; minT?: number };
+type Rule = { kind: PropKind; density: number; radius: number; patch: number; weights: number[]; minT?: number; waterBand?: number };
 const RULES: Rule[] = [
   { kind: 'tree', density: 60, radius: 1.8, patch: 12, weights: [0.9, 1.1, 1, 1.2] },
   { kind: 'rock', density: 18, radius: 1.2, patch: 6, weights: [0.5, 0.7, 1.4, 2] },
@@ -14,6 +14,8 @@ const RULES: Rule[] = [
   { kind: 'berry', density: 12, radius: 0.8, patch: 4, weights: [1.8, 1.3, 0.7, 0.4] },
   { kind: 'shrub', density: 21, radius: 0.8, patch: 5, weights: [1.3, 1.2, 0.9, 0.7] },
   { kind: 'grass', density: 25, radius: 0.65, patch: 7, weights: [1.4, 1.3, 0.8, 0.6] },
+  // 蚯蚓窝只在水域周边 18 米内的干地上,密度沿用旧蚯蚓生物
+  { kind: 'wormNest', density: 7, radius: 0.7, patch: 2, weights: [1, 1, 1, 1], waterBand: 18 },
 ];
 /** 支持递减方向的 smoothstep */
 function smoothstep(a: number, b: number, t: number): number {
@@ -42,6 +44,9 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
   const place = (rule: Rule, x: number, z: number): boolean => {
     p.set(x, terrain.getHeight(x, z), z);
     if (p.y <= 0.3 || terrain.isNearWater(p, 1)) return false;
+    // 有水边带限制的资源(蚯蚓窝)必须落在水域周边带内的干地上
+    if (rule.waterBand !== undefined &&
+      !terrain.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < w.radius + rule.waterBand!)) return false;
     // 有硬性纬度下限的资源(铁矿)不出现在下限以北
     if (rule.minT !== undefined && latitude(terrain, z) < rule.minT) return false;
     if (Math.abs(x - camp.x) < 6 && Math.abs(z - camp.z) < 6) return false;
@@ -78,7 +83,7 @@ export function generatePropSpots(terrain: IslandTerrain, rng: () => number = Ma
     }
   }
   for (const rule of RULES) {
-    const usable = cells.filter(c => !(rule.radius > 1 && isPassage(c.x, c.z)) && !(Math.abs(c.x - camp.x) < 6 && Math.abs(c.z - camp.z) < 6) && !(rule.minT !== undefined && latitude(terrain, c.z) < rule.minT));
+    const usable = cells.filter(c => !(rule.radius > 1 && isPassage(c.x, c.z)) && !(Math.abs(c.x - camp.x) < 6 && Math.abs(c.z - camp.z) < 6) && !(rule.minT !== undefined && latitude(terrain, c.z) < rule.minT) && !(rule.waterBand !== undefined && !terrain.waterAreas.some((w) => Math.hypot(c.x - w.x, c.z - w.z) < w.radius + rule.waterBand!)));
     const target = Math.max(counts.get(rule.kind) ?? 0, Math.round(usable.length * 16 * rule.density / 10000));
     const maxWeight = Math.max(...rule.weights), anchors: GroundPoint[] = [];
     const anchorCount = Math.ceil(target * 0.7 / rule.patch);

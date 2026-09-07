@@ -100,6 +100,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   berryBush: '#5d8a3a',
   shrubBush: '#6b8f4e',
   grassTuft: '#a4c46a',
+  wormNest: '#6f5a44',
   workbench1: '#8a6239',
   workbench2: '#a5836b',
   workbench3: '#8a6239',
@@ -1052,6 +1053,22 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
   grassTuft: () => makeGrassTuftDrop(),
+  wormNest: () => {
+    // 蚯蚓窝道具:一小团带洞的湿土,洞口探出一截蚯蚓
+    const g = new THREE.Group();
+    const mound = mesh(new THREE.IcosahedronGeometry(0.13, 1), clay(DROP_COLORS.wormNest));
+    mound.scale.set(1.15, 0.6, 1.05);
+    mound.position.y = 0.07;
+    g.add(mound);
+    const hole = mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.03, 6), clay('#4a3a2c'));
+    hole.position.y = 0.13;
+    g.add(hole);
+    const worm = mesh(new THREE.CapsuleGeometry(0.018, 0.06, 2, 5), clay(DROP_COLORS.worm));
+    worm.rotation.z = Math.PI / 2 - 0.3;
+    worm.position.y = 0.15;
+    g.add(worm);
+    return g;
+  },
   workbench1: () => makeWorkbenchDrop(1),
   workbench2: () => makeWorkbenchDrop(2),
   workbench3: () => makeWorkbenchDrop(3),
