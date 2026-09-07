@@ -12,11 +12,13 @@ export function EatPrompt({
   onEat,
   onEatFull,
   suppressed,
+  bottomRight,
 }: {
   hud: HudSnapshot;
   onEat: () => void;
   onEatFull: () => void;
   suppressed: boolean;
+  bottomRight: boolean;
 }) {
   if (
     suppressed ||
@@ -29,7 +31,7 @@ export function EatPrompt({
   const entry = firstFoodEntryIn(hud.slots);
   if (!entry) return null;
   return (
-    <div style={{ ...promptWrapStyle(hud), display: 'flex', gap: 6 }}>
+    <div style={{ ...promptWrapStyle(hud, bottomRight), display: 'flex', gap: 6 }}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();

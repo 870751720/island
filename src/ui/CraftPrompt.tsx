@@ -32,12 +32,14 @@ export function CraftPrompt({
   onCraftWorkbench,
   onCraftCampfire,
   suppressed,
+  bottomRight,
 }: {
   hud: HudSnapshot;
   onCraft: (id: Recipe['id']) => void;
   onCraftWorkbench: () => void;
   onCraftCampfire: () => void;
   suppressed: boolean;
+  bottomRight: boolean;
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (suppressed || hud.moving || hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting)
@@ -76,7 +78,7 @@ export function CraftPrompt({
   if (cards.length === 0) return null;
   const best = cards.reduce((a, b) => (b.priority < a.priority ? b : a));
   return (
-    <div style={promptWrapStyle(hud)}>
+    <div style={promptWrapStyle(hud, bottomRight)}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();
