@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
-import type { GameAudio } from '../audio/GameAudio';
 
 /** 每个夜晚降临时降下陨石的概率 */
 const METEOR_CHANCE = 0.5;
@@ -73,8 +72,7 @@ export class MeteorSystem {
     private props: Props,
     private player: { group: THREE.Group },
     private dayNight: { isNight: boolean },
-    private fx: Particles,
-    private audio: GameAudio
+    private fx: Particles
   ) {}
 
   update(delta: number): void {
@@ -148,7 +146,6 @@ export class MeteorSystem {
     this.scene.remove(m.group);
     this.falling = null;
     this.props.placeMeteor(target.x, target.z);
-    this.audio.play('mine');
     this.fx.burst(target, '#e8703a', 16);
     this.fx.burst(target, '#8a6239', 12);
   }

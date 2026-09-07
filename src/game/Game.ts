@@ -787,8 +787,7 @@ export class Game {
       this.props,
       this.player,
       this.dayNight,
-      this.fx,
-      this.audio
+      this.fx
     );
     // 天气在昼夜之后更新,对光照与天空做调制
     this.weather = new WeatherSystem(sun, hemi, this.scene);
