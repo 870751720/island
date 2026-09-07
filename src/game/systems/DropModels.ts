@@ -22,6 +22,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cola: '#c0392b',
   colaZero: '#2c3e50',
   bottle: '#a8d4d6',
+  milk: '#f6f1e4',
   sardine: '#b8cdd9',
   perch: '#8fa87b',
   shrimp: '#e8927c',
@@ -540,6 +541,20 @@ function makeBottle(): THREE.Object3D {
   return g;
 }
 
+/** 羊奶:矮胖的奶瓶,奶白瓶身 + 木瓶塞 */
+function makeMilkBottle(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(DROP_COLORS.milk);
+  const body = mesh(new THREE.CylinderGeometry(0.1, 0.11, 0.24, 7), mat);
+  body.position.y = 0.12;
+  const neck = mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.08, 7), mat);
+  neck.position.y = 0.28;
+  const cap = mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.04, 7), clay('#b5813f'));
+  cap.position.y = 0.34;
+  g.add(body, neck, cap);
+  return g;
+}
+
 /** 工具通用木柄:竖直的枝干柄 */
 function toolHandle(mat: THREE.MeshStandardMaterial): THREE.Mesh {
   const handle = mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.7, 5), mat);
@@ -911,6 +926,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cola: () => makeCan(DROP_COLORS.cola),
   colaZero: () => makeCan(DROP_COLORS.colaZero),
   bottle: makeBottle,
+  milk: makeMilkBottle,
   sardine: () => makeFishShape(DROP_COLORS.sardine, 0.85, 0.85, 1),
   perch: () => makeFishShape(DROP_COLORS.perch),
   shrimp: () => makeFishShape(DROP_COLORS.shrimp, 0.7, 0.7, 1.2),

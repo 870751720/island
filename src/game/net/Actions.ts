@@ -99,6 +99,8 @@ export const ACTIONS: Record<string, NetAction> = {
   lassoStake: (g, a) => g.stakeLasso(a),
   // 客人解开身旁被拴的羊(套索回客人背包)
   lassoUntie: (g, a) => g.untieLasso(a),
+  // 客人空手挤奶:房主权威取走羊奶入客人背包(羊奶状态随姿态快照回流)
+  milkSheep: (g, a, [sheepId, x, z]) => g.milkSheep(a, sheepId as number, x as number, z as number),
   gmSpawnAnimal: (g, a, [species]) => {
     g.gmSpawnAnimalFor(species as AnimalSpecies, a);
     return true;

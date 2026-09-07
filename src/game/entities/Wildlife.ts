@@ -9,6 +9,7 @@ import { ANIMAL_BUILDERS } from './WildlifeModels';
 import type { ResourceKind } from '../systems/Inventory';
 import type { Particles } from '../fx/Particles';
 import { CreatureFx } from '../fx/CreatureFx';
+import { makeMilkIcon } from '../ui3d/MilkIcon';
 import type { SfxName } from '../audio/Sfx';
 
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'wolf' | 'bear' | 'crocodile';
@@ -85,6 +86,8 @@ const LEAD_FOLLOW_DIST = 2.2;
 const LEAD_SPEED = 5;
 /** 被拴在桩上时的游荡半径(选吃草点的范围) */
 const STAKE_WANDER = 2.2;
+/** 拴在桩上的绵羊产出一批羊奶所需的时间(秒) */
+const MILK_INTERVAL = 180;
 /** 桩绳硬上限:超出该距离的落点不可站立 */
 const STAKE_LEASH = 3;
 
@@ -318,6 +321,13 @@ type Animal = {
   /** 牵引绳持续绷紧的累计时长(卡住/玩家下水),超过上限滑脱 */
   /** 客人侧从姿态快照镜像的拴绳信息(渲染绳子用,不参与本地 AI) */
   netLeash: LeashPose | null;
+  // —— 羊奶产出(其他物种恒为初始值) ——
+  /** 拴在桩上累计的产奶计时(秒),归零后 hasMilk 置位;解开拴绳时清零重计 */
+  milkLeft: number;
+  /** 当前有可挤的羊奶(羊头顶奶瓶图标);客人端由姿态快照镜像 */
+  hasMilk: boolean;
+  /** 头顶奶瓶图标(仅绵羊创建) */
+  milkIcon: THREE.Sprite | null;
 };
 
 /**
@@ -442,7 +452,14 @@ export class Wildlife implements Updatable {
       burrow: null,
       leash: null,
       netLeash: null,
+      milkLeft: MILK_INTERVAL,
+      hasMilk: false,
+      milkIcon: null,
     };
+    if (species === 'sheep') {
+      animal.milkIcon = makeMilkIcon();
+      model.group.add(animal.milkIcon);
+    }
     this.animals.push(animal);
     return animal;
   }
@@ -789,6 +806,11 @@ export class Wildlife implements Updatable {
     const leash = animal.leash!;
     animal.walkTime += delta;
     if ('anchor' in leash) {
+      // 拴在桩上才开始攒奶:计时归零产出一份,取走后重新计时
+      if (!animal.hasMilk) {
+        animal.milkLeft -= delta;
+        if (animal.milkLeft <= 0) animal.hasMilk = true;
+      }
       if (animal.idleTime > 0) {
         animal.idleTime -= delta;
         return false;
@@ -834,6 +856,8 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.leash) return null;
     animal.leash = null;
+    animal.hasMilk = false;
+    animal.milkLeft = MILK_INTERVAL;
     animal.alerted = true;
     animal.idleTime = 0;
     return { x: animal.pos.x, z: animal.pos.z };
@@ -909,6 +933,30 @@ export class Wildlife implements Updatable {
     if (!best) return null;
     const anchor = best.leash as { anchor: { x: number; z: number } };
     return { id: best.id, anchor: anchor.anchor };
+  }
+
+  /** 玩家身边有奶可挤的拴养绵羊(空手自动挤奶判定用) */
+  milkableNear(origin: THREE.Vector3, range: number): { id: number; x: number; z: number } | null {
+    let best: Animal | null = null;
+    let bestDist = range * range;
+    for (const animal of this.animals) {
+      if (!animal.alive || !animal.hasMilk) continue;
+      const d = animal.pos.distanceToSquared(origin);
+      if (d < bestDist) {
+        best = animal;
+        bestDist = d;
+      }
+    }
+    return best ? { id: best.id, x: best.pos.x, z: best.pos.z } : null;
+  }
+
+  /** 取走一只羊身上的羊奶(有奶才成功),重置产奶计时 */
+  takeMilk(id: number): boolean {
+    const animal = this.animals.find((a) => a.id === id);
+    if (!animal?.alive || !animal.hasMilk) return false;
+    animal.hasMilk = false;
+    animal.milkLeft = MILK_INTERVAL;
+    return true;
   }
 
   /** 读档:在桩位生成一只已被拴住的羊(栖息地正常生成之外的额外个体) */
@@ -994,6 +1042,11 @@ export class Wildlife implements Updatable {
   private animate(animal: Animal, delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
+    // 有奶的羊头顶浮起奶瓶图标(无背景 Sprite,轻微起伏)
+    if (animal.milkIcon) {
+      animal.milkIcon.visible = animal.hasMilk;
+      animal.milkIcon.position.y = 1.25 + Math.sin(elapsed * 2 + animal.phase) * 0.06;
+    }
     // 鳄鱼在水洼里:身体半沉推进;出场潜伏时几乎整个没入水下,只靠涟漪暴露位置
     const croc = animal.species === 'crocodile';
     const crocInWater = croc && this.terrain.getWaterKind(animal.pos.x, animal.pos.z) === 'pond';
@@ -1274,7 +1327,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏;leash 同步羊被牵/被拴,恒定携带 null 以便差分清空) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; species: AnimalSpecies }[] {
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; milk: boolean; species: AnimalSpecies }[] {
     return this.animals.map((a) => {
       let leash: LeashPose | null = null;
       if (a.leash && 'anchor' in a.leash) {
@@ -1290,6 +1343,7 @@ export class Wildlife implements Updatable {
         alive: a.alive,
         hidden: a.hidden,
         leash,
+        milk: a.hasMilk,
         species: a.species,
       };
     });
@@ -1312,7 +1366,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏/拴绳状态同步;未知 id 且带物种时新建(GM 生成) */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; species?: AnimalSpecies }[]): void {
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -1326,6 +1380,7 @@ export class Wildlife implements Updatable {
       a.netHeading = p.h;
       a.hidden = !!p.hidden;
       a.netLeash = p.leash ?? null;
+      a.hasMilk = !!p.milk;
       if (!wasAlive || a.pos.distanceToSquared(a.netPos) > 64) {
         a.pos.copy(a.netPos);
         a.heading = p.h;
@@ -1356,6 +1411,7 @@ export class Wildlife implements Updatable {
       animal.netHeading = p.h;
       animal.hidden = !!p.hidden;
       animal.netLeash = p.leash ?? null;
+      animal.hasMilk = !!p.milk;
       animal.model.group.visible = !animal.hidden;
     }
   }

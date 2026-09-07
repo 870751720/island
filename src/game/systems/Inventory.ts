@@ -13,6 +13,7 @@ export type ResourceKind =
   | 'cola'
   | 'colaZero'
   | 'bottle'
+  | 'milk'
   | 'perch'
   | 'puffer'
   | 'sardine'

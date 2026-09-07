@@ -11,6 +11,7 @@ import type { FishingSystem } from '../systems/FishingSystem';
 import type { BowSystem } from '../systems/BowSystem';
 import type { SwordSystem } from '../systems/SwordSystem';
 import type { LassoSystem } from '../systems/LassoSystem';
+import type { SheepMilkSystem } from '../systems/SheepMilkSystem';
 import type { WaterSystem } from '../systems/WaterSystem';
 import type { Actor } from './Actor';
 import { PlayerNameTag } from './PlayerNameTag';
@@ -39,6 +40,7 @@ export class PlayerSession implements Actor {
   archery!: BowSystem;
   sword!: SwordSystem;
   lasso!: LassoSystem;
+  milk!: SheepMilkSystem;
   water!: WaterSystem;
   /** 上次记录的血量(检测血量下降触发受击表现) */
   lastHealth = 100;

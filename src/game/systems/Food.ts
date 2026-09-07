@@ -21,6 +21,7 @@ export const FOODS: Food[] = [
   { kind: 'fruitFruit', name: '红果', icon: '🍎', action: 'eat_berry', fxColor: '#c0392b', hunger: 10, thirst: 5, health: 0 },
   { kind: 'cola', name: '可乐', icon: '🥤', action: 'eat_berry', fxColor: '#c0392b', hunger: 5, thirst: 10, health: 0 },
   { kind: 'colaZero', name: '无糖可乐', icon: '🥤', action: 'eat_berry', fxColor: '#2c3e50', hunger: 0, thirst: 5, health: 0 },
+  { kind: 'milk', name: '羊奶', icon: '🥛', action: 'eat_berry', fxColor: '#f6f1e4', hunger: 10, thirst: 35, health: 5 },
   { kind: 'sardine', name: '沙丁鱼', icon: '🐟', action: 'eat_fish', fxColor: '#b8cdd9', hunger: 10, thirst: 5, health: 0 },
   { kind: 'shrimp', name: '虾', icon: '🦐', action: 'eat_fish', fxColor: '#e8927c', hunger: 10, thirst: 5, health: 0 },
   { kind: 'loach', name: '泥鳅', icon: '🐟', action: 'eat_fish', fxColor: '#8a7a4a', hunger: 10, thirst: 5, health: 0 },

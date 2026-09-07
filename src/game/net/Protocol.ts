@@ -31,7 +31,7 @@ export type PlayerState = {
 };
 
 /** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里;leash 表示羊被牵着(by)或拴在桩上(stake),null 表示未被拴(恒定携带以便差分清空) */
-export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; species?: AnimalSpecies };
+export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies };
 
 export type AmbientPose = {
   id: number;

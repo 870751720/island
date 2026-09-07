@@ -15,6 +15,7 @@ import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
+import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -239,6 +240,7 @@ const BEAR_SFX_RANGE = 20;
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
 type InteractionKind =
   | 'collect'
+  | 'milk'
   | 'crafting'
   | 'eating'
   | 'fishing'
@@ -876,6 +878,7 @@ export class Game {
             continue;
           }
           s.collect.update(delta);
+          s.milk.update(delta);
           s.crafting.update(delta);
           // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
           if (
@@ -1660,6 +1663,18 @@ export class Game {
     return true;
   }
 
+  /** 空手挤奶结算:从拴养有奶的羊身上取走一份羊奶并重置产奶计时(客人端上行动作由房主结算) */
+  milkSheep(actor: PlayerSession = this.local, sheepId: number, x: number, z: number): boolean {
+    if (this.guestNet) return this.guestNet.action('milkSheep', [sheepId, x, z]);
+    if (!this.wildlife.takeMilk(sheepId)) return false;
+    const pos = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
+    this.giveItem('milk', 1, actor);
+    this.markPickupOrigin(pos, actor);
+    this.audio.play('pickup');
+    this.fx.burst(new THREE.Vector3(pos.x, pos.y + 0.8, pos.z), '#f6f1e4', 8);
+    return true;
+  }
+
   /** 每帧更新玩家/桩与羊之间的系绳渲染(两端共用,信息来自动物权威状态或姿态快照镜像) */
   private updateLeashLines(): void {
     const entries: { key: string; from: THREE.Vector3; to: THREE.Vector3 }[] = [];
@@ -2106,6 +2121,7 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isWorking(this.local) ||
       this.eating.isWorking ||
+      this.local.milk.isWorking ||
       this.beds.isBusy(this.local) ||
       this.survival.state.dead ||
       this.wildlife.leashedBy(this.player)
@@ -3068,6 +3084,7 @@ export class Game {
     if (exclude !== 'sword' && s.sword.isWorking) return true;
     if (exclude !== 'lasso' && (s.lasso.isWorking || s.lasso.isAiming)) return true;
     if (exclude !== 'collect' && s.collect.isWorking) return true;
+    if (exclude !== 'milk' && s.milk.isWorking) return true;
     if (exclude !== 'crafting' && s.crafting.isWorking) return true;
     if (exclude !== 'eating' && s.eating.isWorking) return true;
     if (exclude !== 'fishing' && s.fishing.isWorking) return true;
@@ -3135,6 +3152,15 @@ export class Game {
       (position) => this.markPickupOrigin(position, s),
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
       () => this.shrines.berryBlessed
+    );
+    s.milk = new SheepMilkSystem(
+      s.player,
+      this.wildlife,
+      this.audio,
+      // 合成/进食/钓鱼等占用双手时挤奶让位
+      () => this.isSessionBusy(s, 'milk'),
+      // 一次挤奶完成:统一走 milkSheep 结算(客人端上行,房主权威入包)
+      (sheepId, x, z) => this.milkSheep(s, sheepId, x, z)
     );
     s.crafting = new CraftingSystem(
       s.player,
@@ -3538,6 +3564,9 @@ export class Game {
     let color: string | undefined;
     if (session.survival.state.dead) {
       // 死亡时不显示
+    } else if (session.milk.isWorking) {
+      label = '挤羊奶…';
+      progress = session.milk.getProgress();
     } else if (session.crafting.isWorking) {
       const { total, current } = session.crafting.queueInfo;
       label = `制作中:${session.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;

@@ -26,7 +26,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'ironShirt', 'ironPants', 'ironHat', 'ironBackpack',
   ],
   食物: [
-    'berry', 'cola', 'colaZero', 'bottle',
+    'berry', 'cola', 'colaZero', 'bottle', 'milk',
     'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
     'anchovy', 'horseMackerel', 'yellowCroaker', 'saury', 'hairtail',
     'grouper', 'catfish', 'grassCarp', 'swordfish', 'manta', 'goldenFish',
@@ -162,6 +162,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '漂流瓶',
     icon: '🍾',
     description: '随波逐流的玻璃瓶,瓶塞里还塞着一张字条。',
+  },
+  milk: {
+    kind: 'milk',
+    name: '羊奶',
+    icon: '🥛',
+    description: '从拴养的绵羊身上挤出的鲜奶,温热香浓,直接喝最滋补。',
   },
   sardine: {
     kind: 'sardine',
