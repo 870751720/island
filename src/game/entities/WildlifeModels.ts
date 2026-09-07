@@ -279,76 +279,103 @@ function makeSheepModel(): AnimalModel {
   return { group, legs, head: headPivot, tail };
 }
 
-/** 野牛:窄长的深棕身躯 + 肩峰 + 宽头短弯角 + 修长四肢与蓬松尾穗 */
+/** 野牛玩法使用普通牛外形:平直厚实躯干 + 宽口鼻牛头 + 横耳弯角 + 中等粗腿 + 长尾 */
 function makeBisonModel(): AnimalModel {
   const group = new THREE.Group();
-  group.scale.setScalar(1.1);
-  const fur = clay('#5a4130');
-  const darkFur = clay('#46311f');
-  const horn = clay('#cfc4a8');
-  const dark = clay('#241a12');
+  group.scale.setScalar(1.08);
+  const coat = clay('#8a5d3b');
+  const darkCoat = clay('#593a27');
+  const muzzleMat = clay('#c49a7b');
+  const hornMat = clay('#ded2b5');
+  const hoofMat = clay('#30251e');
+  const eyeMat = clay('#17130f');
 
-  // 窄长的躯干高抬在长腿上:肩峰只比背线略高,不做成熊那样的厚背
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), fur);
-  body.scale.set(0.85, 0.92, 1.75);
-  body.position.y = 0.84;
+  // 牛的核心轮廓是平直而厚实的桶状躯干，不使用野牛的肩峰和前重后轻背线。
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), coat);
+  body.scale.set(1, 0.92, 1.55);
+  body.position.set(0, 0.68, -0.05);
   body.castShadow = true;
   group.add(body);
-  const hump = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 5), fur);
-  hump.scale.set(0.8, 0.7, 1.05);
-  hump.position.set(0, 0.98, 0.3);
-  hump.castShadow = true;
-  group.add(hump);
-  const rump = new THREE.Mesh(new THREE.SphereGeometry(0.24, 7, 5), darkFur);
-  rump.scale.set(0.85, 0.9, 1.15);
-  rump.position.set(0, 0.82, -0.48);
-  rump.castShadow = true;
-  group.add(rump);
+
+  // 短粗颈把头接到躯干前端，侧面不会出现鹿一样的细长脖子。
+  const neck = new THREE.Mesh(new THREE.SphereGeometry(0.24, 7, 5), darkCoat);
+  neck.scale.set(1, 1.12, 0.9);
+  neck.position.set(0, 0.69, 0.46);
+  neck.castShadow = true;
+  group.add(neck);
 
   const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.88, 0.42);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 7, 6), darkFur);
-  head.scale.set(0.9, 0.9, 1.15);
+  headPivot.position.set(0, 0.69, 0.63);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), darkCoat);
+  head.scale.set(1.05, 1.12, 1.18);
   head.castShadow = true;
   headPivot.add(head);
-  // 额顶毛冠:垂在两角之间
-  const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), fur);
-  tuft.scale.set(1, 0.7, 0.9);
-  tuft.position.set(0, 0.12, 0.02);
-  headPivot.add(tuft);
-  // 短弯角:从两侧向上向内收
+
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.13, 7, 5), muzzleMat);
+  muzzle.scale.set(1.25, 0.72, 0.9);
+  muzzle.position.set(0, -0.08, 0.2);
+  muzzle.castShadow = true;
+  headPivot.add(muzzle);
+
   for (const side of [-1, 1]) {
-    const hornMesh = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 5), horn);
-    hornMesh.geometry.translate(0, 0.1, 0);
-    hornMesh.position.set(side * 0.14, 0.08, 0);
-    hornMesh.rotation.z = side * -0.85;
-    hornMesh.castShadow = true;
-    headPivot.add(hornMesh);
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.027, 5, 4), horn);
-    tip.position.set(side * 0.09, 0.18, 0);
-    headPivot.add(tip);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 5, 4), dark);
-    eye.position.set(side * 0.11, 0.03, 0.13);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 4), darkCoat);
+    ear.scale.set(1.5, 0.46, 0.62);
+    ear.position.set(side * 0.22, 0.08, 0.01);
+    ear.rotation.z = side * 0.12;
+    headPivot.add(ear);
+
+    // 两段低模锥体形成牛角的外张后上弯轮廓。
+    const hornBase = new THREE.Mesh(new THREE.ConeGeometry(0.047, 0.19, 5), hornMat);
+    hornBase.geometry.translate(0, 0.095, 0);
+    hornBase.position.set(side * 0.16, 0.15, -0.01);
+    hornBase.rotation.z = side * -1.05;
+    hornBase.castShadow = true;
+    headPivot.add(hornBase);
+    const hornTip = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.14, 5), hornMat);
+    hornTip.geometry.translate(0, 0.07, 0);
+    hornTip.position.set(side * 0.31, 0.24, -0.01);
+    hornTip.rotation.z = side * -0.35;
+    hornTip.castShadow = true;
+    headPivot.add(hornTip);
+
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 5, 4), eyeMat);
+    eye.position.set(side * 0.16, 0.035, 0.13);
     headPivot.add(eye);
+    const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.014, 5, 4), hoofMat);
+    nostril.position.set(side * 0.065, -0.095, 0.31);
+    headPivot.add(nostril);
   }
   group.add(headPivot);
 
-  // 修长四肢(比熊细,蹄部落点更靠身侧)
+  // 中等长度的牛腿，末端用深色蹄块强化家牛特征。
   const legs = [
-    makeLeg(darkFur, -0.16, 0.8, 0.34, 0.8, 0.78),
-    makeLeg(darkFur, 0.16, 0.8, 0.34, 0.8, 0.78),
-    makeLeg(fur, -0.16, 0.8, -0.34, 0.8, 0.75),
-    makeLeg(fur, 0.16, 0.8, -0.34, 0.8, 0.75),
+    makeLeg(darkCoat, -0.22, 0.58, 0.33, 0.55, 0.92),
+    makeLeg(darkCoat, 0.22, 0.58, 0.33, 0.55, 0.92),
+    makeLeg(coat, -0.22, 0.58, -0.4, 0.55, 0.92),
+    makeLeg(coat, 0.22, 0.58, -0.4, 0.55, 0.92),
   ];
-  legs.forEach((l) => group.add(l));
+  legs.forEach((leg) => {
+    const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.14), hoofMat);
+    hoof.position.y = -0.53;
+    hoof.castShadow = true;
+    leg.add(hoof);
+    group.add(leg);
+  });
 
-  // 细尾带蓬松尾穗
-  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5), darkFur);
-  tail.scale.set(0.65, 0.9, 1);
-  tail.position.set(0, 0.84, -0.82);
-  group.add(tail);
+  const tailPivot = new THREE.Group();
+  tailPivot.position.set(0, 0.72, -0.58);
+  tailPivot.rotation.x = -0.35;
+  const tailStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.48, 5), coat);
+  tailStem.geometry.translate(0, -0.24, 0);
+  tailStem.castShadow = true;
+  tailPivot.add(tailStem);
+  const tailTuft = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 5), darkCoat);
+  tailTuft.scale.set(0.75, 1.25, 0.75);
+  tailTuft.position.y = -0.5;
+  tailPivot.add(tailTuft);
+  group.add(tailPivot);
 
-  return { group, legs, head: headPivot, tail };
+  return { group, legs, head: headPivot, tail: tailPivot };
 }
 
 /** 熊:深棕色敦实大身板 + 圆耳短吻 + 粗壮四肢 */

@@ -1173,7 +1173,7 @@ export class Wildlife implements Updatable {
     if (animal.species === 'sheep' && (animal.leash || animal.netLeash) && !moving) {
       headPitch -= Math.max(0, Math.sin(elapsed * 0.8 + animal.phase)) * 0.55;
     }
-    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'bison' ? 0.42 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
+    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'bison' ? 0.63 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
     // 兔尾以轻颤为主,鳄鱼在水中靠粗尾左右大幅摆动推进,其余动物轻晃摆尾。
     animal.model.tail.rotation.y = hop
