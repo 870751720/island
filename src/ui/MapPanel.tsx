@@ -5,8 +5,6 @@ import type { MapSnapshot } from '@/game/Game';
 
 type MapPanelProps = {
   snapshot: MapSnapshot;
-  expanded: boolean;
-  onExpand: () => void;
   onClose: () => void;
 };
 
@@ -53,19 +51,18 @@ function useTerrainImage(snapshot: MapSnapshot): string {
   }, [snapshot.terrain]);
 }
 
-function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: boolean }) {
+function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
   const terrainImage = useTerrainImage(snapshot);
   const local = snapshot.players.find((player) => player.id === snapshot.localPlayerId) ?? snapshot.players[0];
   if (!local) return null;
 
-  const width = expanded ? 340 : 132;
+  const width = 132;
   const height = width;
-  // 大小地图使用完全相同的玩家中心与世界范围，大地图只做等比例放大。
   const scale = width / MAP_VIEW_METERS;
   const px = (x: number) => width / 2 + (x - local.x) * scale;
   const py = (z: number) => height / 2 + (z - local.z) * scale;
-  const markerSize = expanded ? 8 : 6;
-  const labelSize = expanded ? 11 : 8;
+  const markerSize = 6;
+  const labelSize = 8;
   const mapX = px(-snapshot.island.width / 2);
   const mapY = py(-snapshot.island.length / 2);
 
@@ -90,7 +87,7 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
       style={{ display: 'block', background: TERRAIN_COLORS[0] }}
     >
       <defs>
-        <filter id={`shadow-${expanded}`} x="-50%" y="-50%" width="200%" height="200%">
+        <filter id="map-marker-shadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity=".45" />
         </filter>
       </defs>
@@ -110,7 +107,7 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
       {snapshot.workbenches.map((point, index) => {
         const anchor = anchored(point.x, point.z);
         return (
-          <g key={`workbench-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter={`url(#shadow-${expanded})`} opacity={anchor.outside ? .55 : 1}>
+          <g key={`workbench-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside ? .55 : 1}>
             <rect x={-markerSize} y={-markerSize * .55} width={markerSize * 2} height={markerSize * 1.1} rx="2" fill="#8b5a35" stroke="#fff2cf" strokeWidth="1.5" />
             <path d={`M${-markerSize * .65} ${markerSize * .55}v${markerSize * .55}M${markerSize * .65} ${markerSize * .55}v${markerSize * .55}`} stroke="#5d3b24" strokeWidth="2" />
           </g>
@@ -122,7 +119,7 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
         const isLocal = player.id === snapshot.localPlayerId;
         const anchor = anchored(player.x, player.z);
         return (
-          <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter={`url(#shadow-${expanded})`} opacity={anchor.outside && !isLocal ? .8 : 1}>
+          <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside && !isLocal ? .8 : 1}>
             <circle r={isLocal ? markerSize + 2 : markerSize} fill={isLocal ? '#ffd54f' : '#5b8def'} stroke="#fff" strokeWidth="2" />
             <path d={`M0 ${-markerSize - 5} 3 ${-markerSize} -3 ${-markerSize}Z`} fill={isLocal ? '#6d4c41' : '#284a91'} />
             <text y={markerSize + labelSize + 2} textAnchor="middle" fontFamily="sans-serif" fontSize={labelSize} fontWeight="700" fill="#fff" stroke="rgba(30,40,35,.8)" strokeWidth="2.5" paintOrder="stroke">
@@ -135,52 +132,26 @@ function MapSurface({ snapshot, expanded }: { snapshot: MapSnapshot; expanded: b
   );
 }
 
-export function MapPanel({ snapshot, expanded, onExpand, onClose }: MapPanelProps) {
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={onExpand}
-        aria-label="打开大地图"
-        style={{
-          width: 136,
-          height: 136,
-          padding: 2,
-          border: '2px solid rgba(255,255,255,.9)',
-          borderRadius: 16,
-          overflow: 'hidden',
-          background: '#86bed0',
-          boxShadow: '0 3px 12px rgba(0,0,0,.3)',
-          cursor: 'pointer',
-          touchAction: 'manipulation',
-        }}
-      >
-        <MapSurface snapshot={snapshot} expanded={false} />
-      </button>
-    );
-  }
-
+export function MapPanel({ snapshot, onClose }: MapPanelProps) {
   return (
-    <div
-      onPointerDown={onClose}
-      aria-label="关闭地图"
-      style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(18,26,24,.48)', display: 'grid', placeItems: 'center', padding: 16 }}
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="折叠小地图"
+      style={{
+        width: 136,
+        height: 136,
+        padding: 2,
+        border: '2px solid rgba(255,255,255,.9)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        background: '#86bed0',
+        boxShadow: '0 3px 12px rgba(0,0,0,.3)',
+        cursor: 'pointer',
+        touchAction: 'manipulation',
+      }}
     >
-      <div
-        onPointerDown={(event) => event.stopPropagation()}
-        style={{
-          width: 'min(88vw, 390px)',
-          aspectRatio: '1',
-          padding: 7,
-          borderRadius: 22,
-          overflow: 'hidden',
-          background: '#f4dfaa',
-          border: '3px solid #6d5236',
-          boxShadow: '0 12px 36px rgba(0,0,0,.5)',
-        }}
-      >
-        <MapSurface snapshot={snapshot} expanded />
-      </div>
-    </div>
+      <MapSurface snapshot={snapshot} />
+    </button>
   );
 }

@@ -196,7 +196,6 @@ export function GameplayUI({
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-  const [mapExpanded, setMapExpanded] = useState(false);
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
@@ -353,10 +352,7 @@ export function GameplayUI({
     return () => window.clearInterval(timer);
   }, [mapOpen]);
 
-  const closeMap = () => {
-    setMapExpanded(false);
-    setMapOpen(false);
-  };
+  const closeMap = () => setMapOpen(false);
 
   // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
@@ -405,7 +401,7 @@ export function GameplayUI({
           {!mapOpen && (
             <button
               onClick={() => setMapOpen(true)}
-              aria-label="打开地图"
+              aria-label="打开小地图"
               style={{
                 width: 44,
                 height: 44,
@@ -422,15 +418,12 @@ export function GameplayUI({
               <MapIcon size={28} />
             </button>
           )}
-          {mapOpen && !mapExpanded && mapSnapshot && (
+          {mapOpen && mapSnapshot && (
             <div style={fadeStyle(hud.busy)}>
-              <MapPanel snapshot={mapSnapshot} expanded={false} onExpand={() => setMapExpanded(true)} onClose={closeMap} />
+              <MapPanel snapshot={mapSnapshot} onClose={closeMap} />
             </div>
           )}
         </div>
-      )}
-      {mapOpen && mapExpanded && mapSnapshot && (
-        <MapPanel snapshot={mapSnapshot} expanded onExpand={() => {}} onClose={closeMap} />
       )}
       {settingsOpen && (
         <SettingsPanel
