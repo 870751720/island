@@ -35,44 +35,6 @@ function SliderRow({
   );
 }
 
-/** 开关行:名称 + 说明 + checkbox */
-function ToggleRow({
-  label,
-  hint,
-  value,
-  onToggle,
-}: {
-  label: string;
-  hint: string;
-  value: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        fontSize: 15,
-        color: '#4a3b2a',
-        cursor: 'pointer',
-      }}
-    >
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span>{label}</span>
-        <span style={{ fontSize: 12, color: '#8a7f6b' }}>{hint}</span>
-      </span>
-      <input
-        type="checkbox"
-        checked={value}
-        onChange={onToggle}
-        style={{ width: 22, height: 22, accentColor: '#5b8a4a' }}
-      />
-    </label>
-  );
-}
-
 /** 联机区状态:由外层驱动,单机时可发起多人模式,已联机时展示房间码;缺省(客人端)不渲染联机区 */
 export type MultiplayerSection = {
   roomCode: string;
@@ -91,8 +53,6 @@ export function SettingsPanel({
   onExit,
   onClose,
   multiplayer,
-  promptCardBottomRight,
-  onTogglePromptCardBottomRight,
 }: {
   /** 音量变化时热应用到 GameAudio 并持久化 */
   onApply: (settings: { music: number; sfx: number }) => void;
@@ -100,9 +60,6 @@ export function SettingsPanel({
   onClose: () => void;
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
-  /** 弹出卡片(捡回/进食/手搓)是否放右下角工具按钮下方 */
-  promptCardBottomRight: boolean;
-  onTogglePromptCardBottomRight: () => void;
 }) {
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
@@ -158,12 +115,6 @@ export function SettingsPanel({
           label="🔊 音效"
           value={settings.sfx}
           onChange={(v) => apply({ ...settings, sfx: v })}
-        />
-        <ToggleRow
-          label="🃏 拾取卡片放右下角"
-          hint="弹出卡片显示在工具按钮下方"
-          value={promptCardBottomRight}
-          onToggle={onTogglePromptCardBottomRight}
         />
         {multiplayer &&
           (multiplayer.roomCode ? (

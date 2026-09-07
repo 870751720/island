@@ -44,7 +44,6 @@ import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
-import { loadPromptCardBottomRight, savePromptCardBottomRight } from './promptCard';
 import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 
@@ -198,8 +197,6 @@ export function GameplayUI({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
-  // 弹出卡片(捡回/进食/手搓)位置:默认左侧,可在设置里切到右下角工具按钮下方
-  const [promptBottomRight, setPromptBottomRight] = useState(loadPromptCardBottomRight);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
@@ -433,12 +430,6 @@ export function GameplayUI({
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
           onExit={onExit}
           onClose={() => setSettingsOpen(false)}
-          promptCardBottomRight={promptBottomRight}
-          onTogglePromptCardBottomRight={() => {
-            const next = !promptBottomRight;
-            setPromptBottomRight(next);
-            savePromptCardBottomRight(next);
-          }}
           multiplayer={
             net?.guest
               ? undefined
@@ -748,21 +739,15 @@ export function GameplayUI({
                   onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
                   onCraftCampfire={() => gameRef.current?.craftCampfire()}
                   suppressed={dropActive || eatActive}
-                  bottomRight={promptBottomRight}
                 />
                 <EatPrompt
                   hud={hud}
                   onEat={() => gameRef.current?.eatFood()}
                   onEatFull={() => gameRef.current?.eatUntilFull()}
                   suppressed={dropActive}
-                  bottomRight={promptBottomRight}
                 />
                 {!backpackOpen && (
-                  <DropPrompt
-                    hud={hud}
-                    onPickup={() => gameRef.current?.pickupDrop()}
-                    bottomRight={promptBottomRight}
-                  />
+                  <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
                 )}
               </>
             );

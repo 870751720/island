@@ -7,15 +7,7 @@ import { TOOL_IDS, toolName } from '@/game/systems/Crafting';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
 /** 玩家靠近地面掉落物时在左边弹出的「捡回」卡片,点击后拾回背包(移动中不显示,三张左侧卡片互斥时优先级最高) */
-export function DropPrompt({
-  hud,
-  onPickup,
-  bottomRight,
-}: {
-  hud: HudSnapshot;
-  onPickup: () => void;
-  bottomRight: boolean;
-}) {
+export function DropPrompt({ hud, onPickup }: { hud: HudSnapshot; onPickup: () => void }) {
   const drop = hud.nearDrop;
   if (!drop || hud.dead || hud.moving) return null;
   const item = ITEMS[drop.kind];
@@ -24,7 +16,7 @@ export function DropPrompt({
     ? toolName(drop.kind as (typeof TOOL_IDS)[number], drop.tier ?? 1)
     : item.name;
   return (
-    <div style={promptWrapStyle(hud, bottomRight)}>
+    <div style={promptWrapStyle(hud)}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();
