@@ -3,6 +3,8 @@ import type { Updatable } from '../core/GameLoop';
 import { GmSystem } from './GmSystem';
 
 const DAY_LENGTH = 240; // 一整轮昼夜(秒,按白天流速计)
+/** 读档落在清晨前最后 1 秒时直接贴到清晨,避免加载首帧看起来凭空加一天 */
+const RESUME_MORNING_GUARD = 1 / DAY_LENGTH;
 /** 夜晚时钟加速倍率:自然夜约 116 秒,加速后压到约 40 秒 */
 const NIGHT_CLOCK_RATE = 2.9;
 
@@ -19,7 +21,7 @@ export type DayPhase = 'day' | 'dusk' | 'night' | 'dawn';
 /** 昼夜循环:驱动太阳/月光、天空色与环境光,t∈[0,1),0 为日出起点(sin 峰值 t=0.25 为正午) */
 export class DayNightSystem implements Updatable {
   private t = DayNightSystem.MORNING_T; // 新的一天从清晨开始(玩家出生/睡醒都停在日出后不久)
-  /** 当前是第几天(从 1 开始,跨过正午计一天) */
+  /** 当前是第几天(从 1 开始,跨过清晨计一天) */
   private dayCount = 1;
   /** 睡觉过渡的起始时刻(非空表示过渡进行中) */
   private sleepFrom: number | null = null;
@@ -63,6 +65,23 @@ export class DayNightSystem implements Updatable {
 
   set day(d: number) {
     if (Number.isFinite(d) && d >= 1) this.dayCount = Math.floor(d);
+  }
+
+  /**
+   * 原子恢复存档中的时刻与天数。若存档恰好位于清晨前最后 1 秒，
+   * 保留存档天数并贴到清晨，避免加载后的第一帧立刻跨天。
+   */
+  restore(time: number, day = 1): void {
+    if (!Number.isFinite(time)) return;
+    const normalized = ((time % 1) + 1) % 1;
+    const beforeMorning = normalized < DayNightSystem.MORNING_T
+      ? DayNightSystem.MORNING_T - normalized
+      : Number.POSITIVE_INFINITY;
+    this.t = beforeMorning <= RESUME_MORNING_GUARD
+      ? DayNightSystem.MORNING_T
+      : normalized;
+    this.day = day;
+    this.apply();
   }
 
   /** 清晨时刻(新一天的起点,太阳刚升起不久) */
@@ -123,10 +142,11 @@ export class DayNightSystem implements Updatable {
     const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
     const prev = this.t;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
-    // 跨过清晨(MORNING_T)才算过了一天,与睡觉跳夜同口径;
-    // 若以正午回绕计天,开局(正午刚过)的第 1 天只剩半天加一晚
-    const dayProgress = (v: number) => (v - DayNightSystem.MORNING_T + 1) % 1;
-    if (dayProgress(this.t) < dayProgress(prev)) this.dayCount += 1;
+    // 时钟每帧只前进很小一段；直接判断清晨阈值，避免取模进度在边界附近
+    // 因浮点误差把初始化/读档首帧误识别为跨天。
+    if (prev < DayNightSystem.MORNING_T && this.t >= DayNightSystem.MORNING_T) {
+      this.dayCount += 1;
+    }
     this.apply();
   }
 

@@ -198,7 +198,7 @@ export type HudSnapshot = {
   nearDrop: DropInfo | null;
   /** 通用临时提示(自动消失),如「背包满了」 */
   notice: { id: number; text: string } | null;
-  /** 当前是第几天(跨过正午计一天,睡觉跳夜也会推进) */
+  /** 当前是第几天(跨过清晨计一天,睡觉跳夜也会推进) */
   day: number;
   /** 玩家正在移动或处于任一交互进行中(用于淡化非必要 HUD 按钮) */
   busy: boolean;
@@ -1780,8 +1780,7 @@ export class Game {
 
   /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
-    this.dayNight.time = save.dayTime;
-    if (save.day) this.dayNight.day = save.day;
+    this.dayNight.restore(save.dayTime, save.day ?? 1);
     this.props.applySave(save.props);
     // 旧档里没有蚯蚓窝资源点(改版前蚯蚓是不入档的环境生物),补撒一批野生的
     this.props.seedWildWormNests();
