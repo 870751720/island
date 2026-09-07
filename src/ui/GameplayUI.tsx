@@ -46,6 +46,7 @@ import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
 import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
+import type { SaveData } from '@/game/systems/SaveSystem';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -162,11 +163,14 @@ function hijackerDiggable(
  */
 export function GameplayUI({
   net,
+  initialSave,
   onExit,
   onBecomeHost,
 }: {
   /** 联机会话(房主或客人);缺省为单机 */
   net?: { host?: NetHost; guest?: NetGuest };
+  /** 单机启动时已锁定的存档:null 表示明确开新档,不允许 Game 再读取 localStorage */
+  initialSave?: SaveData | null;
   onExit: () => void;
   /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
   onBecomeHost: (host: NetHost) => void;
@@ -329,7 +333,9 @@ export function GameplayUI({
               seeds: { terrainSeed: net.host.terrainSeed },
               save: net.host.initialSave,
             }
-          : {}),
+          : net?.guest
+            ? {}
+            : { save: initialSave ?? null }),
       }
     );
     gameRef.current = game;

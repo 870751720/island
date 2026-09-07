@@ -5,6 +5,7 @@ import { StartScreen, type StartMode, type MultiplayerRole } from './StartScreen
 import { RoomLobby } from './RoomLobby';
 import { GameplayUI } from './GameplayUI';
 import { SaveSystem } from '@/game/systems/SaveSystem';
+import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
 
@@ -18,6 +19,8 @@ export function GameCanvas() {
   const [notice, setNotice] = useState('');
   const [disconnectNotice, setDisconnectNotice] = useState('');
   const [invitedRoom, setInvitedRoom] = useState('');
+  /** 单机启动时锁定的存档选择:null=明确新档,SaveData=明确继续,避免 Game 构造时二次读取产生竞态 */
+  const [singlePlayerSave, setSinglePlayerSave] = useState<SaveData | null>(null);
 
   useEffect(() => {
     const room = new URLSearchParams(window.location.search).get('room');
@@ -28,7 +31,12 @@ export function GameCanvas() {
 
   const start = (mode: StartMode) => {
     setNotice('');
-    if (mode === 'new') SaveSystem.clear();
+    if (mode === 'new') {
+      SaveSystem.clear();
+      setSinglePlayerSave(null);
+    } else {
+      setSinglePlayerSave(SaveSystem.load());
+    }
     setPhase('playing');
   };
 
@@ -54,6 +62,7 @@ export function GameCanvas() {
     return (
       <GameplayUI
         net={{ host: host ?? undefined, guest: guest ?? undefined }}
+        initialSave={singlePlayerSave}
         onExit={exit}
         onBecomeHost={setHost}
       />
