@@ -161,7 +161,9 @@ export class CollectSystem {
     /** 资源点产出入包时上报飞行起点(本地玩家的入包飞行表现用) */
     private onYield: (position: Vector3) => void = () => {},
     /** 蜂巢神龛是否在场(浆果丛产量祝福,全岛生效) */
-    private berryBlessed: () => boolean = () => false
+    private berryBlessed: () => boolean = () => false,
+    /** 自然补种选点时需要避开的玩家位置(防树苗在玩家面前凭空出现穿帮) */
+    private seedAvoidPlayers: () => readonly Vector3[] = () => []
   ) {}
 
   /** 手持锄头靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
@@ -284,10 +286,15 @@ export class CollectSystem {
       this.props.removeProp(prop);
       this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
     } else {
+      const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';
       this.props.harvest(prop);
       config.yield(this.inventory, prop);
       if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
         this.inventory.add('berry', 1);
+      }
+      // 砍倒成树第一阶段时,房主端在岛上别处自然补种一棵同树种(客人端由增量同步复现)
+      if (treeFelled && prop.growth === 'mature') {
+        this.props.seedRegrowTree(prop.species ?? 'oak', this.seedAvoidPlayers());
       }
     }
     this.fx.burst(prop.position, config.fxColor, 14);

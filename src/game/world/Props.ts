@@ -5,6 +5,7 @@ import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
 import {
   GROWTH_CHANCE,
+  TREE_MODEL_SCALE,
   type TreeSpecies,
   type TreeStage,
 } from './TreeSpecies';
@@ -12,7 +13,7 @@ import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
-import { landCells } from './SpawnLayout';
+import { isPassage, landCells } from './SpawnLayout';
 
 const SHAKE_TIME = 0.4;
 
@@ -26,7 +27,7 @@ const SWAY_CONFIG: Partial<Record<PropKind, { amp: number; freq: number }>> = {
 
 /** 有阻挡的物件的碰撞半径(树按树干算,大石按岩体算);未列出的种类可穿过 */
 const BLOCK_RADIUS: Partial<Record<PropKind, number>> = {
-  tree: 0.3,
+  tree: 0.4,
   rock: 0.6,
   iron: 0.6,
   meteor: 0.6,
@@ -520,6 +521,42 @@ export class Props implements Updatable {
     return prop;
   }
 
+  /** 自然补种的目标间距:离最近的树太近会挤成密林,太远则落在光秃地上 */
+  private static readonly SEED_TARGET_SPACING = 6;
+  /** 补种点与玩家的最小距离,避免树苗当着玩家的面凭空出现 */
+  private static readonly SEED_PLAYER_CLEARANCE = 18;
+
+  /**
+   * 自然补种:玩家每砍倒一棵成树,房主端在岛上另选一处播下同树种种子(发芽阶段)。
+   * 选点采样干地格子,排除水边/通道/被占位置与所有玩家周围,再按「与最近树的距离
+   * 最接近目标间距」打分取最优,使补种既不加密密林也不落在光秃地上。
+   */
+  seedRegrowTree(species: TreeSpecies, avoidPlayers: readonly THREE.Vector3[]): void {
+    const cells = landCells(this.terrain);
+    if (!cells.length) return;
+    const trees = this.list.filter((prop) => prop.kind === 'tree' && prop.group.visible);
+    const p = new THREE.Vector3();
+    let best: { x: number; z: number; score: number } | null = null;
+    for (let i = 0; i < 80; i++) {
+      const c = cells[Math.floor(Math.random() * cells.length)];
+      if (!c) break;
+      const x = c.x + (Math.random() - 0.5) * 4;
+      const z = c.z + (Math.random() - 0.5) * 4;
+      p.set(x, this.terrain.getHeight(x, z), z);
+      if (p.y <= 0.3 || this.terrain.isNearWater(p, 1)) continue;
+      if (isPassage(x, z)) continue;
+      if (this.isOccupied(p, 2)) continue;
+      if (avoidPlayers.some((a) => Math.hypot(x - a.x, z - a.z) < Props.SEED_PLAYER_CLEARANCE)) continue;
+      const nearest = trees.reduce(
+        (min, t) => Math.min(min, Math.hypot(x - t.position.x, z - t.position.z)),
+        Infinity
+      );
+      const score = -Math.abs(nearest - Props.SEED_TARGET_SPACING);
+      if (!best || score > best.score) best = { x, z, score };
+    }
+    if (best) this.plant(species, best.x, best.z);
+  }
+
   /** 落下一颗陨石:在落点生成可采集的陨石资源点(产出同岩石) */
   placeMeteor(x: number, z: number): Prop {
     const y = this.terrain.getHeight(x, z);
@@ -690,6 +727,7 @@ export class Props implements Updatable {
       part.castShadow = true;
       prop.group.add(part);
     }
+    prop.group.scale.setScalar(TREE_MODEL_SCALE);
     this.treeLooks.set(prop, look);
   }
 

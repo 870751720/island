@@ -3240,7 +3240,9 @@ export class Game {
         this.markPickupOrigin(position, s);
       },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
-      () => this.shrines.berryBlessed
+      () => this.shrines.berryBlessed,
+      // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现
+      () => this.sessions.map((session) => session.player.group.position)
     );
     s.milk = new SheepMilkSystem(
       s.player,
