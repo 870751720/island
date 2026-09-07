@@ -3,12 +3,12 @@ import type { ResourceKind } from '../systems/Inventory';
 import type { HudSnapshot } from '../Game';
 import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
-import type { AnimalSpecies } from '../entities/Wildlife';
+import type { AnimalSpecies, LeashPose } from '../entities/Wildlife';
 import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 21;
+export const NET_PROTOCOL_VERSION = 22;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -30,8 +30,8 @@ export type PlayerState = {
   action: ActionType | null;
 };
 
-/** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里 */
-export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; species?: AnimalSpecies };
+/** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里;leash 表示羊被牵着(by)或拴在桩上(stake),null 表示未被拴(恒定携带以便差分清空) */
+export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; species?: AnimalSpecies };
 
 export type AmbientPose = {
   id: number;
@@ -71,6 +71,7 @@ export type WorldPatch = Partial<
     | 'fenceGates'
     | 'beds'
     | 'shrines'
+    | 'stakes'
     | 'drops'
   >
 >;
@@ -86,6 +87,8 @@ export type NetEvent =
   | { kind: 'creatureHit'; target: 'wildlife' | 'crab' | 'bird'; id: number }
   /** 玩家放箭的视觉广播(命中由射手端判定、arrowHit 动作结算):他人端复现箭矢飞行与放箭动作 */
   | { kind: 'arrowShot'; actor: string; dx: number; dz: number }
+  /** 玩家掷出套索的视觉广播(命中由掷出端判定、lassoHit 动作结算):他人端复现绳圈飞行 */
+  | { kind: 'lassoThrown'; actor: string; dx: number; dz: number }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }

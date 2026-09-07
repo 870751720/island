@@ -17,6 +17,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   berry: '#c0392b',
   fiber: '#a4c46a',
   rope: '#d9c27a',
+  lasso: '#c9b588',
   cola: '#c0392b',
   colaZero: '#2c3e50',
   bottle: '#a8d4d6',
@@ -1046,6 +1047,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fenceWood: () => makeFenceDrop('branch'),
   fenceStone: () => makeFenceDrop('stone'),
   fenceGate: () => makeGateDrop(),
+  lasso: makeLassoDrop,
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
   grassTuft: () => makeGrassTuftDrop(),
@@ -1058,8 +1060,26 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   bed3: () => makeBedDrop(3),
 };
 
-/** 围栏道具掉落物:一段柱 + 两根横杆 */
-function makeFenceDrop(kind: 'branch' | 'stone'): THREE.Object3D {
+/** 套索掉落物:盘起的绳圈 + 末端甩开的活结绳套 */
+function makeLassoDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(DROP_COLORS.lasso);
+  const coil = mesh(new THREE.TorusGeometry(0.15, 0.05, 5, 10), mat);
+  coil.rotation.x = Math.PI / 2;
+  coil.position.y = 0.05;
+  g.add(coil);
+  const lead = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.24, 5), mat);
+  lead.position.set(0.17, 0.05, 0);
+  lead.rotation.z = Math.PI / 2 - 0.25;
+  g.add(lead);
+  const loop = mesh(new THREE.TorusGeometry(0.08, 0.032, 5, 10), mat);
+  loop.position.set(0.3, 0.09, 0);
+  loop.rotation.y = Math.PI / 2;
+  g.add(loop);
+  return g;
+}
+
+/** 围栏道具掉落物:一段柱 + 两根横杆 */function makeFenceDrop(kind: 'branch' | 'stone'): THREE.Object3D {
   const g = new THREE.Group();
   const color = DROP_COLORS[kind === 'branch' ? 'fenceWood' : 'fenceStone'];
   const post = mesh(

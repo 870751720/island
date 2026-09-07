@@ -48,7 +48,7 @@ export type ActionType =
   | 'slash'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/围栏(木/石通用)与围栏门(用于沿途立栏) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -57,6 +57,7 @@ export type HandTool =
   | 'fishingrod'
   | 'bow'
   | 'sword'
+  | 'lasso'
   | 'fence'
   | 'fenceGate';
 
@@ -209,6 +210,31 @@ function makeSwordModel(tier: 1 | 2 | 3): THREE.Group {
   const tip = new THREE.Mesh(new THREE.ConeGeometry(tier === 1 ? 0.042 : 0.052, 0.1, 4), bladeMat);
   tip.position.y = 0.03 + bladeLen + 0.04;
   g.add(handle, guard, blade, tip);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
+/** 手持套索:握把绕着盘起的绳圈,绳头甩出一个活结绳套 */
+function makeLassoModel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = clayMaterial('#c9b588');
+  const grip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.035, 0.14, 5),
+    clayMaterial('#8a6239')
+  );
+  g.add(grip);
+  const coil = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.032, 5, 10), mat);
+  coil.rotation.x = Math.PI / 2;
+  coil.position.y = 0.1;
+  g.add(coil);
+  const lead = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.16, 4), mat);
+  lead.position.set(0.1, 0.1, 0);
+  lead.rotation.z = Math.PI / 2 - 0.3;
+  g.add(lead);
+  const loop = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.018, 5, 10), mat);
+  loop.position.set(0.2, 0.14, 0);
+  loop.rotation.y = Math.PI / 2;
+  g.add(loop);
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
@@ -469,6 +495,7 @@ export class Player implements Updatable {
       ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2), makeFishingRodModel(3)]],
       ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
+      ['lasso', [makeLassoModel()]],
       ['fence', [makeFenceBundleModel('#a97b48', false)]],
       ['fenceGate', [makeFenceBundleModel('#8a6239', true)]],
     ];

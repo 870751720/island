@@ -12,6 +12,7 @@ import type { RabbitBurrowSave } from './RabbitBurrowSystem';
 import type { SmelterSave } from './SmelterSystem';
 import type { CookingStationSave } from './CookingStationSystem';
 import type { LoomSave } from './LoomSystem';
+import type { StakeSave } from '../entities/Stake';
 
 const SAVE_KEY = 'island.save.v1';
 export const SAVE_VERSION = 30;
@@ -95,6 +96,8 @@ export type SaveData = {
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[];
+  /** 场上所有拴羊桩(落点;读档时在桩位生成一只已拴住的羊,旧档缺省视为无) */
+  stakes?: StakeSave[];
   drops: DropEntry[];
   /** 黑色博美伴侣的落点 */
   dog?: { x: number; z: number };

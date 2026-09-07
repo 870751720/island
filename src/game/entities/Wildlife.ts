@@ -78,6 +78,28 @@ const BURROW_ENTER_RANGE = 0.5;
 /** 躲藏期间威胁消失后再探头的时间(秒) */
 const HIDE_CALM_TIME = 5;
 
+// —— 套索的行为参数(羊) ——
+/** 被牵着时,羊落后玩家多远才开始跟上 */
+const LEAD_FOLLOW_DIST = 2.2;
+/** 被牵着时的跟随速度:与玩家步行一致,正常走位不会拉断绳 */
+const LEAD_SPEED = 5;
+/** 牵引绳长:羊与持绳玩家距离超过即开始绷紧受力 */
+const LEAD_ROPE_MAX = 4;
+/** 绳子持续绷紧多久后滑脱(秒):被围栏/地形卡住或玩家下水才会累计 */
+const LEAD_STRAIN_BREAK = 2;
+/** 被拴在桩上时的游荡半径(选吃草点的范围) */
+const STAKE_WANDER = 2.2;
+/** 桩绳硬上限:超出该距离的落点不可站立 */
+const STAKE_LEASH = 3;
+
+/** 联机快照里的拴绳信息:by 为持绳玩家的会话 id,stake 为拴桩坐标 */
+export type LeashPose = { by: string } | { stake: { x: number; z: number } };
+
+/** 羊的被拴状态(仅羊会进入):被玩家牵着,或被拴在木桩上 */
+type LeashState =
+  | { holder: Player }
+  | { anchor: { x: number; z: number } };
+
 /** 兔子的避难所:由 RabbitBurrowSystem 注入,只暴露位置查询 */
 export type BurrowSource = {
   nearestIntact(x: number, z: number, range: number): { x: number; z: number } | null;
@@ -294,6 +316,13 @@ type Animal = {
   hideCalm: number;
   /** 正在/已经钻入的洞口位置(躲藏期间即藏身点) */
   burrow: { x: number; z: number } | null;
+  // —— 羊专属状态(其他物种恒为初始值) ——
+  /** 被套索套住:被玩家牵着(holder)或拴在木桩(anchor);期间不可被攻击 */
+  leash: LeashState | null;
+  /** 牵引绳持续绷紧的累计时长(卡住/玩家下水),超过上限滑脱 */
+  strainLeft: number;
+  /** 客人侧从姿态快照镜像的拴绳信息(渲染绳子用,不参与本地 AI) */
+  netLeash: LeashPose | null;
 };
 
 /**
@@ -309,6 +338,10 @@ export class Wildlife implements Updatable {
   private safeSpawn: THREE.Vector3;
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
   private burrowSource: BurrowSource | null = null;
+  /** 拴绳意外结束(绳套绷断/宿主死亡等由 AI 内部触发的路径)时通知外层:掉套索、清理桩 */
+  private onLeashEnd: ((id: number, anchored: boolean, x: number, z: number) => void) | null = null;
+  /** 持绳玩家 → 联机会话 id(姿态快照序列化 leash.holder 用);由游戏侧接线 */
+  private netIdOf: ((player: Player) => string) | null = null;
 
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeAnimal(animal: Animal): void {
@@ -413,6 +446,9 @@ export class Wildlife implements Updatable {
       hidden: false,
       hideCalm: 0,
       burrow: null,
+      leash: null,
+      strainLeft: 0,
+      netLeash: null,
     };
     this.animals.push(animal);
     return animal;
@@ -475,8 +511,13 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围 */
+  /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围;
+   * 被拴在桩上的羊额外不可超出桩绳长度 */
   private canStand(animal: Animal, x: number, z: number): boolean {
+    if (animal.leash && 'anchor' in animal.leash) {
+      const a = animal.leash.anchor;
+      if (Math.hypot(x - a.x, z - a.z) > STAKE_LEASH) return false;
+    }
     if (animal.species !== 'crocodile') {
       if (animal.config.damage > 0 && animal.habitat && Math.hypot(x - this.safeSpawn.x, z - this.safeSpawn.z) < 60) return false;
       return this.isGrass(x, z);
@@ -488,21 +529,25 @@ export class Wildlife implements Updatable {
     return !this.isBlocked(x, z);
   }
 
-  /** 在动物附近找下一个游荡目标;鳄鱼丢失仇恨后只挑水洼内的点,自己游回去 */
+  /** 在动物附近找下一个游荡目标;鳄鱼丢失仇恨后只挑水洼内的点自己游回去;被拴住的羊只挑桩旁的点 */
   private pickTarget(animal: Animal, rng: () => number, range = 5): boolean {
+    const anchor = animal.leash && 'anchor' in animal.leash ? animal.leash.anchor : null;
     for (let i = 0; i < 8; i++) {
       const a = rng() * Math.PI * 2;
       const d = 1 + rng() * range;
       let x: number;
       let z: number;
-      if (animal.species === 'crocodile' && animal.pond) {
+      if (anchor) {
+        x = anchor.x + Math.cos(a) * rng() * STAKE_WANDER;
+        z = anchor.z + Math.sin(a) * rng() * STAKE_WANDER;
+      } else if (animal.species === 'crocodile' && animal.pond) {
         x = animal.pond.x + Math.cos(a) * rng() * animal.pond.radius * 0.7;
         z = animal.pond.z + Math.sin(a) * rng() * animal.pond.radius * 0.7;
       } else {
         x = animal.pos.x + Math.cos(a) * d;
         z = animal.pos.z + Math.sin(a) * d;
       }
-      if (animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
+      if (!anchor && animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
         x = animal.habitat.home.x; z = animal.habitat.home.z;
       }
       if (this.canStand(animal, x, z)) {
@@ -538,6 +583,12 @@ export class Wildlife implements Updatable {
       // 躲进洞里的兔子:等威胁平息后再探头,期间不吃 AI 也不参与任何判定
       if (animal.hidden) {
         this.updateHidden(animal, delta);
+        continue;
+      }
+      // 被套索套住的羊:牵引/拴桩逻辑接管,不再受惊逃跑或游荡
+      if (animal.leash) {
+        const moving = this.updateLeashed(animal, delta);
+        this.animate(animal, delta, elapsed, moving, false);
         continue;
       }
       // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人)
@@ -730,6 +781,183 @@ export class Wildlife implements Updatable {
     this.burrowSource = source;
   }
 
+  /** 注入拴绳意外结束的回调(绳套绷断等 AI 内部路径;解开/存档由外层主动调用不经过这里) */
+  setLeashEndSink(sink: (id: number, anchored: boolean, x: number, z: number) => void): void {
+    this.onLeashEnd = sink;
+  }
+
+  /** 注入持绳玩家 → 会话 id 的解析(姿态快照序列化用) */
+  setPlayerIdResolver(fn: (player: Player) => string): void {
+    this.netIdOf = fn;
+  }
+
+  /**
+   * 被套索套住的羊:
+   * - 被牵着(holder):玩家走远到跟随距离外就朝玩家走,速度与玩家步行一致;
+   *   羊被卡住或玩家下水导致绳子持续绷紧超过 LEAD_STRAIN_BREAK 秒则绳套滑脱。
+   * - 被拴在桩上(anchor):绕桩小范围吃草踱步,canStand 限制不超出桩绳。
+   */
+  private updateLeashed(animal: Animal, delta: number): boolean {
+    const leash = animal.leash!;
+    animal.walkTime += delta;
+    if ('anchor' in leash) {
+      if (animal.idleTime > 0) {
+        animal.idleTime -= delta;
+        return false;
+      }
+      if (animal.walkTime > 6 || animal.pos.distanceToSquared(animal.target) < 0.04) {
+        animal.idleTime = 2 + Math.random() * 4;
+        animal.walkTime = 0;
+        if (!this.pickTarget(animal, Math.random, STAKE_WANDER)) animal.walkTime = 9;
+        return false;
+      }
+      const angle = Math.atan2(animal.target.z - animal.pos.z, animal.target.x - animal.pos.x);
+      return this.step(animal, angle, animal.config.walkSpeed, delta);
+    }
+    const p = leash.holder.group.position;
+    const dist = Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z);
+    // 绷紧判定:超出绳长,或持绳玩家下水(羊不肯跟着下水)
+    const straining = dist > LEAD_ROPE_MAX || leash.holder.isSwimming;
+    animal.strainLeft = straining
+      ? animal.strainLeft + delta
+      : Math.max(0, animal.strainLeft - delta * 2);
+    if (animal.strainLeft >= LEAD_STRAIN_BREAK) {
+      this.breakLeash(animal);
+      return false;
+    }
+    if (dist <= LEAD_FOLLOW_DIST) return false;
+    const angle = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
+    return this.step(animal, angle, LEAD_SPEED, delta);
+  }
+
+  /** 绳套滑脱:羊受惊恢复野生,套索交给外层掉在羊脚下 */
+  private breakLeash(animal: Animal): void {
+    animal.leash = null;
+    animal.strainLeft = 0;
+    animal.alerted = true;
+    animal.idleTime = 0;
+    this.onLeashEnd?.(animal.id, false, animal.pos.x, animal.pos.z);
+  }
+
+  /** 套索命中:把一只没被套住的绵羊交给持绳玩家牵着(一名玩家同时只能牵一只) */
+  lassoSheep(id: number, holder: Player): boolean {
+    if (this.leashedBy(holder)) return false;
+    const animal = this.animals.find((a) => a.id === id);
+    if (!animal?.alive || animal.hidden || animal.leash || animal.species !== 'sheep') return false;
+    animal.leash = { holder };
+    animal.strainLeft = 0;
+    animal.alerted = false;
+    animal.idleTime = 0;
+    return true;
+  }
+
+  /** 持绳玩家脚下打桩:把被牵着的羊改为拴在 (x,z) */
+  stakeSheep(id: number, x: number, z: number): boolean {
+    const animal = this.animals.find((a) => a.id === id);
+    if (!animal?.alive || !animal.leash || !('holder' in animal.leash)) return false;
+    animal.leash = { anchor: { x, z } };
+    animal.strainLeft = 0;
+    animal.walkTime = 9;
+    return true;
+  }
+
+  /** 解开拴绳(解绳按钮/存档退款/断线兜底):返回羊的落点,未在拴绳状态返回 null */
+  releaseLeash(id: number): { x: number; z: number } | null {
+    const animal = this.animals.find((a) => a.id === id);
+    if (!animal?.leash) return null;
+    animal.leash = null;
+    animal.strainLeft = 0;
+    animal.alerted = true;
+    animal.idleTime = 0;
+    return { x: animal.pos.x, z: animal.pos.z };
+  }
+
+  /** 该玩家正牵着的那只羊(供打桩按钮与松手释放判定) */
+  leashedBy(player: Player): { id: number; x: number; z: number } | null {
+    const animal = this.animals.find(
+      (a) => a.alive && a.leash && 'holder' in a.leash && a.leash.holder === player
+    );
+    return animal ? { id: animal.id, x: animal.pos.x, z: animal.pos.z } : null;
+  }
+
+  /** 渲染绳子用:当前所有被拴/被牵的羊与锚点信息(房主读权威状态,客人读快照镜像) */
+  leashedInfos(): { id: number; x: number; z: number; pose: LeashPose | null }[] {
+    return this.animals
+      .filter((a) => a.alive && (a.leash || a.netLeash))
+      .map((a) => {
+        let pose: LeashPose | null = null;
+        if (a.leash && 'anchor' in a.leash) pose = { stake: { ...a.leash.anchor } };
+        else if (a.leash && this.netIdOf) pose = { by: this.netIdOf(a.leash.holder) };
+        else if (a.netLeash) pose = a.netLeash;
+        return { id: a.id, x: a.pos.x, z: a.pos.z, pose };
+      });
+  }
+
+  /** 位置附近最近的可套绵羊(已被拴/牵的不算),供套索索敌门槛 */
+  nearestSheep(origin: THREE.Vector3, range: number): { id: number; x: number; z: number } | null {
+    let best: Animal | null = null;
+    let bestDist = range * range;
+    for (const animal of this.animals) {
+      if (!animal.alive || animal.hidden || animal.leash || animal.species !== 'sheep') continue;
+      const d = animal.pos.distanceToSquared(origin);
+      if (d < bestDist) {
+        best = animal;
+        bestDist = d;
+      }
+    }
+    return best ? { id: best.id, x: best.pos.x, z: best.pos.z } : null;
+  }
+
+  /** 套索绳圈扫掠判定:返回飞行线段附近第一只可套绵羊 */
+  hitSegmentSheep(from: THREE.Vector3, to: THREE.Vector3, range: number): { id: number } | null {
+    const hit = nearestToSegmentXZ(
+      this.animals.filter((a) => a.alive && !a.hidden && !a.leash && a.species === 'sheep'),
+      from,
+      to,
+      range
+    );
+    return hit ? { id: hit.id } : null;
+  }
+
+  /** 玩家身边被拴在桩上的羊(「解开套索」按钮判定用):按羊身与桩位取最近,返回羊 id 与桩坐标 */
+  stakedNear(origin: THREE.Vector3, range: number): { id: number; anchor: { x: number; z: number } } | null {
+    let best: Animal | null = null;
+    let bestDist = range * range;
+    for (const animal of this.animals) {
+      if (!animal.alive || !animal.leash || !('anchor' in animal.leash)) continue;
+      const a = animal.leash.anchor;
+      const d = Math.min(
+        animal.pos.distanceToSquared(origin),
+        (a.x - origin.x) * (a.x - origin.x) + (a.z - origin.z) * (a.z - origin.z)
+      );
+      if (d < bestDist) {
+        best = animal;
+        bestDist = d;
+      }
+    }
+    if (!best) return null;
+    const anchor = best.leash as { anchor: { x: number; z: number } };
+    return { id: best.id, anchor: anchor.anchor };
+  }
+
+  /** 读档:在桩位生成一只已被拴住的羊(栖息地正常生成之外的额外个体) */
+  spawnStakedSheep(x: number, z: number): void {
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = i === 0 ? 0 : 0.5 + Math.random() * 1.5;
+      const px = x + Math.cos(a) * d;
+      const pz = z + Math.sin(a) * d;
+      if (i > 0 && !this.isGrass(px, pz)) continue;
+      const animal = this.createAnimal(
+        'sheep',
+        new THREE.Vector3(px, this.terrain.getHeight(px, pz), pz),
+        Math.random() * Math.PI * 2
+      );
+      animal.leash = { anchor: { x, z } };
+      return;
+    }
+  }
+
   /** 兔子栖息地中心列表(去重),供兔子洞系统开局生成洞 */
   rabbitHomes(): { x: number; z: number }[] {
     const homes: { x: number; z: number }[] = [];
@@ -888,6 +1116,10 @@ export class Wildlife implements Updatable {
         mat.emissive.set(rage ? '#8c1a10' : '#000000');
       });
     }
+    // 被拴/被牵的羊:站定时周期性低头啃草(两端都跑,纯表现)
+    if (animal.species === 'sheep' && (animal.leash || animal.netLeash) && !moving) {
+      headPitch -= Math.max(0, Math.sin(elapsed * 0.8 + animal.phase)) * 0.55;
+    }
     animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
     // 兔尾以轻颤为主,鳄鱼在水中靠粗尾左右大幅摆动推进,其余动物轻晃摆尾。
@@ -910,20 +1142,21 @@ export class Wildlife implements Updatable {
     this.playSound(short ? 'bearGrowl' : 'roar', animal.pos.x, animal.pos.z);
   }
 
-  /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离) */
+  /** 噪音惊动:玩家在 (x,z) 发出声响(砍树/放箭等),范围内的动物进入警戒(熊循声戒备、食草动物逃离);
+   * 被套索拴住/牵住的羊不为所动 */
   startle(x: number, z: number, range = NOISE_RANGE): void {
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden) continue;
+      if (!animal.alive || animal.hidden || animal.leash) continue;
       if (Math.hypot(x - animal.pos.x, z - animal.pos.z) < range) animal.alerted = true;
     }
   }
 
-  /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子无法被攻击 */
+  /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子与被拴住的羊无法被攻击 */
   nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden) continue;
+      if (!animal.alive || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -938,7 +1171,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden) continue;
+      if (!animal.alive || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -948,9 +1181,9 @@ export class Wildlife implements Updatable {
     return best ? best.id : null;
   }
 
-  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null);躲藏的兔子不可命中 */
+  /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null);躲藏的兔子与被拴住的羊不可命中 */
   hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Animal | null {
-    return nearestToSegmentXZ(this.animals.filter((a) => !a.hidden), from, to, range);
+    return nearestToSegmentXZ(this.animals.filter((a) => !a.hidden && !a.leash), from, to, range);
   }
 
   /**
@@ -965,7 +1198,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden) continue;
+      if (!animal.alive || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(pos);
       if (d < bestDist) {
         best = animal;
@@ -976,10 +1209,10 @@ export class Wildlife implements Updatable {
     return this.applyDamage(best, damage);
   }
 
-  /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子不可命中 */
+  /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子与被拴住的羊不可命中 */
   damage(id: number, damage: number): { species: AnimalSpecies } | 'hit' | null {
     const animal = this.animals.find((a) => a.id === id);
-    if (!animal?.alive || animal.hidden) return null;
+    if (!animal?.alive || animal.hidden || animal.leash) return null;
     return this.applyDamage(animal, damage);
   }
 
@@ -1069,31 +1302,46 @@ export class Wildlife implements Updatable {
     return animal;
   }
 
-  /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; species: AnimalSpecies }[] {
-    return this.animals.map((a) => ({
-      id: a.id,
-      x: a.pos.x,
-      z: a.pos.z,
-      h: a.heading,
-      alive: a.alive,
-      hidden: a.hidden,
-      species: a.species,
-    }));
+  /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏;leash 同步羊被牵/被拴,恒定携带 null 以便差分清空) */
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; species: AnimalSpecies }[] {
+    return this.animals.map((a) => {
+      let leash: LeashPose | null = null;
+      if (a.leash && 'anchor' in a.leash) {
+        leash = { stake: { x: a.leash.anchor.x, z: a.leash.anchor.z } };
+      } else if (a.leash && this.netIdOf) {
+        leash = { by: this.netIdOf(a.leash.holder) };
+      }
+      return {
+        id: a.id,
+        x: a.pos.x,
+        z: a.pos.z,
+        h: a.heading,
+        alive: a.alive,
+        hidden: a.hidden,
+        leash,
+        species: a.species,
+      };
+    });
   }
 
-  /** 具有主动攻击能力的动物（当前为熊），联机侧用更高频率同步。 */
+  /** 需要高频同步的动物:主动攻击物种,以及被牵着走的羊(跟随玩家移动,10Hz 会看出滞后) */
   netCombatPoses() {
-    return this.netPoses().filter((pose) => this.animals.find((animal) => animal.id === pose.id)?.config.damage);
+    return this.netPoses().filter((pose) => {
+      const animal = this.animals.find((a) => a.id === pose.id);
+      return !!animal && (!!animal.config.damage || !!animal.leash);
+    });
   }
 
-  /** 无主动攻击能力的动物，保持普通姿态同步频率。 */
+  /** 其余动物保持普通姿态同步频率。 */
   netPassivePoses() {
-    return this.netPoses().filter((pose) => !this.animals.find((animal) => animal.id === pose.id)?.config.damage);
+    return this.netPoses().filter((pose) => {
+      const animal = this.animals.find((a) => a.id === pose.id);
+      return !animal || (!animal.config.damage && !animal.leash);
+    });
   }
 
-  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏状态同步可见性;未知 id 且带物种时新建(GM 生成) */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; species?: AnimalSpecies }[]): void {
+  /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏/拴绳状态同步;未知 id 且带物种时新建(GM 生成) */
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; species?: AnimalSpecies }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -1106,6 +1354,7 @@ export class Wildlife implements Updatable {
       a.netPos.set(p.x, this.terrain.getHeight(p.x, p.z), p.z);
       a.netHeading = p.h;
       a.hidden = !!p.hidden;
+      a.netLeash = p.leash ?? null;
       if (!wasAlive || a.pos.distanceToSquared(a.netPos) > 64) {
         a.pos.copy(a.netPos);
         a.heading = p.h;
@@ -1135,6 +1384,7 @@ export class Wildlife implements Updatable {
       animal.netPos.copy(animal.pos);
       animal.netHeading = p.h;
       animal.hidden = !!p.hidden;
+      animal.netLeash = p.leash ?? null;
       animal.model.group.visible = !animal.hidden;
     }
   }

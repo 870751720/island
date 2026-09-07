@@ -46,6 +46,10 @@ import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import type { FishTier } from './systems/FishTable';
 import { BowSystem } from './systems/BowSystem';
 import { SwordSystem } from './systems/SwordSystem';
+import { LassoSystem } from './systems/LassoSystem';
+import { StakeSystem } from './systems/StakeSystem';
+import type { StakeSave } from './entities/Stake';
+import { LeashLines } from './fx/LeashLines';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
@@ -105,6 +109,14 @@ export type HudSnapshot = {
   hasFishingrod: boolean;
   hasBow: boolean;
   hasSword: boolean;
+  /** 背包里有套索(或正牵着羊):工具按钮出现套索项 */
+  hasLasso: boolean;
+  /** 背包剩余套索数(持套索时角标展示) */
+  lassoCount: number;
+  /** 正牵着一只羊(工具按钮变为「打桩」) */
+  leading: boolean;
+  /** 身旁有被拴在桩上的羊(工具按钮变为「解开套索」) */
+  nearTether: boolean;
   /** 各工具当前等级(0 未拥有、1 基础、2 高级) */
   toolTiers: Tools;
   /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示) */
@@ -213,6 +225,8 @@ const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)
 const SWORD_AUTO_EQUIP_DELAY = 1.5; // 持续移动且动物近身多久后自动切换到剑(秒)
 const SWORD_AUTO_EQUIP_RANGE = 3; // 动物近身判定范围(米)
+/** 被拴的羊/桩的「解开套索」按钮判定范围(米) */
+const TETHER_RANGE = 2.2;
 const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
 const MULTIPLAYER_RESPAWN_DELAY = 3;
 /** 联机死亡掉落比例:三种丛类道具必定掉落,其余随身物品(含穿戴装备与工具)按此比例掉在原地 */
@@ -230,6 +244,7 @@ type InteractionKind =
   | 'fishing'
   | 'archery'
   | 'sword'
+  | 'lasso'
   | 'water'
   | 'workbench'
   | 'campfire'
@@ -258,6 +273,8 @@ export class Game {
   private drawnTreasures = new Set<ResourceKind>();
   private fx: Particles;
   private itemFly: ItemFlyFx;
+  /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
+  private leashLines: LeashLines;
   private audio = new GameAudio();
 
   /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
@@ -343,6 +360,7 @@ export class Game {
   private cookingStations: CookingStationSystem;
   private looms: LoomSystem;
   private fences: FenceSystem;
+  private stakes: StakeSystem;
   private beds: BedSystem;
   private shrines: ShrineSystem;
   private meteor: MeteorSystem;
@@ -528,6 +546,9 @@ export class Game {
     );
     this.player.setObstacles(this.props, this.fences);
     this.scene.add(this.player.group);
+    // 拴羊桩(牵着羊点工具按钮在脚下打桩)与系绳渲染
+    this.stakes = new StakeSystem(this.scene, terrain);
+    this.leashLines = new LeashLines(this.scene);
     this.crabs = new Crabs(
       this.scene,
       terrain,
@@ -616,6 +637,15 @@ export class Game {
       this.burrows.generateFor(this.wildlife.rabbitHomes());
       this.wildlife.setBurrowSource(this.burrows);
     }
+    // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用);绳套意外绷断 → 掉套索/清桩
+    this.wildlife.setPlayerIdResolver((p) => this.sessionOf(p).id);
+    this.wildlife.setLeashEndSink((id, anchored, x, z) => {
+      this.drops.dropAt('lasso', 1, x, z);
+      if (anchored) {
+        const stake = this.stakes.nearest(x, z, 1.2);
+        if (stake) this.stakes.remove(stake);
+      }
+    });
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {
       if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
@@ -876,15 +906,17 @@ export class Game {
           }
           s.eating.update(delta);
           s.fishing.update(delta, this.isSessionBusy(s, 'fishing'));
-          // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算)
+          // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算);套索同理
           if (s === this.local) {
             s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
             s.sword.update(delta, this.isSessionBusy(s, 'sword') || s.survival.state.dead);
+            s.lasso.update(delta, this.isSessionBusy(s, 'lasso') || s.survival.state.dead);
           } else {
             // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失;
-            // 剑的 swordHit 复现挥砍动作窗口也要照常推进与收尾
+            // 剑的 swordHit 复现挥砍动作窗口、套索的 lassoThrown 复现绳圈也要照常推进
             s.archery.updateVisuals(delta);
             s.sword.updateVisuals(delta);
+            s.lasso.updateVisuals(delta);
           }
           s.water.update(delta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
           this.crates.updateActor(s, delta);
@@ -939,11 +971,18 @@ export class Game {
           collecting: this.collect.isWorking,
         });
         this.updateIndicator(delta);
+        this.updateLeashLines();
         this.updateCamera(delta);
         this.ocean.update(this.camera, elapsed);
         this.renderer.render(this.scene, this.camera);
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
+            // 倒下时松开手里的绳子:套索掉在羊脚下,羊恢复野生
+            const led = this.wildlife.leashedBy(s.player);
+            if (led) {
+              this.wildlife.releaseLeash(led.id);
+              this.drops.dropAt('lasso', 1, led.x, led.z);
+            }
             // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
             if (this.guestMode || !this.tryReviveWithStone(s)) {
               s.player.setDead();
@@ -986,9 +1025,17 @@ export class Game {
             delta,
             this.isSessionBusy(this.local, 'sword') || this.survival.state.dead
           );
+          // 客人的套索同样在本地完整跑瞄准/飞行/命中判定,结果上行房主权威结算
+          this.local.lasso.update(
+            delta,
+            this.isSessionBusy(this.local, 'lasso') || this.survival.state.dead
+          );
           for (const s of this.sessions) {
-            // 远程玩家(房主)的弓只推进 arrowShot 复现的视觉箭矢
-            if (s !== this.local) s.archery.updateVisuals(delta);
+            // 远程玩家(房主)的弓只推进 arrowShot 复现的视觉箭矢,套索推进 lassoThrown 复现的绳圈
+            if (s !== this.local) {
+              s.archery.updateVisuals(delta);
+              s.lasso.updateVisuals(delta);
+            }
             // 纯表现:钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
             // 复现期间静音——本人的音效已由房主 feedback 事件补播,这里再播会重一声,
             // 远程玩家的交互音效按设计只给发起者本人听
@@ -1162,6 +1209,7 @@ export class Game {
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
       shrines: this.shrines.snapshot(),
+      stakes: this.stakes.snapshot(),
       drops: this.drops.snapshot(),
       burrows: this.burrows.netSnapshot(),
     };
@@ -1188,6 +1236,7 @@ export class Game {
     this.fences.setChangeSinks(send('fences'), send('fenceGates'));
     this.beds.setChangeSink(send('beds'));
     this.shrines.setChangeSink(send('shrines'));
+    this.stakes.setChangeSink(send('stakes'));
     this.drops.setChangeSink(send('drops'));
   }
 
@@ -1393,6 +1442,12 @@ export class Game {
       this.sessions.find((s) => s.id === event.actor)?.archery.netPlayShot(event.dx, event.dz);
       return;
     }
+    // 他人掷出套索:本地复现绳圈飞行(甩索动作随姿态快照回流,命中由掷出端判定)
+    if (event.kind === 'lassoThrown') {
+      if (event.actor === this.local.id) return;
+      this.sessions.find((s) => s.id === event.actor)?.lasso.netPlayThrow(event.dx, event.dz);
+      return;
+    }
     // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
     if (event.kind === 'reviveFx') {
       const s = this.sessions.find((x) => x.id === event.target);
@@ -1490,6 +1545,9 @@ export class Game {
     if (state.shrines) {
       this.shrines.netApply(state.shrines);
     }
+    if (state.stakes) {
+      this.stakes.netApply(state.stakes);
+    }
     if (state.drops) {
       this.drops.netApply(state.drops);
     }
@@ -1576,6 +1634,69 @@ export class Game {
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
   }
 
+  /** 房主收到客人掷套索动作:权威扣一个套索(套没套中都消耗)、补甩索动作窗口、复现绳圈并转发给其他客人 */
+  netLassoThrown(actor: PlayerSession, dx: number, dz: number): void {
+    actor.inventory.remove('lasso', 1);
+    actor.shotAnimLeft = 0.35;
+    actor.lasso.netPlayThrow(dx, dz);
+    this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: actor.id, dx, dz });
+  }
+
+  /** 房主收到客人掷空动作:套索掉在落点(掉落物经世界增量回流) */
+  lassoMissAt(x: number, z: number): void {
+    this.drops.dropAt('lasso', 1, x, z);
+  }
+
+  /** 牵着羊点工具按钮:在脚下打一根木桩,把羊拴在桩上(客人端上行动作由房主结算) */
+  stakeLasso(actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('lassoStake', []);
+    const led = this.wildlife.leashedBy(actor.player);
+    if (!led || actor.player.isSwimming) return false;
+    const p = actor.player.group.position;
+    if (!this.wildlife.stakeSheep(led.id, p.x, p.z)) return false;
+    this.stakes.place(p.x, p.z);
+    this.audio.play('knock');
+    const fxPos = p.clone();
+    fxPos.y += 0.5;
+    this.fx.burst(fxPos, '#8a6239', 8);
+    return true;
+  }
+
+  /** 靠近被拴的羊或桩点「解开套索」:羊恢复野生,桩拆掉,套索收回操作者背包(客人端上行动作由房主结算) */
+  untieLasso(actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('lassoUntie', []);
+    const staked = this.wildlife.stakedNear(actor.player.group.position, TETHER_RANGE);
+    if (!staked) return false;
+    this.wildlife.releaseLeash(staked.id);
+    const stake = this.stakes.nearest(staked.anchor.x, staked.anchor.z, 0.6);
+    if (stake) this.stakes.remove(stake);
+    this.giveItem('lasso', 1, actor);
+    this.audio.play('knock');
+    return true;
+  }
+
+  /** 每帧更新玩家/桩与羊之间的系绳渲染(两端共用,信息来自动物权威状态或姿态快照镜像) */
+  private updateLeashLines(): void {
+    const entries: { key: string; from: THREE.Vector3; to: THREE.Vector3 }[] = [];
+    const from = new THREE.Vector3();
+    const to = new THREE.Vector3();
+    for (const info of this.wildlife.leashedInfos()) {
+      const pose = info.pose;
+      if (!pose) continue;
+      if ('by' in pose) {
+        const holder = this.sessions.find((s) => s.id === pose.by);
+        if (!holder) continue;
+        const hp = holder.player.group.position;
+        from.set(hp.x, hp.y + 1.0, hp.z);
+      } else {
+        from.set(pose.stake.x, this.terrain.getHeight(pose.stake.x, pose.stake.z) + 0.5, pose.stake.z);
+      }
+      to.set(info.x, this.terrain.getHeight(info.x, info.z) + 0.45, info.z);
+      entries.push({ key: String(info.id), from: from.clone(), to: to.clone() });
+    }
+    this.leashLines.sync(entries);
+  }
+
   /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
   private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
     const player = session.player;
@@ -1646,6 +1767,13 @@ export class Game {
     this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
     this.beds.restore(save.beds ?? []);
     this.shrines.restore(save.shrines ?? []);
+    if (save.stakes) {
+      this.stakes.restore(save.stakes);
+      // 拴住的羊入档:读档时在每个桩位生成一只已拴住的羊(只在权威端生成,客人端由姿态快照补建)
+      if (!this.guestMode) {
+        for (const s of save.stakes) this.wildlife.spawnStakedSheep(s.x, s.z);
+      }
+    }
     this.drops.restore(save.drops);
     if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
     this.drawnTreasures = new Set(save.drawnTreasures ?? []);
@@ -1695,6 +1823,17 @@ export class Game {
 
   /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存) */
   collectSave(forNetwork = false): SaveData {
+    // 本地存档前:被牵着(未打桩)的羊不入档——套索退回背包、羊恢复野生;
+    // 联机欢迎包(forNetwork)不改现场状态,牵引表现由姿态快照继续同步
+    if (!forNetwork) {
+      for (const s of this.sessions) {
+        const led = this.wildlife.leashedBy(s.player);
+        if (led) {
+          this.wildlife.releaseLeash(led.id);
+          this.giveItem('lasso', 1, s);
+        }
+      }
+    }
     return {
       ...this.collectPlayerSave(this.local),
       others: [
@@ -1719,6 +1858,7 @@ export class Game {
       fenceGates: this.fences.snapshotGates(),
       beds: this.beds.snapshot(),
       shrines: this.shrines.snapshot(),
+      stakes: this.stakes.snapshot(),
       drops: this.drops.snapshot(),
       burrows: this.burrows.snapshot(),
       dog: this.dog.snapshot(),
@@ -1904,13 +2044,25 @@ export class Game {
     this.guestNet?.sendInput(x, z);
   }
 
-  /** 切换手持工具:客人本地先切(预测表现)并上行给房主 */
+  /** 切换手持工具:客人本地先切(预测表现)并上行给房主;切走套索时松开手里的绳(套索回包,羊受惊) */
   selectTool(tool: HandTool): void {
-    this.player.setTool(tool);
+    this.setToolFor(this.local, tool);
     this.guestNet?.action('tool', [tool]);
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 木剑 → 围栏/门(仅手里还有的) */
+  /** 切换某会话的手持工具(房主权威端共用入口):切走套索时先松开正牵着的羊 */
+  setToolFor(s: PlayerSession, tool: HandTool): void {
+    if (s.player.currentTool === 'lasso' && tool !== 'lasso') {
+      const led = this.wildlife.leashedBy(s.player);
+      if (led) {
+        this.wildlife.releaseLeash(led.id);
+        this.giveItem('lasso', 1, s);
+      }
+    }
+    s.player.setTool(tool);
+  }
+
+  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 木剑 → 套索 → 围栏/门(仅手里还有的) */
   cycleTool(): void {
     this.selectTool(this.nextToolInCycle());
   }
@@ -1925,6 +2077,7 @@ export class Game {
       'fishingrod',
       'bow',
       'sword',
+      'lasso',
       'fence',
       'fenceGate',
     ];
@@ -1932,8 +2085,12 @@ export class Game {
     return owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
   }
 
-  /** 工具按钮点击:场景有明确需要的工具时直接切过去,否则循环切换 */
+  /** 工具按钮点击:牵着羊时原地打桩拴住;场景有明确需要的工具时直接切过去;否则循环切换 */
   useToolButton(): void {
+    if (this.player.currentTool === 'lasso' && this.wildlife.leashedBy(this.player)) {
+      this.stakeLasso();
+      return;
+    }
     const need = this.wantedTool();
     if (need) {
       this.autoEquipTimer = 0;
@@ -1943,7 +2100,8 @@ export class Game {
     }
   }
 
-  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子),不满足条件返回 null;钓鱼不自动切换 */
+  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子),不满足条件返回 null;钓鱼不自动切换;
+   * 牵着羊时不自动切换(避免无预兆地松开绳子) */
   private wantedTool(): HandTool | null {
     if (
       this.player.isMoving ||
@@ -1953,7 +2111,8 @@ export class Game {
       this.workbench.isWorking(this.local) ||
       this.eating.isWorking ||
       this.beds.isBusy(this.local) ||
-      this.survival.state.dead
+      this.survival.state.dead ||
+      this.wildlife.leashedBy(this.player)
     ) {
       return null;
     }
@@ -1993,14 +2152,17 @@ export class Game {
     }
   }
 
-  /** 持续移动且动物近身时自动切剑:有剑、在移动、手上不是弓箭,动物 3 米内持续 1.5 秒后切换 */
+  /** 持续移动且动物近身时自动切剑:有剑、在移动、手上不是弓箭,动物 3 米内持续 1.5 秒后切换;
+   * 牵着羊时不自动切(切走套索会松开绳子),需要自卫时手动切换 */
   private updateSwordAutoEquip(delta: number): void {
     const should =
       this.tools.sword &&
       this.player.isMoving &&
       this.player.currentTool !== 'bow' &&
       this.player.currentTool !== 'sword' &&
+      this.player.currentTool !== 'lasso' &&
       !this.survival.state.dead &&
+      this.wildlife.leashedBy(this.player) === null &&
       this.wildlife.nearestAlive(this.player.group.position, SWORD_AUTO_EQUIP_RANGE) !== null;
     if (!should) {
       this.swordEquipTimer = 0;
@@ -2852,8 +3014,13 @@ export class Game {
     return session;
   }
 
-  /** 联机(房主侧)移除一名远程玩家(断线超时) */
+  /** 联机(房主侧)移除一名远程玩家(断线超时):松开其牵着的羊,套索掉在羊脚下 */
   removeRemoteSession(session: PlayerSession): void {
+    const led = this.wildlife.leashedBy(session.player);
+    if (led) {
+      this.wildlife.releaseLeash(led.id);
+      this.drops.dropAt('lasso', 1, led.x, led.z);
+    }
     this.sessions = this.sessions.filter((s) => s !== session);
     this.campfire.detach(session);
     this.workbench.detach(session);
@@ -2882,6 +3049,7 @@ export class Game {
     // 弓优先级最高:瞄准中(虚线可见)或放箭动作期间,其他站定交互(采集/喝水等)让位,先放箭再交互
     if (exclude !== 'archery' && (s.archery.isWorking || s.archery.isAiming)) return true;
     if (exclude !== 'sword' && s.sword.isWorking) return true;
+    if (exclude !== 'lasso' && (s.lasso.isWorking || s.lasso.isAiming)) return true;
     if (exclude !== 'collect' && s.collect.isWorking) return true;
     if (exclude !== 'crafting' && s.crafting.isWorking) return true;
     if (exclude !== 'eating' && s.eating.isWorking) return true;
@@ -3037,6 +3205,39 @@ export class Game {
       // 石剑(2 级)伤害更高
       () => s.tools.sword
     );
+    s.lasso = new LassoSystem(
+      this.scene,
+      s.player,
+      this.terrain,
+      s.inventory,
+      this.wildlife,
+      this.fx,
+      this.audio,
+      // 未命中:套索落在落点(客人端转成上行动作,由房主生成掉落物经世界增量回流)
+      (x, z) => {
+        if (this.guestNet) {
+          this.guestNet.action('lassoMiss', [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
+        } else {
+          this.drops.dropAt('lasso', 1, x, z);
+        }
+      },
+      // 客人端:命中判定在本地完成,结果上行房主权威结算(拴绳状态随姿态快照回流)
+      this.guestMode && s === this.local
+        ? (animalId: number, x: number, z: number) =>
+            this.guestNet?.action('lassoHit', [
+              animalId,
+              Math.round(x * 10) / 10,
+              Math.round(z * 10) / 10,
+            ])
+        : undefined,
+      // 本地玩家掷出时广播视觉(客人上行动作由房主转发,房主直接广播事件)
+      s === this.local
+        ? (dx: number, dz: number) => {
+            if (this.guestNet) this.guestNet.action('lassoThrow', [dx, dz]);
+            else this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: s.id, dx, dz });
+          }
+        : undefined
+    );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
   }
 
@@ -3063,11 +3264,13 @@ export class Game {
     return true;
   }
 
-  /** 手上是否还持有该工具(围栏/门按背包数量判断) */
+  /** 手上是否还持有该工具(围栏/门按背包数量判断;套索额外把「正牵着羊」也算持有,绳子还在手里) */
   private hasToolFor(s: PlayerSession, tool: Exclude<HandTool, 'hand'>): boolean {
     if (tool === 'fence')
       return s.inventory.count('fenceWood') + s.inventory.count('fenceStone') > 0;
     if (tool === 'fenceGate') return s.inventory.count('fenceGate') > 0;
+    if (tool === 'lasso')
+      return s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null;
     return !!s.tools[tool];
   }
 
@@ -3084,6 +3287,7 @@ export class Game {
       s.player.dispose();
     }
     this.drops.dispose();
+    this.leashLines.dispose();
     this.props.dispose();
     this.rain.dispose();
     this.windFx.dispose();
@@ -3147,6 +3351,11 @@ export class Game {
       hasFishingrod: !!s.tools.fishingrod,
       hasBow: !!s.tools.bow,
       hasSword: !!s.tools.sword,
+      hasLasso: s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null,
+      lassoCount: s.inventory.count('lasso'),
+      leading: this.wildlife.leashedBy(s.player) !== null,
+      nearTether:
+        this.wildlife.stakedNear(s.player.group.position, TETHER_RANGE) !== null,
       toolTiers: { ...s.tools },
       craftedIds: [...s.craftedIds],
       nearCrate: !!this.crates.nearby(s),

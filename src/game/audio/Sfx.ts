@@ -15,6 +15,8 @@ export type SfxName =
   | 'whoosh' // 抛竿挥动
   | 'shoot' // 放箭:弦弹与箭矢破空
   | 'arrowHit' // 箭矢命中猎物
+  | 'lassoThrow' // 甩出套索:绳圈破空旋转
+  | 'lassoCatch' // 套索套中羊:绳收紧的闷响与羊咩
   | 'splash' // 落水/拉鱼水花
   | 'bite' // 咬钩提示
   | 'pickup' // 获得物品(采集收获/捡回/钓到鱼,统一)
@@ -42,6 +44,8 @@ const VOL: Record<SfxName, number> = {
   whoosh: 0.4,
   shoot: 0.45,
   arrowHit: 0.5,
+  lassoThrow: 0.42,
+  lassoCatch: 0.55,
   splash: 0.45,
   bite: 0.6,
   pickup: 0.4,
@@ -184,6 +188,17 @@ export class Sfx {
         // 命中闷响:低频穿透 + 短促的羽草炸开声
         tone(this.ctx, dest, detune(160), t, { attack: 0.002, decay: 0.12, peak: v }, 'sine', 70);
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.5 }, 'bandpass', 900, 500);
+        break;
+      case 'lassoThrow':
+        // 甩索:绳圈旋转掠过的滑噪声,频率先扬后抑像绳圈从头顶荡出去
+        noiseBurst(this.ctx, dest, t, { attack: 0.03, decay: 0.22, peak: v }, 'bandpass', 900, 2600);
+        noiseBurst(this.ctx, dest, t + 0.08, { attack: 0.03, decay: 0.16, peak: v * 0.5 }, 'bandpass', 1600, 1800);
+        break;
+      case 'lassoCatch':
+        // 套中:绳结「嗒」地收紧闷响 + 一声短促上扬的羊咩
+        tone(this.ctx, dest, detune(200), t, { attack: 0.002, decay: 0.1, peak: v }, 'triangle', 95);
+        noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.06, peak: v * 0.4 }, 'bandpass', 1100, 600);
+        tone(this.ctx, dest, detune(560), t + 0.07, { attack: 0.02, decay: 0.22, peak: v * 0.55 }, 'sawtooth', detune(430));
         break;
       case 'splash':
         noiseBurst(this.ctx, dest, t, { attack: 0.004, decay: 0.28, peak: v }, 'lowpass', 3200, 400);

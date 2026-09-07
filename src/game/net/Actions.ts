@@ -13,7 +13,8 @@ export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => b
 
 export const ACTIONS: Record<string, NetAction> = {
   tool: (g, a, [tool]) => {
-    a.player.setTool(tool as HandTool);
+    // 走 Game 的统一入口:切走套索时先松开正牵着的羊
+    g.setToolFor(a, tool as HandTool);
     return true;
   },
   eatFood: (g, a, [kind]) => g.eatFood(kind as ResourceKind | undefined, a),
@@ -84,6 +85,25 @@ export const ACTIONS: Record<string, NetAction> = {
     }
     return true;
   },
+  // 客人掷出套索的视觉广播与扣道具:房主扣一个套索、补甩索动作窗口、复现绳圈并转发给其他客人
+  lassoThrow: (g, a, [dx, dz]) => {
+    g.netLassoThrown(a, dx as number, dz as number);
+    return true;
+  },
+  // 客人本地判定套中的权威结算(联机约定的例外:命中由掷出客户端判定,同弓箭)
+  lassoHit: (g, a, [animalId, x, z]) => {
+    a.lasso.settleNetHit(animalId as number, x as number, z as number);
+    return true;
+  },
+  // 客人掷空:套索掉在落点(世界增量回流补建掉落物)
+  lassoMiss: (g, a, [x, z]) => {
+    g.lassoMissAt(x as number, z as number);
+    return true;
+  },
+  // 客人在脚下打桩拴住正牵着的羊
+  lassoStake: (g, a) => g.stakeLasso(a),
+  // 客人解开身旁被拴的羊(套索回客人背包)
+  lassoUntie: (g, a) => g.untieLasso(a),
   gmSpawnAnimal: (g, a, [species]) => {
     g.gmSpawnAnimalFor(species as AnimalSpecies, a);
     return true;

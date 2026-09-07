@@ -1,0 +1,35 @@
+# 套索与拴羊
+
+## 背景
+
+羊此前是纯猎物:见人就跑,只能用弓箭射杀取肉和皮毛。围栏系统建好了但圈住动物没有任何收益。需要一个"活捉"玩法:把羊捉住、牵着走、拴在指定位置,为后续圈养玩法打地基。
+
+## 需求描述
+
+- 新道具**套索**:工作台 3×绳线合成。背包里有套索时,套索进入工具按钮循环(与围栏当工具的先例一致),角标显示剩余个数。
+- **投掷交互与弓一致**:手持套索且 6 米内有可套的羊时,移动即进入瞄准(摇杆方向的虚线),持续瞄准约 0.45 秒拉满,**停止移动即掷出**。绳圈直线飞行(速度 14),只有羊会被套住;已拴/已牵的羊不可再套;一名玩家同时只能牵一只。
+- **牵引**:套中后玩家和羊之间渲染一根绳子(两端取玩家与羊的位置,不挂接骨骼)。玩家移动羊就被牵着走(跟随速度与玩家步行一致);羊被地形/围栏卡住或玩家下水导致绳子持续绷紧约 2 秒 → 绳套滑脱,套索掉在羊脚下,羊受惊逃跑。切换其他工具(松手)= 放开羊,套索回背包。
+- **打桩拴住**:牵着羊时点击工具按钮,在玩家脚下原地打一根木桩,绳子末端转到桩上。羊只在桩周围约 2.2 米内活动、低头吃草,不再受惊逃跑(免疫噪音惊动)。
+- **不可被攻击**:被牵/被拴期间,羊不可被选中为攻击目标(弓箭扫掠、剑索敌均忽略,同躲洞兔子的处理)。套索是纯粹的捕捉/搬运工具,想杀必须先解开。
+- **解开**:靠近被拴的羊或桩时,工具按钮变为「解开套索」,点击后羊恢复野生(受惊片刻),桩拆掉,套索回背包。
+- **存档**:拴住的羊入档(存桩坐标,读档在桩位生成一只已拴住的羊);存档瞬间还被牵着(未打桩)的羊不入档——套索自动退回背包、羊释放。可选字段向后兼容,`SAVE_VERSION` 不变。
+
+## 设计方案
+
+- `src/game/systems/LassoSystem.ts`(每会话一份):照抄 BowSystem 的结构与协议——`update(delta, busy)` / `updateVisuals(delta)` / `isWorking` / `isAiming` / `onNetHit`+`settleNetHit`(客人本地判定命中、房主权威结算,联机约定的例外同弓箭)/ `netPlayThrow`(他人掷出的纯视觉绳圈)。掷出消耗 1 个套索;未命中套索经掉落物系统落在落点(客人端转 `lassoMiss` 动作上行)。玩家动作复用 `setAction('shoot')` 的举手姿态。
+- `src/game/systems/AimGuide.ts`:瞄准虚线从 BowSystem 抽出的共享模块(射程/点数参数化),弓与套索共用。
+- `src/game/entities/Wildlife.ts`:
+  - `Animal` 新增羊专属状态块 `leash: { holder: Player } | { anchor } | null` 与绷紧计时 `strainLeft`;update 顶部拦截(在兔子 hidden 之后)进入 `updateLeashed`,跳过警戒/逃跑/游荡链。
+  - 被牵:距持绳玩家 > 2.2 时朝玩家走(速度 5,`step` 自带切线绕障);距离超绳长 4 米或玩家下水开始累计绷紧,持续 2 秒滑脱(`onLeashEnd` 回调掉套索)。
+  - 被拴:`pickTarget` 只在桩周 2.2 米采样,`canStand` 限制不超出桩绳 3 米(鳄鱼 pond leash 同款);免疫 `startle`。
+  - 不可攻击:`nearestAlive / nearestId / hitSegment / damageNearby / damage` 全部过滤 `leash` 个体(与 hidden 过滤同模式)。
+  - API:`lassoSheep / stakeSheep / releaseLeash / leashedBy / nearestSheep / hitSegmentSheep / stakedNear / spawnStakedSheep`;姿态快照输出 `leash` 字段(`setPlayerIdResolver` 解析持绳玩家会话 id),被拴/被牵期间临时按 25Hz 战斗组下发;客人端镜像 `netLeash` 只用于表现。
+- `src/game/entities/Stake.ts` + `src/game/systems/StakeSystem.ts`:拴羊桩(斜切面木桩+桩顶绳圈)与放置物系统,世界段 `stakes`(稳定 id + 落点)走世界增量,`snapshot/restore/netApply` 同床/围栏模式;不入锄头挖掘流程(拆桩即解绳,走动作按钮)。
+- `src/game/fx/LeashLines.ts`(世界单例):按帧更新的 `THREE.Line` 池(10 段带下垂弧度),由 `Game.updateLeashLines` 每帧喂入「玩家↔羊 / 桩↔羊」两端点;两端本地推导,无网络对象。
+- `Game.ts` 接线:工具循环加入 lasso(持有判定 = 背包有套索或正牵着羊);`useToolButton` 在持套索且牵着羊时改为打桩;HUD 新增 `hasLasso / lassoCount / leading / nearTether`(客人由房主快照回流);`setToolFor` 统一入口(本地与 `tool` 动作共用)在切走套索时松绳退索;死亡/断线时释放牵着的羊(套索掉在羊脚下);存档收集时对未打桩的牵引退索退款。
+- 数值:射程 6 / 飞行速度 14 / 蓄力 0.45s / 命中半径 0.9 / 跟随 5.0 / 绳长上限 4 / 滑脱 2s / 桩周游荡 2.2 / 桩绳上限 3。
+- 联机语义详见 `docs/multiplayer.md`「套索与拴羊」。
+
+## 迭代记录
+
+- 2026-09-07:首个版本——套索道具与配方、弓式瞄准投掷、牵引与绷断、打桩拴住/解开、被拴不可攻击、绳子渲染、联机四动作与姿态快照 `leash` 字段(`NET_PROTOCOL_VERSION` 21→22)、拴羊桩世界段与存档。

@@ -11,12 +11,15 @@ const TOOL_ICONS: Record<HandTool, string> = {
   fishingrod: '🎣',
   bow: '🏹',
   sword: '🗡️',
+  lasso: '🪢',
   fence: '🚧',
   fenceGate: '🪵',
 };
 
 /** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
- * 靠近工作台/火堆时切换为对应图标并持续缩放提示,点击打开制作/火堆面板;持弓/持鱼竿时角标显示剩余箭数/鱼饵数 */
+ * 靠近工作台/火堆等放置物时切换为对应图标并持续缩放提示,点击打开对应面板;
+ * 牵着羊时变为「打桩」,身旁有被拴的羊时变为「解开套索」;
+ * 持弓/鱼竿/围栏/套索时角标显示剩余弹药或个数 */
 export function ToolButton({
   tool,
   pulse,
@@ -28,9 +31,12 @@ export function ToolButton({
   cookingStation = false,
   loom = false,
   bed = false,
+  stake = false,
+  untie = false,
   arrowCount = 0,
   baitCount = 0,
   fenceCount = 0,
+  lassoCount = 0,
   dimmed = false,
   onCycle,
   onWorkbench,
@@ -41,6 +47,8 @@ export function ToolButton({
   onCookingStation,
   onLoom,
   onBed,
+  onStake,
+  onUntie,
 }: {
   tool: HandTool;
   pulse: boolean;
@@ -60,12 +68,18 @@ export function ToolButton({
   loom?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
   bed?: boolean;
+  /** 是否显示为打桩模式(牵着羊,点击在脚下打桩拴住) */
+  stake?: boolean;
+  /** 是否显示为解绳模式(身旁有被拴的羊,点击解开套索收回) */
+  untie?: boolean;
   /** 背包剩余箭数(持弓时角标展示) */
   arrowCount?: number;
   /** 背包剩余鱼饵数(持鱼竿时角标展示) */
   baitCount?: number;
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
+  /** 背包剩余套索数(持套索且未牵着羊时角标展示) */
+  lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
   dimmed?: boolean;
   onCycle: () => void;
@@ -77,6 +91,8 @@ export function ToolButton({
   onCookingStation: () => void;
   onLoom: () => void;
   onBed: () => void;
+  onStake: () => void;
+  onUntie: () => void;
 }) {
   return (
     <button
@@ -98,7 +114,11 @@ export function ToolButton({
                       ? onLoom()
                       : bed
                   ? onBed()
-                  : onCycle();
+                  : stake
+                    ? onStake()
+                    : untie
+                      ? onUntie()
+                      : onCycle();
       }}
       style={{
         position: 'absolute',
@@ -123,21 +143,55 @@ export function ToolButton({
                     ? 'rgba(196, 118, 74, 0.9)'
                     : loom
                       ? 'rgba(181, 166, 66, 0.9)'
-                    : bed
+                      : bed
                   ? 'rgba(106, 110, 160, 0.9)'
-                  : 'rgba(90, 110, 140, 0.8)',
+                  : stake
+                    ? 'rgba(120, 96, 56, 0.9)'
+                    : untie
+                      ? 'rgba(96, 116, 96, 0.9)'
+                      : 'rgba(90, 110, 140, 0.8)',
         fontSize: 30,
         touchAction: 'none',
         userSelect: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
         animation:
-          pulse || workbench || campfire || crate || baitBarrel || smelter || cookingStation || loom || bed
+          pulse ||
+          workbench ||
+          campfire ||
+          crate ||
+          baitBarrel ||
+          smelter ||
+          cookingStation ||
+          loom ||
+          bed ||
+          stake ||
+          untie
             ? 'tool-pulse 0.9s ease-in-out infinite'
             : 'none',
         ...fadeStyle(dimmed),
       }}
     >
-      {workbench ? '🛠️' : campfire ? '🔥' : crate ? '📦' : baitBarrel ? '🪣' : smelter ? '🏭' : cookingStation ? '🍳' : loom ? '🪡' : bed ? '🛏️' : TOOL_ICONS[tool]}
+      {workbench
+        ? '🛠️'
+        : campfire
+          ? '🔥'
+          : crate
+            ? '📦'
+            : baitBarrel
+              ? '🪣'
+              : smelter
+                ? '🏭'
+                : cookingStation
+                  ? '🍳'
+                  : loom
+                    ? '🪡'
+                    : bed
+                  ? '🛏️'
+                  : stake
+                    ? '📍'
+                    : untie
+                      ? '🔓'
+                      : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&
@@ -146,8 +200,11 @@ export function ToolButton({
         !cookingStation &&
         !loom &&
         !bed &&
+        !stake &&
+        !untie &&
         (tool === 'bow' ||
           tool === 'fishingrod' ||
+          tool === 'lasso' ||
           tool === 'fence' ||
           tool === 'fenceGate') && (
         <span
@@ -164,7 +221,7 @@ export function ToolButton({
             lineHeight: '18px',
           }}
         >
-          {tool === 'bow' ? arrowCount : tool === 'fishingrod' ? baitCount : fenceCount}
+          {tool === 'bow' ? arrowCount : tool === 'fishingrod' ? baitCount : tool === 'lasso' ? lassoCount : fenceCount}
         </span>
       )}
       <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>

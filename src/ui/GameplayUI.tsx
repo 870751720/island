@@ -63,6 +63,10 @@ const INITIAL_HUD: HudSnapshot = {
   hasFishingrod: false,
   hasBow: false,
   hasSword: false,
+  hasLasso: false,
+  lassoCount: 0,
+  leading: false,
+  nearTether: false,
   toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
   craftedIds: [],
   nearCrate: false,
@@ -557,6 +561,8 @@ export function GameplayUI({
             hud.hasFishingrod ||
             hud.hasBow ||
             hud.hasSword ||
+            hud.hasLasso ||
+            hud.nearTether ||
             hud.nearWorkbench ||
             hud.nearCampfire ||
             hud.nearCrate ||
@@ -622,9 +628,35 @@ export function GameplayUI({
                 !hud.bedSleeping &&
                 !digHijack
               }
+              stake={
+                hud.leading &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                !hud.nearSmelter &&
+                !hud.nearCookingStation &&
+                !hud.nearLoom &&
+                !hud.nearBed &&
+                hud.craftId === null
+              }
+              untie={
+                hud.nearTether &&
+                !hud.leading &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                !hud.nearSmelter &&
+                !hud.nearCookingStation &&
+                !hud.nearLoom &&
+                !hud.nearBed &&
+                hud.craftId === null
+              }
               arrowCount={hud.arrow}
               baitCount={hud.bait}
               fenceCount={hud.heldFenceCount}
+              lassoCount={hud.lassoCount}
               dimmed={hud.busy}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
@@ -635,6 +667,8 @@ export function GameplayUI({
               onCookingStation={() => setCookingStationOpen(true)}
               onLoom={() => setLoomOpen(true)}
               onBed={() => gameRef.current?.sleep()}
+              onStake={() => gameRef.current?.stakeLasso()}
+              onUntie={() => gameRef.current?.untieLasso()}
             />
           )}
           {workbenchOpen && (

@@ -19,7 +19,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
     'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'worm', 'torch', 'adventureBook',
   ],
-  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
+  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'],
   装备: [
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
@@ -131,6 +131,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '绳线',
     icon: '🧵',
     description: '用植物纤维搓成的细绳,结实有韧性。',
+  },
+  lasso: {
+    kind: 'lasso',
+    name: '套索',
+    icon: '🪢',
+    description: '三股绳线编成的活结绳圈,甩出去能套住绵羊,牵着走或拴在桩上。',
   },
   cloth: {
     kind: 'cloth',

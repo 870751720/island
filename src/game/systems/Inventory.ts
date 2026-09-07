@@ -8,6 +8,7 @@ export type ResourceKind =
   | 'berry'
   | 'fiber'
   | 'rope'
+  | 'lasso'
   | 'cloth'
   | 'cola'
   | 'colaZero'

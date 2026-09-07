@@ -20,6 +20,7 @@ export type CraftId =
   | RefinedToolId
   | IronToolId
   | 'rope'
+  | 'lasso'
   | 'arrow'
   | 'crate'
   | 'ironCrate'
@@ -140,6 +141,13 @@ export const RECIPES: Recipe[] = [
     cost: { fiber: 3 },
     station: 'workbench',
     output: 'rope',
+  },
+  {
+    id: 'lasso',
+    name: '套索',
+    cost: { rope: 3 },
+    station: 'workbench',
+    output: 'lasso',
   },
   {
     id: 'fishingrod',
