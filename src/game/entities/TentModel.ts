@@ -45,54 +45,59 @@ export function makeTentMesh(level: number, miniature = false): THREE.Group {
     add(geometry, mat);
   };
 
-  const length = luxury ? 0.86 : 0.8;
-  const width = luxury ? 0.61 : upgraded ? 0.55 : 0.49;
-  const eave = luxury ? 0.65 : upgraded ? 0.48 : 0.3;
-  const peak = luxury ? 1.62 : upgraded ? 1.37 : 1.16;
+  const length = luxury ? 1.35 : upgraded ? 1.25 : 1.15;
+  const width = luxury ? 1.3 : upgraded ? 1.18 : 1.06;
+  const peak = luxury ? 2.9 : upgraded ? 2.65 : 2.4;
   const floor = 0.08;
-  // 脊线沿 X，与原睡姿一致；两端敞开，门帘收向两侧。
+  // 坡面从脊顶直达地面，保持标准 A 字三角轮廓。
+  // 中段篷布卷起，仅保留顶部及端部窄幅，四种放置朝向都能看到内部。
+  const roofPoint = (x: number, side: number, t: number): Point =>
+    [x, peak + (floor - peak) * t, side * width * t];
+  const openingEnd = length - 0.16;
+  const rolled = 0.32;
   box([length * 2, 0.12, width * 2], [0, floor, 0], wood);
   box([1.42, 0.23, 0.64], [0, 0.255, 0], bedding);
   box([0.28, 0.08, 0.42], [-0.5, 0.41, 0], bedding);
   box([0.85, 0.045, 0.66], [0.23, 0.39, 0], accent);
   for (const side of [-1, 1]) {
-    const z = side * width;
-    panel([[-length, peak, 0], [length, peak, 0], [length, eave, z], [-length, eave, z]], canvas);
-    panel([[-length, eave, z], [length, eave, z], [length, floor, z], [-length, floor, z]], canvas);
-    beam([-length - 0.035, eave, z], [length + 0.035, eave, z], 0.025, trim);
+    panel([roofPoint(-length, side, 0), roofPoint(length, side, 0),
+      roofPoint(length, side, rolled), roofPoint(-length, side, rolled)], canvas);
+    beam(roofPoint(-openingEnd, side, rolled), roofPoint(openingEnd, side, rolled), 0.065, canvas);
     for (const end of [-1, 1]) {
       const x = end * length;
-      panel([[x, peak, 0], [x, eave, z], [x, floor, z], [x, floor + 0.1, z * 0.76], [x, eave + 0.06, z * 0.62]], canvas);
-      beam([x, peak, 0], [x, eave, z], 0.024, trim);
+      const inner = end * openingEnd;
+      panel([roofPoint(x, side, rolled), roofPoint(inner, side, rolled),
+        roofPoint(inner, side, 1), roofPoint(x, side, 1)], canvas);
+      beam(roofPoint(x, side, 0), roofPoint(x, side, 1), 0.035, trim);
+      // 端面无门帘遮挡，斜杆勾勒完整三角入口。
       if (!miniature) {
-        beam([x, floor, z], [x, eave + 0.04, z], 0.032, wood);
-        beam([x * 0.85, eave, z], [x * 1.09, 0.05, z * 1.2], 0.009, trim);
-        box([0.05, 0.12, 0.05], [x * 1.09, 0.06, z * 1.2], wood);
+        beam(roofPoint(x, side, 0.62), [x * 1.13, 0.05, side * width * 1.18], 0.012, trim);
+        box([0.065, 0.16, 0.065], [x * 1.13, 0.08, side * width * 1.18], wood);
       }
-      if (upgraded) box([0.055, 0.055, 0.15], [x, eave * 0.7, z * 0.87], trim);
+      if (upgraded) {
+        beam(roofPoint(inner, side, 0.02), roofPoint(inner, side, 1), 0.022, trim);
+        const tie = roofPoint(end * openingEnd * 0.7, side, rolled);
+        box([0.055, 0.15, 0.15], tie, trim);
+      }
     }
   }
-  beam([-length - 0.08, peak, 0], [length + 0.08, peak, 0], 0.035, wood);
+  beam([-length - 0.08, peak, 0], [length + 0.08, peak, 0], 0.045, wood);
   if (upgraded) {
-    // 皮革/织布加强带，沿两侧坡面形成清晰等级细节。
-    for (const x of [-0.48, 0.48]) {
-      for (const side of [-1, 1]) {
-        panel([[x - 0.025, peak + 0.006, 0], [x + 0.025, peak + 0.006, 0],
-          [x + 0.025, eave + 0.006, side * (width + 0.006)], [x - 0.025, eave + 0.006, side * (width + 0.006)]], trim);
-      }
-    }
+    // 开放侧面能看到皮毛坐垫与床头储物箱。
+    box([0.42, 0.12, 0.42], [0.25, 0.2, -width * 0.65], bedding);
+    box([0.4, 0.32, 0.35], [-0.62, 0.29, -width * 0.65], wood);
+    box([0.43, 0.055, 0.38], [-0.62, 0.48, -width * 0.65], trim);
   }
   if (luxury) {
-    // 正门小门廊、青绿地毯与金边垂檐，升级直接改变轮廓。
-    const porch = length + 0.3;
-    box([0.42, 0.035, 0.72], [length + 0.08, 0.035, 0], accent);
+    // 豪华等级用金边三角框、地毯与双枕丰富细节，不遮盖敞开的入口。
+    box([0.85, 0.035, 1.1], [length - 0.22, 0.16, 0], accent);
     for (const side of [-1, 1]) {
-      panel([[length, peak, 0], [porch, peak - 0.12, 0], [porch, 0.92, side * width], [length, eave, side * width]], canvas);
-      panel([[porch, peak - 0.12, 0], [porch, 0.92, side * width], [porch, 0.83, side * width], [porch, peak - 0.21, 0]], trim);
-      beam([porch, 0.04, side * width], [porch, 0.94, side * width], 0.025, wood);
+      box([0.85, 0.04, 0.045], [length - 0.22, 0.18, side * 0.51], trim);
+      beam(roofPoint(length + 0.035, side, 0.02), roofPoint(length + 0.035, side, 1), 0.055, trim);
     }
-    beam([0, peak, 0], [0, peak + 0.28, 0], 0.018, wood);
-    panel([[0, peak + 0.28, 0], [0.27, peak + 0.22, 0], [0, peak + 0.13, 0]], accent);
+    box([0.24, 0.07, 0.34], [-0.47, 0.485, 0], bedding);
+    beam([0, peak, 0], [0, peak + 0.3, 0], 0.022, wood);
+    panel([[0, peak + 0.3, 0], [0.32, peak + 0.23, 0], [0, peak + 0.14, 0]], accent);
   }
 
   const group = new THREE.Group();
