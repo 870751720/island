@@ -101,6 +101,10 @@
 - 弹药同步:客人本地放箭/抛竿即时扣自己的弹药(与背包本地先扣一致),房主在 `arrowShot` 动作中权威补扣;弹药数量经 HUD 快照 `arrow`/`bait` 字段回流对齐(`netApplyHud` 直接覆盖,数量增加时补拾取飘字)。
 - 复活石免死不触发掉落(不走重生流程)。
 
+### 客人 HUD 闲置淡出(2026-09)
+
+- 修复客人端 UI 永不淡出的问题:此前房主 `hudFor` 给客人的 HUD 快照 `busy` 恒为 false。现改为房主在权威会话循环中为每个会话累计 `PlayerSession.hudIdleTime`(移动/作业/睡觉/钓鱼中清零,判定与本地 `pushHud` 同源 `isSessionActive`),`hudFor` 据此为每个客人各算 `busy`,闲置满 5 秒后客人端 HUD 同样淡出。
+
 ### 全局系统提示(2026-09)
 
 - 新增全局事件 `{ kind: 'sysNotice', text }`(`NET_PROTOCOL_VERSION` 升至 18):房主经 `Game.sysNotify` 广播给所有客人并在本地展示,客人在 `netApplyEvent` 直接走本地 notice,无需过滤。

@@ -373,8 +373,6 @@ export class Game {
   private lastBusy = false;
   private lastMoving = false;
   private lastBiteClicks = 0;
-  /** 连续未移动且无交互的时长:达到 IDLE_HIDE_DELAY 后 HUD 淡出 */
-  private idleTime = 0;
   private drops: DropSystem;
   private dayNight: DayNightSystem;
   private dayEvents: DayEventSystem;
@@ -881,6 +879,8 @@ export class Game {
             }
           }
           s.lastHealth = s.survival.state.health;
+          // 权威端为每个会话累计闲置时长(本地 pushHud 与客人的 hudFor 共用),活跃时清零
+          s.hudIdleTime = this.isSessionActive(s) ? 0 : s.hudIdleTime + delta;
           if (s.survival.state.dead) {
             if (this.hostRef && s.respawnLeft > 0) {
               s.respawnLeft = Math.max(0, s.respawnLeft - delta);
@@ -3373,10 +3373,8 @@ export class Game {
       fishingState === 'bite' && this.fishing.biteClicks !== this.lastBiteClicks;
     this.lastFishingState = fishingState;
     this.lastBiteClicks = this.fishing.biteClicks;
-    // 玩家移动/交互中立刻显示;连续闲置 5s 后才淡出
-    const active = this.isPlayerBusy;
-    this.idleTime = active ? 0 : this.idleTime + delta;
-    const busy = !active && this.idleTime >= IDLE_HIDE_DELAY;
+    // 玩家移动/交互中立刻显示;连续闲置 5s 后才淡出(闲置计时在权威会话循环里统一累计)
+    const busy = !this.isSessionActive(this.local) && this.local.hudIdleTime >= IDLE_HIDE_DELAY;
     const busyChanged = busy !== this.lastBusy;
     this.lastBusy = busy;
     // 移动开始/结束立即推送,弹出卡片随移动隐藏/恢复要跟手
@@ -3391,7 +3389,7 @@ export class Game {
 
   /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发;notice 是房主本地提示,不下发) */
   hudFor(s: PlayerSession): Omit<HudSnapshot, 'notice'> {
-    return this.snapshotHud(s, false);
+    return this.snapshotHud(s, !this.isSessionActive(s) && s.hudIdleTime >= IDLE_HIDE_DELAY);
   }
 
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
@@ -3483,14 +3481,14 @@ export class Game {
     return list;
   }
 
-  /** 玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
+  /** 该玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
    * 各交互(采集/制作/挖除/吃喝/钓鱼/拉弓等)都会设置玩家的作业动画,统一用 isActing 判定 */
-  private get isPlayerBusy(): boolean {
+  private isSessionActive(s: PlayerSession): boolean {
     return (
-      this.player.isMoving ||
-      this.player.isActing ||
-      this.beds.isBusy(this.local) ||
-      this.fishing.currentState !== null
+      s.player.isMoving ||
+      s.player.isActing ||
+      this.beds.isBusy(s) ||
+      s.fishing.currentState !== null
     );
   }
 
