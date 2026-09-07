@@ -221,13 +221,7 @@ export function ToolButton({
             lineHeight: '18px',
           }}
         >
-          {tool === 'bow'
-            ? `🏹${arrowCount}`
-            : tool === 'fishingrod'
-              ? `🧆${baitCount}`
-              : tool === 'lasso'
-                ? lassoCount
-                : fenceCount}
+          {tool === 'bow' ? arrowCount : tool === 'fishingrod' ? baitCount : tool === 'lasso' ? lassoCount : fenceCount}
         </span>
       )}
       <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>

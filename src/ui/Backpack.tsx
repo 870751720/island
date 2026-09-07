@@ -612,6 +612,19 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     >
                       <ItemIcon kind={id} level={tier >= 2 ? Math.min(tier, 3) : undefined} size={22} />
                       <div style={{ flex: 1, minWidth: 0 }}>{name}</div>
+                      {/* 弓/鱼竿行:状态文字左侧显示弹药图标与数量(弹药不进背包) */}
+                      {id === 'bow' && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: '#555' }}>
+                          <ItemIcon kind="arrow" size={16} />
+                          {hud.arrow}
+                        </span>
+                      )}
+                      {id === 'fishingrod' && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: '#555' }}>
+                          <ItemIcon kind="bait" size={16} />
+                          {hud.bait}
+                        </span>
+                      )}
                       <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
                         {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
                       </span>
