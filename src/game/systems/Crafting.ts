@@ -623,8 +623,8 @@ export function craft(
   } else if (!canCraft(recipe, inventory, equipment)) {
     return false;
   }
-  // 先扣背包里的材料,穿戴件留到最后消耗:消耗穿戴背包会收缩容量,
-  // 若提前触发会把尚未扣除的其他材料挤出背包导致扣料失败
+  // 先扣背包里的材料,再消耗穿戴件:穿戴件作为材料被消耗时不收缩背包容量,
+  // 新装备产出后自动上身并扩容,整个过程物品不会被挤出背包
   const wornCost: EquipKind[] = [];
   for (const [kind, n] of Object.entries(recipe.cost)) {
     if (inventory.remove(kind as ResourceKind, n ?? 0)) continue;

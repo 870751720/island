@@ -67,8 +67,8 @@ export function isEquipKind(kind: ResourceKind): kind is EquipKind {
 /** 已穿戴装备的状态管理:换装/卸下与评分比较 */
 export class Equipment {
   private equipped: Partial<Record<EquipSlot, EquipKind>> = {};
-  /** 装备变化回调(更新玩家模型与背包容量) */
-  onChange: ((slot: EquipSlot, kind: EquipKind | null) => void) | null = null;
+  /** 装备变化回调(更新玩家模型与背包容量);asMaterial 表示该件是作为制作材料被消耗,随后会被更高评分的新装备顶上,不应收缩背包容量 */
+  onChange: ((slot: EquipSlot, kind: EquipKind | null, asMaterial?: boolean) => void) | null = null;
 
   getEquipped(slot: EquipSlot): EquipKind | null {
     return this.equipped[slot] ?? null;
@@ -131,7 +131,7 @@ export class Equipment {
     const def = EQUIPMENT[kind];
     if (!def || this.equipped[def.slot] !== kind) return false;
     delete this.equipped[def.slot];
-    this.onChange?.(def.slot, null);
+    this.onChange?.(def.slot, null, true);
     return true;
   }
 

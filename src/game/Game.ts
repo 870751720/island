@@ -3073,12 +3073,13 @@ export class Game {
       if (s === this.local) this.emitPickup(kind, count);
       this.broadcastItemFly(s, kind, count);
     };
-    // 穿戴变化即时反映到玩家模型;背包类装备扩容,卸下/换小背包则收缩并溢出掉落
-    s.equipment.onChange = (slot, kind) => {
+    // 穿戴变化即时反映到玩家模型;背包类装备扩容,卸下/换小背包则收缩并溢出掉落。
+    // 作为制作材料被消耗的背包不收缩:新背包马上穿上且容量更大,收缩会把物品挤掉
+    s.equipment.onChange = (slot, kind, asMaterial) => {
       s.player.setEquip(slot, kind);
       const cap = kind ? EQUIPMENT[kind].capacity : undefined;
       if (cap) s.inventory.setCapacity(cap);
-      if (slot === 'backpack') {
+      if (slot === 'backpack' && !asMaterial) {
         const target = cap ?? DEFAULT_CAPACITY;
         for (const item of s.inventory.shrink(target)) {
           // 掉落只在权威端生成,客人端由同步复现
