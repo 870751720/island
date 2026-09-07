@@ -290,15 +290,33 @@ function makeBisonModel(): AnimalModel {
   const hoofMat = clay('#30251e');
   const eyeMat = clay('#17130f');
 
-  // 牛的核心轮廓是平直而厚实的桶状躯干，不使用野牛的肩峰和前重后轻背线。
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), coat);
-  body.scale.set(1, 0.92, 1.55);
-  body.position.set(0, 0.68, -0.05);
+  // 一段倒角较少的挤出体形成平背、厚腹的牛身，避免拉伸球体呈现椭圆蛋轮廓。
+  const bodyProfile = new THREE.Shape();
+  bodyProfile.moveTo(-0.3, -0.2);
+  bodyProfile.quadraticCurveTo(-0.34, -0.2, -0.34, -0.12);
+  bodyProfile.lineTo(-0.34, 0.2);
+  bodyProfile.quadraticCurveTo(-0.34, 0.27, -0.27, 0.27);
+  bodyProfile.lineTo(0.27, 0.27);
+  bodyProfile.quadraticCurveTo(0.34, 0.27, 0.34, 0.2);
+  bodyProfile.lineTo(0.34, -0.12);
+  bodyProfile.quadraticCurveTo(0.34, -0.2, 0.3, -0.2);
+  bodyProfile.closePath();
+  const bodyGeometry = new THREE.ExtrudeGeometry(bodyProfile, {
+    depth: 1.08,
+    bevelEnabled: true,
+    bevelSegments: 1,
+    bevelSize: 0.07,
+    bevelThickness: 0.07,
+    curveSegments: 2,
+  });
+  bodyGeometry.translate(0, 0, -0.54);
+  const body = new THREE.Mesh(bodyGeometry, coat);
+  body.position.set(0, 0.65, -0.05);
   body.castShadow = true;
   group.add(body);
 
   // 短粗颈把头接到躯干前端，侧面不会出现鹿一样的细长脖子。
-  const neck = new THREE.Mesh(new THREE.SphereGeometry(0.24, 7, 5), darkCoat);
+  const neck = new THREE.Mesh(new THREE.SphereGeometry(0.24, 7, 5), coat);
   neck.scale.set(1, 1.12, 0.9);
   neck.position.set(0, 0.69, 0.46);
   neck.castShadow = true;
@@ -306,7 +324,7 @@ function makeBisonModel(): AnimalModel {
 
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 0.69, 0.63);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), darkCoat);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), coat);
   head.scale.set(1.05, 1.12, 1.18);
   head.castShadow = true;
   headPivot.add(head);
@@ -318,7 +336,7 @@ function makeBisonModel(): AnimalModel {
   headPivot.add(muzzle);
 
   for (const side of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 4), darkCoat);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 4), coat);
     ear.scale.set(1.5, 0.46, 0.62);
     ear.position.set(side * 0.22, 0.08, 0.01);
     ear.rotation.z = side * 0.12;
@@ -349,8 +367,8 @@ function makeBisonModel(): AnimalModel {
 
   // 中等长度的牛腿，末端用深色蹄块强化家牛特征。
   const legs = [
-    makeLeg(darkCoat, -0.22, 0.58, 0.33, 0.55, 0.92),
-    makeLeg(darkCoat, 0.22, 0.58, 0.33, 0.55, 0.92),
+    makeLeg(coat, -0.22, 0.58, 0.33, 0.55, 0.92),
+    makeLeg(coat, 0.22, 0.58, 0.33, 0.55, 0.92),
     makeLeg(coat, -0.22, 0.58, -0.4, 0.55, 0.92),
     makeLeg(coat, 0.22, 0.58, -0.4, 0.55, 0.92),
   ];
