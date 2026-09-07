@@ -45,65 +45,79 @@ export function makeTentMesh(level: number, miniature = false): THREE.Group {
     add(geometry, mat);
   };
 
-  const length = luxury ? 1.35 : upgraded ? 1.25 : 1.15;
-  const width = luxury ? 1.3 : upgraded ? 1.18 : 1.06;
-  const peak = luxury ? 2.9 : upgraded ? 2.65 : 2.4;
+  // 所有等级固定为原一级占地和高度；升级只改变装饰，不改变体积。
+  const length = 1.15;
+  const width = 1.06;
+  const peak = 2.4;
   const floor = 0.08;
-  // 坡面从脊顶直达地面，保持标准 A 字三角轮廓。
-  // 两整片篷布封住侧面，端面仅留窄边门帘，形成 ⛺ 式三角入口。
-  const roofPoint = (x: number, side: number, t: number): Point =>
-    [x, peak + (floor - peak) * t, side * width * t];
+  const apex: Point = [0, peak, 0];
+  const corner = (x: number, z: number): Point => [x * length, floor, z * width];
+  const slopePoint = (base: Point, t: number, lift = 0): Point =>
+    [base[0] * t, peak + (floor - peak) * t + lift, base[2] * t];
+
   box([length * 2, 0.12, width * 2], [0, floor, 0], wood);
   box([1.42, 0.23, 0.64], [0, 0.255, 0], bedding);
   box([0.28, 0.08, 0.42], [-0.5, 0.41, 0], bedding);
   box([0.85, 0.045, 0.66], [0.23, 0.39, 0], accent);
+
   for (const side of [-1, 1]) {
-    // 完整、不透明的落地斜篷是帐篷的主要轮廓，不能卷起或挖空。
-    panel([roofPoint(-length, side, 0), roofPoint(length, side, 0),
-      roofPoint(length, side, 1), roofPoint(-length, side, 1)], canvas);
-    beam(roofPoint(-length, side, 1), roofPoint(length, side, 1), 0.025, trim);
-    for (const end of [-1, 1]) {
-      const x = end * length;
-      // 收向斜边的门帘围出完整的三角洞口，内部卧铺从端面可见。
-      const openingTop: Point = [x + end * 0.01, peak - 0.22, 0];
-      const openingFoot: Point = [x + end * 0.01, floor, side * width * 0.84];
-      panel([roofPoint(x, side, 0), roofPoint(x, side, 1), openingFoot, openingTop], canvas);
-      beam(roofPoint(x, side, 0), roofPoint(x, side, 1), 0.035, trim);
-      beam(openingTop, openingFoot, 0.018, trim);
-      if (!miniature) {
-        beam(roofPoint(x, side, 0.62), [x * 1.13, 0.05, side * width * 1.18], 0.012, trim);
-        box([0.065, 0.16, 0.065], [x * 1.13, 0.08, side * width * 1.18], wood);
-      }
-    }
+    const left = corner(-1, side);
+    const right = corner(1, side);
+    // 两个完整三角侧面与两个入口面全部汇聚于同一个中心尖顶。
+    panel([apex, left, right], canvas);
+    beam(left, right, 0.022, trim);
     if (upgraded) {
-      for (const x of [-length * 0.65, length * 0.65]) {
-        // 浅色缝边贴合完整坡面，保持布面质感而非外露棚架。
-        const a = roofPoint(x - 0.025, side, 0);
-        const b = roofPoint(x + 0.025, side, 0);
-        const c = roofPoint(x + 0.025, side, 1);
-        const d = roofPoint(x - 0.025, side, 1);
-        for (const point of [a, b, c, d]) point[1] += 0.008;
-        panel([a, b, c, d], trim);
+      panel([slopePoint(left, 0.82, 0.008), slopePoint(right, 0.82, 0.008),
+        slopePoint(right, 0.9, 0.008), slopePoint(left, 0.9, 0.008)], accent);
+    }
+    if (luxury) {
+      // 金边和菱形织纹贴在斜篷上，不增加额外顶饰或门廊体积。
+      panel([slopePoint(left, 0.8, 0.012), slopePoint(right, 0.8, 0.012),
+        slopePoint(right, 0.82, 0.012), slopePoint(left, 0.82, 0.012)], trim);
+      const facePoint = (x: number, t: number): Point => [x, peak + (floor - peak) * t + 0.014, side * width * t];
+      panel([facePoint(0, 0.4), facePoint(0.14, 0.49), facePoint(0, 0.58), facePoint(-0.14, 0.49)], trim);
+    }
+  }
+  for (const end of [-1, 1]) {
+    const left = corner(end, -1);
+    const right = corner(end, 1);
+    // 洞口处于金字塔斜面上，门楣低于尖顶，不再形成横向屋脊。
+    const openingTop = slopePoint([end * length, floor, 0], 0.23);
+    const openingLeft: Point = [end * length, floor, -width * 0.78];
+    const openingRight: Point = [end * length, floor, width * 0.78];
+    panel([apex, left, openingLeft, openingTop], canvas);
+    panel([apex, openingTop, openingRight, right], canvas);
+    beam(openingTop, openingLeft, upgraded ? 0.03 : 0.018, trim);
+    beam(openingTop, openingRight, upgraded ? 0.03 : 0.018, trim);
+    for (const side of [-1, 1]) {
+      const foot = corner(end, side);
+      beam(apex, foot, luxury ? 0.027 : 0.02, trim);
+      if (!miniature) {
+        const peg: Point = [end * length * 1.13, 0.05, side * width * 1.18];
+        beam(slopePoint(foot, 0.65), peg, 0.012, trim);
+        box([0.065, 0.16, 0.065], [peg[0], 0.08, peg[2]], wood);
+      }
+      if (upgraded) {
+        // 束起的门帘沿入口边缘垂落，保留中央视线。
+        const curtainFoot: Point = [end * length, floor, side * width * 0.88];
+        const curtainTop = slopePoint(curtainFoot, 0.56, 0.008);
+        beam(curtainTop, curtainFoot, 0.045, canvas);
+        const tie = slopePoint(curtainFoot, 0.73, 0.012);
+        box([0.07, 0.05, 0.12], tie, trim);
       }
     }
   }
-  beam([-length - 0.08, peak, 0], [length + 0.08, peak, 0], 0.045, wood);
   if (upgraded) {
-    // 陈设靠近敞开的三角入口，便于从外部辨认。
-    box([0.42, 0.12, 0.42], [length - 0.4, 0.2, -width * 0.52], bedding);
-    box([0.4, 0.32, 0.35], [-length + 0.35, 0.29, -width * 0.52], wood);
-    box([0.43, 0.055, 0.38], [-length + 0.35, 0.48, -width * 0.52], trim);
+    box([0.36, 0.12, 0.36], [0.58, 0.2, -0.52], bedding);
+    box([0.34, 0.26, 0.3], [-0.56, 0.27, -0.52], wood);
+    box([0.37, 0.05, 0.33], [-0.56, 0.425, -0.52], trim);
   }
   if (luxury) {
-    // 豪华等级用金边三角框、地毯与双枕丰富细节，不遮盖敞开的入口。
-    box([0.85, 0.035, 1.1], [length - 0.22, 0.16, 0], accent);
+    box([0.48, 0.025, 1.02], [0.89, 0.155, 0], accent);
     for (const side of [-1, 1]) {
-      box([0.85, 0.04, 0.045], [length - 0.22, 0.18, side * 0.51], trim);
-      beam(roofPoint(length + 0.035, side, 0.02), roofPoint(length + 0.035, side, 1), 0.055, trim);
+      box([0.48, 0.03, 0.035], [0.89, 0.17, side * 0.48], trim);
     }
     box([0.24, 0.07, 0.34], [-0.47, 0.485, 0], bedding);
-    beam([0, peak, 0], [0, peak + 0.3, 0], 0.022, wood);
-    panel([[0, peak + 0.3, 0], [0.32, peak + 0.23, 0], [0, peak + 0.14, 0]], accent);
   }
 
   const group = new THREE.Group();
