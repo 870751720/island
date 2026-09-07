@@ -120,6 +120,9 @@ export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {  berry: '
   gameMeat: 'cookedGameMeat',
 };
 
+/** 可烹饪(烤或煮)的生食材种类,供背包检查等场景遍历 */
+export const COOKABLE_KINDS = Object.keys(COOKABLE) as ResourceKind[];
+
 /**
  * 煮制映射:生食在燃烧的烹饪台上煮成汤品(每份 5 秒,一次只能煮一种食材);
  * 与烤制同源,但汤品口渴恢复更高、饥饿略低。不可煮的食材不在表中。

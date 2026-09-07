@@ -72,6 +72,11 @@ export class LoomSystem {
     private isBusy: (actor: PlayerSession) => boolean = () => false
   ) {}
 
+  /** 岛上已放置的纺织机数量 */
+  get count(): number {
+    return this.looms.length;
+  }
+
   private st(actor: PlayerSession): DigState {
     let st = this.digStates.get(actor);
     if (!st) {

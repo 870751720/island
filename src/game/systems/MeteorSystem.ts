@@ -75,6 +75,11 @@ export class MeteorSystem {
     private fx: Particles
   ) {}
 
+  /** 是否正有陨石坠落中 */
+  get active(): boolean {
+    return this.falling !== null;
+  }
+
   update(delta: number): void {
     const night = this.dayNight.isNight;
     if (night && !this.wasNight && !this.falling && Math.random() < METEOR_CHANCE) {

@@ -57,6 +57,11 @@ export class BedSystem {
   private onChanged?: EntityChangeSink;
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
+  /** 岛上已放置的床数量 */
+  get count(): number {
+    return this.beds.length;
+  }
+
   constructor(
     private scene: THREE.Scene,
     private terrain: IslandTerrain,

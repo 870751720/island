@@ -72,6 +72,11 @@ export class SmelterSystem {
     private isBusy: (actor: PlayerSession) => boolean = () => false
   ) {}
 
+  /** 岛上已放置的熔炉数量 */
+  get count(): number {
+    return this.smelters.length;
+  }
+
   private st(actor: PlayerSession): DigState {
     let st = this.digStates.get(actor);
     if (!st) {

@@ -40,7 +40,7 @@ import { BUFFS, type HudBuff } from './systems/BuffSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
-import { firstFoodIn, FOODS, type Food } from './systems/Food';
+import { firstFoodIn, FOODS, COOKABLE_KINDS, type Food } from './systems/Food';
 import { ITEMS, itemSortIndex } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
@@ -960,11 +960,20 @@ export class Game {
           phase: this.dayNight.state.phase,
           day: this.dayNight.day,
           rainIntensity: this.weather.rainIntensity,
+          windIntensity: this.weather.windIntensity,
           freeSlots: this.inventory.freeSlots,
           branch: this.inventory.count('branch'),
           stone: this.inventory.count('stone'),
           tools: this.tools,
           collecting: this.collect.isWorking,
+          workbenchCount: this.workbench.count,
+          smelterCount: this.smelters.count,
+          loomCount: this.looms.count,
+          cookingCount: this.cookingStations.count,
+          bedCount: this.beds.count,
+          hasCookable: COOKABLE_KINDS.some((k) => this.inventory.count(k) > 0),
+          bottle: this.inventory.count('bottle'),
+          meteorActive: this.meteor.active,
         });
         this.updateIndicator(delta);
         this.updateLeashLines();

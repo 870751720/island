@@ -13,11 +13,25 @@ export type MumbleContext = {
   phase: DayPhase;
   day: number;
   rainIntensity: number;
+  /** 大风强度(0~1),上穿阈值视为起风 */
+  windIntensity: number;
   freeSlots: number;
   branch: number;
   stone: number;
   tools: Tools;
   collecting: boolean;
+  /** 岛上已放置的设施数量(客人端由快照同步) */
+  workbenchCount: number;
+  smelterCount: number;
+  loomCount: number;
+  cookingCount: number;
+  bedCount: number;
+  /** 背包里是否有可烹饪的生食 */
+  hasCookable: boolean;
+  /** 背包里的漂流瓶数量 */
+  bottle: number;
+  /** 是否正有陨石坠落 */
+  meteorActive: boolean;
 };
 
 /** 单条触发规则:按数组顺序即优先级,排在前面的先说 */
@@ -29,7 +43,7 @@ type TriggerRule = {
   once?: boolean;
   /** 每天最多触发一次(如狼之夜/熊之夜的铺垫台词),按 ctx.day 去重 */
   oncePerDay?: boolean;
-  /** 边沿型(进入夜晚/开始下雨),只在状态跳变的那一帧命中 */
+  /** 边沿型(进入夜晚/开始下雨/起风/陨石坠落),只在状态跳变的那一帧命中 */
   edge?: boolean;
   test?: (ctx: MumbleContext) => boolean;
 };
@@ -64,8 +78,10 @@ const TRIGGER_RULES: TriggerRule[] = [
     cooldown: 120,
     test: (c) => c.health < 30,
   },
-  { id: 'nightFall', cooldown: 0, edge: true },
-  { id: 'rainStart', cooldown: 0, edge: true },
+  { id: 'nightFall', cooldown: 0, edge: true, test: (c) => c.phase === 'night' },
+  { id: 'rainStart', cooldown: 0, edge: true, test: (c) => c.rainIntensity > 0.5 },
+  { id: 'windRise', cooldown: 0, edge: true, test: (c) => c.windIntensity > 0.5 },
+  { id: 'meteorFall', cooldown: 0, edge: true, test: (c) => c.meteorActive },
   {
     id: 'bagFull',
     cooldown: 180,
@@ -92,6 +108,47 @@ const TRIGGER_RULES: TriggerRule[] = [
     test: (c) => c.tools.pickaxe > 0 && c.stone < 1 && !c.collecting,
   },
   {
+    // 中期发展:有镐子还没搭工作台(床/熔炉/纺织机等设施的前置)
+    id: 'craftWorkbench',
+    cooldown: 300,
+    test: (c) => c.tools.pickaxe > 0 && c.workbenchCount === 0,
+  },
+  {
+    // 中期发展:有工作台但还没建熔炉
+    id: 'craftSmelter',
+    cooldown: 300,
+    test: (c) => c.workbenchCount > 0 && c.smelterCount === 0 && c.tools.pickaxe > 0,
+  },
+  {
+    // 中期发展:有熔炉但斧/镐还没升到铁制(等级 3)
+    id: 'ironTools',
+    cooldown: 300,
+    test: (c) => c.smelterCount > 0 && c.tools.axe < 3 && c.tools.pickaxe < 3,
+  },
+  {
+    // 中期发展:有工作台但还没建纺织机(布料是装备/三级床的材料)
+    id: 'craftLoom',
+    cooldown: 300,
+    test: (c) => c.workbenchCount > 0 && c.loomCount === 0 && c.tools.pickaxe > 0,
+  },
+  {
+    // 中期发展:背包有生食但岛上没有烹饪台
+    id: 'cookFood',
+    cooldown: 300,
+    test: (c) => c.hasCookable && c.cookingCount === 0,
+  },
+  {
+    id: 'bottleHint',
+    cooldown: 240,
+    test: (c) => c.bottle > 0,
+  },
+  {
+    // 夜晚行为:有床且夜里还醒着,引导回床睡觉跳过黑夜
+    id: 'sleepHint',
+    cooldown: 240,
+    test: (c) => c.phase === 'night' && c.bedCount > 0 && !c.collecting,
+  },
+  {
     id: 'opening',
     cooldown: 0,
     once: true,
@@ -114,8 +171,7 @@ export class MumbleSystem {
   private firedOnce = new Set<MumbleTrigger>();
   private firedDay = new Map<MumbleTrigger, number>();
   private sustainTimers = new Map<MumbleTrigger, number>();
-  private lastPhase: DayPhase = 'day';
-  private wasRaining = false;
+  private edgePrev = new Map<MumbleTrigger, boolean>();
   private globalTimer = 0;
 
   constructor(private onMumble: (trigger: MumbleTrigger, text: string) => void) {}
@@ -124,25 +180,32 @@ export class MumbleSystem {
     this.globalTimer += delta;
     this.cooldowns.forEach((t, id) => this.cooldowns.set(id, t - delta));
 
-    const nightFall = ctx.phase === 'night' && this.lastPhase !== 'night';
-    const rainStart = ctx.rainIntensity > 0.5 && !this.wasRaining;
-    this.lastPhase = ctx.phase;
-    this.wasRaining = ctx.rainIntensity > 0.5;
-
     if (ctx.dead || this.globalTimer < GLOBAL_INTERVAL) {
       this.sustainTimers.clear();
+      // 冷却期里也要刷新边沿状态,避免短事件(如陨石)被漏检
+      for (const rule of TRIGGER_RULES) {
+        if (rule.edge) this.edgePrev.set(rule.id, rule.test!(ctx));
+      }
       return;
     }
 
     for (const rule of TRIGGER_RULES) {
       if (rule.once && this.firedOnce.has(rule.id)) continue;
       if (rule.oncePerDay && this.firedDay.get(rule.id) === ctx.day) continue;
-      if ((this.cooldowns.get(rule.id) ?? 0) > 0) continue;
+      if ((this.cooldowns.get(rule.id) ?? 0) > 0) {
+        if (rule.edge) this.edgePrev.set(rule.id, rule.test!(ctx));
+        continue;
+      }
 
-      // 边沿型只在状态跳变的那一帧命中;电平型需持续满足 SUSTAIN 秒
-      const hit = rule.edge
-        ? (rule.id === 'nightFall' ? nightFall : rainStart)
-        : this.sustained(rule.id, rule.test!(ctx), delta);
+      // 边沿型只在状态从假跳到真的那一帧命中;电平型需持续满足 SUSTAIN 秒
+      const active = rule.test!(ctx);
+      let hit: boolean;
+      if (rule.edge) {
+        hit = active && this.edgePrev.get(rule.id) === false;
+        this.edgePrev.set(rule.id, active);
+      } else {
+        hit = this.sustained(rule.id, active, delta);
+      }
       if (!hit) continue;
 
       this.firedOnce.add(rule.id);

@@ -65,6 +65,11 @@ export class WorkbenchSystem {
   private onChanged?: EntityChangeSink;
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
+  /** 岛上已放置的工作台数量 */
+  get count(): number {
+    return this.benches.length;
+  }
+
   constructor(
     private scene: THREE.Scene,
     private terrain: IslandTerrain,
