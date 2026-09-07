@@ -37,6 +37,8 @@ const SHORE_DESCENT_MAX = 56;
 
 const SAND = new THREE.Color('#e8d8a0');const GRASS = new THREE.Color('#7cb45b');
 const DARK_GRASS = new THREE.Color('#4d8a3d');
+/** 草地内的小块裸露泥地 */
+const DIRT = new THREE.Color('#8a6f4d');
 /** 水下的湿沙:沙色加深偏棕,不出现蓝色;随水深再向深棕渐变以区分浅滩与深水 */
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
 const DEEP_SEABED = new THREE.Color('#5d5238');
@@ -221,7 +223,10 @@ export class IslandTerrain {
         const d = this.pondDist(w, x, z);
         if (d < 1) carve += w.depth * (1 - d * d);
       }
-      const h = baseHeight(x, z) - carve;
+      let h = baseHeight(x, z) - carve;
+      // 草地微起伏:±10cm 高频噪声打破大平面;该函数的采样结果即渲染顶点高度,视觉与玩法天然一致
+      const micro = (noise(x * (100 / width) + 801, z * (100 / width) + 409) - 0.5) * 0.2;
+      h += micro;
       // 洼底不得低于海平面,否则全局海水平面会切进水洼内,露出蓝色积水
       return carve > 0 ? Math.max(h, this.seaLevel + 0.1) : h;
     };
@@ -247,7 +252,17 @@ export class IslandTerrain {
         // 水下湿沙,越深越暗:浅水透出亮湿沙,深水显深色底
         c = WET_SAND.clone().lerp(DEEP_SEABED, THREE.MathUtils.clamp((waterY - y) / 2, 0, 1));
       } else {
-        c = y < 0.05 ? SAND : y < 1.8 ? GRASS : DARK_GRASS;
+        // 陆地:沙滩按高度向草色平滑过渡(取代硬阈值),草地内用双尺度噪声
+        // 混入深浅草斑,噪声峰值处再露出小块泥地,打破大面积单色绿
+        const patch =
+          noise(x * f2 * 2 + 401, z * f2 * 2 + 87) * 0.6 +
+          noise(x * f2 * 6 + 71, z * f2 * 6 + 903) * 0.4;
+        const grass = GRASS.clone().lerp(
+          DARK_GRASS,
+          Math.max(THREE.MathUtils.smoothstep(y, 1.2, 3.2), patch)
+        );
+        if (patch > 0.72) grass.lerp(DIRT, Math.min(1, (patch - 0.72) / 0.08));
+        c = SAND.clone().lerp(grass, THREE.MathUtils.smoothstep(y, 0.05, 1.2));
       }
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
