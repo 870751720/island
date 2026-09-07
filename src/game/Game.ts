@@ -526,6 +526,7 @@ export class Game {
     // 入包表现的目标点:玩家后背(朝向反方向、肩部高度),玩家移动时终点实时跟随
     this.itemFly = new ItemFlyFx(this.scene, () => this.itemFlyTargetFor(this.local)());
 
+    this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
     this.decorations = new Decorations(this.scene, terrain, this.terrainSeed);
@@ -815,6 +816,7 @@ export class Game {
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.clouds.update(delta);
+        this.terrain.updateWater(elapsed);
         this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
           this.crabs.update(delta, elapsed);

@@ -66,6 +66,7 @@ type WaterArea = {
 
 export class IslandTerrain {
   readonly mesh: THREE.Mesh;
+  readonly waterGroup = new THREE.Group();
   /** 全部水面区域(水洼),供资源生成等避让 */
   readonly waterAreas: WaterArea[] = [];
   /** 岛屿东西向(短轴)宽度 */
@@ -148,10 +149,37 @@ export class IslandTerrain {
       const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
       return n - Math.floor(n);
     };
-    // 水洼不再有自己的水面网格:坑挖穿海平面后,全局海面平面直接铺进坑里,
-    // 与海共用深浅渐变/碎浪/光纹,观感与挖坑见海水一致
+    const waterMat = () =>
+      new THREE.MeshStandardMaterial({
+        color: '#4aa3c7',
+        roughness: 0.35,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.65,
+      });
     const addWater = (area: WaterArea) => {
       this.waterAreas.push(area);
+      // 水面形状与 carve 边界一致(略收缩 4% 避免边缘穿出洼坑)
+      const shape = new THREE.Shape();
+      const steps = 48;
+      for (let s = 0; s <= steps; s++) {
+        const a = (s / steps) * Math.PI * 2;
+        const r = this.pondBoundary(area, a) * 0.96;
+        const ca = Math.cos(area.rot);
+        const sa = Math.sin(area.rot);
+        const lx = Math.cos(a) * r;
+        const lz = Math.sin(a) * r;
+        // Shape 的 y 轴经 rotateX(-π/2) 后映射到世界的 -z
+        const px = lx * ca - lz * sa;
+        const pz = lx * sa + lz * ca;
+        if (s === 0) shape.moveTo(px, -pz);
+        else shape.lineTo(px, -pz);
+      }
+      const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape), waterMat());
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(area.x, area.waterY, area.z);
+      disc.userData.baseY = area.waterY;
+      this.waterGroup.add(disc);
     };
 
     // 内陆水洼:数量随岛屿面积(按需求收缩为原来的 1/3),间距与短轴挂钩,不写死上限
@@ -161,8 +189,7 @@ export class IslandTerrain {
       const x = (rng(i * 2 + 1) * 2 - 1) * hw * 0.55;
       const z = (rng(i * 2 + 2) * 2 - 1) * hl * 0.55;
       const y = baseHeight(x, z);
-      // 只在低地生成:水面取海平面,坑深随地面高度增长,高地上挖坑会显得夸张
-      if (y < 1.0 || y > 2.4) continue;
+      if (y < 1.0) continue;
       if (this.tooClose(x, z, minPondGap)) continue;
       // 形状随机化:长半轴 3.5~9.2(最大面积约为此前的 2 倍),长短轴比与朝向决定胖瘦,
       // 三频角向波动让边界明显不规则;radius 记外接圆半径供避让等粗略判定
@@ -184,9 +211,8 @@ export class IslandTerrain {
         wobA4,
         wobP4: rng(i + 800) * Math.PI * 2,
         radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3) + Math.abs(wobA4)),
-        // 坑深保证水线(地形与海平面的交线)落在边界约 0.78 半径处,并封顶避免坑过深
-        depth: Math.min((y - this.seaLevel) / 0.39, 5.2),
-        waterY: this.seaLevel,
+        depth: 1.6,
+        waterY: y - 0.5,
       });
     }
 
@@ -201,7 +227,8 @@ export class IslandTerrain {
       // 草地微起伏:±10cm 高频噪声打破大平面;该函数的采样结果即渲染顶点高度,视觉与玩法天然一致
       const micro = (noise(x * (100 / width) + 801, z * (100 / width) + 409) - 0.5) * 0.2;
       h += micro;
-      return h;
+      // 洼底不得低于海平面,否则全局海水平面会切进水洼内,露出蓝色积水
+      return carve > 0 ? Math.max(h, this.seaLevel + 0.1) : h;
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
@@ -309,6 +336,15 @@ export class IslandTerrain {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
   }
 
+  /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒) */
+  updateWater(elapsed: number): void {
+    this.waterGroup.children.forEach((disc, i) => {
+      disc.position.y = disc.userData.baseY + Math.sin(elapsed * 1.1 + i * 1.7) * 0.02;
+      const s = 1 + Math.sin(elapsed * 0.8 + i * 2.3) * 0.012;
+      disc.scale.setScalar(s);
+    });
+  }
+
   /** 玩家是否处于任意水面附近(喝水判定) */
   isNearWater(pos: THREE.Vector3, extraRange: number): boolean {
     return this.waterAreas.some(
@@ -332,13 +368,9 @@ export class IslandTerrain {
     return false;
   }
 
-  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);
-   *  坑挖穿海平面后水面只存在于低洼处,除洼距外还需地面低于海平面 */
+  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);边界对齐可见水面形状 */
   isInWater(pos: THREE.Vector3): boolean {
-    return (
-      this.heightAt(pos.x, pos.z) < this.seaLevel &&
-      this.waterAreas.some((w) => this.pondDist(w, pos.x, pos.z) < 0.96)
-    );
+    return this.waterAreas.some((w) => this.pondDist(w, pos.x, pos.z) < 0.96);
   }
 
   /** 海面高度 */
