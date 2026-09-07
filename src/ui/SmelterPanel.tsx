@@ -53,7 +53,7 @@ export function SmelterPanel({ hud, onFeed, onCollect, onClose }: Props) {
           boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
         }}
       >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>🏭 冶炼炉(铁矿石每 5 秒炼 1 块铁锭)</div>
+        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>🏭 冶炼炉(3 块铁矿石炼 1 块铁锭,每炉 15 秒)</div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', minHeight: SLOT_SIZE }}>
           <div
             style={{

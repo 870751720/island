@@ -16,8 +16,9 @@ const NEAR_RANGE = 2.2; // 玩家距冶炼炉小于该值时算在炉旁
 const DIG_RANGE = 1.6; // 持锄头可开挖冶炼炉的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
-/** 每 5 秒炼出 1 块铁锭 */
-export const SMELT_INTERVAL = 5;
+/** 每 15 秒用 3 块铁矿石炼出 1 块铁锭 */
+export const SMELT_INTERVAL = 15;
+export const SMELT_ORE_PER_INGOT = 3;
 
 /** 冶炼炉存档/网络快照(落点 + 炉内矿石与铁锭存量) */
 export type SmelterSave = {
@@ -171,8 +172,13 @@ export class SmelterSystem {
         continue;
       }
       smelter.tickLeft -= delta;
-      if (!authority || smelter.tickLeft > 0) continue;
-      smelter.ore -= 1;
+      if (smelter.tickLeft > 0) continue;
+      if (smelter.ore < SMELT_ORE_PER_INGOT) {
+        smelter.tickLeft = SMELT_INTERVAL;
+        continue;
+      }
+      if (!authority) continue;
+      smelter.ore -= SMELT_ORE_PER_INGOT;
       smelter.ingot += 1;
       smelter.tickLeft += SMELT_INTERVAL;
       this.emitState(smelter);

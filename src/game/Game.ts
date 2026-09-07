@@ -2744,7 +2744,7 @@ export class Game {
     return true;
   }
 
-  /** 把背包里全部铁矿石丢进身旁冶炼炉(每 5 秒炼 1 块铁锭),失败时给出提示 */
+  /** 把背包里全部铁矿石丢进身旁冶炼炉(每 15 秒用 3 块矿石炼 1 块铁锭),失败时给出提示 */
   smelterFeed(actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('smelterFeed', []);

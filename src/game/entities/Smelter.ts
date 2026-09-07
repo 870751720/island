@@ -37,7 +37,7 @@ function makeSmelterMesh(): THREE.Group {
 }
 
 /**
- * 场景中的冶炼炉摆件:投入的铁矿石每 5 秒炼出 1 块铁锭;
+ * 场景中的冶炼炉摆件:投入的铁矿石每 15 秒炼出 1 块铁锭(消耗 3 块矿石);
  * 炉内还有矿石时炉门火光发亮闪动,空炉时熄灭。
  */
 export class Smelter {
