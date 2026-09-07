@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createPondMaterial } from './PondMaterial';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
 function createNoise(seed: number) {
@@ -43,7 +44,7 @@ const DIRT = new THREE.Color('#8a6f4d');
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
 const DEEP_SEABED = new THREE.Color('#5d5238');
 /** 一处下挖的水域:椭圆 carve + 角向波动形成不规则形状,水面为同形状的圆盘 */
-type WaterArea = {
+export type WaterArea = {
   x: number;
   z: number;
   /** 外接圆半径(最长方向的边界),供避让/外围生成等粗略判定使用 */
@@ -149,14 +150,8 @@ export class IslandTerrain {
       const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
       return n - Math.floor(n);
     };
-    const waterMat = () =>
-      new THREE.MeshStandardMaterial({
-        color: '#4aa3c7',
-        roughness: 0.35,
-        metalness: 0.1,
-        transparent: true,
-        opacity: 0.65,
-      });
+    const pondUniforms: { uTime: { value: number } }[] = [];
+    this.pondUniforms = pondUniforms;
     const addWater = (area: WaterArea) => {
       this.waterAreas.push(area);
       // 水面形状与 carve 边界一致(略收缩 4% 避免边缘穿出洼坑)
@@ -175,7 +170,9 @@ export class IslandTerrain {
         if (s === 0) shape.moveTo(px, -pz);
         else shape.lineTo(px, -pz);
       }
-      const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape), waterMat());
+      const pondMat = createPondMaterial(area);
+      pondUniforms.push(pondMat.uniforms);
+      const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape), pondMat.material);
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(area.x, area.waterY, area.z);
       disc.userData.baseY = area.waterY;
@@ -338,6 +335,7 @@ export class IslandTerrain {
 
   /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒) */
   updateWater(elapsed: number): void {
+    for (const u of this.pondUniforms) u.uTime.value = elapsed;
     this.waterGroup.children.forEach((disc, i) => {
       disc.position.y = disc.userData.baseY + Math.sin(elapsed * 1.1 + i * 1.7) * 0.02;
       const s = 1 + Math.sin(elapsed * 0.8 + i * 2.3) * 0.012;
@@ -375,6 +373,9 @@ export class IslandTerrain {
 
   /** 海面高度 */
   readonly seaLevel = -0.35;
+
+  /** 各水洼水面 shader 的时间 uniform */
+  private pondUniforms: { uTime: { value: number } }[] = [];
 
   /** 某处的水面高度:在水洼内返回洼面,否则为海面 */
   getWaterLevel(x: number, z: number): number {
