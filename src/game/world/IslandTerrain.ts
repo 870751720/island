@@ -40,11 +40,22 @@ const DARK_GRASS = new THREE.Color('#4d8a3d');
 /** 水下的湿沙:沙色加深偏棕,不出现蓝色;随水深再向深棕渐变以区分浅滩与深水 */
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
 const DEEP_SEABED = new THREE.Color('#5d5238');
-/** 一处下挖的水域:圆形 carve + 水面圆盘 */
+/** 一处下挖的水域:椭圆 carve + 角向波动形成不规则形状,水面为同形状的圆盘 */
 type WaterArea = {
   x: number;
   z: number;
+  /** 外接圆半径(最长方向的边界),供避让/外围生成等粗略判定使用 */
   radius: number;
+  /** 椭圆半轴(长短不一形成扁圆/长条形) */
+  rx: number;
+  rz: number;
+  /** 椭圆朝向(弧度) */
+  rot: number;
+  /** 角向半径波动系数:边界半径按 1 + a2·sin(2θ+p2) + a3·sin(3θ+p3) 起伏 */
+  wobA2: number;
+  wobP2: number;
+  wobA3: number;
+  wobP3: number;
   depth: number;
   waterY: number;
 };
@@ -144,10 +155,23 @@ export class IslandTerrain {
       });
     const addWater = (area: WaterArea) => {
       this.waterAreas.push(area);
-      const disc = new THREE.Mesh(
-        new THREE.CircleGeometry(area.radius * 0.96, 24),
-        waterMat()
-      );
+      // 水面形状与 carve 边界一致(略收缩 4% 避免边缘穿出洼坑)
+      const shape = new THREE.Shape();
+      const steps = 48;
+      for (let s = 0; s <= steps; s++) {
+        const a = (s / steps) * Math.PI * 2;
+        const r = this.pondBoundary(area, a) * 0.96;
+        const ca = Math.cos(area.rot);
+        const sa = Math.sin(area.rot);
+        const lx = Math.cos(a) * r;
+        const lz = Math.sin(a) * r;
+        // Shape 的 y 轴经 rotateX(-π/2) 后映射到世界的 -z
+        const px = lx * ca - lz * sa;
+        const pz = lx * sa + lz * ca;
+        if (s === 0) shape.moveTo(px, -pz);
+        else shape.lineTo(px, -pz);
+      }
+      const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape), waterMat());
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(area.x, area.waterY, area.z);
       disc.userData.baseY = area.waterY;
@@ -163,10 +187,23 @@ export class IslandTerrain {
       const y = baseHeight(x, z);
       if (y < 1.0) continue;
       if (this.tooClose(x, z, minPondGap)) continue;
+      // 形状随机化:长半轴 3.5~9.2(最大面积约为此前的 2 倍),长短轴比与朝向决定胖瘦,
+      // 角向波动让边界不规则;radius 记外接圆半径供避让等粗略判定
+      const rx = 3.5 + rng(i + 100) * 5.7;
+      const ratio = 0.55 + rng(i + 200) * 0.45;
+      const wobA2 = (rng(i + 300) * 2 - 1) * 0.12;
+      const wobA3 = (rng(i + 400) * 2 - 1) * 0.12;
       addWater({
         x,
         z,
-        radius: 3.5 + rng(i + 100) * 3,
+        rx,
+        rz: rx * ratio,
+        rot: rng(i + 500) * Math.PI,
+        wobA2,
+        wobP2: rng(i + 600) * Math.PI * 2,
+        wobA3,
+        wobP3: rng(i + 700) * Math.PI * 2,
+        radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3)),
         depth: 1.6,
         waterY: y - 0.5,
       });
@@ -176,7 +213,7 @@ export class IslandTerrain {
     this.heightAt = (x: number, z: number) => {
       let carve = 0;
       for (const w of this.waterAreas) {
-        const d = Math.hypot(x - w.x, z - w.z) / w.radius;
+        const d = this.pondDist(w, x, z);
         if (d < 1) carve += w.depth * (1 - d * d);
       }
       const h = baseHeight(x, z) - carve;
@@ -251,6 +288,28 @@ export class IslandTerrain {
     return this.waterAreas.length;
   }
 
+  /** 水洼在某局部角度下的边界半径(米):椭圆 + 角向正弦波动 */
+  private pondBoundary(w: WaterArea, a: number): number {
+    const ellipse =
+      1 / Math.sqrt((Math.cos(a) / w.rx) ** 2 + (Math.sin(a) / w.rz) ** 2);
+    return (
+      ellipse *
+      (1 + w.wobA2 * Math.sin(2 * a + w.wobP2) + w.wobA3 * Math.sin(3 * a + w.wobP3))
+    );
+  }
+
+  /** 点到水洼的归一化距离:按形状边界折算,<1 在洼内,=1 在边界 */
+  private pondDist(w: WaterArea, x: number, z: number): number {
+    const dx = x - w.x;
+    const dz = z - w.z;
+    const ca = Math.cos(w.rot);
+    const sa = Math.sin(w.rot);
+    const lx = dx * ca + dz * sa;
+    const lz = -dx * sa + dz * ca;
+    const len = Math.hypot(lx, lz);
+    return len / this.pondBoundary(w, Math.atan2(lz, lx));
+  }
+
   private tooClose(x: number, z: number, gap: number): boolean {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
   }
@@ -267,7 +326,9 @@ export class IslandTerrain {
   /** 玩家是否处于任意水面附近(喝水判定) */
   isNearWater(pos: THREE.Vector3, extraRange: number): boolean {
     return this.waterAreas.some(
-      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius + extraRange
+      (w) =>
+        Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius + extraRange &&
+        this.pondDist(w, pos.x, pos.z) < 1 + extraRange / w.radius
     );
   }
 
@@ -285,11 +346,9 @@ export class IslandTerrain {
     return false;
   }
 
-  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);边界对齐可见水面圆盘 */
+  /** 玩家是否处于水洼范围内(在水里,喝水判定排除,游泳复用);边界对齐可见水面形状 */
   isInWater(pos: THREE.Vector3): boolean {
-    return this.waterAreas.some(
-      (w) => Math.hypot(pos.x - w.x, pos.z - w.z) < w.radius * 0.96
-    );
+    return this.waterAreas.some((w) => this.pondDist(w, pos.x, pos.z) < 0.96);
   }
 
   /** 海面高度 */
@@ -302,9 +361,7 @@ export class IslandTerrain {
 
   /** 该点实际被玩法视作哪种水体；null 表示地面没有没入水面。 */
   getWaterKind(x: number, z: number): 'sea' | 'pond' | null {
-    const pond = this.waterAreas.find(
-      (w) => Math.hypot(x - w.x, z - w.z) < w.radius * 0.96
-    );
+    const pond = this.waterAreas.find((w) => this.pondDist(w, x, z) < 0.96);
     const waterY = pond?.waterY ?? this.seaLevel;
     if (this.getHeight(x, z) >= waterY - 0.02) return null;
     return pond ? 'pond' : 'sea';
@@ -312,7 +369,7 @@ export class IslandTerrain {
 
   private waterLevelAt(x: number, z: number): number {
     for (const w of this.waterAreas) {
-      if (Math.hypot(x - w.x, z - w.z) < w.radius * 0.96) return w.waterY;
+      if (this.pondDist(w, x, z) < 0.96) return w.waterY;
     }
     return this.seaLevel;
   }
