@@ -6,6 +6,7 @@ import type { WaterFx } from '../fx/WaterFx';
 import type { Footprints } from '../fx/Footprints';
 import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
+import { InjuryFx } from '../fx/InjuryFx';
 
 const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
@@ -431,6 +432,10 @@ export class Player implements Updatable {
   /** 遥控目标姿态:位置向它插值,移动感由距离推出(用于走路动画) */
   private netPos = new THREE.Vector3();
   private netRotY = 0;
+  /** 持续受伤外观(伤口贴片/血滴),由 setHealth 喂入的血量驱动 */
+  private injuryFx!: InjuryFx;
+  /** 当前血量(仅作受伤表现驱动,权威值在 SurvivalSystem/快照) */
+  private health = 100;
   /** 衣服/裤子各占一个独立材质,装备时改色 */
   private torsoMaterial!: THREE.MeshStandardMaterial;
   private legMaterial!: THREE.MeshStandardMaterial;
@@ -486,6 +491,7 @@ export class Player implements Updatable {
     ];
     this.arms = [armL, armR];
     this.legs = [legL, legR];
+    this.injuryFx = new InjuryFx({ torso, armL, legL });
 
     // 工具握在右手(armR)末端;可升级工具各备一二三级三套模型
     const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
@@ -642,6 +648,11 @@ export class Player implements Updatable {
     this.hurtFlash = HURT_FLASH_TIME;
   }
 
+  /** 写入当前血量,驱动伤口/血滴等持续受伤表现(本地权威值或客人快照值) */
+  setHealth(health: number): void {
+    this.health = health;
+  }
+
   /** 死亡:取消作业/睡眠姿态并倒地,之后不再响应输入 */
   setDead(): void {
     this.dead = true;
@@ -695,6 +706,8 @@ export class Player implements Updatable {
         if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setRGB(0.9 * k, 0.05 * k, 0.03 * k);
       });
     }
+    // 持续受伤表现先于一切姿态更新,倒地/睡眠时伤口血滴仍在
+    this.injuryFx.update(delta, this.health);
     if (this.dead) {
       this.updateDead(delta);
       return;

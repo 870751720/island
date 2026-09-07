@@ -884,6 +884,7 @@ export class Game {
             }
           }
           s.lastHealth = s.survival.state.health;
+          s.player.setHealth(s.survival.state.health);
           // 权威端为每个会话累计闲置时长(本地 pushHud 与客人的 hudFor 共用),活跃时清零
           s.hudIdleTime = this.isSessionActive(s) ? 0 : s.hudIdleTime + delta;
           if (s.survival.state.dead) {
@@ -1359,6 +1360,7 @@ export class Game {
       }
       // 消费本次权威血量；否则同一次掉血会被后续每个快照重复判定为新伤害。
       s.lastHealth = p.health;
+      s.player.setHealth(p.health);
       if (p.dead && !s.lastDead) {
         s.player.setDead();
         // 客人的死亡过渡由快照驱动,这里先于主循环消费 lastDead,须就地清摇杆
