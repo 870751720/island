@@ -12,13 +12,13 @@ import { CreatureFx } from '../fx/CreatureFx';
 import { makeMilkIcon } from '../ui3d/MilkIcon';
 import type { SfxName } from '../audio/Sfx';
 
-export type AnimalSpecies = 'rabbit' | 'sheep' | 'deer' | 'wolf' | 'bear' | 'crocodile';
+export type AnimalSpecies = 'rabbit' | 'sheep' | 'bison' | 'wolf' | 'bear' | 'crocodile';
 
 /** 物种中文名(GM 面板等展示用) */
 export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
   rabbit: '兔子',
   sheep: '绵羊',
-  deer: '鹿',
+  bison: '野牛',
   wolf: '狼',
   bear: '熊',
   crocodile: '鳄鱼',
@@ -78,6 +78,17 @@ const RABBIT_BURROW_SEEK = 16;
 const BURROW_ENTER_RANGE = 0.5;
 /** 躲藏期间威胁消失后再探头的时间(秒) */
 const HIDE_CALM_TIME = 5;
+
+// —— 野牛的反击行为参数 ——
+/** 被玩家打到半血后进入激怒:主动追击玩家,攻击力等参数对齐狼 */
+const BISON_ENRAGE_HP = 0.5;
+const BISON_ENRAGED = {
+  senseRange: 9,
+  deaggroRange: 14,
+  attackRange: 0.95,
+  damage: 30,
+  attackCooldown: 1.2,
+};
 
 // —— 套索的行为参数(羊) ——
 /** 被牵着时,羊落后玩家多远才开始跟上 */
@@ -180,15 +191,15 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
       { kind: 'fur', count: 2 },
     ],
   },
-  deer: {
-    label: '鹿',
+  bison: {
+    label: '野牛',
     count: 12,
     zoneFrom: 0.3,
     habitats: 4,
     zoneTo: 0.9,
     recovery: [240, 360],
-    walkSpeed: 1.4,
-    rushSpeed: 3.6,
+    walkSpeed: 1.1,
+    rushSpeed: 3.2,
     senseRange: 3.4,
     deaggroRange: 4.8,
     attackRange: 0,
@@ -288,6 +299,8 @@ type Animal = {
   lungeLeft: number;
   /** 草食动物的受惊状态(带迟滞,避免在警戒边界反复切换) */
   alerted: boolean;
+  /** 野牛的激怒状态(被玩家打到半血后置位):转为主动追击,不再逃跑(其他物种恒为 false) */
+  provoked: boolean;
   /** 天数事件的绑定目标:不死不休追击该玩家(无脱战);目标离场后退化为普通野生 */
   boundTo: Player | null;
   /** 展示朝向(向逻辑朝向平滑过渡,避免状态切换时硬切) */
@@ -335,7 +348,8 @@ type Animal = {
 };
 
 /**
- * 草地上的野生动物:兔、羊、鹿见玩家靠近就逃;狼会追咬玩家;熊会追击并扑击玩家。
+ * 草地上的野生动物:兔、羊、野牛见玩家靠近就逃;狼会追咬玩家;熊会追击并扑击玩家;
+ * 野牛被玩家打到半血后会激怒反扑。
  * 都可用弓箭猎捕,倒下后掉落兽肉,隔段时间在岛上别处重新刷新。
  */
 export class Wildlife implements Updatable {
@@ -441,6 +455,7 @@ export class Wildlife implements Updatable {
       attackLeft: 0,
       lungeLeft: 0,
       alerted: false,
+      provoked: false,
       boundTo: null,
       viewHeading: heading,
       stamina: BEAR_SPRINT_TIME,
@@ -614,7 +629,10 @@ export class Wildlife implements Updatable {
       const p = target ? target.group.position : animal.pos;
       const vulnerable = target ? this.isPlayerVulnerable(target) : false;
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
-      const hostile = animal.config.damage > 0;
+      // 激怒的野牛按狼的感知与攻击参数追击玩家;平时与草食动物一样见人就逃
+      const enraged = animal.species === 'bison' && animal.provoked;
+      const combat = enraged ? BISON_ENRAGED : animal.config;
+      const hostile = animal.config.damage > 0 || enraged;
       const bear = animal.species === 'bear';
       // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动;
       // 鳄鱼例外:守卫自己的水洼,玩家进入「水洼 + 水边 5 米」区域就锁定,离开即脱战游回
@@ -626,11 +644,11 @@ export class Wildlife implements Updatable {
         // 绑定掠食者不死不休:永远保持警戒,不存在脱战
         animal.alerted = true;
       } else {
-        if (dist < animal.config.senseRange) animal.alerted = true;
-        else if (dist > animal.config.deaggroRange) animal.alerted = false;
+        if (dist < combat.senseRange) animal.alerted = true;
+        else if (dist > combat.deaggroRange) animal.alerted = false;
       }
-      // 受伤的熊即使玩家超出感知半径也会记仇反扑;鳄鱼的警戒由水洼区域判定,不走记仇
-      if (hostile && animal.species !== 'crocodile' && animal.hp < animal.config.hp && dist < animal.config.deaggroRange) {
+      // 受伤的猛兽/激怒的野牛即使玩家超出感知半径也会记仇反扑;鳄鱼的警戒由水洼区域判定,不走记仇
+      if (hostile && animal.species !== 'crocodile' && animal.hp < animal.config.hp && dist < combat.deaggroRange) {
         animal.alerted = true;
       }
       const rushed = animal.alerted && vulnerable;
@@ -718,14 +736,14 @@ export class Wildlife implements Updatable {
         } else if (pounce.left <= 0) {
           animal.pounce = null;
         }
-      } else if (rushed && hostile && dist <= animal.config.attackRange) {
+      } else if (rushed && hostile && dist <= combat.attackRange) {
         // 近身挥击:面向玩家原地挥击,冷却好才真正造成伤害
         animal.heading = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
         if (animal.attackLeft <= 0) {
-          animal.attackLeft = animal.config.attackCooldown;
+          animal.attackLeft = combat.attackCooldown;
           animal.lungeLeft = 0.35;
           this.onAttack(animal.id);
-          this.onPlayerHit(target!, animal.config.damage);
+          this.onPlayerHit(target!, combat.damage);
         }
       } else if (rushed) {
         // 逃跑(草食)/追击(狼、熊):清掉游荡目标,平息后重新选路
@@ -1155,7 +1173,7 @@ export class Wildlife implements Updatable {
     if (animal.species === 'sheep' && (animal.leash || animal.netLeash) && !moving) {
       headPitch -= Math.max(0, Math.sin(elapsed * 0.8 + animal.phase)) * 0.55;
     }
-    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'deer' ? 0.34 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
+    animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'bison' ? 0.42 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
     // 兔尾以轻颤为主,鳄鱼在水中靠粗尾左右大幅摆动推进,其余动物轻晃摆尾。
     animal.model.tail.rotation.y = hop
@@ -1256,8 +1274,12 @@ export class Wildlife implements Updatable {
     if (animal.hp > 0) {
       this.creatureFx.flash(animal.model.group);
       this.onHit(animal.id);
-      // 主动攻击生物受伤后立刻警戒；熊还会进入暴怒状态。
-      if (animal.config.damage > 0) animal.alerted = true;
+      // 主动攻击生物受伤后立刻警戒；野牛被打到半血转为激怒反扑；熊还会进入暴怒状态。
+      if (animal.config.damage > 0 || animal.provoked) animal.alerted = true;
+      if (animal.species === 'bison' && animal.hp <= animal.config.hp * BISON_ENRAGE_HP) {
+        animal.provoked = true;
+        animal.alerted = true;
+      }
       if (animal.species === 'bear') {
         animal.rageLeft = BEAR_RAGE_TIME;
         this.roar(animal);
@@ -1390,7 +1412,7 @@ export class Wildlife implements Updatable {
   netCombatPoses() {
     return this.netPoses().filter((pose) => {
       const animal = this.animals.find((a) => a.id === pose.id);
-      return !!animal && (!!animal.config.damage || !!animal.leash);
+      return !!animal && (!!animal.config.damage || animal.provoked || !!animal.leash);
     });
   }
 
@@ -1398,7 +1420,7 @@ export class Wildlife implements Updatable {
   netPassivePoses() {
     return this.netPoses().filter((pose) => {
       const animal = this.animals.find((a) => a.id === pose.id);
-      return !animal || (!animal.config.damage && !animal.leash);
+      return !animal || (!animal.config.damage && !animal.provoked && !animal.leash);
     });
   }
 
