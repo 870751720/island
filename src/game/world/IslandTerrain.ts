@@ -43,7 +43,7 @@ const DIRT = new THREE.Color('#8a6f4d');
 const WET_SAND = SAND.clone().lerp(new THREE.Color('#8f7f52'), 0.55);
 const DEEP_SEABED = new THREE.Color('#5d5238');
 /** 一处下挖的水域:椭圆 carve + 角向波动形成不规则形状,水面为同形状的圆盘 */
-type WaterArea = {
+export type WaterArea = {
   x: number;
   z: number;
   /** 外接圆半径(最长方向的边界),供避让/外围生成等粗略判定使用 */
@@ -301,6 +301,11 @@ export class IslandTerrain {
       })
     );
     this.mesh.receiveShadow = true;
+  }
+
+  /** 水洼在局部角度方向的水面边界半径(米):供水生表现等贴合不规则形状 */
+  pondEdgeRadius(w: WaterArea, localAngle: number): number {
+    return this.pondBoundary(w, localAngle);
   }
 
   private countPonds(): number {
