@@ -51,11 +51,13 @@ type WaterArea = {
   rz: number;
   /** 椭圆朝向(弧度) */
   rot: number;
-  /** 角向半径波动系数:边界半径按 1 + a2·sin(2θ+p2) + a3·sin(3θ+p3) 起伏 */
+  /** 角向半径波动系数:边界半径按 1 + a2·sin(2θ+p2) + a3·sin(3θ+p3) + a4·sin(4θ+p4) 起伏 */
   wobA2: number;
   wobP2: number;
   wobA3: number;
   wobP3: number;
+  wobA4: number;
+  wobP4: number;
   depth: number;
   waterY: number;
 };
@@ -188,11 +190,12 @@ export class IslandTerrain {
       if (y < 1.0) continue;
       if (this.tooClose(x, z, minPondGap)) continue;
       // 形状随机化:长半轴 3.5~9.2(最大面积约为此前的 2 倍),长短轴比与朝向决定胖瘦,
-      // 角向波动让边界不规则;radius 记外接圆半径供避让等粗略判定
+      // 三频角向波动让边界明显不规则;radius 记外接圆半径供避让等粗略判定
       const rx = 3.5 + rng(i + 100) * 5.7;
-      const ratio = 0.55 + rng(i + 200) * 0.45;
-      const wobA2 = (rng(i + 300) * 2 - 1) * 0.12;
-      const wobA3 = (rng(i + 400) * 2 - 1) * 0.12;
+      const ratio = 0.35 + rng(i + 200) * 0.6;
+      const wobA2 = (rng(i + 300) * 2 - 1) * 0.22;
+      const wobA3 = (rng(i + 400) * 2 - 1) * 0.22;
+      const wobA4 = (rng(i + 900) * 2 - 1) * 0.14;
       addWater({
         x,
         z,
@@ -203,7 +206,9 @@ export class IslandTerrain {
         wobP2: rng(i + 600) * Math.PI * 2,
         wobA3,
         wobP3: rng(i + 700) * Math.PI * 2,
-        radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3)),
+        wobA4,
+        wobP4: rng(i + 800) * Math.PI * 2,
+        radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3) + Math.abs(wobA4)),
         depth: 1.6,
         waterY: y - 0.5,
       });
@@ -294,7 +299,10 @@ export class IslandTerrain {
       1 / Math.sqrt((Math.cos(a) / w.rx) ** 2 + (Math.sin(a) / w.rz) ** 2);
     return (
       ellipse *
-      (1 + w.wobA2 * Math.sin(2 * a + w.wobP2) + w.wobA3 * Math.sin(3 * a + w.wobP3))
+      (1 +
+        w.wobA2 * Math.sin(2 * a + w.wobP2) +
+        w.wobA3 * Math.sin(3 * a + w.wobP3) +
+        w.wobA4 * Math.sin(4 * a + w.wobP4))
     );
   }
 
