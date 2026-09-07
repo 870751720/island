@@ -136,6 +136,17 @@ export function CookingStationPanel({
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+            {info.outCount > 0 && info.outKind && (
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  onCollect();
+                }}
+                style={collectButtonStyle}
+              >
+                收取 {ITEMS[info.outKind].name} ×{info.outCount}
+              </button>
+            )}
             {boilables.length === 0 && (
               <span style={{ fontSize: 13, color: '#999' }}>背包里没有能煮的食材</span>
             )}
