@@ -81,7 +81,9 @@ export class LassoSystem {
     /** 客人端注入:本地判定命中后上行房主权威结算(置拴绳状态) */
     private onNetHit?: (animalId: number, x: number, z: number) => void,
     /** 掷出瞬间回调(联机广播视觉用):参数为瞄准方向 */
-    private onThrow?: (dirX: number, dirZ: number) => void
+    private onThrow?: (dirX: number, dirZ: number) => void,
+    /** 命中权威结算成功回调(联机广播视觉用):他人端收掉视觉绳 */
+    private onCatch?: (animalId: number) => void
   ) {
     this.guide = new AimGuide(terrain, RANGE, AIM_DOTS, AIM_START);
     this.scene.add(this.guide.group);
@@ -165,6 +167,13 @@ export class LassoSystem {
   netPlayThrow(dirX: number, dirZ: number): void {
     if (Math.hypot(dirX, dirZ) < 0.001) return;
     this.spawnRope(dirX, dirZ, true);
+  }
+
+  /** 复现他人套索命中:视觉绳立即消失(牵引绳由拴绳渲染接管) */
+  netPlayCatch(): void {
+    for (let i = this.ropes.length - 1; i >= 0; i--) {
+      if (this.ropes[i].visual) this.removeRope(this.ropes[i], i);
+    }
   }
 
   /** 玩家手上(绳子起点,随玩家移动每帧更新) */
@@ -253,14 +262,19 @@ export class LassoSystem {
   }
 
   /** 权威结算一次命中:把羊置为被本玩家牵着;目标已被别人套走时退回套索 */
-  private applyHit(animalId: number, x: number, z: number): void {
-    if (!this.wildlife.lassoSheep(animalId, this.player)) this.inventory.add('lasso', 1);
+  private applyHit(animalId: number, x: number, z: number): boolean {
+    if (!this.wildlife.lassoSheep(animalId, this.player)) {
+      this.inventory.add('lasso', 1);
+      return false;
+    }
+    this.onCatch?.(animalId);
+    return true;
   }
 
   /** 房主收到客人上行命中后的权威结算(表现已在客人端播过;客人在掷出端已本地扣除) */
-  settleNetHit(animalId: number, x: number, z: number): void {
+  settleNetHit(animalId: number, x: number, z: number): boolean {
     this.inventory.remove('lasso', 1);
-    this.applyHit(animalId, x, z);
+    return this.applyHit(animalId, x, z);
   }
 
   private removeRope(rope: Rope, index: number): void {

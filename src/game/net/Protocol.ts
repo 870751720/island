@@ -89,6 +89,8 @@ export type NetEvent =
   | { kind: 'arrowShot'; actor: string; dx: number; dz: number }
   /** 玩家掷出套索的视觉广播(命中由掷出端判定、lassoHit 动作结算):他人端复现绳圈飞行 */
   | { kind: 'lassoThrown'; actor: string; dx: number; dz: number }
+  /** 套索命中权威结算成功:他人端立即收掉该玩家的视觉绳(不再播完伸出→收回) */
+  | { kind: 'lassoCaught'; actor: string }
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }

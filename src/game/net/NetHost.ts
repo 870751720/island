@@ -276,7 +276,12 @@ export class NetHost {
         guest.net.send({ t: 'animals', animals: { full: [...(combatAnimals?.full ?? []), ...(passiveAnimals?.full ?? [])] } });
       } else {
         const set = [...(combatAnimals?.set ?? []), ...(passiveAnimals?.set ?? [])];
-        const remove = [...(combatAnimals?.remove ?? []), ...(passiveAnimals?.remove ?? [])];
+        // 同帧从 passive 移入 combat(羊被牵走)或反向移回时,remove 与 set 指向同一只动物:
+        // 客人端 applyEntityDelta 先 set 后 remove,不过滤会把这只动物误删成"消失"
+        const setIds = new Set(set.map((p) => p.id as string | number));
+        const remove = [...(combatAnimals?.remove ?? []), ...(passiveAnimals?.remove ?? [])].filter(
+          (id) => !setIds.has(id)
+        );
         if (set.length || remove.length) guest.net.send({ t: 'animals', animals: { set, remove } });
       }
 

@@ -1441,6 +1441,12 @@ export class Game {
       this.sessions.find((s) => s.id === event.actor)?.lasso.netPlayThrow(event.dx, event.dz);
       return;
     }
+    // 他人套索命中:视觉绳立即消失,牵引绳由拴绳渲染接管
+    if (event.kind === 'lassoCaught') {
+      if (event.actor === this.local.id) return;
+      this.sessions.find((s) => s.id === event.actor)?.lasso.netPlayCatch();
+      return;
+    }
     // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
     if (event.kind === 'reviveFx') {
       const s = this.sessions.find((x) => x.id === event.target);
@@ -3215,7 +3221,12 @@ export class Game {
             if (this.guestNet) this.guestNet.action('lassoThrow', [dx, dz]);
             else this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: s.id, dx, dz });
           }
-        : undefined
+        : undefined,
+      // 命中权威结算成功(含房主结算客人上行命中):收掉该会话的视觉绳并广播,让各端不再播完伸出→收回
+      (animalId: number) => {
+        s.lasso.netPlayCatch();
+        this.hostRef?.broadcastEvent({ kind: 'lassoCaught', actor: s.id });
+      }
     );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
   }
