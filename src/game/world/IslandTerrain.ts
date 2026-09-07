@@ -252,16 +252,15 @@ export class IslandTerrain {
         // 水下湿沙,越深越暗:浅水透出亮湿沙,深水显深色底
         c = WET_SAND.clone().lerp(DEEP_SEABED, THREE.MathUtils.clamp((waterY - y) / 2, 0, 1));
       } else {
-        // 陆地:沙滩按高度向草色平滑过渡(取代硬阈值),草地内用双尺度噪声
-        // 混入深浅草斑,噪声峰值处再露出小块泥地,打破大面积单色绿
-        const patch =
-          noise(x * f2 * 2 + 401, z * f2 * 2 + 87) * 0.6 +
-          noise(x * f2 * 6 + 71, z * f2 * 6 + 903) * 0.4;
+        // 陆地:沙滩按高度向草色平滑过渡;草地色斑用约 16 米的大尺度噪声,
+        // smoothstep 锐化让浅草/深草整片切换、颜色始终饱和不掺灰;
+        // 噪声极大值处成片露出泥地,且只出现在地势较低的草地上
+        const patch = noise(x * (12 / width) + 401, z * (12 / width) + 87);
         const grass = GRASS.clone().lerp(
           DARK_GRASS,
-          Math.max(THREE.MathUtils.smoothstep(y, 1.2, 3.2), patch)
+          THREE.MathUtils.smoothstep(patch, 0.5, 0.7) * 0.9
         );
-        if (patch > 0.72) grass.lerp(DIRT, Math.min(1, (patch - 0.72) / 0.08));
+        if (y < 2.2) grass.lerp(DIRT, THREE.MathUtils.smoothstep(patch, 0.78, 0.9));
         c = SAND.clone().lerp(grass, THREE.MathUtils.smoothstep(y, 0.05, 1.2));
       }
       colors[i * 3] = c.r;
