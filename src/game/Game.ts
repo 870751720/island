@@ -3633,10 +3633,14 @@ export class Game {
                 ? digging
                   ? '挖灌木丛'
                   : '捡树枝'
-                : nearby.kind === 'grass'
+              : nearby.kind === 'grass'
+                ? digging
+                  ? '挖草丛'
+                  : '采纤维'
+                : nearby.kind === 'wormNest'
                   ? digging
-                    ? '挖草丛'
-                    : '采纤维'
+                    ? '挖蚯蚓窝'
+                    : '捉蚯蚓'
                   : digging
                     ? '挖浆果丛'
                     : '采浆果';

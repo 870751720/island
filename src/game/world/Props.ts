@@ -389,36 +389,36 @@ function makeShrub(): THREE.Group {
   return g;
 }
 
-/** 蚯蚓窝:湿土堆成的小丘,顶上有个小洞,有蚯蚓时洞口只趴着一只蚯蚓 */
+/** 蚯蚓窝:湿土堆成的小丘,顶上有个小洞,有蚯蚓时洞口只横躺着一只蚯蚓 */
 function makeWormNest(): { group: THREE.Group; worm: THREE.Group } {
   const group = new THREE.Group();
   const mound = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.32, 1),
+    new THREE.IcosahedronGeometry(0.2, 1),
     clayMaterial('#6f5a44')
   );
-  mound.scale.set(1.15, 0.55, 1.05);
-  mound.position.y = 0.14;
+  mound.scale.set(1.15, 0.45, 1.05);
+  mound.position.y = 0.08;
   mound.castShadow = true;
   group.add(mound);
   // 洞口:一小片更深的湿土
   const hole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.1, 0.12, 0.06, 6),
+    new THREE.CylinderGeometry(0.06, 0.075, 0.04, 6),
     clayMaterial('#4a3a2c')
   );
-  hole.position.y = 0.3;
+  hole.position.y = 0.17;
   group.add(hole);
-  // 趴在洞口的唯一一只蚯蚓
+  // 横躺在洞口的唯一一只蚯蚓
   const worm = new THREE.Group();
   const mat = clayMaterial('#d98a8a');
-  const seg = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.12, 2, 5), mat);
-  seg.rotation.z = Math.PI / 2 - 0.3;
-  seg.position.y = 0.04;
+  const seg = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.09, 2, 5), mat);
+  seg.rotation.z = Math.PI / 2;
+  seg.position.y = 0.03;
   worm.add(seg);
-  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.09, 2, 5), mat);
-  tail.rotation.z = Math.PI / 2 + 0.7;
-  tail.position.set(-0.12, 0.03, 0.02);
+  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.06, 2, 5), mat);
+  tail.rotation.z = Math.PI / 2 + 0.5;
+  tail.position.set(-0.08, 0.025, 0.015);
   worm.add(tail);
-  worm.position.y = 0.3;
+  worm.position.y = 0.17;
   worm.rotation.y = 0.7;
   group.add(worm);
   return { group, worm };
