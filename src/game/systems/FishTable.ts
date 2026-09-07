@@ -189,11 +189,11 @@ export function pickTease(stage: TeaseStage): Tease {
 }
 
 /**
- * 按 GM 权重随机档位;无鱼饵时改用裸钓权重(杂物 90/普通鱼 6/大鱼 3/珍宝 1)。
+ * 按 GM 权重随机档位;无鱼饵时改用裸钓权重(杂物 90/普通鱼 6/大鱼 3.9/珍宝 0.1)。
  * junkCut 为杂物概率的降低量(百分点,波塞冬的祝福):从一档权重中扣下,
  * 转移给二档,保持总权重不变。
  */
-const BAITLESS_TIER_WEIGHTS = [90, 6, 3, 1];
+const BAITLESS_TIER_WEIGHTS = [90, 6, 3.9, 0.1];
 
 export function rollTier(baited = true, junkCut = 0): FishTier {
   const base = baited ? [...GmSystem.fishingTierWeights] : [...BAITLESS_TIER_WEIGHTS];

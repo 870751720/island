@@ -38,3 +38,7 @@
 - 鳀鱼 `anchovy`(海水二档,权重 4,最常见)、竹荚鱼 `horseMackerel`(3)、小黄鱼 `yellowCroaker`(3)、秋刀鱼 `saury`(2,细长)、带鱼 `hairtail`(2,细长)
 - 草鱼 `grassCarp`(水洼三档,与巨鲶各半权重)
 
+### 2026-09-07 调低珍宝与裸钓概率
+
+有饵四档权重由 25/40/30/5 调整为 25/40/34.5/0.5(珍宝 5%→0.5%,差额给大鱼);无饵裸钓权重由 90/6/3/1 调整为 90/6/3.9/0.1(珍宝 1%→0.1%,差额给大鱼)。改动位置:`GmSystem.fishingTierWeights` 与 `FishTable.BAITLESS_TIER_WEIGHTS`,抽取逻辑不变。
+

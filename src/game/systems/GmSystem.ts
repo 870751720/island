@@ -11,7 +11,7 @@ export const GmSystem = {
   /** 风表现三态:auto=晴天按概率自然起风,on=强制有风,off=强制无风 */
   wind: 'auto' as 'auto' | 'on' | 'off',
   /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */
-  fishingTierWeights: [25, 40, 30, 5],
+  fishingTierWeights: [25, 40, 34.5, 0.5],
   /** 是否显示帧率浮层(FpsOverlay 轮询此标记) */
   showFps: false,
   /** 是否显示网络流量浮层(TrafficOverlay 轮询此标记,仅本机显示) */
