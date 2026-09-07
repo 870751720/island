@@ -16,7 +16,7 @@
 
 ## 设计方案
 
-- `src/game/systems/LassoSystem.ts`(每会话一份):照抄 BowSystem 的结构与协议——`update(delta, busy)` / `updateVisuals(delta)` / `isWorking` / `isAiming` / `onNetHit`+`settleNetHit`(客人本地判定命中、房主权威结算,联机约定的例外同弓箭)/ `netPlayThrow`(他人掷出的纯视觉绳圈)。**套中才消耗 1 个套索;掷空不丢道具,绳圈飞到尽头后自动收回掷出者手上(收回阶段不做命中判定)**。玩家动作复用 `setAction('shoot')` 的举手姿态。
+- `src/game/systems/LassoSystem.ts`(每会话一份):照抄 BowSystem 的结构与协议——`update(delta, busy)` / `updateVisuals(delta)` / `isWorking` / `isAiming` / `onNetHit`+`settleNetHit`(客人本地判定命中、房主权威结算,联机约定的例外同弓箭)/ `netPlayThrow`(他人掷出的纯视觉绳子)。**套中才消耗 1 个套索;掷空不丢道具,绳子从玩家手上伸出、到尽头原路收回(收回阶段不做命中判定)**。玩家动作复用 `setAction('shoot')` 的举手姿态。
 - `src/game/systems/AimGuide.ts`:瞄准虚线从 BowSystem 抽出的共享模块(射程/点数参数化),弓与套索共用。
 - `src/game/entities/Wildlife.ts`:
   - `Animal` 新增羊专属状态块 `leash: { holder: Player } | { anchor } | null`;update 顶部拦截(在兔子 hidden 之后)进入 `updateLeashed`,跳过警戒/逃跑/游荡链。
@@ -26,7 +26,7 @@
   - API:`lassoSheep / stakeSheep / releaseLeash / leashedBy / nearestSheep / hitSegmentSheep / stakedNear / spawnStakedSheep`;姿态快照输出 `leash` 字段(`setPlayerIdResolver` 解析持绳玩家会话 id),被拴/被牵期间临时按 25Hz 战斗组下发;客人端镜像 `netLeash` 只用于表现。
 - `src/game/entities/Stake.ts` + `src/game/systems/StakeSystem.ts`:拴羊桩(斜切面木桩+桩顶绳圈)与放置物系统,世界段 `stakes`(稳定 id + 落点)走世界增量,`snapshot/restore/netApply` 同床/围栏模式;不入锄头挖掘流程(拆桩即解绳,走动作按钮)。
 - `src/game/fx/LeashLines.ts`(世界单例):按帧更新的 `THREE.Line` 池(10 段带下垂弧度),由 `Game.updateLeashLines` 每帧喂入「玩家↔羊 / 桩↔羊」两端点;两端本地推导,无网络对象。
-- `Game.ts` 接线:工具循环加入 lasso(持有判定 = 背包有套索或正牵着羊);`useToolButton` 在持套索且牵着羊时改为打桩;HUD 新增 `hasLasso / lassoCount / leading / nearTether`(客人由房主快照回流);`setToolFor` 统一入口(本地与 `tool` 动作共用)在切走套索时松绳退索;死亡/断线时释放牵着的羊(套索掉在羊脚下);存档收集时对未打桩的牵引退索退款。
+- `Game.ts` 接线:工具循环加入 lasso(持有判定 = 背包有套索或正牵着羊);`useToolButton` 在持套索且牵着羊时改为打桩;HUD 新增 `hasLasso / lassoCount / leading / nearTether`(客人由房主快照回流),牵着羊时工具按钮恒为打桩图标(优先级高于工作台/火堆等场景图标,不会被抢走);`setToolFor` 统一入口(本地与 `tool` 动作共用)在牵着羊时锁死套索、不响应任何切换;`isSessionBusy` 在牵着羊时对除套索外的全部站定交互返回占用(采集/喝水/制作等均不可开始);死亡/断线时释放牵着的羊(套索掉在羊脚下);存档收集为纯快照——被牵着的羊不入档,存档数据里给玩家多记一个套索(等价退回背包),但现场绳子保持不动,自动存档不会再把绳子"存断"。
 - 数值:射程 6 / 飞行速度 14 / 蓄力 0.45s / 命中半径 0.9 / 跟随 5.0 / 桩周游荡 2.2 / 桩绳上限 3。
 - 联机语义详见 `docs/multiplayer.md`「套索与拴羊」。
 
@@ -34,3 +34,4 @@
 
 - 2026-09-07:首个版本——套索道具与配方、弓式瞄准投掷、牵引与绷断、打桩拴住/解开、被拴不可攻击、绳子渲染、联机四动作与姿态快照 `leash` 字段(`NET_PROTOCOL_VERSION` 21→22)、拴羊桩世界段与存档。
 - 2026-09-07:掷空不再把套索丢在地上——绳圈飞到尽头后收回手上,不消耗道具(套中才扣 1 个);删除绷紧滑脱机制,牵引绳只随玩家主动操作(切工具/死亡/存档退款/解开)结束,删除 `lassoMiss` 动作与 `setLeashEndSink` 回调。
+- 2026-09-07:投掷表现改为"绳子从玩家手上伸出、未命中原路收回"(去掉飞行的绳圈模型);修复自动存档每 5 秒把牵引绳"存断"的问题(存档改为纯快照不改现场);牵着羊时锁死套索工具、屏蔽全部站定交互,工具按钮恒显打桩图标不被场景图标抢走;`Wildlife.leashedBy` 客人端读快照镜像判定,联机两端行为一致。

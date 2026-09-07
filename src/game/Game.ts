@@ -1634,7 +1634,6 @@ export class Game {
     this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: actor.id, dx, dz });
   }
 
-  /** 房主收到客人掷空动作:套索掉在落点(掉落物经世界增量回流) */
   /** 牵着羊点工具按钮:在脚下打一根木桩,把羊拴在桩上(客人端上行动作由房主结算) */
   stakeLasso(actor: PlayerSession = this.local): boolean {
     if (this.guestNet) return this.guestNet.action('lassoStake', []);
@@ -1809,23 +1808,27 @@ export class Game {
     };
   }
 
-  /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存) */
+  /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存);纯快照,不改现场状态 */
   collectSave(forNetwork = false): SaveData {
-    // 本地存档前:被牵着(未打桩)的羊不入档——套索退回背包、羊恢复野生;
-    // 联机欢迎包(forNetwork)不改现场状态,牵引表现由姿态快照继续同步
-    if (!forNetwork) {
-      for (const s of this.sessions) {
-        const led = this.wildlife.leashedBy(s.player);
-        if (led) {
-          this.wildlife.releaseLeash(led.id);
-          this.giveItem('lasso', 1, s);
+    // 被牵着(未打桩)的羊不入档:存档里给该玩家多记一个套索(等价退回背包),现场绳子保持不动
+    const playerSave = (s: PlayerSession): SessionSave => {
+      const sv = this.collectPlayerSave(s);
+      if (!forNetwork && this.wildlife.leashedBy(s.player)) {
+        const slots = sv.slots.map((slot) => (slot ? { ...slot } : null));
+        const stack = slots.find((slot) => slot?.kind === 'lasso');
+        if (stack) stack.count += 1;
+        else {
+          const empty = slots.indexOf(null);
+          if (empty >= 0) slots[empty] = { kind: 'lasso', count: 1 };
         }
+        sv.slots = slots;
       }
-    }
+      return sv;
+    };
     return {
-      ...this.collectPlayerSave(this.local),
+      ...playerSave(this.local),
       others: [
-        ...this.sessions.slice(1).map((s) => this.collectPlayerSave(s)),
+        ...this.sessions.slice(1).map(playerSave),
         ...(forNetwork ? [] : this.savedRemoteSessions),
       ],
       version: SAVE_VERSION,
@@ -2038,15 +2041,9 @@ export class Game {
     this.guestNet?.action('tool', [tool]);
   }
 
-  /** 切换某会话的手持工具(房主权威端共用入口):切走套索时先松开正牵着的羊 */
+  /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走 */
   setToolFor(s: PlayerSession, tool: HandTool): void {
-    if (s.player.currentTool === 'lasso' && tool !== 'lasso') {
-      const led = this.wildlife.leashedBy(s.player);
-      if (led) {
-        this.wildlife.releaseLeash(led.id);
-        this.giveItem('lasso', 1, s);
-      }
-    }
+    if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
   }
 
@@ -3034,6 +3031,8 @@ export class Game {
 
   /** 该会话是否被任一交互占用;exclude 用来排除询问方自身(“别人忙吗”) */
   private isSessionBusy(s: PlayerSession, exclude?: InteractionKind): boolean {
+    // 牵着羊时双手被绳子占用:除套索自身外的所有站定交互(采集/喝水/制作等)一律不可开始
+    if (exclude !== 'lasso' && this.wildlife.leashedBy(s.player)) return true;
     // 弓优先级最高:瞄准中(虚线可见)或放箭动作期间,其他站定交互(采集/喝水等)让位,先放箭再交互
     if (exclude !== 'archery' && (s.archery.isWorking || s.archery.isAiming)) return true;
     if (exclude !== 'sword' && s.sword.isWorking) return true;

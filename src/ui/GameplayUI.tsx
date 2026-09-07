@@ -628,18 +628,7 @@ export function GameplayUI({
                 !hud.bedSleeping &&
                 !digHijack
               }
-              stake={
-                hud.leading &&
-                !hud.nearWorkbench &&
-                !hud.nearCampfire &&
-                !hud.nearCrate &&
-                !hud.nearBaitBarrel &&
-                !hud.nearSmelter &&
-                !hud.nearCookingStation &&
-                !hud.nearLoom &&
-                !hud.nearBed &&
-                hud.craftId === null
-              }
+              stake={hud.leading}
               untie={
                 hud.nearTether &&
                 !hud.leading &&

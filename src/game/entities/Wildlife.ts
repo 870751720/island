@@ -842,7 +842,11 @@ export class Wildlife implements Updatable {
   /** 该玩家正牵着的那只羊(供打桩按钮与松手释放判定) */
   leashedBy(player: Player): { id: number; x: number; z: number } | null {
     const animal = this.animals.find(
-      (a) => a.alive && a.leash && 'holder' in a.leash && a.leash.holder === player
+      (a) =>
+        a.alive &&
+        ((a.leash && 'holder' in a.leash && a.leash.holder === player) ||
+          // 客人端:权威 leash 为空,读快照镜像的持绳会话 id 判定"我正牵着羊"
+          (a.netLeash && 'by' in a.netLeash && this.netIdOf?.(player) === a.netLeash.by))
     );
     return animal ? { id: animal.id, x: animal.pos.x, z: animal.pos.z } : null;
   }

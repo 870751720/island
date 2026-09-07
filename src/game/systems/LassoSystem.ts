@@ -13,52 +13,50 @@ const RANGE = 6;
 const DRAW_TIME = 0.45;
 /** 掷出动作时长(秒) */
 const THROW_TIME = 0.35;
-/** 绳圈飞行速度 */
+/** 绳子伸出/收回速度 */
 const ROPE_SPEED = 14;
-/** 扫掠命中半径:绳圈飞过路径上距羊不超过该值即套中 */
+/** 扫掠命中半径:绳头伸出路径上距羊不超过该值即套中 */
 const HIT_RANGE = 0.9;
 /** 瞄准虚线点数与起点间距 */
 const AIM_DOTS = 7;
 const AIM_START = 1;
+/** 绳身粗细 */
+const ROPE_RADIUS = 0.035;
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
 
-/** 绳圈:环形绳套 + 拖尾绳带,环的轴向朝 +Y,便于用 quaternion 对准飞行方向(环面迎着飞行方向) */
-function makeLassoRingModel(): THREE.Group {
-  const g = new THREE.Group();
-  const mat = clayMaterial('#c9b588');
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 5, 12), mat);
-  ring.rotation.x = Math.PI / 2;
-  g.add(ring);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.03), mat);
-  tail.position.y = -0.45;
-  g.add(tail);
-  return g;
+/** 绳子:单位长度圆柱,原点在几何中心;按手上→绳头两端点摆位伸缩 */
+function makeRopeModel(): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(ROPE_RADIUS, ROPE_RADIUS, 1, 5, 1),
+    clayMaterial('#c9b588')
+  );
+  return mesh;
 }
 
 type Rope = {
-  group: THREE.Group;
+  mesh: THREE.Mesh;
+  /** 绳头(前端)位置 */
   pos: THREE.Vector3;
-  /** 飞行方向(单位向量,XZ 平面) */
-  dir: THREE.Vector3;
-  /** 剩余射程 */
-  left: number;
-  /** 上一帧位置,扫掠判定用 */
+  /** 上一帧绳头位置,扫掠判定用 */
   prev: THREE.Vector3;
-  /** 纯视觉绳圈(他人掷出的表现复现):只飞行,不做命中判定 */
+  /** 剩余可伸出长度 */
+  left: number;
+  /** 伸出方向(单位向量,XZ 平面) */
+  dir: THREE.Vector3;
+  /** 纯视觉绳子(他人掷出的表现复现):只伸出收回,不做命中判定 */
   visual: boolean;
-  /** 自转累计角:绳圈边飞边转 */
-  spin: number;
-  /** 阶段:fly 飞行(可命中),return 未命中收回(朝掷出者手上收回,不可命中) */
-  phase: 'fly' | 'return';
+  /** 阶段:extend 伸出(可命中),retract 未命中收回(不可命中) */
+  phase: 'extend' | 'retract';
 };
 
 /**
  * 套索:持套索且范围内有可套的羊时,移动即瞄准——沿摇杆方向显示瞄准虚线,
- * 持续瞄准片刻拉满后松手(松开摇杆/停止移动)掷出绳圈;绳圈沿飞行路径扫掠判定,
- * 套中绵羊即由持绳玩家牵着走(打桩拴住/解开放羊由外层结算)。
+ * 持续瞄准片刻拉满后松手(松开摇杆/停止移动)掷出:一根绳子从玩家手上沿瞄准方向
+ * 伸出并扫掠判定,套中绵羊即由持绳玩家牵着走(打桩拴住/解开放羊由外层结算);
+ * 没套中则绳子原路收回,不消耗道具。
  */
 export class LassoSystem {
   /** 拉满剩余时间(0 表示已拉满) */
@@ -89,7 +87,7 @@ export class LassoSystem {
     this.scene.add(this.guide.group);
   }
 
-  /** 纯表现更新(他人端):只推进绳圈飞行,不跑本地瞄准/命中逻辑 */
+  /** 纯表现更新(他人端):只推进绳子伸出/收回,不跑本地瞄准/命中逻辑 */
   updateVisuals(delta: number): void {
     this.updateRopes(delta);
   }
@@ -153,67 +151,82 @@ export class LassoSystem {
     this.aimed = false;
   }
 
-  /** 掷出:沿瞄准方向生成飞行绳圈,播甩索动作;套中时才消耗道具,掷空则收回 */
+  /** 掷出:沿瞄准方向从手上伸出一根绳子,播甩索动作;套中才消耗道具,掷空则收回 */
   private release(): void {
+    this.spawnRope(this.aimDir.x, this.aimDir.y, false);
     this.throwLock = THROW_TIME;
     this.drawLeft = DRAW_TIME;
     this.aimed = false;
     this.audio.play('lassoThrow');
-    const group = makeLassoRingModel();
-    const p = this.player.group.position;
-    this.tmpV.set(p.x, p.y + 1.1, p.z);
-    group.position.copy(this.tmpV);
-    this.scene.add(group);
-    this.ropes.push({
-      group,
-      pos: this.tmpV.clone(),
-      dir: new THREE.Vector3(this.aimDir.x, 0, this.aimDir.y),
-      left: RANGE + 0.8,
-      prev: this.tmpV.clone(),
-      visual: false,
-      spin: 0,
-      phase: 'fly',
-    });
     this.onThrow?.(this.aimDir.x, this.aimDir.y);
   }
 
-  /** 复现他人掷出的绳圈:纯视觉飞行,不做命中判定(命中已在掷出端判定、房主结算) */
+  /** 复现他人掷出的绳子:纯视觉伸出收回,不做命中判定(命中已在掷出端判定、房主结算) */
   netPlayThrow(dirX: number, dirZ: number): void {
-    const len = Math.hypot(dirX, dirZ);
-    if (len < 0.001) return;
-    const group = makeLassoRingModel();
-    const p = this.player.group.position;
-    this.tmpV.set(p.x, p.y + 1.1, p.z);
-    group.position.copy(this.tmpV);
-    this.scene.add(group);
-    this.ropes.push({
-      group,
-      pos: this.tmpV.clone(),
-      dir: new THREE.Vector3(dirX / len, 0, dirZ / len),
-      left: RANGE + 0.8,
-      prev: this.tmpV.clone(),
-      visual: true,
-      spin: 0,
-      phase: 'fly',
-    });
+    if (Math.hypot(dirX, dirZ) < 0.001) return;
+    this.spawnRope(dirX, dirZ, true);
   }
 
-  /** 绳圈飞行:直线平飞,逐帧扫掠判定,套中进入牵引;未命中不丢弃,绳圈收回掷出者手上 */
+  /** 玩家手上(绳子起点,随玩家移动每帧更新) */
+  private handPos(out: THREE.Vector3): THREE.Vector3 {
+    const p = this.player.group.position;
+    return out.set(p.x, p.y + 1.1, p.z);
+  }
+
+  private spawnRope(dirX: number, dirZ: number, visual: boolean): void {
+    const len = Math.hypot(dirX, dirZ);
+    if (len < 0.001) return;
+    const mesh = makeRopeModel();
+    this.scene.add(mesh);
+    const hand = this.handPos(this.tmpV).clone();
+    this.ropes.push({
+      mesh,
+      pos: hand.clone(),
+      prev: hand.clone(),
+      left: RANGE + 0.8,
+      visual,
+      phase: 'extend',
+      dir: new THREE.Vector3(dirX / len, 0, dirZ / len),
+    });
+    this.layoutRope(this.ropes[this.ropes.length - 1], hand);
+  }
+
+  /** 把单位圆柱摆到手上→绳头之间:中点定位、按长度伸缩、朝向绳头 */
+  private layoutRope(rope: Rope, hand: THREE.Vector3): void {
+    const delta = this.tmpV.copy(rope.pos).sub(hand);
+    const length = delta.length();
+    if (length < 0.01) {
+      rope.mesh.visible = false;
+      return;
+    }
+    rope.mesh.visible = true;
+    rope.mesh.position.copy(hand).addScaledVector(delta, 0.5);
+    rope.mesh.scale.set(1, length, 1);
+    rope.mesh.quaternion.setFromUnitVectors(this.up, delta.divideScalar(length));
+  }
+
+  /** 绳子伸出/收回:伸出阶段逐帧扫掠判定,套中进入牵引;伸出尽头即收回手上 */
   private updateRopes(delta: number): void {
+    const hand = this.tmpV.clone();
     for (let i = this.ropes.length - 1; i >= 0; i--) {
       const rope = this.ropes[i];
-      if (rope.phase === 'return') {
-        this.updateReturn(rope, i, delta);
+      this.handPos(hand);
+      if (rope.phase === 'retract') {
+        const toHand = hand.clone().sub(rope.pos);
+        const dist = toHand.length();
+        const step = ROPE_SPEED * delta;
+        if (step >= dist) {
+          this.removeRope(rope, i);
+          continue;
+        }
+        rope.pos.addScaledVector(toHand.divideScalar(dist), step);
+        this.layoutRope(rope, hand);
         continue;
       }
-      const step = Math.min(ROPE_SPEED * delta, rope.left);
       rope.prev.copy(rope.pos);
-      rope.pos.addScaledVector(rope.dir, step);
-      rope.left -= step;
-      rope.group.position.copy(rope.pos);
-      rope.group.quaternion.setFromUnitVectors(this.up, rope.dir);
-      rope.spin += delta * 12;
-      rope.group.rotateY(rope.spin); // 绳圈边飞边自转
+      rope.pos.addScaledVector(rope.dir, Math.min(ROPE_SPEED * delta, rope.left));
+      rope.left -= ROPE_SPEED * delta;
+      this.layoutRope(rope, hand);
 
       const hit = rope.visual ? null : this.wildlife.hitSegmentSheep(rope.prev, rope.pos, HIT_RANGE);
       if (hit) {
@@ -221,27 +234,8 @@ export class LassoSystem {
         continue;
       }
       const ground = this.terrain.getHeight(rope.pos.x, rope.pos.z);
-      if (rope.left <= 0 || rope.pos.y <= ground) rope.phase = 'return';
+      if (rope.left <= 0 || rope.pos.y <= ground) rope.phase = 'retract';
     }
-  }
-
-  /** 收回阶段:绳圈朝掷出者当前位置飞回,回到手上即消失 */
-  private updateReturn(rope: Rope, index: number, delta: number): void {
-    const p = this.player.group.position;
-    const hand = this.tmpV.set(p.x, p.y + 1.1, p.z);
-    const toHand = hand.clone().sub(rope.pos);
-    const dist = toHand.length();
-    const step = ROPE_SPEED * delta;
-    if (step >= dist) {
-      this.removeRope(rope, index);
-      return;
-    }
-    toHand.divideScalar(dist);
-    rope.pos.addScaledVector(toHand, step);
-    rope.group.position.copy(rope.pos);
-    rope.group.quaternion.setFromUnitVectors(this.up, toHand);
-    rope.spin += delta * 12;
-    rope.group.rotateY(rope.spin);
   }
 
   /** 命中结算:消耗一个套索;客人端只做本地表现并上行,房主/单机端权威把羊交给持绳玩家 */
@@ -270,7 +264,9 @@ export class LassoSystem {
   }
 
   private removeRope(rope: Rope, index: number): void {
-    this.scene.remove(rope.group);
+    this.scene.remove(rope.mesh);
+    rope.mesh.geometry.dispose();
+    (rope.mesh.material as THREE.Material).dispose();
     this.ropes.splice(index, 1);
   }
 }
