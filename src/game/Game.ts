@@ -637,15 +637,8 @@ export class Game {
       this.burrows.generateFor(this.wildlife.rabbitHomes());
       this.wildlife.setBurrowSource(this.burrows);
     }
-    // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用);绳套意外绷断 → 掉套索/清桩
+    // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用)
     this.wildlife.setPlayerIdResolver((p) => this.sessionOf(p).id);
-    this.wildlife.setLeashEndSink((id, anchored, x, z) => {
-      this.drops.dropAt('lasso', 1, x, z);
-      if (anchored) {
-        const stake = this.stakes.nearest(x, z, 1.2);
-        if (stake) this.stakes.remove(stake);
-      }
-    });
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {
       if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
@@ -1634,19 +1627,14 @@ export class Game {
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
   }
 
-  /** 房主收到客人掷套索动作:权威扣一个套索(套没套中都消耗)、补甩索动作窗口、复现绳圈并转发给其他客人 */
+  /** 房主收到客人掷套索动作:补甩索动作窗口、复现绳圈并转发给其他客人(套中才扣道具,走 lassoHit) */
   netLassoThrown(actor: PlayerSession, dx: number, dz: number): void {
-    actor.inventory.remove('lasso', 1);
     actor.shotAnimLeft = 0.35;
     actor.lasso.netPlayThrow(dx, dz);
     this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: actor.id, dx, dz });
   }
 
   /** 房主收到客人掷空动作:套索掉在落点(掉落物经世界增量回流) */
-  lassoMissAt(x: number, z: number): void {
-    this.drops.dropAt('lasso', 1, x, z);
-  }
-
   /** 牵着羊点工具按钮:在脚下打一根木桩,把羊拴在桩上(客人端上行动作由房主结算) */
   stakeLasso(actor: PlayerSession = this.local): boolean {
     if (this.guestNet) return this.guestNet.action('lassoStake', []);
@@ -3213,14 +3201,6 @@ export class Game {
       this.wildlife,
       this.fx,
       this.audio,
-      // 未命中:套索落在落点(客人端转成上行动作,由房主生成掉落物经世界增量回流)
-      (x, z) => {
-        if (this.guestNet) {
-          this.guestNet.action('lassoMiss', [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
-        } else {
-          this.drops.dropAt('lasso', 1, x, z);
-        }
-      },
       // 客人端:命中判定在本地完成,结果上行房主权威结算(拴绳状态随姿态快照回流)
       this.guestMode && s === this.local
         ? (animalId: number, x: number, z: number) =>

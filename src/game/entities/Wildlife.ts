@@ -83,10 +83,6 @@ const HIDE_CALM_TIME = 5;
 const LEAD_FOLLOW_DIST = 2.2;
 /** 被牵着时的跟随速度:与玩家步行一致,正常走位不会拉断绳 */
 const LEAD_SPEED = 5;
-/** 牵引绳长:羊与持绳玩家距离超过即开始绷紧受力 */
-const LEAD_ROPE_MAX = 4;
-/** 绳子持续绷紧多久后滑脱(秒):被围栏/地形卡住或玩家下水才会累计 */
-const LEAD_STRAIN_BREAK = 2;
 /** 被拴在桩上时的游荡半径(选吃草点的范围) */
 const STAKE_WANDER = 2.2;
 /** 桩绳硬上限:超出该距离的落点不可站立 */
@@ -320,7 +316,6 @@ type Animal = {
   /** 被套索套住:被玩家牵着(holder)或拴在木桩(anchor);期间不可被攻击 */
   leash: LeashState | null;
   /** 牵引绳持续绷紧的累计时长(卡住/玩家下水),超过上限滑脱 */
-  strainLeft: number;
   /** 客人侧从姿态快照镜像的拴绳信息(渲染绳子用,不参与本地 AI) */
   netLeash: LeashPose | null;
 };
@@ -339,7 +334,6 @@ export class Wildlife implements Updatable {
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
   private burrowSource: BurrowSource | null = null;
   /** 拴绳意外结束(绳套绷断/宿主死亡等由 AI 内部触发的路径)时通知外层:掉套索、清理桩 */
-  private onLeashEnd: ((id: number, anchored: boolean, x: number, z: number) => void) | null = null;
   /** 持绳玩家 → 联机会话 id(姿态快照序列化 leash.holder 用);由游戏侧接线 */
   private netIdOf: ((player: Player) => string) | null = null;
 
@@ -447,7 +441,6 @@ export class Wildlife implements Updatable {
       hideCalm: 0,
       burrow: null,
       leash: null,
-      strainLeft: 0,
       netLeash: null,
     };
     this.animals.push(animal);
@@ -781,11 +774,6 @@ export class Wildlife implements Updatable {
     this.burrowSource = source;
   }
 
-  /** 注入拴绳意外结束的回调(绳套绷断等 AI 内部路径;解开/存档由外层主动调用不经过这里) */
-  setLeashEndSink(sink: (id: number, anchored: boolean, x: number, z: number) => void): void {
-    this.onLeashEnd = sink;
-  }
-
   /** 注入持绳玩家 → 会话 id 的解析(姿态快照序列化用) */
   setPlayerIdResolver(fn: (player: Player) => string): void {
     this.netIdOf = fn;
@@ -794,7 +782,7 @@ export class Wildlife implements Updatable {
   /**
    * 被套索套住的羊:
    * - 被牵着(holder):玩家走远到跟随距离外就朝玩家走,速度与玩家步行一致;
-   *   羊被卡住或玩家下水导致绳子持续绷紧超过 LEAD_STRAIN_BREAK 秒则绳套滑脱。
+   *   绳子永不自动滑脱,只有玩家主动松开(切工具/倒下/存档退款)才会解开。
    * - 被拴在桩上(anchor):绕桩小范围吃草踱步,canStand 限制不超出桩绳。
    */
   private updateLeashed(animal: Animal, delta: number): boolean {
@@ -816,27 +804,9 @@ export class Wildlife implements Updatable {
     }
     const p = leash.holder.group.position;
     const dist = Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z);
-    // 绷紧判定:超出绳长,或持绳玩家下水(羊不肯跟着下水)
-    const straining = dist > LEAD_ROPE_MAX || leash.holder.isSwimming;
-    animal.strainLeft = straining
-      ? animal.strainLeft + delta
-      : Math.max(0, animal.strainLeft - delta * 2);
-    if (animal.strainLeft >= LEAD_STRAIN_BREAK) {
-      this.breakLeash(animal);
-      return false;
-    }
     if (dist <= LEAD_FOLLOW_DIST) return false;
     const angle = Math.atan2(p.z - animal.pos.z, p.x - animal.pos.x);
     return this.step(animal, angle, LEAD_SPEED, delta);
-  }
-
-  /** 绳套滑脱:羊受惊恢复野生,套索交给外层掉在羊脚下 */
-  private breakLeash(animal: Animal): void {
-    animal.leash = null;
-    animal.strainLeft = 0;
-    animal.alerted = true;
-    animal.idleTime = 0;
-    this.onLeashEnd?.(animal.id, false, animal.pos.x, animal.pos.z);
   }
 
   /** 套索命中:把一只没被套住的绵羊交给持绳玩家牵着(一名玩家同时只能牵一只) */
@@ -845,7 +815,6 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || animal.hidden || animal.leash || animal.species !== 'sheep') return false;
     animal.leash = { holder };
-    animal.strainLeft = 0;
     animal.alerted = false;
     animal.idleTime = 0;
     return true;
@@ -856,7 +825,6 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || !animal.leash || !('holder' in animal.leash)) return false;
     animal.leash = { anchor: { x, z } };
-    animal.strainLeft = 0;
     animal.walkTime = 9;
     return true;
   }
@@ -866,7 +834,6 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.leash) return null;
     animal.leash = null;
-    animal.strainLeft = 0;
     animal.alerted = true;
     animal.idleTime = 0;
     return { x: animal.pos.x, z: animal.pos.z };

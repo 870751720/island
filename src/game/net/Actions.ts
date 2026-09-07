@@ -85,19 +85,14 @@ export const ACTIONS: Record<string, NetAction> = {
     }
     return true;
   },
-  // 客人掷出套索的视觉广播与扣道具:房主扣一个套索、补甩索动作窗口、复现绳圈并转发给其他客人
+  // 客人掷出套索的视觉广播:房主补甩索动作窗口、复现绳圈并转发给其他客人(道具在套中时经 lassoHit 扣)
   lassoThrow: (g, a, [dx, dz]) => {
     g.netLassoThrown(a, dx as number, dz as number);
     return true;
   },
-  // 客人本地判定套中的权威结算(联机约定的例外:命中由掷出客户端判定,同弓箭)
+  // 客人本地判定套中的权威结算(联机约定的例外:命中由掷出客户端判定,同弓箭;套中才扣道具)
   lassoHit: (g, a, [animalId, x, z]) => {
     a.lasso.settleNetHit(animalId as number, x as number, z as number);
-    return true;
-  },
-  // 客人掷空:套索掉在落点(世界增量回流补建掉落物)
-  lassoMiss: (g, a, [x, z]) => {
-    g.lassoMissAt(x as number, z as number);
     return true;
   },
   // 客人在脚下打桩拴住正牵着的羊
