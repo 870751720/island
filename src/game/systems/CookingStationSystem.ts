@@ -287,7 +287,6 @@ export class CookingStationSystem {
           }
           if (station.boilQueue <= 0) station.boilKind = null;
           this.emitState(station);
-          this.audio.play('success');
           const p = station.group.position.clone();
           p.y += 1.0;
           this.fx.burst(p, '#ffcf5e', 4);
