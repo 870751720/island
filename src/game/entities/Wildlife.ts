@@ -237,8 +237,10 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
     attackCooldown: 1.6,
     hp: 480,
     loot: [
-      { kind: 'gameMeat', count: 4 },
+      { kind: 'gameMeat', count: 15 },
       { kind: 'fur', count: 4 },
+      { kind: 'wood', count: 10 },
+      { kind: 'ironOre', count: 10 },
     ],
   },
   // 鳄鱼只由喝水事件/GM 生成(count 0,种群刷新不补),平时藏在水洼里
@@ -1264,6 +1266,7 @@ export class Wildlife implements Updatable {
   lootOf(species: AnimalSpecies): AnimalLoot {
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
     if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
+    if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
     return loot;
   }
 
