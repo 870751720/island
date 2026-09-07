@@ -279,73 +279,73 @@ function makeSheepModel(): AnimalModel {
   return { group, legs, head: headPivot, tail };
 }
 
-/** 野牛:深棕敦实的大身板 + 高肩峰 + 宽头短弯角 + 粗壮四肢与蓬松尾穗 */
+/** 野牛:窄长的深棕身躯 + 肩峰 + 宽头短弯角 + 修长四肢与蓬松尾穗 */
 function makeBisonModel(): AnimalModel {
   const group = new THREE.Group();
-  group.scale.setScalar(1.15);
+  group.scale.setScalar(1.1);
   const fur = clay('#5a4130');
   const darkFur = clay('#46311f');
   const horn = clay('#cfc4a8');
   const dark = clay('#241a12');
 
-  // 前高后低的庞大躯干:肩峰明显高于后胯,读出野牛的轮廓
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), fur);
-  body.scale.set(1.05, 1, 1.5);
-  body.position.y = 0.66;
+  // 窄长的躯干高抬在长腿上:肩峰只比背线略高,不做成熊那样的厚背
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), fur);
+  body.scale.set(0.85, 0.92, 1.75);
+  body.position.y = 0.84;
   body.castShadow = true;
   group.add(body);
-  const hump = new THREE.Mesh(new THREE.SphereGeometry(0.27, 7, 5), fur);
-  hump.scale.set(0.95, 0.85, 0.9);
-  hump.position.set(0, 0.88, 0.28);
+  const hump = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 5), fur);
+  hump.scale.set(0.8, 0.7, 1.05);
+  hump.position.set(0, 0.98, 0.3);
   hump.castShadow = true;
   group.add(hump);
-  const rump = new THREE.Mesh(new THREE.SphereGeometry(0.3, 7, 5), darkFur);
-  rump.scale.set(1, 0.9, 1.05);
-  rump.position.set(0, 0.64, -0.42);
+  const rump = new THREE.Mesh(new THREE.SphereGeometry(0.24, 7, 5), darkFur);
+  rump.scale.set(0.85, 0.9, 1.15);
+  rump.position.set(0, 0.82, -0.48);
   rump.castShadow = true;
   group.add(rump);
 
   const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.74, 0.42);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), darkFur);
-  head.scale.set(1.05, 0.95, 1.1);
+  headPivot.position.set(0, 0.88, 0.42);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 7, 6), darkFur);
+  head.scale.set(0.9, 0.9, 1.15);
   head.castShadow = true;
   headPivot.add(head);
   // 额顶毛冠:垂在两角之间
-  const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), fur);
-  tuft.scale.set(1.1, 0.7, 0.9);
-  tuft.position.set(0, 0.14, 0.02);
+  const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), fur);
+  tuft.scale.set(1, 0.7, 0.9);
+  tuft.position.set(0, 0.12, 0.02);
   headPivot.add(tuft);
   // 短弯角:从两侧向上向内收
   for (const side of [-1, 1]) {
-    const hornMesh = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 5), horn);
-    hornMesh.geometry.translate(0, 0.11, 0);
-    hornMesh.position.set(side * 0.17, 0.1, 0);
+    const hornMesh = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 5), horn);
+    hornMesh.geometry.translate(0, 0.1, 0);
+    hornMesh.position.set(side * 0.14, 0.08, 0);
     hornMesh.rotation.z = side * -0.85;
     hornMesh.castShadow = true;
     headPivot.add(hornMesh);
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 5, 4), horn);
-    tip.position.set(side * 0.11, 0.2, 0);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.027, 5, 4), horn);
+    tip.position.set(side * 0.09, 0.18, 0);
     headPivot.add(tip);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 5, 4), dark);
-    eye.position.set(side * 0.13, 0.04, 0.15);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 5, 4), dark);
+    eye.position.set(side * 0.11, 0.03, 0.13);
     headPivot.add(eye);
   }
   group.add(headPivot);
 
-  // 粗壮四肢
+  // 修长四肢(比熊细,蹄部落点更靠身侧)
   const legs = [
-    makeLeg(darkFur, -0.2, 0.62, 0.3, 0.62, 1.15),
-    makeLeg(darkFur, 0.2, 0.62, 0.3, 0.62, 1.15),
-    makeLeg(fur, -0.2, 0.62, -0.3, 0.62, 1.1),
-    makeLeg(fur, 0.2, 0.62, -0.3, 0.62, 1.1),
+    makeLeg(darkFur, -0.16, 0.8, 0.34, 0.8, 0.78),
+    makeLeg(darkFur, 0.16, 0.8, 0.34, 0.8, 0.78),
+    makeLeg(fur, -0.16, 0.8, -0.34, 0.8, 0.75),
+    makeLeg(fur, 0.16, 0.8, -0.34, 0.8, 0.75),
   ];
   legs.forEach((l) => group.add(l));
 
   // 细尾带蓬松尾穗
-  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), darkFur);
-  tail.scale.set(0.7, 0.9, 1);
-  tail.position.set(0, 0.66, -0.72);
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5), darkFur);
+  tail.scale.set(0.65, 0.9, 1);
+  tail.position.set(0, 0.84, -0.82);
   group.add(tail);
 
   return { group, legs, head: headPivot, tail };
