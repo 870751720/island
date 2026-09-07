@@ -60,6 +60,7 @@ import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
 import { Wind } from './fx/Wind';
 import { PondLife } from './fx/PondLife';
+import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
 import { ItemFlyFx } from './fx/ItemFlyFx';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
@@ -319,6 +320,7 @@ export class Game {
   }
   private waterFx: WaterFx;
   private pondLife: PondLife;
+  private decorations: Decorations;
   private footprints: Footprints;
   /** 单机/本地玩家专用入口:HUD、相机与本地交互都绑定在本地会话上 */
   private get player(): Player {
@@ -527,6 +529,7 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
+    this.decorations = new Decorations(this.scene, terrain, this.terrainSeed);
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
       this.youId ?? undefined,
@@ -3415,6 +3418,7 @@ export class Game {
     this.drops.dispose();
     this.leashLines.dispose();
     this.props.dispose();
+    this.decorations.dispose();
     this.rain.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
