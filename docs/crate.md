@@ -34,6 +34,7 @@
 ### 存取支持长按步进
 
 - 储物面板的存入/取出交互改为「点按 = 整格转移,长按 = 连发步进转移」:按住超过 350ms 进入连发,间隔从 160ms 随按住时长加速到 45ms,步进 0.8s 后升到 5、1.6s 后升到 10,松手即停。
+- 连发在无可转移时自动停止:某节拍转移失败(源已空或对方装满)即结束连发,不再空转重复弹「装不下」提示;`CratePanel` 的存取回调改为返回成功与否,`holdRepeat` 的 `onRepeat` 返回 `false` 时停止调度。
 - 通用调度抽到 `src/ui/holdRepeat.ts`(`startHoldTap`),背包丢弃数量的 ± 步进按钮复用同一模块。
 - 链路:`CrateSystem.store/take` 与 `Game.crateStore/crateTake` 新增 `count` 参数(默认 `Infinity` 表示整格);联机动作 `crateStore/crateTake` 携带数量,`Infinity` 以 `null` 传输、房主端还原。
 

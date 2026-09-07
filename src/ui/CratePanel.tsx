@@ -9,10 +9,10 @@ import { startHoldTap } from './holdRepeat';
 
 type Props = {
   hud: HudSnapshot;
-  /** 把背包里该种类道具存入木箱(count 为 Infinity 时整格存入) */
-  onStore: (kind: ResourceKind, count: number) => void;
-  /** 把木箱里该种类道具取回背包(count 为 Infinity 时整格取回) */
-  onTake: (kind: ResourceKind, count: number) => void;
+  /** 把背包里该种类道具存入木箱(count 为 Infinity 时整格存入);返回是否成功 */
+  onStore: (kind: ResourceKind, count: number) => boolean;
+  /** 把木箱里该种类道具取回背包(count 为 Infinity 时整格取回);返回是否成功 */
+  onTake: (kind: ResourceKind, count: number) => boolean;
   onClose: () => void;
 };
 
@@ -75,7 +75,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const renderGrid = (
     slots: InventorySlot[],
     capacity: number,
-    transfer: (kind: ResourceKind, count: number) => void
+    transfer: (kind: ResourceKind, count: number) => boolean
   ) => (
     <div style={gridStyle}>
       {Array.from({ length: capacity }, (_, i) => {
