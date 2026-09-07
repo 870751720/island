@@ -126,6 +126,13 @@ export class Equipment {
     return true;
   }
 
+  /** 不经背包直接穿戴一件(制作产物上身用,物品不经过背包);换下的旧件不回背包 */
+  wear(kind: EquipKind): void {
+    const def = EQUIPMENT[kind];
+    this.equipped[def.slot] = kind;
+    this.onChange?.(def.slot, kind);
+  }
+
   /** 直接消耗身上穿戴的某件装备(制作高一级装备时低级件作为材料),不回到背包 */
   consumeWorn(kind: EquipKind): boolean {
     const def = EQUIPMENT[kind];

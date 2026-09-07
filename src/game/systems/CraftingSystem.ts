@@ -27,8 +27,6 @@ export class CraftingSystem {
     private audio: GameAudio,
     /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n),
-    /** 每完成一件产物时回调(产物种类),供装备自动上身等后续处理 */
-    private onFinish: (kind: ResourceKind) => void = () => {},
     /** 已制作配方记录(完成时写入,供图鉴标记与存档) */
     private craftedIds: Set<CraftId> = new Set()
   ) {}
@@ -94,7 +92,6 @@ export class CraftingSystem {
         this.player.setToolTier(recipe.tool, this.tools[recipe.tool]);
         if (recipe.tool !== 'hoe') this.player.setTool(recipe.tool);
       }
-      this.onFinish(recipe.tool ?? recipe.output!);
       this.audio.play('success');
       const p = this.player.group.position.clone();
       p.y += 0.8;

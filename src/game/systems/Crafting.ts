@@ -637,5 +637,10 @@ export function craft(
     tools[recipe.tool] = recipe.tier ?? 1;
     return true;
   }
+  // 装备产物直接上身,不经过背包:满背包时经背包中转会放不下而掉落
+  if (recipe.output && isEquipKind(recipe.output) && equipment) {
+    equipment.wear(recipe.output);
+    return true;
+  }
   return give(recipe.output!, recipe.outputCount ?? 1) > 0;
 }

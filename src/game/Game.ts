@@ -3121,10 +3121,6 @@ export class Game {
       this.audio,
       // 背包放不下的产物掉在玩家身旁
       (kind, count) => this.giveItem(kind, count, s),
-      // 装备做出来且评分高于身上这件时直接上身
-      (kind) => {
-        if (isEquipKind(kind)) s.equipment.equip(kind, s.inventory);
-      },
       s.craftedIds
     );
     s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio);
