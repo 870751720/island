@@ -191,9 +191,9 @@ export class IslandTerrain {
       const y = baseHeight(x, z);
       if (y < 1.0) continue;
       if (this.tooClose(x, z, minPondGap)) continue;
-      // 形状随机化:长半轴 3.5~9.2(最大面积约为此前的 2 倍),长短轴比与朝向决定胖瘦,
+      // 形状随机化:长半轴 4.9~11.3(面积下限与上限分别调至原版的 2 倍与 1.5 倍),长短轴比与朝向决定胖瘦,
       // 三频角向波动让边界明显不规则;radius 记外接圆半径供避让等粗略判定
-      const rx = 3.5 + rng(i + 100) * 5.7;
+      const rx = 4.9 + rng(i + 100) * 6.4;
       const ratio = 0.35 + rng(i + 200) * 0.6;
       const wobA2 = (rng(i + 300) * 2 - 1) * 0.22;
       const wobA3 = (rng(i + 400) * 2 - 1) * 0.22;
