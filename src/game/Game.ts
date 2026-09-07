@@ -1670,8 +1670,11 @@ export class Game {
     const pos = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     this.giveItem('milk', 1, actor);
     this.markPickupOrigin(pos, actor);
-    this.audio.play('pickup');
+    // 入包音效由拾取飞行(flushPickups/快照回流)统一播放,这里不再播,避免客人端补播两次
     this.fx.burst(new THREE.Vector3(pos.x, pos.y + 0.8, pos.z), '#f6f1e4', 8);
+    if (this.hostRef && actor !== this.local) {
+      this.hostRef.broadcastEvent({ kind: 'collectFx', x: pos.x, y: pos.y + 0.8, z: pos.z, color: '#f6f1e4', count: 8 });
+    }
     return true;
   }
 

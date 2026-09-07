@@ -23,11 +23,8 @@ export class SheepMilkSystem {
 
   update(delta: number): void {
     const sheep = this.wildlife.milkableNear(this.player.group.position, MILK_RANGE);
-    const working =
-      !!sheep &&
-      this.player.currentTool === 'hand' &&
-      !this.player.isMoving &&
-      !this.isBusy();
+    // 与采浆果一致:不需要特定工具,站定即可(移动或双手被占用时中断)
+    const working = !!sheep && !this.player.isMoving && !this.isBusy();
     const wasWorking = this.workingNow;
     this.workingNow = working;
     if (working) {
