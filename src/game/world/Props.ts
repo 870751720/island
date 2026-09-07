@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
 import {
@@ -390,6 +391,7 @@ export class Props implements Updatable {
   readonly list: Prop[] = [];
   private berries = new Map<Prop, THREE.Mesh[]>();
   private shakes = new Map<Prop, number>();
+  private treeLooks = new WeakMap<Prop, string>();
   private growthTimer = 0;
   private swayTime = 0;
   private onChanged?: EntityChangeSink;
@@ -528,6 +530,8 @@ export class Props implements Updatable {
   removeProp(prop: Prop): void {
     this.dropProp(prop);
     this.scene.remove(prop.group);
+    disposeOwnedMeshes(prop.group);
+    this.treeLooks.delete(prop);
     this.berries.delete(prop);
     this.shakes.delete(prop);
     this.onChanged?.({ op: 'remove', id: prop.id });
@@ -579,7 +583,12 @@ export class Props implements Updatable {
 
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
   private applyTreeLook(prop: Prop): void {
-    while (prop.group.children.length > 0) prop.group.remove(prop.group.children[0]);
+    const look = prop.stage === 'stump'
+      ? 'stump'
+      : `${prop.growth ?? 'mature'}:${prop.species ?? 'oak'}`;
+    if (this.treeLooks.get(prop) === look) return;
+    disposeOwnedMeshes(prop.group);
+    prop.group.clear();
     const parts =
       prop.stage === 'stump'
         ? makeStumpParts()
@@ -592,6 +601,7 @@ export class Props implements Updatable {
       part.castShadow = true;
       prop.group.add(part);
     }
+    this.treeLooks.set(prop, look);
   }
 
   /** 采集后的外观变化,并按配置安排再生 */
@@ -756,10 +766,12 @@ export class Props implements Updatable {
     return true;
   }
 
-  private clear(): void {
+  dispose(): void {
     for (const prop of this.list.splice(0)) {
       this.scene.remove(prop.group);
+      disposeOwnedMeshes(prop.group);
     }
+    this.treeLooks = new WeakMap();
     this.grid.clear();
     this.berries.clear();
     this.shakes.clear();

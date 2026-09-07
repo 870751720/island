@@ -460,9 +460,9 @@ export class Game {
     });
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    // 兜底:GPU 内存压力下浏览器可能回收 WebGL 上下文(画面变白、UI 与逻辑仍在),
-    // preventDefault 允许浏览器异步恢复;恢复事件由 Three 内部处理并重传资源,画面自愈
-    this.renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
+    // 允许浏览器恢复上下文；能否恢复取决于设备，记录现场以区分 GPU 丢失和逻辑异常。
+    this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.resize();
@@ -1834,6 +1834,22 @@ export class Game {
     });
   }
 
+  private onContextLost = (event: Event): void => {
+    event.preventDefault();
+    console.warn('[Game] WebGL context lost', {
+      guest: this.guestMode,
+      memory: { ...this.renderer.info.memory },
+      calls: this.renderer.info.render.calls,
+      width: this.renderer.domElement.width,
+      height: this.renderer.domElement.height,
+    });
+  };
+
+  private onContextRestored = (): void => {
+    this.resize();
+    console.info('[Game] WebGL context restored', { guest: this.guestMode });
+  };
+
   private resize(): void {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
@@ -3068,6 +3084,7 @@ export class Game {
       s.player.dispose();
     }
     this.drops.dispose();
+    this.props.dispose();
     this.rain.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
@@ -3075,6 +3092,8 @@ export class Game {
     this.ocean.dispose();
     this.oceanDepth.dispose();
     this.audio.dispose();
+    this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
