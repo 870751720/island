@@ -41,7 +41,7 @@ function bearsForDay(day: number): number {
  * 天数事件系统(仅房主端运行,客人由动物姿态快照同步表现):
  * - 第 10 天白天:各客户端自言自语「好像被什么盯上了」(走 MumbleSystem 的 stalked 触发,不在此结算);
  * - 事件日夜落时,在每名玩家视线外各刷 N 头绑定狼(不死不休追该玩家,无脱战);
- * - 第 30 天之后每过 25 天,再随机刷 1-2 头熊(全房间总量,不按玩家数翻倍)。
+ * - 第 30 天之后每过 25 天,再随机刷 1-2 头熊(全房间总量,不按玩家数翻倍,同样绑定随机锚点玩家)。
  * 玩家睡觉跳过事件日的夜晚时,当晚事件自然跳过,不影响后续天数的事件。
  */
 export class DayEventSystem {
@@ -83,9 +83,10 @@ export class DayEventSystem {
       let spawned = 0;
       if (anchors.length > 0) {
         for (let i = 0; i < bearCount; i++) {
-          // 熊不绑定玩家:分别挑一名存活玩家作视线外生成锚点
+          // 熊同样绑定锚点玩家(视线外生成也要立刻冲向目标,否则永远游荡在落点),
+          // 与狼的差别只在数量:全房间总量,不按玩家数翻倍
           const anchor = anchors[Math.floor(Math.random() * anchors.length)];
-          if (this.wildlife.spawnRaider('bear', anchor.player)) spawned += 1;
+          if (this.wildlife.spawnRaider('bear', anchor.player, anchor.player)) spawned += 1;
         }
       }
       if (spawned > 0) this.onBears(spawned);
