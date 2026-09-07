@@ -2653,27 +2653,27 @@ export class Game {
     return this.campfire.start(actor);
   }
 
-  /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),失败时给出提示 */
+  /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),整格转移失败时给出提示,连发失败静默 */
   crateStore(kind: ResourceKind, count = Infinity, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流(JSON 无法携带 Infinity,透传 null 由房主还原)
     if (this.guestNet) return this.guestNet.action('crateStore', [kind, count === Infinity ? null : count]);
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.store(actor, kind, count)) {
-      this.notify('木箱装不下了', actor);
+      if (count === Infinity) this.notify('木箱装不下了', actor);
       return false;
     }
     return true;
   }
 
-  /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回),失败时给出提示 */
+  /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回),整格转移失败时给出提示,连发失败静默 */
   crateTake(kind: ResourceKind, count = Infinity, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流(JSON 无法携带 Infinity,透传 null 由房主还原)
     if (this.guestNet) return this.guestNet.action('crateTake', [kind, count === Infinity ? null : count]);
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.take(actor, kind, count)) {
-      this.notify('背包满了,装不下更多东西', actor);
+      if (count === Infinity) this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
