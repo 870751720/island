@@ -448,6 +448,7 @@ export function GameplayUI({
           actions={{
             restoreStatus: () => gameRef.current?.gmRestoreStatus(),
             setTime: (t) => gameRef.current?.gmSetTime(t),
+            setDay: (day) => gameRef.current?.gmSetDay(day),
             setWeather: (type) => gameRef.current?.gmSetWeather(type),
             setConfig: (patch) => gameRef.current?.gmSetConfig(patch),
             giveItem: (kind, count) => gameRef.current?.gmGiveItem(kind, count),

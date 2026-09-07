@@ -288,6 +288,8 @@ type Animal = {
   lungeLeft: number;
   /** 草食动物的受惊状态(带迟滞,避免在警戒边界反复切换) */
   alerted: boolean;
+  /** 天数事件的绑定目标:不死不休追击该玩家(无脱战);目标离场后退化为普通野生 */
+  boundTo: Player | null;
   /** 展示朝向(向逻辑朝向平滑过渡,避免状态切换时硬切) */
   viewHeading: number;
   // —— 熊专属状态(其他物种恒为初始值) ——
@@ -439,6 +441,7 @@ export class Wildlife implements Updatable {
       attackLeft: 0,
       lungeLeft: 0,
       alerted: false,
+      boundTo: null,
       viewHeading: heading,
       stamina: BEAR_SPRINT_TIME,
       tiredLeft: 0,
@@ -603,8 +606,11 @@ export class Wildlife implements Updatable {
         this.animate(animal, delta, elapsed, moving, false);
         continue;
       }
-      // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人)
-      const target = this.nearestPlayer(animal.pos.x, animal.pos.z);
+      // 对最近的一名玩家做出反应(联机时主动攻击生物追离得最近的那个人);
+      // 天数事件的绑定掠食者例外:永远只追绑定的玩家,目标离场(断线/离开)后退化为普通野生
+      let bound = animal.boundTo;
+      if (bound && !this.players().includes(bound)) animal.boundTo = bound = null;
+      const target = bound ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
       const vulnerable = target ? this.isPlayerVulnerable(target) : false;
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
@@ -616,6 +622,9 @@ export class Wildlife implements Updatable {
         const pond = animal.pond;
         animal.alerted = !!pond && !!target
           && Math.hypot(p.x - pond.x, p.z - pond.z) <= pond.radius + CROC_LEASH;
+      } else if (bound) {
+        // 绑定掠食者不死不休:永远保持警戒,不存在脱战
+        animal.alerted = true;
       } else {
         if (dist < animal.config.senseRange) animal.alerted = true;
         else if (dist > animal.config.deaggroRange) animal.alerted = false;
@@ -1268,6 +1277,31 @@ export class Wildlife implements Updatable {
     if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
     if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
     return loot;
+  }
+
+  /**
+   * 天数事件的袭击者生成:在锚点玩家视线外的草地上(约 24-36 米环带)生成一只指定掠食者。
+   * 传入 boundTo 时不死不休追击该玩家(无脱战);不传则为普通野生个体。
+   */
+  spawnRaider(species: AnimalSpecies, anchor: Player, boundTo?: Player): boolean {
+    const p = anchor.group.position;
+    for (let i = 0; i < 80; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 24 + Math.random() * 12;
+      const x = p.x + Math.cos(a) * d;
+      const z = p.z + Math.sin(a) * d;
+      if (!this.isGrass(x, z) || this.nearCamp(x, z)) continue;
+      if (this.animals.some((o) => o.alive && Math.hypot(x - o.pos.x, z - o.pos.z) < 2)) continue;
+      const animal = this.createAnimal(
+        species,
+        new THREE.Vector3(x, this.terrain.getHeight(x, z), z),
+        Math.atan2(p.z - z, p.x - x)
+      );
+      animal.boundTo = boundTo ?? null;
+      animal.alerted = !!boundTo;
+      return true;
+    }
+    return false;
   }
 
   /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物;鳄鱼改为在最近水洼里带出场扑咬生成 */

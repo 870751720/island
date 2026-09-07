@@ -123,7 +123,10 @@ export class DayNightSystem implements Updatable {
     const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
     const prev = this.t;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
-    if (this.t < prev) this.dayCount += 1;
+    // 跨过清晨(MORNING_T)才算过了一天,与睡觉跳夜同口径;
+    // 若以正午回绕计天,开局(正午刚过)的第 1 天只剩半天加一晚
+    const dayProgress = (v: number) => (v - DayNightSystem.MORNING_T + 1) % 1;
+    if (dayProgress(this.t) < dayProgress(prev)) this.dayCount += 1;
     this.apply();
   }
 

@@ -46,3 +46,14 @@
 ### UI 呈现
 
 白色圆角气泡(带小尾巴)跟随角色,挂在头顶作业提示文字的上方:由 `Game` 每帧把角色头顶上方投影为屏幕坐标,经 `onMumble(text, x, y)` 回调直写 DOM(与头顶作业提示同一套投影机制),显示 4 秒后消失;`pointerEvents: none` 不拦截任何触控。台词均为角色第一人称的自言自语口吻,不出现系统腔。
+
+
+## 迭代记录
+
+### 迭代 2026-09-07:wolfNight / bearNight 触发
+
+- 新增两个天数事件铺垫触发(优先级最高,每事件日当天一句):
+  - `wolfNight`(40 句):狼之夜事件日(第 10/20/30 天及之后每 10 天)的白天命中;
+  - `bearNight`(40 句):熊之夜事件日(第 55/80/105…天)的白天命中。
+  事件日判定由 `DayEventSystem` 导出(`isWolfEventDay` / `isBearEventDay`),与房主端刷怪结算共用同一份日程表(见 `day-events.md`)。
+- `MumbleContext` 新增 `day` 字段;触发规则新增 `oncePerDay`(按天去重)标记。

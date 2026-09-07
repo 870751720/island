@@ -29,3 +29,7 @@
   - `controls.tsx`:可复用的 ToggleRow / ActionButton / StepperRow 控件。
 - `src/ui/Hud.tsx`:红心图标可点击,点击回调 `onHeartTap` 上抛。
 - `src/ui/GameplayUI.tsx`:维护 2 秒滑动窗口内的点击计数,满 5 次打开面板。
+
+### 迭代 2026-09-07
+
+- 世界 tab 新增「设置当前天数」:数字输入 + 应用,经 `Game.gmSetDay(day)` 生效;联机时客人端经 `gmSetDay` 动作上行房主结算,天数随快照回流。

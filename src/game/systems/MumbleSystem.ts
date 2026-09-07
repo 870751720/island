@@ -1,6 +1,7 @@
 import type { DayPhase } from './DayNightSystem';
 import type { Tools } from './Crafting';
 import { MUMBLE_LINES, type MumbleTrigger } from '../dialogue/mumbleLines';
+import { isWolfEventDay, isBearEventDay } from './DayEventSystem';
 
 /** 每帧由 Game 汇总的触发条件快照 */
 export type MumbleContext = {
@@ -10,6 +11,7 @@ export type MumbleContext = {
   thirst: number;
   health: number;
   phase: DayPhase;
+  day: number;
   rainIntensity: number;
   freeSlots: number;
   branch: number;
@@ -25,12 +27,28 @@ type TriggerRule = {
   cooldown: number;
   /** 只触发一次(如开局引导) */
   once?: boolean;
+  /** 每天最多触发一次(如狼之夜/熊之夜的铺垫台词),按 ctx.day 去重 */
+  oncePerDay?: boolean;
   /** 边沿型(进入夜晚/开始下雨),只在状态跳变的那一帧命中 */
   edge?: boolean;
   test?: (ctx: MumbleContext) => boolean;
 };
 
 const TRIGGER_RULES: TriggerRule[] = [
+  {
+    // 天数事件「熊之夜」的白天铺垫(事件日当天最多说一句;判定与房主端结算共用同一份日程表)
+    id: 'bearNight',
+    cooldown: 0,
+    oncePerDay: true,
+    test: (c) => isBearEventDay(c.day) && c.phase === 'day',
+  },
+  {
+    // 天数事件「狼之夜」的白天铺垫(第 10/20/30 天及之后每 10 天)
+    id: 'wolfNight',
+    cooldown: 0,
+    oncePerDay: true,
+    test: (c) => isWolfEventDay(c.day) && c.phase === 'day',
+  },
   {
     id: 'lowThirst',
     cooldown: 120,
@@ -94,6 +112,7 @@ export class MumbleSystem {
   private lastLine = new Map<MumbleTrigger, string>();
   private cooldowns = new Map<MumbleTrigger, number>();
   private firedOnce = new Set<MumbleTrigger>();
+  private firedDay = new Map<MumbleTrigger, number>();
   private sustainTimers = new Map<MumbleTrigger, number>();
   private lastPhase: DayPhase = 'day';
   private wasRaining = false;
@@ -117,6 +136,7 @@ export class MumbleSystem {
 
     for (const rule of TRIGGER_RULES) {
       if (rule.once && this.firedOnce.has(rule.id)) continue;
+      if (rule.oncePerDay && this.firedDay.get(rule.id) === ctx.day) continue;
       if ((this.cooldowns.get(rule.id) ?? 0) > 0) continue;
 
       // 边沿型只在状态跳变的那一帧命中;电平型需持续满足 SUSTAIN 秒
@@ -126,6 +146,7 @@ export class MumbleSystem {
       if (!hit) continue;
 
       this.firedOnce.add(rule.id);
+      if (rule.oncePerDay) this.firedDay.set(rule.id, ctx.day);
       this.cooldowns.set(rule.id, rule.cooldown);
       this.globalTimer = 0;
       this.onMumble(rule.id, this.pick(rule.id));

@@ -16,6 +16,7 @@ import { EventsTab } from './EventsTab';
 export type GmActions = {
   restoreStatus: () => void;
   setTime: (t: number) => void;
+  setDay: (day: number) => void;
   setWeather: (type: 'sunny' | 'rain') => void;
   setConfig: (patch: Partial<GmConfig>) => void;
   giveItem: (kind: ResourceKind, count: number) => void;
@@ -59,7 +60,7 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
           ))}
         </div>
         {tab === 'player' && <PlayerTab onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
-        {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
+        {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}

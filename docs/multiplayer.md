@@ -146,3 +146,8 @@
 ### 羊奶(2026-09)
 
 详见 `sheep-milk.md`。要点:羊奶产出由房主权威计时(仅拴桩状态累计,3 分钟一批),`AnimalPose` 新增可选 `milk` 布尔随姿态快照回流,客人镜像 `hasMilk` 驱动头顶奶瓶图标;挤奶为空手站定自动交互(每会话 `SheepMilkSystem`,仿采集让位),客人本地判定完成后上行新动作 `milkSheep [sheepId, x, z]`,房主 `takeMilk` 权威结算(有奶才成功,天然防重复)并把羊奶入客人背包。
+
+
+### 天数事件(2026-09)
+
+详见 `day-events.md`。要点:按天数刷狼/熊的事件结算全部在房主端(`DayEventSystem` 挂在主循环 `wildlife.update` 之后),狼按会话逐人绑定(`Animal.boundTo`,不死不休追该玩家,绑定玩家断线后退化为普通野生),熊为全房间总量;刷出的个体走既有动物姿态快照(combat 桶)回流客人,无新增协议字段。第 10 天白天的「被盯上」台词走各客户端本地的自言自语触发,不同步。GM 设置天数为新动作 `gmSetDay [day]`(客人上行,房主 `DayNightSystem.day` 权威落定,天数随 players 快照回流)。

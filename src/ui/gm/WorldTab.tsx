@@ -18,10 +18,12 @@ const TIME_PRESETS: { label: string; t: number }[] = [
 /** 世界 tab:昼夜锁定/跳转与强制天气 */
 export function WorldTab({
   onSetTime,
+  onSetDay,
   onSetWeather,
   onSetConfig,
 }: {
   onSetTime: (t: number) => void;
+  onSetDay: (day: number) => void;
   onSetWeather: (type: 'sunny' | 'rain') => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
@@ -31,6 +33,7 @@ export function WorldTab({
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
   const [showWaterDebug, setShowWaterDebug] = useState(GmSystem.showWaterDebug);
+  const [dayInput, setDayInput] = useState('');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -96,6 +99,26 @@ export function WorldTab({
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>设置当前天数</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            type="number"
+            min={1}
+            placeholder="天数"
+            value={dayInput}
+            onChange={(e) => setDayInput(e.target.value)}
+            style={dayInputStyle}
+          />
+          <ActionButton
+            label="应用"
+            onClick={() => {
+              const d = Math.floor(Number(dayInput));
+              if (d >= 1) onSetDay(d);
+            }}
+          />
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制天气</div>
         <div style={{ display: 'flex', gap: 6 }}>
           <ActionButton label="☀️ 晴天" onClick={() => onSetWeather('sunny')} />
@@ -134,4 +157,16 @@ const presetStyle = {
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
+} as const;
+
+const dayInputStyle = {
+  flex: 1,
+  minHeight: 44,
+  padding: '0 10px',
+  border: 'none',
+  borderRadius: 10,
+  background: 'rgba(0,0,0,0.08)',
+  color: '#4a3b2a',
+  fontFamily: 'sans-serif',
+  fontSize: 14,
 } as const;

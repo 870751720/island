@@ -18,6 +18,7 @@ import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
+import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
@@ -376,6 +377,7 @@ export class Game {
   private idleTime = 0;
   private drops: DropSystem;
   private dayNight: DayNightSystem;
+  private dayEvents: DayEventSystem;
   private weather: WeatherSystem;
   private rain: Rain;
   private rainImpact: RainImpact;
@@ -774,6 +776,14 @@ export class Game {
     this.attachSessionSystems(this.local);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    // 天数事件:仅房主端结算,刷新的狼/熊经动物姿态快照回流客人
+    this.dayEvents = new DayEventSystem(
+      this.dayNight,
+      this.wildlife,
+      () => this.sessions,
+      (session, count) => this.notify(`夜色里传来低吼——${count} 头狼盯上了你!`, session),
+      (count) => this.sysNotify(`夜幕中传来熊的咆哮……(${count} 头熊出没)`)
+    );
     this.meteor = new MeteorSystem(
       this.scene,
       terrain,
@@ -810,6 +820,7 @@ export class Game {
           this.butterflies.update(delta, elapsed);
           this.birds.update(delta, elapsed);
           this.wildlife.update(delta, elapsed);
+          this.dayEvents.update();
           this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
         } else {
           this.crabs.netUpdate(delta, elapsed);
@@ -947,6 +958,7 @@ export class Game {
           thirst: this.survival.state.thirst,
           health: this.survival.state.health,
           phase: this.dayNight.state.phase,
+          day: this.dayNight.day,
           rainIntensity: this.weather.rainIntensity,
           freeSlots: this.inventory.freeSlots,
           branch: this.inventory.count('branch'),
@@ -2359,6 +2371,15 @@ export class Game {
       return;
     }
     this.dayNight.time = t;
+  }
+
+  /** GM 设置当前天数;客人端上行车主权威结算,天数随快照回流 */
+  gmSetDay(day: number): void {
+    if (this.guestNet) {
+      this.guestNet.action('gmSetDay', [day]);
+      return;
+    }
+    this.dayNight.day = day;
   }
 
   /** GM 强制切换天气;客人端上行车主权威结算,天气随快照回流 */
