@@ -23,6 +23,8 @@ export class DayNightSystem implements Updatable {
   private t = DayNightSystem.MORNING_T; // 新的一天从清晨开始(玩家出生/睡醒都停在日出后不久)
   /** 当前是第几天(从 1 开始,跨过清晨计一天) */
   private dayCount = 1;
+  /** 本轮是否已经明确离开清晨；防止新建/恢复实例的首帧被当成跨天 */
+  private naturalDayAdvanceArmed = false;
   /** 睡觉过渡的起始时刻(非空表示过渡进行中) */
   private sleepFrom: number | null = null;
   /** 太阳/月光相对玩家的方向偏移,由相机跟随逻辑叠加玩家坐标 */
@@ -81,6 +83,8 @@ export class DayNightSystem implements Updatable {
       ? DayNightSystem.MORNING_T
       : normalized;
     this.day = day;
+    // 恢复后重新经过清晨外的正常游戏时间才允许自然跨天；临界存档不会首帧 +1。
+    this.naturalDayAdvanceArmed = false;
     this.apply();
   }
 
@@ -118,6 +122,7 @@ export class DayNightSystem implements Updatable {
     if (this.sleepFrom === null) return;
     this.sleepFrom = null;
     this.t = DayNightSystem.MORNING_T;
+    this.naturalDayAdvanceArmed = false;
     this.apply();
   }
 
@@ -142,10 +147,20 @@ export class DayNightSystem implements Updatable {
     const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
     const prev = this.t;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
+    // 必须先走出清晨区间才算进入了一个真实昼夜轮次。新档从清晨起步，
+    // 读档也先重新建立轮次状态，启动/恢复首帧因此绝不可能自然加天。
+    if (this.t >= DayNightSystem.MORNING_T + RESUME_MORNING_GUARD) {
+      this.naturalDayAdvanceArmed = true;
+    }
     // 时钟每帧只前进很小一段；直接判断清晨阈值，避免取模进度在边界附近
     // 因浮点误差把初始化/读档首帧误识别为跨天。
-    if (prev < DayNightSystem.MORNING_T && this.t >= DayNightSystem.MORNING_T) {
+    if (
+      this.naturalDayAdvanceArmed &&
+      prev < DayNightSystem.MORNING_T &&
+      this.t >= DayNightSystem.MORNING_T
+    ) {
       this.dayCount += 1;
+      this.naturalDayAdvanceArmed = false;
     }
     this.apply();
   }
