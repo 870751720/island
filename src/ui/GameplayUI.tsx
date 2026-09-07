@@ -773,6 +773,7 @@ export function GameplayUI({
           onConfirm={onExit}
           autoRespawn={!!(net?.host || net?.guest)}
           respawnLeft={hud.respawnLeft}
+          report={gameRef.current?.deathReport ?? null}
         />
       )}
       {pickups.map((t) => (

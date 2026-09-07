@@ -9,6 +9,7 @@ export type SurvivalState = {
 };
 
 import type { Food } from './Food';
+import type { DeathCause } from './RunStats';
 import { GmSystem } from './GmSystem';
 
 const HUNGER_RATE = 0.8 / 3; // 每秒下降(原 0.8,放缓 3 倍)
@@ -31,6 +32,8 @@ export class SurvivalSystem implements Updatable {
   swimming = false;
   /** 当前是否在睡觉(由游戏循环每帧同步):睡着后不会受到任何伤害 */
   sleeping = false;
+  /** 最后一次掉血的来源(饿/渴/溺/兽袭),死亡时作为死因供结算展示 */
+  deathCause: DeathCause | null = null;
   /** 饥饿/口渴掉血的累计结算计时 */
   private starveTimer = 0;
 
@@ -54,6 +57,7 @@ export class SurvivalSystem implements Updatable {
       // 每 2 秒结算一笔累计掉血,吃/喝回补后未结算的部分不再扣
       this.starveTimer += delta;
       if (this.starveTimer >= STARVE_TICK) {
+        this.deathCause = s.hunger <= 0 ? 'starve' : 'thirst';
         s.health = Math.max(0, s.health - STARVE_DAMAGE * this.starveTimer);
         this.starveTimer = 0;
       }
@@ -64,6 +68,7 @@ export class SurvivalSystem implements Updatable {
       s.stamina = Math.max(0, s.stamina - STAMINA_SWIM_RATE * delta);
       // 体力耗尽仍泡在水里:呛水持续掉血直至溺亡
       if (s.stamina <= 0) {
+        this.deathCause = 'drown';
         s.health = Math.max(0, s.health - DROWN_DAMAGE * delta);
       }
     } else {
@@ -91,6 +96,7 @@ export class SurvivalSystem implements Updatable {
   /** 受到外力伤害(如野兽扑击),死亡判定交给 update 统一处理;睡着时免疫 */
   damage(amount: number): void {
     if (this.state.dead || this.sleeping) return;
+    if (amount > 0) this.deathCause = 'animal';
     this.state.health = Math.max(0, this.state.health - amount);
   }
 }

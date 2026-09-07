@@ -13,6 +13,7 @@ import type { SmelterSave } from './SmelterSystem';
 import type { CookingStationSave } from './CookingStationSystem';
 import type { LoomSave } from './LoomSystem';
 import type { StakeSave } from '../entities/Stake';
+import type { RunStats } from './RunStats';
 
 const SAVE_KEY = 'island.save.v1';
 export const SAVE_VERSION = 30;
@@ -47,6 +48,8 @@ export type SessionSave = {
   handTool: HandTool;
   /** 已制作过的配方 id(旧档缺省为空) */
   crafted?: CraftId[];
+  /** 本局战绩计数(击杀/采集,旧档缺省为 0) */
+  stats?: RunStats;
 };
 
 /** 火堆/工作台/掉落物等摆件的落点(朝向仅上下左右四向,旧档缺省视为 0) */
@@ -107,6 +110,8 @@ export type SaveData = {
   dog?: { x: number; z: number };
   /** 本局已抽中过的珍宝(保底权重用,集齐后清空;旧档缺省视为无) */
   drawnTreasures?: ResourceKind[];
+  /** 本局本地玩家的战绩计数(击杀/采集;旧档缺省为 0) */
+  stats?: RunStats;
   /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */
   others?: SessionSave[];
 };

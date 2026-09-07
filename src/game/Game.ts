@@ -66,6 +66,7 @@ import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
+import type { DeathReport } from './systems/RunStats';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { GmSystem, gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
@@ -616,6 +617,7 @@ export class Game {
       // 洞挖开:藏在内的兔子被塌方压死,战利品像普通猎杀一样散落在洞口周围
       (x, z) => {
         const killed = this.wildlife.killHidden(x, z);
+        this.local.stats.kills += killed;
         for (let i = 0; i < killed; i++) {
           this.wildlife.lootOf('rabbit').forEach((item, j) => {
             const angle = ((i + j) / (killed + 1)) * Math.PI * 2;
@@ -1000,8 +1002,11 @@ export class Game {
                 this.audio.play('death');
                 // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
                 this.setJoystick(0, 0);
-                // 单机死亡清档；联机玩家由房主在倒计时结束后重生。
-                if (!this.hostRef && !this.guestMode) SaveSystem.clear();
+                // 单机死亡:先结算战绩供死亡界面分享,再清档;联机玩家由房主在倒计时结束后重生。
+                if (!this.hostRef && !this.guestMode) {
+                  this.deathReport = this.buildDeathReport(s);
+                  SaveSystem.clear();
+                }
               }
             }
           }
@@ -1833,6 +1838,10 @@ export class Game {
     }
     session.craftedIds.clear();
     for (const id of data.crafted ?? []) session.craftedIds.add(id);
+    // 战绩计数与死因随档恢复(旧档缺省为 0/null)
+    session.stats.kills = data.stats?.kills ?? 0;
+    session.stats.collected = data.stats?.collected ?? 0;
+    session.survival.deathCause = null;
     this.syncToolTiers(session);
     if (data.handTool === 'hand' || this.hasToolFor(session, data.handTool)) {
       session.player.setTool(data.handTool);
@@ -1855,6 +1864,7 @@ export class Game {
       crafted: [...session.craftedIds],
       equipped: session.equipment.snapshotForSave(),
       handTool: session.player.currentTool,
+      stats: { ...session.stats },
     };
   }
 
@@ -1904,6 +1914,7 @@ export class Game {
       burrows: this.burrows.snapshot(),
       dog: this.dog.snapshot(),
       drawnTreasures: [...this.drawnTreasures],
+      stats: { ...this.local.stats },
     };
   }
 
@@ -1911,6 +1922,46 @@ export class Game {
   setAudioSettings(settings: AudioSettings): void {
     this.audio.setVolumes(settings.music, settings.sfx);
     saveAudioSettings(settings);
+  }
+
+  /** 单机死亡的结算快照,死亡界面展示并生成分享卡片;确认退出后随实例丢弃 */
+  deathReport: DeathReport | null = null;
+
+  /** 汇总本局战绩(天数/死因/击杀/采集来自会话,建造从存档快照的摆件数量汇总) */
+  private buildDeathReport(s: PlayerSession): DeathReport {
+    const save = this.collectSave();
+    const built =
+      save.campfires.length +
+      save.workbenches.length +
+      save.crates.length +
+      (save.baitBarrels?.length ?? 0) +
+      (save.waterPurifiers?.length ?? 0) +
+      (save.smelters?.length ?? 0) +
+      (save.cookingStations?.length ?? 0) +
+      (save.looms?.length ?? 0) +
+      save.fences.length +
+      save.fenceGates.length +
+      save.beds.length +
+      (save.shrines?.length ?? 0) +
+      (save.stakes?.length ?? 0);
+    return {
+      day: save.day ?? 1,
+      cause: s.survival.deathCause ?? 'animal',
+      kills: s.stats.kills,
+      collected: s.stats.collected,
+      crafted: s.craftedIds.size,
+      built,
+      scene: this.captureScene(),
+    };
+  }
+
+  /** 抓取当前画面作卡片底图(本帧已渲染,同一任务内读回缓冲安全) */
+  private captureScene(): string | null {
+    try {
+      return this.renderer.domElement.toDataURL('image/jpeg', 0.85);
+    } catch {
+      return null;
+    }
   }
 
   /** 背包入包时道具模型飞向玩家后背,到达后头顶飘出图标与数量 */
@@ -3182,7 +3233,10 @@ export class Game {
         });
       },
       // 记录采集产出的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
-      (position) => this.markPickupOrigin(position, s),
+      (position) => {
+        s.stats.collected += 1;
+        this.markPickupOrigin(position, s);
+      },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
       () => this.shrines.berryBlessed
     );
@@ -3237,6 +3291,7 @@ export class Game {
       s.tools,
       // 击杀的战利品散落在击杀位置周围,走近后点「捡回」拾取
       (items: { kind: ResourceKind; count: number }[], x: number, z: number) => {
+        s.stats.kills += 1;
         items.forEach((item, i) => {
           const angle = (i / items.length) * Math.PI * 2;
           this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);
@@ -3267,6 +3322,7 @@ export class Game {
       this.audio,
       // 击杀的战利品散落在玩家身旁,走近后点「捡回」拾取
       (items: { kind: ResourceKind; count: number }[], x: number, z: number) => {
+        s.stats.kills += 1;
         items.forEach((item, i) => {
           const angle = (i / items.length) * Math.PI * 2;
           this.drops.dropAt(item.kind, item.count, x + Math.cos(angle) * 0.6, z + Math.sin(angle) * 0.6);

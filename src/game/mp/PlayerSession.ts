@@ -13,6 +13,7 @@ import type { SwordSystem } from '../systems/SwordSystem';
 import type { LassoSystem } from '../systems/LassoSystem';
 import type { SheepMilkSystem } from '../systems/SheepMilkSystem';
 import type { WaterSystem } from '../systems/WaterSystem';
+import type { RunStats } from '../systems/RunStats';
 import type { Actor } from './Actor';
 import { PlayerNameTag } from './PlayerNameTag';
 
@@ -33,6 +34,8 @@ export class PlayerSession implements Actor {
   readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 };
   /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示用) */
   readonly craftedIds: Set<CraftId> = new Set();
+  /** 本局战绩计数(击杀/采集),权威端累计,单机入档 */
+  readonly stats: RunStats = { kills: 0, collected: 0 };
   collect!: CollectSystem;
   crafting!: CraftingSystem;
   eating!: EatingSystem;
