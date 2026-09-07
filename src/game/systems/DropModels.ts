@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeTentMesh } from '../entities/TentModel';
 import type { ResourceKind } from './Inventory';
 
 /** 各道具掉落物的主题色(粒子特效与造型细节共用) */
@@ -1130,42 +1131,11 @@ function makeGrassTuftDrop(): THREE.Object3D {
   return g;
 }
 
-/** 床掉落物:微型床架 + 床垫 + 枕头(二级床为木框皮毛垫,三级床再添床头板与皮毛毯搭) */
+/** 掉落物复用对应等级的帐篷轮廓。 */
 function makeBedDrop(level: number): THREE.Object3D {
-  const g = new THREE.Group();
-  const frame = clay('#8a6239');
-  const mattress = clay(DROP_COLORS[level >= 2 ? 'bed2' : 'bed1']);
-  const base = mesh(new THREE.BoxGeometry(0.44, 0.06, 0.24), frame);
-  base.position.y = 0.08;
-  g.add(base);
-  for (const [x, z] of [
-    [-0.18, -0.08],
-    [0.18, -0.08],
-    [-0.18, 0.08],
-    [0.18, 0.08],
-  ]) {
-      const leg = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 5), frame);
-      leg.position.set(x, 0.04, z);
-      g.add(leg);
-  }
-  const pad = mesh(new THREE.BoxGeometry(0.4, 0.05, 0.2), mattress);
-  pad.position.y = 0.14;
-  g.add(pad);
-  const pillow = mesh(new THREE.BoxGeometry(0.1, 0.04, 0.14), clay('#efe3d0'));
-  pillow.position.set(-0.13, 0.18, 0);
-  g.add(pillow);
-  if (level >= 3) {
-    const headboard = mesh(new THREE.BoxGeometry(0.04, 0.2, 0.24), frame);
-    headboard.position.set(-0.22, 0.19, 0);
-    g.add(headboard);
-    const blanket = mesh(new THREE.BoxGeometry(0.28, 0.024, 0.21), clay(DROP_COLORS.bed3));
-    blanket.position.set(0.07, 0.18, 0);
-    g.add(blanket);
-    const furTrim = mesh(new THREE.BoxGeometry(0.08, 0.03, 0.21), clay('#a5836b'));
-    furTrim.position.set(0.18, 0.18, 0);
-    g.add(furTrim);
-  }
-  return g;
+  const tent = makeTentMesh(level, true);
+  tent.scale.setScalar(0.28);
+  return tent;
 }
 
 /** 按道具种类构建专属掉落物造型(低面数程序化拼装) */
