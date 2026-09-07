@@ -63,9 +63,9 @@ const PROP_CONFIG: Record<PropKind, { regrow: number }> = {
   iron: { regrow: 0 },
   gravel: { regrow: 0 },
   meteor: { regrow: 0 },
-  berry: { regrow: 60 },
-  shrub: { regrow: 90 },
-  grass: { regrow: 60 },
+  berry: { regrow: 180 },
+  shrub: { regrow: 180 },
+  grass: { regrow: 180 },
 };
 
 export type Prop = {
