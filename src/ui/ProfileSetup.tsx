@@ -7,12 +7,15 @@ import { PlayerPreview } from './PlayerPreview';
 /** 昵称 + 性别设置弹窗:首次开始游戏前强制走一遍(firstTime),之后从开始界面/联机大厅点开修改。 */
 export function ProfileSetup({
   firstTime,
+  confirmText,
   initialName,
   initialGender,
   onConfirm,
   onCancel,
 }: {
   firstTime: boolean;
+  /** 确认按钮文案:拦截开始时为「开始冒险」,主动修改时为「保存设置」 */
+  confirmText: string;
   initialName: string;
   initialGender: PlayerProfile['gender'];
   onConfirm: (profile: PlayerProfile) => void;
@@ -31,8 +34,7 @@ export function ProfileSetup({
     <div className="profile-mask">
       <style>{css}</style>
       <div className="profile-panel">
-        <h3 className="profile-title">{firstTime ? '创建你的幸存者' : '修改形象'}</h3>
-        <div className="profile-preview">
+        <h3 className="profile-title">{firstTime ? '创建你的幸存者' : '修改形象'}</h3>        <div className="profile-preview">
           <PlayerPreview gender={gender} />
         </div>
         <div className="profile-gender">
@@ -40,13 +42,13 @@ export function ProfileSetup({
             className={`gender-option ${gender === 'boy' ? 'selected' : ''}`}
             onClick={() => setGender('boy')}
           >
-            👦 男孩
+            男孩
           </button>
           <button
             className={`gender-option ${gender === 'girl' ? 'selected' : ''}`}
             onClick={() => setGender('girl')}
           >
-            👧 女孩
+            女孩
           </button>
         </div>
         <label className="profile-label" htmlFor="profile-name">昵称</label>
@@ -60,7 +62,7 @@ export function ProfileSetup({
           onKeyDown={(event) => event.key === 'Enter' && confirm()}
         />
         <button className="profile-confirm" disabled={!valid} onClick={confirm}>
-          {firstTime ? '开始冒险' : '保存'}
+          {confirmText}
         </button>
         {!firstTime && onCancel && (
           <button className="profile-cancel" onClick={onCancel}>

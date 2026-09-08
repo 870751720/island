@@ -47,7 +47,10 @@ export function StartScreen({
   /** 首次开始游戏前必须先设置昵称与性别;已设置过则直接进入 */
   const requestStart = (mode: StartMode) => {
     if (profile) onStart(mode);
-    else setPendingStart(mode);
+    else {
+      setPendingStart(mode);
+      setShowSetup(true);
+    }
   };
 
   const startNew = () => {
@@ -94,7 +97,6 @@ export function StartScreen({
               setShowSetup(true);
             }}
           >
-            <span className="profile-chip-avatar">{profile?.gender === 'girl' ? '👧' : '👦'}</span>
             {profile ? profile.name : '设置形象'}
           </button>
         )}
@@ -154,6 +156,7 @@ export function StartScreen({
       {showSetup && (
         <ProfileSetup
           firstTime={!profile}
+          confirmText={pendingStart ? '开始冒险' : '保存设置'}
           initialName={profile?.name ?? legacyNickname()}
           initialGender={profile?.gender ?? 'boy'}
           onConfirm={(next) => {
@@ -306,7 +309,6 @@ const css = `
   transition: transform 0.08s ease;
 }
 .profile-chip:active { transform: scale(0.95); }
-.profile-chip-avatar { font-size: 20px; line-height: 1; }
 .start-title {
   margin: 6px 0 0;
   font-size: clamp(38px, 11vw, 56px);

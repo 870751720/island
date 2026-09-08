@@ -169,7 +169,6 @@ export function RoomLobby({
               className={`room-name-row ${profile ? '' : 'unset'}`}
               onClick={() => setShowSetup(true)}
             >
-              <span className="room-name-avatar">{profile?.gender === 'girl' ? '👧' : '👦'}</span>
               {profile ? profile.name : '点击设置昵称与形象'}
             </button>
             <button
@@ -188,6 +187,7 @@ export function RoomLobby({
       {showSetup && (
         <ProfileSetup
           firstTime={!profile}
+          confirmText="保存设置"
           initialName={profile?.name ?? legacyNickname()}
           initialGender={profile?.gender ?? 'boy'}
           onConfirm={(next) => {
@@ -217,7 +217,6 @@ const css = `
 .room-code-input { width:100%; min-height:48px; box-sizing:border-box; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font:700 25px monospace; letter-spacing:.2em; }
 .room-name-row { width:100%; min-height:48px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:8px; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font-size:16px; cursor:pointer; }
 .room-name-row.unset { color:#9aa58a; border-style:dashed; }
-.room-name-avatar { font-size:20px; line-height:1; }
 .room-button { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:14px; background:linear-gradient(#ffbe5c,#f59a1f); color:#fff; font-size:16px; font-weight:700; letter-spacing:.08em; box-shadow:0 5px 0 #c97c12; cursor:pointer; }
 .room-button:disabled { background:linear-gradient(#c9c2b4,#a89f8d); box-shadow:0 5px 0 #8a8272; }
 .room-start { background:linear-gradient(#7fd67f,#4d9e4f); box-shadow:0 5px 0 #37793a; }

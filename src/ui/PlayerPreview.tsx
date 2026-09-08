@@ -41,11 +41,9 @@ export function PlayerPreview({ gender }: { gender: PlayerGender }) {
     observer.observe(host);
 
     let raf = 0;
-    let last = performance.now();
     const tick = (now: number) => {
-      const delta = (now - last) / 1000;
-      last = now;
-      model.root.rotation.y += delta * 0.8;
+      // 静态正面展示,仅轻微上下浮动表现"活"的质感
+      model.root.position.y = Math.sin(now / 700) * 0.02;
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
