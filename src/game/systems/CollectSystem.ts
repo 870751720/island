@@ -4,9 +4,9 @@ import type { Prop, Props } from '../world/Props';
 import {
   FRUIT_DROP_CHANCE,
   FRUIT_OF,
-  FRUIT_PICK_MAX,
   SEED_DROP_CHANCE,
   SEED_OF,
+  fruitPickCount,
 } from '../world/TreeSpecies';
 import { Inventory } from './Inventory';
 import type { Tools } from './Crafting';
@@ -54,11 +54,11 @@ const HARVEST_CONFIG: Record<
   }
 > = {
   fruitTree: {
-    // 空手摘果:一次随机摘下 1-5 个果子,树保留并进入挂果再生
+    // 空手摘果:一次大概率 1 个、小概率 2 个、极小概率 3 个,树保留并进入挂果再生
     action: 'pick',
     hits: 1,
     fxColor: '#c0392b',
-    yield: (inv) => inv.add(FRUIT_OF.fruit, 1 + Math.floor(Math.random() * FRUIT_PICK_MAX)),
+    yield: (inv) => inv.add(FRUIT_OF.fruit, fruitPickCount()),
   },
   tree: {
     action: 'chop',

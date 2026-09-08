@@ -29,8 +29,13 @@ export const TREE_MODEL_SCALE = 1.3;
 export const SEED_DROP_CHANCE = 1;
 export const FRUIT_DROP_CHANCE = 1 / 10;
 
-/** 果树成熟后可空手摘果:一次随机摘下 1-5 个果子,3 分钟后重新挂果 */
-export const FRUIT_PICK_MAX = 5;
+/** 果树成熟后可空手摘果:一次大概率只摘到 1 个,小概率 2 个,极小概率 3 个;3 分钟后重新挂果 */
+export function fruitPickCount(): number {
+  const roll = Math.random();
+  if (roll < 0.01) return 3;
+  if (roll < 0.1) return 2;
+  return 1;
+}
 export const FRUIT_REGROW = 180;
 
 /** 每 60 秒一次生长判定,每次有 1/2 概率长到下一阶段 */

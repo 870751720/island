@@ -18,7 +18,7 @@ export const FOODS: Food[] = [
   { kind: 'berry', name: '浆果', icon: '🍒', action: 'eat_berry', fxColor: '#c0392b', hunger: 3, thirst: 2, health: 0 },
   { kind: 'oakFruit', name: '橡果', icon: '🌰', action: 'eat_berry', fxColor: '#b5813f', hunger: 1, thirst: 0, health: 0 },
   { kind: 'pineFruit', name: '松果', icon: '🌲', action: 'eat_berry', fxColor: '#8a6b45', hunger: 1, thirst: 0, health: 0 },
-  { kind: 'fruitFruit', name: '苹果', icon: '🍎', action: 'eat_berry', fxColor: '#c0392b', hunger: 10, thirst: 5, health: 0 },
+  { kind: 'fruitFruit', name: '苹果', icon: '🍎', action: 'eat_berry', fxColor: '#c0392b', hunger: 3, thirst: 2, health: 0 },
   { kind: 'cola', name: '可乐', icon: '🥤', action: 'eat_berry', fxColor: '#c0392b', hunger: 5, thirst: 10, health: 0 },
   { kind: 'colaZero', name: '无糖可乐', icon: '🥤', action: 'eat_berry', fxColor: '#2c3e50', hunger: 0, thirst: 5, health: 0 },
   { kind: 'milk', name: '羊奶', icon: '🥛', action: 'eat_berry', fxColor: '#f6f1e4', hunger: 10, thirst: 25, health: 5 },
