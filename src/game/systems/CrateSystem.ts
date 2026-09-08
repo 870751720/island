@@ -116,7 +116,7 @@ export class CrateSystem {
 
   /** 在吸附格中心放下木箱/铁箱(背包「使用」与手持自动安放共用入口) */
   use(actor: PlayerSession, kind: CrateKind, at: THREE.Vector3): boolean {
-    if (actor.inventory.count(kind) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(kind, 1);
     const crate = new Crate(this.scene, at, kind, cardinalRotY(actor.player.group.rotation.y));
     this.crates.push(crate);

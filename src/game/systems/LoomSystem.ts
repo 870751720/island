@@ -131,7 +131,7 @@ export class LoomSystem {
 
   /** 在吸附格中心放下纺织机(背包「使用」与手持自动安放共用入口) */
   use(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('loom') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count('loom') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('loom', 1);
     const loom = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
     this.audio.play('success');

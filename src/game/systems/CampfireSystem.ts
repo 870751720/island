@@ -199,7 +199,7 @@ export class CampfireSystem {
 
   /** 在吸附格中心放下「熄灭的火堆」道具(背包「使用」与手持自动安放共用入口,放下时未点燃) */
   placeDead(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('deadCampfire') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count('deadCampfire') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('deadCampfire', 1);
     const fire = new Campfire(this.scene, at, 0);
     this.fires.push(fire);

@@ -177,7 +177,7 @@ export class CookingStationSystem {
 
   /** 在吸附格中心放下烹饪台(背包「使用」与手持自动安放共用入口,未点燃,需添柴引火) */
   use(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('cookingStation') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count('cookingStation') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('cookingStation', 1);
     const station = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
     this.audio.play('success');

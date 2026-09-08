@@ -127,7 +127,7 @@ export class BaitBarrelSystem {
 
   /** 在吸附格中心放下饵料桶(背包「使用」与手持自动安放共用入口) */
   use(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('baitBarrel') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count('baitBarrel') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('baitBarrel', 1);
     const barrel = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
     this.audio.play('success');

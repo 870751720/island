@@ -121,7 +121,7 @@ export class WaterPurifierSystem {
 
   /** 在吸附格中心放下净化器(背包「使用」与手持自动安放共用入口) */
   use(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('waterPurifier') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count('waterPurifier') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('waterPurifier', 1);
     const purifier = new WaterPurifier(this.scene, at, cardinalRotY(actor.player.group.rotation.y));
     this.purifiers.push(purifier);

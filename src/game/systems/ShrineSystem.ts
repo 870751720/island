@@ -124,7 +124,7 @@ export class ShrineSystem {
 
   /** 在吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口) */
   place(actor: PlayerSession, kind: ShrineKind, at: THREE.Vector3): boolean {
-    if (actor.inventory.count(kind) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(kind, 1);
     const shrine = new Shrine(this.scene, at, kind);
     this.shrines.push(shrine);

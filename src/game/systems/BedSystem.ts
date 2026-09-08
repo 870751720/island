@@ -148,7 +148,7 @@ export class BedSystem {
 
   /** 在吸附格中心放下该等级的床(背包「使用」与手持自动安放共用入口) */
   place(actor: PlayerSession, level: number, at: THREE.Vector3): boolean {
-    if (actor.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count(BED_ITEM[level]) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(BED_ITEM[level], 1);
     const bed = new Bed(this.scene, at, level, cardinalRotY(actor.player.group.rotation.y));
     this.beds.push(bed);

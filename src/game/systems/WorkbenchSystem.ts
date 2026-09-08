@@ -328,7 +328,7 @@ export class WorkbenchSystem {
 
   /** 在吸附格中心放回该等级工作台(背包「使用」与手持自动安放共用入口) */
   placeItem(actor: PlayerSession, level: number, at: THREE.Vector3): boolean {
-    if (actor.inventory.count(BENCH_ITEM[level]) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    if (actor.inventory.count(BENCH_ITEM[level]) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(BENCH_ITEM[level], 1);
     const bench = new Workbench(this.scene, at, level, cardinalRotY(actor.player.group.rotation.y));
     this.benches.push(bench);
