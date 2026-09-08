@@ -46,6 +46,19 @@ export type PropKind =
   | 'wormNest'
   | 'meteor';
 
+/** 资源点种类在放置提示里的叫法(「被××挡住」用) */
+export const PROP_NAMES: Record<PropKind, string> = {
+  tree: '树',
+  rock: '岩石',
+  iron: '铁矿',
+  gravel: '碎石堆',
+  berry: '浆果丛',
+  shrub: '灌木丛',
+  grass: '草丛',
+  wormNest: '蚯蚓窝',
+  meteor: '陨石',
+};
+
 /** 资源点的完整可序列化状态；布局由房主/存档直接持有。 */
 export type PropState = {
   id?: string;
@@ -724,6 +737,20 @@ export class Props implements Updatable {
   /** 落点附近是否有占位的资源点(被挖走的不算) */
   isOccupied(p: THREE.Vector3, range: number): boolean {
     return this.nearby(p.x, p.z).some((prop) => prop.position.distanceTo(p) < range);
+  }
+
+  /** 落点范围内最近资源点的种类(没有为 null),放置提示点名挡住的东西用 */
+  occupant(p: THREE.Vector3, range: number): PropKind | null {
+    let best: PropKind | null = null;
+    let bestDist = range;
+    for (const prop of this.nearby(p.x, p.z)) {
+      const d = prop.position.distanceTo(p);
+      if (d < bestDist) {
+        bestDist = d;
+        best = prop.kind;
+      }
+    }
+    return best;
   }
 
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */

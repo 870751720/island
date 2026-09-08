@@ -4,6 +4,7 @@ import { Shrine, SHRINE_COLORS, type ShrineKind } from '../entities/Shrine';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
+import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -115,7 +116,8 @@ export class ShrineSystem {
     ) {
       return '离其他神龛太近';
     }
-    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
+    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
+    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
 
   /** 在吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口) */

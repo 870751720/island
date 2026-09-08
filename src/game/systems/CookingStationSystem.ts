@@ -6,6 +6,7 @@ import { ITEMS } from './Items';
 import { COOKABLE, BOILABLE } from './Food';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
+import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -168,7 +169,8 @@ export class CookingStationSystem {
     ) {
       return '离其他烹饪台太近';
     }
-    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
+    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
+    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
 
   /** 在吸附格中心放下烹饪台(背包「使用」与手持自动安放共用入口,未点燃,需添柴引火) */

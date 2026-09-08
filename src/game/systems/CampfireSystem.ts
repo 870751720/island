@@ -6,6 +6,7 @@ import { ITEMS } from './Items';
 import { COOKABLE } from './Food';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
+import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -153,13 +154,8 @@ export class CampfireSystem {
     if (actor.player.isSwimming) return '游泳时不能安放';
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
-    if (this.props.list.some((prop) => {
-      this.scratch.copy(prop.position);
-      return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
-    })) {
-      return '被资源点挡住';
-    }
-    return null;
+    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
+    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
 
   /** 是否满足制作条件(不忙 + 材料齐 + 脚下可摆放),火堆数量不限 */

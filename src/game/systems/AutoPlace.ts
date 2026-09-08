@@ -85,9 +85,9 @@ export class AutoPlaceSystem {
     return this.defs.has(kind);
   }
 
-  /** 背包里是否还有可安放道具(工具按钮与循环切换的持有判定) */
+  /** 背包里是否还有可安放道具(工具按钮与循环切换的持有判定,与当前手持无关) */
   anyHeld(actor: PlayerSession): boolean {
-    return this.heldKind(actor) !== null;
+    return actor.inventory.snapshot().some((s) => s && this.defs.has(s.kind));
   }
 
   /** 手持安放道具的背包剩余个数(工具按钮角标) */

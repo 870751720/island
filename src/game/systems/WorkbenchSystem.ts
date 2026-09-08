@@ -5,6 +5,7 @@ import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
 import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
+import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -169,7 +170,8 @@ export class WorkbenchSystem {
     if (actor.player.isSwimming) return '游泳时不能安放';
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
-    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
+    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
+    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
 
   /** 本局是否已制作过工作台 */

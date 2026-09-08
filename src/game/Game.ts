@@ -89,7 +89,7 @@ import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
-import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
+import { Props, PROP_NAMES, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
 import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
@@ -2996,7 +2996,8 @@ export class Game {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
-    return this.props.isOccupied(p, 1) ? '被资源点挡住' : null;
+    const blocker = this.props.occupant(p, 1);
+    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
 
   /** 背包里点「使用」可安放道具:直接在就近最优格放下(与围栏的背包使用一致) */
