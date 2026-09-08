@@ -4,6 +4,7 @@ import { ItemIcon } from './ItemIcon';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import { EAT_PROMPT_HUNGER, firstFoodEntryIn } from '@/game/systems/Food';
+import { isWineKind } from '@/game/systems/Wine';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
 /** 饥饿低于阈值且背包有食物时弹出的进食卡片:单吃一个,或点「吃饱」连续吃到满(移动中不显示,捡回卡片出现时让位) */
@@ -39,7 +40,7 @@ export function EatPrompt({
       >
         <ItemIcon kind={entry.food.kind} size={28} />
         <span>
-          吃{entry.food.name}
+          {isWineKind(entry.food.kind) ? '喝' : '吃'}{entry.food.name}
           <span style={{ color: '#4caf50' }}>(+{entry.food.hunger})</span>
         </span>
       </button>

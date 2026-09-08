@@ -27,7 +27,7 @@ import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import type { CrateKind } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
-import { wineOf, TIPSY_DURATION } from './systems/Wine';
+import { wineOf, isWineKind, TIPSY_DURATION } from './systems/Wine';
 import { BrewBarrelSystem, type BrewBarrelInfo } from './systems/BrewBarrelSystem';
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
@@ -3816,7 +3816,8 @@ export class Game {
       label = '搭建中:小火堆';
       progress = this.campfire.getProgress(session);
     } else if (session.eating.isWorking) {
-      label = `${session.eating.currentFood!.icon} 吃${session.eating.currentFood!.name}`;
+      const food = session.eating.currentFood!;
+      label = `${food.icon} ${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
       progress = session.eating.getProgress();
     } else if (session.fishing.isWorking) {
       const s = session.fishing.currentState!;

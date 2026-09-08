@@ -42,3 +42,8 @@ export const BREWABLE: Partial<Record<ResourceKind, ResourceKind>> = {
 export function wineOf(kind: ResourceKind): WineDef | undefined {
   return WINES.find((w) => w.kind === kind);
 }
+
+/** 该道具是否是酒(文案用:酒是「喝」不是「吃」) */
+export function isWineKind(kind: ResourceKind): boolean {
+  return WINES.some((w) => w.kind === kind);
+}
