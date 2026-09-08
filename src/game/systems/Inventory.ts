@@ -70,7 +70,7 @@ export type ResourceKind =
   | 'fruitFruit'
   | 'axe'
   | 'pickaxe'
-  | 'hoe'
+  | 'shovel'
   | 'fishingrod'
   | 'bow'
   | 'sword'

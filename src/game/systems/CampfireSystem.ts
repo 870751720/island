@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { Campfire } from '../entities/Campfire';
 import type { ResourceKind } from './Inventory';
 import { ITEMS } from './Items';
@@ -24,7 +24,7 @@ export const CAMPFIRE_COST = { flint: 1, wood: 2 };
 /** 火堆卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
 export const CAMPFIRE_PROMPT_PRIORITY = 5;
 const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
-const DIG_RANGE = 1.6; // 持锄头可开挖熄灭火堆的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖熄灭火堆的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const COOK_TIME = 1.6; // 每份食物的烹饪时长(秒)
 const COOK_TICK = 0.8; // 烹饪翻动特效间隔(秒)
@@ -58,7 +58,7 @@ type PlayerSessionState = {
  * 火堆系统(世界单实例,按发起者 actor 结算):材料满足且位置可摆放时通过卡片
  * 发起搭建,站定敲打完成后在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,
  * 可反复添柴续命(无上限),燃尽后熄灭留在原地(不能再烹饪,添柴可复燃),
- * 手持锄头可把熄灭的火堆整座挖掉(变成「熄灭的火堆」道具回收)。烹饪在燃烧的火堆上批量进行,
+ * 手持铲子可把熄灭的火堆整座挖掉(变成「熄灭的火堆」道具回收)。烹饪在燃烧的火堆上批量进行,
  * 一次烤完背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
  */
 export class CampfireSystem {
@@ -370,12 +370,12 @@ export class CampfireSystem {
     }
   }
 
-  /** 手持锄头站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(回收为「熄灭的火堆」道具) */
+  /** 手持铲子站定在熄灭的火堆旁自动挖掘,命中数次后整座挖掉(回收为「熄灭的火堆」道具) */
   private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
     const p = actor.player.group.position;
     let target: Campfire | null = null;
     if (
-      actor.player.currentTool === 'hoe' &&
+      actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
       st.timer <= 0 &&
       !st.cookKind &&
@@ -404,7 +404,7 @@ export class CampfireSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, FX_COLOR, 6);
     st.hits += 1;
-    if (st.hits < (hoeHits(actor.tools.hoe))) return;
+    if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
     this.fires.splice(this.fires.indexOf(target), 1);
@@ -420,7 +420,7 @@ export class CampfireSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

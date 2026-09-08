@@ -74,7 +74,7 @@
 
 ### 蚯蚓窝资源点化(2026-09)
 
-蚯蚓生物及 ambient 通道(`AmbientState.worms`)整体移除;蚯蚓窝作为普通 props 资源点,捉蚯蚓/锄头挖窝/放回由房主权威结算(走既有 CollectSystem 与 `useBush` 动作),状态经 props 快照/世界增量回流,无专属协议字段。
+蚯蚓生物及 ambient 通道(`AmbientState.worms`)整体移除;蚯蚓窝作为普通 props 资源点,捉蚯蚓/铲子挖窝/放回由房主权威结算(走既有 CollectSystem 与 `useBush` 动作),状态经 props 快照/世界增量回流,无专属协议字段。
 
 ### 砍树自然补种(2026-09)
 
@@ -93,7 +93,7 @@
 
 ### 酿酒桶与酒 Buff 同步(2026-09)
 
-- 新增世界段 `brewBarrels` 与动作 `useBrewBarrel/brewBarrelFeed[kind,count]/brewBarrelCollect/brewBarrelTakeRaw`:放置/投料/收取由客人上行、房主权威结算,桶内 `kind/rawLeft/bottles/tickLeft` 经世界增量回流;发酵计时(每 45 秒 2 原料→1 瓶)只在房主端推进,锄头挖走同饵料桶。
+- 新增世界段 `brewBarrels` 与动作 `useBrewBarrel/brewBarrelFeed[kind,count]/brewBarrelCollect/brewBarrelTakeRaw`:放置/投料/收取由客人上行、房主权威结算,桶内 `kind/rawLeft/bottles/tickLeft` 经世界增量回流;发酵计时(每 45 秒 2 原料→1 瓶)只在房主端推进,铲子挖走同饵料桶。
 - 喝酒 Buff(舒爽/晕晕的):计时器在 `Player` 上,由房主权威端的进食完成回调施加(客人 `eatFood` 动作上行);姿态快照 `PlayerState` 新增 `refresh`/`tipsy` 剩余秒数字段,客人端对齐本地计时器(差值>1s 才改写),使移动加速/减速在客人本地预测移动中生效,HUD buff 列表随各端 HUD 快照展示。
 - 剑增伤:客人 `swordHit` 上行后,房主按该客人会话(房主侧副本)的晕晕状态在 `SwordSystem` 权威结算 ×1.3 伤害;弓同款(客人 `arrowHit` 上行后按晕晕状态 ×1.3),套索不受醉酒影响。
 
@@ -115,7 +115,7 @@
 
 ### 海水净化器同步(2026-09)
 
-- 新增世界段 `waterPurifiers`(落点增量回流)与动作 `useWaterPurifier`:放置由客人上行、房主权威结算;锄头挖走同饵料桶,各端 `updateActor` 表现、房主侧结算上报。
+- 新增世界段 `waterPurifiers`(落点增量回流)与动作 `useWaterPurifier`:放置由客人上行、房主权威结算;铲子挖走同饵料桶,各端 `updateActor` 表现、房主侧结算上报。
 - 靠近净化器自动喝水无离散事件:各端本地用 `WaterSystem` 模拟(复用水洼喝水约定),口渴数值随生存快照回流。
 
 ### 定向提示同步(2026-09)
@@ -157,7 +157,7 @@
 ### 兔子洞同步(2026-09)
 
 - 新增世界段 `burrows`(详见 rabbit-burrow.md):洞实体带稳定 id,增删与挖废(`set state=abandoned`)走世界增量;客人端不本地生成,由欢迎包世界状态与增量补建;废弃洞的重生倒计时仅房主推进、不入网络比较(同资源再生)。
-- 挖洞无客人动作上行:客人的锄头挖掘由房主 `updateActor` 对远程会话统一结算(同海水净化器);藏在洞内的兔子被压死由房主 `Wildlife.killHidden` 权威结算,战利品走掉落物世界段回流。
+- 挖洞无客人动作上行:客人的铲子挖掘由房主 `updateActor` 对远程会话统一结算(同海水净化器);藏在洞内的兔子被压死由房主 `Wildlife.killHidden` 权威结算,战利品走掉落物世界段回流。
 - 兔子躲藏是房主 AI 状态:姿态快照 `AnimalPose` 新增 `hidden` 标记,客人端同步隐藏/显示模型并跳过躲藏个体索敌;`NET_PROTOCOL_VERSION` 19→20。
 
 ### 进食「吃饱」按钮(2026-09)

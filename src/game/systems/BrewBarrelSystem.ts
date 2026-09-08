@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { BrewBarrel } from '../entities/BrewBarrel';
 import { BREWABLE, BREW_COST, BREW_INTERVAL } from './Wine';
 import type { ResourceKind } from './Inventory';
@@ -16,7 +16,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距酿酒桶小于该值时算在桶旁
-const DIG_RANGE = 1.6; // 持锄头可开挖酿酒桶的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖酿酒桶的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 酿酒桶存档/网络快照(落点 + 桶内原料与产出的酒) */
@@ -50,7 +50,7 @@ export type BrewBarrelInfo = {
  *   (不能在水里,脚下不能被资源点或其他酿酒桶占住,不要求水边);
  * - 靠近后可把背包里的原料丢进桶:一次只酿一种,桶被占用时只接受同种原料;
  *   每 45 秒把 2 个原料发酵成 1 瓶对应的酒,存放在桶内待收取;
- * - 手持锄头靠近站定自动整桶挖走(变回酿酒桶道具,桶内原料与酒一并回到背包/掉落)。
+ * - 手持铲子靠近站定自动整桶挖走(变回酿酒桶道具,桶内原料与酒一并回到背包/掉落)。
  * 发酵计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
 export class BrewBarrelSystem {
@@ -210,13 +210,13 @@ export class BrewBarrelSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在酿酒桶旁自动挖掘,命中数次后整桶挖走(桶内原料与酒一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在酿酒桶旁自动挖掘,命中数次后整桶挖走(桶内原料与酒一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       const p = actor.player.group.position;
       let target: BrewBarrel | null = null;
-      if (actor.player.currentTool === 'hoe' && !actor.player.isSwimming && !this.isBusy(actor)) {
+      if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !this.isBusy(actor)) {
         for (const barrel of this.barrels) {
           this.scratch.copy(barrel.group.position);
           this.scratch.y = p.y;
@@ -239,7 +239,7 @@ export class BrewBarrelSystem {
       st.swingTimer = 0;
       this.fx.burst(target.group.position, '#6b4a2e', 6);
       st.hits += 1;
-      if (st.hits < (hoeHits(actor.tools.hoe))) return;
+      if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
       this.barrels.splice(this.barrels.indexOf(target), 1);
@@ -258,7 +258,7 @@ export class BrewBarrelSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

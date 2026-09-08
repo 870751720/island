@@ -18,7 +18,7 @@ import type { StakeSave } from '../entities/Stake';
 import type { RunStats } from './RunStats';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 30;
+export const SAVE_VERSION = 31;
 
 /** 资源点完整世界状态；所有资源都直接保存落点，不依赖种子复算布局。 */
 export type PropSave = {

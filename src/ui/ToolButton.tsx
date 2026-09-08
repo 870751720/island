@@ -10,7 +10,7 @@ export const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
   axe: '🪓',
   pickaxe: '⛏️',
-  hoe: '⚒️',
+  shovel: '⚒️',
   fishingrod: '🎣',
   bow: '🏹',
   sword: '🗡️',
@@ -25,7 +25,7 @@ export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
   hand: '空手',
   axe: '斧子',
   pickaxe: '镐子',
-  hoe: '锄头',
+  shovel: '铲子',
   fishingrod: '鱼竿',
   bow: '弓',
   sword: '剑',
@@ -124,9 +124,13 @@ export function ToolButton({
   onStake: () => void;
   onUntie: () => void;
 }) {
-  // 长按计时:按住约 0.35s 触发 onLongPress 并吞掉本次单击,移动出按钮/抬起取消
+  // 长按计时:按住不动约 0.35s 触发 onLongPress 并吞掉本次单击;提前抬起走普通点击,
+  // 按住期间手指移动超过一小段(视为拖动/滑动)也取消长按,保证普通点按始终是循环切换
+  const LONG_PRESS_MS = 350;
+  const LONG_PRESS_SLOP = 12;
   const pressTimer = useRef<number | null>(null);
   const longFired = useRef(false);
+  const pressStart = useRef({ x: 0, y: 0 });
   const clearPress = () => {
     if (pressTimer.current !== null) {
       clearTimeout(pressTimer.current);
@@ -165,13 +169,23 @@ export function ToolButton({
       onPointerDown={(e) => {
         e.preventDefault();
         longFired.current = false;
+        pressStart.current = { x: e.clientX, y: e.clientY };
         clearPress();
         if (onLongPress && !dimmed) {
           pressTimer.current = window.setTimeout(() => {
             pressTimer.current = null;
             longFired.current = true;
             onLongPress();
-          }, 350);
+          }, LONG_PRESS_MS);
+        }
+      }}
+      onPointerMove={(e) => {
+        if (pressTimer.current === null || longFired.current) return;
+        const dx = e.clientX - pressStart.current.x;
+        const dy = e.clientY - pressStart.current.y;
+        if (dx * dx + dy * dy > LONG_PRESS_SLOP * LONG_PRESS_SLOP) {
+          clearPress();
+          longFired.current = true;
         }
       }}
       onPointerUp={tapAction}

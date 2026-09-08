@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { WaterPurifier } from '../entities/WaterPurifier';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -15,7 +15,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距净化器小于该值时算在净化器旁(可自动喝水)
-const DIG_RANGE = 1.6; // 持锄头可开挖净化器的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖净化器的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 距海线多远以内算湿沙滩(干地上摆放时的最大离海距离) */
 const WET_BEACH_RANGE = 1.5;
@@ -37,7 +37,7 @@ type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget:
  * - 背包里点击「使用」净化器,校验通过后在玩家脚下原地放下
  *   (只能放在湿沙滩:浅海涉水处或紧邻海线的沙滩,水洼边不算);
  * - 玩家靠近净化器站定后自动喝水(恢复口渴,由各端 WaterSystem 复用喝水动作);
- * - 手持锄头靠近站定自动挖走(变回净化器道具)。
+ * - 手持铲子靠近站定自动挖走(变回净化器道具)。
  */
 export class WaterPurifierSystem {
   private purifiers: WaterPurifier[] = [];
@@ -144,13 +144,13 @@ export class WaterPurifierSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在净化器旁自动挖掘,命中数次后挖走(变回净化器道具);帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在净化器旁自动挖掘,命中数次后挖走(变回净化器道具);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       const p = actor.player.group.position;
       let target: WaterPurifier | null = null;
-      if (actor.player.currentTool === 'hoe' && !actor.player.isSwimming && !this.isBusy(actor)) {
+      if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !this.isBusy(actor)) {
         for (const purifier of this.purifiers) {
           this.scratch.copy(purifier.group.position);
           this.scratch.y = p.y;
@@ -173,7 +173,7 @@ export class WaterPurifierSystem {
       st.swingTimer = 0;
       this.fx.burst(target.group.position, '#9aa3ab', 6);
       st.hits += 1;
-      if (st.hits < hoeHits(actor.tools.hoe)) return;
+      if (st.hits < shovelHits(actor.tools.shovel)) return;
       st.hits = 0;
       st.digTarget = null;
       this.purifiers.splice(this.purifiers.indexOf(target), 1);
@@ -190,7 +190,7 @@ export class WaterPurifierSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

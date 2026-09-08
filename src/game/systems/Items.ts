@@ -19,7 +19,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
     'fiber', 'rope', 'cloth', 'fur', 'worm', 'adventureBook',
   ],
-  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
+  工具: ['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword'],
   装备: [
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
@@ -514,11 +514,11 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '⛏️',
     description: '木头和石头拼出来的简易镐子。',
   },
-  hoe: {
-    kind: 'hoe',
-    name: '木锄',
+  shovel: {
+    kind: 'shovel',
+    name: '木铲',
     icon: '⚒️',
-    description: '磨得锋利的锄头,刨土翻地在行。',
+    description: '磨得锋利的铲子,刨土翻地在行。',
   },
   fishingrod: {
     kind: 'fishingrod',

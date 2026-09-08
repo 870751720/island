@@ -86,7 +86,7 @@ export function CookingStationPanel({
         <div style={{ fontSize: 13, color: lit ? '#c4763a' : '#999', marginBottom: 12 }}>
           {lit
             ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,可以烤制或煮汤`
-            : '火还没点着,添柴引火;也可以用锄头挖走'}
+            : '火还没点着,添柴引火;也可以用铲子挖走'}
         </div>
 
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>添柴</div>

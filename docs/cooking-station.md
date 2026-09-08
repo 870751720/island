@@ -39,7 +39,7 @@
   - 添柴 `addFuel`:`burnTime` 同火堆,熄灭添柴复燃;
   - 烤制 `startRoast`:与火堆烹饪同款(每份 1.6 秒,站定翻炒,中断退料);
   - 煮汤 `startBoil`:台上队列(`boilKind/boilQueue/tickLeft`),每 5 秒权威产出 1 份累加到 `outKind/outCount`,`collect` 收取;
-  - 挖掘:锄头挖走回收 `cookingStation`,锅里剩余食材与产出一并回包。
+  - 挖掘:铲子挖走回收 `cookingStation`,锅里剩余食材与产出一并回包。
 - 面板 `src/ui/CookingStationPanel.tsx`:添柴 / 煮汤(下锅或查看进度与收取)/ 烤制 三段式。
 - 配方 `cookingStation`(Crafting.ts):`{ deadCampfire: 1, ironIngot: 5 }`,三级工作台,单件制作。
 

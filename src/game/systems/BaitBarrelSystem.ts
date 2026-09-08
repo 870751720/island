@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { BaitBarrel } from '../entities/BaitBarrel';
 import { BAIT_YIELD } from './Food';
 import type { ResourceKind } from './Inventory';
@@ -16,7 +16,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距饵料桶小于该值时算在桶旁
-const DIG_RANGE = 1.6; // 持锄头可开挖饵料桶的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖饵料桶的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每 5 秒发酵 1 个食物为对应数量的鱼饵 */
@@ -50,7 +50,7 @@ export type BaitBarrelInfo = {
  * - 背包里点击「使用」饵料桶,校验通过后在玩家脚下原地放下
  *   (与木箱摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他饵料桶占住);
  * - 靠近后可把背包里的食物丢进桶:每 5 秒发酵 1 个食物,兑换为该食物对应数量的鱼饵,存放在桶内待收取;
- * - 手持锄头靠近站定自动整桶挖走(变回饵料桶道具,桶内食物与鱼饵一并回到背包/掉落)。
+ * - 手持铲子靠近站定自动整桶挖走(变回饵料桶道具,桶内食物与鱼饵一并回到背包/掉落)。
  * 发酵计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
 export class BaitBarrelSystem {
@@ -208,13 +208,13 @@ export class BaitBarrelSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在饵料桶旁自动挖掘,命中数次后整桶挖走(桶内食物与鱼饵一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在饵料桶旁自动挖掘,命中数次后整桶挖走(桶内食物与鱼饵一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       const p = actor.player.group.position;
       let target: BaitBarrel | null = null;
-      if (actor.player.currentTool === 'hoe' && !actor.player.isSwimming && !this.isBusy(actor)) {
+      if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !this.isBusy(actor)) {
         for (const barrel of this.barrels) {
           this.scratch.copy(barrel.group.position);
           this.scratch.y = p.y;
@@ -237,7 +237,7 @@ export class BaitBarrelSystem {
       st.swingTimer = 0;
       this.fx.burst(target.group.position, '#9a6b3f', 6);
       st.hits += 1;
-      if (st.hits < (hoeHits(actor.tools.hoe))) return;
+      if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
       this.barrels.splice(this.barrels.indexOf(target), 1);
@@ -256,7 +256,7 @@ export class BaitBarrelSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

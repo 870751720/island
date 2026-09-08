@@ -30,7 +30,7 @@
 
 - 无限箭袋 `endlessQuiver`(权重 1,装备类):放在背包里时开弓不要求有箭、放箭不消耗箭(`BowSystem` 经构造注入的 `hasEndlessQuiver` 回调判定;客人放箭时房主 `netArrowShot` 同样按其背包免扣)。
 - 无限饵料桶 `endlessBait`(权重 1,装备类):放在背包里时抛竿永远视同有饵(走有饵档位权重、计入四档保底)且不消耗鱼饵(`FishingSystem.start`)。
-- 防鳄熏香 `crocIncense`(权重 10,设施类):类似雨神祭坛的可放置神龛(背包「使用」立起,锄头可挖回),放置期间 30 米内玩家在水洼喝水不再触发鳄鱼袭击(`Game.onDrinkRound` 查 `ShrineSystem.inAura('crocIncense', ...)`,房主权威判定,联机走既有神龛同步)。
+- 防鳄熏香 `crocIncense`(权重 10,设施类):类似雨神祭坛的可放置神龛(背包「使用」立起,铲子可挖回),放置期间 30 米内玩家在水洼喝水不再触发鳄鱼袭击(`Game.onDrinkRound` 查 `ShrineSystem.inAura('crocIncense', ...)`,房主权威判定,联机走既有神龛同步)。
 
 ### 2026-09-08 四档珍宝保底
 

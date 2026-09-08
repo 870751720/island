@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { Crate, type CrateKind } from '../entities/Crate';
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -15,7 +15,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
-const DIG_RANGE = 1.6; // 持锄头可开挖木箱的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖木箱的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每玩家的挖掘进度(世界里的木箱是共享的,进度各自算) */
@@ -39,7 +39,7 @@ export type CrateSave = {
  * 木箱系统(世界单实例,按发起者 actor 结算):
  * - 手持木箱道具站定后自动安放在面前格中心,校验通过后放下
  *   (与工作台摆放同一套规则:不能在水里/水边,落点不能被资源点或其他木箱占住);
- * - 手持锄头靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
+ * - 手持铲子靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
  * 木箱自带 10 格、铁箱 20 格收纳,靠近后可整格存入背包物品或取回。
  */
 export class CrateSystem {
@@ -151,12 +151,12 @@ export class CrateSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
     const p = actor.player.group.position;
-    const holding = actor.player.currentTool === 'hoe';
+    const holding = actor.player.currentTool === 'shovel';
     let target: Crate | null = null;
     if (holding && !actor.player.isSwimming && !this.isBusy(actor)) {
       for (const crate of this.crates) {
@@ -181,7 +181,7 @@ export class CrateSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, target.color, 6);
     st.hits += 1;
-    if (st.hits < (hoeHits(actor.tools.hoe))) return;
+    if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
     this.crates.splice(this.crates.indexOf(target), 1);
@@ -201,7 +201,7 @@ export class CrateSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { RabbitBurrow } from '../entities/RabbitBurrow';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Particles } from '../fx/Particles';
@@ -7,7 +7,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
 
-const DIG_RANGE = 1.6; // 持锄头可开挖兔子洞的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖兔子洞的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 兔子栖息地草面最低高度:与 Wildlife 的草地判定一致,洞只出现在草地上 */
 const GRASS_MIN = 0.16;
@@ -42,7 +42,7 @@ type BurrowRecord = {
 /**
  * 兔子洞系统(野外的场景实体,不进背包、不可搬运):
  * - 每个兔子栖息地生成 1~2 个洞,是栖息地里兔子共同的避难所;
- * - 手持锄头靠近完好洞站定自动挖掘,挖开后藏在内的兔子被塌方压死,
+ * - 手持铲子靠近完好洞站定自动挖掘,挖开后藏在内的兔子被塌方压死,
  *   洞变废弃不再提供庇护,过 1~2 个昼夜在附近重新塌出一个新洞。
  */
 export class RabbitBurrowSystem {
@@ -166,13 +166,13 @@ export class RabbitBurrowSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在完好洞旁自动挖掘,命中数次后挖开:藏在内的兔子压死,洞变废弃;帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在完好洞旁自动挖掘,命中数次后挖开:藏在内的兔子压死,洞变废弃;帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       const p = actor.player.group.position;
       let target: RabbitBurrow | null = null;
-      if (actor.player.currentTool === 'hoe' && !actor.player.isSwimming && !this.isBusy(actor)) {
+      if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !this.isBusy(actor)) {
         for (const r of this.records) {
           if (r.burrow.state !== 'intact') continue;
           this.scratch.copy(r.burrow.group.position);
@@ -196,7 +196,7 @@ export class RabbitBurrowSystem {
       st.swingTimer = 0;
       this.fx.burst(target.group.position, '#8a6f4d', 6);
       st.hits += 1;
-      if (st.hits < hoeHits(actor.tools.hoe)) return;
+      if (st.hits < shovelHits(actor.tools.shovel)) return;
       st.hits = 0;
       st.digTarget = null;
       // 挖开:藏在内的兔子被塌方压死,洞口塌成废弃状态
@@ -220,7 +220,7 @@ export class RabbitBurrowSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

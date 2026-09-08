@@ -79,7 +79,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   fruitFruit: '#c0392b',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
-  hoe: '#8a7a5a',
+  shovel: '#8a7a5a',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
   sword: '#c9a877',
@@ -759,11 +759,11 @@ function makeBackpack(color: string): THREE.Object3D {
   return g;
 }
 
-/** 锄头:木柄 + 宽扁的石刃 */
-function makeHoe(): THREE.Object3D {
+/** 铲子:木柄 + 宽扁的石刃 */
+function makeShovel(): THREE.Object3D {
   const g = new THREE.Group();
   const handle = toolHandle(clay('#8b6239'));
-  const blade = mesh(new THREE.BoxGeometry(0.22, 0.05, 0.14), clay(DROP_COLORS.hoe));
+  const blade = mesh(new THREE.BoxGeometry(0.22, 0.05, 0.14), clay(DROP_COLORS.shovel));
   blade.position.set(0.1, 0.66, 0);
   blade.rotation.z = 0.5;
   g.add(handle, blade);
@@ -1093,7 +1093,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fruitFruit: () => makeFruit(DROP_COLORS.fruitFruit),
   axe: makeAxe,
   pickaxe: makePickaxe,
-  hoe: makeHoe,
+  shovel: makeShovel,
   fishingrod: makeFishingRod,
   bow: makeBow,
   sword: makeSword,

@@ -33,7 +33,7 @@
 ### 波塞冬的祝福(`poseidonBlessing`)
 
 - 道具可「使用」:校验与床/工作台一致(不能在水里/水边、脚下没被资源点/其他神像占住),通过后原地立起神像(`entities/Shrine.ts`:双层石基座 + 发光海蓝宝石 + 三叉戟,宝石缓慢旋转起伏)。
-- `systems/ShrineSystem.ts`(世界单实例、按 actor 结算,模式同床):可放置多个、效果不叠加;手持锄头靠近站定可整座挖走变回道具(精致石锄 1 次,普通 2 次);挖/放期间头顶有进度提示(「拆神像…」)。
+- `systems/ShrineSystem.ts`(世界单实例、按 actor 结算,模式同床):可放置多个、效果不叠加;手持铲子靠近站定可整座挖走变回道具(精致石铲 1 次,普通 2 次);挖/放期间头顶有进度提示(「拆神像…」)。
 - 效果:`FishingSystem` 构造注入 `junkCut: () => number` 回调(取 `ShrineSystem.junkCut`,放置期间为 1),`rollTier(baited, junkCut)` 从一档(杂物)权重中扣下 1 个百分点转给二档,总权重不变;与无鱼饵的八折惩罚叠加生效。
 - 联机:神像走既有世界摆件同步管线——`WorldPatch` 新增 `shrines` section,放置/挖除经 `setChangeSink` 广播增量,客人端 `netApply` 重放;客人放置动作上行 `useShrine`(`Actions.ts`)由房主权威结算。
 

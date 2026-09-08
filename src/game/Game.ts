@@ -138,7 +138,7 @@ export type HudSnapshot = {
   capacity: number;
   hasAxe: boolean;
   hasPickaxe: boolean;
-  hasHoe: boolean;
+  hasShovel: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
   hasSword: boolean;
@@ -683,7 +683,7 @@ export class Game {
       // 局外养成「捕猎·猎手」剥取:击杀战利品在掉落前按等级加成改写
       (species, loot) => this.applyHuntLootMeta(species, loot)
     );
-    // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,锄头挖开可压死藏在内的兔子。
+    // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,铲子挖开可压死藏在内的兔子。
     // 客人端不本地生成,由房主的世界快照(欢迎包/世界增量)补建
     this.burrows = new RabbitBurrowSystem(
       this.scene,
@@ -2487,7 +2487,8 @@ export class Game {
   /** 上次手持放置的道具(选择面板里排最前,方便连续放置) */
   private lastPlaceKind: ResourceKind | null = null;
 
-  /** 循环切换手持工具:空手 → 斧子 → … → 套索(仅普通工具;可放置道具走长按工具按钮的选择面板) */
+  /** 循环切换手持工具:空手 → 斧子 → … → 套索 → 背包里每种可放置道具各一格(围栏区分木/石);
+   * 可放置道具也可经长按工具按钮的选择面板直接点选 */
   cycleTool(): void {
     const next = this.nextToolInCycle();
     this.selectTool(next.tool, next.kind ?? undefined);
@@ -2506,12 +2507,24 @@ export class Game {
     return list[(i + 1) % list.length] ?? list[0];
   }
 
-  /** 循环候选:仅普通工具(手里还有的);可放置道具不进循环,由 placeableList 提供给选择面板 */
+  /** 循环候选:普通工具在前(手里还有的),可放置道具(含围栏/门)按背包顺序去重展开在后 */
   private cycleEntries(): CycleEntry[] {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'];
-    return order
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword', 'lasso'];
+    const list: CycleEntry[] = order
       .filter((t) => t === 'hand' || this.hasTool(t))
       .map((tool) => ({ tool, kind: null }));
+    for (const { kind } of this.placeableList(this.local)) {
+      list.push({
+        tool:
+          kind === 'fenceWood' || kind === 'fenceStone'
+            ? 'fence'
+            : kind === 'fenceGate'
+              ? 'fenceGate'
+              : 'place',
+        kind,
+      });
+    }
+    return list;
   }
 
   /** 某会话背包里可手持放置的道具清单(去重;上次使用的排最前,便于连续放置) */
@@ -3123,9 +3136,9 @@ export class Game {
     this.notify('复活石发出微光碎裂了,你在出生点苏醒', session);
   }
 
-  /** 通用规则:刚放置的东西可以被锄头挖走时,若正手持锄头则收起,避免原地立刻把它挖掉 */
+  /** 通用规则:刚放置的东西可以被铲子挖走时,若正手持铲子则收起,避免原地立刻把它挖掉 */
   private afterPlaceDiggable(actor: PlayerSession = this.local): void {
-    if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
+    if (actor.player.currentTool === 'shovel') actor.player.setTool('hand');
   }
 
   /** 可安放道具的统一落点:就近最优可放格中心(与围栏共用同一格网),及其不可放原因(可放为 null) */
@@ -4212,7 +4225,7 @@ export class Game {
       capacity: s.inventory.capacity,
       hasAxe: !!s.tools.axe,
       hasPickaxe: !!s.tools.pickaxe,
-      hasHoe: !!s.tools.hoe,
+      hasShovel: !!s.tools.shovel,
       hasFishingrod: !!s.tools.fishingrod,
       hasBow: !!s.tools.bow,
       hasSword: !!s.tools.sword,
@@ -4495,7 +4508,7 @@ export class Game {
       color = tease?.color;
     } else if (nearby && session.collect.canCollect(nearby)) {
       progress = session.collect.getHarvestInfo()?.progress ?? null;
-      const digging = session.player.currentTool === 'hoe';
+      const digging = session.player.currentTool === 'shovel';
       label =
         session.collect.isPickingFruit(nearby)
           ? '摘果子'

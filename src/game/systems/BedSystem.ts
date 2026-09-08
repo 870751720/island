@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { Bed, BED_MAX_LEVEL } from '../entities/Bed';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -15,7 +15,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距床小于该值时算在床旁
-const DIG_RANGE = 1.6; // 持锄头可开挖床的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖床的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const SLEEP_TIME = 4; // 睡觉过渡时长(秒)
 const SNORE_TICK = 1.2; // 打呼声间隔(秒)
@@ -47,7 +47,7 @@ type PlayerSessionState = {
 /**
  * 床系统(世界单实例,按发起者 actor 结算,可放置多个):
  * - 床在工作台制作(树枝×8 + 石头×2 + 绳线×2),背包里点「使用」放到脚下;
- * - 手持锄头靠近床站定可整张挖走,变成对应等级的床道具;
+ * - 手持铲子靠近床站定可整张挖走,变成对应等级的床道具;
  * - 靠近床点工具按钮发起睡觉,过渡片刻后一觉跳到第二天清晨(结算由回调交给外层)。
  */
 export class BedSystem {
@@ -203,12 +203,12 @@ export class BedSystem {
     }
   }
 
-  /** 手持锄头站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */
+  /** 手持铲子站定在床旁自动挖掘,命中数次后整张挖走(变成对应等级的道具) */
   private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
     const p = actor.player.group.position;
     let target: Bed | null = null;
     if (
-      actor.player.currentTool === 'hoe' &&
+      actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
       st.sleepTimer <= 0 &&
       !this.isOtherBusy(actor)
@@ -235,7 +235,7 @@ export class BedSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#c9a15c', 6);
     st.hits += 1;
-    if (st.hits < (hoeHits(actor.tools.hoe))) return;
+    if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
     this.beds.splice(this.beds.indexOf(target), 1);
@@ -249,7 +249,7 @@ export class BedSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

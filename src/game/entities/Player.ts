@@ -51,12 +51,12 @@ export type ActionType =
   | 'slash'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏)/安放(可放置道具通用) */
+/** 手持工具:空手/斧子/镐子/铲子/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏)/安放(可放置道具通用) */
 export type HandTool =
   | 'hand'
   | 'axe'
   | 'pickaxe'
-  | 'hoe'
+  | 'shovel'
   | 'fishingrod'
   | 'bow'
   | 'sword'
@@ -180,8 +180,8 @@ function makePickaxeModel(tier: 1 | 2 | 3): THREE.Group {
   return g;
 }
 
-/** 锄头:木柄 + 宽扁刃,握在右手;一级木刃、二级石刃、三级铁刃(刃更宽) */
-function makeHoeModel(tier: 1 | 2 | 3): THREE.Group {
+/** 铲子:木柄 + 宽扁刃,握在右手;一级木刃、二级石刃、三级铁刃(刃更宽) */
+function makeShovelModel(tier: 1 | 2 | 3): THREE.Group {
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.05, 0.62, 5),
@@ -269,7 +269,7 @@ export class Player implements Updatable {
   /** 「晕晕的」状态剩余时长(舒爽时再喝酒转为,减速但增伤) */
   private tipsyLeft = 0;
   private handTool: HandTool = 'hand';
-  /** 每件工具按等级的模型(下标 = 等级 - 1;锄头/围栏只有 1 级) */
+  /** 每件工具按等级的模型(下标 = 等级 - 1;铲子/围栏只有 1 级) */
   private placeMount: THREE.Group;
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group[]>> = {};
   /** 各工具当前等级(缺省 1),决定展示哪一档模型 */
@@ -332,7 +332,7 @@ export class Player implements Updatable {
     const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
       ['axe', [makeAxeModel(1), makeAxeModel(2), makeAxeModel(3)]],
       ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2), makePickaxeModel(3)]],
-      ['hoe', [makeHoeModel(1), makeHoeModel(2), makeHoeModel(3)]],
+      ['shovel', [makeShovelModel(1), makeShovelModel(2), makeShovelModel(3)]],
       ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2), makeFishingRodModel(3)]],
       ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],

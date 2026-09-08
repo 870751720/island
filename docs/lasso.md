@@ -24,7 +24,7 @@
   - 被拴:`pickTarget` 只在桩周 2.2 米采样,`canStand` 限制不超出桩绳 3 米(鳄鱼 pond leash 同款);免疫 `startle`。
   - 不可攻击:`nearestAlive / nearestId / hitSegment / damageNearby / damage` 全部过滤 `leash` 个体(与 hidden 过滤同模式)。
   - API:`lassoSheep / stakeSheep / releaseLeash / leashedBy / nearestSheep / hitSegmentSheep / stakedNear / spawnStakedSheep`;姿态快照输出 `leash` 字段(`setPlayerIdResolver` 解析持绳玩家会话 id),被拴/被牵期间临时按 25Hz 战斗组下发;客人端镜像 `netLeash` 只用于表现。
-- `src/game/entities/Stake.ts` + `src/game/systems/StakeSystem.ts`:拴羊桩(斜切面木桩+桩顶绳圈)与放置物系统,世界段 `stakes`(稳定 id + 落点)走世界增量,`snapshot/restore/netApply` 同床/围栏模式;不入锄头挖掘流程(拆桩即解绳,走动作按钮)。
+- `src/game/entities/Stake.ts` + `src/game/systems/StakeSystem.ts`:拴羊桩(斜切面木桩+桩顶绳圈)与放置物系统,世界段 `stakes`(稳定 id + 落点)走世界增量,`snapshot/restore/netApply` 同床/围栏模式;不入铲子挖掘流程(拆桩即解绳,走动作按钮)。
 - `src/game/fx/LeashLines.ts`(世界单例):按帧更新的 `THREE.Line` 池(10 段带下垂弧度),由 `Game.updateLeashLines` 每帧喂入「玩家↔羊 / 桩↔羊」两端点;两端本地推导,无网络对象。
 - `Game.ts` 接线:工具循环加入 lasso(持有判定 = 背包有套索或正牵着羊);`useToolButton` 在持套索且牵着羊时改为打桩;HUD 新增 `hasLasso / lassoCount / leading / nearTether`(客人由房主快照回流),牵着羊时工具按钮恒为打桩图标(优先级高于工作台/火堆等场景图标,不会被抢走);`setToolFor` 统一入口(本地与 `tool` 动作共用)在牵着羊时锁死套索、不响应任何切换;`isSessionBusy` 在牵着羊时对除套索外的全部站定交互返回占用(采集/喝水/制作等均不可开始);死亡/断线时释放牵着的羊(套索掉在羊脚下);存档收集为纯快照——被牵着的羊不入档,存档数据里给玩家多记一个套索(等价退回背包),但现场绳子保持不动,自动存档不会再把绳子"存断"。
 - 数值:射程 6 / 飞行速度 14 / 蓄力 0.45s / 命中半径 0.9 / 跟随 5.0 / 桩周游荡 2.2 / 桩绳上限 3。

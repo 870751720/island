@@ -9,7 +9,7 @@
 - 新增资源点「铁矿」:只分布在**地图后 50% 区域(纬度 ≥ 0.5)**,外观为嵌着锈红铁斑的岩体,需**二级镐(石镐)**开采(一级镐无法开采,提示「需要石镐」),产出与石矿相同的石头(石头 ×2 + 25% 燧石),**另产出铁矿石 ×2-4**。
 - 陨石采集在原有产出(石头 ×2 + 25% 燧石)基础上,**新增铁矿石 ×2-4**。
 - 新增道具「铁矿石」与「铁锭」。
-- 新增可制作放置物「冶炼炉」(🏭):**三级工作台**制作,配方 **石头 ×10 + 燧石 ×3**;放置规则与木箱/饵料桶一致(干地、无遮挡),可被锄头挖走回收(炉内矿石与铁锭一并返还)。
+- 新增可制作放置物「冶炼炉」(🏭):**三级工作台**制作,配方 **石头 ×10 + 燧石 ×3**;放置规则与木箱/饵料桶一致(干地、无遮挡),可被铲子挖走回收(炉内矿石与铁锭一并返还)。
 - 靠近冶炼炉接管工具按钮,打开面板:按数量把背包里的铁矿石投入炉内(无容量上限),也可随时取回还没炼的矿石,**每 15 秒用 3 块铁矿石炼出 1 块铁锭**,可随时收取;矿石足够(≥3 块)时炉门火光闪动,不足 3 块时视为空闲(不计时、火光熄灭、进度为 0),等待补足后再继续。
 
 ## 设计方案
@@ -18,7 +18,7 @@
 - 撒点 `world/PropSpawner.ts`:`Rule` 新增可选 `minT` 硬性纬度下限,落点与候选格双重过滤;铁矿 `density: 40、radius: 1.2、patch: 4、weights: [0.4, 0.6, 1, 1.3]、minT: 0.5`(密度以北半区有效陆地计,总量不少于全岛石矿的一半)。出生点保底不含铁矿。
 - 采集 `systems/CollectSystem.ts`:`HARVEST_CONFIG.iron`(mine、4 击、二级镐 3 击)与 meteor 条目均加 `ironOre 2-4`;iron 与 rock/meteor 同样要求手持镐子(自动换工具、提示文案同步)。
 - 道具:`ResourceKind` 新增 `ironOre`(铁矿石 🧲)/`ironIngot`(铁锭 ⚙️)/`smelter`(冶炼炉 🏭),`ITEMS`/`DROP_COLORS`/`BUILDERS`(矿石 = 灰岩嵌锈红斑、铁锭 = 梯形块、炉 = 小石炉带火光)配套。
-- 冶炼炉完全镜像饵料桶(`entities/Smelter.ts` + `systems/SmelterSystem.ts`):状态为 `ore/ingot/tickLeft`;摆放校验、锄头挖走、`nearby`、`snapshot/restore/netApply`、`EntityChangeSink` 增量上报一一对齐;冶炼计时只在权威端结算,客人端本地倒数只做表现。面板 `ui/SmelterPanel.tsx`(矿石/铁锭存量、进度条、投入/收取)。
+- 冶炼炉完全镜像饵料桶(`entities/Smelter.ts` + `systems/SmelterSystem.ts`):状态为 `ore/ingot/tickLeft`;摆放校验、铲子挖走、`nearby`、`snapshot/restore/netApply`、`EntityChangeSink` 增量上报一一对齐;冶炼计时只在权威端结算,客人端本地倒数只做表现。面板 `ui/SmelterPanel.tsx`(矿石/铁锭存量、进度条、投入/收取)。
 - 配方:`Crafting.ts` 新增 `smelter`(`station: 'workbench' + minBenchLevel: 3`,石头 ×10 + 燧石 ×3)。
 - 存档:`SaveData` 新增可选字段 `smelters`(落点 + ore/ingot/tickLeft),旧档缺省视为无炉,`SAVE_VERSION` 保持不变。
 - 联机:动作 `useSmelter/smelterFeed/smelterCollect` 上行房主结算,世界段 `smelters` 增量回流(同 `baitBarrels`);采集走既有 collectFx/掉落事件通道,无新增同步。
@@ -37,7 +37,7 @@
 
 ### 铁制工具(2026-09)
 
-- 三级工作台新增六件铁制工具配方:铁剑 3 木头 + 2 铁锭、铁镐 2 木头 + 3 铁锭、铁斧 3 木头 + 2 铁锭、铁鱼竿 1 铁锭 + 5 绳线、铁弓 3 铁锭 + 5 绳线、铁锄 1 铁锭 + 2 木头,详见 `docs/tool-upgrade.md`。
+- 三级工作台新增六件铁制工具配方:铁剑 3 木头 + 2 铁锭、铁镐 2 木头 + 3 铁锭、铁斧 3 木头 + 2 铁锭、铁鱼竿 1 铁锭 + 5 绳线、铁弓 3 铁锭 + 5 绳线、铁铲 1 铁锭 + 2 木头,详见 `docs/tool-upgrade.md`。
 
 ### 冶炼比例调整(2026-09)
 

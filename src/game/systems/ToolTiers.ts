@@ -32,7 +32,7 @@ export function pickaxeHits(kind: 'rock' | 'iron' | 'meteor', tier: number): num
   return PICKAXE_RULES[kind].hits[clampTier(tier) - 1];
 }
 
-/** 锄头挖掘命中次数(丛与一切可挖走的放置物同表) */
-export function hoeHits(tier: number): number {
+/** 铲子挖掘命中次数(丛与一切可挖走的放置物同表) */
+export function shovelHits(tier: number): number {
   return [3, 2, 1][clampTier(tier) - 1];
 }

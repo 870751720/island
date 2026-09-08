@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import type { ResourceKind } from './Inventory';
 import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
 import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
@@ -19,7 +19,7 @@ const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#c9a15c';
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距工作台小于该值时算在工作范围内
-const DIG_RANGE = 1.6; // 持锄头可开挖工作台的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖工作台的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 各等级工作台对应的道具 */
@@ -54,7 +54,7 @@ type PlayerSessionState = {
  * 工作台系统(世界单实例,按发起者 actor 结算,可放置多个):
  * - 材料满足且场上没有工作台时可通过卡片发起制作,站定敲打完成后在玩家原位放置;
  * - 已放置的工作台可花费石头升级(最高 4 级),操作目标为身旁最近的一台;
- * - 手持锄头靠近工作台站定可整台挖走,变成对应等级的工作台道具;
+ * - 手持铲子靠近工作台站定可整台挖走,变成对应等级的工作台道具;
  * - 背包里点击「使用」工作台道具,校验通过后在玩家脚下原地放回该等级。
  */
 export class WorkbenchSystem {
@@ -259,8 +259,8 @@ export class WorkbenchSystem {
         const bp = bench.group.position;
         this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, rotY: bench.group.rotation.y, level: bench.level } });
         this.crafted = true;
-        // 通用规则:刚放下的东西可被锄头挖走时收起锄头,避免原地立刻挖掉
-        if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
+        // 通用规则:刚放下的东西可被铲子挖走时收起铲子,避免原地立刻挖掉
+        if (actor.player.currentTool === 'shovel') actor.player.setTool('hand');
       } else {
         for (const [kind, n] of Object.entries(workbenchUpgradeCost(st.upgradeTarget!.level))) {
           actor.inventory.remove(kind as ResourceKind, n ?? 0);
@@ -276,12 +276,12 @@ export class WorkbenchSystem {
     }
   }
 
-  /** 手持锄头站定在工作台旁自动挖掘,命中数次后整台挖走(变成对应等级的道具) */
+  /** 手持铲子站定在工作台旁自动挖掘,命中数次后整台挖走(变成对应等级的道具) */
   private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
     const p = actor.player.group.position;
     let target: Workbench | null = null;
     if (
-      actor.player.currentTool === 'hoe' &&
+      actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
       st.timer <= 0 &&
       !this.isBusy(actor)
@@ -308,7 +308,7 @@ export class WorkbenchSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#8a6239', 6);
     st.hits += 1;
-    if (st.hits < (hoeHits(actor.tools.hoe))) return;
+    if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
     this.benches.splice(this.benches.indexOf(target), 1);
@@ -322,7 +322,7 @@ export class WorkbenchSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

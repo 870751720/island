@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { CookingStation, BOIL_INTERVAL } from '../entities/CookingStation';
 import type { ResourceKind } from './Inventory';
 import { ITEMS } from './Items';
@@ -18,7 +18,7 @@ import type { LightPool } from '../world/LightPool';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距烹饪台小于该值时算在台旁
-const DIG_RANGE = 1.6; // 持锄头可开挖烹饪台的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖烹饪台的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const ROAST_TIME = 1.6; // 每份食物的烤制时长(秒)
 const ROAST_TICK = 0.8; // 烤制翻动特效间隔(秒)
@@ -77,7 +77,7 @@ type PlayerSessionState = {
  * - 添柴点燃后与火堆一样可烤制(玩家站定逐份烤,走开或火灭退回剩余食材);
  * - 另可发起「煮汤」:选一种食材和份数下锅,台子自己每 5 秒煮出 1 份存放在台上,
  *   同一时间只能煮一种食材,随时收取;燃尽则暂停,添柴续煮;
- * - 手持锄头靠近站定自动整台挖走(变回烹饪台道具,锅里剩余食材与煮好的汤一并回包)。
+ * - 手持铲子靠近站定自动整台挖走(变回烹饪台道具,锅里剩余食材与煮好的汤一并回包)。
  * 燃料消耗与煮制计时只在权威端(单机/房主)结算,客人端由世界增量回流 + 本地倒数表现。
  */
 export class CookingStationSystem {
@@ -399,12 +399,12 @@ export class CookingStationSystem {
     return !!this.states.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在烹饪台旁自动挖掘,命中数次后整台挖走(锅里剩余食材与煮好的汤一并回包) */
+  /** 手持铲子站定在烹饪台旁自动挖掘,命中数次后整台挖走(锅里剩余食材与煮好的汤一并回包) */
   private updateDig(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
     const p = actor.player.group.position;
     let target: CookingStation | null = null;
     if (
-      actor.player.currentTool === 'hoe' &&
+      actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
       !st.roastKind &&
       !this.isOtherBusy(actor)
@@ -431,7 +431,7 @@ export class CookingStationSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#5c5f66', 6);
     st.hits += 1;
-    if (st.hits < hoeHits(actor.tools.hoe)) return;
+    if (st.hits < shovelHits(actor.tools.shovel)) return;
     st.hits = 0;
     st.digTarget = null;
     this.stations.splice(this.stations.indexOf(target), 1);
@@ -449,7 +449,7 @@ export class CookingStationSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

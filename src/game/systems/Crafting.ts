@@ -3,7 +3,7 @@ import { EQUIPMENT, SLOT_ORDER, isEquipKind, type EquipKind, type EquipSlot, typ
 import { ITEM_CATEGORIES, itemCategory, type ItemCategory } from './Items';
 
 /** 可拥有的工具 */
-export type ToolId = 'axe' | 'pickaxe' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
+export type ToolId = 'axe' | 'pickaxe' | 'shovel' | 'fishingrod' | 'bow' | 'sword';
 
 /** 二级工具配方 id(refined- 前缀区分基础工具) */
 export type RefinedToolId = `refined-${ToolId}`;
@@ -65,7 +65,7 @@ export type Recipe = {
 const TOOL_NAMES: Record<ToolId, [string, string, string]> = {
   axe: ['木斧', '石斧', '铁斧'],
   pickaxe: ['木镐', '石镐', '铁镐'],
-  hoe: ['木锄', '石锄', '铁锄'],
+  shovel: ['木铲', '石铲', '铁铲'],
   fishingrod: ['树枝鱼竿', '木鱼竿', '铁鱼竿'],
   bow: ['树枝弓', '木弓', '铁弓'],
   sword: ['木剑', '石剑', '铁剑'],
@@ -76,7 +76,7 @@ export function toolName(tool: ToolId, tier: number): string {
 }
 
 /** 全部工具(工具 tab 展示顺序) */
-export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'];
+export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword'];
 
 /** 配方图标对应的道具(工具类即工具本身,材料/装备类为产物) */
 export function recipeIconKind(recipe: Recipe): ResourceKind {
@@ -165,11 +165,11 @@ export const RECIPES: Recipe[] = [
     tool: 'bow',
   },
   {
-    id: 'hoe',
-    name: '木锄',
+    id: 'shovel',
+    name: '木铲',
     cost: { branch: 1, stone: 2 },
     station: 'workbench',
-    tool: 'hoe',
+    tool: 'shovel',
     hidePrompt: true,
   },
   {
@@ -225,11 +225,11 @@ export const RECIPES: Recipe[] = [
     minBenchLevel: 2,
   },
   {
-    id: 'refined-hoe',
-    name: '石锄',
+    id: 'refined-shovel',
+    name: '石铲',
     cost: { wood: 2, stone: 1 },
     station: 'workbench',
-    tool: 'hoe',
+    tool: 'shovel',
     tier: 2,
     minBenchLevel: 2,
   },
@@ -279,11 +279,11 @@ export const RECIPES: Recipe[] = [
     minBenchLevel: 3,
   },
   {
-    id: 'iron-hoe',
-    name: '铁锄',
+    id: 'iron-shovel',
+    name: '铁铲',
     cost: { wood: 2, ironIngot: 1 },
     station: 'workbench',
-    tool: 'hoe',
+    tool: 'shovel',
     tier: 3,
     minBenchLevel: 3,
   },

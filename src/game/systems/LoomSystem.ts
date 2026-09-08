@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { Loom } from '../entities/Loom';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -14,7 +14,7 @@ import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距纺织机小于该值时算在机旁
-const DIG_RANGE = 1.6; // 持锄头可开挖纺织机的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖纺织机的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每织 1 匹布料消耗 2 根绳线,耗时 6 秒 */
@@ -49,7 +49,7 @@ export type LoomInfo = {
  * - 背包里点击「使用」纺织机,校验通过后在玩家脚下原地放下
  *   (与冶炼炉同一套摆放规则:不能在水里/水边,脚下不能被资源点或其他纺织机占住);
  * - 靠近后可把背包里的绳线丢进机:每 2 根绳线织出 1 匹布料,存放在机内待收取;
- * - 手持锄头靠近站定自动整机挖走(变回纺织机道具,机内绳线与布料一并回到背包/掉落)。
+ * - 手持铲子靠近站定自动整机挖走(变回纺织机道具,机内绳线与布料一并回到背包/掉落)。
  * 织布计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
 export class LoomSystem {
@@ -209,13 +209,13 @@ export class LoomSystem {
     return !!this.digStates.get(actor)?.digTarget;
   }
 
-  /** 手持锄头站定在纺织机旁自动挖掘,命中数次后整机挖走(机内绳线与布料一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  /** 手持铲子站定在纺织机旁自动挖掘,命中数次后整机挖走(机内绳线与布料一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       const p = actor.player.group.position;
       let target: Loom | null = null;
-      if (actor.player.currentTool === 'hoe' && !actor.player.isSwimming && !this.isBusy(actor)) {
+      if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !this.isBusy(actor)) {
         for (const loom of this.looms) {
           this.scratch.copy(loom.group.position);
           this.scratch.y = p.y;
@@ -238,7 +238,7 @@ export class LoomSystem {
       st.swingTimer = 0;
       this.fx.burst(target.group.position, '#8a6239', 6);
       st.hits += 1;
-      if (st.hits < (hoeHits(actor.tools.hoe))) return;
+      if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
       this.looms.splice(this.looms.indexOf(target), 1);
@@ -257,7 +257,7 @@ export class LoomSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.digStates.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

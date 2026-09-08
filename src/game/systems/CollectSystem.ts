@@ -12,7 +12,7 @@ import type { CollectMeta } from '../meta/MetaHooks';
 import { NO_COLLECT_META } from '../meta/MetaHooks';
 import { Inventory } from './Inventory';
 import type { Tools } from './Crafting';
-import { axeHits, hoeHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
+import { axeHits, shovelHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 
@@ -21,7 +21,7 @@ const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
-/** 锄头挖走的丛/窝对应的道具 */
+/** 铲子挖走的丛/窝对应的道具 */
 const DIG_YIELD: Partial<
   Record<'berry' | 'shrub' | 'grass' | 'wormNest', 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest'>
 > = {
@@ -183,10 +183,10 @@ export class CollectSystem {
     private meta: CollectMeta = NO_COLLECT_META
   ) {}
 
-  /** 手持锄头靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
+  /** 手持铲子靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
   private isDigging(prop: Prop): boolean {
     return (
-      this.player.currentTool === 'hoe' &&
+      this.player.currentTool === 'shovel' &&
       (prop.kind === 'berry' || prop.kind === 'shrub' || prop.kind === 'grass' || prop.kind === 'wormNest')
     );
   }
@@ -199,10 +199,10 @@ export class CollectSystem {
     return 'tree';
   }
 
-  /** 该资源点需要命中的总次数:斧/镐/锄头按当前工具等级查表(ToolTiers) */
+  /** 该资源点需要命中的总次数:斧/镐/铲子按当前工具等级查表(ToolTiers) */
   private hitsFor(prop: Prop): number {
     const kind = this.kindOf(prop);
-    if (this.isDigging(prop)) return hoeHits(this.tools.hoe);
+    if (this.isDigging(prop)) return shovelHits(this.tools.shovel);
     if (kind === 'tree' || kind === 'stump') return axeHits(kind, this.tools.axe);
     if (kind === 'rock' || kind === 'iron' || kind === 'meteor') {
       return pickaxeHits(kind, this.tools.pickaxe);
@@ -217,7 +217,7 @@ export class CollectSystem {
     let fallback: Prop | null = null;
     const p = this.player.group.position;
     for (const prop of this.props.list) {
-      // 未恢复的资源点不可交互,除非手持锄头(丛任何状态都能整棵挖走)
+      // 未恢复的资源点不可交互,除非手持铲子(丛任何状态都能整棵挖走)
       if (!prop.ready && !this.isDigging(prop)) continue;
       if (prop.position.distanceTo(p) >= COLLECT_RANGE) continue;
       if (this.canCollect(prop)) {
@@ -317,7 +317,7 @@ export class CollectSystem {
       this.props.pickFruit(prop);
       config.yield(this.inventory, prop);
     } else if (this.isDigging(prop)) {
-      // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
+      // 铲子把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
       this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
     } else {
@@ -338,7 +338,7 @@ export class CollectSystem {
     this.nearby = null;
   }
 
-  /** 局外养成「采集·巧匠」的额外产出:在基础产出结算后追加(锄头整棵挖走不吃加成) */
+  /** 局外养成「采集·巧匠」的额外产出:在基础产出结算后追加(铲子整棵挖走不吃加成) */
   private applyMetaYield(
     prop: Prop,
     kind: HarvestKind,

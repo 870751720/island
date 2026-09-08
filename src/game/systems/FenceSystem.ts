@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
 import { Fence, type FenceConnections, type FenceKind } from '../entities/Fence';
 import { FenceGate } from '../entities/FenceGate';
@@ -20,9 +20,9 @@ const PLACE_AHEAD = 0.9;
 const PROP_BLOCK_RANGE = 0.6;
 /** 门自动开合的玩家距离 */
 const GATE_AUTO_RANGE = 1.6;
-/** 持锄头可开挖围栏的距离 */
+/** 持铲子可开挖围栏的距离 */
 const DIG_RANGE = 1.5;
-/** 锄头挖围栏的命中次数(二级锄 1 次) */
+/** 铲子挖围栏的命中次数(二级铲 1 次) */
 const SWING_TIME = 0.6;
 /** 手持围栏站定自动放置的时长(秒) */
 const PLACE_TIME = 2;
@@ -109,7 +109,7 @@ export function makeFenceGateHandModel(): THREE.Group {
  * - 围栏柱吸附在整数格点上,相邻柱/门之间自动伸出横杆,沿边逐个放置即可围出无缝闭合的圈;
  * - 围栏门占一条格点边,玩家靠近自动开、走远自动关,动物不会开门;
  * - 围栏连接与关着的门构成阻挡线段:玩家移动被推出,动物(兔/羊/野牛/狼/熊/蟹)绕行判定被挡住;
- * - 手持锄头靠近站定自动把围栏/门挖回道具。
+ * - 手持铲子靠近站定自动把围栏/门挖回道具。
  */
 export class FenceSystem implements ObstacleSolver {
   private fences = new Map<string, Fence>();
@@ -625,7 +625,7 @@ export class FenceSystem implements ObstacleSolver {
       this.updatePreview(actor, st);
       this.updateAutoPlace(actor, st, delta);
 
-      const holding = actor.player.currentTool === 'hoe';
+      const holding = actor.player.currentTool === 'shovel';
       let target: { kind: 'fence' | 'gate'; key: string } | null = null;
       if (holding && !actor.player.isSwimming && !this.isBusy(actor)) {
         target = this.findDigTarget(actor);
@@ -643,7 +643,7 @@ export class FenceSystem implements ObstacleSolver {
       st.swingTimer = 0;
       st.hits += 1;
       this.fx.burst(this.digCenter(target), '#a97b48', 6);
-      if (st.hits < (hoeHits(actor.tools.hoe))) return;
+      if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
       const center = this.digCenter(target);
@@ -668,7 +668,7 @@ export class FenceSystem implements ObstacleSolver {
     );
   }
 
-  /** 锄头范围内最近的围栏柱或门 */
+  /** 铲子范围内最近的围栏柱或门 */
   private findDigTarget(actor: PlayerSession): { kind: 'fence' | 'gate'; key: string } | null {
     const p = actor.player.group.position;
     let best: { kind: 'fence' | 'gate'; key: string } | null = null;
@@ -722,7 +722,7 @@ export class FenceSystem implements ObstacleSolver {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

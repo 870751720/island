@@ -52,7 +52,7 @@ const INITIAL_HUD: HudSnapshot = {
   capacity: 10,
   hasAxe: false,
   hasPickaxe: false,
-  hasHoe: false,
+  hasShovel: false,
   hasFishingrod: false,
   hasBow: false,
   hasSword: false,
@@ -60,7 +60,7 @@ const INITIAL_HUD: HudSnapshot = {
   lassoCount: 0,
   leading: false,
   nearTether: false,
-  toolTiers: { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
+  toolTiers: { axe: 0, pickaxe: 0, shovel: 0, fishingrod: 0, bow: 0, sword: 0 },
   craftedIds: [],
   nearCrate: false,
   nearBaitBarrel: false,
@@ -122,8 +122,8 @@ const INITIAL_HUD: HudSnapshot = {
 };
 
 /**
- * 会劫持工具按钮的东西里,哪些能被锄头挖走:
- * 持锄头面对它们时不劫持按钮(意图是挖走,不是交互)。
+ * 会劫持工具按钮的东西里,哪些能被铲子挖走:
+ * 持铲子面对它们时不劫持按钮(意图是挖走,不是交互)。
  * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
  */
 const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'brewBarrel' | 'smelter' | 'cookingStation' | 'loom' | 'bed', boolean>> = {
@@ -137,7 +137,7 @@ const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'bait
   bed: true,
 };
 
-/** 面前劫持按钮的东西是否可被锄头挖走(无劫持时为 false) */
+/** 面前劫持按钮的东西是否可被铲子挖走(无劫持时为 false) */
 function hijackerDiggable(
   nearWorkbench: boolean,
   nearCampfire: boolean,
@@ -401,9 +401,9 @@ export function GameplayUI({
 
   const closeMap = () => setMapOpen(false);
 
-  // 持锄头且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
+  // 持铲子且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
-    hud.tool === 'hoe' &&
+    hud.tool === 'shovel' &&
     hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearBrewBarrel, hud.nearSmelter, hud.nearCookingStation, hud.nearLoom, hud.nearBed);
 
   return (
@@ -585,7 +585,7 @@ export function GameplayUI({
         <>
           {(hud.hasAxe ||
             hud.hasPickaxe ||
-            hud.hasHoe ||
+            hud.hasShovel ||
             hud.hasFishingrod ||
             hud.hasBow ||
             hud.hasSword ||
@@ -718,7 +718,7 @@ export function GameplayUI({
                   tool: 'hand',
                   active: hud.tool === 'hand',
                 },
-                ...(['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'] as const)
+                ...(['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword'] as const)
                   .filter((t) => hud.toolTiers[t] > 0)
                   .map((t) => ({
                     key: t,

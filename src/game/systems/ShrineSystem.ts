@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
-import { hoeHits } from './ToolTiers';
+import { shovelHits } from './ToolTiers';
 import { Shrine, SHRINE_COLORS, type ShrineKind } from '../entities/Shrine';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -14,7 +14,7 @@ import { ActionHold } from './ActionHold';
 import type { LightPool } from '../world/LightPool';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
-const DIG_RANGE = 1.6; // 持锄头可开挖神像的距离
+const DIG_RANGE = 1.6; // 持铲子可开挖神像的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 波塞冬的祝福:每座神像降低的钓鱼杂物概率(百分点) */
 export const SHRINE_JUNK_CUT = 1;
@@ -30,7 +30,7 @@ type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; 
 /**
  * 神龛系统(世界共享,按发起者 actor 结算,可放置多个):
  * 钓鱼稀世珍宝「使用」后放到脚下立起对应神龛;放置期间提供各自的全岛/光环祝福,
- * 手持锄头靠近站定可整座挖走,变回道具。
+ * 手持铲子靠近站定可整座挖走,变回道具。
  * - 波塞冬的祝福:全岛钓鱼杂物概率降低
  * - 蜂巢神龛:全岛采集浆果丛时 10% 概率多掉 1 颗
  * - 治愈水晶:30 米内玩家缓慢回血
@@ -153,7 +153,7 @@ export class ShrineSystem {
     const p = actor.player.group.position;
     let target: Shrine | null = null;
     if (
-      actor.player.currentTool === 'hoe' &&
+      actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
       !this.isOtherBusy(actor)
     ) {
@@ -179,7 +179,7 @@ export class ShrineSystem {
     st.swingTimer = 0;
     this.fx.burst(target.group.position, '#8d99a6', 6);
     st.hits += 1;
-    if (st.hits < (hoeHits(actor.tools.hoe))) return;
+    if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
     this.shrines.splice(this.shrines.indexOf(target), 1);
@@ -202,7 +202,7 @@ export class ShrineSystem {
   getDigProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
     if (!st?.digTarget) return null;
-    const need = hoeHits(actor.tools.hoe);
+    const need = shovelHits(actor.tools.shovel);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 

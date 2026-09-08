@@ -87,10 +87,10 @@ export class CraftingSystem {
       craft(recipe, this.inventory, this.tools, this.give, this.equipment);
       this.craftedIds.add(recipe.id);
       // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
-      // 锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖刚做的产物/设施
+      // 铲子特殊处理:不自动切换,仅刷新等级模型,避免原地误挖刚做的产物/设施
       if (recipe.tool) {
         this.player.setToolTier(recipe.tool, this.tools[recipe.tool]);
-        if (recipe.tool !== 'hoe') this.player.setTool(recipe.tool);
+        if (recipe.tool !== 'shovel') this.player.setTool(recipe.tool);
       }
       this.audio.play('success');
       const p = this.player.group.position.clone();

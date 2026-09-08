@@ -31,7 +31,7 @@ export class PlayerSession implements Actor {
   readonly equipment = new Equipment();
   /** 弹药(箭/鱼饵):不进背包的独立持有物,工具按钮角标展示数量 */
   readonly ammo = new AmmoStore();
-  readonly tools: Tools = { axe: 0, pickaxe: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 };
+  readonly tools: Tools = { axe: 0, pickaxe: 0, shovel: 0, fishingrod: 0, bow: 0, sword: 0 };
   /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示用) */
   readonly craftedIds: Set<CraftId> = new Set();
   /** 本局战绩计数(击杀/采集),权威端累计,单机入档 */

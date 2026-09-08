@@ -50,7 +50,7 @@ function makeBurrowMesh(): { group: THREE.Group; hole: THREE.Object3D } {
 
 /**
  * 场景中的兔子洞:栖息地里兔子的家,受惊的兔子钻进去躲藏;
- * 被锄头挖开后塌成废弃洞,不再提供庇护,等待重新塌出新洞。
+ * 被铲子挖开后塌成废弃洞,不再提供庇护,等待重新塌出新洞。
  */
 export class RabbitBurrow {
   readonly group: THREE.Group;
