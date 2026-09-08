@@ -759,14 +759,18 @@ function makeBackpack(color: string): THREE.Object3D {
   return g;
 }
 
-/** 铲子:木柄 + 宽扁的石刃 */
+/** 铲子:木柄 + 顶端同轴的扁圆锥铲斗 */
 function makeShovel(): THREE.Object3D {
   const g = new THREE.Group();
   const handle = toolHandle(clay('#8b6239'));
-  const blade = mesh(new THREE.BoxGeometry(0.22, 0.05, 0.14), clay(DROP_COLORS.shovel));
-  blade.position.set(0.1, 0.66, 0);
-  blade.rotation.z = 0.5;
-  g.add(handle, blade);
+  const headMat = clay(DROP_COLORS.shovel);
+  const scoop = mesh(new THREE.ConeGeometry(0.13, 0.28, 5, 1, true), headMat);
+  scoop.scale.z = 0.4;
+  scoop.rotation.y = Math.PI / 5;
+  scoop.position.set(-0.02, 0.8, 0);
+  const socket = mesh(new THREE.BoxGeometry(0.15, 0.1, 0.06), headMat);
+  socket.position.set(-0.01, 0.63, 0);
+  g.add(handle, scoop, socket);
   return g;
 }
 

@@ -180,7 +180,7 @@ function makePickaxeModel(tier: 1 | 2 | 3): THREE.Group {
   return g;
 }
 
-/** 铲子:木柄 + 宽扁刃,握在右手;一级木刃、二级石刃、三级铁刃(刃更宽) */
+/** 铲子:木柄 + 顶端同轴铲斗,握在右手;一级木铲、二级石铲、三级铁铲(铲斗更宽) */
 function makeShovelModel(tier: 1 | 2 | 3): THREE.Group {
   const g = new THREE.Group();
   const handle = new THREE.Mesh(
@@ -188,10 +188,16 @@ function makeShovelModel(tier: 1 | 2 | 3): THREE.Group {
     clayMaterial('#8a6239')
   );
   const bladeColor = tier === 3 ? '#aab2ba' : tier === 2 ? '#7d7d82' : '#8a8266';
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(tier === 3 ? 0.24 : 0.2, 0.04, 0.14), clayMaterial(bladeColor));
-  blade.position.set(0.05, 0.28, 0.08);
-  blade.rotation.z = 0.35;
-  g.add(handle, blade);
+  const bladeMat = clayMaterial(bladeColor);
+  const width = tier === 3 ? 0.16 : tier === 2 ? 0.14 : 0.12;
+  // 铲斗:与柄同轴的扁圆锥壳,扣在柄顶端
+  const scoop = new THREE.Mesh(new THREE.ConeGeometry(width, 0.26, 5, 1, true), bladeMat);
+  scoop.scale.z = 0.4;
+  scoop.rotation.y = Math.PI / 5;
+  scoop.position.y = 0.42;
+  const socket = new THREE.Mesh(new THREE.BoxGeometry(width * 1.1, 0.1, 0.06), bladeMat);
+  socket.position.y = 0.27;
+  g.add(handle, scoop, socket);
   g.rotation.x = Math.PI / 2.4;
   return g;
 }
