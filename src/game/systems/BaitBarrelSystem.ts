@@ -140,10 +140,10 @@ export class BaitBarrelSystem {
     return barrel;
   }
 
-  /** 把背包里该种类全部食物丢进身旁饵料桶(同种合并入队),返回是否丢入任何数量 */
-  feed(actor: PlayerSession, kind: ResourceKind): boolean {
+  /** 把背包里该种类食物丢进身旁饵料桶(count ≤ 0 为全部,同种合并入队),返回是否丢入任何数量 */
+  feed(actor: PlayerSession, kind: ResourceKind, count = 0): boolean {
     const barrel = this.nearby(actor);
-    const n = actor.inventory.count(kind);
+    const n = Math.min(count > 0 ? count : Infinity, actor.inventory.count(kind));
     if (!barrel || n <= 0 || BAIT_YIELD[kind] === undefined) return false;
     actor.inventory.remove(kind, n);
     barrel.addFood(kind, n);
@@ -161,6 +161,18 @@ export class BaitBarrelSystem {
     this.emitState(barrel);
     this.give('bait', n, actor);
     this.audio.play('success');
+    return true;
+  }
+
+  /** 把身旁饵料桶里还没发酵的食物全部取回背包,返回是否取回任何数量 */
+  takeFoods(actor: PlayerSession): boolean {
+    const barrel = this.nearby(actor);
+    if (!barrel || barrel.foods.length === 0) return false;
+    const foods = barrel.foods.splice(0);
+    barrel.tickLeft = BAIT_CONVERT_INTERVAL;
+    this.emitState(barrel);
+    for (const food of foods) this.give(food.kind, food.count, actor);
+    this.audio.play('pickup');
     return true;
   }
 

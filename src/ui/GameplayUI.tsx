@@ -723,24 +723,27 @@ export function GameplayUI({
           {baitBarrelOpen && hud.nearBaitBarrel && (
             <BaitBarrelPanel
               hud={hud}
-              onFeed={(kind) => gameRef.current?.baitBarrelFeed(kind)}
+              onFeed={(kind, count) => gameRef.current?.baitBarrelFeed(kind, count)}
               onCollect={() => gameRef.current?.baitBarrelCollect()}
+              onTakeFoods={() => gameRef.current?.baitBarrelTakeFoods()}
               onClose={() => setBaitBarrelOpen(false)}
             />
           )}
           {brewBarrelOpen && hud.nearBrewBarrel && (
             <BrewBarrelPanel
               hud={hud}
-              onFeed={(kind) => gameRef.current?.brewBarrelFeed(kind)}
+              onFeed={(kind, count) => gameRef.current?.brewBarrelFeed(kind, count)}
               onCollect={() => gameRef.current?.brewBarrelCollect()}
+              onTakeRaw={() => gameRef.current?.brewBarrelTakeRaw()}
               onClose={() => setBrewBarrelOpen(false)}
             />
           )}
           {smelterOpen && hud.nearSmelter && (
             <SmelterPanel
               hud={hud}
-              onFeed={() => gameRef.current?.smelterFeed()}
+              onFeed={(count) => gameRef.current?.smelterFeed(count)}
               onCollect={() => gameRef.current?.smelterCollect()}
+              onTakeOre={() => gameRef.current?.smelterTakeOre()}
               onClose={() => setSmelterOpen(false)}
             />
           )}
@@ -756,14 +759,16 @@ export function GameplayUI({
                 gameRef.current?.cookingBoil(kind, count);
               }}
               onCollect={() => gameRef.current?.cookingCollect()}
+              onTakeBoil={() => gameRef.current?.cookingTakeBoil()}
               onClose={() => setCookingStationOpen(false)}
             />
           )}
           {loomOpen && hud.nearLoom && (
             <LoomPanel
               hud={hud}
-              onFeed={() => gameRef.current?.loomFeed()}
+              onFeed={(count) => gameRef.current?.loomFeed(count)}
               onCollect={() => gameRef.current?.loomCollect()}
+              onTakeRope={() => gameRef.current?.loomTakeRope()}
               onClose={() => setLoomOpen(false)}
             />
           )}

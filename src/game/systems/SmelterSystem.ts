@@ -144,10 +144,10 @@ export class SmelterSystem {
     return smelter;
   }
 
-  /** 把背包里全部铁矿石丢进身旁冶炼炉,返回是否丢入任何数量 */
-  feed(actor: PlayerSession): boolean {
+  /** 把背包里的铁矿石丢进身旁冶炼炉(count ≤ 0 为全部),返回是否丢入任何数量 */
+  feed(actor: PlayerSession, count = 0): boolean {
     const smelter = this.nearby(actor);
-    const n = actor.inventory.count('ironOre');
+    const n = Math.min(count > 0 ? count : Infinity, actor.inventory.count('ironOre'));
     if (!smelter || n <= 0) return false;
     actor.inventory.remove('ironOre', n);
     smelter.ore += n;
@@ -165,6 +165,19 @@ export class SmelterSystem {
     this.emitState(smelter);
     this.give('ironIngot', n, actor);
     this.audio.play('success');
+    return true;
+  }
+
+  /** 把身旁冶炼炉里还没炼的矿石取回背包,返回是否取回任何数量 */
+  takeOre(actor: PlayerSession): boolean {
+    const smelter = this.nearby(actor);
+    if (!smelter || smelter.ore <= 0) return false;
+    const n = smelter.ore;
+    smelter.ore = 0;
+    smelter.tickLeft = SMELT_INTERVAL;
+    this.emitState(smelter);
+    this.give('ironOre', n, actor);
+    this.audio.play('pickup');
     return true;
   }
 

@@ -22,6 +22,7 @@ export function CookingStationPanel({
   onRoast,
   onBoil,
   onCollect,
+  onTakeBoil,
   onClose,
 }: {
   hud: HudSnapshot;
@@ -29,6 +30,8 @@ export function CookingStationPanel({
   onRoast: (kind: ResourceKind, count: number) => void;
   onBoil: (kind: ResourceKind, count: number) => void;
   onCollect: () => void;
+  /** 取回锅里还没煮的食材 */
+  onTakeBoil: () => void;
   onClose: () => void;
 }) {
   const count = countOf(hud);
@@ -122,6 +125,17 @@ export function CookingStationPanel({
                 />
               </div>
             </div>
+            {info.boilLeft > 0 && (
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  onTakeBoil();
+                }}
+                style={{ ...collectButtonStyle, background: '#8d9aa5' }}
+              >
+                取回 ×{info.boilLeft}
+              </button>
+            )}
             {info.outCount > 0 && info.outKind && (
               <button
                 onPointerDown={(e) => {

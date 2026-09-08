@@ -144,10 +144,10 @@ export class LoomSystem {
     return loom;
   }
 
-  /** 把背包里全部绳线丢进身旁纺织机,返回是否丢入任何数量 */
-  feed(actor: PlayerSession): boolean {
+  /** 把背包里的绳线丢进身旁纺织机(count ≤ 0 为全部),返回是否丢入任何数量 */
+  feed(actor: PlayerSession, count = 0): boolean {
     const loom = this.nearby(actor);
-    const n = actor.inventory.count('rope');
+    const n = Math.min(count > 0 ? count : Infinity, actor.inventory.count('rope'));
     if (!loom || n <= 0) return false;
     actor.inventory.remove('rope', n);
     loom.rope += n;
@@ -165,6 +165,19 @@ export class LoomSystem {
     this.emitState(loom);
     this.give('cloth', n, actor);
     this.audio.play('success');
+    return true;
+  }
+
+  /** 把身旁纺织机里还没织的绳线取回背包,返回是否取回任何数量 */
+  takeRope(actor: PlayerSession): boolean {
+    const loom = this.nearby(actor);
+    if (!loom || loom.rope <= 0) return false;
+    const n = loom.rope;
+    loom.rope = 0;
+    loom.tickLeft = LOOM_INTERVAL;
+    this.emitState(loom);
+    this.give('rope', n, actor);
+    this.audio.play('pickup');
     return true;
   }
 

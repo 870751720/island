@@ -91,7 +91,7 @@
 
 ### 酿酒桶与酒 Buff 同步(2026-09)
 
-- 新增世界段 `brewBarrels` 与动作 `useBrewBarrel/brewBarrelFeed/brewBarrelCollect`:放置/投料/收取由客人上行、房主权威结算,桶内 `kind/rawLeft/bottles/tickLeft` 经世界增量回流;发酵计时(每 45 秒 2 原料→1 瓶)只在房主端推进,锄头挖走同饵料桶。
+- 新增世界段 `brewBarrels` 与动作 `useBrewBarrel/brewBarrelFeed[kind,count]/brewBarrelCollect/brewBarrelTakeRaw`:放置/投料/收取由客人上行、房主权威结算,桶内 `kind/rawLeft/bottles/tickLeft` 经世界增量回流;发酵计时(每 45 秒 2 原料→1 瓶)只在房主端推进,锄头挖走同饵料桶。
 - 喝酒 Buff(舒爽/晕晕的):计时器在 `Player` 上,由房主权威端的进食完成回调施加(客人 `eatFood` 动作上行);姿态快照 `PlayerState` 新增 `refresh`/`tipsy` 剩余秒数字段,客人端对齐本地计时器(差值>1s 才改写),使移动加速/减速在客人本地预测移动中生效,HUD buff 列表随各端 HUD 快照展示。
 - 剑增伤:客人 `swordHit` 上行后,房主按该客人会话(房主侧副本)的晕晕状态在 `SwordSystem` 权威结算 ×1.3 伤害;弓同款(客人 `arrowHit` 上行后按晕晕状态 ×1.3),套索不受醉酒影响。
 
@@ -102,14 +102,14 @@
 
 ### 烹饪台同步(2026-09)
 
-- 新增世界段 `cookingStations`(落点 + `fuel/boilKind/boilQueue/tickLeft/outKind/outCount`)与动作 `useCookingStation/cookingAddFuel/cookingRoast/cookingBoil/cookingCollect`:放置/添柴/烤制/煮汤/收取由客人上行、房主权威结算,台上状态经世界增量回流。
+- 新增世界段 `cookingStations`(落点 + `fuel/boilKind/boilQueue/tickLeft/outKind/outCount`)与动作 `useCookingStation/cookingAddFuel/cookingRoast/cookingBoil/cookingCollect/cookingTakeBoil`:放置/添柴/烤制/煮汤/收取由客人上行、房主权威结算,台上状态经世界增量回流。
 - 煮制计时(每 5 秒 1 份)与燃料消耗只在房主端结算产出,客人端本地倒数 `tickLeft`、本地递减 `fuel` 仅做表现,快照增量柔和对账(同冶炼炉约定);烤制(玩家站定逐份烤)与火堆烹饪同款,由各端 `updateActor` 表现、房主侧结算入包。
 - 火堆挖掘回收:挖掉熄灭火堆在房主侧结算掉落「熄灭的火堆」道具,入包经 HUD 快照回流。
 
 ### 冶炼炉同步(2026-09)
 
-- 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed/smelterCollect`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。
-- 纺织机同款约定:世界段 `looms` 与动作 `useLoom/loomFeed/loomCollect`,机内 `rope/cloth/tickLeft` 经世界增量回流,织布计时只在房主端推进。
+- 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed[count]/smelterCollect/smelterTakeOre`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。
+- 纺织机同款约定:世界段 `looms` 与动作 `useLoom/loomFeed[count]/loomCollect/loomTakeRope`,机内 `rope/cloth/tickLeft` 经世界增量回流,织布计时只在房主端推进。
 
 ### 海水净化器同步(2026-09)
 
@@ -183,3 +183,7 @@
 ### 天数事件(2026-09)
 
 详见 `day-events.md`。要点:按天数刷狼/熊的事件结算全部在房主端(`DayEventSystem` 挂在主循环 `wildlife.update` 之后),狼按会话逐人绑定(`Animal.boundTo`,不死不休追该玩家,绑定玩家断线后退化为普通野生),熊为全房间总量;刷出的个体走既有动物姿态快照(combat 桶)回流客人,无新增协议字段。第 10 天白天的「被盯上」台词走各客户端本地的自言自语触发,不同步。GM 设置天数为新动作 `gmSetDay [day]`(客人上行,房主 `DayNightSystem.day` 权威落定,天数随 players 快照回流)。
+
+### 转换设施投料/取回统一(2026-09)
+
+- 冶炼炉/纺织机/饵料桶/酿酒桶的投料动作增加数量参数(count ≤ 0 为全部):`smelterFeed[count]`、`loomFeed[count]`、`baitBarrelFeed[kind,count]`、`brewBarrelFeed[kind,count]`;新增取回动作 `smelterTakeOre/loomTakeRope/baitBarrelTakeFoods/brewBarrelTakeRaw/cookingTakeBoil`(把设施内还没加工的原料退回背包)。均由客人上行、房主权威结算,设施状态经世界增量回流,与既有投料/收取同一套约定。

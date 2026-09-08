@@ -1,139 +1,89 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import type { HudSnapshot } from '@/game/Game';
+import { SMELT_ORE_PER_INGOT, SMELT_INTERVAL } from '@/game/systems/SmelterSystem';
+import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 
 type Props = {
   hud: HudSnapshot;
-  /** 把背包里全部铁矿石丢进冶炼炉 */
-  onFeed: () => void;
+  /** 把选定数量的铁矿石丢进冶炼炉 */
+  onFeed: (count: number) => void;
   /** 收取炉内炼好的全部铁锭 */
   onCollect: () => void;
+  /** 取回炉内还没炼的矿石 */
+  onTakeOre: () => void;
   onClose: () => void;
 };
 
-const SLOT_SIZE = 48;
+const ACTION_COLOR = '#c0392b';
 
-/** 冶炼炉面板:上半为炉内矿石/铁锭与冶炼进度,下半为投入按钮(背包里的铁矿石) */
-export function SmelterPanel({ hud, onFeed, onCollect, onClose }: Props) {
+/** 冶炼炉面板:炉内状态与冶炼进度 + 数量选择投入(布局对齐烹饪台煮汤区)+ 收取/取回 */
+export function SmelterPanel({ hud, onFeed, onCollect, onTakeOre, onClose }: Props) {
   const info = hud.smelterInfo;
-  if (!info) return null;
+  const [feedCount, setFeedCount] = useState(1);
   const oreInBag = hud.slots.reduce(
     (sum, slot) => sum + (slot && slot.kind === 'ironOre' ? slot.count : 0),
     0
   );
+  // 背包数量变化后把选数收回上限
+  useEffect(() => {
+    setFeedCount((prev) => Math.min(prev, oreInBag));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oreInBag]);
+
+  // 走开后面板由外层收起,这里兜底不渲染
+  if (!info) return null;
+  const n = Math.max(1, Math.min(feedCount, oreInBag));
+  const smelting = info.ore >= SMELT_ORE_PER_INGOT;
 
   return (
     <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
-      }}
+      style={convertOverlayStyle}
       onPointerDown={(e) => {
         e.preventDefault();
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={{
-          marginTop: 'max(12px, calc(50vh - 190px))',
-          width: 'min(88vw, 340px)',
-          padding: '12px',
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 14,
-          fontFamily: 'sans-serif',
-          fontSize: 15,
-          color: '#333',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-        }}
-      >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>🏭 冶炼炉(3 块铁矿石炼 1 块铁锭,每炉 15 秒)</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', minHeight: SLOT_SIZE }}>
-          <div
-            style={{
-              width: SLOT_SIZE,
-              height: SLOT_SIZE,
-              borderRadius: 10,
-              border: '2px solid rgba(0,0,0,0.12)',
-              background: 'rgba(255,255,255,0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              boxSizing: 'border-box',
-            }}
-          >
-            <ItemIcon kind="ironOre" size={26} />
-            <span style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 11, fontWeight: 700, color: '#555' }}>
-              ×{info.ore}
-            </span>
-          </div>
-          <div
-            style={{
-              width: SLOT_SIZE,
-              height: SLOT_SIZE,
-              borderRadius: 10,
-              border: '2px solid rgba(0,0,0,0.12)',
-              background: 'rgba(255,255,255,0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              boxSizing: 'border-box',
-            }}
-          >
-            <ItemIcon kind="ironIngot" size={26} />
-            <span style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 11, fontWeight: 700, color: '#555' }}>
-              ×{info.ingot}
-            </span>
-          </div>
+      <div style={convertPanelStyle}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🏭 冶炼炉</div>
+        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+          每 {SMELT_INTERVAL} 秒用 {SMELT_ORE_PER_INGOT} 块{ITEMS.ironOre.name}炼 1 块
+          {ITEMS.ironIngot.name}
         </div>
-        {/* 冶炼进度条 */}
-        <div
-          style={{
-            height: 8,
-            margin: '10px 2px 8px',
-            borderRadius: 4,
-            background: 'rgba(0,0,0,0.08)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.round(info.progress * 100)}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg,#c0392b,#e8703a)',
-              transition: 'width 0.2s linear',
-            }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 8, margin: '0 2px 4px' }}>
+
+        <div style={{ ...convertRowStyle, marginBottom: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14 }}>
+              <ItemIcon kind="ironOre" size={18} /> 炉内矿石 ×{info.ore}
+              <span style={{ fontSize: 11, color: smelting ? ACTION_COLOR : '#999', marginLeft: 6 }}>
+                {smelting ? '冶炼中' : info.ore > 0 ? `还差 ${SMELT_ORE_PER_INGOT - info.ore} 块开炉` : ''}
+              </span>
+            </div>
+            <div style={convertBarStyle}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${Math.round(info.progress * 100)}%`,
+                  background: `linear-gradient(90deg,${ACTION_COLOR},#e8703a)`,
+                  transition: 'width 0.2s linear',
+                }}
+              />
+            </div>
+          </div>
+          <ItemIcon kind="ironIngot" size={18} />
+          <span style={{ fontSize: 14 }}>×{info.ingot}</span>
           <button
             onPointerDown={(e) => {
               e.preventDefault();
-              onFeed();
+              onTakeOre();
             }}
-            disabled={oreInBag <= 0}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              borderRadius: 10,
-              border: 'none',
-              background: oreInBag > 0 ? '#c0392b' : '#bbb',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 700,
-              touchAction: 'none',
-              userSelect: 'none',
-            }}
+            disabled={info.ore <= 0}
+            style={{ ...convertTakeButtonStyle, opacity: info.ore > 0 ? 1 : 0.45 }}
           >
-            投入铁矿石 ×{oreInBag}
+            取回
           </button>
           <button
             onPointerDown={(e) => {
@@ -141,45 +91,35 @@ export function SmelterPanel({ hud, onFeed, onCollect, onClose }: Props) {
               onCollect();
             }}
             disabled={info.ingot <= 0}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              borderRadius: 10,
-              border: 'none',
-              background: info.ingot > 0 ? '#4caf50' : '#bbb',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 700,
-              touchAction: 'none',
-              userSelect: 'none',
-            }}
+            style={{ ...convertCollectButtonStyle, opacity: info.ingot > 0 ? 1 : 0.45 }}
           >
-            收取铁锭
+            收取
           </button>
         </div>
-        {oreInBag <= 0 && (
-          <div style={{ textAlign: 'center', color: '#888', padding: '8px 0 0' }}>
+
+        {oreInBag > 0 ? (
+          <ConvertRow
+            kind="ironOre"
+            to="ironIngot"
+            max={oreInBag}
+            value={n}
+            onValueChange={setFeedCount}
+            actionLabel="投入"
+            actionColor={ACTION_COLOR}
+            onAction={() => onFeed(n)}
+          />
+        ) : (
+          <div style={{ fontSize: 13, color: '#999' }}>
             背包里没有{ITEMS.ironOre.name},去北岛的铁矿或陨石里挖些回来吧
           </div>
         )}
+
         <button
           onPointerDown={(e) => {
             e.preventDefault();
             onClose();
           }}
-          style={{
-            width: '100%',
-            marginTop: 12,
-            padding: '10px 0',
-            borderRadius: 10,
-            border: 'none',
-            background: '#4caf50',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 700,
-            touchAction: 'none',
-            userSelect: 'none',
-          }}
+          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

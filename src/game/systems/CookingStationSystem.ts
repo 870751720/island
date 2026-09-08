@@ -259,6 +259,21 @@ export class CookingStationSystem {
     return n;
   }
 
+  /** 把身旁烹饪台锅里还没煮的食材取回背包,返回是否取回任何数量 */
+  takeBoil(actor: PlayerSession): boolean {
+    const station = this.nearby(actor);
+    if (!station || station.boilKind === null || station.boilQueue <= 0) return false;
+    const kind = station.boilKind;
+    const n = station.boilQueue;
+    station.boilKind = null;
+    station.boilQueue = 0;
+    station.tickLeft = BOIL_INTERVAL;
+    this.emitState(station);
+    this.give(kind, n, actor);
+    this.audio.play('pickup');
+    return true;
+  }
+
   /** 是否正在烤制 */
   isRoasting(actor: PlayerSession): boolean {
     return (this.states.get(actor)?.roastKind ?? null) !== null;

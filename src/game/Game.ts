@@ -2872,14 +2872,27 @@ export class Game {
     return true;
   }
 
-  /** 把背包里该种类全部原料丢进身旁酿酒桶(一次只酿一种,桶被占用时只接受同种),失败时给出提示 */
-  brewBarrelFeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+  /** 把背包里该种类原料丢进身旁酿酒桶(count ≤ 0 为全部,一次只酿一种,桶被占用时只接受同种),失败时给出提示 */
+  brewBarrelFeed(kind: ResourceKind, count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('brewBarrelFeed', [kind]);
+    if (this.guestNet) return this.guestNet.action('brewBarrelFeed', [kind, count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.brewBarrels.feed(actor, kind)) {
+    if (!this.brewBarrels.feed(actor, kind, count)) {
       this.notify('桶里正在酿别的,一次只能酿一种', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁酿酒桶里还没发酵的原料取回背包,失败时给出提示 */
+  brewBarrelTakeRaw(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('brewBarrelTakeRaw', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.brewBarrels.takeRaw(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2911,14 +2924,27 @@ export class Game {
     return true;
   }
 
-  /** 把背包里该种类全部食物丢进身旁饵料桶(每 5 秒发酵 1 个),失败时给出提示 */
-  baitBarrelFeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+  /** 把背包里该种类食物丢进身旁饵料桶(count ≤ 0 为全部,每 5 秒发酵 1 个),失败时给出提示 */
+  baitBarrelFeed(kind: ResourceKind, count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('baitBarrelFeed', [kind]);
+    if (this.guestNet) return this.guestNet.action('baitBarrelFeed', [kind, count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.baitBarrels.feed(actor, kind)) {
+    if (!this.baitBarrels.feed(actor, kind, count)) {
       this.notify('桶里装不下了', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁饵料桶里还没发酵的食物取回背包,失败时给出提示 */
+  baitBarrelTakeFoods(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('baitBarrelTakeFoods', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.baitBarrels.takeFoods(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2950,14 +2976,27 @@ export class Game {
     return true;
   }
 
-  /** 把背包里全部铁矿石丢进身旁冶炼炉(每 15 秒用 3 块矿石炼 1 块铁锭),失败时给出提示 */
-  smelterFeed(actor: PlayerSession = this.local): boolean {
+  /** 把背包里的铁矿石丢进身旁冶炼炉(count ≤ 0 为全部,每 15 秒用 3 块矿石炼 1 块铁锭),失败时给出提示 */
+  smelterFeed(count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('smelterFeed', []);
+    if (this.guestNet) return this.guestNet.action('smelterFeed', [count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.smelters.feed(actor)) {
+    if (!this.smelters.feed(actor, count)) {
       this.notify('炉里装不下了', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁冶炼炉里还没炼的矿石取回背包,失败时给出提示 */
+  smelterTakeOre(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('smelterTakeOre', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.smelters.takeOre(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -2989,14 +3028,27 @@ export class Game {
     return true;
   }
 
-  /** 把背包里全部绳线丢进身旁纺织机(每 2 根绳线织 1 匹布料),失败时给出提示 */
-  loomFeed(actor: PlayerSession = this.local): boolean {
+  /** 把背包里的绳线丢进身旁纺织机(count ≤ 0 为全部,每 2 根绳线织 1 匹布料),失败时给出提示 */
+  loomFeed(count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('loomFeed', []);
+    if (this.guestNet) return this.guestNet.action('loomFeed', [count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.looms.feed(actor)) {
+    if (!this.looms.feed(actor, count)) {
       this.notify('机里织不上了', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁纺织机里还没织的绳线取回背包,失败时给出提示 */
+  loomTakeRope(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('loomTakeRope', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.looms.takeRope(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;
@@ -3075,6 +3127,19 @@ export class Game {
     if (this.asleepFor(actor)) return false;
     if (this.cookingStations.collect(actor) <= 0) {
       this.notify('还没有煮好的汤', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 把身旁烹饪台锅里还没煮的食材取回背包,失败时给出提示 */
+  cookingTakeBoil(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('cookingTakeBoil', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.cookingStations.takeBoil(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
     return true;

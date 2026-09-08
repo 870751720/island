@@ -140,10 +140,10 @@ export class BrewBarrelSystem {
     return barrel;
   }
 
-  /** 把背包里该种类全部原料丢进身旁酿酒桶(桶被占用时只接受同种),返回是否丢入任何数量 */
-  feed(actor: PlayerSession, kind: ResourceKind): boolean {
+  /** 把背包里该种类原料丢进身旁酿酒桶(count ≤ 0 为全部,桶被占用时只接受同种),返回是否丢入任何数量 */
+  feed(actor: PlayerSession, kind: ResourceKind, count = 0): boolean {
     const barrel = this.nearby(actor);
-    const n = actor.inventory.count(kind);
+    const n = Math.min(count > 0 ? count : Infinity, actor.inventory.count(kind));
     if (!barrel || n <= 0 || BREWABLE[kind] === undefined) return false;
     if (!barrel.addRaw(kind, n)) return false;
     actor.inventory.remove(kind, n);
@@ -163,6 +163,21 @@ export class BrewBarrelSystem {
     this.emitState(barrel);
     this.give(wine, n, actor);
     this.audio.play('success');
+    return true;
+  }
+
+  /** 把身旁酿酒桶里还没发酵的原料取回背包,返回是否取回任何数量 */
+  takeRaw(actor: PlayerSession): boolean {
+    const barrel = this.nearby(actor);
+    if (!barrel || barrel.kind === null || barrel.rawLeft <= 0) return false;
+    const kind = barrel.kind;
+    const n = barrel.rawLeft;
+    barrel.rawLeft = 0;
+    if (barrel.bottles <= 0) barrel.kind = null;
+    barrel.tickLeft = BREW_INTERVAL;
+    this.emitState(barrel);
+    this.give(kind, n, actor);
+    this.audio.play('pickup');
     return true;
   }
 

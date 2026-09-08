@@ -1,139 +1,88 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import type { HudSnapshot } from '@/game/Game';
+import { LOOM_ROPE_PER_CLOTH, LOOM_INTERVAL } from '@/game/systems/LoomSystem';
+import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 
 type Props = {
   hud: HudSnapshot;
-  /** 把背包里全部绳线丢进纺织机 */
-  onFeed: () => void;
+  /** 把选定数量的绳线丢进纺织机 */
+  onFeed: (count: number) => void;
   /** 收取机内织好的全部布料 */
   onCollect: () => void;
+  /** 取回机内还没织的绳线 */
+  onTakeRope: () => void;
   onClose: () => void;
 };
 
-const SLOT_SIZE = 48;
+const ACTION_COLOR = '#b5a642';
 
-/** 纺织机面板:上半为机内绳线/布料与织布进度,下半为投入按钮(背包里的绳线) */
-export function LoomPanel({ hud, onFeed, onCollect, onClose }: Props) {
+/** 纺织机面板:机内状态与织布进度 + 数量选择投入(布局对齐烹饪台煮汤区)+ 收取/取回 */
+export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props) {
   const info = hud.loomInfo;
-  if (!info) return null;
+  const [feedCount, setFeedCount] = useState(1);
   const ropeInBag = hud.slots.reduce(
     (sum, slot) => sum + (slot && slot.kind === 'rope' ? slot.count : 0),
     0
   );
+  // 背包数量变化后把选数收回上限
+  useEffect(() => {
+    setFeedCount((prev) => Math.min(prev, ropeInBag));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ropeInBag]);
+
+  // 走开后面板由外层收起,这里兜底不渲染
+  if (!info) return null;
+  const n = Math.max(1, Math.min(feedCount, ropeInBag));
+  const weaving = info.rope >= LOOM_ROPE_PER_CLOTH;
 
   return (
     <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
-      }}
+      style={convertOverlayStyle}
       onPointerDown={(e) => {
         e.preventDefault();
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={{
-          marginTop: 'max(12px, calc(50vh - 190px))',
-          width: 'min(88vw, 340px)',
-          padding: '12px',
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 14,
-          fontFamily: 'sans-serif',
-          fontSize: 15,
-          color: '#333',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-        }}
-      >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>🧵 纺织机(每 2 根绳线织 1 匹布料)</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', minHeight: SLOT_SIZE }}>
-          <div
-            style={{
-              width: SLOT_SIZE,
-              height: SLOT_SIZE,
-              borderRadius: 10,
-              border: '2px solid rgba(0,0,0,0.12)',
-              background: 'rgba(255,255,255,0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              boxSizing: 'border-box',
-            }}
-          >
-            <ItemIcon kind="rope" size={26} />
-            <span style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 11, fontWeight: 700, color: '#555' }}>
-              ×{info.rope}
-            </span>
-          </div>
-          <div
-            style={{
-              width: SLOT_SIZE,
-              height: SLOT_SIZE,
-              borderRadius: 10,
-              border: '2px solid rgba(0,0,0,0.12)',
-              background: 'rgba(255,255,255,0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              boxSizing: 'border-box',
-            }}
-          >
-            <ItemIcon kind="cloth" size={26} />
-            <span style={{ position: 'absolute', right: 3, bottom: 1, fontSize: 11, fontWeight: 700, color: '#555' }}>
-              ×{info.cloth}
-            </span>
-          </div>
+      <div style={convertPanelStyle}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🧵 纺织机</div>
+        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+          每 {LOOM_INTERVAL} 秒用 {LOOM_ROPE_PER_CLOTH} 根{ITEMS.rope.name}织 1 匹{ITEMS.cloth.name}
         </div>
-        {/* 织布进度条 */}
-        <div
-          style={{
-            height: 8,
-            margin: '10px 2px 8px',
-            borderRadius: 4,
-            background: 'rgba(0,0,0,0.08)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.round(info.progress * 100)}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg,#b5a642,#e8e2d4)',
-              transition: 'width 0.2s linear',
-            }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 8, margin: '0 2px 4px' }}>
+
+        <div style={{ ...convertRowStyle, marginBottom: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14 }}>
+              <ItemIcon kind="rope" size={18} /> 机内绳线 ×{info.rope}
+              <span style={{ fontSize: 11, color: weaving ? ACTION_COLOR : '#999', marginLeft: 6 }}>
+                {weaving ? '纺织中' : info.rope > 0 ? `还差 ${LOOM_ROPE_PER_CLOTH - info.rope} 根开机` : ''}
+              </span>
+            </div>
+            <div style={convertBarStyle}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${Math.round(info.progress * 100)}%`,
+                  background: `linear-gradient(90deg,${ACTION_COLOR},#e8e2d4)`,
+                  transition: 'width 0.2s linear',
+                }}
+              />
+            </div>
+          </div>
+          <ItemIcon kind="cloth" size={18} />
+          <span style={{ fontSize: 14 }}>×{info.cloth}</span>
           <button
             onPointerDown={(e) => {
               e.preventDefault();
-              onFeed();
+              onTakeRope();
             }}
-            disabled={ropeInBag <= 0}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              borderRadius: 10,
-              border: 'none',
-              background: ropeInBag > 0 ? '#b5a642' : '#bbb',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 700,
-              touchAction: 'none',
-              userSelect: 'none',
-            }}
+            disabled={info.rope <= 0}
+            style={{ ...convertTakeButtonStyle, opacity: info.rope > 0 ? 1 : 0.45 }}
           >
-            投入绳线 ×{ropeInBag}
+            取回
           </button>
           <button
             onPointerDown={(e) => {
@@ -141,45 +90,35 @@ export function LoomPanel({ hud, onFeed, onCollect, onClose }: Props) {
               onCollect();
             }}
             disabled={info.cloth <= 0}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              borderRadius: 10,
-              border: 'none',
-              background: info.cloth > 0 ? '#4caf50' : '#bbb',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 700,
-              touchAction: 'none',
-              userSelect: 'none',
-            }}
+            style={{ ...convertCollectButtonStyle, opacity: info.cloth > 0 ? 1 : 0.45 }}
           >
-            收取布料
+            收取
           </button>
         </div>
-        {ropeInBag <= 0 && (
-          <div style={{ textAlign: 'center', color: '#888', padding: '8px 0 0' }}>
+
+        {ropeInBag > 0 ? (
+          <ConvertRow
+            kind="rope"
+            to="cloth"
+            max={ropeInBag}
+            value={n}
+            onValueChange={setFeedCount}
+            actionLabel="投入"
+            actionColor={ACTION_COLOR}
+            onAction={() => onFeed(n)}
+          />
+        ) : (
+          <div style={{ fontSize: 13, color: '#999' }}>
             背包里没有{ITEMS.rope.name},用工作台把植物纤维搓成绳线再回来吧
           </div>
         )}
+
         <button
           onPointerDown={(e) => {
             e.preventDefault();
             onClose();
           }}
-          style={{
-            width: '100%',
-            marginTop: 12,
-            padding: '10px 0',
-            borderRadius: 10,
-            border: 'none',
-            background: '#4caf50',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 700,
-            touchAction: 'none',
-            userSelect: 'none',
-          }}
+          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

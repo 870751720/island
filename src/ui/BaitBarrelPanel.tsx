@@ -1,239 +1,177 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
+import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import { BAIT_YIELD } from '@/game/systems/Food';
+import { BAIT_CONVERT_INTERVAL } from '@/game/systems/BaitBarrelSystem';
 import type { HudSnapshot } from '@/game/Game';
 import type { ResourceKind } from '@/game/systems/Inventory';
+import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 
 type Props = {
   hud: HudSnapshot;
-  /** 把背包里该种类全部食物丢进饵料桶 */
-  onFeed: (kind: ResourceKind) => void;
+  /** 把选定数量的该种类食物丢进饵料桶 */
+  onFeed: (kind: ResourceKind, count: number) => void;
   /** 收取桶内发酵好的全部鱼饵 */
   onCollect: () => void;
+  /** 取回桶内还没发酵的食物 */
+  onTakeFoods: () => void;
   onClose: () => void;
 };
 
-const SLOT_SIZE = 48;
-const SLOT_GAP = 6;
-const COLUMNS = 5;
+const ACTION_COLOR = '#a0742c';
 
-/** 饵料桶面板:上半为桶内食物队列(显示各自兑换率)与待收鱼饵、发酵进度,下半为背包(点击可投喂的食物) */
-export function BaitBarrelPanel({ hud, onFeed, onCollect, onClose }: Props) {
+/** 统计背包快照里各道具的数量 */
+function countOf(hud: HudSnapshot): (kind: ResourceKind) => number {
+  return (kind) =>
+    hud.slots.reduce((n, slot) => (slot && slot.kind === kind ? n + slot.count : 0), 0);
+}
+
+/** 饵料桶面板:桶内食物队列与发酵进度 + 数量选择投喂(布局对齐烹饪台煮汤区)+ 收取/取回 */
+export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }: Props) {
   const info = hud.baitBarrelInfo;
+  const count = countOf(hud);
+  const [feedCounts, setFeedCounts] = useState<Record<string, number>>({});
+  // 背包里可投喂的食物
+  const feedable = (Object.keys(BAIT_YIELD) as ResourceKind[]).filter((k) => count(k) > 0);
+  // 食物数量变化后把选数收回上限,且默认选满
+  const feedKey = feedable.map((k) => count(k)).join(',');
+  useEffect(() => {
+    setFeedCounts((prev) => {
+      const next = { ...prev };
+      for (const k of feedable) next[k] = Math.min(prev[k] ?? 1, count(k));
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedKey]);
+
+  // 走开后面板由外层收起,这里兜底不渲染
   if (!info) return null;
-  // 背包里的可投喂食物(按格子顺序)
-  const feedable = hud.slots.filter((slot) => slot && BAIT_YIELD[slot.kind] !== undefined) as {
-    kind: ResourceKind;
-    count: number;
-  }[];
-  const feedStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
-    gap: SLOT_GAP,
-    justifyContent: 'center',
-  };
+  const hasFood = info.foods.length > 0;
 
   return (
     <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
-      }}
+      style={convertOverlayStyle}
       onPointerDown={(e) => {
         e.preventDefault();
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={{
-          marginTop: 'max(12px, calc(50vh - 230px))',
-          width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
-          padding: '12px',
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 14,
-          fontFamily: 'sans-serif',
-          fontSize: 15,
-          color: '#333',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-        }}
-      >
-        <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>🪣 饵料桶(食物每 5 秒发酵 1 个)</div>
-        {info.foods.length > 0 ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', minHeight: SLOT_SIZE }}>
-            {info.foods.map((food, i) => (
-              <div
-                key={`${food.kind}-${i}`}
-                style={{
-                  width: SLOT_SIZE,
-                  height: SLOT_SIZE,
-                  borderRadius: 10,
-                  border: '2px solid rgba(0,0,0,0.12)',
-                  background: 'rgba(255,255,255,0.9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <ItemIcon kind={food.kind} size={26} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 3,
-                    bottom: 1,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#555',
-                  }}
-                >
-                  ×{food.count}
-                </span>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 3,
-                    top: 1,
-                    fontSize: 10,
-                    color: '#a0742c',
-                    fontWeight: 700,
-                  }}
-                >
-                  🪱{BAIT_YIELD[food.kind]}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', color: '#888', padding: '12px 0' }}>桶是空的,丢点吃的进来吧</div>
-        )}
-        {/* 发酵进度条 */}
-        <div
-          style={{
-            height: 8,
-            margin: '10px 2px 8px',
-            borderRadius: 4,
-            background: 'rgba(0,0,0,0.08)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.round(info.progress * 100)}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg,#d98c3f,#e6b422)',
-              transition: 'width 0.2s linear',
-            }}
-          />
+      <div style={convertPanelStyle}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🪣 饵料桶</div>
+        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+          每 {BAIT_CONVERT_INTERVAL} 秒发酵 1 个食物,按角标兑换鱼饵
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 4px' }}>
-          <span style={{ flex: 1 }}>
-            桶内鱼饵 <b>🪱×{info.bait}</b>
-          </span>
+
+        <div style={{ ...convertRowStyle, marginBottom: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {hasFood ? (
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {info.foods.map((food, i) => (
+                    <div
+                      key={`${food.kind}-${i}`}
+                      style={{ position: 'relative', width: 36, height: 36 }}
+                    >
+                      <ItemIcon kind={food.kind} size={26} />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: -2,
+                          bottom: -2,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#555',
+                        }}
+                      >
+                        ×{food.count}
+                      </span>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: -2,
+                          top: -2,
+                          fontSize: 10,
+                          color: ACTION_COLOR,
+                          fontWeight: 700,
+                        }}
+                      >
+                        🪱{BAIT_YIELD[food.kind]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={convertBarStyle}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.round(info.progress * 100)}%`,
+                      background: `linear-gradient(90deg,${ACTION_COLOR},#e6b422)`,
+                      transition: 'width 0.2s linear',
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: '#999' }}>桶是空的,丢点吃的进来吧</div>
+            )}
+          </div>
+          <span style={{ fontSize: 14 }}>🪱×{info.bait}</span>
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              onTakeFoods();
+            }}
+            disabled={!hasFood}
+            style={{ ...convertTakeButtonStyle, opacity: hasFood ? 1 : 0.45 }}
+          >
+            取回
+          </button>
           <button
             onPointerDown={(e) => {
               e.preventDefault();
               onCollect();
             }}
             disabled={info.bait <= 0}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 10,
-              border: 'none',
-              background: info.bait > 0 ? '#4caf50' : '#bbb',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 700,
-              touchAction: 'none',
-              userSelect: 'none',
-            }}
+            style={{ ...convertCollectButtonStyle, opacity: info.bait > 0 ? 1 : 0.45 }}
           >
-            全部收取
+            收取
           </button>
         </div>
-        <div style={{ fontWeight: 700, margin: '12px 2px 8px' }}>🎒 背包(点击投喂,角标为每只换的鱼饵)</div>
-        {feedable.length > 0 ? (
-          <div style={feedStyle}>
-            {feedable.map((slot, i) => (
-              <div
-                key={`${slot.kind}-${i}`}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  onFeed(slot.kind);
-                }}
-                style={{
-                  width: SLOT_SIZE,
-                  height: SLOT_SIZE,
-                  borderRadius: 10,
-                  border: '2px solid rgba(0,0,0,0.12)',
-                  background: 'rgba(255,255,255,0.9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  touchAction: 'none',
-                  userSelect: 'none',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <ItemIcon kind={slot.kind} size={26} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 3,
-                    bottom: 1,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#555',
-                  }}
-                >
-                  ×{slot.count}
-                </span>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 3,
-                    top: 1,
-                    fontSize: 10,
-                    color: '#a0742c',
-                    fontWeight: 700,
-                  }}
-                >
-                  🪱{BAIT_YIELD[slot.kind]}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', color: '#888', padding: '8px 0' }}>
+
+        {feedable.length === 0 && (
+          <div style={{ fontSize: 13, color: '#999' }}>
             背包里没有可投喂的食物({ITEMS.baitBarrel.name}不挑食,水果/鱼/肉/熟食都行)
           </div>
         )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {feedable.map((kind) => {
+            const max = count(kind);
+            const n = Math.min(feedCounts[kind] ?? 1, max);
+            return (
+              <ConvertRow
+                key={kind}
+                kind={kind}
+                to="bait"
+                hint={`→ 🪱 ${ITEMS.bait.name} ×${BAIT_YIELD[kind]}/个`}
+                max={max}
+                value={n}
+                onValueChange={(v) => setFeedCounts((c) => ({ ...c, [kind]: v }))}
+                actionLabel="投入"
+                actionColor={ACTION_COLOR}
+                onAction={() => onFeed(kind, n)}
+              />
+            );
+          })}
+        </div>
+
         <button
           onPointerDown={(e) => {
             e.preventDefault();
             onClose();
           }}
-          style={{
-            width: '100%',
-            marginTop: 12,
-            padding: '10px 0',
-            borderRadius: 10,
-            border: 'none',
-            background: '#4caf50',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 700,
-            touchAction: 'none',
-            userSelect: 'none',
-          }}
+          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
         >
           关闭
         </button>
