@@ -3,7 +3,7 @@ import { Inventory } from '../systems/Inventory';
 import { makeDropModel } from '../systems/DropModels';
 import type { ResourceKind } from '../systems/Inventory';
 
-/** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 40 格) */
+/** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 20 格) */
 export type CrateKind = 'crate' | 'ironCrate';
 
 /** 木箱收纳格数 */
@@ -63,7 +63,7 @@ function makeCrateMesh(kind: CrateKind): THREE.Group {
   return g;
 }
 
-/** 场景中的木箱/铁箱摆件:自带收纳空间(木箱 10 格、铁箱 40 格),靠近可存取物品;顶面展示第一个格子的道具模型 */
+/** 场景中的木箱/铁箱摆件:自带收纳空间(木箱 10 格、铁箱 20 格),靠近可存取物品;顶面展示第一个格子的道具模型 */
 export class Crate {
   readonly group: THREE.Group;
   readonly storage: Inventory;

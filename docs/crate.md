@@ -44,3 +44,8 @@
 - 配方:三级以上工作台制作,材料 1 木箱 + 2 铁锭(`Crafting.ts` 新增 `ironCrate` 配方,`minBenchLevel: 3`)。
 - 实现:`Crate.ts` 引入 `CrateKind`(`crate | ironCrate`)与各箱种样式表(格数/配色),构造函数按箱种建仓与上色;`CrateSystem` 的放置 `use`、挖掘返还(`target.kind`)、存档/联机快照(`CrateSave.kind`,缺省木箱兼容旧档)均携带箱种;`SAVE_VERSION` 不变。
 - HUD:`HudSnapshot` 新增 `crateCapacity`(身旁箱子的格数),`CratePanel` 按其渲染格盘并区分标题(木箱/铁箱);背包「使用」与联机动作 `useCrate` 均携带箱种参数。
+
+### 铁箱提示按箱种显示
+
+- 头顶进度与失败提示不再写死「木箱」:挖掘时按 `CrateSystem.diggingKind` 显示「挖木箱…/挖铁箱…」;整格存入装满时按 `CrateSystem.nearbyKind` 提示「木箱/铁箱装不下了」。
+- 修正代码注释与 `HudSnapshot` 注释中过时的「铁箱 40 格」表述(实际为 20 格)。

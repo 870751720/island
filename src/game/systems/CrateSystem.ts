@@ -36,7 +36,7 @@ export type CrateSave = {
  * - 背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
  *   (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住);
  * - 手持锄头靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
- * 木箱自带 10 格、铁箱 40 格收纳,靠近后可整格存入背包物品或取回。
+ * 木箱自带 10 格、铁箱 20 格收纳,靠近后可整格存入背包物品或取回。
  */
 export class CrateSystem {
   private crates: Crate[] = [];
@@ -183,6 +183,16 @@ export class CrateSystem {
     if (!st?.digTarget) return null;
     const need = hoeHits(actor.tools.hoe);
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
+  }
+
+  /** 正在挖的箱种(未在挖掘为 null) */
+  diggingKind(actor: PlayerSession): CrateKind | null {
+    return this.digStates.get(actor)?.digTarget?.kind ?? null;
+  }
+
+  /** 身旁箱子的箱种(不在箱子旁为 null) */
+  nearbyKind(actor: PlayerSession): CrateKind | null {
+    return this.nearby(actor)?.kind ?? null;
   }
 
   /** 身旁木箱的格子快照(不在木箱旁为 null) */

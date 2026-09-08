@@ -146,7 +146,7 @@ export type HudSnapshot = {
   bedSleepProgress: number;
   /** 身旁木箱的格子快照(不在木箱旁为 null) */
   crateSlots: InventorySlot[] | null;
-  /** 身旁木箱的收纳格数(木箱 10 / 铁箱 40,不在木箱旁为 null) */
+  /** 身旁木箱的收纳格数(木箱 10 / 铁箱 20,不在木箱旁为 null) */
   crateCapacity: number | null;
   /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
   baitBarrelInfo: BaitBarrelInfo | null;
@@ -2831,7 +2831,7 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     if (!this.crates.store(actor, kind, count)) {
-      if (count === Infinity) this.notify('木箱装不下了', actor);
+      if (count === Infinity) this.notify(`${this.crates.nearbyKind(actor) === 'ironCrate' ? '铁箱' : '木箱'}装不下了`, actor);
       return false;
     }
     return true;
@@ -3837,7 +3837,7 @@ export class Game {
       label = '挖工作台…';
       progress = this.workbench.getDigProgress(session);
     } else if (this.crates.isDigging(session)) {
-      label = '挖木箱…';
+      label = this.crates.diggingKind(session) === 'ironCrate' ? '挖铁箱…' : '挖木箱…';
       progress = this.crates.getDigProgress(session);
     } else if (this.baitBarrels.isDigging(session)) {
       label = '挖饵料桶…';
