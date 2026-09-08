@@ -35,8 +35,12 @@ export class PhotoCamera {
     this.pitch = BASE_PITCH;
   }
 
+  /** 退出时重置旋转/俯仰/缩放,常规跟随视角立即回到默认偏移(位置由跟随插值平滑过渡) */
   exit(): void {
     this.active = false;
+    this.zoom = 1;
+    this.yaw = 0;
+    this.pitch = BASE_PITCH;
   }
 
   /** 相机相对注视点的偏移:固定距离下按 yaw(水平方位)与 pitch(俯仰角)定位 */
