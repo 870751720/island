@@ -10,7 +10,7 @@ export const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
   axe: '🪓',
   pickaxe: '⛏️',
-  shovel: '⚒️',
+  shovel: '🥄',
   fishingrod: '🎣',
   bow: '🏹',
   sword: '🗡️',

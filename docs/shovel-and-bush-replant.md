@@ -23,7 +23,7 @@
   - 所有资源点都以完整坐标状态入档，玩家放置的 berry/shrub 与自然资源采用同一数据模型。
 - `Inventory.ts`/`Items.ts`/`DropModels.ts`:新增道具 `berryBush`、`shrubBush`(名称/图标/描述/掉落模型)与 `shovel` 条目。
 - `Game.ts`:`useBush(kind)` 负责校验+扣除+放置+反馈;工具循环顺序加入铲子;HUD 增加 `hasShovel`;头顶提示在持铲挖掘时显示「挖灌木丛/挖浆果丛」。
-- UI:`Backpack.isUsable` 放行两个丛;`GameplayUI.onUseItem` 派发到 `useBush`;`ToolButton` 增加铲子图标(⚒️);`RecipeBook` 增加精致石铲增益说明。
+- UI:`Backpack.isUsable` 放行两个丛;`GameplayUI.onUseItem` 派发到 `useBush`;`ToolButton` 增加铲子图标(🥄);`RecipeBook` 增加精致石铲增益说明。
 - 刻意不做:铲子不加入 `wantedTool` 自动切换(徒手也能采这两种丛,自动切铲会误挖)。
 - 种下丛后若手里正拿着铲子,自动切回空手,避免立刻把刚种下的丛挖掉。
 

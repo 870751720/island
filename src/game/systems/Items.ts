@@ -517,7 +517,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   shovel: {
     kind: 'shovel',
     name: '木铲',
-    icon: '⚒️',
+    icon: '🥄',
     description: '磨得锋利的铲子,刨土翻地在行。',
   },
   fishingrod: {
