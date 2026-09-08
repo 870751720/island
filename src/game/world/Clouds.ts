@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { createCloudClusterGeometry } from './CloudCluster';
+import { createCloudGeometry } from './CloudModel';
 
-const CLOUD_COUNT = 9;
+const CLOUD_COUNT = 6;
 const DRIFT_DIR = new THREE.Vector3(1, 0, 0.25).normalize();
 /** 低多边形白云:高空缓慢飘过岛上,并在地面投下移动的影子 */
 export class Clouds {
@@ -31,8 +31,8 @@ export class Clouds {
       const n = Math.sin(seed * 91.7 + i * 391.3) * 43758.5453;
       return n - Math.floor(n);
     };
-    const g = new THREE.Mesh(createCloudClusterGeometry(seed), this.material);
-    const scale = 0.8 + rng(20) * 0.5;
+    const g = new THREE.Mesh(createCloudGeometry(seed), this.material);
+    const scale = 1.05 + rng(20) * 0.3;
     g.scale.set(scale * (0.95 + rng(21) * 0.3), scale * (0.8 + rng(22) * 0.35), scale);
     g.rotation.y = (rng(23) - 0.5) * Math.PI;
     g.castShadow = true;
@@ -49,7 +49,7 @@ export class Clouds {
     const halfZ = this.spanZ / 2;
     for (const c of this.clouds) {
       c.mesh.position.addScaledVector(DRIFT_DIR, c.speed * delta);
-      // 整组离开岛屿范围后才回绕，分别处理两个轴，保留组合和高度。
+      // 完整云体离开岛屿范围后才回绕，分别处理两个轴，保留高度。
       const limitX = halfX + c.margin;
       const limitZ = halfZ + c.margin;
       if (c.mesh.position.x > limitX) c.mesh.position.x -= limitX * 2;
