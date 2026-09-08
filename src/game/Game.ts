@@ -2830,11 +2830,11 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('crateStore', [kind, count === Infinity ? null : count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.crates.store(actor, kind, count)) {
-      if (count === Infinity) this.notify(`${this.crates.nearbyKind(actor) === 'ironCrate' ? '铁箱' : '木箱'}装不下了`, actor);
-      return false;
+    const result = this.crates.store(actor, kind, count);
+    if (result === 'full' && count === Infinity) {
+      this.notify(`${this.crates.nearbyKind(actor) === 'ironCrate' ? '铁箱' : '木箱'}装不下了`, actor);
     }
-    return true;
+    return result === 'ok';
   }
 
   /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回),整格转移失败时给出提示,连发失败静默 */
@@ -2843,11 +2843,9 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('crateTake', [kind, count === Infinity ? null : count]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.crates.take(actor, kind, count)) {
-      if (count === Infinity) this.notify('背包满了,装不下更多东西', actor);
-      return false;
-    }
-    return true;
+    const result = this.crates.take(actor, kind, count);
+    if (result === 'full' && count === Infinity) this.notify('背包满了,装不下更多东西', actor);
+    return result === 'ok';
   }
 
   /** 背包里点击「使用」饵料桶:校验通过后在玩家脚下原地放下,不满足时给出提示 */

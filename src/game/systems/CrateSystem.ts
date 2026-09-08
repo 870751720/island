@@ -20,6 +20,9 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 每玩家的挖掘进度(世界里的木箱是共享的,进度各自算) */
 type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Crate | null };
 
+/** 存取结果:ok 成功;empty 一侧已无该物品(连点已空格子,静默);full 对方装不下 */
+export type TransferResult = 'ok' | 'empty' | 'full';
+
 /** 木箱的存档/网络快照(落点、箱种与箱内格子;kind 缺省为木箱,兼容旧档) */
 export type CrateSave = {
   id?: string;
@@ -205,31 +208,33 @@ export class CrateSystem {
     return this.nearby(actor)?.storage.capacity ?? null;
   }
 
-  /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),返回是否存入任何数量 */
-  store(actor: PlayerSession, kind: ResourceKind, count = Infinity): boolean {
+  /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入) */
+  store(actor: PlayerSession, kind: ResourceKind, count = Infinity): TransferResult {
     const crate = this.nearby(actor);
     const n = Math.min(actor.inventory.count(kind), count);
-    if (!crate || n <= 0 || !crate.storage.canFit(kind)) return false;
+    if (!crate || n <= 0) return 'empty';
+    if (!crate.storage.canFit(kind)) return 'full';
     const before = crate.storage.snapshot();
     actor.inventory.remove(kind, n);
     crate.storage.add(kind, n);
     crate.updateIcon();
     this.emitSlotChanges(crate, before);
     this.audio.play('drop');
-    return true;
+    return 'ok';
   }
 
-  /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回),返回是否取回任何数量 */
-  take(actor: PlayerSession, kind: ResourceKind, count = Infinity): boolean {
+  /** 把身旁木箱里该种类道具取回背包(count 为 Infinity 时整格取回) */
+  take(actor: PlayerSession, kind: ResourceKind, count = Infinity): TransferResult {
     const crate = this.nearby(actor);
     const n = Math.min(crate ? crate.storage.count(kind) : 0, count);
-    if (!crate || n <= 0 || !actor.inventory.canFit(kind)) return false;
+    if (!crate || n <= 0) return 'empty';
+    if (!actor.inventory.canFit(kind)) return 'full';
     const before = crate.storage.snapshot();
     crate.storage.remove(kind, n);
     crate.updateIcon();
     this.emitSlotChanges(crate, before);
     actor.inventory.add(kind, n);
-    return true;
+    return 'ok';
   }
 
   /** 当前所有木箱的存档快照(落点、箱种与箱内内容) */

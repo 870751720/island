@@ -49,3 +49,8 @@
 
 - 头顶进度与失败提示不再写死「木箱」:挖掘时按 `CrateSystem.diggingKind` 显示「挖木箱…/挖铁箱…」;整格存入装满时按 `CrateSystem.nearbyKind` 提示「木箱/铁箱装不下了」。
 - 修正代码注释与 `HudSnapshot` 注释中过时的「铁箱 40 格」表述(实际为 20 格)。
+
+### 修正常见误报「背包满了/箱装不下」
+
+- 快速连点存取时,HUD 格盘快照滞后一帧,第二下点到已空的格子会让 `store/take` 因「无该物品」失败,旧实现统一提示「背包满了/木箱装不下」,造成误报。木箱与铁箱均有此问题。
+- `CrateSystem.store/take` 返回值由布尔改为 `TransferResult`(`ok | empty | full`);`Game.crateStore/crateTake` 仅在 `full`(对方真装不下)且整格转移时提示,`empty` 静默。
