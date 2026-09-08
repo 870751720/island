@@ -299,11 +299,16 @@ export class LoomSystem {
     }
     const current = new Map(this.looms.map((loom) => [this.ids.get(loom), loom]));
     for (const value of list) {
-      let loom = value.id ? current.get(value.id) : undefined;
+      const existed = value.id ? current.get(value.id) : undefined;
+      let loom = existed;
       if (!loom) {
         loom = new Loom(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
         this.ids.set(loom, value.id);
         this.looms.push(loom);
+      }
+      // 客人端补播:快照回流发现布料增加(房主已织出一匹)时本地放一次粒子,与房主端同款(初次同步的新机不播)
+      if (existed && value.cloth > loom.cloth) {
+        this.fx.burst(loom.group.position.clone().setY(loom.group.position.y + 0.5), '#e8e2d4', 4);
       }
       loom.rope = value.rope;
       loom.cloth = value.cloth;

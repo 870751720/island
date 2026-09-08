@@ -304,11 +304,16 @@ export class SmelterSystem {
     }
     const current = new Map(this.smelters.map((smelter) => [this.ids.get(smelter), smelter]));
     for (const value of list) {
-      let smelter = value.id ? current.get(value.id) : undefined;
+      const existed = value.id ? current.get(value.id) : undefined;
+      let smelter = existed;
       if (!smelter) {
         smelter = new Smelter(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
         this.ids.set(smelter, value.id);
         this.smelters.push(smelter);
+      }
+      // 客人端补播:快照回流发现铁锭增加(房主已炼出一块)时本地放一次粒子,与房主端同款(初次同步的新炉不播)
+      if (existed && value.ingot > smelter.ingot) {
+        this.fx.burst(smelter.group.position.clone().setY(smelter.group.position.y + 0.85), '#e8703a', 4);
       }
       smelter.ore = value.ore;
       smelter.ingot = value.ingot;

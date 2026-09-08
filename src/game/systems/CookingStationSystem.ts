@@ -489,11 +489,18 @@ export class CookingStationSystem {
     }
     const current = new Map(this.stations.map((station) => [this.ids.get(station), station]));
     for (const value of list) {
-      let station = value.id ? current.get(value.id) : undefined;
+      const existed = value.id ? current.get(value.id) : undefined;
+      let station = existed;
       if (!station) {
         station = new CookingStation(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0, value.fuel);
         this.ids.set(station, value.id);
         this.stations.push(station);
+      }
+      // 客人端补播:快照回流发现汤品增加(房主已煮好一份)时本地放一次粒子,与房主端同款(初次同步的新台不播)
+      if (existed && value.outCount > station.outCount) {
+        const p = station.group.position.clone();
+        p.y += 1.0;
+        this.fx.burst(p, '#ffcf5e', 4);
       }
       station.netApply({
         fuel: value.fuel,

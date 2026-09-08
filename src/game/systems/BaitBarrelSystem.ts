@@ -299,11 +299,16 @@ export class BaitBarrelSystem {
     }
     const current = new Map(this.barrels.map((barrel) => [this.ids.get(barrel), barrel]));
     for (const value of list) {
-      let barrel = value.id ? current.get(value.id) : undefined;
+      const existed = value.id ? current.get(value.id) : undefined;
+      let barrel = existed;
       if (!barrel) {
         barrel = new BaitBarrel(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
         this.ids.set(barrel, value.id);
         this.barrels.push(barrel);
+      }
+      // 客人端补播:快照回流发现鱼饵增加(房主已发酵一批)时本地放一次粒子,与房主端同款(初次同步的新桶不播)
+      if (existed && value.bait > barrel.bait) {
+        this.fx.burst(barrel.group.position.clone().setY(barrel.group.position.y + 0.7), '#d98c3f', 4);
       }
       barrel.foods = value.foods.map((f) => ({ ...f }));
       barrel.bait = value.bait;
