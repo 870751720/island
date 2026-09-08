@@ -300,11 +300,16 @@ export class BrewBarrelSystem {
     }
     const current = new Map(this.barrels.map((barrel) => [this.ids.get(barrel), barrel]));
     for (const value of list) {
-      let barrel = value.id ? current.get(value.id) : undefined;
+      const existed = value.id ? current.get(value.id) : undefined;
+      let barrel = existed;
       if (!barrel) {
         barrel = new BrewBarrel(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
         this.ids.set(barrel, value.id);
         this.barrels.push(barrel);
+      }
+      // 客人端补播:快照回流发现瓶数增加(房主已酿好一瓶)时本地放一次粒子,与房主端同款(初次同步的新桶不播)
+      if (existed && value.bottles > barrel.bottles) {
+        this.fx.burst(barrel.group.position.clone().setY(barrel.group.position.y + 0.75), '#b0496b', 4);
       }
       barrel.kind = value.kind;
       barrel.rawLeft = value.rawLeft;
