@@ -8,7 +8,7 @@ export class Clouds {
   readonly group = new THREE.Group();
   private clouds: { mesh: THREE.Mesh; speed: number }[] = [];
   private readonly material = new THREE.MeshStandardMaterial({
-    color: '#ffffff', vertexColors: true, roughness: 1, metalness: 0, flatShading: true,
+    color: '#ffffff', roughness: 1, metalness: 0, flatShading: true,
   });
   private spanX: number;
   private spanZ: number;
