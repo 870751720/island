@@ -1,3 +1,4 @@
+import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
@@ -169,6 +170,7 @@ export type HudSnapshot = {
   loomInfo: LoomInfo | null;
   /** 四个装备栏位当前穿戴的道具(未装备为 null) */
   equipped: Record<EquipSlot, EquipKind | null>;
+  gender: PlayerGender;
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
@@ -1230,7 +1232,7 @@ export class Game {
       windAmount: this.weather.windIntensity,
       windDirX: wind.dirX,
       windDirZ: wind.dirZ,
-      list: this.sessions.map((s) => {
+      list: this.sessions.map((s): PlayerState => {
         const p = s.player.group.position;
         const sv = s.survival.state;
         return {
@@ -1247,6 +1249,7 @@ export class Game {
           health: sv.health,
           stamina: sv.stamina,
           equipped: s.equipment.snapshot(),
+          gender: s.player.currentGender,
           dead: sv.dead,
           action: s.player.currentAction,
           refresh: Math.round(s.player.refreshSeconds),
@@ -1377,6 +1380,7 @@ export class Game {
       let s = this.sessions.find((session) => session.id === p.id);
       if (!s) s = this.addRemoteSession(true, p.id, p.name);
       s.setName(s === this.local ? '我' : p.name);
+      s.player.setGender(p.gender ?? 'boy');
       if (s !== this.local && SLOT_ORDER.some((slot) => s.equipment.getEquipped(slot) !== p.equipped[slot])) {
         s.equipment.restore(p.equipped, s.inventory);
       }
@@ -1985,6 +1989,7 @@ export class Game {
 
   /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */
   private applyPlayerSave(session: PlayerSession, data: SessionSave): void {
+    session.player.setGender(data.gender ?? 'boy');
     const p = session.player.group.position;
     p.set(data.player.x, data.player.y, data.player.z);
     session.survival.state.hunger = data.survival.hunger;
@@ -2037,6 +2042,7 @@ export class Game {
       crafted: [...session.craftedIds],
       equipped: session.equipment.snapshotForSave(),
       handTool: session.player.currentTool,
+      gender: session.player.currentGender,
       stats: { ...session.stats },
     };
   }
@@ -2614,6 +2620,17 @@ export class Game {
     const overflow = count - added;
     if (overflow > 0) this.drops.dropOverflow(kind, overflow, actor);
     return added;
+  }
+
+  /** GM 性别设置仅修改发起者；客人等待房主快照确认。 */
+  gmSetGender(gender: PlayerGender, actor: PlayerSession = this.local): void {
+    if (gender !== 'boy' && gender !== 'girl') return;
+    if (this.guestNet) {
+      this.guestNet.action('gmSetGender', [gender]);
+      return;
+    }
+    actor.player.setGender(gender);
+    SaveSystem.save(this.collectSave());
   }
 
   /** GM 生存状态回满并复活 */
@@ -3925,6 +3942,7 @@ export class Game {
       cookingStationInfo: this.cookingStations.nearbyInfo(s),
       loomInfo: this.looms.nearbyInfo(s),
       equipped: s.equipment.snapshot(),
+      gender: s.player.currentGender,
       tool: s.player.currentTool,
       craftId: s.crafting.currentRecipe?.id ?? null,
       craftProgress: s.crafting.getProgress() ?? 0,

@@ -90,6 +90,7 @@ const INITIAL_HUD: HudSnapshot = {
   cookingStationInfo: null,
   loomInfo: null,
   equipped: { clothing: null, pants: null, hat: null, backpack: null },
+  gender: 'boy',
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
@@ -519,9 +520,11 @@ export function GameplayUI({
       )}
       {gmOpen && (
         <GmPanel
+          gender={hud.gender}
           onClose={() => setGmOpen(false)}
           actions={{
             restoreStatus: () => gameRef.current?.gmRestoreStatus(),
+            setGender: (gender) => gameRef.current?.gmSetGender(gender),
             setTime: (t) => gameRef.current?.gmSetTime(t),
             setDay: (day) => gameRef.current?.gmSetDay(day),
             setWeather: (type) => gameRef.current?.gmSetWeather(type),

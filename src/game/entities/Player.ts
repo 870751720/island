@@ -7,8 +7,8 @@ import type { Footprints } from '../fx/Footprints';
 import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
-import { createBoyModel } from './BoyModel';
-import { BoyWardrobe } from './equipment/BoyWardrobe';
+import { createPlayerModel, type PlayerGender } from './PlayerModel';
+import { PlayerWardrobe } from './equipment/PlayerWardrobe';
 
 const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
@@ -316,7 +316,9 @@ export class Player implements Updatable {
   private injuryFx!: InjuryFx;
   /** 当前血量(仅作受伤表现驱动,权威值在 SurvivalSystem/快照) */
   private health = 100;
-  private wardrobe: BoyWardrobe;
+  private wardrobe: PlayerWardrobe;
+  private gender: PlayerGender = 'boy';
+  private appearance: ReturnType<typeof createPlayerModel>;
 
   /** 注入静态阻挡(树、大石、围栏等),移动时被推出不可穿越的物件 */
   setObstacles(...obstacles: ObstacleSolver[]): void {
@@ -335,12 +337,13 @@ export class Player implements Updatable {
     // 遥控玩家不读输入;房主端的远程会话保留本地物理但要屏蔽键盘,只吃网络摇杆
     this.input = new MoveInput(options.keyboard ?? !this.remote);
 
-    const model = createBoyModel();
+    const model = createPlayerModel();
+    this.appearance = model;
     const { arms, legs } = model;
     const [armL, armR] = arms;
     const [legL, legR] = legs;
     this.group.add(model.root);
-    this.wardrobe = new BoyWardrobe(model);
+    this.wardrobe = new PlayerWardrobe(model);
     this.limbs = [
       { mesh: armL, phase: 0 },
       { mesh: armR, phase: Math.PI },
@@ -411,6 +414,17 @@ export class Player implements Updatable {
       const tier = Math.min(this.toolTiers[name] ?? 1, models.length) - 1;
       models.forEach((m, i) => (m.visible = name === this.handTool && i === tier));
     }
+  }
+
+  get currentGender(): PlayerGender {
+    return this.gender;
+  }
+
+  setGender(gender: PlayerGender): void {
+    if ((gender !== 'boy' && gender !== 'girl') || gender === this.gender) return;
+    this.gender = gender;
+    this.appearance.setGender(gender);
+    this.wardrobe.setGender(gender);
   }
 
   /** 本地穿戴与联机快照共用的装备外观入口。 */

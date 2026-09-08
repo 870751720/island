@@ -29,7 +29,7 @@ export type EquipmentDef = {
   reduce?: number;
   /** 口渴速度倍率(如 0.95 表示减缓 5%),各栏位相乘 */
   thirstMod?: number;
-  /** 衣服/裤子:基础布料颜色，立体装饰由 BoyWardrobe 挂载 */
+  /** 衣服/裤子:基础布料颜色，立体装饰由 PlayerWardrobe 挂载 */
   bodyColor?: string;
   /** 背包:装备后背包扩容到的格数 */
   capacity?: number;

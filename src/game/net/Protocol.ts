@@ -1,3 +1,4 @@
+import type { PlayerGender } from '../entities/PlayerModel';
 import type { SaveData } from '../systems/SaveSystem';
 import type { ResourceKind } from '../systems/Inventory';
 import type { HudSnapshot } from '../Game';
@@ -14,6 +15,8 @@ export const NET_PROTOCOL_VERSION = 22;
 export type PlayerState = {
   id: string;
   name: string;
+  /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
+  gender?: PlayerGender;
   x: number;
   y: number;
   z: number;

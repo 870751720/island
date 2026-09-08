@@ -1,3 +1,4 @@
+import type { PlayerGender } from '../entities/PlayerModel';
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { CraftId, ToolId } from './Crafting';
 import type { EquipKind, EquipSlot } from './Equipment';
@@ -38,6 +39,8 @@ export type PropSave = {
 export type SessionSave = {
   id: string;
   name: string;
+  /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
+  gender?: PlayerGender;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
@@ -61,6 +64,8 @@ export type SaveData = {
   version: number;
   id: string;
   name: string;
+  /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
+  gender?: PlayerGender;
   terrainSeed: number;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
