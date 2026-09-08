@@ -3496,6 +3496,10 @@ export class Game {
   start(): void {
     // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
     this.audio.start();
+    // 相机直接落位到玩家出生点,否则会从世界原点收敛,开局出现镜头突变
+    const target = this.player.group.position;
+    this.camera.position.copy(target).add(this.photo.offset());
+    this.camera.lookAt(target.x, target.y, target.z);
     this.loop.start();
   }
 

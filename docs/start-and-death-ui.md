@@ -13,3 +13,11 @@
 - `src/ui/GameplayUI.tsx`:游戏进行中的完整 UI 模块,持有 `Game` 实例生命周期(挂载创建启动、卸载销毁),内含 HUD、背包、摇杆、工具按钮、采集/进食提示、头顶标签与死亡弹窗;死亡确认通过 `onExit` 通知外层退出。
 - `src/ui/GameCanvas.tsx`:仅做阶段路由——开始界面与 `GameplayUI` 按需互斥挂载,开始界面下不存在任何游戏操作 UI。
 - `src/ui/Hud.tsx`:移除旧的死亡提示文字,死亡 UI 统一由 `DeathScreen` 承担。
+
+## 迭代记录
+
+### 开局加载遮罩与镜头落位
+- 问题:新开游戏时世界生成在 `Game` 构造函数中同步阻塞主线程,期间页面无渲染输出(白屏卡顿);相机初始留在世界原点,循环开始后经跟随插值从原点快速收敛到玩家出生点,表现为「加载一会儿后镜头突变」。
+- 方案:
+  - `src/game/Game.ts` 的 `start()`:`loop.start()` 前把相机直接落位到玩家出生点 + 默认视角偏移并 `lookAt`,消除开局突变。
+  - `src/ui/GameplayUI.tsx`:挂载后先渲染全屏「正在登上小岛…」遮罩(背景取场景天空色 `#a8d8ea`),经两次 `requestAnimationFrame` 让浏览器画出遮罩帧后再 `new Game(...)` 同步构建世界;`game.start()` 后再等一帧 `setWorldReady(true)`,遮罩 0.5s 淡出,确保玩家看到的首画面已渲染完成。

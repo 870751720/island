@@ -189,6 +189,8 @@ export function GameplayUI({
   const labelRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
+  // 世界生成期间的遮罩,首帧渲染完成后淡出
+  const [worldReady, setWorldReady] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
   const [campfireOpen, setCampfireOpen] = useState(false);
@@ -308,7 +310,13 @@ export function GameplayUI({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const game = new Game(
+    // 世界生成在 Game 构造函数里同步阻塞主线程,先让浏览器画一帧 loading 遮罩再开始构建
+    let cancelled = false;
+    let game: Game | null = null;
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (cancelled || !containerRef.current) return;
+        game = new Game(
       container,
       setHud,
       // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染(预告彩字带颜色)
@@ -370,11 +378,17 @@ export function GameplayUI({
             ? {}
             : { save: initialSave ?? null }),
       }
+        );
+        gameRef.current = game;
+        game.start();
+        // 首帧已入队后再撤遮罩,确保玩家看到的是渲染好的画面
+        requestAnimationFrame(() => setWorldReady(true));
+      })
     );
-    gameRef.current = game;
-    game.start();
     return () => {
-      game.dispose();
+      cancelled = true;
+      cancelAnimationFrame(id);
+      game?.dispose();
       gameRef.current = null;
     };
   }, []);
@@ -403,6 +417,23 @@ export function GameplayUI({
       ref={containerRef}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // 背景取场景天空色,淡出时与首帧画面自然衔接
+          background: '#a8d8ea',
+          opacity: worldReady ? 0 : 1,
+          pointerEvents: worldReady ? 'none' : 'auto',
+          transition: 'opacity 0.5s ease-out',
+        }}
+      >
+        <span style={{ color: '#3f6f8f', fontSize: 18, letterSpacing: 4 }}>正在登上小岛…</span>
+      </div>
       {!hud.dead && !photoMode && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
       {!photoMode && (
         <>
