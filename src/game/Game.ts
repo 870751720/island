@@ -3104,6 +3104,7 @@ export class Game {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
+    if (this.placeOccupancy.taken(p)) return '这格已经放了东西';
     const blocker = this.props.occupant(p, 1);
     return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
