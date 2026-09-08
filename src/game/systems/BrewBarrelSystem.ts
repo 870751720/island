@@ -146,6 +146,7 @@ export class BrewBarrelSystem {
     const n = actor.inventory.count(kind);
     if (!barrel || n <= 0 || BREWABLE[kind] === undefined) return false;
     if (!barrel.addRaw(kind, n)) return false;
+    actor.inventory.remove(kind, n);
     this.emitState(barrel);
     this.audio.play('drop');
     return true;
