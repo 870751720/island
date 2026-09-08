@@ -24,11 +24,10 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
     'ironShirt', 'ironPants', 'ironHat', 'ironBackpack',
-    'endlessQuiver', 'endlessBait',
   ],
   食物: [
     'berry', 'oakFruit', 'pineFruit', 'fruitFruit',
-    'cola', 'colaZero', 'bottle', 'milk',
+    'cola', 'colaZero', 'milk',
     'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
     'anchovy', 'horseMackerel', 'yellowCroaker', 'saury', 'hairtail',
     'grouper', 'catfish', 'grassCarp', 'swordfish', 'manta', 'goldenFish',
@@ -52,6 +51,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   道具: [
     'oakSeed', 'pineSeed', 'fruitSeed',
     'reviveStone', 'lasso', 'letter', 'arrow', 'bait',
+    'endlessQuiver', 'endlessBait', 'bottle',
   ],
 };
 
