@@ -13,6 +13,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
+import type { LightPool } from '../world/LightPool';
 
 const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
@@ -82,7 +83,9 @@ export class CampfireSystem {
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 场上是否已有烹饪台(手搓火堆卡片的弹出条件之一) */
-    private hasCookingStation: () => boolean = () => false
+    private hasCookingStation: () => boolean = () => false,
+    /** 火光光源池 */
+    private lights?: LightPool
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
@@ -201,7 +204,7 @@ export class CampfireSystem {
   placeDead(actor: PlayerSession, at: THREE.Vector3): boolean {
     if (actor.inventory.count('deadCampfire') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('deadCampfire', 1);
-    const fire = new Campfire(this.scene, at, 0);
+    const fire = new Campfire(this.scene, at, 0, this.lights);
     this.fires.push(fire);
     const firePos = fire.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: 0 } });
@@ -252,7 +255,7 @@ export class CampfireSystem {
       st.timer = 0;
       actor.inventory.remove('flint', CAMPFIRE_COST.flint);
       actor.inventory.remove('wood', CAMPFIRE_COST.wood);
-      const fire = new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL);
+      const fire = new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL, this.lights);
       this.fires.push(fire);
       const firePos = fire.group.position;
       this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: fire.fuel } });
@@ -455,7 +458,7 @@ export class CampfireSystem {
     for (const value of list) {
       let fire = value.id ? current.get(value.id) : undefined;
       if (!fire) {
-        fire = new Campfire(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.fuel);
+        fire = new Campfire(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.fuel, this.lights);
         this.ids.set(fire, value.id);
         this.fires.push(fire);
       } else fire.netApplyFuel(value.fuel);
@@ -465,7 +468,7 @@ export class CampfireSystem {
   /** 从存档恢复火堆(含熄灭的) */
   restore(list: { id?: string; x: number; y: number; z: number; fuel: number }[]): void {
     for (const f of list) {
-      const fire = new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), f.fuel);
+      const fire = new Campfire(this.scene, new THREE.Vector3(f.x, f.y, f.z), f.fuel, this.lights);
       this.ids.set(fire, f.id);
       this.fires.push(fire);
     }

@@ -11,6 +11,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
+import type { LightPool } from '../world/LightPool';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const DIG_RANGE = 1.6; // 持锄头可开挖神像的距离
@@ -56,7 +57,9 @@ export class ShrineSystem {
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
     private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
-    private isOtherBusy: (actor: PlayerSession) => boolean = () => false
+    private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
+    /** 火把火光的光源池 */
+    private lights?: LightPool
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
@@ -126,7 +129,7 @@ export class ShrineSystem {
   place(actor: PlayerSession, kind: ShrineKind, at: THREE.Vector3): boolean {
     if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(kind, 1);
-    const shrine = new Shrine(this.scene, at, kind);
+    const shrine = new Shrine(this.scene, at, kind, this.lights);
     this.shrines.push(shrine);
     const sp = shrine.group.position;
     const id = this.ids.get(shrine);
@@ -182,6 +185,7 @@ export class ShrineSystem {
     this.shrines.splice(this.shrines.indexOf(target), 1);
     this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
     this.scene.remove(target.group);
+    target.dispose();
     this.give(target.kind, 1, actor);
     this.fx.burst(target.group.position, SHRINE_COLORS[target.kind], 14);
     } finally {
@@ -212,7 +216,10 @@ export class ShrineSystem {
 
   /** 清空场上全部神像(客人侧重放世界快照前调用) */
   clear(): void {
-    for (const shrine of this.shrines) this.scene.remove(shrine.group);
+    for (const shrine of this.shrines) {
+      this.scene.remove(shrine.group);
+      shrine.dispose();
+    }
     this.shrines = [];
   }
 
@@ -220,7 +227,7 @@ export class ShrineSystem {
   restore(list: ShrineSave[]): void {
     for (const s of list) {
       const kind = s.kind ?? 'poseidonBlessing';
-      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z), kind);
+      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z), kind, this.lights);
       this.ids.set(shrine, s.id);
       this.shrines.push(shrine);
     }
@@ -231,12 +238,13 @@ export class ShrineSystem {
     for (let i = this.shrines.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.shrines[i]))) continue;
       this.scene.remove(this.shrines[i].group);
+      this.shrines[i].dispose();
       this.shrines.splice(i, 1);
     }
     const current = new Map(this.shrines.map((s) => [this.ids.get(s), s]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'poseidonBlessing');
+      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'poseidonBlessing', this.lights);
       this.ids.set(shrine, value.id);
       this.shrines.push(shrine);
     }

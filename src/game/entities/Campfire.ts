@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import type { LightPool } from '../world/LightPool';
 
 const FULL_FUEL = 210; // 火焰达到满簇满尺寸/满亮度的参考燃料秒数
 const LOW_FUEL = 12; // 剩余低于该秒数算濒熄:火苗缩小、剧烈闪烁
+/** 燃着时的火光参数(向光源池领取;池满则本座无动态光照,火焰表现不受影响) */
+const LIGHT_SPEC = { color: '#ff9d2e', intensity: 1.4, distance: 6, decay: 1.2 };
 
 function clayMaterial(color: string, emissive = 0): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -25,7 +28,7 @@ export class Campfire {
   private flames: THREE.Mesh[] = [];
   private fireRoot: THREE.Group;
   private smoke: { mesh: THREE.Mesh; offset: number }[] = [];
-  private light: THREE.PointLight;
+  private light: THREE.PointLight | null = null;
   private logs: THREE.Group;
   private logMat: THREE.MeshStandardMaterial;
   private charredMat: THREE.MeshStandardMaterial;
@@ -36,7 +39,9 @@ export class Campfire {
     scene: THREE.Scene,
     position: THREE.Vector3,
     /** 制作完成时的初始燃料(秒) */
-    initialFuel: number
+    initialFuel: number,
+    /** 火光光源池(不传则无动态光照,安放预览等表现场景用) */
+    private lights?: LightPool
   ) {
     this.fuel = initialFuel;
     this.group = new THREE.Group();
@@ -80,9 +85,6 @@ export class Campfire {
       this.fireRoot.add(flame);
     }
     this.group.add(this.fireRoot);
-    this.light = new THREE.PointLight('#ff9d2e', 1.4, 6, 1.2);
-    this.light.position.y = 0.85;
-    this.group.add(this.light);
 
     // 炊烟:三个错相循环上升并消散的烟团
     const smokeMat = new THREE.MeshBasicMaterial({
@@ -102,8 +104,10 @@ export class Campfire {
     this.charredMat = clayMaterial('#2e2a26');
     this.group.position.y -= 0.05;
     scene.add(this.group);
-    if (initialFuel > 0) this.applyStage();
-    else this.extinguish();
+    if (initialFuel > 0) {
+      this.applyStage();
+      this.light = this.lights?.claim(this.group.position, 0.85, LIGHT_SPEC) ?? null;
+    } else this.extinguish();
   }
 
   get isLit(): boolean {
@@ -123,8 +127,10 @@ export class Campfire {
     // 灯光亮度随燃料连续伸缩、濒熄时剧烈明灭;照射范围按燃料档次(簇数)分档
     const k = Math.min(this.fuel / FULL_FUEL, 1);
     const wobble = low ? Math.sin(elapsed * 18) * 0.9 : Math.sin(elapsed * 10) * 0.25;
-    this.light.intensity = Math.max(1.2 + k * 4.5 + wobble, 0.3);
-    this.light.distance = this.fuel > 210 ? 13 : this.fuel > 150 ? 10.5 : this.fuel > 30 ? 7.5 : 5;
+    if (this.light) {
+      this.light.intensity = Math.max(1.2 + k * 4.5 + wobble, 0.3);
+      this.light.distance = this.fuel > 210 ? 13 : this.fuel > 150 ? 10.5 : this.fuel > 30 ? 7.5 : 5;
+    }
     this.updateSmoke(elapsed);
     if (this.fuel <= 0) this.extinguish();
     else this.applyStage();
@@ -158,7 +164,10 @@ export class Campfire {
   private extinguish(): void {
     for (const flame of this.flames) flame.visible = false;
     for (const { mesh } of this.smoke) mesh.visible = false;
-    this.light.visible = false;
+    if (this.light) {
+      this.lights?.release(this.light);
+      this.light = null;
+    }
     this.logs.traverse((obj) => {
       if (obj instanceof THREE.Mesh) obj.material = this.charredMat;
     });
@@ -166,7 +175,7 @@ export class Campfire {
 
   /** 复燃:添柴后恢复木柴原色与火焰表现 */
   relight(): void {
-    this.light.visible = true;
+    this.light = this.lights?.claim(this.group.position, 0.85, LIGHT_SPEC) ?? null;
     this.logs.traverse((obj) => {
       if (obj instanceof THREE.Mesh) obj.material = this.logMat;
     });
@@ -186,6 +195,10 @@ export class Campfire {
   }
 
   dispose(): void {
+    if (this.light) {
+      this.lights?.release(this.light);
+      this.light = null;
+    }
     this.charredMat.dispose();
     this.group.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {

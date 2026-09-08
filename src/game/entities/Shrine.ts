@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import type { LightPool } from '../world/LightPool';
+
+/** 火把火光参数(向光源池领取) */
+const TORCH_LIGHT_SPEC = { color: '#ff9d2e', intensity: 1.2, distance: 4.5, decay: 1.5 };
 
 /** 场上神龛的种类(与对应道具的持久化 ID 一致) */
 export type ShrineKind = 'poseidonBlessing' | 'beehiveShrine' | 'healCrystal' | 'rainAltar' | 'crocIncense' | 'torch';
@@ -193,19 +197,14 @@ function makeTorchMesh(): ShrineMesh {
   gem.scale.y = 1.7;
   gem.position.y = 0.68;
   group.add(gem);
-  const light = new THREE.PointLight('#ff9d2e', 1.2, 4.5, 1.5);
-  light.position.y = 0.7;
-  group.add(light);
   return {
     group,
     gem,
     gemY: 0.68,
     update: (delta, elapsed, flame, flameY) => {
-      // 火苗摇曳 + 光强轻微抖动
       const flicker = 1 + Math.sin(elapsed * 11) * 0.08 + Math.sin(elapsed * 23) * 0.05;
       flame.scale.set(flicker, 1 / flicker, flicker);
       flame.rotation.y += delta * 3;
-      light.intensity = 1.2 * flicker;
       flame.position.y = flameY + Math.sin(elapsed * 9) * 0.02;
     },
   };
@@ -227,9 +226,13 @@ export class Shrine {
   private gem: THREE.Mesh;
   private gemY: number;
   private customUpdate?: NonNullable<ShrineMesh['update']>;
+  /** 火把的火光(从光源池领取;池满或预览场景则无) */
+  private light: THREE.PointLight | null = null;
+  private lights?: LightPool;
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, kind: ShrineKind) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, kind: ShrineKind, lights?: LightPool) {
     this.kind = kind;
+    this.lights = lights;
     const built = BUILDERS[kind]();
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -239,15 +242,29 @@ export class Shrine {
     this.gem = built.gem;
     this.gemY = built.gemY;
     this.customUpdate = built.update;
+    if (kind === 'torch') {
+      this.light = lights?.claim(this.group.position, 0.7, TORCH_LIGHT_SPEC) ?? null;
+    }
   }
 
   /** 宝石缓慢旋转、微微起伏的常驻表现(火把为火苗摇曳) */
   update(delta: number, elapsed: number): void {
     if (this.customUpdate) {
       this.customUpdate(delta, elapsed, this.gem, this.gemY);
-      return;
+    } else {
+      this.gem.rotation.y += delta * 1.2;
+      this.gem.position.y = this.gemY + Math.sin(elapsed * 2) * 0.03;
     }
-    this.gem.rotation.y += delta * 1.2;
-    this.gem.position.y = this.gemY + Math.sin(elapsed * 2) * 0.03;
+    if (this.light) {
+      const flicker = 1 + Math.sin(elapsed * 11) * 0.08 + Math.sin(elapsed * 23) * 0.05;
+      this.light.intensity = 1.2 * flicker;
+    }
+  }
+
+  dispose(): void {
+    if (this.light) {
+      this.lights?.release(this.light);
+      this.light = null;
+    }
   }
 }

@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { FOODS, BOILABLE } from '../systems/Food';
 import type { ResourceKind } from '../systems/Inventory';
+import type { LightPool } from '../world/LightPool';
 
 /** 火焰达到满簇满亮度的参考燃料秒数(表现用,与火堆同档) */
 const FULL_FUEL = 210;
 /** 每份汤品的煮制时长(秒) */
 export const BOIL_INTERVAL = 5;
+/** 燃着时的火光参数(向光源池领取;池满则本座无动态光照,火焰表现不受影响) */
+const LIGHT_SPEC = { color: '#ff9d2e', intensity: 1.4, distance: 6, decay: 1.2 };
 
 function clayMaterial(color: string, emissive = 0): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -27,7 +30,7 @@ export class CookingStation {
   private flames: THREE.Mesh[] = [];
   private fireRoot: THREE.Group;
   private steam: { mesh: THREE.Mesh; offset: number }[] = [];
-  private light: THREE.PointLight;
+  private light: THREE.PointLight | null = null;
   private pot: THREE.Group;
   private soupMat: THREE.MeshStandardMaterial;
   /** 剩余燃烧秒数,> 0 即在燃烧 */
@@ -47,7 +50,9 @@ export class CookingStation {
     scene: THREE.Scene,
     position: THREE.Vector3,
     rotY: number,
-    initialFuel: number
+    initialFuel: number,
+    /** 火光光源池(不传则无动态光照,安放预览等表现场景用) */
+    private lights?: LightPool
   ) {
     this.fuel = initialFuel;
     this.group = new THREE.Group();
@@ -101,9 +106,6 @@ export class CookingStation {
       this.fireRoot.add(flame);
     }
     this.group.add(this.fireRoot);
-    this.light = new THREE.PointLight('#ff9d2e', 1.4, 6, 1.2);
-    this.light.position.y = 0.9;
-    this.group.add(this.light);
 
     // 腾起的热气:煮汤时三个错相循环上升的气团
     const steamMat = new THREE.MeshBasicMaterial({
@@ -121,8 +123,10 @@ export class CookingStation {
 
     this.group.position.y -= 0.05;
     scene.add(this.group);
-    if (initialFuel > 0) this.applyStage();
-    else this.extinguish();
+    if (initialFuel > 0) {
+      this.applyStage();
+      this.light = this.lights?.claim(this.group.position, 0.9, LIGHT_SPEC) ?? null;
+    } else this.extinguish();
   }
 
   get isLit(): boolean {
@@ -144,7 +148,7 @@ export class CookingStation {
     }
     const k = Math.min(this.fuel / FULL_FUEL, 1);
     const wobble = low ? Math.sin(elapsed * 18) * 0.9 : Math.sin(elapsed * 10) * 0.25;
-    this.light.intensity = Math.max(1.2 + k * 4 + wobble, 0.3);
+    if (this.light) this.light.intensity = Math.max(1.2 + k * 4 + wobble, 0.3);
     this.updateBoilingFx(elapsed);
   }
 
@@ -175,13 +179,16 @@ export class CookingStation {
   private extinguish(): void {
     for (const flame of this.flames) flame.visible = false;
     for (const { mesh } of this.steam) mesh.visible = false;
-    this.light.visible = false;
+    if (this.light) {
+      this.lights?.release(this.light);
+      this.light = null;
+    }
   }
 
   /** 复燃:添柴后恢复火焰表现 */
   relight(): void {
     for (const flame of this.flames) flame.visible = true;
-    this.light.visible = true;
+    this.light = this.lights?.claim(this.group.position, 0.9, LIGHT_SPEC) ?? null;
     this.applyStage();
   }
 
@@ -228,6 +235,10 @@ export class CookingStation {
   }
 
   dispose(): void {
+    if (this.light) {
+      this.lights?.release(this.light);
+      this.light = null;
+    }
     this.group.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
         obj.geometry.dispose();

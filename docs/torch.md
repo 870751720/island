@@ -14,3 +14,7 @@
 - 放置、锄头挖掘回收、存档(`shrines` 快照带 kind)、联机同步(place 走 `useShrine` action、增删走 `shrines` 世界增量快照)全部沿用 `ShrineSystem`,零新增协议。
 - `DropModels.ts` 补火把掉落物造型(横躺树枝 + 布头),`Backpack.tsx`/`GameplayUI.tsx` 加入可使用神龛道具列表。
 - 存档兼容:沿用 `shrines` 数组与缺省 kind 解释规则,`SAVE_VERSION` 不变。
+
+## 迭代记录
+
+- 2026-09-09:修复放置火把瞬间卡顿:此前火把(以及点燃的火堆/烹饪台)各自 `new PointLight` 加入场景,场景点光源数量一变,Three.js 会重编译所有材质的着色器,造成一次掉帧。新增固定大小的光源池 `src/game/world/LightPool.ts`(6 盏池灯常驻场景、闲置时强度 0),火把/火堆/烹饪台点亮时领取、熄灭/挖走时归还,光源总数恒定,放置/点燃/燃尽都不再触发重编译;池满时后点燃的摆件只有火苗自发光、无动态光照。安放预览(幽灵)不再带动态光照。

@@ -49,6 +49,7 @@ import { CookingStation } from './entities/CookingStation';
 import { Campfire } from './entities/Campfire';
 import { AutoPlaceSystem, buildGhost, miniHeldModel } from './systems/AutoPlace';
 import { PlaceOccupancy } from './systems/PlaceOccupancy';
+import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine, type ShrineKind } from './entities/Shrine';
 import { BUFFS, type HudBuff } from './systems/BuffSystem';
@@ -414,6 +415,8 @@ export class Game {
   private fences: FenceSystem;
   /** 全场已放置实体的统一占格判定(各安放系统注册共享) */
   private placeOccupancy = new PlaceOccupancy();
+  /** 火光光源池:固定数量的点光源常驻场景,点燃/熄灭只领用归还,避免增删光源触发全材质着色器重编译卡顿 */
+  private flameLights = new LightPool(this.scene, 6);
   private autoPlace: AutoPlaceSystem;
   private stakes: StakeSystem;
   private beds: BedSystem;
@@ -819,7 +822,9 @@ export class Game {
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
       this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
-      (actor) => this.isSessionBusy(actor, 'cookingStations')
+      (actor) => this.isSessionBusy(actor, 'cookingStations'),
+      // 火光光源池
+      this.flameLights
     );
     this.looms = new LoomSystem(
       this.scene,
@@ -860,7 +865,9 @@ export class Game {
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
       // 场上已有烹饪台时不再弹火堆卡片
-      () => this.cookingStations.count > 0
+      () => this.cookingStations.count > 0,
+      // 火光光源池
+      this.flameLights
     );
     this.shrines = new ShrineSystem(
       this.scene,
@@ -873,7 +880,9 @@ export class Game {
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
       this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
-      (actor) => this.isSessionBusy(actor, 'shrines')
+      (actor) => this.isSessionBusy(actor, 'shrines'),
+      // 火把火光的光源池
+      this.flameLights
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
     for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines]) {

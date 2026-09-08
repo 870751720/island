@@ -14,6 +14,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
+import type { LightPool } from '../world/LightPool';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距烹饪台小于该值时算在台旁
@@ -99,7 +100,9 @@ export class CookingStationSystem {
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
     private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
-    private isOtherBusy: (actor: PlayerSession) => boolean = () => false
+    private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
+    /** 火光光源池 */
+    private lights?: LightPool
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
@@ -188,7 +191,7 @@ export class CookingStationSystem {
   }
 
   private placeAt(position: THREE.Vector3, rotY: number): CookingStation {
-    const station = new CookingStation(this.scene, position, rotY, 0);
+    const station = new CookingStation(this.scene, position, rotY, 0, this.lights);
     this.stations.push(station);
     this.emitAdd(station);
     return station;
@@ -484,7 +487,7 @@ export class CookingStationSystem {
   /** 从存档恢复全部烹饪台(含燃料与锅里状态) */
   restore(list: CookingStationSave[]): void {
     for (const s of list) {
-      const station = new CookingStation(this.scene, new THREE.Vector3(s.x, s.y, s.z), s.rotY ?? 0, s.fuel);
+      const station = new CookingStation(this.scene, new THREE.Vector3(s.x, s.y, s.z), s.rotY ?? 0, s.fuel, this.lights);
       this.ids.set(station, s.id);
       station.netApply({
         fuel: s.fuel,
@@ -512,7 +515,7 @@ export class CookingStationSystem {
       const existed = value.id ? current.get(value.id) : undefined;
       let station = existed;
       if (!station) {
-        station = new CookingStation(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0, value.fuel);
+        station = new CookingStation(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0, value.fuel, this.lights);
         this.ids.set(station, value.id);
         this.stations.push(station);
       }
