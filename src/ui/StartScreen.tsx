@@ -97,7 +97,7 @@ export function StartScreen({
               setShowSetup(true);
             }}
           >
-            {profile ? profile.name : '设置形象'}
+            设置形象
           </button>
         )}
         {ready ? (
@@ -289,22 +289,19 @@ const css = `
   position: absolute;
   top: 14px;
   right: 14px;
+  width: auto;
+  min-height: 34px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  max-width: 46%;
-  min-height: 36px;
-  padding: 0 12px 0 6px;
+  justify-content: center;
   border: 1.5px solid rgba(44, 95, 45, 0.22);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
   color: #44513a;
   font-size: clamp(12px, 3.4vw, 14px);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.08em;
   cursor: pointer;
   transition: transform 0.08s ease;
 }
