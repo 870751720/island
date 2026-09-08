@@ -2541,6 +2541,10 @@ export class Game {
     ) {
       return null;
     }
+    // 手持可放置道具(含围栏/围栏门)时是玩家手动选择,不自动切换
+    if (['place', 'fence', 'fenceGate'].includes(this.player.currentTool)) {
+      return null;
+    }
     const nearby = this.collect.getNearby();
     if (nearby) {
       if (
