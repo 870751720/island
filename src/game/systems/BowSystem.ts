@@ -116,7 +116,9 @@ export class BowSystem {
     /** 放箭瞬间回调(联机广播用):参数为瞄准方向与出手点 */
     private onShot?: (dirX: number, dirZ: number) => void,
     /** 伤害乘数(如「晕晕的」醉酒增伤),缺省 1 */
-    private damageMultiplier: () => number = () => 1
+    private damageMultiplier: () => number = () => 1,
+    /** 背包里是否放着无限箭袋(有则无需箭矢也能开弓,且放箭不消耗) */
+    private hasEndlessQuiver: () => boolean = () => false
   ) {
     this.guide = new AimGuide(terrain, RANGE, AIM_DOTS, AIM_START);
     this.scene.add(this.guide.group);
@@ -151,7 +153,7 @@ export class BowSystem {
       !busy &&
       !this.player.isSwimming &&
       this.player.currentTool === 'bow' &&
-      this.ammo.count('arrow') > 0 &&
+      (this.ammo.count('arrow') > 0 || this.hasEndlessQuiver()) &&
       this.findTarget() !== null;
     if (!canAim) {
       this.cancelAim();
@@ -197,9 +199,9 @@ export class BowSystem {
     this.aimed = false;
   }
 
-  /** 放箭:扣一支箭,沿瞄准方向生成飞行箭矢,播放箭动作 */
+  /** 放箭:扣一支箭(无限箭袋免扣),沿瞄准方向生成飞行箭矢,播放箭动作 */
   private release(): void {
-    if (!this.ammo.remove('arrow', 1)) {
+    if (!this.hasEndlessQuiver() && !this.ammo.remove('arrow', 1)) {
       this.cancelAim();
       return;
     }

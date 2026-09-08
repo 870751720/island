@@ -20,6 +20,14 @@
 
 ## 迭代记录
 
+### 2026-09-08 珍宝池新增三件宝物
+
+四档珍宝池(`FishTable.TREASURE_LOOT`)新增三件,并调低雨神祭坛权重(10→1);转盘格位按新池顺序展示,旧档无影响(珍宝保底集合按 kind 记录,新道具自动纳入)。
+
+- 无限箭袋 `endlessQuiver`(权重 1,装备类):放在背包里时开弓不要求有箭、放箭不消耗箭(`BowSystem` 经构造注入的 `hasEndlessQuiver` 回调判定;客人放箭时房主 `netArrowShot` 同样按其背包免扣)。
+- 无限饵料桶 `endlessBait`(权重 1,装备类):放在背包里时抛竿永远视同有饵(走有饵档位权重、计入四档保底)且不消耗鱼饵(`FishingSystem.start`)。
+- 防鳄熏香 `crocIncense`(权重 10,设施类):类似雨神祭坛的可放置神龛(背包「使用」立起,锄头可挖回),放置期间 30 米内玩家在水洼喝水不再触发鳄鱼袭击(`Game.onDrinkRound` 查 `ShrineSystem.inAura('crocIncense', ...)`,房主权威判定,联机走既有神龛同步)。
+
 ### 2026-09-08 四档珍宝保底
 
 有鱼饵抛竿时连续 99 次未出四档,下一次(第 100 次)必出四档。计数器 `Game.tier4Pity`(全体玩家共享,房主权威持有)经 `FishingSystem` 构造注入的 `tier4Pity` 回调读写:抽中四档清零,否则 +1;裸钓不计数、不消耗保底。随存档持久化(`SaveData.tier4Pity`,旧档缺省 0);档位抽取仍只在房主端结算,联机无需新增同步字段。常量 `FishTable.TIER4_PITY_CASTS = 99`。

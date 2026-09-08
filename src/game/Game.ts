@@ -1702,9 +1702,9 @@ export class Game {
     });
   }
 
-  /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
+  /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗;客人背包有无限箭袋则免扣)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
   netArrowShot(actor: PlayerSession, dx: number, dz: number): void {
-    actor.ammo.remove('arrow', 1);
+    if (actor.inventory.count('endlessQuiver') <= 0) actor.ammo.remove('arrow', 1);
     actor.shotAnimLeft = 0.35;
     actor.archery.netPlayShot(dx, dz);
     this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: actor.id, dx, dz });
@@ -3534,7 +3534,9 @@ export class Game {
           }
         : undefined,
       // 「晕晕的」醉酒状态:箭矢伤害 +30%
-      () => (s.player.tipsySeconds > 0 ? 1.3 : 1)
+      () => (s.player.tipsySeconds > 0 ? 1.3 : 1),
+      // 无限箭袋:放在背包里时开弓不检查、放箭不消耗箭
+      () => s.inventory.count('endlessQuiver') > 0
     );
     s.sword = new SwordSystem(
       s.player,
@@ -3591,9 +3593,10 @@ export class Game {
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
   }
 
-  /** 某玩家喝完一轮水:按 GM 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现) */
+  /** 某玩家喝完一轮水:按 GM 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */
   private onDrinkRound(session: PlayerSession): void {
     if (this.guestMode) return;
+    if (this.shrines.inAura('crocIncense', session.player.group.position)) return;
     if (Math.random() >= GmSystem.crocodileChance) return;
     this.spawnCrocodileNear(session);
   }

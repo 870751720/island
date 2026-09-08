@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** 场上神龛的种类(与对应道具的持久化 ID 一致) */
-export type ShrineKind = 'poseidonBlessing' | 'beehiveShrine' | 'healCrystal' | 'rainAltar' | 'torch';
+export type ShrineKind = 'poseidonBlessing' | 'beehiveShrine' | 'healCrystal' | 'rainAltar' | 'crocIncense' | 'torch';
 
 /** 各神龛的主题色(宝石、放置特效共用) */
 export const SHRINE_COLORS: Record<ShrineKind, string> = {
@@ -9,6 +9,7 @@ export const SHRINE_COLORS: Record<ShrineKind, string> = {
   beehiveShrine: '#e8a13a',
   healCrystal: '#ff9ecb',
   rainAltar: '#6fa8dc',
+  crocIncense: '#b08bc9',
   torch: '#ff9d2e',
 };
 
@@ -130,6 +131,53 @@ function makeRainAltarMesh(): ShrineMesh {
   return { group, gem, gemY: 0.74 };
 }
 
+/** 防鳄熏香:石座上的香炉插着盘香,顶端一点紫色香火徐徐吐烟 */
+function makeCrocIncenseMesh(): ShrineMesh {
+  const group = new THREE.Group();
+  group.add(makeBase());
+  const burner = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.16, 0.14, 7), clayMaterial('#6d5a7e'));
+  burner.position.y = 0.42;
+  burner.castShadow = true;
+  group.add(burner);
+  const coilMat = clayMaterial('#c9b8a8');
+  for (const [r, y] of [
+    [0.16, 0.5],
+    [0.1, 0.56],
+    [0.05, 0.62],
+  ] as const) {
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(r, 0.022, 4, 10), coilMat);
+    coil.rotation.x = Math.PI / 2;
+    coil.position.y = y;
+    group.add(coil);
+  }
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), gemMaterial(SHRINE_COLORS.crocIncense, '#6d4a91'));
+  gem.position.y = 0.76;
+  group.add(gem);
+  // 三缕小烟球,绕着香火缓缓盘旋
+  const smokeMat = new THREE.MeshStandardMaterial({ color: '#cfc8d6', flatShading: true, roughness: 1, transparent: true, opacity: 0.7 });
+  const smokes: THREE.Mesh[] = [];
+  for (let i = 0; i < 3; i++) {
+    const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), smokeMat);
+    group.add(smoke);
+    smokes.push(smoke);
+  }
+  return {
+    group,
+    gem,
+    gemY: 0.76,
+    update: (delta, elapsed, ember, emberY) => {
+      ember.position.y = emberY + Math.sin(elapsed * 2) * 0.02;
+      for (let i = 0; i < smokes.length; i++) {
+        const phase = elapsed * 0.5 + (i / smokes.length) * Math.PI * 2;
+        const rise = (elapsed * 0.25 + i / smokes.length) % 1;
+        smokes[i].position.set(Math.sin(phase) * 0.07, 0.82 + rise * 0.5, Math.cos(phase) * 0.07);
+        smokes[i].scale.setScalar(0.6 + rise);
+      }
+      ember.rotation.y += delta * 1.2;
+    },
+  };
+}
+
 /** 火把:插地的树枝顶着永不熄灭的火苗,小范围照亮四周 */
 function makeTorchMesh(): ShrineMesh {
   const group = new THREE.Group();
@@ -168,6 +216,7 @@ const BUILDERS: Record<ShrineKind, () => ShrineMesh> = {
   beehiveShrine: makeBeehiveMesh,
   healCrystal: makeHealCrystalMesh,
   rainAltar: makeRainAltarMesh,
+  crocIncense: makeCrocIncenseMesh,
   torch: makeTorchMesh,
 };
 

@@ -184,9 +184,11 @@ export class FishingSystem {
     this.state = 'casting';
     this.audio.play('whoosh');
     this.timer = 0;
-    // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低)
-    const baited = this.ammo.count('bait') > 0;
-    if (baited) this.ammo.remove('bait', 1);
+    // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低);
+    // 背包里有无限饵料桶时永远视同有饵且不消耗
+    const endless = this.inventory.count('endlessBait') > 0;
+    const baited = endless || this.ammo.count('bait') > 0;
+    if (baited && !endless) this.ammo.remove('bait', 1);
     // 四档保底:有饵连续 99 次未出珍宝,第 100 次必出
     const pity = this.tier4Pity();
     this.tier = baited && pity.count >= TIER4_PITY_CASTS ? 4 : rollTier(baited, this.junkCut());

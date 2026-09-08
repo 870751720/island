@@ -70,6 +70,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'beehiveShrine' ||
     kind === 'healCrystal' ||
     kind === 'rainAltar' ||
+    kind === 'crocIncense' ||
     kind === 'torch'
   );
 }

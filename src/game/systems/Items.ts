@@ -24,6 +24,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
     'ironShirt', 'ironPants', 'ironHat', 'ironBackpack',
+    'endlessQuiver', 'endlessBait',
   ],
   食物: [
     'berry', 'cola', 'colaZero', 'bottle', 'milk',
@@ -39,7 +40,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   ],
   设施: [
     'reviveStone', 'poseidonBlessing', 'beehiveShrine', 'healCrystal',
-    'rainAltar',
+    'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate',
@@ -311,6 +312,25 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🌧️',
     description:
       '供奉雨神的蓝陶钵。放置期间 30 米内的所有玩家口渴值不再下降。',
+  },
+  endlessQuiver: {
+    kind: 'endlessQuiver',
+    name: '无限箭袋',
+    icon: '🏹',
+    description: '缝入神羽的箭袋。放在背包里时,拉弓射箭不再消耗箭矢。',
+  },
+  endlessBait: {
+    kind: 'endlessBait',
+    name: '无限饵料桶',
+    icon: '🪣',
+    description: '取之不竭的饵料桶。放在背包里时,抛竿钓鱼永远视同有饵且不消耗鱼饵。',
+  },
+  crocIncense: {
+    kind: 'crocIncense',
+    name: '防鳄熏香',
+    icon: '🪔',
+    description:
+      '气味辛辣的驱兽熏香。「使用」立在脚下后,30 米内的玩家在水洼喝水不再招来鳄鱼。',
   },
   torch: {
     kind: 'torch',

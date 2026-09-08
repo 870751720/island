@@ -71,7 +71,10 @@ export const TREASURE_LOOT: LootEntry[] = [
   { kind: 'poseidonBlessing', weight: 10, size: 1.2, color: '#2ec4b6', shape: 'bottle' },
   { kind: 'beehiveShrine', weight: 10, size: 1.2, color: '#e8a13a', shape: 'bottle' },
   { kind: 'healCrystal', weight: 10, size: 1.1, color: '#ff9ecb', shape: 'bottle' },
-  { kind: 'rainAltar', weight: 10, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
+  { kind: 'rainAltar', weight: 1, size: 1.2, color: '#6fa8dc', shape: 'bottle' },
+  { kind: 'endlessQuiver', weight: 1, size: 1.1, color: '#a97c50', shape: 'bottle' },
+  { kind: 'endlessBait', weight: 1, size: 1.1, color: '#8a6239', shape: 'bottle' },
+  { kind: 'crocIncense', weight: 10, size: 1.2, color: '#b08bc9', shape: 'bottle' },
 ];
 
 /** 取某水域某档位的战利品池(一、四档共用,二三档按水域区分) */

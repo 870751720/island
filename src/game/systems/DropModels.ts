@@ -46,6 +46,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   beehiveShrine: '#e8a13a',
   healCrystal: '#ff9ecb',
   rainAltar: '#6fa8dc',
+  endlessQuiver: '#a97c50',
+  endlessBait: '#8a6239',
+  crocIncense: '#b08bc9',
   torch: '#ff9d2e',
   crabMeat: '#e2793a',
   birdMeat: '#c98a5a',
@@ -845,6 +848,47 @@ function makeShrineDrop(color: string, emissive: string, gemScaleY = 1): THREE.O
   return g;
 }
 
+/** 无限箭袋:斜倚的皮箭袋,袋口插着几支泛光的箭 */
+function makeEndlessQuiverDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const bag = mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.2, 6), clay(DROP_COLORS.endlessQuiver));
+  bag.position.y = 0.1;
+  bag.rotation.z = 0.2;
+  bag.castShadow = true;
+  g.add(bag);
+  const arrowMat = new THREE.MeshStandardMaterial({ color: '#e8e2d4', flatShading: true, roughness: 0.4, emissive: '#8a7a4a' });
+  for (const dx of [-0.035, 0, 0.035]) {
+    const arrow = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 4), arrowMat);
+    arrow.position.set(dx * 1.4, 0.22, 0);
+    arrow.rotation.z = 0.2;
+    g.add(arrow);
+  }
+  return g;
+}
+
+/** 无限饵料桶:小木桶,桶口冒出一颗饵料光珠 */
+function makeEndlessBaitDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const barrel = mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.14, 7), clay(DROP_COLORS.endlessBait));
+  barrel.position.y = 0.07;
+  barrel.castShadow = true;
+  g.add(barrel);
+  const hoopMat = clay('#c9a15c');
+  for (const y of [0.03, 0.11]) {
+    const hoop = mesh(new THREE.TorusGeometry(y === 0.03 ? 0.095 : 0.105, 0.012, 4, 7), hoopMat);
+    hoop.rotation.x = Math.PI / 2;
+    hoop.position.y = y;
+    g.add(hoop);
+  }
+  const glow = mesh(
+    new THREE.SphereGeometry(0.045, 6, 5),
+    new THREE.MeshStandardMaterial({ color: '#a4c46a', flatShading: true, roughness: 0.4, emissive: '#5f8f3a' })
+  );
+  glow.position.y = 0.17;
+  g.add(glow);
+  return g;
+}
+
 /** 火把道具:横躺的迷你树枝,顶端一团未点燃的浸油布头 */
 function makeTorchDrop(): THREE.Object3D {
   const g = new THREE.Group();
@@ -988,6 +1032,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   beehiveShrine: () => makeShrineDrop(DROP_COLORS.beehiveShrine, '#9c6a1a', 1.3),
   healCrystal: () => makeShrineDrop(DROP_COLORS.healCrystal, '#c4537f', 1.7),
   rainAltar: () => makeShrineDrop(DROP_COLORS.rainAltar, '#2b5f9e', 1.5),
+  endlessQuiver: makeEndlessQuiverDrop,
+  endlessBait: makeEndlessBaitDrop,
+  crocIncense: () => makeShrineDrop(DROP_COLORS.crocIncense, '#6d4a91', 1.6),
   torch: makeTorchDrop,
   crabMeat: makeCrabMeat,
   birdMeat: makeBirdMeat,

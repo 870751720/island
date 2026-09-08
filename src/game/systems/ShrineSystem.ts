@@ -33,6 +33,7 @@ type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; 
  * - 蜂巢神龛:全岛采集浆果丛时 10% 概率多掉 1 颗
  * - 治愈水晶:30 米内玩家缓慢回血
  * - 雨神祭坛:30 米内玩家口渴值不再下降
+ * - 防鳄熏香:30 米内玩家在水洼喝水不再招来鳄鱼
  * - 火把:手搓的可插地摆件,小范围照明,永不熄灭(无祝福效果)
  */
 export class ShrineSystem {
@@ -88,8 +89,8 @@ export class ShrineSystem {
     return this.shrines.some((s) => s.kind === kind);
   }
 
-  /** 位置是否处于某光环类神龛(治愈水晶/雨神祭坛)的半径内 */
-  inAura(kind: 'healCrystal' | 'rainAltar', position: THREE.Vector3): boolean {
+  /** 位置是否处于某光环类神龛(治愈水晶/雨神祭坛/防鳄熏香)的半径内 */
+  inAura(kind: 'healCrystal' | 'rainAltar' | 'crocIncense', position: THREE.Vector3): boolean {
     for (const shrine of this.shrines) {
       if (shrine.kind !== kind) continue;
       this.scratch.copy(shrine.group.position);
