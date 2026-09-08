@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PlaceOccupancy } from './PlaceOccupancy';
 import { hoeHits } from './ToolTiers';
 import { WaterPurifier } from '../entities/WaterPurifier';
 import type { ResourceKind } from './Inventory';
@@ -13,7 +14,6 @@ import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
-const PURIFIER_BLOCK_RANGE = 0.8; // 与其他净化器重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距净化器小于该值时算在净化器旁(可自动喝水)
 const DIG_RANGE = 1.6; // 持锄头可开挖净化器的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
@@ -58,6 +58,8 @@ export class WaterPurifierSystem {
     private audio: GameAudio,
     /** 挖回的道具入包(背包放不下的部分由该函数掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
+    /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
+    private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
     private isBusy: (actor: PlayerSession) => boolean = () => false
   ) {}
@@ -100,19 +102,19 @@ export class WaterPurifierSystem {
     return kind === 'sea' || this.terrain.isNearSea(new THREE.Vector3(x, 0, z), WET_BEACH_RANGE);
   }
 
-  /** 指定格中心是否允许摆放(在湿沙滩上,格内没有被资源点或其他净化器占住) */
+  /** 统一安放占格判定:该点同一格内是否有本系统放置的实体 */
+  blocksCell(p: THREE.Vector3): boolean {
+    return this.purifiers.some((e) => {
+      this.scratch.copy(e.group.position);
+      this.scratch.y = p.y;
+      return this.scratch.distanceTo(p) < 1;
+    });
+  }
+
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (!this.onWetBeach(actor, x, z)) return '要放在海边湿沙滩上';
-    if (
-      this.purifiers.some((purifier) => {
-        this.scratch.copy(purifier.group.position);
-        this.scratch.y = p.y;
-        return this.scratch.distanceTo(p) < PURIFIER_BLOCK_RANGE;
-      })
-    ) {
-      return '离其他净化器太近';
-    }
+    if (this.occupancy.taken(p)) return '这格已经放了东西';
     const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
     return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }

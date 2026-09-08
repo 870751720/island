@@ -48,6 +48,7 @@ import { Loom } from './entities/Loom';
 import { CookingStation } from './entities/CookingStation';
 import { Campfire } from './entities/Campfire';
 import { AutoPlaceSystem, buildGhost, miniHeldModel } from './systems/AutoPlace';
+import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine, type ShrineKind } from './entities/Shrine';
 import { BUFFS, type HudBuff } from './systems/BuffSystem';
@@ -411,6 +412,8 @@ export class Game {
   private cookingStations: CookingStationSystem;
   private looms: LoomSystem;
   private fences: FenceSystem;
+  /** 全场已放置实体的统一占格判定(各安放系统注册共享) */
+  private placeOccupancy = new PlaceOccupancy();
   private autoPlace: AutoPlaceSystem;
   private stakes: StakeSystem;
   private beds: BedSystem;
@@ -735,6 +738,8 @@ export class Game {
       this.audio,
       // 挖走工作台道具入包,背包放不下的部分掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'workbench')
     );
@@ -746,6 +751,8 @@ export class Game {
       this.audio,
       // 挖走木箱与箱内物品入包,背包放不下的部分掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'crates')
     );
@@ -757,6 +764,8 @@ export class Game {
       this.audio,
       // 收取鱼饵/挖回饵料桶与桶内食物入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'baitBarrels')
     );
@@ -768,6 +777,8 @@ export class Game {
       this.audio,
       // 收取的酒/挖回酿酒桶与桶内原料入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'brewBarrels')
     );
@@ -779,6 +790,8 @@ export class Game {
       this.audio,
       // 挖回净化器入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'waterPurifiers')
     );
@@ -790,6 +803,8 @@ export class Game {
       this.audio,
       // 收取铁锭/挖回冶炼炉与炉内矿石入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'smelters')
     );
@@ -801,6 +816,8 @@ export class Game {
       this.audio,
       // 收取汤品/挖回烹饪台与锅里食材入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'cookingStations')
     );
@@ -812,6 +829,8 @@ export class Game {
       this.audio,
       // 收取布料/挖回纺织机与机内绳线入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'looms')
     );
@@ -823,6 +842,8 @@ export class Game {
       this.audio,
       // 挖走床时道具入包,背包放不下的部分掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'beds')
     );
@@ -832,6 +853,8 @@ export class Game {
       this.props,
       this.fx,
       this.audio,
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'campfire'),
       // 烹饪好的食物背包放不下时掉在玩家身旁
@@ -847,9 +870,15 @@ export class Game {
       this.audio,
       // 挖走神像时道具入包,背包放不下的部分掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'shrines')
     );
+    // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines]) {
+      this.placeOccupancy.register(occupant);
+    }
     // 通用「限定位置 + 自动安放」:可安放道具共用围栏同款整数格网吸附、落点预览与站定自动放置
     this.autoPlace = new AutoPlaceSystem(
       this.scene,
@@ -2916,7 +2945,7 @@ export class Game {
     if (this.asleepFor(actor)) return false;
     const { at, reason } = this.autoPlaceCell(actor, kind);
     if (reason || !this.crates.use(actor, kind, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, kind, reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2931,7 +2960,7 @@ export class Game {
     const level = workbenchItemLevel(kind);
     const { at, reason } = this.autoPlaceCell(actor, kind);
     if (this.asleepFor(actor) || level === null || reason || !this.workbench.placeItem(actor, level, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, kind, reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2946,7 +2975,7 @@ export class Game {
     const level = bedItemLevel(kind);
     const { at, reason } = this.autoPlaceCell(actor, kind);
     if (this.asleepFor(actor) || level === null || reason || !this.beds.place(actor, level, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, kind, reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3022,7 +3051,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, kind);
     if (this.asleepFor(actor) || reason || !this.shrines.place(actor, kind, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, kind, reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3062,6 +3091,13 @@ export class Game {
     return { at: new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z), reason: t.reason };
   }
 
+  /** 放置失败提示:落点原因优先,道具已不在背包时点名,不再笼统说放不下 */
+  private placeFailText(actor: PlayerSession, kind: ResourceKind, reason: string | null): string {
+    if (reason) return reason;
+    if (actor.inventory.count(kind) <= 0) return '背包里已经没有这个道具了';
+    return '这里放不下,找个没东西的干地试试';
+  }
+
   /** 丛/蚯蚓窝的落点校验:返回 null=可放,否则为不可放原因 */
   private bushCellOk(actor: PlayerSession, x: number, z: number): string | null {
     if (actor.player.isSwimming) return '游泳时不能安放';
@@ -3085,7 +3121,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'deadCampfire');
     if (this.asleepFor(actor) || reason || !this.campfire.placeDead(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'deadCampfire', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3315,7 +3351,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'baitBarrel');
     if (this.asleepFor(actor) || reason || !this.baitBarrels.use(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'baitBarrel', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3329,7 +3365,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'brewBarrel');
     if (this.asleepFor(actor) || reason || !this.brewBarrels.use(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'brewBarrel', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3382,7 +3418,10 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'waterPurifier');
     if (this.asleepFor(actor) || reason || !this.waterPurifiers.use(actor, at)) {
-      this.notify(reason ?? '净化器只能放在湿沙滩上,去海边浅滩试试', actor);
+      this.notify(
+        reason ?? (actor.inventory.count('waterPurifier') <= 0 ? '背包里已经没有这个道具了' : '净化器只能放在湿沙滩上,去海边浅滩试试'),
+        actor
+      );
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3435,7 +3474,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'smelter');
     if (this.asleepFor(actor) || reason || !this.smelters.use(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'smelter', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3488,7 +3527,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'loom');
     if (this.asleepFor(actor) || reason || !this.looms.use(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'loom', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3550,7 +3589,7 @@ export class Game {
 
     const { at, reason } = this.autoPlaceCell(actor, 'cookingStation');
     if (this.asleepFor(actor) || reason || !this.cookingStations.use(actor, at)) {
-      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
+      this.notify(this.placeFailText(actor, 'cookingStation', reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);

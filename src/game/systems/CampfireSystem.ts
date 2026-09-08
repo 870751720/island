@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PlaceOccupancy } from './PlaceOccupancy';
 import { hoeHits } from './ToolTiers';
 import { Campfire } from '../entities/Campfire';
 import type { ResourceKind } from './Inventory';
@@ -74,6 +75,8 @@ export class CampfireSystem {
     private props: Props,
     private fx: Particles,
     private audio: GameAudio,
+    /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
+    private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
     private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
@@ -149,11 +152,21 @@ export class CampfireSystem {
   }
 
   /** 指定落点是否允许摆放(不在水里/水边,落点没有被资源点占住) */
+  /** 统一安放占格判定:该点同一格内是否有本系统放置的实体 */
+  blocksCell(p: THREE.Vector3): boolean {
+    return this.fires.some((e) => {
+      this.scratch.copy(e.group.position);
+      this.scratch.y = p.y;
+      return this.scratch.distanceTo(p) < 1;
+    });
+  }
+
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return '游泳时不能安放';
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
+    if (this.occupancy.taken(p)) return '这格已经放了东西';
     const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
     return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }

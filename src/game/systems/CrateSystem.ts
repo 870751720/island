@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PlaceOccupancy } from './PlaceOccupancy';
 import { hoeHits } from './ToolTiers';
 import { Crate, type CrateKind } from '../entities/Crate';
 import type { InventorySlot, ResourceKind } from './Inventory';
@@ -13,7 +14,6 @@ import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
 
 const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
-const CRATE_BLOCK_RANGE = 0.8; // 与其他木箱/重叠距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
 const DIG_RANGE = 1.6; // 持锄头可开挖木箱的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
@@ -59,6 +59,8 @@ export class CrateSystem {
     private audio: GameAudio,
     /** 挖走木箱时箱内物品入包(背包放不下的部分由该函数掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
+    /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
+    private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
     private isBusy: (actor: PlayerSession) => boolean = () => false
   ) {}
@@ -93,21 +95,21 @@ export class CrateSystem {
     return best;
   }
 
-  /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他木箱占住) */
+  /** 统一安放占格判定:该点同一格内是否有本系统放置的实体 */
+  blocksCell(p: THREE.Vector3): boolean {
+    return this.crates.some((e) => {
+      this.scratch.copy(e.group.position);
+      this.scratch.y = p.y;
+      return this.scratch.distanceTo(p) < 1;
+    });
+  }
+
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return '游泳时不能安放';
     if (this.terrain.isNearWater(p, 1)) return '离水太近';
     if (p.y <= 0) return '这里在水里';
-    if (
-      this.crates.some((crate) => {
-        this.scratch.copy(crate.group.position);
-        this.scratch.y = p.y;
-        return this.scratch.distanceTo(p) < CRATE_BLOCK_RANGE;
-      })
-    ) {
-      return '离其他箱子太近';
-    }
+    if (this.occupancy.taken(p)) return '这格已经放了东西';
     const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
     return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
   }
