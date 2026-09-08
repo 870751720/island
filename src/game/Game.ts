@@ -2435,7 +2435,7 @@ export class Game {
     }
   }
 
-  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子),不满足条件返回 null;钓鱼不自动切换;
+  /** 站定不动时当前场景希望切到的工具(树→斧子、石→镐子、可钓点→鱼竿),不满足条件返回 null;
    * 牵着羊时不自动切换(避免无预兆地松开绳子) */
   private wantedTool(): HandTool | null {
     if (
@@ -2474,6 +2474,15 @@ export class Game {
         return 'pickaxe';
       }
       return null;
+    }
+    // 身旁没有资源点但站在可钓点(干地、面朝水面)时,自动切鱼竿
+    if (
+      this.tools.fishingrod &&
+      this.player.currentTool !== 'fishingrod' &&
+      !this.fishing.isWorking &&
+      this.fishing.canFishHere()
+    ) {
+      return 'fishingrod';
     }
     return null;
   }
