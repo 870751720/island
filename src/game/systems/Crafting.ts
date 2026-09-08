@@ -93,14 +93,14 @@ export function isSingleCraft(recipe: Recipe): boolean {
   return !!recipe.output && (isEquipKind(recipe.output) || SINGLE_OUTPUTS.has(recipe.output));
 }
 
-/** 配方分类:工具类为「工具」,装备产物为「装备」,其余按产物道具分类(材料/食物/设施/作物) */
+/** 配方分类:工具类为「工具」,装备产物为「装备」,其余按产物道具分类(材料/食物/设施/道具) */
 export function recipeCategory(recipe: Recipe): ItemCategory {
   if (recipe.tool) return '工具';
   if (recipe.output && isEquipKind(recipe.output)) return '装备';
   return itemCategory(recipe.output!);
 }
 
-/** 配方分类的展示序号(材料→工具→装备→食物→设施→作物,列表排序用) */
+/** 配方分类的展示序号(材料→工具→装备→食物→设施→道具,列表排序用) */
 export function recipeCategoryOrder(recipe: Recipe): number {
   return ITEM_CATEGORIES.indexOf(recipeCategory(recipe));
 }

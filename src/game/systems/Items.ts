@@ -11,15 +11,15 @@ export type ItemDef = {
 };
 
 /** 物品分类(GM 面板二级 tab),顺序即展示顺序 */
-export const ITEM_CATEGORIES = ['材料', '工具', '装备', '食物', '设施', '作物'] as const;
+export const ITEM_CATEGORIES = ['材料', '工具', '装备', '食物', '设施', '道具'] as const;
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'worm', 'torch', 'adventureBook', 'letter',
+    'fiber', 'rope', 'cloth', 'fur', 'worm', 'adventureBook',
   ],
-  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'],
+  工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
@@ -27,7 +27,8 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'endlessQuiver', 'endlessBait',
   ],
   食物: [
-    'berry', 'cola', 'colaZero', 'bottle', 'milk',
+    'berry', 'oakFruit', 'pineFruit', 'fruitFruit',
+    'cola', 'colaZero', 'bottle', 'milk',
     'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
     'anchovy', 'horseMackerel', 'yellowCroaker', 'saury', 'hairtail',
     'grouper', 'catfish', 'grassCarp', 'swordfish', 'manta', 'goldenFish',
@@ -39,18 +40,18 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'wineBerry', 'wineFruit', 'wineMilk', 'wineGolden',
   ],
   设施: [
-    'reviveStone', 'poseidonBlessing', 'beehiveShrine', 'healCrystal',
+    'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
+    'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest',
   ],
-  作物: [
+  道具: [
     'oakSeed', 'pineSeed', 'fruitSeed',
-    'oakFruit', 'pineFruit', 'fruitFruit',
-    'berryBush', 'shrubBush', 'grassTuft', 'wormNest',
+    'reviveStone', 'lasso', 'letter', 'arrow', 'bait',
   ],
 };
 

@@ -18,7 +18,7 @@
 - `src/game/world/Props.ts`:`PropKind` 加 `'wormNest'`,`PROP_CONFIG` 配 240 秒再生;`makeWormNest()` 程序化建模(土丘 + 洞口 + 单只蚯蚓,蚯蚓模型单独返回用于显隐);`nestWorms` Map 管理各窝的蚯蚓模型,`syncAppearance` 按 `ready` 切换蚯蚓可见性;`placeWormNest` 支持玩家放回;`seedWildWormNests` 为旧档补撒野生窝(旧档里蚯蚓是不入档的环境生物,没有窝资源点)。
 - `src/game/world/PropSpawner.ts`:撒点规则加 `waterBand` 字段,蚯蚓窝只在干地且水域半径 +18 米带内落点。
 - `src/game/systems/CollectSystem.ts`:`HARVEST_CONFIG.wormNest` 为空手 `pick` ×1 次、产出蚯蚓 1~3;`isDigging`/`DIG_YIELD` 纳入 wormNest(锄头整窝挖走得 `wormNest` 道具)。
-- 道具:`wormNest` 加入 `ResourceKind`/`ITEMS`(作物类)与 `DropModels`(带洞湿土 + 探出的蚯蚓);`Game.useBush` 扩展支持放回蚯蚓窝,客人经 `useBush` 动作上行。
+- 道具:`wormNest` 加入 `ResourceKind`/`ITEMS`(设施类)与 `DropModels`(带洞湿土 + 探出的蚯蚓);`Game.useBush` 扩展支持放回蚯蚓窝,客人经 `useBush` 动作上行。
 - 联机:蚯蚓窝作为普通资源点走 props 快照/世界增量(`WorldDelta`),采集与再生由房主权威结算;`AmbientState.worms` 及 Protocol/NetHost/NetGuest 的 worms 通道整体移除。
 - 存档兼容:`PropSave.kind` 为 `PropKind` 自动兼容新种类,旧档无窝时由 `seedWildWormNests` 补撒,`SAVE_VERSION` 保持不变。
 
