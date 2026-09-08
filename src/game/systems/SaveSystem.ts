@@ -113,6 +113,8 @@ export type SaveData = {
   dog?: { x: number; z: number };
   /** 本局已抽中过的珍宝(保底权重用,集齐后清空;旧档缺省视为无) */
   drawnTreasures?: ResourceKind[];
+  /** 有饵连续未出四档的次数(四档保底用,出四档清零;旧档缺省视为 0) */
+  tier4Pity?: number;
   /** 本局本地玩家的战绩计数(击杀/采集;旧档缺省为 0) */
   stats?: RunStats;
   /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */

@@ -20,6 +20,10 @@
 
 ## 迭代记录
 
+### 2026-09-08 四档珍宝保底
+
+有鱼饵抛竿时连续 99 次未出四档,下一次(第 100 次)必出四档。计数器 `Game.tier4Pity`(全体玩家共享,房主权威持有)经 `FishingSystem` 构造注入的 `tier4Pity` 回调读写:抽中四档清零,否则 +1;裸钓不计数、不消耗保底。随存档持久化(`SaveData.tier4Pity`,旧档缺省 0);档位抽取仍只在房主端结算,联机无需新增同步字段。常量 `FishTable.TIER4_PITY_CASTS = 99`。
+
 ### 2026-09-07 鱼饵改为独立弹药存储
 
 鱼饵不再进背包格:数量存于 `PlayerSession.ammo`(`AmmoStore`,与 tools/equipped 同级,无上限叠加),饵料桶收取/掉落物捡回经 `Game.giveItem` 分流入弹药;抛竿消耗改读弹药存储。工具按钮持鱼竿角标显示 🧆+剩余鱼饵数,死亡按 `DEATH_DROP_RATIO` 掉落。蚯蚓(`worm`)仍是背包道具,来源为空手捉蚯蚓窝(见 `docs/worm.md`),仅作为饵料桶投喂原料。详见 `docs/bow.md` 的弹药存储说明。

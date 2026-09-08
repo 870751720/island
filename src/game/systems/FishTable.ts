@@ -84,6 +84,9 @@ function lootPool(tier: FishTier, water: WaterKind): LootEntry[] {
 /** 珍宝保底节奏:已抽中的珍宝档内权重乘数,集齐全部珍宝后整体重置 */
 export const TREASURE_PITY_SCALE = 0.2;
 
+/** 四档保底:有饵连续 N 次未出珍宝,下一次必出四档 */
+export const TIER4_PITY_CASTS = 99;
+
 /** 各档位的咬钩交互:反应窗口秒数与所需点击次数 */
 export const TIER_BITE: Record<FishTier, { window: number; clicks: number }> = {
   1: { window: 1.3, clicks: 1 },

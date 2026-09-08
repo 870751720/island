@@ -13,6 +13,7 @@ import {
   rollTier,
   rollWait,
   teaseStage,
+  TIER4_PITY_CASTS,
   TIER_BITE,
   type FishTier,
   type LootEntry,
@@ -92,7 +93,9 @@ export class FishingSystem {
     /** 钓鱼杂物概率的降低量(百分点,波塞冬神像放置期间为 1) */
     private junkCut: () => number = () => 0,
     /** 已抽中过的珍宝集合(珍宝保底权重用,房主权威持有,随存档持久化) */
-    private drawnTreasures: () => Set<ResourceKind> = () => new Set()
+    private drawnTreasures: () => Set<ResourceKind> = () => new Set(),
+    /** 有饵连续未出四档的次数(四档保底用,房主权威持有,随存档持久化) */
+    private tier4Pity: () => { count: number } = () => ({ count: 0 })
   ) {}
 
   /** 当前鱼竿等级(夹到 1-3 查表) */
@@ -184,7 +187,10 @@ export class FishingSystem {
     // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低)
     const baited = this.ammo.count('bait') > 0;
     if (baited) this.ammo.remove('bait', 1);
-    this.tier = rollTier(baited, this.junkCut());
+    // 四档保底:有饵连续 99 次未出珍宝,第 100 次必出
+    const pity = this.tier4Pity();
+    this.tier = baited && pity.count >= TIER4_PITY_CASTS ? 4 : rollTier(baited, this.junkCut());
+    if (baited) pity.count = this.tier === 4 ? 0 : pity.count + 1;
     this.loot = rollLoot(this.tier, this.waterKind, this.drawnTreasures());
     this.tease = null;
     this.teaseStageDone = null;

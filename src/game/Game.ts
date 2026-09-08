@@ -284,6 +284,8 @@ export class Game {
   private props: Props;
   /** 本局已抽中过的珍宝(保底权重用,集齐全部珍宝后清空;房主权威,随存档持久化) */
   private drawnTreasures = new Set<ResourceKind>();
+  /** 有饵连续未出四档的次数(四档保底,全体玩家共享,随存档持久化) */
+  private tier4Pity = { count: 0 };
   private fx: Particles;
   private itemFly: ItemFlyFx;
   /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
@@ -1845,6 +1847,7 @@ export class Game {
     this.drops.restore(save.drops);
     if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
     this.drawnTreasures = new Set(save.drawnTreasures ?? []);
+    this.tier4Pity.count = save.tier4Pity ?? 0;
   }
 
   /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */
@@ -1952,6 +1955,7 @@ export class Game {
       burrows: this.burrows.snapshot(),
       dog: this.dog.snapshot(),
       drawnTreasures: [...this.drawnTreasures],
+      tier4Pity: this.tier4Pity.count,
       stats: { ...this.local.stats },
     };
   }
@@ -3431,7 +3435,9 @@ export class Game {
       // 波塞冬神像放置期间杂物概率降低
       () => this.shrines.junkCut,
       // 珍宝保底:共享的已抽珍宝集合
-      () => this.drawnTreasures
+      () => this.drawnTreasures,
+      // 四档保底:共享的有饵连续未出珍宝计数
+      () => this.tier4Pity
     );
     s.archery = new BowSystem(
       this.scene,
