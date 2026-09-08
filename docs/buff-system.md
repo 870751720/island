@@ -18,7 +18,7 @@
   - `poseidon`(全局):`ShrineSystem.blessed`(岛上放有任意神像),对全部玩家生效,`remain: null`;
   - `bearSlow`(个人):`Player.slowSeconds > 0`(熊扑减速,移动减半 3 秒),`remain` 为剩余秒数向上取整。
 - `Game.buffsFor(session)` 汇总两个来源生成 `HudBuff[]`,经 `HudSnapshot.buffs` 下发:单机/房主走 `pushHud`,客人由房主按各会话算好后随 HUD 快照回流(房主侧远程会话的减速也由房主权威结算,数据同源)。
-- UI(`src/ui/Hud.tsx`):状态栏右侧纵向排布 buff 图标,增益绿框/减益红框,限时 buff 带剩余秒数角标;点击图标弹出锚定 tip(名称 + 增益/减益标签 + 效果描述),再点图标或点空白处关闭。
+- UI(`src/ui/Hud.tsx`):buff 图标排在状态栏下方,横向排列、放不下自动换行,增益绿框/减益红框,限时 buff 带剩余秒数角标;点击图标弹出锚定 tip(名称 + 增益/减益标签 + 效果描述),再点图标或点空白处关闭。换行宽度上限动态为右上角按钮区预留:地图收起时预留 120px(设置 + 地图按钮),小地图展开时预留 210px(含 136px 地图面板),避免重叠(`GameplayUI` 以 `rightReserve` prop 传入)。
 
 ### 复活石(`reviveStone`)
 
@@ -41,3 +41,9 @@
 
 - `SaveData` 新增可选字段 `shrines?: PlacementSave[]`,旧档缺省视为没有神像,`SAVE_VERSION` 保持 28 不变(向后兼容);新道具种类只是 `ResourceKind` 新值,旧档不含即无影响。
 - `NET_PROTOCOL_VERSION` 12→13(世界状态新增 `shrines` section 与 `reviveFx` 事件)。
+
+## 迭代记录
+
+### buff 图标换行布局
+
+buff 数量增多后原「状态栏右侧纵向排布」会沿左边缘无限向下堆叠,遮挡虚拟摇杆区。改为排在状态栏下方横向排列(`flex-wrap`),放不下换行;容器最大宽度扣除安全边距与右上角按钮区(设置/地图按钮收起 120px,小地图展开 210px),由 `GameplayUI` 依 `mapOpen` 传入 `rightReserve`。

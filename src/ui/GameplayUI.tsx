@@ -433,7 +433,11 @@ export function GameplayUI({
         <>
           <FpsOverlay />
           <TrafficOverlay />
-          <Hud hud={hud} onHeartTap={handleHeartTap} />
+              <Hud
+                hud={hud}
+                onHeartTap={handleHeartTap}
+                rightReserve={mapOpen ? 210 : 120}
+              />
         </>
       )}
       {/* 右上角:设置按钮左、地图入口或小地图右；玩家移动/交互中一起淡出 */}

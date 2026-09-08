@@ -58,10 +58,20 @@ function BuffIcon({ buff, onTap }: { buff: HudBuff; onTap: (e: React.PointerEven
 }
 
 /**
- * 左上角状态区:生命/饥饿/口渴 + 天数在状态栏下方,buff 图标紧挨在状态栏右侧;
+ * 左上角状态区:生命/饥饿/口渴 + 天数在状态栏下方,buff 图标排在状态栏下方,
+ * 横向排列、放不下换行,右侧为右上角的设置按钮/小地图预留空间;
  * 点 buff 图标弹出效果说明。红心为 GM 面板的隐藏入口。
  */
-export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => void }) {
+export function Hud({
+  hud,
+  onHeartTap,
+  rightReserve,
+}: {
+  hud: HudSnapshot;
+  onHeartTap: () => void;
+  /** 右上角按钮区(设置/小地图)占用的宽度,buff 换行时避开它 */
+  rightReserve: number;
+}) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
   return (
     <div
@@ -70,8 +80,9 @@ export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => v
         top: 'max(10px, env(safe-area-inset-top))',
         left: 'max(10px, env(safe-area-inset-left))',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'flex-start',
-        gap: 8,
+        gap: 6,
         fontFamily: 'sans-serif',
         fontSize: 'clamp(12px, 3.5vw, 14px)',
       }}
@@ -113,7 +124,14 @@ export function Hud({ hud, onHeartTap }: { hud: HudSnapshot; onHeartTap: () => v
         </div>
       </div>
       {hud.buffs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            maxWidth: `calc(100vw - max(10px, env(safe-area-inset-left)) - max(10px, env(safe-area-inset-right)) - ${rightReserve}px)`,
+          }}
+        >
           {hud.buffs.map((buff) => (
             <BuffIcon
               key={buff.id}
