@@ -5,6 +5,8 @@ import { SaveSystem, type SaveData } from '@/game/systems/SaveSystem';
 import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
 import { META_TREE } from '@/game/meta/MetaTree';
 import { MetaPanel } from './MetaPanel';
+import { ProfileSetup } from './ProfileSetup';
+import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
 
 /** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
 export type StartMode = 'continue' | 'new';
@@ -29,11 +31,24 @@ export function StartScreen({
   const [hasSave] = useState(() => !!SaveSystem.load());
   const [legacy] = useState(hasLegacy);
   const [showMeta, setShowMeta] = useState(false);
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  /** 设置弹窗打开时暂存的待开始方式:首次设置完成后无缝接着进入游戏 */
+  const [pendingStart, setPendingStart] = useState<StartMode | null>(null);
+  const [showSetup, setShowSetup] = useState(false);
   /** 待确认的放弃本局结算数据(开新档且旧档超过 2 天时弹确认) */
   const [abandoning, setAbandoning] = useState<{ save: SaveData; points: number } | null>(null);
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,水合前不渲染按钮只显示加载提示
   const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  useEffect(() => {
+    setReady(true);
+    setProfile(loadProfile());
+  }, []);
+
+  /** 首次开始游戏前必须先设置昵称与性别;已设置过则直接进入 */
+  const requestStart = (mode: StartMode) => {
+    if (profile) onStart(mode);
+    else setPendingStart(mode);
+  };
 
   const startNew = () => {
     const save = SaveSystem.load();
@@ -43,13 +58,13 @@ export function StartScreen({
       setAbandoning({ save, points });
       return;
     }
-    onStart('new');
+    requestStart('new');
   };
 
   const confirmAbandon = () => {
     MetaProgress.grant(abandoning!.points);
     setAbandoning(null);
-    onStart('new');
+    requestStart('new');
   };
 
   return (
@@ -70,16 +85,29 @@ export function StartScreen({
         <h1 className="start-title">去你的岛</h1>
         <p className="start-subtitle">漂流到无人的小岛,靠双手活下去</p>
         {notice && <p className="start-notice">{notice}</p>}
+        {ready && (
+          <button
+            className="profile-chip"
+            aria-label="修改昵称与性别"
+            onClick={() => {
+              setPendingStart(null);
+              setShowSetup(true);
+            }}
+          >
+            <span className="profile-chip-avatar">{profile?.gender === 'girl' ? '👧' : '👦'}</span>
+            {profile ? profile.name : '设置形象'}
+          </button>
+        )}
         {ready ? (
           <>
             {hasSave && (
-              <button className="start-button" onClick={() => onStart('continue')}>
+              <button className="start-button" onClick={() => requestStart('continue')}>
                 继续游戏
               </button>
             )}
             <button
               className={hasSave ? 'new-game-button' : 'start-button'}
-              onClick={hasSave ? startNew : () => onStart('new')}
+              onClick={hasSave ? startNew : () => requestStart('new')}
             >
               {hasSave ? '开新档' : '开始游戏'}
             </button>
@@ -123,6 +151,22 @@ export function StartScreen({
         </div>
       )}
       {showMeta && <MetaPanel onClose={() => setShowMeta(false)} />}
+      {showSetup && (
+        <ProfileSetup
+          firstTime={!profile}
+          initialName={profile?.name ?? legacyNickname()}
+          initialGender={profile?.gender ?? 'boy'}
+          onConfirm={(next) => {
+            saveProfile(next);
+            setProfile(next);
+            const mode = pendingStart;
+            setShowSetup(false);
+            setPendingStart(null);
+            if (mode) onStart(mode);
+          }}
+          onCancel={() => setShowSetup(false)}
+        />
+      )}
     </div>
   );
 }
@@ -238,6 +282,31 @@ const css = `
   font-size: clamp(28px, 8vw, 38px);
   line-height: 1;
 }
+.profile-chip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 46%;
+  min-height: 36px;
+  padding: 0 12px 0 6px;
+  border: 1.5px solid rgba(44, 95, 45, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #44513a;
+  font-size: clamp(12px, 3.4vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.profile-chip:active { transform: scale(0.95); }
+.profile-chip-avatar { font-size: 20px; line-height: 1; }
 .start-title {
   margin: 6px 0 0;
   font-size: clamp(38px, 11vw, 56px);

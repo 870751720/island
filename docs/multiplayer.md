@@ -138,6 +138,11 @@
 ### 全局系统提示(2026-09)
 
 - 新增全局事件 `{ kind: 'sysNotice', text }`(`NET_PROTOCOL_VERSION` 升至 18):房主经 `Game.sysNotify` 广播给所有客人并在本地展示,客人在 `netApplyEvent` 直接走本地 notice,无需过滤。
+
+### 玩家档案随 hello 同步(2026-09)
+
+- 昵称与性别统一收进玩家个人档案(`src/game/playerProfile.ts`,详见 `docs/player-profile.md`),「加入房间」页不再单独输入昵称。
+- `NetGuest.join(code, name, gender)` 把档案性别随 `hello` 上报(协议新增可选字段 `gender`,旧端缺省男孩,不升协议版本);房主 `NetHost.welcome` 创建新角色时应用该性别,断线恢复/认领旧角色沿用存档性别,此后随玩家快照回流。
 - 触发点:客人加入(`NetHost.onGuestJoined`,hello 结算时)、客人离开/掉线(`onGuestLeft`,含心跳超时)、任意玩家死亡(房主权威死亡结算沿,复活石免死不触发)。提示文案如「XX 加入了游戏 / 离开了游戏 / XX 倒下了」,所有人(含房主)屏幕可见。
 
 ### 权威状态与重连对账

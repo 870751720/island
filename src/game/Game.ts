@@ -5,7 +5,7 @@ import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
-import { loadNickname } from './net/nickname';
+import { loadProfile, saveProfileGender } from './playerProfile';
 import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
@@ -576,7 +576,7 @@ export class Game {
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
       this.youId ?? undefined,
-      this.guestMode ? '我' : this.hostRef ? (loadNickname() || '房主') : '我'
+      this.guestMode ? '我' : this.hostRef ? (loadProfile()?.name || '房主') : '我'
     );
     // 自己的头顶不显示名牌，避免与作业提示和自言自语重叠。
     this.local.nameTag.sprite.visible = false;
@@ -1145,6 +1145,9 @@ export class Game {
     });
 
     this.applySave(save);
+    // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
+    const profile = loadProfile();
+    if (profile) this.local.player.setGender(profile.gender);
     if (this.hostRef) {
       this.bindWorldChangeSinks();
       this.hostRef.attach(this);
@@ -1180,7 +1183,7 @@ export class Game {
     this.hostRef = host;
     host.terrainSeed = this.terrainSeed;
     // 单机时本地角色叫「我」,转为房主后对客人显示联机昵称
-    this.local.setName(loadNickname() || '房主');
+    this.local.setName(loadProfile()?.name || '房主');
     this.bindWorldChangeSinks();
     host.attach(this);
     this.hookHostNotices(host);
@@ -2626,10 +2629,12 @@ export class Game {
   gmSetGender(gender: PlayerGender, actor: PlayerSession = this.local): void {
     if (gender !== 'boy' && gender !== 'girl') return;
     if (this.guestNet) {
+      if (actor === this.local) saveProfileGender(gender);
       this.guestNet.action('gmSetGender', [gender]);
       return;
     }
     actor.player.setGender(gender);
+    if (actor === this.local) saveProfileGender(gender);
     SaveSystem.save(this.collectSave());
   }
 

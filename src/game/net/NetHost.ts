@@ -8,6 +8,7 @@ import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
 import type { EntityChange } from '../systems/WorldEntityId';
 import type { WorldSection } from './WorldDelta';
 import { diffEntities, diffObject, quantize } from './SnapshotDelta';
+import type { PlayerGender } from '../entities/PlayerModel';
 import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
 import type { HudSnapshot } from '../Game';
 
@@ -24,6 +25,8 @@ type Guest = {
   net: PeerNet;
   session: PlayerSession | null;
   name: string;
+  /** 客人 hello 上报的个人档案性别,创建新角色时生效;断线恢复沿用存档性别 */
+  gender: PlayerGender | null;
   lastSeen: number;
   resumeToken: string;
   lastInputSeq: number;
@@ -97,6 +100,7 @@ export class NetHost {
       net,
       session: null,
       name: '',
+      gender: null,
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
       lastInputSeq: 0,
@@ -154,6 +158,7 @@ export class NetHost {
         guest.resumeToken = msg.resumeToken!;
       } else {
         guest.name = msg.name?.trim().slice(0, 16) || '朋友';
+        guest.gender = msg.gender === 'girl' ? 'girl' : msg.gender === 'boy' ? 'boy' : null;
       }
       if (this.game && !guest.session) this.welcome(guest);
       else if (this.game) this.sendWelcome(guest);
@@ -180,7 +185,10 @@ export class NetHost {
     if (!this.game || guest.session) return;
     // 断线保留期内的新客人不能认领仍在保留期中的角色
     const held = [...this.resumable.values()].map((entry) => entry.save.id);
-    guest.session = this.game.claimSavedRemoteSession(guest.name, held) ?? this.game.addRemoteSession(false, undefined, guest.name);
+    const claimed = this.game.claimSavedRemoteSession(guest.name, held);
+    guest.session = claimed ?? this.game.addRemoteSession(false, undefined, guest.name);
+    // 认领旧角色沿用其存档性别,新角色用客人 hello 上报的档案性别
+    if (!claimed && guest.gender) guest.session.player.setGender(guest.gender);
     this.sendWelcome(guest);
   }
 

@@ -109,7 +109,7 @@ export type NetEvent =
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */
 export type NetMsg =
-  | { t: 'hello'; name: string; protocol: number; resumeToken?: string }
+  | { t: 'hello'; name: string; protocol: number; resumeToken?: string; gender?: PlayerGender }
   | {
       t: 'welcome';
       seeds: { terrainSeed: number };

@@ -5,7 +5,8 @@ import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
-import { loadNickname, saveNickname } from '@/game/net/nickname';
+import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
+import { ProfileSetup } from './ProfileSetup';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
 /** 自动信令大厅：房主分享五位数字码或二维码，客人输入昵称即可直接连接。 */
@@ -24,7 +25,8 @@ export function RoomLobby({
 }) {
   const [host] = useState(() => (mode === 'host' ? new NetHost() : null));
   const [guest] = useState(() => (mode === 'guest' ? new NetGuest() : null));
-  const [name, setName] = useState(loadNickname);
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [showSetup, setShowSetup] = useState(false);
   const [roomCode, setRoomCode] = useState(() => {
     if (initialRoomCode) return normalizeRoomCode(initialRoomCode);
     return mode === 'guest' ? normalizeRoomCode(loadLastRoom()?.code ?? '') : '';
@@ -33,8 +35,10 @@ export function RoomLobby({
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
-  const [hostName] = useState(loadNickname);
   const [qr, setQr] = useState('');
+
+  // 昵称与性别统一来自个人档案(开始界面设置);水合后读取,未设置时先引导设置
+  useEffect(() => setProfile(loadProfile()), []);
 
   const inviteUrl = useMemo(() => (roomCode && typeof window !== 'undefined' ? buildInviteUrl(roomCode) : ''), [roomCode]);
 
@@ -89,7 +93,7 @@ export function RoomLobby({
     setBusy(true);
     setStatus('正在连接房间…');
     try {
-      await guest.join(roomCode, name.trim());
+      await guest.join(roomCode, (profile?.name ?? '').trim(), profile?.gender);
     } catch (error) {
       setBusy(false);
       setStatus(error instanceof Error ? error.message : '房间不存在或连接失败');
@@ -133,7 +137,7 @@ export function RoomLobby({
               </div>
               <button className="room-button" onClick={shareRoom}>分享邀请</button>
               <div className="room-players">
-                <p className="connected">● {hostName || '房主'}（你）</p>
+                <p className="connected">● {profile?.name || '房主'}（你）</p>
                 {players.map((player) => <p className="connected" key={player}>● {player}</p>)}
                 {!players.length && <p className="waiting"><span /> 等待朋友加入…</p>}
               </div>
@@ -160,20 +164,17 @@ export function RoomLobby({
               onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
             />
             <label className="room-label" htmlFor="player-name">你的昵称</label>
-            <input
+            <button
               id="player-name"
-              className="room-name"
-              placeholder="请输入昵称"
-              maxLength={8}
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                saveNickname(event.target.value);
-              }}
-            />
+              className={`room-name-row ${profile ? '' : 'unset'}`}
+              onClick={() => setShowSetup(true)}
+            >
+              <span className="room-name-avatar">{profile?.gender === 'girl' ? '👧' : '👦'}</span>
+              {profile ? profile.name : '点击设置昵称与形象'}
+            </button>
             <button
               className="room-button"
-              disabled={busy || roomCode.length !== 5 || !name.trim()}
+              disabled={busy || roomCode.length !== 5 || !profile?.name}
               onClick={joinRoom}
             >
               {busy ? '正在加入…' : '加入房间'}
@@ -184,6 +185,19 @@ export function RoomLobby({
         {status && <p className="room-status">{status}</p>}
         <button className="room-back" onClick={back}>返回</button>
       </div>
+      {showSetup && (
+        <ProfileSetup
+          firstTime={!profile}
+          initialName={profile?.name ?? legacyNickname()}
+          initialGender={profile?.gender ?? 'boy'}
+          onConfirm={(next) => {
+            saveProfile(next);
+            setProfile(next);
+            setShowSetup(false);
+          }}
+          onCancel={() => setShowSetup(false)}
+        />
+      )}
     </div>
   );
 }
@@ -200,8 +214,10 @@ const css = `
 .room-code-card small { font-size:12px; }
 .room-qr { width:min(48vw,190px); height:min(48vw,190px); border-radius:8px; }
 .room-label { display:block; margin:12px 0 6px; text-align:left; color:#44513a; font-size:13px; font-weight:700; }
-.room-code-input,.room-name { width:100%; min-height:48px; box-sizing:border-box; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font-size:16px; }
-.room-code-input { font:700 25px monospace; letter-spacing:.2em; }
+.room-code-input { width:100%; min-height:48px; box-sizing:border-box; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font:700 25px monospace; letter-spacing:.2em; }
+.room-name-row { width:100%; min-height:48px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:8px; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font-size:16px; cursor:pointer; }
+.room-name-row.unset { color:#9aa58a; border-style:dashed; }
+.room-name-avatar { font-size:20px; line-height:1; }
 .room-button { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:14px; background:linear-gradient(#ffbe5c,#f59a1f); color:#fff; font-size:16px; font-weight:700; letter-spacing:.08em; box-shadow:0 5px 0 #c97c12; cursor:pointer; }
 .room-button:disabled { background:linear-gradient(#c9c2b4,#a89f8d); box-shadow:0 5px 0 #8a8272; }
 .room-start { background:linear-gradient(#7fd67f,#4d9e4f); box-shadow:0 5px 0 #37793a; }

@@ -4,6 +4,7 @@ import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, 
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../Game';
+import type { PlayerGender } from '../entities/PlayerModel';
 import { applyEntityDelta } from './SnapshotDelta';
 import type { AmbientPose, PlayerState } from './Protocol';
 
@@ -72,7 +73,7 @@ export class NetGuest {
   onInputSent: (seq: number) => void = () => {};
 
   /** 输入五位数字房间码，信令服务会自动完成 WebRTC 握手。 */
-  async join(code: string, name: string): Promise<void> {
+  async join(code: string, name: string, gender?: PlayerGender): Promise<void> {
     this.dispose();
     this.disposed = false;
     this.pending = [];
@@ -106,7 +107,7 @@ export class NetGuest {
     try {
       resumeToken = localStorage.getItem(RESUME_KEY) || undefined;
     } catch {}
-    net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken });
+    net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken, gender });
     saveLastRoom(code, name);
     try {
       await signal.connect(normalizeRoomCode(code));
