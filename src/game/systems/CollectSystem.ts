@@ -310,6 +310,7 @@ export class CollectSystem {
     if (this.isPickingFruit(prop)) {
       // 空手摘果:只摘走果子,树保留并进入挂果再生
       this.props.pickFruit(prop);
+      config.yield(this.inventory, prop);
     } else if (this.isDigging(prop)) {
       // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
