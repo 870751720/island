@@ -3880,25 +3880,25 @@ export class Game {
           ? switching
             ? '切换斧子…'
             : session.tools.axe
-              ? '需要手持斧子'
+              ? null
               : '需要斧子'
           : nearby.kind === 'iron'
             ? switching
               ? '切换镐子…'
               : session.tools.pickaxe >= 2
-                ? '需要手持镐子'
+                ? null
                 : '需要石镐'
             : nearby.kind === 'rock'
               ? switching
                 ? '切换镐子…'
                 : session.tools.pickaxe
-                  ? '需要手持镐子'
+                  ? null
                   : '需要镐子'
               : nearby.kind === 'meteor'
                 ? switching
                   ? '切换镐子…'
                   : session.tools.pickaxe >= 3
-                    ? '需要手持镐子'
+                    ? null
                     : '需要铁镐'
                 : null;
       if (switching) progress = this.autoEquipTimer / AUTO_EQUIP_DELAY;
