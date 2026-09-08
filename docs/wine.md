@@ -26,7 +26,7 @@
 
 - **数据层** `src/game/systems/Wine.ts`:`WINES` 酒表、`BREWABLE`(原料→酒)、`BREW_COST=2`、`BREW_INTERVAL=45`、`TIPSY_DURATION=60`。酒进 `Food.ts` 的 `FOODS`(可进食),不进烤/煮/饵料表(不可再加工)。
 - **实体** `src/game/entities/BrewBarrel.ts`:程序化深色橡木桶+铁箍,桶内有原料时桶口酒液光斑浮动;状态 `kind`(当前原料,空为 null)/`rawLeft`/`bottles`/`tickLeft`。
-- **系统** `src/game/systems/BrewBarrelSystem.ts`:仿 `BaitBarrelSystem`——`use` 脚下摆放(不要求水边)、`feed` 整格投料(桶占用时仅同种)、`collect` 整批收酒、`updateActor` 锄头挖走;发酵只在权威端结算,客人本地倒数仅做表现;`snapshot/restore/netApply` 存档与网络重放,桶状态变化经 `WorldEntityId` 增量上报(`'brewBarrels'` 世界键)。
+- **系统** `src/game/systems/BrewBarrelSystem.ts`:仿 `BaitBarrelSystem`——`use` 在面前吸附格中心安放(不要求水边,详见 autoplace.md)、`feed` 整格投料(桶占用时仅同种)、`collect` 整批收酒、`updateActor` 锄头挖走;发酵只在权威端结算,客人本地倒数仅做表现;`snapshot/restore/netApply` 存档与网络重放,桶状态变化经 `WorldEntityId` 增量上报(`'brewBarrels'` 世界键)。
 - **Buff**:`Player` 持有 `refreshLeft`/`tipsyLeft` 计时器(仿熊扑 `slowLeft`),移动速度合并 舒爽×1.3 / 晕晕×0.9 / 熊扑×0.5;`EatingSystem` 新增吃完回调,Game 在回调里对酒调用 `player.applyWine(舒爽时长, 60)`;`SwordSystem` 与 `BowSystem` 各新增伤害乘数注入,晕晕时 ×1.3(套索不受影响)。`BuffSystem` 登记 `refresh`/`tipsy` 两条展示定义,HUD 与其他 buff 一致展示剩余秒数。
 - **联机**:喝酒在房主权威结算(客人 `eatFood` 动作上行,房主侧该会话的进食完成回调加计时器);姿态快照 `PlayerState` 增加 `refresh`/`tipsy` 剩余秒数,客人对齐本地计时器使加速/减速在本地预测移动中生效(差值>1s 才改写防抖);客人 `swordHit` 上行后房主按该客人(房主侧副本的)晕晕状态结算增伤。
 - **UI** `src/ui/BrewBarrelPanel.tsx`(仿饵料桶面板):上半当前酒种/原料/进度/待收酒,下半背包原料格(异种置灰);`GameplayUI`/`ToolButton` 增加 `nearBrewBarrel` 模式(🍺,优先级在饵料桶之后)。

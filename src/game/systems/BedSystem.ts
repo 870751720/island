@@ -124,15 +124,16 @@ export class BedSystem {
     return this.isSleeping(actor) || this.isDigging(actor);
   }
 
-  /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他床占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他床占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
+    if (p.y <= 0) return false;
     if (
       this.beds.some((bed) => {
         this.scratch.copy(bed.group.position);
+        this.scratch.y = p.y;
         return this.scratch.distanceTo(p) < BED_BLOCK_RANGE;
       })
     ) {
@@ -141,16 +142,16 @@ export class BedSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」床道具:校验通过后在玩家脚下原地放下该等级的床 */
-  place(actor: PlayerSession, level: number): boolean {
-    if (actor.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlace(actor)) return false;
+  /** 在吸附格中心放下该等级的床(背包「使用」与手持自动安放共用入口) */
+  place(actor: PlayerSession, level: number, at: THREE.Vector3): boolean {
+    if (actor.inventory.count(BED_ITEM[level]) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
     actor.inventory.remove(BED_ITEM[level], 1);
-    const bed = new Bed(this.scene, actor.player.group.position, level, cardinalRotY(actor.player.group.rotation.y));
+    const bed = new Bed(this.scene, at, level, cardinalRotY(actor.player.group.rotation.y));
     this.beds.push(bed);
     const bp = bed.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(bed), value: { id: this.ids.get(bed), x: bp.x, y: bp.y, z: bp.z, rotY: bed.group.rotation.y, level } });
     this.audio.play('success');
-    const fxPos = actor.player.group.position.clone();
+    const fxPos = bp.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#c9a15c', 10);
     return true;

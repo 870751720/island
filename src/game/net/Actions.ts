@@ -51,6 +51,12 @@ export const ACTIONS: Record<string, NetAction> = {
   useBedItem: (g, a, [kind]) => g.useBedItem(kind as ResourceKind, a),
   useShrine: (g, a, [kind]) => g.useShrine(a, kind as ShrineKind),
   useFenceItem: (g, a, [kind]) => g.useFenceItem(kind as ResourceKind, a),
+  // 客人进入/退出安放模式(放置动作仍走各自 useXxx 上行,由房主权威结算)
+  autoPlaceHold: (g, a, [kind]) => {
+    g.autoPlaceHoldNet(a, (kind as ResourceKind | null) ?? null);
+    return true;
+  },
+  useDeadCampfire: (g, a) => g.useDeadCampfire(a),
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,
   useBush: (g, a, [kind]) => g.useBush(kind as 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', a),

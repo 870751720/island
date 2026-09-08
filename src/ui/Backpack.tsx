@@ -40,7 +40,7 @@ type Props = {
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
 
-/** 可「使用」的道具:食物(进食)、种子(原地种树)、漂流瓶(读瓶中信)、海神的信(读信)、挖来的丛/木箱/工作台(原地放下) */
+/** 可「使用」的道具:食物(进食)、种子(原地种树)、漂流瓶(读瓶中信)、海神的信(读信)、其余可安放道具进入手持安放模式 */
 function isUsable(kind: ResourceKind): boolean {
   return (
     FOODS.some((f) => f.kind === kind) ||
@@ -61,6 +61,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'smelter' ||
     kind === 'cookingStation' ||
     kind === 'loom' ||
+    kind === 'deadCampfire' ||
     kind === 'fenceWood' ||
     kind === 'fenceStone' ||
     kind === 'fenceGate' ||

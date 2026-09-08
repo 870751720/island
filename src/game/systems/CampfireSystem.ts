@@ -147,24 +147,25 @@ export class CampfireSystem {
     return { lit: fire.isLit, fuel: fire.fuel };
   }
 
-  /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定落点是否允许摆放(不在水里/水边,落点没有被资源点占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
+    if (p.y <= 0) return false;
     return !this.props.list.some((prop) => {
       this.scratch.copy(prop.position);
       return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
     });
   }
 
-  /** 是否满足制作条件(不忙 + 材料齐 + 位置可摆放),火堆数量不限 */
+  /** 是否满足制作条件(不忙 + 材料齐 + 脚下可摆放),火堆数量不限 */
   canBuild(actor: PlayerSession): boolean {
     if (this.isBusy(actor)) return false;
     if (actor.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (actor.inventory.count('wood') < CAMPFIRE_COST.wood) return false;
-    return this.canPlace(actor);
+    const p = actor.player.group.position;
+    return this.canPlaceAt(actor, p.x, p.z);
   }
 
   /** 场景手搓卡片的弹出条件:可制作,且场上与背包里都没有火堆/烹饪台(避免已有灶具后反复弹卡) */
@@ -181,6 +182,21 @@ export class CampfireSystem {
     const st = this.st(actor);
     st.timer = 0.001;
     st.tickTimer = 0;
+    return true;
+  }
+
+  /** 在吸附格中心放下「熄灭的火堆」道具(背包「使用」与手持自动安放共用入口,放下时未点燃) */
+  placeDead(actor: PlayerSession, at: THREE.Vector3): boolean {
+    if (actor.inventory.count('deadCampfire') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
+    actor.inventory.remove('deadCampfire', 1);
+    const fire = new Campfire(this.scene, at, 0);
+    this.fires.push(fire);
+    const firePos = fire.group.position;
+    this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: 0 } });
+    this.audio.play('success');
+    const fxPos = firePos.clone();
+    fxPos.y += 0.8;
+    this.fx.burst(fxPos, FX_COLOR, 10);
     return true;
   }
 

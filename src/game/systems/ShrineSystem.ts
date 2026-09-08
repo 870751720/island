@@ -100,15 +100,16 @@ export class ShrineSystem {
     return false;
   }
 
-  /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他神像占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他神像占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
+    if (p.y <= 0) return false;
     if (
       this.shrines.some((s) => {
         this.scratch.copy(s.group.position);
+        this.scratch.y = p.y;
         return this.scratch.distanceTo(p) < SHRINE_BLOCK_RANGE;
       })
     ) {
@@ -117,17 +118,17 @@ export class ShrineSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」神龛道具:校验通过后在玩家脚下原地立起对应神像 */
-  place(actor: PlayerSession, kind: ShrineKind): boolean {
-    if (actor.inventory.count(kind) <= 0 || !this.canPlace(actor)) return false;
+  /** 在吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口) */
+  place(actor: PlayerSession, kind: ShrineKind, at: THREE.Vector3): boolean {
+    if (actor.inventory.count(kind) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
     actor.inventory.remove(kind, 1);
-    const shrine = new Shrine(this.scene, actor.player.group.position, kind);
+    const shrine = new Shrine(this.scene, at, kind);
     this.shrines.push(shrine);
     const sp = shrine.group.position;
     const id = this.ids.get(shrine);
     this.onChanged?.({ op: 'add', id, value: { id, kind, x: sp.x, y: sp.y, z: sp.z } });
     this.audio.play('success');
-    const fxPos = actor.player.group.position.clone();
+    const fxPos = sp.clone();
     fxPos.y += 0.8;
     this.fx.burst(fxPos, SHRINE_COLORS[kind], 14);
     return true;

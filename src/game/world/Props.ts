@@ -364,7 +364,7 @@ function makeBushBody(color: string): { group: THREE.Group; body: THREE.Mesh } {
   return { group, body };
 }
 
-function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
+export function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
   const { group } = makeBushBody('#5d8a3a');
   const berryMat = clayMaterial('#c0392b');
   const berries: THREE.Mesh[] = [];
@@ -378,7 +378,7 @@ function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
   return { group, berries };
 }
 
-function makeGrassTuft(): THREE.Group {
+export function makeGrassTuft(): THREE.Group {
   // 草丛:几片交叉的细长叶片,产出植物纤维
   const g = new THREE.Group();
   for (let i = 0; i < 6; i++) {
@@ -395,7 +395,7 @@ function makeGrassTuft(): THREE.Group {
   return g;
 }
 
-function makeShrub(): THREE.Group {
+export function makeShrub(): THREE.Group {
   // 灌木丛:多团叶子,产出树枝
   const g = new THREE.Group();
   const mat = clayMaterial('#6b8f4e');
@@ -410,7 +410,7 @@ function makeShrub(): THREE.Group {
 }
 
 /** 蚯蚓窝:湿土堆成的小丘,顶上有个小洞,有蚯蚓时洞口只横躺着一只蚯蚓 */
-function makeWormNest(): { group: THREE.Group; worm: THREE.Group } {
+export function makeWormNest(): { group: THREE.Group; worm: THREE.Group } {
   const group = new THREE.Group();
   const mound = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.2, 1),

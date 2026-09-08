@@ -14,20 +14,7 @@ import { TrafficOverlay } from './TrafficOverlay';
 import { ToolButton } from './ToolButton';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
-import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import type { ShrineKind } from '@/game/entities/Shrine';
-
-/** 神龛类道具:背包里「使用」后在脚下立起对应神像 */
-const SHRINE_ITEM_KINDS: readonly ShrineKind[] = [
-  'poseidonBlessing',
-  'beehiveShrine',
-  'healCrystal',
-  'rainAltar',
-  'crocIncense',
-  'torch',
-];
-import { bedItemLevel } from '@/game/systems/BedSystem';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { BaitBarrelPanel } from './BaitBarrelPanel';
@@ -554,8 +541,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'berryBush' || kind === 'shrubBush' || kind === 'grassTuft' || kind === 'wormNest') {
-            gameRef.current?.useBush(kind);
+          // 可安放道具(建筑/丛/神龛等)统一进入手持安放模式:面前格中心预览,站定自动安放
+          if (gameRef.current?.holdAutoPlaceItem(kind)) {
             setBackpackOpen(false);
             return;
           }
@@ -564,58 +551,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'crate' || kind === 'ironCrate') {
-            gameRef.current?.useCrate(kind);
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'baitBarrel') {
-            gameRef.current?.useBaitBarrel();
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'brewBarrel') {
-            gameRef.current?.useBrewBarrel();
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'waterPurifier') {
-            gameRef.current?.useWaterPurifier();
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'smelter') {
-            gameRef.current?.useSmelter();
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'cookingStation') {
-            gameRef.current?.useCookingStation();
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'loom') {
-            gameRef.current?.useLoom();
-            setBackpackOpen(false);
-            return;
-          }
           if (kind === 'fenceWood' || kind === 'fenceStone' || kind === 'fenceGate') {
             gameRef.current?.useFenceItem(kind);
-            setBackpackOpen(false);
-            return;
-          }
-          if (workbenchItemLevel(kind) !== null) {
-            gameRef.current?.useWorkbenchItem(kind);
-            setBackpackOpen(false);
-            return;
-          }
-          if (bedItemLevel(kind) !== null) {
-            gameRef.current?.useBedItem(kind);
-            setBackpackOpen(false);
-            return;
-          }
-          if ((SHRINE_ITEM_KINDS as readonly ResourceKind[]).includes(kind)) {
-            gameRef.current?.useShrine(undefined, kind as ShrineKind);
             setBackpackOpen(false);
             return;
           }

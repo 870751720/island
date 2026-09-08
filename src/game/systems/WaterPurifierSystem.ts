@@ -91,22 +91,22 @@ export class WaterPurifierSystem {
     return best;
   }
 
-  /** 脚下是否是湿沙滩:浅海涉水处(未到游泳深度)或紧邻海线的干沙滩;水洼边不算 */
-  private onWetBeach(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定落点是否是湿沙滩:浅海涉水处或紧邻海线的干沙滩;水洼边不算 */
+  private onWetBeach(actor: PlayerSession, x: number, z: number): boolean {
     if (actor.player.isSwimming) return false;
-    const kind = this.terrain.getWaterKind(p.x, p.z);
+    const kind = this.terrain.getWaterKind(x, z);
     if (kind === 'pond') return false;
-    return kind === 'sea' || this.terrain.isNearSea(p, WET_BEACH_RANGE);
+    return kind === 'sea' || this.terrain.isNearSea(new THREE.Vector3(x, 0, z), WET_BEACH_RANGE);
   }
 
-  /** 当前位置是否允许摆放(在湿沙滩上,脚下没有被资源点或其他净化器占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
-    if (!this.onWetBeach(actor)) return false;
+  /** 指定格中心是否允许摆放(在湿沙滩上,格内没有被资源点或其他净化器占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
+    if (!this.onWetBeach(actor, x, z)) return false;
     if (
       this.purifiers.some((purifier) => {
         this.scratch.copy(purifier.group.position);
+        this.scratch.y = p.y;
         return this.scratch.distanceTo(p) < PURIFIER_BLOCK_RANGE;
       })
     ) {
@@ -115,11 +115,11 @@ export class WaterPurifierSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」净化器:校验通过后在玩家脚下原地放下 */
-  use(actor: PlayerSession): boolean {
-    if (actor.inventory.count('waterPurifier') <= 0 || !this.canPlace(actor)) return false;
+  /** 在吸附格中心放下净化器(背包「使用」与手持自动安放共用入口) */
+  use(actor: PlayerSession, at: THREE.Vector3): boolean {
+    if (actor.inventory.count('waterPurifier') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
     actor.inventory.remove('waterPurifier', 1);
-    const purifier = new WaterPurifier(this.scene, actor.player.group.position, cardinalRotY(actor.player.group.rotation.y));
+    const purifier = new WaterPurifier(this.scene, at, cardinalRotY(actor.player.group.rotation.y));
     this.purifiers.push(purifier);
     const pp = purifier.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(purifier), value: { id: this.ids.get(purifier), x: pp.x, y: pp.y, z: pp.z, rotY: purifier.group.rotation.y } });

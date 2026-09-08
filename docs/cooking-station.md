@@ -35,7 +35,7 @@
 
 - `src/game/entities/CookingStation.ts`:石座 + 三脚铁架 + 铁锅摆件;锅下火焰随燃料收缩、濒熄剧烈明灭(同火堆);煮汤时锅身轻晃、汤面( emissive 圆片)按 `BOILABLE` 产物颜色变化、热气团循环上升。
 - `src/game/systems/CookingStationSystem.ts`:
-  - 放置:背包「使用」原地放下(放下时未点燃),摆放规则同冶炼炉;
+  - 放置:背包「使用」进入手持安放模式,落在面前吸附格中心(放下时未点燃),摆放规则同冶炼炉(详见 autoplace.md);
   - 添柴 `addFuel`:`burnTime` 同火堆,熄灭添柴复燃;
   - 烤制 `startRoast`:与火堆烹饪同款(每份 1.6 秒,站定翻炒,中断退料);
   - 煮汤 `startBoil`:台上队列(`boilKind/boilQueue/tickLeft`),每 5 秒权威产出 1 份累加到 `outKind/outCount`,`collect` 收取;

@@ -107,15 +107,16 @@ export class SmelterSystem {
     return best;
   }
 
-  /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他冶炼炉占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他冶炼炉占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
+    if (p.y <= 0) return false;
     if (
       this.smelters.some((smelter) => {
         this.scratch.copy(smelter.group.position);
+        this.scratch.y = p.y;
         return this.scratch.distanceTo(p) < SMELTER_BLOCK_RANGE;
       })
     ) {
@@ -124,13 +125,13 @@ export class SmelterSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」冶炼炉:校验通过后在玩家脚下原地放下 */
-  use(actor: PlayerSession): boolean {
-    if (actor.inventory.count('smelter') <= 0 || !this.canPlace(actor)) return false;
+  /** 在吸附格中心放下冶炼炉(背包「使用」与手持自动安放共用入口) */
+  use(actor: PlayerSession, at: THREE.Vector3): boolean {
+    if (actor.inventory.count('smelter') <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
     actor.inventory.remove('smelter', 1);
-    this.placeAt(actor.player.group.position, cardinalRotY(actor.player.group.rotation.y));
+    const smelter = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
     this.audio.play('success');
-    const fxPos = actor.player.group.position.clone();
+    const fxPos = smelter.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#7d8288', 10);
     return true;

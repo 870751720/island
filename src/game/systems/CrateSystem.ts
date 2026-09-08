@@ -36,8 +36,8 @@ export type CrateSave = {
 
 /**
  * 木箱系统(世界单实例,按发起者 actor 结算):
- * - 背包里点击「使用」木箱,校验通过后在玩家脚下原地放下
- *   (与工作台摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他木箱占住);
+ * - 手持木箱道具站定后自动安放在面前格中心,校验通过后放下
+ *   (与工作台摆放同一套规则:不能在水里/水边,落点不能被资源点或其他木箱占住);
  * - 手持锄头靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
  * 木箱自带 10 格、铁箱 20 格收纳,靠近后可整格存入背包物品或取回。
  */
@@ -92,15 +92,16 @@ export class CrateSystem {
     return best;
   }
 
-  /** 当前位置是否允许摆放(不在水里/水边,脚下没有被资源点或其他木箱占住) */
-  private canPlace(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
+  /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他木箱占住) */
+  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     if (actor.player.isSwimming) return false;
     if (this.terrain.isNearWater(p, 1)) return false;
-    if (this.terrain.getHeight(p.x, p.z) <= 0) return false;
+    if (p.y <= 0) return false;
     if (
       this.crates.some((crate) => {
         this.scratch.copy(crate.group.position);
+        this.scratch.y = p.y;
         return this.scratch.distanceTo(p) < CRATE_BLOCK_RANGE;
       })
     ) {
@@ -109,16 +110,16 @@ export class CrateSystem {
     return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
   }
 
-  /** 背包里点击「使用」木箱/铁箱:校验通过后在玩家脚下原地放下 */
-  use(actor: PlayerSession, kind: CrateKind = 'crate'): boolean {
-    if (actor.inventory.count(kind) <= 0 || !this.canPlace(actor)) return false;
+  /** 在吸附格中心放下木箱/铁箱(背包「使用」与手持自动安放共用入口) */
+  use(actor: PlayerSession, kind: CrateKind, at: THREE.Vector3): boolean {
+    if (actor.inventory.count(kind) <= 0 || !this.canPlaceAt(actor, at.x, at.z)) return false;
     actor.inventory.remove(kind, 1);
-    const crate = new Crate(this.scene, actor.player.group.position, kind, cardinalRotY(actor.player.group.rotation.y));
+    const crate = new Crate(this.scene, at, kind, cardinalRotY(actor.player.group.rotation.y));
     this.crates.push(crate);
     const cp = crate.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() } });
     this.audio.play('success');
-    const fxPos = actor.player.group.position.clone();
+    const fxPos = cp.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, crate.color, 10);
     return true;
