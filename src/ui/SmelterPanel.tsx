@@ -103,7 +103,7 @@ export function SmelterPanel({ hud, onFeed, onCollect, onTakeOre, onClose }: Pro
             to="ironIngot"
             max={oreInBag}
             value={n}
-            onValueChange={setFeedCount}
+            onDelta={(d) => setFeedCount((prev) => Math.max(1, Math.min(prev + d, oreInBag)))}
             actionLabel="投入"
             actionColor={ACTION_COLOR}
             onAction={() => onFeed(n)}

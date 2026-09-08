@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/Game';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, COOKABLE, BOILABLE } from '@/game/systems/Food';
+import { convertListStyle } from './ConvertRow';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
 /** 统计背包快照里各道具的数量 */
@@ -149,7 +150,7 @@ export function CookingStationPanel({
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          <div style={{ ...convertListStyle, marginBottom: 14 }}>
             {info.outCount > 0 && info.outKind && (
               <button
                 onPointerDown={(e) => {
@@ -220,7 +221,7 @@ export function CookingStationPanel({
         )}
 
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>烤制</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={convertListStyle}>
           {roastables.length === 0 && (
             <span style={{ fontSize: 13, color: '#999' }}>背包里没有能烤的食材</span>
           )}

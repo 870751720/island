@@ -7,7 +7,7 @@ import { BAIT_YIELD } from '@/game/systems/Food';
 import { BAIT_CONVERT_INTERVAL } from '@/game/systems/BaitBarrelSystem';
 import type { HudSnapshot } from '@/game/Game';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
+import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertListStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 
 type Props = {
   hud: HudSnapshot;
@@ -145,7 +145,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
             背包里没有可投喂的食物({ITEMS.baitBarrel.name}不挑食,水果/鱼/肉/熟食都行)
           </div>
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={convertListStyle}>
           {feedable.map((kind) => {
             const max = count(kind);
             const n = Math.min(feedCounts[kind] ?? 1, max);
@@ -157,7 +157,12 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                 hint={`→ 🪱 ${ITEMS.bait.name} ×${BAIT_YIELD[kind]}/个`}
                 max={max}
                 value={n}
-                onValueChange={(v) => setFeedCounts((c) => ({ ...c, [kind]: v }))}
+                onDelta={(d) =>
+                  setFeedCounts((c) => ({
+                    ...c,
+                    [kind]: Math.max(1, Math.min((c[kind] ?? 1) + d, max)),
+                  }))
+                }
                 actionLabel="投入"
                 actionColor={ACTION_COLOR}
                 onAction={() => onFeed(kind, n)}

@@ -102,7 +102,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
             to="cloth"
             max={ropeInBag}
             value={n}
-            onValueChange={setFeedCount}
+            onDelta={(d) => setFeedCount((prev) => Math.max(1, Math.min(prev + d, ropeInBag)))}
             actionLabel="投入"
             actionColor={ACTION_COLOR}
             onAction={() => onFeed(n)}

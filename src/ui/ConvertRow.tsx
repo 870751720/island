@@ -104,6 +104,15 @@ export const convertBarStyle: CSSProperties = {
   overflow: 'hidden',
 };
 
+/** 配方列表容器:最多露出约 4 行,超出区域内滚动(避免整面板出现滚动条) */
+export const convertListStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  maxHeight: 244,
+  overflowY: 'auto',
+};
+
 /** 道具行:左侧道具与产出提示,右侧步进选数量 + 动作按钮(布局对齐烹饪台煮汤区) */
 export function ConvertRow({
   kind,
@@ -113,7 +122,7 @@ export function ConvertRow({
   hint,
   max,
   value,
-  onValueChange,
+  onDelta,
   actionLabel,
   actionColor,
   onAction,
@@ -124,7 +133,8 @@ export function ConvertRow({
   hint?: string;
   max: number;
   value: number;
-  onValueChange: (v: number) => void;
+  /** 数量变化:收到 ±步进(长按连发时随按住时长增大),父级用函数式 setState 应用 */
+  onDelta: (delta: number) => void;
   actionLabel: string;
   actionColor: string;
   onAction: () => void;
@@ -151,14 +161,14 @@ export function ConvertRow({
           step={-1}
           style={convertStepButtonStyle}
           disabled={value <= 1}
-          onChange={(s) => onValueChange(Math.max(1, value + s))}
+          onChange={(s) => onDelta(s)}
         />
         <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>{value}</span>
         <StepButton
           step={1}
           style={convertStepButtonStyle}
           disabled={value >= max}
-          onChange={(s) => onValueChange(Math.min(max, value + s))}
+          onChange={(s) => onDelta(s)}
         />
       </div>
       <button
