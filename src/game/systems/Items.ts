@@ -470,7 +470,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   },
   fruitFruit: {
     kind: 'fruitFruit',
-    name: '红果',
+    name: '苹果',
     icon: '🍎',
     description: '红彤彤的果子,看着就多汁。',
   },
