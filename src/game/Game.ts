@@ -1023,8 +1023,11 @@ export class Game {
           this.shrines.updateActor(s, simDelta);
           this.workbench.updateActor(s, simDelta);
           this.campfire.updateActor(s, simDelta);
-          // 手里的种子/围栏用光后自动收起,回到空手
-          if (s.player.currentTool !== 'hand' && !this.hasToolFor(s, s.player.currentTool)) {
+          // 手里的种子/围栏/可放置道具用光后自动收起,回到空手
+          const heldTool = s.player.currentTool;
+          if (heldTool === 'place' || heldTool === 'fence' || heldTool === 'fenceGate') {
+            if (!this.heldPlaceItem(s)) s.player.setTool('hand');
+          } else if (heldTool !== 'hand' && !this.hasToolFor(s, heldTool)) {
             s.player.setTool('hand');
           }
         }
