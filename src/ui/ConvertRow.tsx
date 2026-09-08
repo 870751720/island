@@ -104,12 +104,12 @@ export const convertBarStyle: CSSProperties = {
   overflow: 'hidden',
 };
 
-/** 配方列表容器:最多露出约 4 行,超出区域内滚动(避免整面板出现滚动条) */
+/** 配方列表容器:最多露出约 3 行,超出区域内滚动(避免整面板出现滚动条) */
 export const convertListStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
-  maxHeight: 244,
+  maxHeight: 176,
   overflowY: 'auto',
 };
 
