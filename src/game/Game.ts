@@ -860,12 +860,14 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
-        for (const session of this.sessions) session.player.update(delta, elapsed);
-        this.dayNight.update(delta);
-        this.crates.update(delta);
-        this.meteor.update(delta);
-        this.weather.update(delta);
-        updateSeasonSnow(delta);
+        // 单机拍照模式:时间与全部玩法模拟冻结(玩家无敌),相机取景与渲染照常
+        const simDelta = this.photo.active && !this.guestMode && !this.hostRef ? 0 : delta;
+        for (const session of this.sessions) session.player.update(simDelta, elapsed);
+        this.dayNight.update(simDelta);
+        this.crates.update(simDelta);
+        this.meteor.update(simDelta);
+        this.weather.update(simDelta);
+        updateSeasonSnow(simDelta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
@@ -874,25 +876,25 @@ export class Game {
         this.terrain.updateWater(elapsed);
         this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
-          this.crabs.update(delta, elapsed);
-          this.butterflies.update(delta, elapsed);
-          this.birds.update(delta, elapsed);
-          this.wildlife.update(delta, elapsed);
+          this.crabs.update(simDelta, elapsed);
+          this.butterflies.update(simDelta, elapsed);
+          this.birds.update(simDelta, elapsed);
+          this.wildlife.update(simDelta, elapsed);
           this.dayEvents.update();
-          this.dog.update(delta, elapsed, this.drops, this.dayNight.isNight);
+          this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight);
         } else {
           this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
         }
-        this.props.update(delta, elapsed, this.weather.wind, !this.guestMode);
+        this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
-        this.itemFly.update(delta);
+        this.itemFly.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
-        this.footprints.update(delta);
+        this.footprints.update(simDelta);
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
@@ -900,7 +902,7 @@ export class Game {
           // 客人放箭的动作快照:客人射箭在客人端判定,房主按 arrowShot 动作补放箭动画窗口
           if (s !== this.local) {
             if (s.shotAnimLeft > 0) {
-              s.shotAnimLeft = Math.max(0, s.shotAnimLeft - delta);
+              s.shotAnimLeft = Math.max(0, s.shotAnimLeft - simDelta);
               s.player.setAction(s.shotAnimLeft > 0 ? 'shoot' : null);
             }
           }
@@ -918,7 +920,7 @@ export class Game {
             !s.survival.state.dead &&
             this.shrines.inAura('healCrystal', s.player.group.position)
           ) {
-            s.healTick += delta;
+            s.healTick += simDelta;
             if (s.healTick >= 10) {
               s.healTick -= 10;
               s.survival.state.health = Math.min(100, s.survival.state.health + 1);
@@ -926,12 +928,12 @@ export class Game {
           } else {
             s.healTick = 0;
           }
-          s.survival.update(delta);
+          s.survival.update(simDelta);
           // 血量下降(受击/饥饿/溺水)触发角色模型闪红与受伤音(音效带间隔节流,持续掉血不成串响)
           if (s.survival.state.health < s.lastHealth - 0.001) {
             s.player.hurt();
             if (s === this.local) {
-              s.hurtSoundTimer -= delta;
+              s.hurtSoundTimer -= simDelta;
               if (s.hurtSoundTimer <= 0) {
                 this.audio.play('hurt');
                 s.hurtSoundTimer = 1.5;
@@ -941,10 +943,10 @@ export class Game {
           s.lastHealth = s.survival.state.health;
           s.player.setHealth(s.survival.state.health);
           // 权威端为每个会话累计闲置时长(本地 pushHud 与客人的 hudFor 共用),活跃时清零
-          s.hudIdleTime = this.isSessionActive(s) ? 0 : s.hudIdleTime + delta;
+          s.hudIdleTime = this.isSessionActive(s) ? 0 : s.hudIdleTime + simDelta;
           if (s.survival.state.dead) {
             if (!this.guestMode && s.respawnLeft > 0) {
-              s.respawnLeft = Math.max(0, s.respawnLeft - delta);
+              s.respawnLeft = Math.max(0, s.respawnLeft - simDelta);
               if (s.respawnLeft === 0) {
                 if (this.poseidonGrace && !this.hostRef && s === this.local) this.poseidonReviveSession(s);
                 else this.respawnMultiplayerSession(s);
@@ -952,9 +954,9 @@ export class Game {
             }
             continue;
           }
-          s.collect.update(delta);
-          s.milk.update(delta);
-          s.crafting.update(delta);
+          s.collect.update(simDelta);
+          s.milk.update(simDelta);
+          s.crafting.update(simDelta);
           // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
           if (
             s.crafting.isWorking &&
@@ -963,34 +965,34 @@ export class Game {
           ) {
             s.crafting.cancel();
           }
-          s.eating.update(delta);
-          s.fishing.update(delta, this.isSessionBusy(s, 'fishing'));
+          s.eating.update(simDelta);
+          s.fishing.update(simDelta, this.isSessionBusy(s, 'fishing'));
           // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算);套索同理
           if (s === this.local) {
-            s.archery.update(delta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
-            s.sword.update(delta, this.isSessionBusy(s, 'sword') || s.survival.state.dead);
-            s.lasso.update(delta, this.isSessionBusy(s, 'lasso') || s.survival.state.dead);
+            s.archery.update(simDelta, this.isSessionBusy(s, 'archery') || s.survival.state.dead);
+            s.sword.update(simDelta, this.isSessionBusy(s, 'sword') || s.survival.state.dead);
+            s.lasso.update(simDelta, this.isSessionBusy(s, 'lasso') || s.survival.state.dead);
           } else {
             // 远程玩家的弓不跑瞄准逻辑,但 arrowShot 复现的视觉箭矢要照常飞行与消失;
             // 剑的 swordHit 复现挥砍动作窗口、套索的 lassoThrown 复现绳圈也要照常推进
-            s.archery.updateVisuals(delta);
-            s.sword.updateVisuals(delta);
-            s.lasso.updateVisuals(delta);
+            s.archery.updateVisuals(simDelta);
+            s.sword.updateVisuals(simDelta);
+            s.lasso.updateVisuals(simDelta);
           }
-          s.water.update(delta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
-          this.crates.updateActor(s, delta);
-          this.baitBarrels.updateActor(s, delta);
-          this.brewBarrels.updateActor(s, delta);
-          this.waterPurifiers.updateActor(s, delta);
-          this.burrows.updateActor(s, delta);
-          this.smelters.updateActor(s, delta);
-          this.cookingStations.updateActor(s, delta);
-          this.looms.updateActor(s, delta);
-          this.fences.updateActor(s, delta);
-          this.beds.updateActor(s, delta);
-          this.shrines.updateActor(s, delta);
-          this.workbench.updateActor(s, delta);
-          this.campfire.updateActor(s, delta);
+          s.water.update(simDelta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
+          this.crates.updateActor(s, simDelta);
+          this.baitBarrels.updateActor(s, simDelta);
+          this.brewBarrels.updateActor(s, simDelta);
+          this.waterPurifiers.updateActor(s, simDelta);
+          this.burrows.updateActor(s, simDelta);
+          this.smelters.updateActor(s, simDelta);
+          this.cookingStations.updateActor(s, simDelta);
+          this.looms.updateActor(s, simDelta);
+          this.fences.updateActor(s, simDelta);
+          this.beds.updateActor(s, simDelta);
+          this.shrines.updateActor(s, simDelta);
+          this.workbench.updateActor(s, simDelta);
+          this.campfire.updateActor(s, simDelta);
           // 手里的种子/围栏用光后自动收起,回到空手
           if (s.player.currentTool !== 'hand' && !this.hasToolFor(s, s.player.currentTool)) {
             s.player.setTool('hand');
@@ -1008,17 +1010,17 @@ export class Game {
             break;
           }
         }
-        this.fences.update(delta, this.sessions.map((s) => s.player.group.position));
-        this.campfire.update(delta, elapsed);
-        this.shrines.update(delta, elapsed);
-        this.baitBarrels.update(delta, elapsed, !this.guestMode);
-        this.brewBarrels.update(delta, elapsed, !this.guestMode);
-        this.waterPurifiers.update(delta, elapsed);
-        this.burrows.update(delta, !this.guestMode);
-    this.smelters.update(delta, elapsed, !this.guestMode);
-    this.cookingStations.update(delta, elapsed, !this.guestMode);
-    this.looms.update(delta, elapsed, !this.guestMode);
-        this.drops.update(delta, elapsed);
+        this.fences.update(simDelta, this.sessions.map((s) => s.player.group.position));
+        this.campfire.update(simDelta, elapsed);
+        this.shrines.update(simDelta, elapsed);
+        this.baitBarrels.update(simDelta, elapsed, !this.guestMode);
+        this.brewBarrels.update(simDelta, elapsed, !this.guestMode);
+        this.waterPurifiers.update(simDelta, elapsed);
+        this.burrows.update(simDelta, !this.guestMode);
+    this.smelters.update(simDelta, elapsed, !this.guestMode);
+    this.cookingStations.update(simDelta, elapsed, !this.guestMode);
+    this.looms.update(simDelta, elapsed, !this.guestMode);
+        this.drops.update(simDelta, elapsed);
         this.mumbles.update(delta, {
           elapsed,
           dead: this.survival.state.dead,
@@ -1043,7 +1045,7 @@ export class Game {
           bottle: this.inventory.count('bottle'),
           meteorActive: this.meteor.active,
         });
-        this.updateIndicator(delta);
+        this.updateIndicator(simDelta);
         this.updateLeashLines();
         this.updateCamera(delta);
         this.ocean.update(this.camera, elapsed);
