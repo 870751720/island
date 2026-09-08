@@ -131,6 +131,8 @@ export type HudSnapshot = {
   heldPlaceCount: number;
   /** 手持的可放置道具(含围栏/门,工具按钮图标跟随,未手持为 null) */
   heldItemKind: ResourceKind | null;
+  /** 背包里可手持放置的道具清单(去重、上次使用的排最前),供长按工具按钮的选择面板展示 */
+  placeables: { kind: ResourceKind; count: number }[];
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -2473,13 +2475,19 @@ export class Game {
   setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
-    if (tool === 'place' && placeKind) this.autoPlace.select(s, placeKind);
+    if (tool === 'place' && placeKind) {
+      this.lastPlaceKind = placeKind;
+      this.autoPlace.select(s, placeKind);
+    }
     if (tool === 'fence' && (placeKind === 'fenceWood' || placeKind === 'fenceStone')) {
       this.fences.selectFenceItem(s, placeKind);
     }
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → … → 套索 → 背包里每种可放置道具各一格(围栏区分木/石) */
+  /** 上次手持放置的道具(选择面板里排最前,方便连续放置) */
+  private lastPlaceKind: ResourceKind | null = null;
+
+  /** 循环切换手持工具:空手 → 斧子 → … → 套索(仅普通工具;可放置道具走长按工具按钮的选择面板) */
   cycleTool(): void {
     const next = this.nextToolInCycle();
     this.selectTool(next.tool, next.kind ?? undefined);
@@ -2498,27 +2506,53 @@ export class Game {
     return list[(i + 1) % list.length] ?? list[0];
   }
 
-  /** 循环候选:普通工具在前,可放置道具(含围栏/门)按背包顺序去重展开 */
+  /** 循环候选:仅普通工具(手里还有的);可放置道具不进循环,由 placeableList 提供给选择面板 */
   private cycleEntries(): CycleEntry[] {
     const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'];
-    const list: CycleEntry[] = order
+    return order
       .filter((t) => t === 'hand' || this.hasTool(t))
       .map((tool) => ({ tool, kind: null }));
+  }
+
+  /** 某会话背包里可手持放置的道具清单(去重;上次使用的排最前,便于连续放置) */
+  private placeableList(s: PlayerSession): { kind: ResourceKind; count: number }[] {
     const seen = new Set<ResourceKind>();
-    for (const slot of this.local.inventory.snapshot()) {
-      if (!slot || seen.has(slot.kind)) continue;
-      if (slot.kind === 'fenceWood' || slot.kind === 'fenceStone') {
-        seen.add(slot.kind);
-        list.push({ tool: 'fence', kind: slot.kind });
-      } else if (slot.kind === 'fenceGate') {
-        seen.add(slot.kind);
-        list.push({ tool: 'fenceGate', kind: slot.kind });
-      } else if (this.autoPlace.supports(slot.kind)) {
-        seen.add(slot.kind);
-        list.push({ tool: 'place', kind: slot.kind });
-      }
+    const list: { kind: ResourceKind; count: number }[] = [];
+    const push = (kind: ResourceKind) => {
+      if (seen.has(kind)) return;
+      seen.add(kind);
+      list.push({ kind, count: s.inventory.count(kind) });
+    };
+    if (this.lastPlaceKind && this.isPlaceable(s, this.lastPlaceKind)) push(this.lastPlaceKind);
+    for (const slot of s.inventory.snapshot()) {
+      if (!slot || !this.isPlaceable(s, slot.kind)) continue;
+      push(slot.kind);
     }
-    return list;
+    return list.filter((e) => e.count > 0);
+  }
+
+  /** 该道具是否可作为手持放置项(围栏木/石/门走围栏系统,其余由安放系统判定) */
+  private isPlaceable(s: PlayerSession, kind: ResourceKind): boolean {
+    return (
+      kind === 'fenceWood' ||
+      kind === 'fenceStone' ||
+      kind === 'fenceGate' ||
+      this.autoPlace.supports(kind)
+    );
+  }
+
+  /** 从选择面板选中一种可放置道具切入对应手持模式(围栏类走围栏系统,其余走安放系统) */
+  pickPlaceItem(kind: ResourceKind): void {
+    const tool: HandTool | null =
+      kind === 'fenceWood' || kind === 'fenceStone'
+        ? 'fence'
+        : kind === 'fenceGate'
+          ? 'fenceGate'
+          : this.autoPlace.supports(kind)
+            ? 'place'
+            : null;
+    if (!tool) return;
+    this.selectTool(tool, kind);
   }
 
   /** 该会话手里正举着的可放置道具(安放工具选中的/围栏木/石/围栏门),供图标、手持模型与快照用 */
@@ -4173,6 +4207,7 @@ export class Game {
             : 0,
       heldPlaceCount: this.autoPlace.heldCount(s),
       heldItemKind: this.heldPlaceItem(s),
+      placeables: this.placeableList(s),
       slots: s.inventory.snapshot(),
       capacity: s.inventory.capacity,
       hasAxe: !!s.tools.axe,

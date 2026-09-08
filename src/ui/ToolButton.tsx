@@ -4,6 +4,7 @@ import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
+import { useRef } from 'react';
 
 const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
@@ -19,7 +20,8 @@ const TOOL_ICONS: Record<HandTool, string> = {
   place: '📦',
 };
 
-/** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
+/** 右中侧工具切换按钮:单击循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
+ * 长按(约 0.35s)打开可放置道具选择面板(传入 onLongPress 时启用);
  * 靠近工作台/火堆等放置物时切换为对应图标并持续缩放提示,点击打开对应面板;
  * 牵着羊时变为「打桩」,身旁有被拴的羊时变为「解开套索」;
  * 持弓/鱼竿/围栏/套索时角标显示剩余弹药或个数 */
@@ -44,6 +46,7 @@ export function ToolButton({
   placeKind = null,
   lassoCount = 0,
   dimmed = false,
+  onLongPress,
   onCycle,
   onWorkbench,
   onCampfire,
@@ -94,6 +97,8 @@ export function ToolButton({
   lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
   dimmed?: boolean;
+  /** 长按打开可放置道具选择面板(不传则不响应长按) */
+  onLongPress?: () => void;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
@@ -107,33 +112,64 @@ export function ToolButton({
   onStake: () => void;
   onUntie: () => void;
 }) {
+  // 长按计时:按住约 0.35s 触发 onLongPress 并吞掉本次单击,移动出按钮/抬起取消
+  const pressTimer = useRef<number | null>(null);
+  const longFired = useRef(false);
+  const clearPress = () => {
+    if (pressTimer.current !== null) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+  const tapAction = () => {
+    clearPress();
+    if (longFired.current) return;
+    workbench
+      ? onWorkbench()
+      : campfire
+        ? onCampfire()
+        : crate
+          ? onCrate()
+          : baitBarrel
+            ? onBaitBarrel()
+            : brewBarrel
+              ? onBrewBarrel()
+              : smelter
+                ? onSmelter()
+                : cookingStation
+                  ? onCookingStation()
+                  : loom
+                    ? onLoom()
+                    : bed
+                      ? onBed()
+                      : stake
+                        ? onStake()
+                        : untie
+                          ? onUntie()
+                          : onCycle();
+  };
   return (
     <button
       onPointerDown={(e) => {
         e.preventDefault();
-        workbench
-          ? onWorkbench()
-          : campfire
-            ? onCampfire()
-            : crate
-              ? onCrate()
-              : baitBarrel
-                ? onBaitBarrel()
-                : brewBarrel
-                  ? onBrewBarrel()
-                  : smelter
-                  ? onSmelter()
-                  : cookingStation
-                    ? onCookingStation()
-                    : loom
-                      ? onLoom()
-                      : bed
-                  ? onBed()
-                  : stake
-                    ? onStake()
-                    : untie
-                      ? onUntie()
-                      : onCycle();
+        longFired.current = false;
+        clearPress();
+        if (onLongPress && !dimmed) {
+          pressTimer.current = window.setTimeout(() => {
+            pressTimer.current = null;
+            longFired.current = true;
+            onLongPress();
+          }, 350);
+        }
+      }}
+      onPointerUp={tapAction}
+      onPointerLeave={() => {
+        clearPress();
+        longFired.current = true;
+      }}
+      onPointerCancel={() => {
+        clearPress();
+        longFired.current = true;
       }}
       style={{
         position: 'absolute',

@@ -12,6 +12,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
 import { ToolButton } from './ToolButton';
+import { PlacePicker } from './PlacePicker';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -113,6 +114,7 @@ const INITIAL_HUD: HudSnapshot = {
   heldFenceCount: 0,
   heldPlaceCount: 0,
   heldItemKind: null,
+  placeables: [],
   busy: false,
   indicator: { label: null, progress: null },
   buffs: [],
@@ -182,6 +184,7 @@ export function GameplayUI({
   // 世界生成期间的遮罩,首帧渲染完成后淡出
   const [worldReady, setWorldReady] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const [workbenchOpen, setWorkbenchOpen] = useState(false);
   const [campfireOpen, setCampfireOpen] = useState(false);
   const [crateOpen, setCrateOpen] = useState(false);
@@ -688,6 +691,9 @@ export function GameplayUI({
               placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
               dimmed={hud.busy}
+              onLongPress={
+                hud.placeables.length > 0 ? () => setPlacePickerOpen(true) : undefined
+              }
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => setWorkbenchOpen(true)}
               onCampfire={() => setCampfireOpen(true)}
@@ -700,6 +706,16 @@ export function GameplayUI({
               onBed={() => gameRef.current?.sleep()}
               onStake={() => gameRef.current?.stakeLasso()}
               onUntie={() => gameRef.current?.untieLasso()}
+            />
+          )}
+          {placePickerOpen && hud.placeables.length > 0 && (
+            <PlacePicker
+              items={hud.placeables}
+              onPick={(kind) => {
+                gameRef.current?.pickPlaceItem(kind);
+                setPlacePickerOpen(false);
+              }}
+              onClose={() => setPlacePickerOpen(false)}
             />
           )}
           {workbenchOpen && (
