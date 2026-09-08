@@ -187,3 +187,7 @@
 ### 转换设施投料/取回统一(2026-09)
 
 - 冶炼炉/纺织机/饵料桶/酿酒桶的投料动作增加数量参数(count ≤ 0 为全部):`smelterFeed[count]`、`loomFeed[count]`、`baitBarrelFeed[kind,count]`、`brewBarrelFeed[kind,count]`;新增取回动作 `smelterTakeOre/loomTakeRope/baitBarrelTakeFoods/brewBarrelTakeRaw/cookingTakeBoil`(把设施内还没加工的原料退回背包)。均由客人上行、房主权威结算,设施状态经世界增量回流,与既有投料/收取同一套约定。
+
+### 相机模式(2026-09)
+
+详见 `photo-mode.md`。相机模式(拍照模式)为纯客户端本地表现:只调整本机相机注视点/缩放/旋转与本地 UI 隐藏,不上行任何动作、不新增协议字段、不同步状态;房主与客人可各自进入互不干扰,快照照常回流,退出后相机回到跟随本地玩家。

@@ -22,6 +22,7 @@ import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
+import { PhotoCamera } from './systems/PhotoCamera';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
@@ -229,6 +230,9 @@ export type HudSnapshot = {
 };
 
 const VIEW_SIZE = 18;
+
+/** updateCamera 复用的注视点偏移临时向量 */
+const _camOffset = new THREE.Vector3();
 
 /** 拾取提示(玩家头顶飘图标):道具、数量与诞生时的屏幕坐标 */
 export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: number; y: number };
@@ -2094,6 +2098,53 @@ export class Game {
     saveAudioSettings(settings);
   }
 
+  /** 相机模式(拍照模式)状态:纯本地表现,不影响联机同步 */
+  private photo = new PhotoCamera();
+
+  /** 进入相机模式:以玩家当前位置为注视点,停掉移动输入(摇杆层已隐藏不会触发抬起) */
+  enterPhotoMode(): void {
+    this.setJoystick(0, 0);
+    this.photo.enter(this.player.group.position);
+    this.camera.zoom = this.photo.zoom;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /** 退出相机模式:恢复常规跟随视角与缩放(位置由跟随插值平滑过渡) */
+  exitPhotoMode(): void {
+    this.photo.exit();
+    this.camera.zoom = 1;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /** 相机模式内按屏幕像素平移注视点(单指拖动) */
+  photoPan(dxPx: number, dyPx: number): void {
+    if (!this.photo.active) return;
+    const h = this.renderer.domElement.clientHeight || 1;
+    const worldPerPx = ((this.camera.top - this.camera.bottom) / h) / this.photo.zoom;
+    this.photo.pan(dxPx, dyPx, worldPerPx, this.player.group.position);
+  }
+
+  /** 相机模式内缩放(双指捏合或按钮),返回新倍率供 UI 显示 */
+  photoZoomBy(factor: number): number {
+    if (!this.photo.active) return this.photo.zoom;
+    this.photo.zoomBy(factor);
+    this.camera.zoom = this.photo.zoom;
+    this.camera.updateProjectionMatrix();
+    return this.photo.zoom;
+  }
+
+  /** 相机模式内绕注视点旋转(双指旋转或按钮) */
+  photoRotate(delta: number): void {
+    if (!this.photo.active) return;
+    this.photo.rotate(delta);
+  }
+
+  /** 拍照:立即渲染一帧并读回画面(避免依赖读回缓冲保留),无照片返回 null */
+  requestPhoto(cb: (photo: string | null) => void): void {
+    this.renderer.render(this.scene, this.camera);
+    cb(this.captureScene());
+  }
+
   /** 单机死亡的结算快照,死亡界面展示并生成分享卡片;确认退出后随实例丢弃 */
   deathReport: DeathReport | null = null;
 
@@ -2277,16 +2328,23 @@ export class Game {
   }
 
   /** 相机以固定偏移跟随角色:从正南上方看向玩家,屏幕「上」即世界 -Z,
-   * 与键盘 W/摇杆上推的移动语义一致(俯角与旧版对角视角相同,只改水平朝向) */
+   * 与键盘 W/摇杆上推的移动语义一致(俯角与旧版对角视角相同,只改水平朝向)。
+   * 相机模式下改为注视 PhotoCamera 的中心(可平移/缩放/旋转),不再跟随玩家。 */
   private updateCamera(delta: number): void {
-    const target = this.player.group.position;
-    const desiredX = target.x;
-    const desiredY = target.y + 24;
-    const desiredZ = target.z + Math.hypot(20, 20);
-    const k = 1 - Math.pow(0.001, delta);
-    this.camera.position.x += (desiredX - this.camera.position.x) * k;
-    this.camera.position.y += (desiredY - this.camera.position.y) * k;
-    this.camera.position.z += (desiredZ - this.camera.position.z) * k;
+    const target = this.photo.active ? this.photo.center : this.player.group.position;
+    const off = this.photo.offset(_camOffset);
+    const desiredX = target.x + off.x;
+    const desiredY = target.y + off.y;
+    const desiredZ = target.z + off.z;
+    if (this.photo.active) {
+      // 拖动平移要求 1:1 跟手,不做平滑插值
+      this.camera.position.set(desiredX, desiredY, desiredZ);
+    } else {
+      const k = 1 - Math.pow(0.001, delta);
+      this.camera.position.x += (desiredX - this.camera.position.x) * k;
+      this.camera.position.y += (desiredY - this.camera.position.y) * k;
+      this.camera.position.z += (desiredZ - this.camera.position.z) * k;
+    }
     this.camera.lookAt(target.x, target.y, target.z);
 
     // 太阳与阴影范围跟随玩家(方向由昼夜系统维护),大岛也能全程有影子

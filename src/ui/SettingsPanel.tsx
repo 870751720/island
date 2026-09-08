@@ -52,12 +52,15 @@ export function SettingsPanel({
   onApply,
   onExit,
   onClose,
+  onEnterPhotoMode,
   multiplayer,
 }: {
   /** 音量变化时热应用到 GameAudio 并持久化 */
   onApply: (settings: { music: number; sfx: number }) => void;
   onExit: () => void;
   onClose: () => void;
+  /** 进入相机模式(拍照模式):隐藏玩法 UI 自由取景 */
+  onEnterPhotoMode: () => void;
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
 }) {
@@ -116,6 +119,21 @@ export function SettingsPanel({
           value={settings.sfx}
           onChange={(v) => apply({ ...settings, sfx: v })}
         />
+        <button
+          onClick={onEnterPhotoMode}
+          style={{
+            padding: '12px 0',
+            fontSize: 15,
+            fontWeight: 600,
+            color: '#fff',
+            background: '#5b8a4a',
+            border: 'none',
+            borderRadius: 10,
+            cursor: 'pointer',
+          }}
+        >
+          📷 相机模式
+        </button>
         {multiplayer &&
           (multiplayer.roomCode ? (
             <div

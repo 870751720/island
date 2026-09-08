@@ -3,7 +3,8 @@ import type { DeathCause, DeathReport } from '@/game/systems/RunStats';
 
 /** 线上试玩地址(卡片二维码与分享文案都指向这里) */
 export const GAME_URL = 'https://870751720.github.io/island/';
-const GAME_TITLE = '去你的岛';
+/** 游戏名(分享卡水印与分享文案共用) */
+export const GAME_TITLE = '去你的岛';
 
 /** 各死因的卡片文案 */
 const CAUSE_LINES: Record<DeathCause, string> = {

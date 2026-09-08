@@ -44,6 +44,7 @@ import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
+import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
 import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
@@ -209,6 +210,23 @@ export function GameplayUI({
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 相机模式:隐藏全部玩法 UI 自由取景拍照,由设置面板进入
+  const [photoMode, setPhotoMode] = useState(false);
+  const enterPhotoMode = () => {
+    const game = gameRef.current;
+    if (!game || hud.dead) return;
+    game.enterPhotoMode();
+    setSettingsOpen(false);
+    setPhotoMode(true);
+  };
+  const exitPhotoMode = () => {
+    gameRef.current?.exitPhotoMode();
+    setPhotoMode(false);
+  };
+  // 死亡时强制退出相机模式,回到死亡结算界面
+  useEffect(() => {
+    if (hud.dead && photoMode) exitPhotoMode();
+  }, [hud.dead]);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
@@ -385,12 +403,16 @@ export function GameplayUI({
       ref={containerRef}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
-      {!hud.dead && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
-      <FpsOverlay />
-      <TrafficOverlay />
-      <Hud hud={hud} onHeartTap={handleHeartTap} />
+      {!hud.dead && !photoMode && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
+      {!photoMode && (
+        <>
+          <FpsOverlay />
+          <TrafficOverlay />
+          <Hud hud={hud} onHeartTap={handleHeartTap} />
+        </>
+      )}
       {/* 右上角:设置按钮左、地图入口或小地图右；玩家移动/交互中一起淡出 */}
-      {!hud.dead && (
+      {!hud.dead && !photoMode && (
         <div
           style={{
             position: 'absolute',
@@ -451,6 +473,7 @@ export function GameplayUI({
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
           onExit={onExit}
           onClose={() => setSettingsOpen(false)}
+          onEnterPhotoMode={enterPhotoMode}
           multiplayer={
             net?.guest
               ? undefined
@@ -479,7 +502,8 @@ export function GameplayUI({
           }}
         />
       )}
-      <Backpack
+      {!photoMode && (
+        <Backpack
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}
         hud={hud}
@@ -579,7 +603,8 @@ export function GameplayUI({
         onMoveItem={(from, to) => gameRef.current?.moveItem(from, to)}
         onSort={() => gameRef.current?.sortInventory()}
       />
-      {!hud.dead && (
+      )}
+      {!hud.dead && !photoMode && (
         <>
           {(hud.hasAxe ||
             hud.hasPickaxe ||
@@ -847,7 +872,10 @@ export function GameplayUI({
           poseidon={hud.poseidonGrace}
         />
       )}
-      {pickups.map((t) => (
+      {photoMode && !hud.dead && gameRef.current && (
+        <PhotoMode game={gameRef.current} day={hud.day} onClose={exitPhotoMode} />
+      )}
+      {!photoMode && pickups.map((t) => (
         <div key={t.id} className="pickup-toast" style={{ left: t.x, top: t.y }}>
           {t.items.map((item, i) => (
             <span key={i} style={{ marginLeft: i > 0 ? 8 : 0, display: 'inline-flex', alignItems: 'center' }}>
@@ -857,11 +885,12 @@ export function GameplayUI({
           ))}
         </div>
       ))}
-      {damagePops.map((d) => (
+      {!photoMode && damagePops.map((d) => (
         <div key={d.id} className="damage-pop" style={{ left: d.x, top: d.y }}>
           -{d.amount}
         </div>
       ))}
+      {!photoMode && (
       <div
         ref={labelRef}
         style={{
@@ -880,6 +909,8 @@ export function GameplayUI({
           userSelect: 'none',
         }}
       />
+      )}
+      {!photoMode && (
       <div
         ref={mumbleRef}
         style={{
@@ -903,6 +934,8 @@ export function GameplayUI({
           clipPath: 'polygon(0 0, 100% 0, 100% 100%, 55% 100%, 50% calc(100% + 6px), 45% 100%, 0 100%)',
         }}
       />
+      )}
+      {!photoMode && (
       <div
         ref={dogEmojiRef}
         style={{
@@ -922,7 +955,8 @@ export function GameplayUI({
           zIndex: 30,
         }}
       />
-      <VitalWarn ref={vitalWarnRef} />
+      )}
+      {!photoMode && <VitalWarn ref={vitalWarnRef} />}
     </div>
   );
 }
