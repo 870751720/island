@@ -55,6 +55,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'crate' ||
     kind === 'ironCrate' ||
     kind === 'baitBarrel' ||
+    kind === 'brewBarrel' ||
     kind === 'waterPurifier' ||
     kind === 'smelter' ||
     kind === 'cookingStation' ||

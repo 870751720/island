@@ -114,7 +114,9 @@ export class BowSystem {
     /** 客人端注入:本地判定命中后上行房主权威结算(扣箭/伤害/掉落) */
     private onNetHit?: (hit: ArrowHit, x: number, z: number) => void,
     /** 放箭瞬间回调(联机广播用):参数为瞄准方向与出手点 */
-    private onShot?: (dirX: number, dirZ: number) => void
+    private onShot?: (dirX: number, dirZ: number) => void,
+    /** 伤害乘数(如「晕晕的」醉酒增伤),缺省 1 */
+    private damageMultiplier: () => number = () => 1
   ) {
     this.guide = new AimGuide(terrain, RANGE, AIM_DOTS, AIM_START);
     this.scene.add(this.guide.group);
@@ -294,7 +296,7 @@ export class BowSystem {
 
   /** 权威结算一次命中:扣目标血量/击杀并掉落战利品 */
   private applyHit(hit: ArrowHit, x: number, z: number): void {
-    const damage = ARROW_DAMAGE[Math.min(ARROW_DAMAGE.length, Math.max(1, this.tools.bow)) - 1] * GmSystem.attackMultiplier;
+    const damage = ARROW_DAMAGE[Math.min(ARROW_DAMAGE.length, Math.max(1, this.tools.bow)) - 1] * GmSystem.attackMultiplier * this.damageMultiplier();
     if (hit.kind === 'wildlife') {
       const beast = this.wildlife.damage(hit.animalId, damage);
       // 野生动物可中数箭:受伤未死不掉肉

@@ -3401,7 +3401,9 @@ export class Game {
             if (this.guestNet) this.guestNet.action('arrowShot', [dx, dz]);
             else this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: s.id, dx, dz });
           }
-        : undefined
+        : undefined,
+      // 「晕晕的」醉酒状态:箭矢伤害 +30%
+      () => (s.player.tipsySeconds > 0 ? 1.3 : 1)
     );
     s.sword = new SwordSystem(
       s.player,

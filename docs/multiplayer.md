@@ -88,7 +88,7 @@
 
 - 新增世界段 `brewBarrels` 与动作 `useBrewBarrel/brewBarrelFeed/brewBarrelCollect`:放置/投料/收取由客人上行、房主权威结算,桶内 `kind/rawLeft/bottles/tickLeft` 经世界增量回流;发酵计时(每 45 秒 2 原料→1 瓶)只在房主端推进,锄头挖走同饵料桶。
 - 喝酒 Buff(舒爽/晕晕的):计时器在 `Player` 上,由房主权威端的进食完成回调施加(客人 `eatFood` 动作上行);姿态快照 `PlayerState` 新增 `refresh`/`tipsy` 剩余秒数字段,客人端对齐本地计时器(差值>1s 才改写),使移动加速/减速在客人本地预测移动中生效,HUD buff 列表随各端 HUD 快照展示。
-- 剑增伤:客人 `swordHit` 上行后,房主按该客人会话(房主侧副本)的晕晕状态在 `SwordSystem` 权威结算 ×1.3 伤害;弓/套索不受醉酒影响。
+- 剑增伤:客人 `swordHit` 上行后,房主按该客人会话(房主侧副本)的晕晕状态在 `SwordSystem` 权威结算 ×1.3 伤害;弓同款(客人 `arrowHit` 上行后按晕晕状态 ×1.3),套索不受醉酒影响。
 
 ### 已制作配方记录同步(2026-09)
 
