@@ -1,6 +1,8 @@
 'use client';
 
 import type { HandTool } from '@/game/entities/Player';
+import type { ResourceKind } from '@/game/systems/Inventory';
+import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
 
 const TOOL_ICONS: Record<HandTool, string> = {
@@ -39,6 +41,7 @@ export function ToolButton({
   baitCount = 0,
   fenceCount = 0,
   placeCount = 0,
+  placeKind = null,
   lassoCount = 0,
   dimmed = false,
   onCycle,
@@ -85,6 +88,8 @@ export function ToolButton({
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
   placeCount?: number;
+  /** 手持的可安放道具(图标跟随,缺省用 📦) */
+  placeKind?: ResourceKind | null;
   /** 背包剩余套索数(持套索且未牵着羊时角标展示) */
   lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
@@ -206,7 +211,9 @@ export function ToolButton({
                     ? '📍'
                     : untie
                       ? '🔓'
-                      : TOOL_ICONS[tool]}
+                      : placeKind
+                        ? ITEMS[placeKind].icon
+                        : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&

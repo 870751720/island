@@ -50,6 +50,8 @@ type SessionState = {
   lastPlaceX: number | null;
   preview: THREE.Group | null;
   previewKind: ResourceKind | null;
+  /** 工具循环切入时选中的可安放道具 */
+  selectedKind: ResourceKind | null;
   meshes: THREE.Mesh[];
   shownValid: boolean;
 };
@@ -85,21 +87,22 @@ export class AutoPlaceSystem {
     return this.defs.has(kind);
   }
 
-  /** 背包里是否还有可安放道具(工具按钮与循环切换的持有判定,与当前手持无关) */
-  anyHeld(actor: PlayerSession): boolean {
-    return actor.inventory.snapshot().some((s) => s && this.defs.has(s.kind));
-  }
-
   /** 手持安放道具的背包剩余个数(工具按钮角标) */
   heldCount(actor: PlayerSession): number {
     const kind = this.heldKind(actor);
     return kind ? actor.inventory.count(kind) : 0;
   }
 
-  /** 手持安放工具时背包里排最前的可安放道具(工具不对或没道具为 null) */
+  /** 手持安放工具时选中的道具(未选中/已耗尽/工具不对为 null) */
   heldKind(actor: PlayerSession): ResourceKind | null {
     if (actor.player.currentTool !== 'place') return null;
-    return actor.inventory.snapshot().find((s) => s && this.defs.has(s.kind))?.kind ?? null;
+    const kind = this.states.get(actor)?.selectedKind ?? null;
+    return kind && this.defs.has(kind) && actor.inventory.count(kind) > 0 ? kind : null;
+  }
+
+  /** 某道具的预览/手持建模(真实材质,由外层接管材质或缩放) */
+  previewModelOf(kind: ResourceKind): THREE.Object3D | null {
+    return this.defs.get(kind)?.buildPreview() ?? null;
   }
 
   /**
@@ -142,7 +145,7 @@ export class AutoPlaceSystem {
   private st(actor: PlayerSession): SessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { hold: new ActionHold(), placeTimer: 0, lastPlaceX: null, preview: null, previewKind: null, meshes: [], shownValid: true };
+      st = { hold: new ActionHold(), placeTimer: 0, lastPlaceX: null, preview: null, previewKind: null, selectedKind: null, meshes: [], shownValid: true };
       this.states.set(actor, st);
     }
     return st;
@@ -154,6 +157,11 @@ export class AutoPlaceSystem {
     if (!st) return;
     if (st.preview) this.scene.remove(st.preview);
     this.states.delete(actor);
+  }
+
+  /** 工具循环切入某个可安放道具(手动选中,不再取背包排最前的) */
+  select(actor: PlayerSession, kind: ResourceKind): void {
+    if (this.defs.has(kind)) this.st(actor).selectedKind = kind;
   }
 
   /** 正在安放放置中 */
@@ -254,6 +262,17 @@ export class AutoPlaceSystem {
     st.preview.rotation.y = cardinalRotY(actor.player.group.rotation.y);
     st.preview.visible = true;
   }
+}
+
+/** 把物体的真实建模缩到最大边约 0.3、居中到手心,作为手持模型 */
+export function miniHeldModel(obj: THREE.Object3D): THREE.Object3D {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = 0.3 / (Math.max(size.x, size.y, size.z) || 1);
+  obj.scale.setScalar(scale);
+  const center = box.getCenter(new THREE.Vector3()).multiplyScalar(scale);
+  obj.position.set(-center.x, -center.y, -center.z);
+  return obj;
 }
 
 /** 半透明黏土幽灵材质(可用/不可用两种,改色即整体变色) */

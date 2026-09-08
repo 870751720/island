@@ -12,9 +12,9 @@ import type { ShrineKind } from '../entities/Shrine';
 export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => boolean;
 
 export const ACTIONS: Record<string, NetAction> = {
-  tool: (g, a, [tool]) => {
-    // 走 Game 的统一入口:切走套索时先松开正牵着的羊
-    g.setToolFor(a, tool as HandTool);
+  tool: (g, a, [tool, placeKind]) => {
+    // 走 Game 的统一入口:切走套索时先松开正牵着的羊;可放置道具携带具体种类
+    g.setToolFor(a, tool as HandTool, (placeKind as ResourceKind) ?? undefined);
     return true;
   },
   eatFood: (g, a, [kind]) => g.eatFood(kind as ResourceKind | undefined, a),

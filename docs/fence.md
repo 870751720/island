@@ -42,3 +42,8 @@
 - `Player.ts`(`setObstacles` 支持多个阻挡源)、`Wildlife.ts` / `Crab.ts`(注入 `isBlocked`)、`Game.ts`(接线)。
 - `Inventory.ts` / `Items.ts` / `Crafting.ts` / `DropModels.ts`:道具 `fenceWood` / `fenceStone` / `fenceGate`、配方(均 `minBenchLevel: 2`)与掉落模型。
 - `Backpack.tsx` / `GameplayUI.tsx`:背包「使用」分发。
+
+
+## 迭代记录(工具循环并入)
+
+2026-09-09:围栏/围栏门并入「限定位置自动安放」的统一工具循环(`docs/autoplace.md`):木围栏、石围栏、围栏门在背包里各占一格循环条目,图标用各自物品图标,手持模型改为真实建模缩小(替代原静态捆栏模型),放置/预览/自动安放逻辑仍由 `FenceSystem` 自行结算(网格顶点/边吸附、门 5 秒安放时长不变),远程玩家经 `PlayerState.placeKind` 看到手持种类。

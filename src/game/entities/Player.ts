@@ -244,53 +244,6 @@ function makeLassoModel(): THREE.Group {
 }
 
 /** 手持围栏/门:一小捆柱子和横杆(按种类区分颜色) */
-function makeFenceBundleModel(color: string, gate: boolean): THREE.Group {
-  const g = new THREE.Group();
-  const mat = clayMaterial(color);
-  if (gate) {
-    // 手持围栏门:迷你门框 + 微开的门扇
-    for (const x of [-0.09, 0.09]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.24, 5), mat);
-      post.position.x = x;
-      post.position.y = 0.1;
-      g.add(post);
-    }
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.016), clayMaterial('#a97b48'));
-    leaf.position.set(0, 0.11, 0.05);
-    leaf.rotation.y = 0.5;
-    g.add(leaf);
-  } else {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.036, 0.26, 5), mat);
-    post.position.y = 0.11;
-    g.add(post);
-    for (const y of [0.06, 0.16]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.024), mat);
-      rail.position.y = y;
-      rail.rotation.z = 0.2;
-      g.add(rail);
-    }
-  }
-  g.rotation.x = Math.PI / 2.4;
-  return g;
-}
-
-/** 手持安放:怀里抱着一只小木箱(建筑/丛等可放置道具的通用形象) */
-function makePlaceBundleModel(): THREE.Group {
-  const g = new THREE.Group();
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.16), clayMaterial('#a97b48'));
-  g.add(box);
-  for (const y of [-0.04, 0.04]) {
-    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.026, 0.17), clayMaterial('#c9b588'));
-    strap.position.y = y;
-    g.add(strap);
-  }
-  g.position.y = 0.1;
-  const root = new THREE.Group();
-  root.add(g);
-  root.rotation.x = Math.PI / 2.4;
-  return root;
-}
-
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
@@ -317,6 +270,7 @@ export class Player implements Updatable {
   private tipsyLeft = 0;
   private handTool: HandTool = 'hand';
   /** 每件工具按等级的模型(下标 = 等级 - 1;锄头/围栏只有 1 级) */
+  private placeMount: THREE.Group;
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group[]>> = {};
   /** 各工具当前等级(缺省 1),决定展示哪一档模型 */
   private toolTiers: Partial<Record<Exclude<HandTool, 'hand'>, number>> = {};
@@ -383,9 +337,6 @@ export class Player implements Updatable {
       ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
       ['lasso', [makeLassoModel()]],
-      ['fence', [makeFenceBundleModel('#a97b48', false)]],
-      ['fenceGate', [makeFenceBundleModel('#8a6239', true)]],
-      ['place', [makePlaceBundleModel()]],
     ];
     for (const [, models] of tiers) {
       for (const t of models) {
@@ -395,6 +346,13 @@ export class Player implements Updatable {
       armR.add(...models);
     }
     this.toolModels = Object.fromEntries(tiers);
+
+    // 安放/围栏/围栏门工具手持的是当前道具的缩小模型,由外层按选中道具替换
+    this.placeMount = new THREE.Group();
+    this.placeMount.position.set(0.018, -0.39, 0.05);
+    this.placeMount.rotation.x = Math.PI / 2.4;
+    this.placeMount.visible = false;
+    armR.add(this.placeMount);
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';
@@ -425,6 +383,13 @@ export class Player implements Updatable {
     if (this.handTool === tool) this.refreshToolModels();
   }
 
+  /** 替换安放工具手里的道具模型(传 null 清空);仅手持安放工具且有模型时显示 */
+  setPlaceModel(model: THREE.Object3D | null): void {
+    this.placeMount.clear();
+    if (model) this.placeMount.add(model);
+    this.refreshToolModels();
+  }
+
   /** 按当前手持与等级刷新工具模型显隐 */
   private refreshToolModels(): void {
     for (const [name, models] of Object.entries(this.toolModels) as Array<
@@ -433,6 +398,9 @@ export class Player implements Updatable {
       const tier = Math.min(this.toolTiers[name] ?? 1, models.length) - 1;
       models.forEach((m, i) => (m.visible = name === this.handTool && i === tier));
     }
+    this.placeMount.visible =
+      (this.handTool === 'place' || this.handTool === 'fence' || this.handTool === 'fenceGate') &&
+      this.placeMount.children.length > 0;
   }
 
   get currentGender(): PlayerGender {

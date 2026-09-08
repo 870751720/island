@@ -112,6 +112,7 @@ const INITIAL_HUD: HudSnapshot = {
   day: 1,
   heldFenceCount: 0,
   heldPlaceCount: 0,
+  heldItemKind: null,
   busy: false,
   indicator: { label: null, progress: null },
   buffs: [],
@@ -684,6 +685,7 @@ export function GameplayUI({
               baitCount={hud.bait}
               fenceCount={hud.heldFenceCount}
               placeCount={hud.heldPlaceCount}
+              placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
               dimmed={hud.busy}
               onCycle={() => gameRef.current?.useToolButton()}

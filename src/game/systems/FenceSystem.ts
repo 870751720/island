@@ -54,6 +54,8 @@ type PlayerSessionState = {
   swingTimer: number;
   hits: number;
   digTarget: { kind: 'fence' | 'gate'; key: string } | null;
+  /** 手里架着的围栏道具(木/石) */
+  fenceItem: 'fenceWood' | 'fenceStone' | null;
   placeTimer: number;
   /** 原地自动放置是否可用:null 表示可放,放置后记位,移动即复位 */
   lastPlaceX: number | null;
@@ -67,6 +69,39 @@ export function fenceKindOfItem(kind: ResourceKind): FenceKind | null {
   if (kind === 'fenceWood') return 'branch';
   if (kind === 'fenceStone') return 'stone';
   return null;
+}
+
+/** 手持迷你围栏(真材质,外层再整体缩放到手心大小) */
+export function makeFenceHandModel(kind: FenceKind): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: kind === 'branch' ? '#a97b48' : '#9a9a9a', flatShading: true, roughness: 1 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 1, 6), mat);
+  post.position.y = 0.5;
+  g.add(post);
+  for (const y of [0.35, 0.7]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 0.06), mat);
+    rail.position.y = y;
+    g.add(rail);
+  }
+  return g;
+}
+
+/** 手持迷你围栏门(真材质,外层再整体缩放到手心大小) */
+export function makeFenceGateHandModel(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: '#8a6239', flatShading: true, roughness: 1 });
+  for (const x of [-0.95, 0.95]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 1, 6), mat);
+    post.position.set(x, 0.47, 0);
+    g.add(post);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(2, 0.08, 0.08), mat);
+  beam.position.y = 0.95;
+  g.add(beam);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.65, 0.05), mat);
+  leaf.position.set(0, 0.45, 0);
+  g.add(leaf);
+  return g;
 }
 
 /**
@@ -152,7 +187,7 @@ export class FenceSystem implements ObstacleSolver {
       gatePreview.visible = false;
       this.scene.add(gatePreview);
 
-      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, fenceItem: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
       this.states.set(actor, st);
     }
     return st;
@@ -432,13 +467,28 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 手持自动放置 ----
 
-  /** 手持围栏时背包里排最前面的围栏道具对应的场上种类(没围栏道具或非手持为 null) */
+  /** 选中要在手里架起来的围栏道具(工具循环切入时记录,用完自动落到背包里排最前的) */
+  selectFenceItem(actor: PlayerSession, item: 'fenceWood' | 'fenceStone'): void {
+    this.st(actor).fenceItem = item;
+  }
+
+  /** 手持围栏道具对应的场上种类(优先上次选中的,没道具或非手持为 null) */
   private heldFenceKind(actor: PlayerSession): FenceKind | null {
     if (actor.player.currentTool !== 'fence') return null;
+    const st = this.states.get(actor);
+    if (st?.fenceItem && actor.inventory.count(st.fenceItem) > 0) {
+      return fenceKindOfItem(st.fenceItem);
+    }
     const slot = actor.inventory
       .snapshot()
       .find((s) => s?.kind === 'fenceWood' || s?.kind === 'fenceStone');
     return slot ? fenceKindOfItem(slot.kind) : null;
+  }
+
+  /** 手持的围栏道具(木/石,供外层挑手持模型与图标) */
+  heldFenceItem(actor: PlayerSession): 'fenceWood' | 'fenceStone' | null {
+    const kind = this.heldFenceKind(actor);
+    return kind ? (kind === 'branch' ? 'fenceWood' : 'fenceStone') : null;
   }
 
   /** 正在手持围栏/门放置中 */

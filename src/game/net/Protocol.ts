@@ -22,6 +22,8 @@ export type PlayerState = {
   z: number;
   rotY: number;
   tool: string;
+  /** 手持的可放置道具种类(安放/围栏/门时决定他人看到的手持模型,缺省 null) */
+  placeKind?: string | null;
   /** 当前手持工具的等级(1/2,决定他人看到的工具模型;非工具手持时缺省) */
   toolTier?: number;
   hunger: number;

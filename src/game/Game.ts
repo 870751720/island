@@ -36,7 +36,7 @@ import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { CookingStationSystem, type CookingStationInfo } from './systems/CookingStationSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
-import { FenceSystem, fenceKindOfItem } from './systems/FenceSystem';
+import { FenceSystem, fenceKindOfItem, makeFenceHandModel, makeFenceGateHandModel } from './systems/FenceSystem';
 import { BedSystem, bedItemLevel } from './systems/BedSystem';
 import { Bed } from './entities/Bed';
 import { Workbench } from './entities/Workbench';
@@ -47,7 +47,7 @@ import { Smelter } from './entities/Smelter';
 import { Loom } from './entities/Loom';
 import { CookingStation } from './entities/CookingStation';
 import { Campfire } from './entities/Campfire';
-import { AutoPlaceSystem, snapAheadCell, buildGhost } from './systems/AutoPlace';
+import { AutoPlaceSystem, buildGhost, miniHeldModel } from './systems/AutoPlace';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine, type ShrineKind } from './entities/Shrine';
 import { BUFFS, type HudBuff } from './systems/BuffSystem';
@@ -127,6 +127,8 @@ export type HudSnapshot = {
   heldFenceCount: number;
   /** 手持安放道具时背包剩余个数(工具按钮角标) */
   heldPlaceCount: number;
+  /** 手持的可放置道具(含围栏/门,工具按钮图标跟随,未手持为 null) */
+  heldItemKind: ResourceKind | null;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -276,6 +278,9 @@ const PLANT_DROP_KINDS: readonly ResourceKind[] = ['berryBush', 'shrubBush', 'gr
 const BEAR_SFX_RANGE = 20;
 
 /* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
+/** 工具循环条目:普通工具(kind 为 null)或某种可放置道具 */
+type CycleEntry = { tool: HandTool; kind: ResourceKind | null };
+
 type InteractionKind =
   | 'collect'
   | 'milk'
@@ -1013,6 +1018,7 @@ export class Game {
           this.looms.updateActor(s, simDelta);
           this.fences.updateActor(s, simDelta);
           this.autoPlace.updateActor(s, simDelta);
+          this.refreshHandModels();
           this.beds.updateActor(s, simDelta);
           this.shrines.updateActor(s, simDelta);
           this.workbench.updateActor(s, simDelta);
@@ -1269,6 +1275,7 @@ export class Game {
           z: p.z,
           rotY: s.player.group.rotation.y,
           tool: s.player.currentTool as string,
+          placeKind: (this.heldPlaceItem(s) as string) ?? null,
           toolTier: (s.tools as Record<string, number>)[s.player.currentTool],
           hunger: sv.hunger,
           thirst: sv.thirst,
@@ -1441,6 +1448,12 @@ export class Game {
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
         s.player.setTool(p.tool as HandTool);
+        // 远程玩家手持的可放置道具模型按权威快照替换(图标与循环条目同理)
+        const remoteKind = (p.placeKind as ResourceKind | null) ?? null;
+        if (this.handModelKind.get(s) !== remoteKind) {
+          this.handModelKind.set(s, remoteKind);
+          s.player.setPlaceModel(remoteKind ? this.buildHandModel(remoteKind) : null);
+        }
         if (p.toolTier)
           s.player.setToolTier(p.tool as Exclude<HandTool, 'hand'>, p.toolTier);
           // 远程玩家钓鱼表现:作业动作出现即本地起播浮漂钓线,动作消失即收线;
@@ -2409,39 +2422,91 @@ export class Game {
   }
 
   /** 切换手持工具:客人本地先切(预测表现)并上行给房主;切走套索时松开手里的绳(套索回包,羊受惊) */
-  selectTool(tool: HandTool): void {
-    this.setToolFor(this.local, tool);
-    this.guestNet?.action('tool', [tool]);
+  selectTool(tool: HandTool, placeKind?: ResourceKind): void {
+    this.setToolFor(this.local, tool, placeKind);
+    this.guestNet?.action('tool', [tool, placeKind ?? null]);
   }
 
-  /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走 */
-  setToolFor(s: PlayerSession, tool: HandTool): void {
+  /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走;
+   * 可放置道具经 placeKind 选中具体一种(围栏区分木/石) */
+  setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
+    if (tool === 'place' && placeKind) this.autoPlace.select(s, placeKind);
+    if (tool === 'fence' && (placeKind === 'fenceWood' || placeKind === 'fenceStone')) {
+      this.fences.selectFenceItem(s, placeKind);
+    }
   }
 
-  /** 循环切换手持工具:空手 → 斧子 → 镐子 → 锄头 → 鱼竿 → 弓 → 木剑 → 套索 → 围栏/门(仅手里还有的) */
+  /** 循环切换手持工具:空手 → 斧子 → … → 套索 → 背包里每种可放置道具各一格(围栏区分木/石) */
   cycleTool(): void {
-    this.selectTool(this.nextToolInCycle());
+    const next = this.nextToolInCycle();
+    this.selectTool(next.tool, next.kind ?? undefined);
   }
 
-  /** 循环顺序里当前工具的下一个(仅手里还有的) */
-  private nextToolInCycle(): HandTool {
-    const order: HandTool[] = [
-      'hand',
-      'axe',
-      'pickaxe',
-      'hoe',
-      'fishingrod',
-      'bow',
-      'sword',
-      'lasso',
-      'fence',
-      'fenceGate',
-      'place',
-    ];
-    const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
-    return owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
+  /** 当前手持对应的循环条目 */
+  private currentCycleEntry(): CycleEntry {
+    return { tool: this.player.currentTool, kind: this.heldPlaceItem(this.local) };
+  }
+
+  /** 循环顺序里当前条目的下一个(普通工具仅手里还有的;可放置道具按背包格子顺序逐个展开) */
+  private nextToolInCycle(): CycleEntry {
+    const list = this.cycleEntries();
+    const cur = this.currentCycleEntry();
+    const i = list.findIndex((e) => e.tool === cur.tool && e.kind === cur.kind);
+    return list[(i + 1) % list.length] ?? list[0];
+  }
+
+  /** 循环候选:普通工具在前,可放置道具(含围栏/门)按背包顺序去重展开 */
+  private cycleEntries(): CycleEntry[] {
+    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'];
+    const list: CycleEntry[] = order
+      .filter((t) => t === 'hand' || this.hasTool(t))
+      .map((tool) => ({ tool, kind: null }));
+    const seen = new Set<ResourceKind>();
+    for (const slot of this.local.inventory.snapshot()) {
+      if (!slot || seen.has(slot.kind)) continue;
+      if (slot.kind === 'fenceWood' || slot.kind === 'fenceStone') {
+        seen.add(slot.kind);
+        list.push({ tool: 'fence', kind: slot.kind });
+      } else if (slot.kind === 'fenceGate') {
+        seen.add(slot.kind);
+        list.push({ tool: 'fenceGate', kind: slot.kind });
+      } else if (this.autoPlace.supports(slot.kind)) {
+        seen.add(slot.kind);
+        list.push({ tool: 'place', kind: slot.kind });
+      }
+    }
+    return list;
+  }
+
+  /** 该会话手里正举着的可放置道具(安放工具选中的/围栏木/石/围栏门),供图标、手持模型与快照用 */
+  private heldPlaceItem(s: PlayerSession): ResourceKind | null {
+    const tool = s.player.currentTool;
+    if (tool === 'place') return this.autoPlace.heldKind(s);
+    if (tool === 'fence') return this.fences.heldFenceItem(s);
+    if (tool === 'fenceGate') return s.inventory.count('fenceGate') > 0 ? 'fenceGate' : null;
+    return null;
+  }
+
+  /** 某可放置道具的手持模型(真实建模缩到手心大小) */
+  private buildHandModel(kind: ResourceKind): THREE.Object3D {
+    if (kind === 'fenceWood') return miniHeldModel(makeFenceHandModel('branch'));
+    if (kind === 'fenceStone') return miniHeldModel(makeFenceHandModel('stone'));
+    if (kind === 'fenceGate') return miniHeldModel(makeFenceGateHandModel());
+    const model = this.autoPlace.previewModelOf(kind);
+    return miniHeldModel(model ?? new THREE.Group());
+  }
+
+  /** 各玩家手持的可放置道具模型随选中/耗尽实时替换(缓存避免每帧重建) */
+  private handModelKind = new Map<PlayerSession, ResourceKind | null>();
+  private refreshHandModels(): void {
+    for (const s of this.sessions) {
+      const kind = this.heldPlaceItem(s);
+      if (this.handModelKind.get(s) === kind) continue;
+      this.handModelKind.set(s, kind);
+      s.player.setPlaceModel(kind ? this.buildHandModel(kind) : null);
+    }
   }
 
   /** 工具按钮点击:牵着羊时原地打桩拴住;场景有明确需要的工具时直接切过去;否则循环切换 */
@@ -3973,14 +4038,11 @@ export class Game {
     return true;
   }
 
-  /** 手上是否还持有该工具(围栏/门按背包数量判断;套索额外把「正牵着羊」也算持有,绳子还在手里) */
+  /** 手上是否还持有该工具(套索额外把「正牵着羊」也算持有,绳子还在手里);可放置道具不经此判定,由循环条目按背包展开 */
   private hasToolFor(s: PlayerSession, tool: Exclude<HandTool, 'hand'>): boolean {
-    if (tool === 'fence')
-      return s.inventory.count('fenceWood') + s.inventory.count('fenceStone') > 0;
-    if (tool === 'fenceGate') return s.inventory.count('fenceGate') > 0;
-    if (tool === 'place') return this.autoPlace.anyHeld(s);
     if (tool === 'lasso')
       return s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null;
+    if (tool === 'fence' || tool === 'fenceGate' || tool === 'place') return false;
     return !!s.tools[tool];
   }
 
@@ -4054,6 +4116,7 @@ export class Game {
             ? s.inventory.count('fenceGate')
             : 0,
       heldPlaceCount: this.autoPlace.heldCount(s),
+      heldItemKind: this.heldPlaceItem(s),
       slots: s.inventory.snapshot(),
       capacity: s.inventory.capacity,
       hasAxe: !!s.tools.axe,
