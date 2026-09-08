@@ -27,6 +27,7 @@ export function ToolButton({
   campfire = false,
   crate = false,
   baitBarrel = false,
+  brewBarrel = false,
   smelter = false,
   cookingStation = false,
   loom = false,
@@ -43,6 +44,7 @@ export function ToolButton({
   onCampfire,
   onCrate,
   onBaitBarrel,
+  onBrewBarrel,
   onSmelter,
   onCookingStation,
   onLoom,
@@ -60,6 +62,8 @@ export function ToolButton({
   crate?: boolean;
   /** 是否显示为饵料桶模式(靠近饵料桶) */
   baitBarrel?: boolean;
+  /** 是否显示为酿酒桶模式(靠近酿酒桶) */
+  brewBarrel?: boolean;
   /** 是否显示为冶炼炉模式(靠近冶炼炉) */
   smelter?: boolean;
   /** 是否显示为烹饪台模式(靠近烹饪台,点击打开烤制/煮汤面板) */
@@ -87,6 +91,7 @@ export function ToolButton({
   onCampfire: () => void;
   onCrate: () => void;
   onBaitBarrel: () => void;
+  onBrewBarrel: () => void;
   onSmelter: () => void;
   onCookingStation: () => void;
   onLoom: () => void;
@@ -106,7 +111,9 @@ export function ToolButton({
               ? onCrate()
               : baitBarrel
                 ? onBaitBarrel()
-                : smelter
+                : brewBarrel
+                  ? onBrewBarrel()
+                  : smelter
                   ? onSmelter()
                   : cookingStation
                     ? onCookingStation()
@@ -137,7 +144,9 @@ export function ToolButton({
               ? 'rgba(154, 118, 62, 0.9)'
               : baitBarrel
                 ? 'rgba(151, 124, 74, 0.9)'
-                : smelter
+                : brewBarrel
+                  ? 'rgba(122, 72, 64, 0.9)'
+                  : smelter
                   ? 'rgba(125, 130, 136, 0.9)'
                   : cookingStation
                     ? 'rgba(196, 118, 74, 0.9)'
@@ -160,6 +169,7 @@ export function ToolButton({
           campfire ||
           crate ||
           baitBarrel ||
+          brewBarrel ||
           smelter ||
           cookingStation ||
           loom ||
@@ -179,7 +189,9 @@ export function ToolButton({
             ? '📦'
             : baitBarrel
               ? '🪣'
-              : smelter
+              : brewBarrel
+                ? '🍺'
+                : smelter
                 ? '🏭'
                 : cookingStation
                   ? '🍳'
@@ -196,6 +208,7 @@ export function ToolButton({
         !campfire &&
         !crate &&
         !baitBarrel &&
+        !brewBarrel &&
         !smelter &&
         !cookingStation &&
         !loom &&

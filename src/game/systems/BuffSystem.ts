@@ -1,7 +1,7 @@
 /** Buff 的静态定义与快照结构。
  * 生效判定不在这里:各 buff 由对应系统(神像/玩家减速)驱动,这里只承载
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
-export type BuffId = 'poseidon' | 'beehive' | 'healCrystal' | 'rainAltar' | 'bearSlow';
+export type BuffId = 'poseidon' | 'beehive' | 'healCrystal' | 'rainAltar' | 'bearSlow' | 'refresh' | 'tipsy';
 
 export type BuffDef = {
   id: BuffId;
@@ -47,6 +47,20 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     icon: '🐌',
     description: '被熊扑中摔得爬不起来,移动速度减半,持续 3 秒。',
     good: false,
+  },
+  refresh: {
+    id: 'refresh',
+    name: '舒爽',
+    icon: '🍸',
+    description: '喝下一瓶酒,浑身舒爽,移动速度提升 30%。',
+    good: true,
+  },
+  tipsy: {
+    id: 'tipsy',
+    name: '晕晕的',
+    icon: '😵',
+    description: '舒爽时又灌了一口,走起路来晕乎乎:移动速度降低 10%,但攻击力提升 30%。',
+    good: true,
   },
 };
 

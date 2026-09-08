@@ -28,6 +28,10 @@ export type PlayerState = {
   equipped: HudSnapshot['equipped'];
   dead: boolean;
   action: ActionType | null;
+  /** 「舒爽」增益剩余秒数(喝酒获得,缺省 0;客人端对齐本地移动速度) */
+  refresh?: number;
+  /** 「晕晕的」状态剩余秒数(舒爽时再喝,缺省 0) */
+  tipsy?: number;
 };
 
 /** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里;leash 表示羊被牵着(by)或拴在桩上(stake),null 表示未被拴(恒定携带以便差分清空) */
@@ -61,6 +65,7 @@ export type WorldPatch = Partial<
     | 'workbenchCrafted'
     | 'crates'
     | 'baitBarrels'
+    | 'brewBarrels'
     | 'waterPurifiers'
     | 'burrows'
     | 'smelters'

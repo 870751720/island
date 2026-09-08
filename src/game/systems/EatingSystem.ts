@@ -21,7 +21,9 @@ export class EatingSystem {
     private inventory: Inventory,
     private survival: SurvivalSystem,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    /** 一份食物吃完的回调(消耗与恢复数值之外的效果,如喝酒的限时增益) */
+    private onEaten?: (food: Food) => void
   ) {}
 
   start(food: Food): boolean {
@@ -66,6 +68,7 @@ export class EatingSystem {
       this.player.releaseAction(food.action);
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
+        this.onEaten?.(food);
         this.audio.play('eatFinish');
       }
       if (this.untilFull && this.survival.state.hunger < 100 && this.inventory.count(food.kind) > 0) {

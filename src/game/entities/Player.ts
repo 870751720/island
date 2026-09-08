@@ -417,6 +417,10 @@ export class Player implements Updatable {
   private hurtFlash = 0;
   /** 减速 debuff 剩余时长(熊扑击命中时施加) */
   private slowLeft = 0;
+  /** 「舒爽」增益剩余时长(喝酒获得,移动加速) */
+  private refreshLeft = 0;
+  /** 「晕晕的」状态剩余时长(舒爽时再喝酒转为,减速但增伤) */
+  private tipsyLeft = 0;
   private handTool: HandTool = 'hand';
   /** 每件工具按等级的模型(下标 = 等级 - 1;锄头/围栏只有 1 级) */
   private toolModels: Partial<Record<Exclude<HandTool, 'hand'>, THREE.Group[]>> = {};
@@ -670,6 +674,8 @@ export class Player implements Updatable {
     this.swimming = false;
     this.wading = false;
     this.slowLeft = 0;
+    this.refreshLeft = 0;
+    this.tipsyLeft = 0;
     this.group.position.copy(spawn);
     this.group.rotation.set(0, 0, 0);
     for (const limb of this.limbs) {
@@ -687,6 +693,33 @@ export class Player implements Updatable {
   /** 减速剩余秒数(供 buff 展示),0 表示未被减速 */
   get slowSeconds(): number {
     return this.slowLeft;
+  }
+
+  /** 喝酒:舒爽状态下再喝转为「晕晕的」,否则获得「舒爽」 */
+  applyWine(refreshDuration: number, tipsyDuration: number): void {
+    if (this.refreshLeft > 0) {
+      this.refreshLeft = 0;
+      this.tipsyLeft = Math.max(this.tipsyLeft, tipsyDuration);
+    } else {
+      this.tipsyLeft = 0;
+      this.refreshLeft = Math.max(this.refreshLeft, refreshDuration);
+    }
+  }
+
+  /** 舒爽增益剩余秒数,0 表示未生效 */
+  get refreshSeconds(): number {
+    return this.refreshLeft;
+  }
+
+  /** 晕晕的状态剩余秒数,0 表示未生效 */
+  get tipsySeconds(): number {
+    return this.tipsyLeft;
+  }
+
+  /** 遥控/客人本地玩家:按权威快照对齐酒意计时(差值超过阈值才改写,避免快照延迟来回抖动) */
+  netSyncWine(refresh: number, tipsy: number): void {
+    if (Math.abs(refresh - this.refreshLeft) > 1) this.refreshLeft = refresh;
+    if (Math.abs(tipsy - this.tipsyLeft) > 1) this.tipsyLeft = tipsy;
   }
 
   /** 遥控玩家:写入网络快照给出的目标姿态(本地玩家忽略) */
@@ -733,6 +766,8 @@ export class Player implements Updatable {
     if (this.wading !== wasWading) this.waterFx.splash(p);
 
     if (this.slowLeft > 0) this.slowLeft = Math.max(0, this.slowLeft - delta);
+    if (this.refreshLeft > 0) this.refreshLeft = Math.max(0, this.refreshLeft - delta);
+    if (this.tipsyLeft > 0) this.tipsyLeft = Math.max(0, this.tipsyLeft - delta);
 
     if (this.remote) {
       // 遥控玩家:向网络快照姿态插值(朝向沿最短弧转),移动感由剩余距离推出以驱动走路动画
@@ -747,7 +782,10 @@ export class Player implements Updatable {
     } else if (this.moving) {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
-      const speed = this.slowLeft > 0 ? base * 0.5 : base;
+      let speed = base;
+      if (this.slowLeft > 0) speed *= 0.5;
+      if (this.refreshLeft > 0) speed *= 1.3;
+      else if (this.tipsyLeft > 0) speed *= 0.9;
       const step = speed * delta;
       p.x += (this.moveVec.x / len) * step;
       p.z += (this.moveVec.y / len) * step;

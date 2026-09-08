@@ -7,6 +7,7 @@ import type { HandTool } from '../entities/Player';
 import type { DropEntry } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
+import type { BrewBarrelSave } from './BrewBarrelSystem';
 import type { WaterPurifierSave } from './WaterPurifierSystem';
 import type { RabbitBurrowSave } from './RabbitBurrowSystem';
 import type { SmelterSave } from './SmelterSystem';
@@ -89,6 +90,8 @@ export type SaveData = {
   crates: (PlacementSave & { slots: InventorySlot[] })[];
   /** 场上所有饵料桶(落点与桶内食物/鱼饵,旧档缺省视为无) */
   baitBarrels?: BaitBarrelSave[];
+  /** 场上所有酿酒桶(落点与桶内原料/酒,旧档缺省视为无) */
+  brewBarrels?: BrewBarrelSave[];
   /** 场上所有海水净化器(落点,旧档缺省视为无) */
   waterPurifiers?: WaterPurifierSave[];
   /** 场上所有兔子洞(落点与状态,旧档缺省视为无) */

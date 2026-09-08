@@ -56,6 +56,10 @@ export const FOODS: Food[] = [
   { kind: 'boiledCrabMeat', name: '煮蟹肉', icon: '🍲', action: 'eat_fish', fxColor: '#e07a5a', hunger: 10, thirst: 5, health: 3 },
   { kind: 'boiledBirdMeat', name: '鸟肉汤', icon: '🍜', action: 'eat_fish', fxColor: '#c4a06a', hunger: 10, thirst: 5, health: 3 },
   { kind: 'boiledGameMeat', name: '兽肉汤', icon: '🍲', action: 'eat_fish', fxColor: '#a06a4a', hunger: 15, thirst: 28, health: 24 },
+  { kind: 'wineBerry', name: '浆果酒', icon: '🍷', action: 'eat_berry', fxColor: '#a34a6b', hunger: 4, thirst: 2, health: 0 },
+  { kind: 'wineFruit', name: '苹果酒', icon: '🍶', action: 'eat_berry', fxColor: '#d9a441', hunger: 8, thirst: 4, health: 0 },
+  { kind: 'wineMilk', name: '奶酒', icon: '🥛', action: 'eat_berry', fxColor: '#f0e6d2', hunger: 10, thirst: 15, health: 5 },
+  { kind: 'wineGolden', name: '黄金酒', icon: '✨', action: 'eat_berry', fxColor: '#e6b422', hunger: 30, thirst: 30, health: 30 },
 ];
 
 /** 饵料桶兑换表:每 1 个食物发酵出的鱼饵数(不在表内的食物不可投入);熟食与生食兑换相同,大体按获取难度定价:基础采集 2、小鱼/肉 4-6、大鱼 10、兽肉 10、黄金鱼 40 */

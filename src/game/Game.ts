@@ -27,6 +27,8 @@ import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
 import type { CrateKind } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
+import { wineOf, TIPSY_DURATION } from './systems/Wine';
+import { BrewBarrelSystem, type BrewBarrelInfo } from './systems/BrewBarrelSystem';
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
@@ -130,6 +132,8 @@ export type HudSnapshot = {
   nearCrate: boolean;
   /** 玩家在饵料桶旁(工具按钮变为饵料桶,点击打开投喂/收取面板) */
   nearBaitBarrel: boolean;
+  /** 玩家在酿酒桶旁(工具按钮变为酿酒桶,点击打开投料/收取面板) */
+  nearBrewBarrel: boolean;
   /** 玩家在冶炼炉旁(工具按钮变为冶炼炉,点击打开投料/收取面板) */
   nearSmelter: boolean;
   /** 玩家在纺织机旁(工具按钮变为纺织机,点击打开投料/收取面板) */
@@ -145,6 +149,8 @@ export type HudSnapshot = {
   crateCapacity: number | null;
   /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
   baitBarrelInfo: BaitBarrelInfo | null;
+  /** 身旁酿酒桶的状态(桶内原料/酒与发酵进度,不在桶旁为 null) */
+  brewBarrelInfo: BrewBarrelInfo | null;
   /** 身旁冶炼炉的状态(炉内矿石/铁锭与冶炼进度,不在炉旁为 null) */
   smelterInfo: SmelterInfo | null;
   /** 玩家在烹饪台旁(工具按钮变为烹饪台,点击打开烤制/煮汤面板) */
@@ -255,6 +261,7 @@ type InteractionKind =
   | 'campfire'
   | 'crates'
   | 'baitBarrels'
+  | 'brewBarrels'
   | 'waterPurifiers'
   | 'burrows'
   | 'smelters'
@@ -360,6 +367,7 @@ export class Game {
   private workbench: WorkbenchSystem;
   private crates: CrateSystem;
   private baitBarrels: BaitBarrelSystem;
+  private brewBarrels: BrewBarrelSystem;
   private waterPurifiers: WaterPurifierSystem;
   private burrows: RabbitBurrowSystem;
   private smelters: SmelterSystem;
@@ -696,6 +704,17 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'baitBarrels')
     );
+    this.brewBarrels = new BrewBarrelSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 收取的酒/挖回酿酒桶与桶内原料入包,背包放不下的部分掉到玩家身旁
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'brewBarrels')
+    );
     this.waterPurifiers = new WaterPurifierSystem(
       this.scene,
       this.terrain,
@@ -922,6 +941,7 @@ export class Game {
           s.water.update(delta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
           this.crates.updateActor(s, delta);
           this.baitBarrels.updateActor(s, delta);
+          this.brewBarrels.updateActor(s, delta);
           this.waterPurifiers.updateActor(s, delta);
           this.burrows.updateActor(s, delta);
           this.smelters.updateActor(s, delta);
@@ -951,6 +971,7 @@ export class Game {
         this.campfire.update(delta, elapsed);
         this.shrines.update(delta, elapsed);
         this.baitBarrels.update(delta, elapsed, !this.guestMode);
+        this.brewBarrels.update(delta, elapsed, !this.guestMode);
         this.waterPurifiers.update(delta, elapsed);
         this.burrows.update(delta, !this.guestMode);
     this.smelters.update(delta, elapsed, !this.guestMode);
@@ -1178,6 +1199,8 @@ export class Game {
           equipped: s.equipment.snapshot(),
           dead: sv.dead,
           action: s.player.currentAction,
+          refresh: Math.round(s.player.refreshSeconds),
+          tipsy: Math.round(s.player.tipsySeconds),
         };
       }),
     };
@@ -1214,6 +1237,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      brewBarrels: this.brewBarrels.snapshot(),
       waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
       cookingStations: this.cookingStations.snapshot(),
@@ -1241,6 +1265,7 @@ export class Game {
     });
     this.crates.setChangeSink(send('crates'));
     this.baitBarrels.setChangeSink(send('baitBarrels'));
+    this.brewBarrels.setChangeSink(send('brewBarrels'));
     this.waterPurifiers.setChangeSink(send('waterPurifiers'));
     this.burrows.setChangeSink(send('burrows'));
     this.smelters.setChangeSink(send('smelters'));
@@ -1346,6 +1371,8 @@ export class Game {
           this.audio.silent = false;
       }
       s.player.setAction(p.action);
+      // 客人本地按权威快照对齐酒意计时(舒爽/晕晕的加速减速要在本地预测移动里生效)
+      if (s === this.local) s.player.netSyncWine(p.refresh ?? 0, p.tipsy ?? 0);
       s.survival.state.hunger = p.hunger;
       s.survival.state.thirst = p.thirst;
       s.survival.state.health = p.health;
@@ -1539,6 +1566,9 @@ export class Game {
     }
     if (state.baitBarrels) {
       this.baitBarrels.netApply(state.baitBarrels);
+    }
+    if (state.brewBarrels) {
+      this.brewBarrels.netApply(state.brewBarrels);
     }
     if (state.waterPurifiers) {
       this.waterPurifiers.netApply(state.waterPurifiers);
@@ -1794,6 +1824,7 @@ export class Game {
     if (save.workbenchCrafted) this.workbench.restoreCrafted();
     this.crates.restore(save.crates);
     if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
+    if (save.brewBarrels) this.brewBarrels.restore(save.brewBarrels);
     if (save.waterPurifiers) this.waterPurifiers.restore(save.waterPurifiers);
     if (save.burrows) this.burrows.restore(save.burrows);
     if (save.smelters) this.smelters.restore(save.smelters);
@@ -1905,6 +1936,7 @@ export class Game {
       workbenchCrafted: this.workbench.hasCrafted,
       crates: this.crates.snapshot(),
       baitBarrels: this.baitBarrels.snapshot(),
+      brewBarrels: this.brewBarrels.snapshot(),
       waterPurifiers: this.waterPurifiers.snapshot(),
       smelters: this.smelters.snapshot(),
       cookingStations: this.cookingStations.snapshot(),
@@ -2825,6 +2857,45 @@ export class Game {
     return true;
   }
 
+  /** 背包里点击「使用」酿酒桶:校验通过后在玩家脚下原地放下,不满足时给出提示 */
+  useBrewBarrel(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('useBrewBarrel', []);
+
+    if (this.asleepFor(actor) || !this.brewBarrels.use(actor)) {
+      this.notify('这里放不下,找个没东西的干地试试', actor);
+      return false;
+    }
+    this.afterPlaceDiggable(actor);
+    return true;
+  }
+
+  /** 把背包里该种类全部原料丢进身旁酿酒桶(一次只酿一种,桶被占用时只接受同种),失败时给出提示 */
+  brewBarrelFeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('brewBarrelFeed', [kind]);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.brewBarrels.feed(actor, kind)) {
+      this.notify('桶里正在酿别的,一次只能酿一种', actor);
+      return false;
+    }
+    return true;
+  }
+
+  /** 收取身旁酿酒桶里酿好的全部酒,失败时给出提示 */
+  brewBarrelCollect(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('brewBarrelCollect', []);
+
+    if (this.asleepFor(actor)) return false;
+    if (!this.brewBarrels.collect(actor)) {
+      this.notify('背包满了,装不下更多东西', actor);
+      return false;
+    }
+    return true;
+  }
+
   /** 背包里点击「使用」海水净化器:校验通过后在玩家脚下原地放下,不满足时给出提示 */
   useWaterPurifier(actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行房主权威结算,状态由快照回流
@@ -3150,6 +3221,7 @@ export class Game {
     this.workbench.detach(session);
     this.crates.detach(session);
     this.baitBarrels.detach(session);
+    this.brewBarrels.detach(session);
     this.waterPurifiers.detach(session);
     this.burrows.detach(session);
     this.smelters.detach(session);
@@ -3187,6 +3259,7 @@ export class Game {
     if (exclude !== 'campfire' && this.campfire.isBusy(s)) return true;
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
     if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
+    if (exclude !== 'brewBarrels' && this.brewBarrels.isDigging(s)) return true;
     if (exclude !== 'waterPurifiers' && this.waterPurifiers.isDigging(s)) return true;
     if (exclude !== 'burrows' && this.burrows.isDigging(s)) return true;
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
@@ -3271,7 +3344,11 @@ export class Game {
       (kind, count) => this.giveItem(kind, count, s),
       s.craftedIds
     );
-    s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio);
+    s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio, (food) => {
+      // 喝酒附带限时增益:舒爽状态下再喝转为晕晕的
+      const wine = wineOf(food.kind);
+      if (wine) s.player.applyWine(wine.refresh, TIPSY_DURATION);
+    });
     s.fishing = new FishingSystem(
       this.scene,
       s.player,
@@ -3344,7 +3421,9 @@ export class Game {
         ? (animalId: number) => this.guestNet?.action('swordHit', [animalId])
         : undefined,
       // 石剑(2 级)伤害更高
-      () => s.tools.sword
+      () => s.tools.sword,
+      // 「晕晕的」醉酒状态:攻击力 +30%
+      () => (s.player.tipsySeconds > 0 ? 1.3 : 1)
     );
     s.lasso = new LassoSystem(
       this.scene,
@@ -3497,6 +3576,7 @@ export class Game {
       craftedIds: [...s.craftedIds],
       nearCrate: !!this.crates.nearby(s),
       nearBaitBarrel: !!this.baitBarrels.nearby(s),
+      nearBrewBarrel: !!this.brewBarrels.nearby(s),
       nearSmelter: !!this.smelters.nearby(s),
       nearLoom: !!this.looms.nearby(s),
       nearBed: !!this.beds.nearby(s),
@@ -3505,6 +3585,7 @@ export class Game {
       crateSlots: this.crates.nearbySlots(s),
       crateCapacity: this.crates.nearbyCapacity(s),
       baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
+      brewBarrelInfo: this.brewBarrels.nearbyInfo(s),
       smelterInfo: this.smelters.nearbyInfo(s),
       nearCookingStation: !!this.cookingStations.nearby(s),
       cookingStationInfo: this.cookingStations.nearbyInfo(s),
@@ -3555,6 +3636,10 @@ export class Game {
     if (this.shrines.inAura('rainAltar', pos)) list.push({ ...BUFFS.rainAltar, remain: null });
     const slow = s.player.slowSeconds;
     if (slow > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(slow) });
+    const refresh = s.player.refreshSeconds;
+    if (refresh > 0) list.push({ ...BUFFS.refresh, remain: Math.ceil(refresh) });
+    const tipsy = s.player.tipsySeconds;
+    if (tipsy > 0) list.push({ ...BUFFS.tipsy, remain: Math.ceil(tipsy) });
     return list;
   }
 
@@ -3682,6 +3767,9 @@ export class Game {
     } else if (this.baitBarrels.isDigging(session)) {
       label = '挖饵料桶…';
       progress = this.baitBarrels.getDigProgress(session);
+    } else if (this.brewBarrels.isDigging(session)) {
+      label = '挖酿酒桶…';
+      progress = this.brewBarrels.getDigProgress(session);
     } else if (this.burrows.isDigging(session)) {
       label = '挖兔子洞…';
       progress = this.burrows.getDigProgress(session);

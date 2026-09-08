@@ -94,6 +94,11 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   crate: '#a97b48',
   ironCrate: '#9aa3ab',
   baitBarrel: '#9a6b3f',
+  brewBarrel: '#6b4a2e',
+  wineBerry: '#a34a6b',
+  wineFruit: '#d9a441',
+  wineMilk: '#f0e6d2',
+  wineGolden: '#e6b422',
   waterPurifier: '#9aa3ab',
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
@@ -541,6 +546,20 @@ function makeBottle(): THREE.Object3D {
   return g;
 }
 
+/** 酒瓶:细长瓶身 + 瓶颈 + 木塞(按酒种配色) */
+function makeWineBottle(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const body = mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.28, 6), mat);
+  body.position.y = 0.14;
+  const neck = mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.1, 6), mat);
+  neck.position.y = 0.33;
+  const cork = mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.045, 6), clay('#b5813f'));
+  cork.position.y = 0.4;
+  g.add(body, neck, cork);
+  return g;
+}
+
 /** 羊奶:矮胖的奶瓶,奶白瓶身 + 木瓶塞 */
 function makeMilkBottle(): THREE.Object3D {
   const g = new THREE.Group();
@@ -927,6 +946,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   colaZero: () => makeCan(DROP_COLORS.colaZero),
   bottle: makeBottle,
   milk: makeMilkBottle,
+  wineBerry: () => makeWineBottle(DROP_COLORS.wineBerry),
+  wineFruit: () => makeWineBottle(DROP_COLORS.wineFruit),
+  wineMilk: () => makeWineBottle(DROP_COLORS.wineMilk),
+  wineGolden: () => makeWineBottle(DROP_COLORS.wineGolden),
   sardine: () => makeFishShape(DROP_COLORS.sardine, 0.85, 0.85, 1),
   perch: () => makeFishShape(DROP_COLORS.perch),
   shrimp: () => makeFishShape(DROP_COLORS.shrimp, 0.7, 0.7, 1.2),
@@ -1030,6 +1053,23 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
     const g = new THREE.Group();
     const branch = new THREE.MeshStandardMaterial({ color: DROP_COLORS.baitBarrel, flatShading: true, roughness: 1 });
     const band = new THREE.MeshStandardMaterial({ color: '#5f452a', flatShading: true, roughness: 1 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.18, 8), branch);
+    body.position.y = 0.09;
+    body.castShadow = true;
+    g.add(body);
+    for (const y of [0.04, 0.14]) {
+      const hoop = new THREE.Mesh(new THREE.TorusGeometry(y === 0.04 ? 0.088 : 0.098, 0.01, 5, 10), band);
+      hoop.rotation.x = Math.PI / 2;
+      hoop.position.y = y;
+      g.add(hoop);
+    }
+    return g;
+  },
+  brewBarrel: () => {
+    // 酿酒桶:深色小木桶身 + 两道铁箍
+    const g = new THREE.Group();
+    const branch = new THREE.MeshStandardMaterial({ color: DROP_COLORS.brewBarrel, flatShading: true, roughness: 1 });
+    const band = new THREE.MeshStandardMaterial({ color: '#3d4147', flatShading: true, roughness: 1 });
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.18, 8), branch);
     body.position.y = 0.09;
     body.castShadow = true;

@@ -41,7 +41,9 @@ export class SwordSystem {
     /** 客人端注入:本地判定命中后上行房主权威结算(伤害/掉落) */
     private onNetHit?: (animalId: number) => void,
     /** 当前剑等级(1 木剑 / 2 石剑 / 3 铁剑),缺省 1 */
-    private getSwordTier: () => number = () => 1
+    private getSwordTier: () => number = () => 1,
+    /** 伤害乘数(如「晕晕的」醉酒增伤),缺省 1 */
+    private damageMultiplier: () => number = () => 1
   ) {}
 
   /** 挥砍动作期间占用双手(其他系统让位用) */
@@ -91,7 +93,7 @@ export class SwordSystem {
   private settle(animalId: number): void {
     const beast = this.wildlife.damage(
       animalId,
-      DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier
+      DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier * this.damageMultiplier()
     );
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)
     if (!beast || beast === 'hit') return;
