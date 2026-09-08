@@ -3859,6 +3859,7 @@ export class Game {
     this.props.dispose();
     this.decorations.dispose();
     this.rain.dispose();
+    this.clouds.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
     this.waterDebug.dispose();
