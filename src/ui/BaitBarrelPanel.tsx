@@ -25,7 +25,7 @@ const ACTION_COLOR = '#a0742c';
 /** 统计背包快照里各道具的数量 */
 function countOf(hud: HudSnapshot): (kind: ResourceKind) => number {
   return (kind) =>
-    hud.slots.reduce((n, slot) => (slot && slot.kind === kind ? n + slot.count : 0), 0);
+    hud.slots.reduce((n, slot) => (slot && slot.kind === kind ? n + slot.count : n), 0);
 }
 
 /** 饵料桶面板:桶内食物队列与发酵进度 + 数量选择投喂(布局对齐烹饪台煮汤区)+ 收取/取回 */
