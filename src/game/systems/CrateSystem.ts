@@ -124,6 +124,18 @@ export class CrateSystem {
     return true;
   }
 
+  /** 在指定落点直接生成一个预填内容的木箱(波塞冬赠礼箱):不经过背包,绕过 canPlace,仅要求落点是干地 */
+  spawnGift(x: number, z: number, kinds: readonly ResourceKind[]): Crate | null {
+    if (this.terrain.getHeight(x, z) <= 0 || this.terrain.isNearWater(new THREE.Vector3(x, 0, z), 0)) return null;
+    const crate = new Crate(this.scene, new THREE.Vector3(x, this.terrain.getHeight(x, z), z), 'crate', 0);
+    for (const kind of kinds) crate.storage.add(kind, 1);
+    crate.updateIcon();
+    this.crates.push(crate);
+    const cp = crate.group.position;
+    this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() } });
+    return crate;
+  }
+
   /** 帧更新:顶面内容标识自转 */
   update(delta: number): void {
     for (const crate of this.crates) crate.update(delta);

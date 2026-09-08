@@ -1,7 +1,21 @@
 'use client';
 
-/** 瓶中信弹窗:拔开漂流瓶后展示一句留言,点击任意处关闭并消失 */
-export function BottleMessage({ text, onClose }: { text: string; onClose: () => void }) {
+/** 信纸弹窗:拆开漂流瓶/海神的信后展示一句留言,点击任意处关闭并消失 */
+export function BottleMessage({
+  text,
+  onClose,
+  icon = '🍾',
+  title = null,
+  closeLabel = '收好纸条',
+}: {
+  text: string;
+  onClose: () => void;
+  /** 顶部展示的图标(漂流瓶 🍾 / 海神的信 📜) */
+  icon?: string;
+  /** 可选的小标题(如「海神的信」) */
+  title?: string | null;
+  closeLabel?: string;
+}) {
   return (
     <div
       onPointerDown={(e) => {
@@ -32,7 +46,21 @@ export function BottleMessage({ text, onClose }: { text: string; onClose: () => 
           gap: 14,
         }}
       >
-        <div style={{ textAlign: 'center', fontSize: 34 }}>🍾</div>
+        <div style={{ textAlign: 'center', fontSize: 34 }}>{icon}</div>
+        {title && (
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: 13,
+              letterSpacing: '0.25em',
+              color: '#1a8f85',
+              fontFamily: 'sans-serif',
+              marginTop: -8,
+            }}
+          >
+            {title}
+          </div>
+        )}
         <div
           style={{
             fontSize: 15,
@@ -58,7 +86,7 @@ export function BottleMessage({ text, onClose }: { text: string; onClose: () => 
             cursor: 'pointer',
           }}
         >
-          收好纸条
+          {closeLabel}
         </button>
       </div>
     </div>

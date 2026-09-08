@@ -81,6 +81,7 @@ import { Props } from './world/Props';
 import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
+import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { VitalLevels } from '../ui/VitalWarn';
 
@@ -186,8 +187,10 @@ export type HudSnapshot = {
   eatProgress: number;
   /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
   autoEquipProgress: number;
-  /** 联机死亡后的复活倒计时剩余秒数(房主权威),未在倒计时时为 null */
+  /** 联机死亡后的复活倒计时剩余秒数(房主权威),未在倒计时时为 null;单机波塞冬庇佑期间也复用该倒计时 */
   respawnLeft: number | null;
+  /** 波塞冬的庇佑进行中(单机新手宽容期触发,死亡界面切海洋主题并倒计时复活) */
+  poseidonGrace: boolean;
   /** 站在可钓点且手持鱼竿时出现钓鱼按钮 */
   canFish: boolean;
   /** 钓鱼进行中的阶段,空闲为 null */
@@ -450,6 +453,10 @@ export class Game {
   private readonly youId: string | null;
   private activeNetActor: PlayerSession | null = null;
   private onBottleMessage: (text: string) => void;
+  /** 波塞冬的庇佑进行中(单机新手宽容期死亡触发,倒计时结束后免清档复活并送上赠礼木箱) */
+  private poseidonGrace = false;
+  /** 本局波塞冬的庇佑是否已用过(单局仅一次,入档防读档刷新) */
+  private poseidonGraceUsed = false;
 
   constructor(
     container: HTMLElement,
@@ -911,9 +918,12 @@ export class Game {
           // 权威端为每个会话累计闲置时长(本地 pushHud 与客人的 hudFor 共用),活跃时清零
           s.hudIdleTime = this.isSessionActive(s) ? 0 : s.hudIdleTime + delta;
           if (s.survival.state.dead) {
-            if (this.hostRef && s.respawnLeft > 0) {
+            if (!this.guestMode && s.respawnLeft > 0) {
               s.respawnLeft = Math.max(0, s.respawnLeft - delta);
-              if (s.respawnLeft === 0) this.respawnMultiplayerSession(s);
+              if (s.respawnLeft === 0) {
+                if (this.poseidonGrace && !this.hostRef && s === this.local) this.poseidonReviveSession(s);
+                else this.respawnMultiplayerSession(s);
+              }
             }
             continue;
           }
@@ -1031,10 +1041,17 @@ export class Game {
                 this.audio.play('death');
                 // 死亡瞬间清摇杆(死亡界面会卸载摇杆,残留的最后输入会让复活后持续移动)
                 this.setJoystick(0, 0);
-                // 单机死亡:先结算战绩供死亡界面分享,再清档;联机玩家由房主在倒计时结束后重生。
+                // 单机死亡:新手宽容期内可能触发波塞冬的庇佑(倒计时后免清档复活);
+                // 否则先结算战绩供死亡界面分享,再清档。联机玩家由房主在倒计时结束后重生。
                 if (!this.hostRef && !this.guestMode) {
-                  this.deathReport = this.buildDeathReport(s);
-                  SaveSystem.clear();
+                  if (!this.poseidonGraceUsed && this.dayNight.day <= POSEIDON_GRACE_DAYS && Math.random() < POSEIDON_GRACE_CHANCE) {
+                    this.poseidonGrace = true;
+                    this.poseidonGraceUsed = true;
+                    s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
+                  } else {
+                    this.deathReport = this.buildDeathReport(s);
+                    SaveSystem.clear();
+                  }
                 }
               }
             }
@@ -1820,6 +1837,7 @@ export class Game {
   /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
     this.dayNight.restore(save.dayTime, save.day ?? 1);
+    this.poseidonGraceUsed = save.poseidonGraceUsed ?? false;
     this.props.applySave(save.props);
     // 旧档里没有蚯蚓窝资源点(改版前蚯蚓是不入档的环境生物),补撒一批野生的
     this.props.seedWildWormNests();
@@ -1935,6 +1953,7 @@ export class Game {
       terrainSeed: this.terrainSeed,
       dayTime: this.dayNight.time,
       day: this.dayNight.day,
+      poseidonGraceUsed: this.poseidonGraceUsed,
       props: this.props.snapshot(),
       campfires: this.campfire.snapshot(),
       workbenches: this.workbench.snapshot(),
@@ -2447,6 +2466,41 @@ export class Game {
     session.player.respawn(this.terrain.findSpawnPoint());
   }
 
+  /** 单机波塞冬庇佑复活:不清档、随身进度原样保留,状态回满在出生点苏醒,身旁送上赠礼木箱 */
+  private poseidonReviveSession(session: PlayerSession): void {
+    this.poseidonGrace = false;
+    const survival = session.survival.state;
+    survival.hunger = survival.thirst = survival.health = survival.stamina = 100;
+    survival.dead = false;
+    session.lastHealth = 100;
+    session.lastDead = false;
+    session.player.input.setJoystick(0, 0);
+    const spawn = this.terrain.findSpawnPoint();
+    session.player.respawn(spawn);
+    this.spawnPoseidonGift(spawn);
+    // 海蓝光柱自下而上三段迸溅,配合音效与提示,让苏醒的瞬间有「被海神送回岸边」的仪式感
+    for (const y of [0.3, 1.1, 1.9]) {
+      this.fx.burst(new THREE.Vector3(spawn.x, spawn.y + y, spawn.z), '#2ec4b6', 16);
+    }
+    this.audio.play('success');
+    this.notify('海浪把你送回了出生点,波塞冬在身旁留下了一只木箱');
+  }
+
+  /** 在出生点旁找一块干地放下赠礼木箱(二级装备一套 + 海神的信);找不到合适位置时退化为放在出生点本身 */
+  private spawnPoseidonGift(spawn: THREE.Vector3): void {
+    const offsets: readonly [number, number][] = [
+      [1.1, 0.5],
+      [-1.1, 0.5],
+      [0, 1.4],
+      [1.1, -0.8],
+      [-1.1, -0.8],
+    ];
+    for (const [dx, dz] of offsets) {
+      if (this.crates.spawnGift(spawn.x + dx, spawn.z + dz, POSEIDON_GIFT_KINDS)) return;
+    }
+    this.crates.spawnGift(spawn.x, spawn.z, POSEIDON_GIFT_KINDS);
+  }
+
   /** 联机死亡的随身掉落(房主权威,掉落物经世界增量同步给客人):
    * 丛类植株必定掉落;其余背包道具按 DEATH_DROP_RATIO 掉落份数;弹药按份数比例掉落;穿戴装备与已拥有工具各有该比例的概率掉落(工具保留等级,捡回即重新点亮)。 */
   private dropDeathLoot(session: PlayerSession): void {
@@ -2701,6 +2755,12 @@ export class Game {
     const text = openBottle(actor.inventory);
     if (text && actor !== this.local) this.hostRef?.broadcastEvent({ kind: 'bottle', target: actor.id, text });
     return text;
+  }
+
+  /** 拆开海神的信:消耗信纸并随机读到一句留言,没有信返回 null(仅单机投放,不走联机事件) */
+  useLetter(actor: PlayerSession = this.local): string | null {
+    if (this.guestNet) return null;
+    return openLetter(actor.inventory);
   }
 
   /** 背包里点击「使用」种子:校验与摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
@@ -3681,7 +3741,8 @@ export class Game {
       eatName: s.eating.currentFood?.name ?? null,
       eatProgress: s.eating.getProgress() ?? 0,
       autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
-      respawnLeft: s.survival.state.dead && this.hostRef ? s.respawnLeft : null,
+      respawnLeft: s.survival.state.dead && (this.hostRef || (this.poseidonGrace && s === this.local)) ? s.respawnLeft : null,
+      poseidonGrace: this.poseidonGrace && s === this.local && s.survival.state.dead,
       canFish: s.fishing.canStart(),
       fishingState: s.fishing.currentState,
       fishingProgress: s.fishing.getProgress() ?? 0,

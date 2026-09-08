@@ -33,6 +33,7 @@ export type ResourceKind =
   | 'goldenFish'
   | 'reviveStone'
   | 'poseidonBlessing'
+  | 'letter'
   | 'beehiveShrine'
   | 'healCrystal'
   | 'rainAltar'

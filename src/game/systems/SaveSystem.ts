@@ -76,6 +76,8 @@ export type SaveData = {
   dayTime: number;
   /** 当前是第几天(缺省视为第 1 天) */
   day?: number;
+  /** 本局波塞冬的庇佑是否已触发过(单局仅一次,缺省视为未触发) */
+  poseidonGraceUsed?: boolean;
   props: PropSave[];
   campfires: (PlacementSave & { fuel: number })[];
   /** 场上所有工作台(落点与等级;可放置多个) */

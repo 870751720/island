@@ -67,6 +67,7 @@ export function DeathScreen({
   autoRespawn = false,
   respawnLeft = null,
   report = null,
+  poseidon = false,
 }: {
   onConfirm: () => void;
   autoRespawn?: boolean;
@@ -74,6 +75,8 @@ export function DeathScreen({
   respawnLeft?: number | null;
   /** 单机死亡的战绩快照(联机自动复活时为 null) */
   report?: DeathReport | null;
+  /** 波塞冬的庇佑触发中:界面切换为海洋主题,明确告知玩家被海神复活 */
+  poseidon?: boolean;
 }) {
   const seconds = Math.max(1, Math.ceil(respawnLeft ?? 3));
   const [sharing, setSharing] = useState(false);
@@ -101,7 +104,9 @@ export function DeathScreen({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 'clamp(16px, 4.5vh, 30px)',
-        background: 'rgba(10, 14, 12, 0.72)',
+        background: poseidon
+          ? 'linear-gradient(rgba(8, 34, 46, 0.86), rgba(10, 60, 72, 0.9))'
+          : 'rgba(10, 14, 12, 0.72)',
         fontFamily: 'sans-serif',
         animation: 'death-fade 0.6s ease',
       }}
@@ -109,11 +114,48 @@ export function DeathScreen({
       <style>{`
         @keyframes death-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes death-count { from { transform: scale(1.3); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+        @keyframes poseidon-glow { 0%, 100% { text-shadow: 0 0 12px rgba(46, 196, 182, 0.9), 0 0 34px rgba(46, 196, 182, 0.5); } 50% { text-shadow: 0 0 22px rgba(46, 196, 182, 1), 0 0 56px rgba(46, 196, 182, 0.8); } }
+        @keyframes poseidon-rise { 0% { transform: translateY(14px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
       `}</style>
-      <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}>💀</div>
-      <div style={{ color: '#fff', fontSize: 'clamp(22px, 6.5vw, 32px)', letterSpacing: '0.1em' }}>
-        {autoRespawn ? '你倒下了…' : '你没能活下来…'}
+      {poseidon ? (
+        <div
+          style={{
+            fontSize: 'clamp(52px, 16vw, 84px)',
+            lineHeight: 1,
+            animation: 'poseidon-glow 2.2s ease-in-out infinite',
+          }}
+        >
+          🔱
+        </div>
+      ) : (
+        <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}>💀</div>
+      )}
+      <div
+        style={{
+          color: poseidon ? '#9fe8df' : '#fff',
+          fontSize: 'clamp(22px, 6.5vw, 32px)',
+          letterSpacing: '0.1em',
+          animation: poseidon ? 'poseidon-rise 0.8s ease' : undefined,
+        }}
+      >
+        {poseidon ? '波塞冬的庇佑' : autoRespawn ? '你倒下了…' : '你没能活下来…'}
       </div>
+      {poseidon && (
+        <div
+          style={{
+            color: '#d6f3ee',
+            fontSize: 'clamp(15px, 4vw, 18px)',
+            lineHeight: 1.7,
+            textAlign: 'center',
+            maxWidth: '82vw',
+            animation: 'poseidon-rise 0.9s ease',
+          }}
+        >
+          海神从浪涛中托起了你,海浪正把你送回出生点,
+          <br />
+          身旁还留下了一只装着装备与信件的木箱…
+        </div>
+      )}
       {report && !autoRespawn && (
         <div
           style={{
@@ -151,12 +193,12 @@ export function DeathScreen({
         <div
           key={seconds}
           style={{
-            color: '#dce8df',
+            color: poseidon ? '#9fe8df' : '#dce8df',
             fontSize: 'clamp(15px, 4vw, 18px)',
             animation: 'death-count 1s ease',
           }}
         >
-          {seconds} 秒后在出生点复活
+          {seconds} 秒后在出生点{poseidon ? '苏醒' : '复活'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>

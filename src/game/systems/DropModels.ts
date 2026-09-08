@@ -22,6 +22,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cola: '#c0392b',
   colaZero: '#2c3e50',
   bottle: '#a8d4d6',
+  letter: '#f2e8cd',
   milk: '#f6f1e4',
   sardine: '#b8cdd9',
   perch: '#8fa87b',
@@ -546,6 +547,20 @@ function makeBottle(): THREE.Object3D {
   return g;
 }
 
+/** 海神的信:平铺的信纸 + 斜盖的封蜡(三叉戟印记) */
+function makeLetter(): THREE.Object3D {
+  const g = new THREE.Group();
+  const paper = mesh(new THREE.BoxGeometry(0.26, 0.02, 0.18), clay(DROP_COLORS.letter));
+  paper.position.y = 0.01;
+  const fold = mesh(new THREE.BoxGeometry(0.26, 0.016, 0.07), clay('#d8cba6'));
+  fold.position.set(0, 0.025, -0.055);
+  const wax = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.018, 6), clay('#1a8f85'));
+  wax.position.set(0.06, 0.04, 0.03);
+  wax.rotation.z = 0.3;
+  g.add(paper, fold, wax);
+  return g;
+}
+
 /** 酒瓶:细长瓶身 + 瓶颈 + 木塞(按酒种配色) */
 function makeWineBottle(color: string): THREE.Object3D {
   const g = new THREE.Group();
@@ -945,6 +960,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cola: () => makeCan(DROP_COLORS.cola),
   colaZero: () => makeCan(DROP_COLORS.colaZero),
   bottle: makeBottle,
+  letter: makeLetter,
   milk: makeMilkBottle,
   wineBerry: () => makeWineBottle(DROP_COLORS.wineBerry),
   wineFruit: () => makeWineBottle(DROP_COLORS.wineFruit),

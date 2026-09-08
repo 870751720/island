@@ -106,6 +106,7 @@ const INITIAL_HUD: HudSnapshot = {
   eatProgress: 0,
   autoEquipProgress: 0,
   respawnLeft: null,
+  poseidonGrace: false,
   canFish: false,
   fishingState: null,
   fishingProgress: 0,
@@ -210,6 +211,8 @@ export function GameplayUI({
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
   // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
+  // 海神的信:拆开后弹出的信纸,关闭后清空
+  const [letterMsg, setLetterMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
   const heartTapsRef = useRef<number[]>([]);
   const handleHeartTap = () => {
@@ -482,6 +485,12 @@ export function GameplayUI({
           if (kind === 'bottle') {
             const msg = gameRef.current?.useBottle();
             if (msg) setBottleMsg(msg);
+            setBackpackOpen(false);
+            return;
+          }
+          if (kind === 'letter') {
+            const msg = gameRef.current?.useLetter();
+            if (msg) setLetterMsg(msg);
             setBackpackOpen(false);
             return;
           }
@@ -818,12 +827,16 @@ export function GameplayUI({
         </>
       )}
       {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}
+      {letterMsg && (
+        <BottleMessage text={letterMsg} onClose={() => setLetterMsg(null)} icon="📜" title="海神的信" closeLabel="收好信纸" />
+      )}
       {hud.dead && (
         <DeathScreen
           onConfirm={onExit}
-          autoRespawn={!!(net?.host || net?.guest)}
+          autoRespawn={!!(net?.host || net?.guest) || hud.poseidonGrace}
           respawnLeft={hud.respawnLeft}
           report={gameRef.current?.deathReport ?? null}
+          poseidon={hud.poseidonGrace}
         />
       )}
       {pickups.map((t) => (

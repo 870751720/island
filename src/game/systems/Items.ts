@@ -17,7 +17,7 @@ export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'worm', 'torch', 'adventureBook',
+    'fiber', 'rope', 'cloth', 'fur', 'arrow', 'bait', 'worm', 'torch', 'adventureBook', 'letter',
   ],
   工具: ['axe', 'pickaxe', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'],
   装备: [
@@ -163,6 +163,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '漂流瓶',
     icon: '🍾',
     description: '随波逐流的玻璃瓶,瓶塞里还塞着一张字条。',
+  },
+  letter: {
+    kind: 'letter',
+    name: '海神的信',
+    icon: '📜',
+    description: '波塞冬随赠礼木箱送来的信,封蜡上印着三叉戟的印记。',
   },
   milk: {
     kind: 'milk',
