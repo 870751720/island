@@ -339,7 +339,8 @@ const rowStyle: CSSProperties = {
   borderRadius: 12,
   border: '1px solid rgba(0,0,0,0.08)',
   background: '#fff',
-  touchAction: 'none',
+  // 允许竖向滚动穿透,行内按钮自身仍禁用默认手势
+  touchAction: 'pan-y',
   userSelect: 'none',
 };
 

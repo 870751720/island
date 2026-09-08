@@ -42,7 +42,8 @@ export const convertRowStyle: CSSProperties = {
   borderRadius: 12,
   border: '1px solid rgba(0,0,0,0.08)',
   background: '#fff',
-  touchAction: 'none',
+  // 允许竖向滚动穿透,行内按钮自身仍禁用默认手势
+  touchAction: 'pan-y',
   userSelect: 'none',
 };
 
@@ -111,6 +112,8 @@ export const convertListStyle: CSSProperties = {
   gap: 8,
   maxHeight: 176,
   overflowY: 'auto',
+  // 允许手指在行上竖向滑动滚动列表
+  touchAction: 'pan-y',
 };
 
 /** 道具行:左侧道具与产出提示,右侧步进选数量 + 动作按钮(布局对齐烹饪台煮汤区) */
