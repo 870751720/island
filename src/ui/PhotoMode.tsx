@@ -36,10 +36,11 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
   // 手势状态:当前触点集合 + 单指拖动起点 / 双指捏合基线
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const panFrom = useRef<{ x: number; y: number } | null>(null);
-  const pinchBase = useRef<{ dist: number; angle: number } | null>(null);
+  const pinchBase = useRef<{ dist: number; angle: number; midY: number } | null>(null);
 
   const zoomBy = (factor: number) => setZoom(game.photoZoomBy(factor));
-  const rotate = (delta: number) => game.photoRotate(delta);
+  /** 双指上下滑动换算俯仰增量:上滑抬高视角(约 200px 走满全程) */
+  const pitchBy = (dyPx: number) => game.photoRotatePitch(-dyPx * 0.005);
 
   /** 根据当前触点集合重建手势基线(触点数变化后调用) */
   const rebase = () => {
@@ -56,6 +57,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
       pinchBase.current = {
         dist: Math.hypot(b.x - a.x, b.y - a.y),
         angle: Math.atan2(b.y - a.y, b.x - a.x),
+        midY: (a.y + b.y) / 2,
       };
     }
   };
@@ -76,12 +78,14 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
       const [a, b] = pts;
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
       let angle = Math.atan2(b.y - a.y, b.x - a.x);
+      const midY = (a.y + b.y) / 2;
       let dAngle = angle - pinchBase.current.angle;
       if (dAngle > Math.PI) dAngle -= Math.PI * 2;
       if (dAngle < -Math.PI) dAngle += Math.PI * 2;
       if (pinchBase.current.dist > 0) zoomBy(dist / pinchBase.current.dist);
-      if (Math.abs(dAngle) > 0.01) rotate(dAngle);
-      pinchBase.current = { dist, angle };
+      if (Math.abs(dAngle) > 0.01) game.photoRotate(dAngle);
+      if (Math.abs(midY - pinchBase.current.midY) > 0.5) pitchBy(midY - pinchBase.current.midY);
+      pinchBase.current = { dist, angle, midY };
     } else if (pts.length === 1 && panFrom.current) {
       game.photoPan(p.x - panFrom.current.x, p.y - panFrom.current.y);
       panFrom.current = { x: p.x, y: p.y };
@@ -195,7 +199,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
         </span>
       </div>
 
-      {/* 底部:手势提示 + 控制栏(左旋/缩小/快门/放大/右旋) */}
+      {/* 底部:手势提示 + 快门(全部取景操作均由手势完成) */}
       <div
         style={{
           position: 'absolute',
@@ -210,36 +214,23 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
         }}
       >
         <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
-          拖动移机 · 双指缩放旋转
+          拖动移机 · 双指缩放 / 旋转 / 俯仰
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, pointerEvents: 'auto' }}>
-          <button onClick={() => rotate(-Math.PI / 12)} aria-label="向左旋转" style={ROUND_BTN}>
-            ↺
-          </button>
-          <button onClick={() => zoomBy(1 / 1.25)} aria-label="缩小" style={ROUND_BTN}>
-            −
-          </button>
-          <button
-            onClick={takePhoto}
-            aria-label="拍照"
-            disabled={busy}
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              border: '4px solid #fff',
-              background: busy ? 'rgba(255,255,255,0.5)' : '#fff',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.35)',
-              cursor: 'pointer',
-            }}
-          />
-          <button onClick={() => zoomBy(1.25)} aria-label="放大" style={ROUND_BTN}>
-            ＋
-          </button>
-          <button onClick={() => rotate(Math.PI / 12)} aria-label="向右旋转" style={ROUND_BTN}>
-            ↻
-          </button>
-        </div>
+        <button
+          onClick={takePhoto}
+          aria-label="拍照"
+          disabled={busy}
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            border: '4px solid #fff',
+            background: busy ? 'rgba(255,255,255,0.5)' : '#fff',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.35)',
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+          }}
+        />
       </div>
 
       {/* 拍照结果预览:分享卡大图 + 分享/保存/重拍 */}

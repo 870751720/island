@@ -2133,10 +2133,16 @@ export class Game {
     return this.photo.zoom;
   }
 
-  /** 相机模式内绕注视点旋转(双指旋转或按钮) */
+  /** 相机模式内绕注视点水平旋转(双指旋转) */
   photoRotate(delta: number): void {
     if (!this.photo.active) return;
     this.photo.rotate(delta);
+  }
+
+  /** 相机模式内俯仰(双指上下滑动):delta 为弧度增量 */
+  photoRotatePitch(delta: number): void {
+    if (!this.photo.active) return;
+    this.photo.rotatePitch(delta);
   }
 
   /** 拍照:立即渲染一帧并读回画面(避免依赖读回缓冲保留),无照片返回 null */
