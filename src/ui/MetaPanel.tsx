@@ -218,6 +218,9 @@ const css = `
   cursor: default;
 }
 .meta-buy.done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(247,215,116,0.12);
   color: rgba(247,215,116,0.7);
   cursor: default;
