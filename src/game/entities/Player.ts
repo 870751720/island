@@ -7,6 +7,7 @@ import type { Footprints } from '../fx/Footprints';
 import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
+import { createBoyModel, BOY_SHIRT_COLOR, BOY_SHORTS_COLOR } from './BoyModel';
 
 const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
@@ -271,10 +272,6 @@ function makeFenceBundleModel(color: string, gate: boolean): THREE.Group {
   return g;
 }
 
-const SKIN_COLOR = '#e8b88a';
-/** 未穿裤子时的腿部颜色:深棕色平角裤,避免整条腿都是肤色显得发黄 */
-const BARE_LEG_COLOR = '#5b4632';
-
 /** 衣服/裤子装备对应的身体颜色(帽子/背包用真实模型,不在此列) */
 const EQUIP_COLORS: Partial<Record<EquipKind, string>> = {
   grassShirt: '#5a8a3a',
@@ -402,9 +399,9 @@ export class Player implements Updatable {
   readonly group = new THREE.Group();
   readonly input: MoveInput;
   private terrain: IslandTerrain;
-  private limbs: { mesh: THREE.Mesh; phase: number }[] = [];
-  private arms: THREE.Mesh[] = [];
-  private legs: THREE.Mesh[] = [];
+  private limbs: { mesh: THREE.Group; phase: number }[] = [];
+  private arms: THREE.Group[] = [];
+  private legs: THREE.Group[] = [];
   private moveVec = new THREE.Vector2();
   private moving = false;
   private stepDistance = 0;
@@ -463,39 +460,24 @@ export class Player implements Updatable {
     // 遥控玩家不读输入;房主端的远程会话保留本地物理但要屏蔽键盘,只吃网络摇杆
     this.input = new MoveInput(options.keyboard ?? !this.remote);
 
-    // 默认上身赤裸(肉色躯干),下身是深色平角裤,穿上衣服/裤子后换色
-    const skin = clayMaterial(SKIN_COLOR);
-    this.torsoMaterial = clayMaterial(SKIN_COLOR);
-    this.legMaterial = clayMaterial(BARE_LEG_COLOR);
-
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.28), this.torsoMaterial);
-    torso.position.y = 0.85;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.3, 0.32), skin);
-    head.position.y = 1.32;
-    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.34), clayMaterial('#4a3220'));
-    hair.position.y = 1.5;
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.5, 0.13), skin);
-    armL.position.set(-0.31, 0.85, 0);
-    const armR = armL.clone();
-    armR.position.x = 0.31;
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), this.legMaterial);
-    legL.position.set(-0.12, 0.3, 0);
-    const legR = legL.clone();
-    legR.position.x = 0.12;
-
-    for (const m of [torso, head, armL, armR, legL, legR]) {
-      m.castShadow = true;
-      this.group.add(m);
-    }
+    const model = createBoyModel();
+    const { head, arms, legs } = model;
+    const [armL, armR] = arms;
+    const [legL, legR] = legs;
+    this.group.add(model.root);
+    this.torsoMaterial = model.torsoMaterial;
+    this.legMaterial = model.legMaterial;
     this.limbs = [
       { mesh: armL, phase: 0 },
       { mesh: armR, phase: Math.PI },
       { mesh: legL, phase: Math.PI },
       { mesh: legR, phase: 0 },
     ];
-    this.arms = [armL, armR];
-    this.legs = [legL, legR];
-    this.injuryFx = new InjuryFx({ torso, armL, legL });
+    this.arms = arms;
+    this.legs = legs;
+    this.injuryFx = new InjuryFx({
+      torso: model.torso, armL: model.armSurfaces[0], legL: model.legSurfaces[0],
+    });
 
     // 工具握在右手(armR)末端;可升级工具各备一二三级三套模型
     const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
@@ -511,7 +493,7 @@ export class Player implements Updatable {
     ];
     for (const [, models] of tiers) {
       for (const t of models) {
-        t.position.set(0, -0.3, 0.05);
+        t.position.set(0.018, -0.39, 0.05);
         t.visible = false;
       }
       armR.add(...models);
@@ -585,9 +567,9 @@ export class Player implements Updatable {
   /** 更新装备外观:衣服/裤子换色,帽子/背包显隐对应模型(kind 为空表示卸下) */
   setEquip(slot: EquipSlot, kind: EquipKind | null): void {
     if (slot === 'clothing') {
-      this.torsoMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? SKIN_COLOR : SKIN_COLOR);
+      this.torsoMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? BOY_SHIRT_COLOR : BOY_SHIRT_COLOR);
     } else if (slot === 'pants') {
-      this.legMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? BARE_LEG_COLOR : BARE_LEG_COLOR);
+      this.legMaterial.color.set(kind ? EQUIP_COLORS[kind] ?? BOY_SHORTS_COLOR : BOY_SHORTS_COLOR);
     } else {
       const models = slot === 'hat' ? this.hatModels : this.backpackModels;
       for (const [name, model] of Object.entries(models)) {
