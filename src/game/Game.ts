@@ -78,6 +78,7 @@ import { OceanDepth } from './world/OceanDepth';
 import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
 import { Props } from './world/Props';
+import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
@@ -830,6 +831,7 @@ export class Game {
         this.crates.update(delta);
         this.meteor.update(delta);
         this.weather.update(delta);
+        updateSeasonSnow(delta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);

@@ -14,6 +14,7 @@ import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
+import { patchSnowMaterial } from './SeasonSnow';
 import { isPassage, landCells } from './SpawnLayout';
 
 const SHAKE_TIME = 0.4;
@@ -97,11 +98,13 @@ export type Prop = {
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
+  const mat = new THREE.MeshStandardMaterial({
     color,
     flatShading: true,
     roughness: 1,
   });
+  patchSnowMaterial(mat);
+  return mat;
 }
 
 /** 各树种的树冠配色 */

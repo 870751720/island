@@ -33,6 +33,7 @@ export function WorldTab({
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
   const [showWaterDebug, setShowWaterDebug] = useState(GmSystem.showWaterDebug);
+  const [snowPreview, setSnowPreview] = useState(GmSystem.snowPreview);
   const [dayInput, setDayInput] = useState('');
 
   return (
@@ -59,6 +60,14 @@ export function WorldTab({
         onChange={(v) => {
           onSetConfig({ showWaterDebug: v });
           setShowWaterDebug(v);
+        }}
+      />
+      <ToggleRow
+        label="雪季预览（地形植被覆雪）"
+        value={snowPreview}
+        onChange={(v) => {
+          onSetConfig({ snowPreview: v });
+          setSnowPreview(v);
         }}
       />
       <ToggleRow

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { patchSnowMaterial } from './SeasonSnow';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
 function createNoise(seed: number) {
@@ -294,11 +295,15 @@ export class IslandTerrain {
 
     this.mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        flatShading: true,
-        roughness: 1,
-      })
+      (() => {
+        const mat = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          flatShading: true,
+          roughness: 1,
+        });
+        patchSnowMaterial(mat);
+        return mat;
+      })()
     );
     this.mesh.receiveShadow = true;
   }

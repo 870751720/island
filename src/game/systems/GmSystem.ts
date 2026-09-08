@@ -26,6 +26,8 @@ export const GmSystem = {
   crocodileChance: 0.005,
   /** 树生长判定间隔(秒,每次判定有 1/2 概率升阶;作用于房主侧生长判定) */
   treeGrowthInterval: 60,
+  /** 雪季视觉预览:开启后地形与植被渐变覆雪(季节系统第一版表现层) */
+  snowPreview: false,
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
@@ -47,6 +49,7 @@ export function gmSnapshot(): GmConfig {
     speedMultiplier: GmSystem.speedMultiplier,
     crocodileChance: GmSystem.crocodileChance,
     treeGrowthInterval: GmSystem.treeGrowthInterval,
+    snowPreview: GmSystem.snowPreview,
   };
 }
 
@@ -81,4 +84,5 @@ export function gmApply(config: Partial<GmConfig>): void {
   if (typeof config.treeGrowthInterval === 'number' && Number.isFinite(config.treeGrowthInterval)) {
     GmSystem.treeGrowthInterval = Math.min(3600, Math.max(1, config.treeGrowthInterval));
   }
+  if (typeof config.snowPreview === 'boolean') GmSystem.snowPreview = config.snowPreview;
 }
