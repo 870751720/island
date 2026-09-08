@@ -6,7 +6,7 @@ import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
 import { useRef } from 'react';
 
-const TOOL_ICONS: Record<HandTool, string> = {
+export const TOOL_ICONS: Record<HandTool, string> = {
   hand: '✋',
   axe: '🪓',
   pickaxe: '⛏️',
@@ -18,6 +18,18 @@ const TOOL_ICONS: Record<HandTool, string> = {
   fence: '🚧',
   fenceGate: '🪵',
   place: '📦',
+};
+
+/** 普通工具的显示名(手持选择面板用;手持道具类名称走 ITEMS) */
+export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
+  hand: '空手',
+  axe: '斧子',
+  pickaxe: '镐子',
+  hoe: '锄头',
+  fishingrod: '鱼竿',
+  bow: '弓',
+  sword: '剑',
+  lasso: '套索',
 };
 
 /** 右中侧工具切换按钮:单击循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;

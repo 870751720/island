@@ -1,17 +1,24 @@
 'use client';
 
-import type { ResourceKind } from '@/game/systems/Inventory';
-import { ITEMS } from '@/game/systems/Items';
+/** 手持项选择面板:长按工具按钮弹出,平铺展示所有可切换的手持项(普通工具 + 可放置道具,图标+名称+数量角标),
+ * 当前手持高亮;点选直接切入,点面板外任意处关闭 */
+export interface PickerItem {
+  key: string;
+  icon: string;
+  name: string;
+  /** 可放置道具的剩余个数(普通工具无) */
+  count?: number;
+  /** 是否为当前手持(高亮边框) */
+  active?: boolean;
+}
 
-/** 可放置道具选择面板:长按工具按钮弹出,平铺展示背包里所有可手持放置的道具(图标+数量),
- * 点选直接切入对应手持放置模式;点面板外任意处关闭 */
-export function PlacePicker({
+export function PlacePicker<T extends PickerItem>({
   items,
   onPick,
   onClose,
 }: {
-  items: { kind: ResourceKind; count: number }[];
-  onPick: (kind: ResourceKind) => void;
+  items: T[];
+  onPick: (item: T) => void;
   onClose: () => void;
 }) {
   return (
@@ -45,27 +52,29 @@ export function PlacePicker({
           overflowY: 'auto',
         }}
       >
-        {items.map(({ kind, count }) => (
+        {items.map((item) => (
           <button
-            key={kind}
+            key={item.key}
             onPointerDown={(e) => {
               e.preventDefault();
-              onPick(kind);
+              onPick(item);
             }}
             style={{
               position: 'relative',
               width: 60,
               height: 60,
-              border: 'none',
+              border: item.active ? '2px solid #7ec97e' : 'none',
               borderRadius: 10,
-              background: 'rgba(90, 110, 140, 0.8)',
+              background: item.active
+                ? 'rgba(90, 140, 90, 0.9)'
+                : 'rgba(90, 110, 140, 0.8)',
               fontSize: 26,
               lineHeight: '34px',
               touchAction: 'none',
               userSelect: 'none',
             }}
           >
-            {ITEMS[kind].icon}
+            {item.icon}
             <span
               style={{
                 display: 'block',
@@ -76,24 +85,26 @@ export function PlacePicker({
                 overflow: 'hidden',
               }}
             >
-              {ITEMS[kind].name}
+              {item.name}
             </span>
-            <span
-              style={{
-                position: 'absolute',
-                right: 2,
-                top: 2,
-                minWidth: 18,
-                padding: '0 4px',
-                borderRadius: 9,
-                background: 'rgba(40,40,40,0.75)',
-                color: '#fff',
-                fontSize: 11,
-                lineHeight: '16px',
-              }}
-            >
-              {count}
-            </span>
+            {item.count !== undefined && (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 2,
+                  top: 2,
+                  minWidth: 18,
+                  padding: '0 4px',
+                  borderRadius: 9,
+                  background: 'rgba(40,40,40,0.75)',
+                  color: '#fff',
+                  fontSize: 11,
+                  lineHeight: '16px',
+                }}
+              >
+                {item.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
