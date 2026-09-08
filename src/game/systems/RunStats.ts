@@ -12,6 +12,8 @@ export type DeathReport = {
   collected: number;
   crafted: number;
   built: number;
+  /** 本局沉淀的求生心得(生存超过 2 天才开始结算,每天 10 点) */
+  legacyPoints: number;
   /** 死亡瞬间的场景截图(data URL,截图失败为 null) */
   scene: string | null;
 };

@@ -118,7 +118,9 @@ export class BowSystem {
     /** 伤害乘数(如「晕晕的」醉酒增伤),缺省 1 */
     private damageMultiplier: () => number = () => 1,
     /** 背包里是否放着无限箭袋(有则无需箭矢也能开弓,且放箭不消耗) */
-    private hasEndlessQuiver: () => boolean = () => false
+    private hasEndlessQuiver: () => boolean = () => false,
+    /** 本支箭是否免消耗(局外养成「神射」:每天前 3 支与 10% 概率) */
+    private arrowFree: () => boolean = () => false
   ) {
     this.guide = new AimGuide(terrain, RANGE, AIM_DOTS, AIM_START);
     this.scene.add(this.guide.group);
@@ -199,9 +201,9 @@ export class BowSystem {
     this.aimed = false;
   }
 
-  /** 放箭:扣一支箭(无限箭袋免扣),沿瞄准方向生成飞行箭矢,播放箭动作 */
+  /** 放箭:扣一支箭(无限箭袋/局外免箭不扣),沿瞄准方向生成飞行箭矢,播放箭动作 */
   private release(): void {
-    if (!this.hasEndlessQuiver() && !this.ammo.remove('arrow', 1)) {
+    if (!this.hasEndlessQuiver() && !this.arrowFree() && !this.ammo.remove('arrow', 1)) {
       this.cancelAim();
       return;
     }

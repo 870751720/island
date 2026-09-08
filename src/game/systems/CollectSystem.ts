@@ -8,6 +8,8 @@ import {
   SEED_OF,
   fruitPickCount,
 } from '../world/TreeSpecies';
+import type { CollectMeta } from '../meta/MetaHooks';
+import { NO_COLLECT_META } from '../meta/MetaHooks';
 import { Inventory } from './Inventory';
 import type { Tools } from './Crafting';
 import { axeHits, hoeHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
@@ -176,7 +178,9 @@ export class CollectSystem {
     /** 蜂巢神龛是否在场(浆果丛产量祝福,全岛生效) */
     private berryBlessed: () => boolean = () => false,
     /** 自然补种选点时需要避开的玩家位置(防树苗在玩家面前凭空出现穿帮) */
-    private seedAvoidPlayers: () => readonly Vector3[] = () => []
+    private seedAvoidPlayers: () => readonly Vector3[] = () => [],
+    /** 局外养成「采集·巧匠」加成(单机生效,联机为空实现) */
+    private meta: CollectMeta = NO_COLLECT_META
   ) {}
 
   /** 手持锄头靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
@@ -307,6 +311,7 @@ export class CollectSystem {
     }
     this.hitCounts.delete(prop);
     this.onYield(prop.position);
+    const kind = this.kindOf(prop);
     if (this.isPickingFruit(prop)) {
       // 空手摘果:只摘走果子,树保留并进入挂果再生
       this.props.pickFruit(prop);
@@ -327,8 +332,47 @@ export class CollectSystem {
         this.props.seedRegrowTree(prop.species ?? 'oak', this.seedAvoidPlayers());
       }
     }
+    this.applyMetaYield(prop, kind, config);
     this.fx.burst(prop.position, config.fxColor, 14);
     this.onFx(prop.position, config.fxColor, 14);
     this.nearby = null;
+  }
+
+  /** 局外养成「采集·巧匠」的额外产出:在基础产出结算后追加(锄头整棵挖走不吃加成) */
+  private applyMetaYield(
+    prop: Prop,
+    kind: HarvestKind,
+    config: (typeof HARVEST_CONFIG)[HarvestKind]
+  ): void {
+    const { gleaning, rockWealth, seedline } = this.meta.levels;
+    // 拾穗:草丛/灌木小概率额外 1 份本产出,摘果小概率多 1 个果实
+    if (gleaning >= 1 && (kind === 'grass' || kind === 'shrub') && Math.random() < 0.1) {
+      this.inventory.add(kind === 'grass' ? 'fiber' : 'branch', 1);
+    }
+    if (gleaning >= 2 && kind === 'fruitTree' && Math.random() < 0.1) {
+      this.inventory.add(FRUIT_OF.fruit, 1);
+    }
+    // 碎石成金:岩石小概率多 1 块石头,铁矿必多 1 块铁,陨石小概率挖出珍宝
+    if (rockWealth >= 1 && (kind === 'rock' || kind === 'gravel') && Math.random() < 0.1) {
+      this.inventory.add('stone', 1);
+    }
+    if (rockWealth >= 2 && kind === 'iron') {
+      this.inventory.add('ironOre', 1);
+    }
+    if (rockWealth >= 3 && kind === 'meteor' && Math.random() < 0.01) {
+      this.meta.meteorTreasure();
+    }
+    // 良种:伐倒成树必多 1 根木头,种子从 10% 概率到必掉
+    if (seedline >= 1 && kind === 'tree') {
+      this.inventory.add('wood', 1);
+    }
+    if (kind === 'tree') {
+      if (seedline >= 3) this.inventory.add(SEED_OF[prop.species ?? 'oak'], 1);
+      else if (seedline >= 2 && Math.random() < 0.1) this.inventory.add(SEED_OF[prop.species ?? 'oak'], 1);
+    }
+    // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次 yield)
+    if (gleaning >= 3 && !this.isDigging(prop) && this.meta.takeFirstCollect()) {
+      config.yield(this.inventory, prop);
+    }
   }
 }

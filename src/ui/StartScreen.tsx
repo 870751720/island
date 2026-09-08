@@ -1,12 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { SaveSystem } from '@/game/systems/SaveSystem';
+import { SaveSystem, type SaveData } from '@/game/systems/SaveSystem';
+import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
+import { META_TREE } from '@/game/meta/MetaTree';
+import { MetaPanel } from './MetaPanel';
 
 /** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
 export type StartMode = 'continue' | 'new';
 /** 联机角色:创建房间(房主)或加入房间(客人) */
 export type MultiplayerRole = 'host' | 'guest';
+
+/** 是否已有荒岛传承(任意求生心得或已解锁节点):没有时主菜单不显示入口 */
+function hasLegacy(): boolean {
+  if (MetaProgress.points() > 0) return true;
+  return META_TREE.some((branch) => branch.nodes.some((node) => MetaProgress.level(node.id) > 0));
+}
 
 export function StartScreen({
   onStart,
@@ -18,9 +27,30 @@ export function StartScreen({
   notice?: string;
 }) {
   const [hasSave] = useState(() => !!SaveSystem.load());
+  const [legacy] = useState(hasLegacy);
+  const [showMeta, setShowMeta] = useState(false);
+  /** 待确认的放弃本局结算数据(开新档且旧档超过 2 天时弹确认) */
+  const [abandoning, setAbandoning] = useState<{ save: SaveData; points: number } | null>(null);
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,水合前不渲染按钮只显示加载提示
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
+
+  const startNew = () => {
+    const save = SaveSystem.load();
+    const points = legacyPointsForDay(save?.day ?? 1);
+    // 旧档生存超过 2 天:重开前先确认,结算进荒岛传承
+    if (save && points > 0) {
+      setAbandoning({ save, points });
+      return;
+    }
+    onStart('new');
+  };
+
+  const confirmAbandon = () => {
+    MetaProgress.grant(abandoning!.points);
+    setAbandoning(null);
+    onStart('new');
+  };
 
   return (
     <div className="start-screen">
@@ -49,10 +79,15 @@ export function StartScreen({
             )}
             <button
               className={hasSave ? 'new-game-button' : 'start-button'}
-              onClick={() => onStart('new')}
+              onClick={hasSave ? startNew : () => onStart('new')}
             >
               {hasSave ? '开新档' : '开始游戏'}
             </button>
+            {legacy && (
+              <button className="legacy-button" onClick={() => setShowMeta(true)}>
+                📜 荒岛传承
+              </button>
+            )}
             <div className="start-mp">
               <button className="mp-button" onClick={() => onMultiplayer('host')}>
                 🏠 创建房间
@@ -67,6 +102,27 @@ export function StartScreen({
         )}
         <p className="start-hint">🍎 采集 · 🎣 钓鱼 · 🔥 生存</p>
       </div>
+      {abandoning && (
+        <div className="abandon-mask">
+          <div className="abandon-panel">
+            <h3 className="abandon-title">放弃这座岛?</h3>
+            <p className="abandon-text">
+              本局已生存 {abandoning.save.day ?? 1} 天,重开将沉淀 {abandoning.points} 求生心得,
+              <br />
+              岛上的进度与物品都会消失。
+            </p>
+            <div className="abandon-actions">
+              <button className="abandon-cancel" onClick={() => setAbandoning(null)}>
+                再想想
+              </button>
+              <button className="abandon-confirm" onClick={confirmAbandon}>
+                重新开始
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showMeta && <MetaPanel onClose={() => setShowMeta(false)} />}
     </div>
   );
 }
@@ -260,5 +316,74 @@ const css = `
   font-size: clamp(11px, 3vw, 13px);
   color: #9aa58a;
   letter-spacing: 0.06em;
+}
+.legacy-button {
+  margin-top: 14px;
+  width: 100%;
+  min-height: 44px;
+  border: 1.5px solid rgba(247, 215, 116, 0.4);
+  border-radius: 12px;
+  background: linear-gradient(rgba(247, 215, 116, 0.14), rgba(247, 215, 116, 0.06));
+  color: #a8862e;
+  font-size: clamp(14px, 4vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.abandon-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 26, 16, 0.55);
+  backdrop-filter: blur(2px);
+}
+.abandon-panel {
+  width: min(84vw, 340px);
+  padding: clamp(20px, 5vw, 28px);
+  text-align: center;
+  background: linear-gradient(rgba(255,253,245,0.97), rgba(255,248,232,0.95));
+  border: 2px solid rgba(255,255,255,0.85);
+  border-radius: 22px;
+  box-shadow: 0 16px 48px rgba(20,60,90,0.35);
+  animation: panel-in 0.3s ease-out;
+}
+.abandon-title {
+  margin: 0;
+  font-size: clamp(20px, 6vw, 24px);
+  color: #4a3a1a;
+  letter-spacing: 0.1em;
+}
+.abandon-text {
+  margin: 12px 0 18px;
+  font-size: clamp(13px, 3.6vw, 15px);
+  line-height: 1.7;
+  color: #6b7a5e;
+}
+.abandon-text b { color: #a8862e; }
+.abandon-actions { display: flex; gap: 10px; }
+.abandon-cancel,
+.abandon-confirm {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 14px;
+  font-size: clamp(15px, 4vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.abandon-cancel {
+  border: 1.5px solid rgba(44,95,45,0.25);
+  background: rgba(44, 95, 45, 0.06);
+  color: #2c5f2d;
+}
+.abandon-confirm {
+  border: none;
+  background: linear-gradient(#ffbe5c, #f59a1f);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 0 #c97c12;
 }
 `;

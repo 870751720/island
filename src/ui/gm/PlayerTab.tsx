@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
+import { MetaProgress } from '@/game/meta/MetaProgress';
 import { ActionButton, StepperRow, ToggleRow } from './controls';
 
 /** 玩家 tab:无敌/死亡开关、攻击倍率与状态回满 */
@@ -16,6 +17,7 @@ export function PlayerTab({
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
   const [attackMultiplier, setAttackMultiplier] = useState(GmSystem.attackMultiplier);
   const [speedMultiplier, setSpeedMultiplier] = useState(GmSystem.speedMultiplier);
+  const [metaPoints, setMetaPoints] = useState(MetaProgress.points());
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -52,6 +54,16 @@ export function PlayerTab({
         onChange={(v) => {
           onSetConfig({ speedMultiplier: v });
           setSpeedMultiplier(v);
+        }}
+      />
+      <StepperRow
+        label="求生心得(局外)"
+        value={metaPoints}
+        step={10}
+        min={0}
+        onChange={(v) => {
+          MetaProgress.setPoints(v);
+          setMetaPoints(v);
         }}
       />
       <ActionButton label="状态回满(复活)" tone="primary" onClick={onRestoreStatus} />

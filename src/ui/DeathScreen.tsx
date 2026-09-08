@@ -189,6 +189,27 @@ export function DeathScreen({
           ))}
         </div>
       )}
+      {report && !autoRespawn && report.legacyPoints > 0 && (
+        <div
+          style={{
+            padding: '8px 20px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, rgba(247,215,116,0.22), rgba(247,215,116,0.1))',
+            border: '1px solid rgba(247,215,116,0.45)',
+            color: '#f7d774',
+            fontSize: 'clamp(14px, 3.8vw, 16px)',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+          }}
+        >
+          求生心得 +{report.legacyPoints}(生存了 {report.day} 天)
+        </div>
+      )}
+      {report && !autoRespawn && report.legacyPoints === 0 && (
+        <p style={{ margin: 0, color: 'rgba(220,232,223,0.5)', fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
+          生存不足 2 天,没有沉淀下求生心得
+        </p>
+      )}
       {autoRespawn ? (
         <div
           key={seconds}

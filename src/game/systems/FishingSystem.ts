@@ -21,6 +21,7 @@ import {
   type Tease,
   type TeaseStage,
 } from './FishTable';
+import { NO_FISHING_META, type FishingMeta } from '../meta/MetaHooks';
 
 const CAST_TIME = 0.7; // 抛竿(秒,各级鱼竿相同)
 const REEL_TIME = 0.45; // 中鱼后鱼线收回(纯表现,期间已入包)
@@ -95,7 +96,9 @@ export class FishingSystem {
     /** 已抽中过的珍宝集合(珍宝保底权重用,房主权威持有,随存档持久化) */
     private drawnTreasures: () => Set<ResourceKind> = () => new Set(),
     /** 有饵连续未出四档的次数(四档保底用,房主权威持有,随存档持久化) */
-    private tier4Pity: () => { count: number } = () => ({ count: 0 })
+    private tier4Pity: () => { count: number } = () => ({ count: 0 }),
+    /** 局外养成「钓鱼·渔父」加成(单机生效,联机为空实现) */
+    private meta: FishingMeta = NO_FISHING_META
   ) {}
 
   /** 当前鱼竿等级(夹到 1-3 查表) */
@@ -127,7 +130,11 @@ export class FishingSystem {
   }
 
   get biteNeed(): number {
-    return TIER_BITE[this.tier].clicks;
+    let need = TIER_BITE[this.tier].clicks;
+    // 局外养成「不脱钩」:大鱼/珍宝连点次数各 -1(2/3 级)
+    if (this.tier === 3 && this.meta.levels.noSlip >= 2) need -= 1;
+    if (this.tier === 4 && this.meta.levels.noSlip >= 3) need -= 1;
+    return Math.max(1, need);
   }
 
   /** 等待期剩余秒数(供快照下发,客人端以此对齐咬钩时刻),非等待态为 null */
@@ -185,13 +192,26 @@ export class FishingSystem {
     this.audio.play('whoosh');
     this.timer = 0;
     // 抛竿时消耗 1 个鱼饵(有则用,无则裸钓:高档概率大幅降低);
-    // 背包里有无限饵料桶时永远视同有饵且不消耗
+    // 背包里有无限饵料桶时永远视同有饵且不消耗;
+    // 局外养成「省饵」:每天前 2 竿免饵(1 级)、每竿 10% 概率免饵(2 级)
     const endless = this.inventory.count('endlessBait') > 0;
-    const baited = endless || this.ammo.count('bait') > 0;
-    if (baited && !endless) this.ammo.remove('bait', 1);
+    const freeCast = !endless && this.meta.takeFreeBaitCast();
+    const luckyBait = !endless && this.meta.levels.baitSave >= 2 && Math.random() < 0.1;
+    const baited = endless || freeCast || luckyBait || this.ammo.count('bait') > 0;
+    if (baited && !endless && !freeCast && !luckyBait) this.ammo.remove('bait', 1);
     // 四档保底:有饵连续 99 次未出珍宝,第 100 次必出
     const pity = this.tier4Pity();
-    this.tier = baited && pity.count >= TIER4_PITY_CASTS ? 4 : rollTier(baited, this.junkCut());
+    this.tier =
+      baited && pity.count >= TIER4_PITY_CASTS
+        ? 4
+        : rollTier(baited, this.junkCut(), {
+            baitlessRelief: this.meta.levels.baitSave >= 3 ? 0.1 : 0,
+            tier4Bonus: this.meta.levels.fullLoad >= 3 ? 1 : 0,
+          });
+    // 局外养成「满载」2 级:每天第一竿保底 2 档起,不出杂物
+    if (this.meta.levels.fullLoad >= 2 && this.meta.takeFirstCast() && this.tier < 2) {
+      this.tier = 2;
+    }
     if (baited) pity.count = this.tier === 4 ? 0 : pity.count + 1;
     this.loot = rollLoot(this.tier, this.waterKind, this.drawnTreasures());
     this.tease = null;
@@ -217,7 +237,7 @@ export class FishingSystem {
   hook(): boolean {
     if (this.state !== 'bite') return false;
     this.clicks++;
-    if (this.clicks < TIER_BITE[this.tier].clicks) return false;
+    if (this.clicks < this.biteNeed) return false;
     this.audio.play('splash');
     this.waterFx.splash(this.bobberTarget);
     if (this.tier === 4) {
@@ -243,6 +263,10 @@ export class FishingSystem {
     this.timer = 0;
     this.onCatch(this.bobberTarget);
     const added = this.inventory.add(this.loot!.kind, 1);
+    // 局外养成「满载」1 级:10% 渔获翻倍(背包放不下时同鱼获一起落空)
+    if (added > 0 && this.meta.levels.fullLoad >= 1 && Math.random() < 0.1) {
+      this.inventory.add(this.loot!.kind, 1);
+    }
     if (added === 0) {
       // 背包已满:鱼获落空,浮漂处散一撮灰渣
       this.audio.play('drop');
@@ -310,6 +334,11 @@ export class FishingSystem {
           // 咬钩:浮漂猛地下沉,水花四溅
           this.bobber!.position.y = this.bobberTarget.y - 0.15;
           this.waterFx.splash(this.bobberTarget);
+          // 局外养成「不脱钩」1 级:每天第一次咬钩跳过点击,直接完成收竿
+          if (this.meta.levels.noSlip >= 1 && this.meta.takeAutoBite()) {
+            this.clicks = this.biteNeed;
+            this.hook();
+          }
         }
         break;
       }

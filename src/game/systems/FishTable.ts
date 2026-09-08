@@ -201,11 +201,28 @@ export function pickTease(stage: TeaseStage): Tease {
  */
 const BAITLESS_TIER_WEIGHTS = [90, 6, 3.9, 0.1];
 
-export function rollTier(baited = true, junkCut = 0): FishTier {
+export function rollTier(
+  baited = true,
+  junkCut = 0,
+  meta?: { baitlessRelief?: number; tier4Bonus?: number }
+): FishTier {
   const base = baited ? [...GmSystem.fishingTierWeights] : [...BAITLESS_TIER_WEIGHTS];
   const cut = Math.min(junkCut, base[0]);
   base[0] -= cut;
   base[1] += cut;
+  // 局外养成「省饵」满级:裸钓惩罚减轻——按比例从杂物权重中扣下一成,匀给三个高档位
+  if (!baited && meta?.baitlessRelief) {
+    const relief = Math.min(base[0] * Math.min(1, Math.max(0, meta.baitlessRelief)), base[0]);
+    base[0] -= relief;
+    const rest = base[1] + base[2] + base[3];
+    if (rest > 0) {
+      base[1] += (relief * base[1]) / rest;
+      base[2] += (relief * base[2]) / rest;
+      base[3] += (relief * base[3]) / rest;
+    }
+  }
+  // 局外养成「满载」满级:珍宝档权重额外加成
+  if (meta?.tier4Bonus && meta.tier4Bonus > 0) base[3] += meta.tier4Bonus;
   const total = base[0] + base[1] + base[2] + base[3];
   if (total <= 0) return 1;
   let r = Math.random() * total;

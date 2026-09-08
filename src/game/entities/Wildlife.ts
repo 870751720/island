@@ -395,7 +395,9 @@ export class Wildlife implements Updatable {
     /** 围栏等静态阻挡:点在阻挡内时动物不可走(围栏闭合即被圈住) */
     private isBlocked: (x: number, z: number) => boolean = () => false,
     rng: () => number = Math.random,
-    private nearCamp: (x: number, z: number) => boolean = () => false
+    private nearCamp: (x: number, z: number) => boolean = () => false,
+    /** 击杀战利品的加成改写(局外养成「捕猎·猎手」剥取,单机由游戏侧注入) */
+    private lootMeta: (species: AnimalSpecies, loot: AnimalLoot) => AnimalLoot = (_species, loot) => loot
   ) {
     this.safeSpawn = terrain.findSpawnPoint();
     const cells = landCells(terrain, 8);
@@ -1293,12 +1295,12 @@ export class Wildlife implements Updatable {
     return { species };
   }
 
-  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书) */
+  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书);局外养成剥取加成最后改写 */
   lootOf(species: AnimalSpecies): AnimalLoot {
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
     if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
     if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
-    return loot;
+    return this.lootMeta(species, loot);
   }
 
   /**

@@ -117,6 +117,7 @@ const INITIAL_HUD: HudSnapshot = {
   biteClicks: 0,
   biteNeed: 1,
   treasureKind: null,
+  collectTreasure: null,
   nearDrop: null,
   notice: null,
   day: 1,
@@ -822,6 +823,12 @@ export function GameplayUI({
             key={hud.treasureKind ?? 'none'}
             kind={hud.treasureKind}
             onClaim={() => gameRef.current?.claimTreasure()}
+            onSfx={(name) => gameRef.current?.playUiSfx(name)}
+          />
+          <TreasureWheel
+            key={hud.collectTreasure ? `collect-${hud.collectTreasure}` : 'collect-none'}
+            kind={hud.collectTreasure}
+            onClaim={() => gameRef.current?.claimCollectTreasure()}
             onSfx={(name) => gameRef.current?.playUiSfx(name)}
           />
           <Notice notice={hud.notice} />

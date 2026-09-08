@@ -82,6 +82,11 @@ import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
+import { MetaProgress, legacyPointsForDay } from './meta/MetaProgress';
+import { MetaDaily } from './meta/MetaDaily';
+import type { MetaNodeId } from './meta/MetaTree';
+import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } from './meta/MetaHooks';
+import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { VitalLevels } from '../ui/VitalWarn';
 
@@ -205,6 +210,8 @@ export type HudSnapshot = {
   biteNeed: number;
   /** 四档珍宝转盘的目标道具(非转盘态为 null,客人端随快照回流) */
   treasureKind: ResourceKind | null;
+  /** 采集挖出的珍宝(碎石成金满级):非空时 HUD 弹珍宝转盘 */
+  collectTreasure: ResourceKind | null;
   /** 玩家附近可捡回的掉落物,无时为 null */
   nearDrop: DropInfo | null;
   /** 通用临时提示(自动消失),如「背包满了」 */
@@ -457,6 +464,18 @@ export class Game {
   private poseidonGrace = false;
   /** 本局波塞冬的庇佑是否已用过(单局仅一次,入档防读档刷新) */
   private poseidonGraceUsed = false;
+  /** 局外养成「荒岛传承」的每日一次标记(跨天自动重置) */
+  private readonly metaDaily = new MetaDaily();
+  /** 击碎陨石挖出的珍宝(碎石成金满级):HUD 弹转盘,转完 claimCollectTreasure 入包 */
+  private collectTreasure: ResourceKind | null = null;
+  /** 局外养成只在单机生效:联机对局双方都不带加成,保持公平与同步简单 */
+  private get metaOn(): boolean {
+    return !this.hostRef && !this.guestMode;
+  }
+  /** 某养成节点的等级(联机恒 0) */
+  private metaLevel(id: MetaNodeId): number {
+    return this.metaOn ? MetaProgress.level(id) : 0;
+  }
 
   constructor(
     container: HTMLElement,
@@ -627,7 +646,9 @@ export class Game {
       Math.random,
       // 营地判定:篝火 6 米内不刷新动物,新个体不在玩家的营地出现
       // (Wildlife 先于 CampfireSystem 构造,初始生成时篝火尚未建立)
-      (x, z) => this.campfire?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6) ?? false
+      (x, z) => this.campfire?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6) ?? false,
+      // 局外养成「捕猎·猎手」剥取:击杀战利品在掉落前按等级加成改写
+      (species, loot) => this.applyHuntLootMeta(species, loot)
     );
     // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,锄头挖开可压死藏在内的兔子。
     // 客人端不本地生成,由房主的世界快照(欢迎包/世界增量)补建
@@ -973,6 +994,8 @@ export class Game {
         }
         this.activeNetActor = null;
         this.audio.silent = false;
+        // 局外养成的每日一次标记跨天重置
+        this.metaDaily.ensure(this.dayNight.day);
         // 睡觉过渡中:天空随进度日夜流转(多人同时睡取最先入睡者的进度)
         for (const s of this.sessions) {
           const sleepProgress = this.beds.getSleepProgress(s);
@@ -1785,15 +1808,101 @@ export class Game {
   /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
   private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
     const player = session.player;
-    const final = Math.max(1, Math.round(damage * (1 - session.equipment.totalReduce())) - session.equipment.totalDefense());
+    let final = damage * (1 - session.equipment.totalReduce()) - session.equipment.totalDefense();
+    // 局外养成「剑术」2 级:受到的伤害降低 10%
+    if (this.metaLevel('swordplay') >= 2 && session === this.local) final *= 0.9;
+    final = Math.max(1, Math.round(final));
     session.survival.damage(final);
-    // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来
-    if (pounce) player.applySlow(3);
+    // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来;
+    // 局外养成「剑术」3 级:20% 几率闪身躲开熊扑的减速
+    if (pounce && !(this.metaLevel('swordplay') >= 3 && session === this.local && Math.random() < 0.2)) {
+      player.applySlow(3);
+    }
     this.playWildlifeHitFeedback(session, final);
     // 客人被击中的表现在客人端补播(闪红与音效由血量快照驱动,这里补齐粒子/数字/减速)
     if (this.hostRef && session !== this.local) {
       this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage: final, pounce });
     }
+  }
+
+  /** 局外养成「捕猎·猎手」剥取:战利品在掉落前按等级加成改写(击杀链路统一走 lootOf) */
+  private applyHuntLootMeta(
+    species: AnimalSpecies,
+    loot: { kind: ResourceKind; count: number }[]
+  ): { kind: ResourceKind; count: number }[] {
+    const level = this.metaLevel('plunder');
+    if (level <= 0) return loot;
+    let out = loot;
+    if (level >= 1 && Math.random() < 0.1) {
+      out = out.map((item) => ({ ...item, count: item.count + 1 }));
+    }
+    if (level >= 2 && (species === 'wolf' || species === 'bear')) {
+      out = [...out, { kind: 'gameMeat', count: 1 }];
+    }
+    if (level >= 3 && !this.metaDaily.firstKillUsed) {
+      this.metaDaily.firstKillUsed = true;
+      out = out.map((item) => ({ ...item, count: item.count * 2 }));
+    }
+    return out;
+  }
+
+  /** 采集「碎石成金」满级:击碎陨石小概率挖出珍宝——按珍宝池抽取并交给 HUD 弹转盘 */
+  private openCollectTreasure(): void {
+    this.collectTreasure = rollLoot(4, 'sea', this.drawnTreasures).kind;
+  }
+
+  /** 采集侧珍宝转盘转完:入包并清掉待转盘状态 */
+  claimCollectTreasure(actor: PlayerSession = this.local): boolean {
+    if (!this.collectTreasure) return false;
+    const kind = this.collectTreasure;
+    this.collectTreasure = null;
+    this.giveItem(kind, 1, actor);
+    return true;
+  }
+
+  /** 局外养成「采集·巧匠」注入(单机生效,联机空实现) */
+  private collectMetaFor(): CollectMeta {
+    if (!this.metaOn) return NO_COLLECT_META;
+    return {
+      levels: {
+        gleaning: this.metaLevel('gleaning'),
+        rockWealth: this.metaLevel('rockWealth'),
+        seedline: this.metaLevel('seedline'),
+      },
+      takeFirstCollect: () => {
+        if (this.metaDaily.firstCollectUsed) return false;
+        this.metaDaily.firstCollectUsed = true;
+        return true;
+      },
+      meteorTreasure: () => this.openCollectTreasure(),
+    };
+  }
+
+  /** 局外养成「钓鱼·渔父」注入(单机生效,联机空实现) */
+  private fishingMetaFor(): FishingMeta {
+    if (!this.metaOn) return NO_FISHING_META;
+    return {
+      levels: {
+        baitSave: this.metaLevel('baitSave'),
+        noSlip: this.metaLevel('noSlip'),
+        fullLoad: this.metaLevel('fullLoad'),
+      },
+      takeFreeBaitCast: () => {
+        if (this.metaDaily.freeBaitCasts >= 2) return false;
+        this.metaDaily.freeBaitCasts += 1;
+        return true;
+      },
+      takeFirstCast: () => {
+        if (this.metaDaily.firstCastUsed) return false;
+        this.metaDaily.firstCastUsed = true;
+        return true;
+      },
+      takeAutoBite: () => {
+        if (this.metaDaily.autoBiteUsed) return false;
+        this.metaDaily.autoBiteUsed = true;
+        return true;
+      },
+    };
   }
 
   /** 受击的本地表现:红色粒子迸溅 + 击中音 + 本地玩家头顶伤害数字 */
@@ -2005,6 +2114,9 @@ export class Game {
       save.beds.length +
       (save.shrines?.length ?? 0) +
       (save.stakes?.length ?? 0);
+    // 局外养成:本局沉淀的求生心得(超过 2 天才开始结算),写入局外存储并展示在死亡界面
+    const legacyPoints = legacyPointsForDay(save.day ?? 1);
+    if (legacyPoints > 0) MetaProgress.grant(legacyPoints);
     return {
       day: save.day ?? 1,
       cause: s.survival.deathCause ?? 'animal',
@@ -2012,6 +2124,7 @@ export class Game {
       collected: s.stats.collected,
       crafted: s.craftedIds.size,
       built,
+      legacyPoints,
       scene: this.captureScene(),
     };
   }
@@ -3451,7 +3564,9 @@ export class Game {
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
       () => this.shrines.berryBlessed,
       // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现
-      () => this.sessions.map((session) => session.player.group.position)
+      () => this.sessions.map((session) => session.player.group.position),
+      // 局外养成「采集·巧匠」
+      this.collectMetaFor()
     );
     s.milk = new SheepMilkSystem(
       s.player,
@@ -3495,7 +3610,9 @@ export class Game {
       // 珍宝保底:共享的已抽珍宝集合
       () => this.drawnTreasures,
       // 四档保底:共享的有饵连续未出珍宝计数
-      () => this.tier4Pity
+      () => this.tier4Pity,
+      // 局外养成「钓鱼·渔父」
+      this.fishingMetaFor()
     );
     s.archery = new BowSystem(
       this.scene,
@@ -3533,10 +3650,19 @@ export class Game {
             else this.hostRef?.broadcastEvent({ kind: 'arrowShot', actor: s.id, dx, dz });
           }
         : undefined,
-      // 「晕晕的」醉酒状态:箭矢伤害 +30%
-      () => (s.player.tipsySeconds > 0 ? 1.3 : 1),
+      // 「晕晕的」醉酒状态:箭矢伤害 +30%;局外养成「神射」满级再 +30%
+      () => (s.player.tipsySeconds > 0 ? 1.3 : 1) * (this.metaLevel('deadeye') >= 3 ? 1.3 : 1),
       // 无限箭袋:放在背包里时开弓不检查、放箭不消耗箭
-      () => s.inventory.count('endlessQuiver') > 0
+      () => s.inventory.count('endlessQuiver') > 0,
+      // 局外养成「神射」:每天前 3 支箭免消耗(2 级),每支 10% 概率免消耗(1 级)
+      () => {
+        if (this.metaLevel('deadeye') < 1) return false;
+        if (this.metaLevel('deadeye') >= 2 && this.metaDaily.freeArrows < 3) {
+          this.metaDaily.freeArrows += 1;
+          return true;
+        }
+        return Math.random() < 0.1;
+      }
     );
     s.sword = new SwordSystem(
       s.player,
@@ -3557,8 +3683,10 @@ export class Game {
         : undefined,
       // 石剑(2 级)伤害更高
       () => s.tools.sword,
-      // 「晕晕的」醉酒状态:攻击力 +30%
-      () => (s.player.tipsySeconds > 0 ? 1.3 : 1)
+      // 「晕晕的」醉酒状态:攻击力 +30%;局外养成「剑术」1 级:10% 概率双倍伤害
+      () =>
+        (s.player.tipsySeconds > 0 ? 1.3 : 1) *
+        (this.metaLevel('swordplay') >= 1 && Math.random() < 0.1 ? 2 : 1)
     );
     s.lasso = new LassoSystem(
       this.scene,
@@ -3755,6 +3883,7 @@ export class Game {
       biteClicks: s.fishing.biteClicks,
       biteNeed: s.fishing.biteNeed,
       treasureKind: s.fishing.treasureLoot,
+      collectTreasure: this.collectTreasure,
       nearDrop: this.drops.getNearby(s),
       day: this.dayNight.day,
       busy,
