@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { hoeHits } from './ToolTiers';
-import { Smelter } from '../entities/Smelter';
+import { Smelter, SMELT_ORE_PER_INGOT } from '../entities/Smelter';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -18,7 +18,7 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每 15 秒用 3 块铁矿石炼出 1 块铁锭 */
 export const SMELT_INTERVAL = 15;
-export const SMELT_ORE_PER_INGOT = 3;
+export { SMELT_ORE_PER_INGOT };
 
 /** 冶炼炉存档/网络快照(落点 + 炉内矿石与铁锭存量) */
 export type SmelterSave = {
@@ -47,7 +47,7 @@ export type SmelterInfo = {
  * 冶炼炉系统(世界多实例,按发起者 actor 结算):
  * - 背包里点击「使用」冶炼炉,校验通过后在玩家脚下原地放下
  *   (与木箱摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他冶炼炉占住);
- * - 靠近后可把背包里的铁矿石丢进炉:每 5 秒炼出 1 块铁锭,存放在炉内待收取;
+ * - 靠近后可把背包里的铁矿石丢进炉:每 15 秒用 3 块矿石炼出 1 块铁锭(矿石不足 3 块时等待补足,不计时),存放在炉内待收取;
  * - 手持锄头靠近站定自动整炉挖走(变回冶炼炉道具,炉内矿石与铁锭一并回到背包/掉落)。
  * 冶炼计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
@@ -172,16 +172,13 @@ export class SmelterSystem {
   update(delta: number, elapsed: number, authority: boolean): void {
     for (const smelter of this.smelters) {
       smelter.update(elapsed);
-      if (smelter.ore <= 0) {
+      // 矿石不足一炉时视为空闲:不计时不出炉,等待补足矿石
+      if (smelter.ore < SMELT_ORE_PER_INGOT) {
         smelter.tickLeft = SMELT_INTERVAL;
         continue;
       }
       smelter.tickLeft -= delta;
       if (smelter.tickLeft > 0) continue;
-      if (smelter.ore < SMELT_ORE_PER_INGOT) {
-        smelter.tickLeft = SMELT_INTERVAL;
-        continue;
-      }
       if (!authority) continue;
       smelter.ore -= SMELT_ORE_PER_INGOT;
       smelter.ingot += 1;
@@ -255,7 +252,7 @@ export class SmelterSystem {
     return {
       ore: smelter.ore,
       ingot: smelter.ingot,
-      progress: smelter.ore > 0 ? 1 - Math.max(smelter.tickLeft, 0) / SMELT_INTERVAL : 0,
+      progress: smelter.ore >= SMELT_ORE_PER_INGOT ? 1 - Math.max(smelter.tickLeft, 0) / SMELT_INTERVAL : 0,
     };
   }
 

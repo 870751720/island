@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** 炼出 1 块铁锭消耗的铁矿石数 */
+export const SMELT_ORE_PER_INGOT = 3;
+
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
@@ -38,7 +41,7 @@ function makeSmelterMesh(): THREE.Group {
 
 /**
  * 场景中的冶炼炉摆件:投入的铁矿石每 15 秒炼出 1 块铁锭(消耗 3 块矿石);
- * 炉内还有矿石时炉门火光发亮闪动,空炉时熄灭。
+ * 炉内矿石足够(≥3 块)时炉门火光发亮闪动,不足或空炉时熄灭。
  */
 export class Smelter {
   readonly group: THREE.Group;
@@ -61,11 +64,12 @@ export class Smelter {
     this.group.add(mesh);
   }
 
-  /** 每帧表现:有矿石时炉门火光闪动,空炉时熄灭 */
+  /** 每帧表现:矿石足够冶炼时炉门火光闪动,否则熄灭 */
   update(elapsed: number): void {
     if (!this.fire) return;
-    this.fire.visible = this.ore > 0;
-    if (this.ore > 0) {
+    const burning = this.ore >= SMELT_ORE_PER_INGOT;
+    this.fire.visible = burning;
+    if (burning) {
       const mat = (this.fire as THREE.Mesh).material as THREE.MeshStandardMaterial;
       mat.emissiveIntensity = 0.7 + Math.sin(elapsed * 6) * 0.25;
     }
