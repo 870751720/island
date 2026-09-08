@@ -164,12 +164,12 @@ export class WorkbenchSystem {
   }
 
   /** 指定落点是否允许摆放(不在水里/水边,落点没有被资源点占住) */
-  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+  canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return false;
-    if (this.terrain.isNearWater(p, 1)) return false;
-    if (p.y <= 0) return false;
-    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
+    if (actor.player.isSwimming) return '游泳时不能安放';
+    if (this.terrain.isNearWater(p, 1)) return '离水太近';
+    if (p.y <= 0) return '这里在水里';
+    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
   }
 
   /** 本局是否已制作过工作台 */
@@ -183,7 +183,7 @@ export class WorkbenchSystem {
     if (actor.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
     if (actor.inventory.count('branch') < (WORKBENCH_COST.branch ?? 0)) return false;
     const p = actor.player.group.position;
-    return this.canPlaceAt(actor, p.x, p.z);
+    return this.canPlaceAt(actor, p.x, p.z) === null;
   }
 
   start(actor: PlayerSession): boolean {

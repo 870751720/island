@@ -18,7 +18,7 @@
 - 系统 `systems/WaterPurifierSystem.ts`:对齐饵料桶 `BaitBarrelSystem` 的模式——摆放校验(`onWetBeach`:`getWaterKind === 'sea'` 或 `isNearSea(1.5)` 以内且不在水洼)、锄头站定自动挖走、`nearby` 靠近判定、`snapshot/restore/netApply` 存档与网络重放、`EntityChangeSink` 增量上报。无内部玩法状态,纯摆件。
 - 自动喝水:`WaterSystem.update` 新增 `nearPurifier` 参数,与「站在水洼浅水」同条件触发喝水;每轮喝完的 `onDrinkRound` 回调(水洼出鳄鱼)只在真的站在水洼里时触发。`Game.ts` 每帧把 `waterPurifiers.nearby(session)` 传入各会话的 `water.update`。
 - 联机:新增世界段 `waterPurifiers`(落点增量回流)与动作 `useWaterPurifier`(放置由客人上行、房主权威结算);挖走与水洼挖箱一致由各端 `updateActor` 表现、房主侧结算上报。喝水本身沿用各端本地模拟 + 生存数值快照回流的既有约定。
-- UI:背包道具「使用」进入手持安放模式(`GameplayUI` 统一路由到 `holdAutoPlaceItem`,落点限定湿沙滩格,详见 autoplace.md),失败提示「净化器只能放在湿沙滩上,去海边浅滩试试」;靠近净化器无面板、无工具按钮劫持(纯被动效果)。
+- UI:背包道具「使用」直接落在就近最优的湿沙滩格(`GameplayUI` 统一路由到 `useAutoPlaceItem`,详见 autoplace.md),失败提示「净化器只能放在湿沙滩上,去海边浅滩试试」;靠近净化器无面板、无工具按钮劫持(纯被动效果)。
 - 存档:`SaveData` 新增可选字段 `waterPurifiers`(落点列表),旧档缺省视为无,`SAVE_VERSION` 保持不变。
 
 ## 迭代记录

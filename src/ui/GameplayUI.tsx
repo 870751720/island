@@ -111,6 +111,7 @@ const INITIAL_HUD: HudSnapshot = {
   notice: null,
   day: 1,
   heldFenceCount: 0,
+  heldPlaceCount: 0,
   busy: false,
   indicator: { label: null, progress: null },
   buffs: [],
@@ -541,8 +542,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          // 可安放道具(建筑/丛/神龛等)统一进入手持安放模式:面前格中心预览,站定自动安放
-          if (gameRef.current?.holdAutoPlaceItem(kind)) {
+          // 可安放道具(建筑/丛/神龛等)直接在就近最优格放下,放不下时提示原因
+          if (gameRef.current?.useAutoPlaceItem(kind)) {
             setBackpackOpen(false);
             return;
           }
@@ -682,6 +683,7 @@ export function GameplayUI({
               arrowCount={hud.arrow}
               baitCount={hud.bait}
               fenceCount={hud.heldFenceCount}
+              placeCount={hud.heldPlaceCount}
               lassoCount={hud.lassoCount}
               dimmed={hud.busy}
               onCycle={() => gameRef.current?.useToolButton()}

@@ -51,7 +51,7 @@ export type ActionType =
   | 'slash'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏) */
+/** 手持工具:空手/斧子/镐子/锄头/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏)/安放(可放置道具通用) */
 export type HandTool =
   | 'hand'
   | 'axe'
@@ -62,7 +62,8 @@ export type HandTool =
   | 'sword'
   | 'lasso'
   | 'fence'
-  | 'fenceGate';
+  | 'fenceGate'
+  | 'place';
 
 function makeFishingRodModel(tier: 1 | 2 | 3): THREE.Group {
   // 鱼竿:细长树枝;竿梢挂一个空锚点,钓鱼时钓线从竿梢连到浮漂
@@ -273,6 +274,23 @@ function makeFenceBundleModel(color: string, gate: boolean): THREE.Group {
   return g;
 }
 
+/** 手持安放:怀里抱着一只小木箱(建筑/丛等可放置道具的通用形象) */
+function makePlaceBundleModel(): THREE.Group {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.16), clayMaterial('#a97b48'));
+  g.add(box);
+  for (const y of [-0.04, 0.04]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.026, 0.17), clayMaterial('#c9b588'));
+    strap.position.y = y;
+    g.add(strap);
+  }
+  g.position.y = 0.1;
+  const root = new THREE.Group();
+  root.add(g);
+  root.rotation.x = Math.PI / 2.4;
+  return root;
+}
+
 /** 程序拼装的低多边形小人 + 运行时走路/作业动画 */
 export class Player implements Updatable {
   readonly group = new THREE.Group();
@@ -367,6 +385,7 @@ export class Player implements Updatable {
       ['lasso', [makeLassoModel()]],
       ['fence', [makeFenceBundleModel('#a97b48', false)]],
       ['fenceGate', [makeFenceBundleModel('#8a6239', true)]],
+      ['place', [makePlaceBundleModel()]],
     ];
     for (const [, models] of tiers) {
       for (const t of models) {

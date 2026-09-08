@@ -148,15 +148,18 @@ export class CampfireSystem {
   }
 
   /** 指定落点是否允许摆放(不在水里/水边,落点没有被资源点占住) */
-  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+  canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return false;
-    if (this.terrain.isNearWater(p, 1)) return false;
-    if (p.y <= 0) return false;
-    return !this.props.list.some((prop) => {
+    if (actor.player.isSwimming) return '游泳时不能安放';
+    if (this.terrain.isNearWater(p, 1)) return '离水太近';
+    if (p.y <= 0) return '这里在水里';
+    if (this.props.list.some((prop) => {
       this.scratch.copy(prop.position);
       return this.scratch.distanceTo(p) < PROP_BLOCK_RANGE;
-    });
+    })) {
+      return '被资源点挡住';
+    }
+    return null;
   }
 
   /** 是否满足制作条件(不忙 + 材料齐 + 脚下可摆放),火堆数量不限 */
@@ -165,7 +168,7 @@ export class CampfireSystem {
     if (actor.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
     if (actor.inventory.count('wood') < CAMPFIRE_COST.wood) return false;
     const p = actor.player.group.position;
-    return this.canPlaceAt(actor, p.x, p.z);
+    return this.canPlaceAt(actor, p.x, p.z) === null;
   }
 
   /** 场景手搓卡片的弹出条件:可制作,且场上与背包里都没有火堆/烹饪台(避免已有灶具后反复弹卡) */

@@ -14,6 +14,7 @@ const TOOL_ICONS: Record<HandTool, string> = {
   lasso: '🪢',
   fence: '🚧',
   fenceGate: '🪵',
+  place: '📦',
 };
 
 /** 右中侧工具切换按钮:循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
@@ -37,6 +38,7 @@ export function ToolButton({
   arrowCount = 0,
   baitCount = 0,
   fenceCount = 0,
+  placeCount = 0,
   lassoCount = 0,
   dimmed = false,
   onCycle,
@@ -82,6 +84,7 @@ export function ToolButton({
   baitCount?: number;
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
+  placeCount?: number;
   /** 背包剩余套索数(持套索且未牵着羊时角标展示) */
   lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
@@ -219,7 +222,8 @@ export function ToolButton({
           tool === 'fishingrod' ||
           tool === 'lasso' ||
           tool === 'fence' ||
-          tool === 'fenceGate') && (
+          tool === 'fenceGate' ||
+          tool === 'place') && (
         <span
           style={{
             position: 'absolute',
@@ -234,7 +238,15 @@ export function ToolButton({
             lineHeight: '18px',
           }}
         >
-          {tool === 'bow' ? arrowCount : tool === 'fishingrod' ? baitCount : tool === 'lasso' ? lassoCount : fenceCount}
+          {tool === 'bow'
+            ? arrowCount
+            : tool === 'fishingrod'
+              ? baitCount
+              : tool === 'lasso'
+                ? lassoCount
+                : tool === 'place'
+                  ? placeCount
+                  : fenceCount}
         </span>
       )}
       <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>

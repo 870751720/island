@@ -104,11 +104,11 @@ export class BaitBarrelSystem {
   }
 
   /** 指定格中心是否允许摆放(不在水里/水边,格内没有被资源点或其他饵料桶占住) */
-  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+  canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return false;
-    if (this.terrain.isNearWater(p, 1)) return false;
-    if (p.y <= 0) return false;
+    if (actor.player.isSwimming) return '游泳时不能安放';
+    if (this.terrain.isNearWater(p, 1)) return '离水太近';
+    if (p.y <= 0) return '这里在水里';
     if (
       this.barrels.some((barrel) => {
         this.scratch.copy(barrel.group.position);
@@ -116,9 +116,9 @@ export class BaitBarrelSystem {
         return this.scratch.distanceTo(p) < BARREL_BLOCK_RANGE;
       })
     ) {
-      return false;
+      return '离其他饵料桶太近';
     }
-    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
+    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
   }
 
   /** 在吸附格中心放下饵料桶(背包「使用」与手持自动安放共用入口) */

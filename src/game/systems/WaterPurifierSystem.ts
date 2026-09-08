@@ -100,9 +100,9 @@ export class WaterPurifierSystem {
   }
 
   /** 指定格中心是否允许摆放(在湿沙滩上,格内没有被资源点或其他净化器占住) */
-  canPlaceAt(actor: PlayerSession, x: number, z: number): boolean {
+  canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (!this.onWetBeach(actor, x, z)) return false;
+    if (!this.onWetBeach(actor, x, z)) return '要放在海边湿沙滩上';
     if (
       this.purifiers.some((purifier) => {
         this.scratch.copy(purifier.group.position);
@@ -110,9 +110,9 @@ export class WaterPurifierSystem {
         return this.scratch.distanceTo(p) < PURIFIER_BLOCK_RANGE;
       })
     ) {
-      return false;
+      return '离其他净化器太近';
     }
-    return !this.props.isOccupied(p, PROP_BLOCK_RANGE);
+    return this.props.isOccupied(p, PROP_BLOCK_RANGE) ? '被资源点挡住' : null;
   }
 
   /** 在吸附格中心放下净化器(背包「使用」与手持自动安放共用入口) */

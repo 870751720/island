@@ -125,6 +125,8 @@ export type HudSnapshot = {
   bait: number;
   /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
   heldFenceCount: number;
+  /** 手持安放道具时背包剩余个数(工具按钮角标) */
+  heldPlaceCount: number;
   /** 背包格子快照(空格为 null)与容量 */
   slots: InventorySlot[];
   capacity: number;
@@ -2415,8 +2417,6 @@ export class Game {
   /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走 */
   setToolFor(s: PlayerSession, tool: HandTool): void {
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
-    // 切换工具视为主动退出安放模式
-    this.autoPlace.hold(s, null);
     s.player.setTool(tool);
   }
 
@@ -2438,6 +2438,7 @@ export class Game {
       'lasso',
       'fence',
       'fenceGate',
+      'place',
     ];
     const owned: HandTool[] = order.filter((t) => t === 'hand' || this.hasTool(t));
     return owned[(owned.indexOf(this.player.currentTool) + 1) % owned.length];
@@ -2841,8 +2842,9 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useCrate', [kind]);
 
     if (this.asleepFor(actor)) return false;
-    if (!this.crates.use(actor, kind, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, kind);
+    if (reason || !this.crates.use(actor, kind, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2855,8 +2857,9 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useWorkbenchItem', [kind]);
 
     const level = workbenchItemLevel(kind);
-    if (this.asleepFor(actor) || level === null || !this.workbench.placeItem(actor, level, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, kind);
+    if (this.asleepFor(actor) || level === null || reason || !this.workbench.placeItem(actor, level, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2869,8 +2872,9 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('useBedItem', [kind]);
 
     const level = bedItemLevel(kind);
-    if (this.asleepFor(actor) || level === null || !this.beds.place(actor, level, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, kind);
+    if (this.asleepFor(actor) || level === null || reason || !this.beds.place(actor, level, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2944,8 +2948,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useShrine', [kind]);
 
-    if (this.asleepFor(actor) || !this.shrines.place(actor, kind, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, kind);
+    if (this.asleepFor(actor) || reason || !this.shrines.place(actor, kind, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -2979,32 +2984,25 @@ export class Game {
     if (actor.player.currentTool === 'hoe') actor.player.setTool('hand');
   }
 
-  /** 可安放道具的统一落点:玩家面前一格吸附到整数格中心(与围栏共用同一格网) */
-  private autoPlaceCell(actor: PlayerSession): THREE.Vector3 {
-    const cell = snapAheadCell(actor);
-    return new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z), cell.z);
+  /** 可安放道具的统一落点:就近最优可放格中心(与围栏共用同一格网),及其不可放原因(可放为 null) */
+  private autoPlaceCell(actor: PlayerSession, kind: ResourceKind): { at: THREE.Vector3; reason: string | null } {
+    const t = this.autoPlace.target(actor, kind);
+    return { at: new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z), reason: t.reason };
   }
 
-  /** 丛/蚯蚓窝的落点校验:不能在水里/水边,格内不能被资源点占住 */
-  private bushCellOk(actor: PlayerSession, x: number, z: number): boolean {
+  /** 丛/蚯蚓窝的落点校验:返回 null=可放,否则为不可放原因 */
+  private bushCellOk(actor: PlayerSession, x: number, z: number): string | null {
+    if (actor.player.isSwimming) return '游泳时不能安放';
     const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return false;
-    if (this.terrain.isNearWater(p, 1)) return false;
-    if (p.y <= 0) return false;
-    return !this.props.isOccupied(p, 1);
+    if (this.terrain.isNearWater(p, 1)) return '离水太近';
+    if (p.y <= 0) return '这里在水里';
+    return this.props.isOccupied(p, 1) ? '被资源点挡住' : null;
   }
 
-  /** 背包里点「使用」可安放道具:进入手持安放模式(面前格中心预览,站定 2 秒自动安放) */
-  holdAutoPlaceItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+  /** 背包里点「使用」可安放道具:直接在就近最优格放下(与围栏的背包使用一致) */
+  useAutoPlaceItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     if (this.asleepFor(actor) || !this.autoPlace.supports(kind)) return false;
-    this.autoPlace.hold(actor, kind);
-    this.guestNet?.action('autoPlaceHold', [kind]);
-    return true;
-  }
-
-  /** 房主侧记录客人进入/退出安放模式(放置仍由房主对客人的会话权威结算) */
-  autoPlaceHoldNet(actor: PlayerSession, kind: ResourceKind | null): void {
-    this.autoPlace.hold(actor, kind);
+    return this.autoPlace.placeNow(kind, actor);
   }
 
   /** 安放熄灭的火堆道具:落在面前吸附格中心放回一座熄灭的火堆(背包「使用」与手持自动安放共用入口) */
@@ -3012,8 +3010,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useDeadCampfire', []);
 
-    if (this.asleepFor(actor) || !this.campfire.placeDead(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'deadCampfire');
+    if (this.asleepFor(actor) || reason || !this.campfire.placeDead(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3024,7 +3023,7 @@ export class Game {
   private registerAutoPlaceDefs(): void {
     const def = (
       kind: ResourceKind,
-      valid: (actor: PlayerSession, x: number, z: number) => boolean,
+      valid: (actor: PlayerSession, x: number, z: number) => string | null,
       buildPreview: () => THREE.Object3D,
       place: (actor: PlayerSession) => boolean
     ): void => {
@@ -3132,11 +3131,12 @@ export class Game {
     const a = actor;
     if (this.asleepFor(a)) return false;
     if (a.inventory.count(kind) <= 0) return false;
-    const cell = snapAheadCell(a);
-    if (!this.bushCellOk(a, cell.x, cell.z)) {
-      this.notify('这里放不下,找个没东西的干地试试', a);
+    const { at, reason } = this.autoPlaceCell(a, kind);
+    if (reason) {
+      this.notify(reason, a);
       return false;
     }
+    const cell = { x: at.x, z: at.z };
     a.inventory.remove(kind, 1);
     if (kind === 'wormNest') {
       this.props.placeWormNest(cell.x, cell.z);
@@ -3240,8 +3240,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useBaitBarrel', []);
 
-    if (this.asleepFor(actor) || !this.baitBarrels.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'baitBarrel');
+    if (this.asleepFor(actor) || reason || !this.baitBarrels.use(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3253,8 +3254,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useBrewBarrel', []);
 
-    if (this.asleepFor(actor) || !this.brewBarrels.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'brewBarrel');
+    if (this.asleepFor(actor) || reason || !this.brewBarrels.use(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3305,8 +3307,9 @@ export class Game {
     // 客人端:动作上行房主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useWaterPurifier', []);
 
-    if (this.asleepFor(actor) || !this.waterPurifiers.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('净化器只能放在湿沙滩上,去海边浅滩试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'waterPurifier');
+    if (this.asleepFor(actor) || reason || !this.waterPurifiers.use(actor, at)) {
+      this.notify(reason ?? '净化器只能放在湿沙滩上,去海边浅滩试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3357,8 +3360,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useSmelter', []);
 
-    if (this.asleepFor(actor) || !this.smelters.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'smelter');
+    if (this.asleepFor(actor) || reason || !this.smelters.use(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3409,8 +3413,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useLoom', []);
 
-    if (this.asleepFor(actor) || !this.looms.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'loom');
+    if (this.asleepFor(actor) || reason || !this.looms.use(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3470,8 +3475,9 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) return this.guestNet.action('useCookingStation', []);
 
-    if (this.asleepFor(actor) || !this.cookingStations.use(actor, this.autoPlaceCell(actor))) {
-      this.notify('这里放不下,找个没东西的干地试试', actor);
+    const { at, reason } = this.autoPlaceCell(actor, 'cookingStation');
+    if (this.asleepFor(actor) || reason || !this.cookingStations.use(actor, at)) {
+      this.notify(reason ?? '这里放不下,找个没东西的干地试试', actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3971,6 +3977,7 @@ export class Game {
     if (tool === 'fence')
       return s.inventory.count('fenceWood') + s.inventory.count('fenceStone') > 0;
     if (tool === 'fenceGate') return s.inventory.count('fenceGate') > 0;
+    if (tool === 'place') return this.autoPlace.anyHeld(s);
     if (tool === 'lasso')
       return s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null;
     return !!s.tools[tool];
@@ -4045,6 +4052,7 @@ export class Game {
           : s.player.currentTool === 'fenceGate'
             ? s.inventory.count('fenceGate')
             : 0,
+      heldPlaceCount: this.autoPlace.heldCount(s),
       slots: s.inventory.snapshot(),
       capacity: s.inventory.capacity,
       hasAxe: !!s.tools.axe,
@@ -4280,6 +4288,9 @@ export class Game {
       const kind = this.autoPlace.heldKind(session);
       label = `安放:${kind ? ITEMS[kind].name : ''}…`;
       progress = this.autoPlace.getPlaceProgress(session);
+    } else if (this.autoPlace.heldKind(session) !== null) {
+      // 落点附近一圈都放不下:红色预览同款原因显示在头顶(与「需要斧子」同款提示)
+      label = this.autoPlace.placeReason(session);
     } else if (this.fences.isPlacing(session)) {
       label = session.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
       progress = this.fences.getPlaceProgress(session);
