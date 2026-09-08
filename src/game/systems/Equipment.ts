@@ -29,7 +29,7 @@ export type EquipmentDef = {
   reduce?: number;
   /** 口渴速度倍率(如 0.95 表示减缓 5%),各栏位相乘 */
   thirstMod?: number;
-  /** 衣服/裤子:替换玩家身体/腿部模型颜色 */
+  /** 衣服/裤子:基础布料颜色，立体装饰由 BoyWardrobe 挂载 */
   bodyColor?: string;
   /** 背包:装备后背包扩容到的格数 */
   capacity?: number;
@@ -37,16 +37,16 @@ export type EquipmentDef = {
 
 /** 四类装备各三件的静态定义:一级草制、二级皮制、三级铁制(容量为基础 10 格 + 增量) */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
-  grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, reduce: 0.16, bodyColor: '#5a8a3a' },
-  grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, reduce: 0.14, bodyColor: '#4a7a3a' },
+  grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, reduce: 0.16, bodyColor: '#81976b' },
+  grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, reduce: 0.14, bodyColor: '#596e59' },
   strawHat: { kind: 'strawHat', slot: 'hat', score: 2, reduce: 0.1, thirstMod: 0.95 },
   strawBackpack: { kind: 'strawBackpack', slot: 'backpack', score: 2, capacity: 13 },
-  furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, reduce: 0.24, bodyColor: '#8a6239' },
-  furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, reduce: 0.2, bodyColor: '#75512c' },
+  furShirt: { kind: 'furShirt', slot: 'clothing', score: 3, defense: 3, reduce: 0.24, bodyColor: '#eed9b5' },
+  furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, reduce: 0.2, bodyColor: '#775a49' },
   furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, reduce: 0.16, thirstMod: 0.95 },
   furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 16 },
-  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, reduce: 0.3, bodyColor: '#7a8288' },
-  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, reduce: 0.26, bodyColor: '#697076' },
+  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, reduce: 0.3, bodyColor: '#435b70' },
+  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, reduce: 0.26, bodyColor: '#465e70' },
   ironHat: { kind: 'ironHat', slot: 'hat', score: 6, defense: 2, reduce: 0.19, thirstMod: 0.95 },
   ironBackpack: { kind: 'ironBackpack', slot: 'backpack', score: 6, capacity: 20 },
 };
