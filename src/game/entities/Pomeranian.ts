@@ -36,6 +36,8 @@ const SPIN_COOLDOWN = 60;
 
 /** 吃完一块肉的进食动作时长(低头咀嚼) */
 const EAT_DURATION = 1.4;
+/** 两次进食之间的间隔:吃完一块肉后要馋这么久才肯再吃 */
+const EAT_COOLDOWN = 60;
 /** 吃饱后的开心转圈时长 */
 const HAPPY_DURATION = 2.2;
 
@@ -155,6 +157,8 @@ export class Pomeranian {
   private eatLeft = 0;
   /** 吃饱后的开心转圈剩余时间 */
   private happyLeft = 0;
+  /** 进食冷却剩余时间:归零前不再追肉 */
+  private eatCd = 0;
   /** 当前头顶表情与剩余显示时间(由 Game 投影到屏幕,交给 React 气泡渲染) */
   private emoji: string | null = null;
   private emojiLeft = 0;
@@ -401,13 +405,14 @@ export class Pomeranian {
       excited = true;
     } else {
       // 1) 附近有肉块:优先跑去吃
-      const meat = drops.nearestMeat(this.pos, SMELL_RANGE);
+      const meat = this.eatCd <= 0 ? drops.nearestMeat(this.pos, SMELL_RANGE) : null;
       if (meat) {
         this.wake();
         if (Math.hypot(meat.x - this.pos.x, meat.z - this.pos.z) <= EAT_RANGE) {
           if (drops.consumeMeatNear(this.pos, EAT_RANGE)) {
             this.eatLeft = EAT_DURATION;
             this.happyLeft = HAPPY_DURATION;
+            this.eatCd = EAT_COOLDOWN;
             this.showEmoji(Math.random() < 0.5 ? '😋' : '🦴');
           }
         } else {
@@ -480,6 +485,7 @@ export class Pomeranian {
     }
 
     // 行为内置冷却推进 + 刨坑扬尘
+    if (this.eatCd > 0) this.eatCd -= delta;
     if (this.digCd > 0) this.digCd -= delta;
     if (this.sleepCd > 0) this.sleepCd -= delta;
     if (this.spinCd > 0) this.spinCd -= delta;

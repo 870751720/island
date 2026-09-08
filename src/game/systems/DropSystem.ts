@@ -9,6 +9,7 @@ import { createWorldEntityId, type EntityChangeSink } from './WorldEntityId';
 
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
+const MEAT_EAT_DELAY = 4; // 狗狗只吃落地超过这么久的肉,给玩家捡回的机会
 const BOB_HEIGHT = 0.15; // 悬浮上下浮动幅度
 const SPIN_SPEED = 1.6; // 旋转速度(弧度/秒)
 
@@ -188,7 +189,7 @@ export class DropSystem {
     let best: Drop | null = null;
     let bestDist = range * range;
     for (const drop of this.drops) {
-      if (!MEAT_KINDS.includes(drop.kind) || drop.source !== 'discarded') continue;
+      if (!MEAT_KINDS.includes(drop.kind) || drop.source !== 'discarded' || drop.age < MEAT_EAT_DELAY) continue;
       const dx = drop.mesh.position.x - origin.x;
       const dz = drop.mesh.position.z - origin.z;
       const d = dx * dx + dz * dz;
@@ -206,7 +207,7 @@ export class DropSystem {
     let bestDist = range * range;
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
-      if (!MEAT_KINDS.includes(drop.kind)) continue;
+      if (!MEAT_KINDS.includes(drop.kind) || drop.age < MEAT_EAT_DELAY) continue;
       const dx = drop.mesh.position.x - origin.x;
       const dz = drop.mesh.position.z - origin.z;
       const d = dx * dx + dz * dz;
