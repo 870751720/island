@@ -2209,7 +2209,12 @@ export class Game {
     }
     const nearby = this.collect.getNearby();
     if (nearby) {
-      if (nearby.kind === 'tree' && this.tools.axe && this.player.currentTool !== 'axe') {
+      if (
+        nearby.kind === 'tree' &&
+        !this.collect.isPickingFruit(nearby) &&
+        this.tools.axe &&
+        this.player.currentTool !== 'axe'
+      ) {
         return 'axe';
       }
       if (
@@ -3744,7 +3749,9 @@ export class Game {
       progress = session.collect.getHarvestInfo()?.progress ?? null;
       const digging = session.player.currentTool === 'hoe';
       label =
-        nearby.kind === 'tree'
+        session.collect.isPickingFruit(nearby)
+          ? '摘果子'
+          : nearby.kind === 'tree'
           ? '砍树'
           : nearby.kind === 'iron'
             ? '采铁'

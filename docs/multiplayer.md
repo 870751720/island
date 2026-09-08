@@ -78,6 +78,10 @@
 
 砍倒成树第一阶段后,房主端在 `Props.seedRegrowTree` 里选点补种同树种树苗(避开所有在场玩家 18 米防穿帮),经 props 既有 `add` 增量回流客人,无专属协议字段;选点与同步细节见 `docs/trees.md`。
 
+### 果树摘果同步(2026-09)
+
+果树挂果/摘果走既有采集链路:房主为每个会话权威运行 CollectSystem,空手摘果由 `Props.pickFruit` 结算,`fruited` 字段经 props `set` 增量回流客人;挂果再生计时只在房主端推进(`updateFruitRegrow`),到点发 `fruited: true` 增量,客人不模拟计时。无专属协议字段,旧档 `fruited` 缺省视为挂果。
+
 ## 迭代记录
 
 ### 已制作配方记录同步(2026-09)

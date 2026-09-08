@@ -4,6 +4,7 @@ import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
 import {
+  FRUIT_REGROW,
   GROWTH_CHANCE,
   TREE_MODEL_SCALE,
   type TreeSpecies,
@@ -54,6 +55,10 @@ export type PropState = {
   stage?: 'full' | 'stump';
   species?: TreeSpecies;
   growth?: TreeStage;
+  /** 果树是否挂果(仅果树用;缺省视为挂果,兼容旧档) */
+  fruited?: boolean;
+  /** 挂果再生剩余秒数 */
+  fruitLeft?: number;
   x: number;
   z: number;
   rotationY: number;
@@ -85,6 +90,10 @@ export type Prop = {
   species?: TreeSpecies;
   /** 树的生长阶段;仅成树可砍 */
   growth?: TreeStage;
+  /** 果树当前是否挂果(undefined 视为挂果) */
+  fruited?: boolean;
+  /** 距离重新挂果的剩余秒数(仅果树摘果后使用) */
+  fruitLeft?: number;
 };
 
 function clayMaterial(color: string): THREE.MeshStandardMaterial {
@@ -162,8 +171,8 @@ function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   return [trunk, leafL, leafR];
 }
 
-/** 成树:按树种拼装三种造型 */
-function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
+/** 成树:按树种拼装三种造型;果树按挂果状态决定是否点缀红果 */
+function makeMatureParts(species: TreeSpecies, withFruit: boolean): THREE.Mesh[] {
   const trunkColor = '#8a6239';
   const crownColor = CROWN_COLORS[species];
   if (species === 'pine') {
@@ -204,6 +213,7 @@ function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
       blob.position.set(x, y, z);
       parts.push(blob);
     }
+    if (!withFruit) return parts;
     const fruitMat = clayMaterial('#c0392b');
     const fruits: [number, number, number][] = [
       [0.55, 1.35, 0.2],
@@ -212,6 +222,12 @@ function makeMatureParts(species: TreeSpecies): THREE.Mesh[] {
       [0.3, 1.7, -0.4],
       [-0.15, 1.4, -0.45],
       [0.6, 1.6, 0.35],
+      [-0.5, 1.72, 0.32],
+      [0.42, 1.32, -0.28],
+      [-0.25, 1.85, -0.15],
+      [0.18, 1.55, 0.5],
+      [0.65, 1.45, -0.12],
+      [-0.62, 1.42, -0.25],
     ];
     for (const [x, y, z] of fruits) {
       const fruit = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), fruitMat);
@@ -709,9 +725,10 @@ export class Props implements Updatable {
 
   /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
   private applyTreeLook(prop: Prop): void {
+    const fruited = prop.species === 'fruit' && prop.fruited !== false;
     const look = prop.stage === 'stump'
       ? 'stump'
-      : `${prop.growth ?? 'mature'}:${prop.species ?? 'oak'}`;
+      : `${prop.growth ?? 'mature'}:${prop.species ?? 'oak'}:${prop.growth === 'mature' ? (fruited ? 1 : 0) : '-'}`;
     if (this.treeLooks.get(prop) === look) return;
     disposeOwnedMeshes(prop.group);
     prop.group.clear();
@@ -722,13 +739,21 @@ export class Props implements Updatable {
           ? makeSproutParts()
           : prop.growth === 'sapling'
             ? makeSaplingParts(prop.species ?? 'oak')
-            : makeMatureParts(prop.species ?? 'oak');
+            : makeMatureParts(prop.species ?? 'oak', fruited);
     for (const part of parts) {
       part.castShadow = true;
       prop.group.add(part);
     }
     prop.group.scale.setScalar(TREE_MODEL_SCALE);
     this.treeLooks.set(prop, look);
+  }
+
+  /** 摘果:摘走果树当前全部挂果,进入 3 分钟挂果再生;树本身保持可砍 */
+  pickFruit(prop: Prop): void {
+    prop.fruited = false;
+    prop.fruitLeft = FRUIT_REGROW;
+    this.applyTreeLook(prop);
+    this.onChanged?.({ op: 'set', id: prop.id, fields: { fruited: false } });
   }
 
   /** 采集后的外观变化,并按配置安排再生 */
@@ -801,6 +826,8 @@ export class Props implements Updatable {
       if (prop.kind === 'tree') {
         state.species = prop.species;
         state.growth = prop.growth;
+        state.fruited = prop.fruited;
+        state.fruitLeft = prop.fruitLeft;
       }
       return state;
   }
@@ -821,6 +848,8 @@ export class Props implements Updatable {
         existing.stage = state.stage;
         existing.species = state.species;
         existing.growth = state.growth;
+        existing.fruited = state.fruited;
+        existing.fruitLeft = state.fruitLeft ?? 0;
         existing.group.rotation.y = state.rotationY;
         this.syncAppearance(existing);
         continue;
@@ -861,6 +890,8 @@ export class Props implements Updatable {
         prop.regrowLeft = state.regrowLeft ?? 0;
         prop.stage = state.stage;
         prop.growth = state.growth ?? 'mature';
+        prop.fruited = state.fruited;
+        prop.fruitLeft = state.fruitLeft ?? 0;
         prop.group.rotation.y = state.rotationY;
         // 未成树一律不可砍,兼容旧档里小树已写入的 ready
         if (prop.growth !== 'mature') prop.ready = false;
@@ -900,6 +931,10 @@ export class Props implements Updatable {
       if ('ready' in op.fields && typeof op.fields.ready === 'boolean') prop.ready = op.fields.ready;
       if ('stage' in op.fields) prop.stage = op.fields.stage as Prop['stage'];
       if ('growth' in op.fields) prop.growth = op.fields.growth as Prop['growth'];
+      if ('fruited' in op.fields && typeof op.fields.fruited === 'boolean') {
+        prop.fruited = op.fields.fruited;
+        prop.fruitLeft = prop.fruited ? 0 : FRUIT_REGROW;
+      }
       if ('species' in op.fields) prop.species = op.fields.species as Prop['species'];
       if ('rotationY' in op.fields && typeof op.fields.rotationY === 'number') {
         prop.group.rotation.y = op.fields.rotationY;
@@ -965,6 +1000,7 @@ export class Props implements Updatable {
   }
 
   update(delta: number, _elapsed?: number, wind?: WindParams, authoritative = true): void {
+    if (authoritative) this.updateFruitRegrow(delta);
     for (const prop of authoritative ? this.list : []) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
       prop.regrowLeft -= delta;
@@ -1001,6 +1037,7 @@ export class Props implements Updatable {
 
   /** 时间快进(睡觉跳到第二天):推进资源点再生与种下的树生长,不做击打/摇摆等表现 */
   advance(seconds: number): void {
+    this.updateFruitRegrow(seconds);
     for (const prop of this.list) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
       prop.regrowLeft = Math.max(0, prop.regrowLeft - seconds);
@@ -1043,6 +1080,18 @@ export class Props implements Updatable {
       prop.group.rotation.z = -tilt * dirX;
     }
     if (intensity >= 0.02) this.swayTime += delta;
+  }
+
+  /** 果树挂果再生:摘果后计时,到点重新挂果并同步外观(仅房主端推进) */
+  private updateFruitRegrow(seconds: number): void {
+    for (const prop of this.list) {
+      if (prop.kind !== 'tree' || prop.fruited !== false) continue;
+      prop.fruitLeft = Math.max(0, (prop.fruitLeft ?? 0) - seconds);
+      if (prop.fruitLeft > 0) continue;
+      prop.fruited = true;
+      this.applyTreeLook(prop);
+      this.onChanged?.({ op: 'set', id: prop.id, fields: { fruited: true } });
+    }
   }
 
   /** 未成树每隔 GM 配置的间隔有 1/2 概率长到下一阶段,长成成树后才可砍伐 */

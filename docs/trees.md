@@ -36,3 +36,11 @@
 ### 未成树不可砍(2026-09)
 
 - 明确设计:发芽与小树两个阶段完全不可砍伐、不可交互,只有成树可砍。原实现中小树长出即 `ready = true` 可被砍(1 斧出 1 树枝),已移除:`CollectSystem` 删除 `sapling` 作业配置,`Props.updateTreeGrowth` 仅在长成成树时置 `ready`;存档恢复时未成树强制 `ready = false`(兼容旧档小树已写入的 ready)。
+
+### 果树摘果与挂果再生(2026-09)
+
+- 果树成树分「挂果/无果」两个外观状态:挂果时树冠点缀 12 颗红果,摘果后模型不带果子,3 分钟(`FRUIT_REGROW`)后重新挂果。
+- 挂果中的果树空手(持斧以外的任意状态)靠近即自动摘果,一次随机 1-5 个果子(`FRUIT_PICK_MAX`);手持斧头时照常砍树,两种交互按手持工具自动区分(`CollectSystem.kindOf` → `fruitTree`)。
+- 摘果只摘走果子,树保留且仍可砍:`Props.pickFruit` 置 `fruited = false` 并启动挂果计时,`updateFruitRegrow`(房主端推进,睡觉快进同走 `advance`)到点翻回挂果并重建外观;`fruited`/`fruitLeft` 入存档与联机 props 增量(缺省视为挂果,旧档兼容)。
+- 头顶作业提示显示「摘果子」;自动切斧提示不再打断摘果(挂果果树上不提示切换斧子)。
+

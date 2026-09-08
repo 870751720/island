@@ -4,6 +4,7 @@ import type { Prop, Props } from '../world/Props';
 import {
   FRUIT_DROP_CHANCE,
   FRUIT_OF,
+  FRUIT_PICK_MAX,
   SEED_DROP_CHANCE,
   SEED_OF,
 } from '../world/TreeSpecies';
@@ -28,13 +29,18 @@ const DIG_YIELD: Partial<
   wormNest: 'wormNest',
 };
 
-/** 作业对象种类:树桩是成树的第二段,单独配置;未成树(发芽/小树)不可砍 */
-type HarvestKind = Prop['kind'] | 'stump';
+/** 作业对象种类:树桩是成树的第二段,空手摘果的果树单独配置;未成树(发芽/小树)不可砍 */
+type HarvestKind = Prop['kind'] | 'stump' | 'fruitTree';
 
-function kindOf(prop: Prop): HarvestKind {
-  if (prop.kind !== 'tree') return prop.kind;
-  if (prop.stage === 'stump') return 'stump';
-  return 'tree';
+/** 挂果中的果树(成树、未砍、持斧以外的状态靠近即摘果,持斧则正常砍树) */
+function isFruitedTree(prop: Prop): boolean {
+  return (
+    prop.kind === 'tree' &&
+    prop.species === 'fruit' &&
+    prop.growth === 'mature' &&
+    prop.stage !== 'stump' &&
+    prop.fruited !== false
+  );
 }
 
 /** 各资源点:作业动画、命中次数、命中特效色、产出 */
@@ -47,6 +53,13 @@ const HARVEST_CONFIG: Record<
     yield: (inventory: Inventory, prop: Prop) => void;
   }
 > = {
+  fruitTree: {
+    // 空手摘果:一次随机摘下 1-5 个果子,树保留并进入挂果再生
+    action: 'pick',
+    hits: 1,
+    fxColor: '#c0392b',
+    yield: (inv) => inv.add(FRUIT_OF.fruit, 1 + Math.floor(Math.random() * FRUIT_PICK_MAX)),
+  },
   tree: {
     action: 'chop',
     hits: 3,
@@ -174,9 +187,17 @@ export class CollectSystem {
     );
   }
 
+  /** 按资源点与手持工具判定作业种类:挂果果树在持斧时仍是砍树,其余状态空手可摘 */
+  private kindOf(prop: Prop): HarvestKind {
+    if (prop.kind !== 'tree') return prop.kind;
+    if (prop.stage === 'stump') return 'stump';
+    if (isFruitedTree(prop) && this.player.currentTool !== 'axe') return 'fruitTree';
+    return 'tree';
+  }
+
   /** 该资源点需要命中的总次数:斧/镐/锄头按当前工具等级查表(ToolTiers) */
   private hitsFor(prop: Prop): number {
-    const kind = kindOf(prop);
+    const kind = this.kindOf(prop);
     if (this.isDigging(prop)) return hoeHits(this.tools.hoe);
     if (kind === 'tree' || kind === 'stump') return axeHits(kind, this.tools.axe);
     if (kind === 'rock' || kind === 'iron' || kind === 'meteor') {
@@ -214,7 +235,7 @@ export class CollectSystem {
     // 只在作业期间持有动作、结束时释放一次自己最后持有的动作;不作业时不能每帧清动作,
     // 否则会把挥剑/放箭等其他系统刚设的动作抹掉(动画只播一帧)
     if (working) {
-      this.workAction = this.isDigging(this.nearby!) ? 'mine' : HARVEST_CONFIG[kindOf(this.nearby!)].action;
+      this.workAction = this.isDigging(this.nearby!) ? 'mine' : HARVEST_CONFIG[this.kindOf(this.nearby!)].action;
       this.player.setAction(this.workAction);
     } else if (wasWorking) {
       if (this.workAction) this.player.releaseAction(this.workAction);
@@ -227,7 +248,7 @@ export class CollectSystem {
 
     // 每次挥动开始就给声音反馈(采集草丛/碎石/砍凿各有专属声),不等命中结算
     if (this.swingTimer === 0) {
-      const kind = kindOf(this.nearby!);
+      const kind = this.kindOf(this.nearby!);
       const action = HARVEST_CONFIG[kind].action;
       this.audio.play(action === 'chop' ? 'chop' : action === 'mine' ? 'mine' : kind === 'gravel' ? 'pickStone' : 'pick');
     }
@@ -249,7 +270,7 @@ export class CollectSystem {
   /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
   canCollect(prop: Prop = this.nearby!): boolean {
     if (!prop) return false;
-    const kind = kindOf(prop);
+    const kind = this.kindOf(prop);
     if (kind === 'tree' || kind === 'stump') {
       return this.player.currentTool === 'axe';
     }
@@ -269,8 +290,13 @@ export class CollectSystem {
     return { progress: Math.min((done + swing) / this.hitsFor(prop), 1) };
   }
 
+  /** 挂果果树当前是否会走空手摘果(供提示/自动切工具判定) */
+  isPickingFruit(prop: Prop = this.nearby!): boolean {
+    return !!prop && this.kindOf(prop) === 'fruitTree';
+  }
+
   private hit(prop: Prop): void {
-    const config = HARVEST_CONFIG[kindOf(prop)];
+    const config = HARVEST_CONFIG[this.kindOf(prop)];
     this.fx.burst(prop.position, config.fxColor, 6);
     this.onFx(prop.position, config.fxColor, 6);
     this.props.shake(prop);
@@ -281,7 +307,10 @@ export class CollectSystem {
     }
     this.hitCounts.delete(prop);
     this.onYield(prop.position);
-    if (this.isDigging(prop)) {
+    if (this.isPickingFruit(prop)) {
+      // 空手摘果:只摘走果子,树保留并进入挂果再生
+      this.props.pickFruit(prop);
+    } else if (this.isDigging(prop)) {
       // 锄头把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
       this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
