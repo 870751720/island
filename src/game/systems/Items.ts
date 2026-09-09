@@ -785,3 +785,8 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     description: '不知哪位冒险家遗落的笔记,字里行间全是干货。',
   },
 };
+
+/** 判断不可信输入是否为已登记道具 ID。 */
+export function isResourceKind(value: unknown): value is ResourceKind {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(ITEMS, value);
+}

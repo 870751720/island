@@ -524,6 +524,13 @@ export const RECIPES: Recipe[] = [
   },
 ];
 
+const CRAFT_IDS: ReadonlySet<string> = new Set(RECIPES.map((recipe) => recipe.id));
+
+/** 判断不可信输入是否为已登记配方 ID。 */
+export function isCraftId(value: unknown): value is CraftId {
+  return typeof value === 'string' && CRAFT_IDS.has(value);
+}
+
 for (const r of RECIPES) {
   if (r.station === 'hand' && r.promptPriority === undefined) {
     throw new Error(`手搓配方 ${r.id} 缺少 promptPriority`);

@@ -5,6 +5,8 @@ import type { CraftId, ToolId } from '../systems/Crafting';
 import type { EquipSlot } from '../systems/Equipment';
 import type { GmConfig } from '../systems/GmSystem';
 import type { ResourceKind } from '../systems/Inventory';
+import { isCraftId } from '../systems/Crafting';
+import { isResourceKind } from '../systems/Items';
 
 /** 客人上行的动作名与参数元组；保持现有线格式，仅为发送端和注册表提供静态约束。 */
 export interface NetActionArgs {
@@ -151,7 +153,7 @@ function isSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value);
 }
 
-/** 校验来自 DataChannel 的不可信参数；资源和配方 ID 的注册表校验留给对应玩法入口。 */
+/** 校验来自 DataChannel 的不可信参数，合法后才允许进入房主权威结算。 */
 export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boolean {
   if (!(NET_ACTION_ARG_COUNTS[name] as readonly number[]).includes(args.length)) return false;
   const [first, second, third, fourth] = args;
@@ -182,16 +184,17 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return true;
     case 'eatFood':
     case 'eatUntilFull':
-      return first == null || isString(first);
+      return first == null || isResourceKind(first);
     case 'tool':
-      return isString(first) && HAND_TOOLS.has(first) && (second === null || isString(second));
+      return isString(first) && HAND_TOOLS.has(first) && (second === null || isResourceKind(second));
     case 'useFacility':
     case 'cookingAddFuel':
     case 'useSeed':
     case 'campfireAddFuel':
     case 'equipItem':
+      return isResourceKind(first);
     case 'craftTool':
-      return isString(first);
+      return isCraftId(first);
     case 'unequipItem':
       return isString(first) && EQUIP_SLOTS.has(first);
     case 'baitBarrelFeed':
@@ -200,16 +203,17 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'cookingBoil':
     case 'campfireCook':
     case 'dropItem':
-    case 'craftAtWorkbench':
     case 'gmGiveItem':
-      return isString(first) && isSafeInteger(second);
+      return isResourceKind(first) && isSafeInteger(second);
+    case 'craftAtWorkbench':
+      return isCraftId(first) && isSafeInteger(second);
     case 'smelterFeed':
     case 'loomFeed':
     case 'swordHit':
       return isSafeInteger(first);
     case 'crateStore':
     case 'crateTake':
-      return isString(first) && (second === null || isSafeInteger(second));
+      return isResourceKind(first) && (second === null || isSafeInteger(second));
     case 'moveItem':
       return isSafeInteger(first) && isSafeInteger(second);
     case 'arrowHit':
