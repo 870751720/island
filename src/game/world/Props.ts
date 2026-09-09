@@ -365,7 +365,7 @@ function makeGravel(): THREE.Group {
 
 function makeBushBody(color: string): { group: THREE.Group; body: THREE.Mesh } {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), clayMaterial(color));
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), leafMaterial(color));
   body.position.y = 0.28;
   body.castShadow = true;
   group.add(body);
@@ -392,7 +392,7 @@ export function makeGrassTuft(): THREE.Group {
   for (let i = 0; i < 6; i++) {
     const blade = new THREE.Mesh(
       new THREE.ConeGeometry(0.05, 0.45, 3),
-      clayMaterial(i % 2 === 0 ? '#7fae55' : '#a4c46a')
+      leafMaterial(i % 2 === 0 ? '#7fae55' : '#a4c46a')
     );
     const a = (i / 6) * Math.PI * 2 + 0.4;
     blade.position.set(Math.cos(a) * 0.12, 0.22, Math.sin(a) * 0.12);
