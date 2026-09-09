@@ -39,7 +39,7 @@ export function createPlayerModel() {
 
   const torso = oval(root, torsoMaterial, [0, 0.84, 0], [0.25, 0.29, 0.165]);
   oval(root, legMaterial, [0, 0.585, 0], [0.235, 0.115, 0.155]);
-  oval(root, skin, [0, 1.09, 0], [0.085, 0.105, 0.085]);
+  const neck = oval(root, skin, [0, 1.09, 0], [0.085, 0.105, 0.085]);
   const head = oval(root, skin, [0, 1.335, 0.015], [0.305, 0.3, 0.265]);
   for (const side of [-1, 1]) {
     oval(head, skin, [side * 0.295, -0.015, 0], [0.065, 0.09, 0.055]);
@@ -106,33 +106,52 @@ export function createPlayerModel() {
     head.add(style);
   }
 
+  const upperBody = new THREE.Group();
+  upperBody.position.y = 0.59;
+  root.add(upperBody);
+  // 腰部为上身旋转中心，保留网格原有世界位置。
+  for (const part of [torso, head, neck]) {
+    part.position.y -= 0.59;
+    upperBody.add(part);
+  }
+  const elbows: THREE.Group[] = [];
+  const knees: THREE.Group[] = [];
   const arms: THREE.Group[] = [];
   const legs: THREE.Group[] = [];
   const armSurfaces: THREE.Mesh[] = [];
   const legSurfaces: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
     const arm = new THREE.Group();
-    arm.position.set(side * 0.275, 1.005, 0);
-    root.add(arm);
-    const surface = oval(arm, skin, [side * 0.016, -0.2, 0], [0.073, 0.185, 0.075]);
+    arm.position.set(side * 0.275, 1.005 - 0.59, 0);
+    upperBody.add(arm);
+    oval(arm, skin, [side * 0.008, -0.105, 0], [0.074, 0.115, 0.075]);
+    const elbow = new THREE.Group();
+    elbow.position.set(side * 0.012, -0.21, 0);
+    arm.add(elbow);
+    elbows.push(elbow);
+    const surface = oval(elbow, skin, [0, -0.067, 0], [0.071, 0.105, 0.074]);
     oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]);
-    oval(arm, skin, [side * 0.018, -0.365, 0.012], [0.081, 0.09, 0.079]);
+    oval(elbow, skin, [side * 0.006, -0.155, 0.012], [0.081, 0.09, 0.079]);
     arms.push(arm);
     armSurfaces.push(surface);
 
     const leg = new THREE.Group();
     leg.position.set(side * 0.12, 0.59, 0);
     root.add(leg);
-    const calf = oval(leg, skin, [0, -0.31, 0], [0.075, 0.19, 0.08]);
+    const knee = new THREE.Group();
+    knee.position.y = -0.25;
+    leg.add(knee);
+    knees.push(knee);
+    const calf = oval(knee, skin, [0, -0.09, 0], [0.075, 0.15, 0.08]);
     oval(leg, legMaterial, [0, -0.095, 0], [0.108, 0.16, 0.119]);
-    oval(leg, cream, [0, -0.425, 0], [0.078, 0.065, 0.084]);
-    oval(leg, shoes, [0, -0.505, 0.034], [0.104, 0.085, 0.15]);
+    oval(knee, cream, [0, -0.175, 0], [0.078, 0.065, 0.084]);
+    oval(knee, shoes, [0, -0.255, 0.034], [0.104, 0.085, 0.15]);
     legs.push(leg);
     legSurfaces.push(calf);
   }
   ball.dispose();
   return {
-    root, torso, head, arms, legs, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
+    root, upperBody, torso, head, arms, legs, elbows, knees, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
     setGender(gender: PlayerGender) {
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';

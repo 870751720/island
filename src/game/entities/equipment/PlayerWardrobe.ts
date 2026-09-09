@@ -34,14 +34,15 @@ export class PlayerWardrobe {
     const tier = Math.floor((EQUIPMENT[kind].score - 1) / 2) as OutfitTier;
     const parts: THREE.Group[] = [];
     const attach = (parent: THREE.Object3D, part: THREE.Group) => {
+      if (parent === this.model.upperBody) part.position.y -= 0.59;
       parent.add(part);
       parts.push(part);
     };
     switch (slot) {
       case 'hat': attach(this.model.head, makeOutfitHat(tier)); break;
-      case 'backpack': attach(this.model.root, makeOutfitBackpack(tier)); break;
+      case 'backpack': attach(this.model.upperBody, makeOutfitBackpack(tier)); break;
       case 'clothing':
-        attach(this.model.root, makeOutfitShirt(tier));
+        attach(this.model.upperBody, makeOutfitShirt(tier));
         for (const arm of this.model.arms) attach(arm, makeOutfitSleeve(tier));
         break;
       case 'pants':

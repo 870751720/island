@@ -234,3 +234,10 @@
 2026-09-09(迭代):新增锄头工具与土壤设施(`NET_PROTOCOL_VERSION` 22→23)。世界段 `WorldPatch` 增加 `soils` section(土壤落点列表,`SoilSystem` 增删经 world delta 回流,客人端 `netApply` 重放);土壤放置/挖除无新动作——手持锄头的站定自动放置由房主 `AutoPlaceSystem.updateActor` 权威结算(工具驱动的零消耗设施,`free` 定义不检查背包),持铲挖除同理,客人端仅本地驱动落点预览(`updatePreviewFor`)。锄头加入 `tool` 动作工具白名单与 `gmGiveTool` 枚举,等级经 HUD `toolTiers` 快照同步。存档新增 `soils` 字段(旧档缺省视为无,`SAVE_VERSION` 不变)。
 
 2026-09-09(迭代):新增作物种植系统(`NET_PROTOCOL_VERSION` 23→24,详见 `crops.md`)。世界段 `WorldPatch` 增加 `crops` section(种类/落点/累计生长秒数 `grown`,增删经 world delta 回流,客人端 `netApply` 重放);播种走既有 `useFacility` 动作(种子为 `tool: 'place'` 设施,预览本地驱动),空手采收与铲子铲除由房主 `CropSystem`/`SoilSystem` 的 `updateActor` 权威结算,无新增动作协议。生长为连续数值:两端各自本地累计 `grown`,快照增量仅在小漂移超容差(5 秒)时由客端柔和对齐;采收粒子经既有 `collectFx` 事件补播。存档新增 `crops` 字段(旧档缺省视为无,`SAVE_VERSION` 不变)。
+
+
+## 玩家程序动作表现
+
+本地玩家、房主远程会话与客人显示的其他玩家共用 `PlayerAnimator`，腰部、肩肘及髋膝在各端本地求姿态。交互仍经 `NetGuest.action` 上行、房主 `Actions.ts` 和对应系统权威结算；动作类型沿用 `PlayerState.action` 快照回流，同类型快照不会重置动作时间。连续作业从本端首次观察到该动作起计时，允许网络延迟造成的相位差，不保证工具落点与权威产出逐帧一致。命中、采集粒子等仍使用既有事件补播；本次不增加动画事件或协议字段。
+
+走路相位按本端实际水平位移推进，远程角色使用快照插值后的位移；动作切换通过指数插值柔和过渡。视觉腰部转动与重心偏移仅作用于模型节点，不写入网络位置、碰撞或存档。挥剑保留移动中播放，其他作业仍在站定时显示。睡眠、死亡释放作业关节残留，重生重置表现。协议版本和存档版本不变。详见 `player-animation.md`。

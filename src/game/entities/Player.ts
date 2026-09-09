@@ -8,6 +8,7 @@ import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
 import { createPlayerModel, type PlayerGender } from './PlayerModel';
+import { PlayerAnimator } from './PlayerAnimator';
 import { PlayerWardrobe } from './equipment/PlayerWardrobe';
 
 const MOVE_SPEED = 5;
@@ -276,7 +277,7 @@ export class Player implements Updatable {
   readonly group = new THREE.Group();
   readonly input: MoveInput;
   private terrain: IslandTerrain;
-  private limbs: { mesh: THREE.Group; phase: number }[] = [];
+  private animator: PlayerAnimator;
   private arms: THREE.Group[] = [];
   private legs: THREE.Group[] = [];
   private moveVec = new THREE.Vector2();
@@ -339,23 +340,17 @@ export class Player implements Updatable {
     const model = createPlayerModel();
     this.appearance = model;
     const { arms, legs } = model;
-    const [armL, armR] = arms;
-    const [legL, legR] = legs;
+    const handR = model.elbows[1];
     this.group.add(model.root);
     this.wardrobe = new PlayerWardrobe(model);
-    this.limbs = [
-      { mesh: armL, phase: 0 },
-      { mesh: armR, phase: Math.PI },
-      { mesh: legL, phase: Math.PI },
-      { mesh: legR, phase: 0 },
-    ];
+    this.animator = new PlayerAnimator(model);
     this.arms = arms;
     this.legs = legs;
     this.injuryFx = new InjuryFx({
       torso: model.torso, armL: model.armSurfaces[0], legL: model.legSurfaces[0],
     });
 
-    // 工具握在右手(armR)末端;可升级工具各备一二三级三套模型
+    // 工具握在右前臂末端;可升级工具各备一二三级三套模型
     const tiers: Array<[Exclude<HandTool, 'hand'>, THREE.Group[]]> = [
       ['axe', [makeAxeModel(1), makeAxeModel(2), makeAxeModel(3)]],
       ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2), makePickaxeModel(3)]],
@@ -368,19 +363,19 @@ export class Player implements Updatable {
     ];
     for (const [, models] of tiers) {
       for (const t of models) {
-        t.position.set(0.018, -0.39, 0.05);
+        t.position.set(0.006, -0.18, 0.05);
         t.visible = false;
       }
-      armR.add(...models);
+      handR.add(...models);
     }
     this.toolModels = Object.fromEntries(tiers);
 
     // 安放/围栏/围栏门工具手持的是当前道具的缩小模型,由外层按选中道具替换
     this.placeMount = new THREE.Group();
-    this.placeMount.position.set(0.018, -0.39, 0.05);
+    this.placeMount.position.set(0.006, -0.18, 0.05);
     this.placeMount.rotation.x = Math.PI / 2.4;
     this.placeMount.visible = false;
-    armR.add(this.placeMount);
+    handR.add(this.placeMount);
 
     // 先绕世界 Y 轴朝向,再前倾,游泳时转向才正确
     this.group.rotation.order = 'YXZ';
@@ -488,6 +483,7 @@ export class Player implements Updatable {
     this.action = null;
     this.group.rotation.y = rotY;
     for (const model of Object.values(this.toolModels).flat()) model.visible = false;
+    this.placeMount.visible = false;
   }
 
   /** 起床:回到入睡前的站位并站直 */
@@ -514,6 +510,7 @@ export class Player implements Updatable {
     this.action = null;
     this.sleepPose = null;
     for (const model of Object.values(this.toolModels).flat()) model.visible = false;
+    this.placeMount.visible = false;
   }
 
   /** 从死亡姿态恢复站立，并传送到出生点。 */
@@ -529,10 +526,7 @@ export class Player implements Updatable {
     this.tipsyLeft = 0;
     this.group.position.copy(spawn);
     this.group.rotation.set(0, 0, 0);
-    for (const limb of this.limbs) {
-      limb.mesh.rotation.x = 0;
-      limb.mesh.rotation.z = 0;
-    }
+    this.animator.reset();
     this.setTool('hand');
   }
 
@@ -606,6 +600,8 @@ export class Player implements Updatable {
     }
 
     const p = this.group.position;
+    const previousX = p.x;
+    const previousZ = p.z;
     const groundY = this.terrain.getHeight(p.x, p.z);
     const waterY = this.terrain.getWaterLevel(p.x, p.z);
     const wasSwimming = this.swimming;
@@ -660,44 +656,30 @@ export class Player implements Updatable {
     p.y = this.swimming ? waterY - FLOAT_DEPTH : this.terrain.getHeight(p.x, p.z);
 
     if (this.swimming) {
-      this.animateSwim(elapsed);
+      this.group.rotation.x += (1.15 - this.group.rotation.x) * (1 - Math.exp(-10 * delta));
+      this.group.position.y += Math.sin(elapsed * 2) * 0.04;
+      this.animator.update(delta, elapsed, null, 0,
+        Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), true, this.handTool);
       this.waterFx.updateSwimming(delta, p, 0.4, waterY);
       // 游泳时收起工具,避免抡着斧子划水
       for (const model of Object.values(this.toolModels).flat()) model.visible = false;
+      this.placeMount.visible = false;
     } else {
       // 涉水移动时脚下泛涟漪
       if (this.wading && this.moving) this.waterFx.updateSwimming(delta, p, 0.55, waterY);
       this.refreshToolModels();
-      if (this.action === 'slash') {
-        // 挥剑可以边走边砍:双腿照常走路摆动,右臂单独抡一个横斩
-        this.actionTime += delta;
-        const swing = this.moving ? 0.7 : 0;
-        for (const limb of this.limbs) {
-          limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
-          limb.mesh.rotation.z = 0;
-        }
-        this.group.rotation.x = 0;
-        const p = Math.min(this.actionTime / 0.35, 1);
-        this.arms[0].rotation.x = -0.3;
-        this.arms[1].rotation.x = -2.1 + p * 1.6;
-        this.arms[1].rotation.z = 0.7 - p * 1.4;
-      } else if (this.action && !this.moving) {
-        this.actionTime += delta;
-        this.animateAction(elapsed);
-      } else {
-        this.group.rotation.x = 0;
-        // 运行时走路动画:四肢绕根关节摆动
-        const swing = this.moving ? 0.7 : 0;
-        for (const limb of this.limbs) {
-          limb.mesh.rotation.x = Math.sin(elapsed * 10 + limb.phase) * swing;
-          limb.mesh.rotation.z = 0;
-        }
-      }
+      const action = !this.moving || this.action === 'slash' ? this.action : null;
+      if (action) this.actionTime += delta;
+      this.group.rotation.x += (0 - this.group.rotation.x) * (1 - Math.exp(-14 * delta));
+      this.group.rotation.z += (0 - this.group.rotation.z) * (1 - Math.exp(-14 * delta));
+      this.animator.update(delta, elapsed, action, this.actionTime,
+        Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool);
     }
   }
 
   /** 死亡姿态:原地向前扑倒侧躺,四肢摊开,之后每帧只保持贴地 */
   private updateDead(delta: number): void {
+    this.animator.relax(delta);
     this.moving = false;
     const k = 1 - Math.pow(0.002, delta);
     this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, Math.PI / 2, k);
@@ -709,6 +691,7 @@ export class Player implements Updatable {
 
   /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;睡下后输入被忽略,直到睡满 */
   private updateSleep(delta: number, elapsed: number): void {
+    this.animator.relax(delta);
     this.moving = false;
     const pose = this.sleepPose!;
     const k = 1 - Math.pow(0.002, delta);
@@ -725,106 +708,6 @@ export class Player implements Updatable {
     }
     // 呼吸起伏:身体轻轻抬落
     this.group.position.y = pose.pos.y + Math.sin(elapsed * 1.6) * 0.02;
-  }
-
-  /** 游泳动画:身体前倾躺水面,双臂轮转划水,双腿交替打水,随浪轻微起伏 */
-  private animateSwim(elapsed: number): void {
-    this.group.rotation.x = 1.15 + Math.sin(elapsed * 1.6) * 0.06;
-    this.group.position.y += Math.sin(elapsed * 2) * 0.04;
-    // 双臂连续轮转划水,相位相反
-    this.arms[0].rotation.x = elapsed * 5;
-    this.arms[1].rotation.x = elapsed * 5 + Math.PI;
-    // 双腿高频小幅打水
-    this.legs[0].rotation.x = Math.sin(elapsed * 12) * 0.45;
-    this.legs[1].rotation.x = Math.sin(elapsed * 12 + Math.PI) * 0.45;
-  }
-
-  /** 作业动画:砍树双臂抡、凿石单臂凿、拾取弯腰快速扒 */
-  private animateAction(elapsed: number): void {
-    const t = elapsed * 8;
-    switch (this.action) {
-      case 'chop': {
-        // 双臂同步高举下劈
-        const angle = Math.sin(t) * 1.4 - 1.8;
-        for (const arm of this.arms) arm.rotation.x = angle;
-        break;
-      }
-      case 'mine': {
-        // 右臂高频短促凿击
-        this.arms[1].rotation.x = Math.sin(t * 1.5) * 0.9 - 0.6;
-        this.arms[0].rotation.x = -0.3;
-        break;
-      }
-      case 'pick': {
-        // 身体前倾小幅上下扒动
-        this.group.rotation.x = Math.sin(t * 2) * 0.08;
-        for (const arm of this.arms) arm.rotation.x = -1.2 + Math.sin(t * 2) * 0.4;
-        break;
-      }
-      case 'drink': {
-        // 双手捧到嘴边,身体微微后仰
-        this.group.rotation.x = -0.05;
-        for (const arm of this.arms) arm.rotation.x = -2.2 + Math.sin(t) * 0.1;
-        break;
-      }
-      case 'craft': {
-        // 微弯腰,双臂交替上下敲打
-        this.group.rotation.x = 0.12;
-        const s = Math.sin(t * 1.5);
-        this.arms[1].rotation.x = s * 1.1 - 1.1;
-        this.arms[0].rotation.x = -s * 0.6 - 0.5;
-        break;
-      }
-      case 'cook': {
-        // 面向火堆翻炒:身体前倾,双臂前伸交替画圈拨动
-        this.group.rotation.x = 0.22;
-        const s = Math.sin(t);
-        this.arms[0].rotation.x = -1.5 + s * 0.5;
-        this.arms[0].rotation.z = s * 0.3;
-        this.arms[1].rotation.x = -1.5 - s * 0.5;
-        this.arms[1].rotation.z = -s * 0.3;
-        break;
-      }
-      case 'cast': {
-        // 抛竿:右臂从身后高位向前下方挥出,身体随挥动前倾
-        this.group.rotation.x = 0.15;
-        this.arms[1].rotation.x = -2.6 + (Math.sin(t * 0.9) + 1) * 1.0;
-        this.arms[0].rotation.x = -0.3;
-        break;
-      }
-      case 'fish': {
-        // 钓鱼:身体微前倾,右臂持竿前伸,竿尖随水轻晃
-        this.group.rotation.x = 0.1;
-        this.arms[1].rotation.x = -1.5 + Math.sin(t * 0.4) * 0.05;
-        this.arms[0].rotation.x = -0.2;
-        break;
-      }
-      case 'shoot': {
-        // 放箭:从满弦到撒放——左臂持弓前伸,右臂先贴颊满弦,随即向后撒开放空,身体带一点后坐
-        const p = Math.min(this.actionTime / 0.35, 1);
-        this.group.rotation.x = 0.05 - Math.max(0, p - 0.5) * 0.12;
-        this.arms[0].rotation.x = -1.5;
-        this.arms[0].rotation.z = 0;
-        const release = p < 0.35 ? 0 : Math.min(1, (p - 0.35) / 0.3);
-        this.arms[1].rotation.x = -1.05 + release * -0.45 - release * release * 0.1;
-        this.arms[1].rotation.z = 0.32 * (1 - release);
-        break;
-      }
-      case 'eat_berry': {
-        // 右手捏着浆果送到嘴边,身体随咀嚼微微起伏
-        this.group.rotation.x = 0.05 + Math.sin(t * 3) * 0.04;
-        this.arms[1].rotation.x = -2.0 + Math.sin(t * 1.5) * 0.15;
-        this.arms[0].rotation.x = -0.3;
-        break;
-      }
-      case 'eat_fish': {
-        // 双手捧着鱼大口啃食,身体前倾随咀嚼起伏
-        this.group.rotation.x = 0.12 + Math.sin(t * 3) * 0.05;
-        this.arms[0].rotation.x = -1.9 + Math.sin(t * 1.5) * 0.2;
-        this.arms[1].rotation.x = -1.7 - Math.sin(t * 1.5) * 0.2;
-        break;
-      }
-    }
   }
 
   dispose(): void {
