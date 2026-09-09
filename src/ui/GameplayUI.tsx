@@ -40,6 +40,7 @@ import { fadeStyle } from './fade';
 import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
+import { isNearbyFacilityDiggable } from './facilityInteraction';
 
 const INITIAL_HUD: HudSnapshot = {
   hunger: 100,
@@ -119,45 +120,6 @@ const INITIAL_HUD: HudSnapshot = {
   buffs: [],
 };
 
-/**
- * 会劫持工具按钮的东西里,哪些能被铲子挖走:
- * 持铲子面对它们时不劫持按钮(意图是挖走,不是交互)。
- * 火堆暂不可挖,照常劫持;以后支持挖走时在这里标 true。
- */
-const HIJACK_DIGGABLE: Partial<Record<'workbench' | 'campfire' | 'crate' | 'baitBarrel' | 'brewBarrel' | 'smelter' | 'cookingStation' | 'loom' | 'bed', boolean>> = {
-  crate: true,
-  baitBarrel: true,
-  brewBarrel: true,
-  smelter: true,
-  cookingStation: true,
-  loom: true,
-  workbench: true,
-  bed: true,
-};
-
-/** 面前劫持按钮的东西是否可被铲子挖走(无劫持时为 false) */
-function hijackerDiggable(
-  nearWorkbench: boolean,
-  nearCampfire: boolean,
-  nearCrate: boolean,
-  nearBaitBarrel: boolean,
-  nearBrewBarrel: boolean,
-  nearSmelter: boolean,
-  nearCookingStation: boolean,
-  nearLoom: boolean,
-  nearBed: boolean
-): boolean {
-  if (nearWorkbench) return !!HIJACK_DIGGABLE.workbench;
-  if (nearCampfire) return !!HIJACK_DIGGABLE.campfire;
-  if (nearCrate) return !!HIJACK_DIGGABLE.crate;
-  if (nearBaitBarrel) return !!HIJACK_DIGGABLE.baitBarrel;
-  if (nearBrewBarrel) return !!HIJACK_DIGGABLE.brewBarrel;
-  if (nearSmelter) return !!HIJACK_DIGGABLE.smelter;
-  if (nearCookingStation) return !!HIJACK_DIGGABLE.cookingStation;
-  if (nearLoom) return !!HIJACK_DIGGABLE.loom;
-  if (nearBed) return !!HIJACK_DIGGABLE.bed;
-  return false;
-}
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
  * 挂载时创建并启动 Game,卸载时销毁;死亡后显示确认弹窗,确认则整体卸载回到开始界面。
@@ -402,7 +364,7 @@ export function GameplayUI({
   // 持铲子且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
     hud.tool === 'shovel' &&
-    hijackerDiggable(hud.nearWorkbench, hud.nearCampfire, hud.nearCrate, hud.nearBaitBarrel, hud.nearBrewBarrel, hud.nearSmelter, hud.nearCookingStation, hud.nearLoom, hud.nearBed);
+    isNearbyFacilityDiggable(hud);
 
   return (
     <div

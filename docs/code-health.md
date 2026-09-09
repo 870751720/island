@@ -36,3 +36,4 @@
 - 新增 `GameContracts.ts`，集中 `HudSnapshot`、`MapSnapshot`、`PickupToast` 和 `VitalLevels`。
 - 网络协议、网络会话和 UI 组件改为直接依赖契约模块，解除 `Game.ts` 与 `Protocol.ts`、`VitalWarn.tsx` 间不必要的循环/反向依赖。
 - 保留所有字段、默认值、存档版本和联机协议行为，不涉及功能变化。
+- 将设施按钮劫持与铲子优先级规则从 `GameplayUI.tsx` 抽为纯函数，以具名字段取代九个位置布尔参数，降低参数错位风险并保留火堆优先不可挖的既有行为。
