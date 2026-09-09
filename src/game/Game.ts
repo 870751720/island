@@ -109,8 +109,9 @@ import {
   IDLE_HIDE_DELAY, MULTIPLAYER_RESPAWN_DELAY, PLANT_DROP_KINDS,
   SWORD_AUTO_EQUIP_DELAY, SWORD_AUTO_EQUIP_RANGE, TETHER_RANGE, VIEW_SIZE,
 } from './GameConfig';
-import type { CycleEntry, GameOptions, InteractionKind } from './GameTypes';
+import type { GameOptions, InteractionKind } from './GameTypes';
 import { PickupPresentation } from './presentation/PickupPresentation';
+import { listPlaceables, nextToolEntry } from './systems/ToolCycle';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -2187,55 +2188,13 @@ export class Game {
   /** 循环切换手持工具:空手 → 斧子 → … → 套索 → 背包里每种可放置道具各一格(围栏区分木/石);
    * 可放置道具也可经长按工具按钮的选择面板直接点选 */
   cycleTool(): void {
-    const next = this.nextToolInCycle();
+    const next = nextToolEntry(this.local, this.autoPlace, this.lastPlaceKind, (tool) => this.hasTool(tool));
     this.selectTool(next.tool, next.kind ?? undefined);
-  }
-
-  /** 当前手持对应的循环条目 */
-  private currentCycleEntry(): CycleEntry {
-    return { tool: this.player.currentTool, kind: this.heldPlaceItem(this.local) };
-  }
-
-  /** 循环顺序里当前条目的下一个(普通工具仅手里还有的;可放置道具按背包格子顺序逐个展开) */
-  private nextToolInCycle(): CycleEntry {
-    const list = this.cycleEntries();
-    const cur = this.currentCycleEntry();
-    const i = list.findIndex((e) => e.tool === cur.tool && e.kind === cur.kind);
-    return list[(i + 1) % list.length] ?? list[0];
-  }
-
-  /** 循环候选:普通工具在前(手里还有的),可放置道具(含围栏/门)按背包顺序去重展开在后 */
-  private cycleEntries(): CycleEntry[] {
-    const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword', 'lasso'];
-    const list: CycleEntry[] = order
-      .filter((t) => t === 'hand' || this.hasTool(t))
-      .map((tool) => ({ tool, kind: null }));
-    for (const { kind } of this.placeableList(this.local)) {
-      list.push({ tool: this.autoPlace.toolOf(kind) ?? 'place', kind });
-    }
-    return list;
   }
 
   /** 某会话背包里可手持放置的道具清单(去重;上次使用的排最前,便于连续放置) */
   private placeableList(s: PlayerSession): { kind: ResourceKind; count: number }[] {
-    const seen = new Set<ResourceKind>();
-    const list: { kind: ResourceKind; count: number }[] = [];
-    const push = (kind: ResourceKind) => {
-      if (seen.has(kind)) return;
-      seen.add(kind);
-      list.push({ kind, count: s.inventory.count(kind) });
-    };
-    if (this.lastPlaceKind && this.isPlaceable(s, this.lastPlaceKind)) push(this.lastPlaceKind);
-    for (const slot of s.inventory.snapshot()) {
-      if (!slot || !this.isPlaceable(s, slot.kind)) continue;
-      push(slot.kind);
-    }
-    return list.filter((e) => e.count > 0);
-  }
-
-  /** 该道具是否可作为手持放置项(所有已注册设施,含围栏木/石/门) */
-  private isPlaceable(s: PlayerSession, kind: ResourceKind): boolean {
-    return this.autoPlace.supports(kind);
+    return listPlaceables(s, this.autoPlace, this.lastPlaceKind);
   }
 
   /** 从选择面板选中一种可放置道具切入对应手持模式 */
