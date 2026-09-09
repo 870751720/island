@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ArmReach } from './ArmReach';
 import type { ActionType, HandTool } from './Player';
 import type { createPlayerModel } from './PlayerModel';
 
@@ -17,6 +18,12 @@ function stroke(time: number, period: number): number {
 export class PlayerAnimator {
   private readonly nodes: THREE.Object3D[];
   private readonly targets: THREE.Euler[];
+  private readonly reachLeft: ArmReach;
+  private readonly reachRight: ArmReach;
+  private readonly grip = new THREE.Vector3();
+  private readonly wrist = new THREE.Vector3();
+  private readonly rotation = new THREE.Quaternion();
+  private gripWeight = 0;
   private gait = 0;
   private weight = 0;
   private height = 0;
@@ -24,16 +31,21 @@ export class PlayerAnimator {
   constructor(private model: Model) {
     this.nodes = [model.upperBody, model.head, ...model.arms, ...model.elbows, ...model.legs, ...model.knees];
     this.targets = this.nodes.map(() => new THREE.Euler());
+    this.reachLeft = new ArmReach(model.arms[0], model.elbows[0], -1);
+    this.reachRight = new ArmReach(model.arms[1], model.elbows[1], 1);
   }
 
   reset(): void {
-    this.gait = this.weight = this.height = 0;
+    this.gait = this.weight = this.height = this.gripWeight = 0;
+    for (const hand of this.model.hands) hand.scale.setScalar(1);
     this.model.root.position.set(0, 0, 0);
     for (const node of this.nodes) node.rotation.set(0, 0, 0);
   }
 
   /** 睡眠/死亡由玩家的整体姿态接管时，释放作业残留。 */
   relax(delta: number): void {
+    this.gripWeight = 0;
+    for (const hand of this.model.hands) hand.scale.setScalar(THREE.MathUtils.lerp(hand.scale.x, 1, 1 - Math.exp(-22 * delta)));
     for (const target of this.targets) target.set(0, 0, 0);
     for (const i of [2, 3, 6, 7]) this.targets[i].copy(this.nodes[i].rotation);
     this.height = 0;
@@ -61,6 +73,9 @@ export class PlayerAnimator {
     kneeR.x = Math.max(0, -step) * 0.65 * this.weight;
     if (tool !== 'hand') { right.x *= 0.45; elbowR.x -= 0.15; }
 
+    let grasp = 0;
+    const twoHanded = !swimming && (action === 'chop' || action === 'mine')
+      && (tool === 'axe' || tool === 'pickaxe' || tool === 'shovel' || tool === 'hoe');
     if (swimming) {
       const swim = elapsed * (speed > 0.1 ? 4.5 : 2);
       this.height = 0;
@@ -79,28 +94,34 @@ export class PlayerAnimator {
       switch (action) {
         case 'chop':
         case 'mine': {
-          const mine = action === 'mine';
           body.set(0.09 + s * 0.12, -0.1 + s * 0.18, -s * 0.035);
           head.x = 0.08 - s * 0.04;
           right.set(-1.35 + s * 0.85, 0.08, -0.16);
           elbowR.x = -0.55 + s * 0.35;
-          left.set(mine ? -0.35 : -0.9 + s * 0.45, 0, mine ? 0.2 : -0.18);
-          elbowL.x = mine ? -0.45 : -0.8 + s * 0.25;
+          left.set(-0.9 + s * 0.45, 0, -0.18);
+          elbowL.x = -0.8 + s * 0.25;
           legL.x = -0.08; legR.x = 0.1;
           kneeL.x = 0.1 + Math.max(0, s) * 0.12; kneeR.x = 0.1;
           this.height = -0.02 - Math.max(0, s) * 0.025;
           break;
         }
         case 'pick': {
-          const reach = (1 - Math.cos(time * Math.PI * 2 / 1.15)) * 0.5;
-          body.x = 0.32 + reach * 0.24;
+          // 伸手 → 合拢抓住 → 屈肘拉回 → 松手复位，抓取阶段有明确停顿。
+          const phase = (time % 1.2) / 1.2;
+          const extend = ease(phase / 0.36);
+          const pull = ease((phase - 0.48) / 0.3);
+          const reset = ease((phase - 0.83) / 0.17);
+          const reach = extend * (1 - pull);
+          grasp = ease((phase - 0.36) / 0.1) * (1 - reset);
+          body.set(0.3 + reach * 0.28, -reach * 0.1, 0);
           head.x = 0.12;
           this.height = -0.055 - reach * 0.055;
           legL.x = legR.x = -0.24;
           kneeL.x = kneeR.x = 0.5;
-          right.set(-0.5 - reach * 0.4, 0, -0.08);
-          elbowR.x = -0.9 + reach * 0.75;
-          left.set(-0.2, 0, 0.18); elbowL.x = -0.4;
+          right.set(-0.35 - reach * 0.55 - pull * (1 - reset) * 0.22, -reach * 0.12, -0.12 + reach * 0.22);
+          elbowR.x = -0.95 + reach * 0.82 - grasp * pull * 0.3;
+          elbowR.z = grasp * 0.12;
+          left.set(-0.35, 0, 0.18); elbowL.x = -0.6;
           break;
         }
         case 'craft':
@@ -169,6 +190,29 @@ export class PlayerAnimator {
       }
     }
     this.apply(delta);
+    this.gripWeight += ((twoHanded ? 1 : 0) - this.gripWeight) * (1 - Math.exp(-28 * delta));
+    if (twoHanded) {
+      const swing = stroke(time, action === 'mine' ? 0.7 : 0.95);
+      // 右掌位于胸前中线，左掌追踪同一根柄下方的第二握点。
+      this.wrist.set(0, 0.4 - swing * 0.1, 0.15 + Math.max(0, swing) * 0.025);
+      this.reachRight.solve(this.wrist, this.gripWeight);
+      const arm = this.model.arms[1];
+      const elbow = this.model.elbows[1];
+      this.rotation.copy(arm.quaternion).multiply(elbow.quaternion);
+      this.grip.set(0.006, -0.18 + Math.cos(Math.PI / 2.4) * -0.12,
+        0.05 + Math.sin(Math.PI / 2.4) * -0.12).applyQuaternion(this.rotation);
+      this.wrist.copy(elbow.position).applyQuaternion(arm.quaternion).add(arm.position);
+      this.grip.add(this.wrist);
+      this.reachLeft.solve(this.grip, this.gripWeight);
+    }
+    for (let i = 0; i < this.model.hands.length; i++) {
+      const hand = this.model.hands[i];
+      const closed = twoHanded ? this.gripWeight : i === 1 ? grasp : 0;
+      const k = 1 - Math.exp(-24 * delta);
+      hand.scale.x += (1 + closed * 0.08 - hand.scale.x) * k;
+      hand.scale.y += (1 - closed * 0.25 - hand.scale.y) * k;
+      hand.scale.z += (1 - closed * 0.12 - hand.scale.z) * k;
+    }
   }
 
   private apply(delta: number): void {

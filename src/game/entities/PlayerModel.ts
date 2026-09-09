@@ -114,6 +114,7 @@ export function createPlayerModel() {
     part.position.y -= 0.59;
     upperBody.add(part);
   }
+  const hands: THREE.Mesh[] = [];
   const elbows: THREE.Group[] = [];
   const knees: THREE.Group[] = [];
   const arms: THREE.Group[] = [];
@@ -131,7 +132,7 @@ export function createPlayerModel() {
     elbows.push(elbow);
     const surface = oval(elbow, skin, [0, -0.067, 0], [0.071, 0.105, 0.074]);
     oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]);
-    oval(elbow, skin, [side * 0.006, -0.155, 0.012], [0.081, 0.09, 0.079]);
+    hands.push(oval(elbow, skin, [side * 0.006, -0.155, 0.012], [0.081, 0.09, 0.079]));
     arms.push(arm);
     armSurfaces.push(surface);
 
@@ -151,7 +152,7 @@ export function createPlayerModel() {
   }
   ball.dispose();
   return {
-    root, upperBody, torso, head, arms, legs, elbows, knees, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
+    root, upperBody, torso, head, arms, legs, elbows, knees, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
     setGender(gender: PlayerGender) {
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';
