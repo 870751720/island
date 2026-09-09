@@ -156,6 +156,8 @@ export class CropSystem {
     const p = crop.group.position;
     this.destroy(crop);
     actor.inventory.add(spec.product, spec.yieldCount);
+    // 采收必掉 1 个对应种子,10% 概率额外多掉 1 个(随机只在权威结算端发生,背包随快照回流)
+    actor.inventory.add(spec.seed, Math.random() < 0.1 ? 2 : 1);
     this.audio.play('pick');
     const fxPos = p.clone();
     fxPos.y += 0.3;
