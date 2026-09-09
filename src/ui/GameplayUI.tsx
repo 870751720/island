@@ -12,12 +12,10 @@ import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
-import { ToolButton, TOOL_ICONS, TOOL_LABELS } from './ToolButton';
-import { PlacePicker, type PickerItem } from './PlacePicker';
+import { ToolButton } from './ToolButton';
+import { PlacePicker } from './PlacePicker';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
-import type { ResourceKind } from '@/game/systems/Inventory';
-import type { HandTool } from '@/game/entities/Player';
 import { CampfirePanel } from './CampfirePanel';
 import { CratePanel } from './CratePanel';
 import { BaitBarrelPanel } from './BaitBarrelPanel';
@@ -43,6 +41,7 @@ import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
 import { createInitialHudSnapshot } from './createInitialHudSnapshot';
 import { useFacilityPanels } from './useFacilityPanels';
+import { createPlacePickerItems } from './placePickerItems';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -545,58 +544,17 @@ export function GameplayUI({
               onUntie={() => gameRef.current?.untieLasso()}
             />
           )}
-          {placePickerOpen &&
-            (() => {
-              // 手持选择面板:空手 + 已拥有工具 + 套索 + 背包可放置道具(上次使用的排最前),当前手持高亮
-              const entries: (PickerItem & { tool?: HandTool; kind?: ResourceKind })[] = [
-                {
-                  key: 'hand',
-                  icon: TOOL_ICONS.hand,
-                  name: TOOL_LABELS.hand!,
-                  tool: 'hand',
-                  active: hud.tool === 'hand',
-                },
-                ...(['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword'] as const)
-                  .filter((t) => hud.toolTiers[t] > 0)
-                  .map((t) => ({
-                    key: t,
-                    icon: TOOL_ICONS[t],
-                    name: TOOL_LABELS[t]!,
-                    tool: t as HandTool,
-                    active: hud.tool === t,
-                  })),
-                ...(hud.hasLasso
-                  ? [
-                      {
-                        key: 'lasso',
-                        icon: TOOL_ICONS.lasso,
-                        name: TOOL_LABELS.lasso!,
-                        tool: 'lasso' as HandTool,
-                        active: hud.tool === 'lasso',
-                      },
-                    ]
-                  : []),
-                ...hud.placeables.map((p) => ({
-                  key: p.kind,
-                  icon: ITEMS[p.kind].icon,
-                  name: ITEMS[p.kind].name,
-                  count: p.count,
-                  kind: p.kind,
-                  active: hud.heldItemKind === p.kind,
-                })),
-              ];
-              return (
-                <PlacePicker
-                  items={entries}
-                  onPick={(entry) => {
-                    if (entry.tool) gameRef.current?.selectTool(entry.tool);
-                    else if (entry.kind) gameRef.current?.pickPlaceItem(entry.kind);
-                    setPlacePickerOpen(false);
-                  }}
-                  onClose={() => setPlacePickerOpen(false)}
-                />
-              );
-            })()}
+          {placePickerOpen && (
+            <PlacePicker
+              items={createPlacePickerItems(hud)}
+              onPick={(entry) => {
+                if (entry.tool) gameRef.current?.selectTool(entry.tool);
+                else if (entry.kind) gameRef.current?.pickPlaceItem(entry.kind);
+                setPlacePickerOpen(false);
+              }}
+              onClose={() => setPlacePickerOpen(false)}
+            />
+          )}
           {facilityPanels.workbench && (
             <WorkbenchPanel
               hud={hud}
