@@ -8,6 +8,7 @@ import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
 import { createPlayerModel, type PlayerGender } from './PlayerModel';
+import { SwordTrail } from '../fx/SwordTrail';
 import { PlayerAnimator } from './PlayerAnimator';
 import { PlayerWardrobe } from './equipment/PlayerWardrobe';
 
@@ -18,8 +19,6 @@ const SWIM_SPEED = 2.6;
 /** 水深超过该值才进入游泳(更浅处涉水,水可漫过裤腿);裤腿高约 0.55 */
 const SWIM_DEPTH = 0.6;
 const HURT_FLASH_TIME = 0.35;
-/** 游泳时身体没入水面的深度 */
-const FLOAT_DEPTH = 0.55;
 /** 玩家碰撞半径(与树、大石等静态阻挡做圆形推挤) */
 const PLAYER_RADIUS = 0.35;
 
@@ -278,6 +277,8 @@ export class Player implements Updatable {
   readonly input: MoveInput;
   private terrain: IslandTerrain;
   private animator: PlayerAnimator;
+  private swordTrail: SwordTrail;
+  private swimHead = new THREE.Vector3();
   private arms: THREE.Group[] = [];
   private legs: THREE.Group[] = [];
   private moveVec = new THREE.Vector2();
@@ -344,6 +345,7 @@ export class Player implements Updatable {
     this.group.add(model.root);
     this.wardrobe = new PlayerWardrobe(model);
     this.animator = new PlayerAnimator(model);
+    this.swordTrail = new SwordTrail(this.group);
     this.arms = arms;
     this.legs = legs;
     this.injuryFx = new InjuryFx({
@@ -361,9 +363,13 @@ export class Player implements Updatable {
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
       ['lasso', [makeLassoModel()]],
     ];
-    for (const [, models] of tiers) {
+    for (const [tool, models] of tiers) {
       for (const t of models) {
         t.position.set(0.006, -0.18, 0.05);
+        if (tool === 'fishingrod') {
+          t.position.y += Math.cos(Math.PI / 2.4) * 0.3;
+          t.position.z += Math.sin(Math.PI / 2.4) * 0.3;
+        }
         t.visible = false;
       }
       handR.add(...models);
@@ -527,6 +533,7 @@ export class Player implements Updatable {
     this.group.position.copy(spawn);
     this.group.rotation.set(0, 0, 0);
     this.animator.reset();
+    this.swordTrail.clear();
     this.setTool('hand');
   }
 
@@ -652,14 +659,17 @@ export class Player implements Updatable {
       this.stepDistance = 0;
     }
 
-    // 游泳时贴着水面漂浮,露出上半身;岸上贴地
-    p.y = this.swimming ? waterY - FLOAT_DEPTH : this.terrain.getHeight(p.x, p.z);
+    // 游泳后按头部实际位置对齐水线；岸上贴地。
+    p.y = this.swimming ? waterY : this.terrain.getHeight(p.x, p.z);
 
     if (this.swimming) {
-      this.group.rotation.x += (1.15 - this.group.rotation.x) * (1 - Math.exp(-10 * delta));
-      this.group.position.y += Math.sin(elapsed * 2) * 0.04;
+      this.group.rotation.x += (0.55 - this.group.rotation.x) * (1 - Math.exp(-10 * delta));
+
       this.animator.update(delta, elapsed, null, 0,
         Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), true, this.handTool);
+      this.appearance.head.getWorldPosition(this.swimHead);
+      p.y += waterY - this.swimHead.y + Math.sin(elapsed * 2) * 0.012;
+      this.swordTrail.clear();
       this.waterFx.updateSwimming(delta, p, 0.4, waterY);
       // 游泳时收起工具,避免抡着斧子划水
       for (const model of Object.values(this.toolModels).flat()) model.visible = false;
@@ -674,12 +684,16 @@ export class Player implements Updatable {
       this.group.rotation.z += (0 - this.group.rotation.z) * (1 - Math.exp(-14 * delta));
       this.animator.update(delta, elapsed, action, this.actionTime,
         Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool);
+      const swords = this.toolModels.sword!;
+      const sword = swords[Math.min(this.toolTiers.sword ?? 1, swords.length) - 1];
+      this.swordTrail.update(delta, action === 'slash' && this.handTool === 'sword' ? sword : null, this.actionTime);
     }
   }
 
   /** 死亡姿态:原地向前扑倒侧躺,四肢摊开,之后每帧只保持贴地 */
   private updateDead(delta: number): void {
     this.animator.relax(delta);
+    this.swordTrail.clear();
     this.moving = false;
     const k = 1 - Math.pow(0.002, delta);
     this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, Math.PI / 2, k);
@@ -692,6 +706,7 @@ export class Player implements Updatable {
   /** 睡眠姿态:慢慢挪上床躺平,四肢放松,随呼吸轻微起伏;睡下后输入被忽略,直到睡满 */
   private updateSleep(delta: number, elapsed: number): void {
     this.animator.relax(delta);
+    this.swordTrail.clear();
     this.moving = false;
     const pose = this.sleepPose!;
     const k = 1 - Math.pow(0.002, delta);
@@ -711,6 +726,7 @@ export class Player implements Updatable {
   }
 
   dispose(): void {
+    this.swordTrail.dispose();
     this.wardrobe.dispose();
     this.input.dispose();
   }

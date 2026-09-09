@@ -75,6 +75,8 @@ export class PlayerAnimator {
 
     let graspLeft = 0;
     let graspRight = 0;
+    const fishing = !swimming && tool === 'fishingrod' && (action === 'fish' || action === 'cast');
+    const eating = !swimming && (action === 'eat_berry' || action === 'eat_fish');
     const twoHanded = !swimming && (action === 'chop' || action === 'mine')
       && (tool === 'axe' || tool === 'pickaxe' || tool === 'shovel' || tool === 'hoe');
     if (swimming) {
@@ -82,8 +84,8 @@ export class PlayerAnimator {
       this.height = 0;
       body.set(0, Math.sin(swim) * 0.07, 0);
       head.x = -0.2;
-      left.set(-1.2 + Math.sin(swim) * 1.1, 0, 0.35);
-      right.set(-1.2 + Math.sin(swim + Math.PI) * 1.1, 0, -0.35);
+      left.set(-0.65 + Math.sin(swim) * 0.55, 0, 0.35);
+      right.set(-0.65 + Math.sin(swim + Math.PI) * 0.55, 0, -0.35);
       elbowL.x = -0.3 - (Math.cos(swim) + 1) * 0.3;
       elbowR.x = -0.3 - (1 - Math.cos(swim)) * 0.3;
       legL.x = Math.sin(swim * 2) * 0.3;
@@ -95,8 +97,8 @@ export class PlayerAnimator {
       switch (action) {
         case 'chop':
         case 'mine': {
-          // 身体向右转肩蓄力，前挥时仍保持右侧持柄的轮廓。
-          body.set(0.1 + s * 0.12, 0.48 - s * 0.2, -0.12 + s * 0.04);
+          // 身体向左转肩蓄力，前挥时保持同侧持柄的轮廓。
+          body.set(0.1 + s * 0.12, -0.48 + s * 0.2, 0.12 - s * 0.04);
           head.set(0.08 - s * 0.04, -body.y * 0.55, -body.z * 0.4);
           right.set(-1.35 + s * 0.85, 0.08, -0.16);
           elbowR.x = -0.55 + s * 0.35;
@@ -191,11 +193,16 @@ export class PlayerAnimator {
       }
     }
     this.apply(delta);
-    this.gripWeight += ((twoHanded ? 1 : 0) - this.gripWeight) * (1 - Math.exp(-28 * delta));
-    if (twoHanded) {
+    this.gripWeight += ((twoHanded || fishing ? 1 : 0) - this.gripWeight) * (1 - Math.exp(-28 * delta));
+    if (twoHanded || fishing) {
       const swing = stroke(time, action === 'mine' ? 0.7 : 0.95);
-      // 掌心轨迹偏右，叠加腰肩右转和侧倾；左手仍锁定同柄握点。
-      this.wrist.set(0.05 - swing * 0.01, 0.41 - swing * 0.075, 0.12 + swing * 0.025);
+      // 左侧持柄；钓鱼时改为身前居中、双手握竿尾。
+      if (fishing) {
+        const cast = action === 'cast' ? 1 - ease((time - 0.2) / 0.18) : 0;
+        this.wrist.set(0, 0.4 + cast * 0.09 + breath * 0.004, 0.14 - cast * 0.025);
+      } else {
+        this.wrist.set(-0.05 + swing * 0.01, 0.41 - swing * 0.075, 0.12 + swing * 0.025);
+      }
       this.reachRight.solve(this.wrist, this.gripWeight);
       const arm = this.model.arms[1];
       const elbow = this.model.elbows[1];
@@ -206,9 +213,21 @@ export class PlayerAnimator {
       this.grip.add(this.wrist);
       this.reachLeft.solve(this.grip, this.gripWeight);
     }
+    if (eating) {
+      // 从实际嘴部位置推导双掌目标；短手臂尽量靠近嘴边，掌心自然捧合。
+      const lift = ease(time / 0.25);
+      this.grip.set(0, -0.113, 0.246).applyQuaternion(this.model.head.quaternion).add(this.model.head.position);
+      this.grip.y -= 0.055;
+      this.grip.z -= 0.025;
+      this.wrist.copy(this.grip); this.wrist.x -= 0.09;
+      this.reachLeft.solve(this.wrist, lift);
+      this.wrist.copy(this.grip); this.wrist.x += 0.09;
+      this.reachRight.solve(this.wrist, lift);
+      graspLeft = graspRight = lift * 0.65;
+    }
     for (let i = 0; i < this.model.hands.length; i++) {
       const hand = this.model.hands[i];
-      const closed = twoHanded ? this.gripWeight : i === 0 ? graspLeft : graspRight;
+      const closed = twoHanded || fishing ? this.gripWeight : i === 0 ? graspLeft : graspRight;
       const k = 1 - Math.exp(-24 * delta);
       hand.scale.x += (1 + closed * 0.08 - hand.scale.x) * k;
       hand.scale.y += (1 - closed * 0.25 - hand.scale.y) * k;
