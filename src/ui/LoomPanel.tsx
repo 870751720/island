@@ -6,6 +6,7 @@ import { ITEMS } from '@/game/systems/Items';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { LOOM_ROPE_PER_CLOTH, LOOM_INTERVAL } from '@/game/systems/LoomSystem';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
+import { itemCount } from './inventorySnapshot';
 
 type Props = {
   hud: HudSnapshot;
@@ -24,10 +25,7 @@ const ACTION_COLOR = '#b5a642';
 export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props) {
   const info = hud.loomInfo;
   const [feedCount, setFeedCount] = useState(1);
-  const ropeInBag = hud.slots.reduce(
-    (sum, slot) => sum + (slot && slot.kind === 'rope' ? slot.count : 0),
-    0
-  );
+  const ropeInBag = itemCount(hud.slots, 'rope');
   // 背包数量变化后把选数收回上限
   useEffect(() => {
     setFeedCount((prev) => Math.min(prev, ropeInBag));

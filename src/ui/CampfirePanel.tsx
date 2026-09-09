@@ -8,12 +8,7 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, COOKABLE } from '@/game/systems/Food';
 import type { ResourceKind } from '@/game/systems/Inventory';
-
-/** 统计背包快照里各道具的数量 */
-function countOf(hud: HudSnapshot): (kind: ResourceKind) => number {
-  return (kind) =>
-    hud.slots.reduce((n, slot) => (slot && slot.kind === kind ? n + slot.count : n), 0);
-}
+import { itemCount } from './inventorySnapshot';
 
 /** 火堆面板:添加可燃物延长燃烧,或在燃烧的火堆上选份数烤熟生食(效果增强) */
 export function CampfirePanel({
@@ -27,7 +22,7 @@ export function CampfirePanel({
   onCook: (kind: ResourceKind, count: number) => void;
   onClose: () => void;
 }) {
-  const count = countOf(hud);
+  const count = (kind: ResourceKind) => itemCount(hud.slots, kind);
   const [cookCounts, setCookCounts] = useState<Record<string, number>>({});
   const info = hud.campfireInfo;
 

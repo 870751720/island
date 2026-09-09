@@ -6,6 +6,7 @@ import { ITEMS } from '@/game/systems/Items';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { SMELT_ORE_PER_INGOT, SMELT_INTERVAL } from '@/game/systems/SmelterSystem';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
+import { itemCount } from './inventorySnapshot';
 
 type Props = {
   hud: HudSnapshot;
@@ -24,10 +25,7 @@ const ACTION_COLOR = '#c0392b';
 export function SmelterPanel({ hud, onFeed, onCollect, onTakeOre, onClose }: Props) {
   const info = hud.smelterInfo;
   const [feedCount, setFeedCount] = useState(1);
-  const oreInBag = hud.slots.reduce(
-    (sum, slot) => sum + (slot && slot.kind === 'ironOre' ? slot.count : 0),
-    0
-  );
+  const oreInBag = itemCount(hud.slots, 'ironOre');
   // 背包数量变化后把选数收回上限
   useEffect(() => {
     setFeedCount((prev) => Math.min(prev, oreInBag));

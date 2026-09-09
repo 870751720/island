@@ -9,12 +9,7 @@ import { ITEMS } from '@/game/systems/Items';
 import { FOODS, COOKABLE, BOILABLE } from '@/game/systems/Food';
 import { convertListStyle } from './ConvertRow';
 import type { ResourceKind } from '@/game/systems/Inventory';
-
-/** 统计背包快照里各道具的数量 */
-function countOf(hud: HudSnapshot): (kind: ResourceKind) => number {
-  return (kind) =>
-    hud.slots.reduce((n, slot) => (slot && slot.kind === kind ? n + slot.count : n), 0);
-}
+import { itemCount } from './inventorySnapshot';
 
 /** 烹饪台面板:添柴、烤制(与火堆相同)与煮汤(选一种食材和份数,每 5 秒煮好 1 份存放台上) */
 export function CookingStationPanel({
@@ -35,7 +30,7 @@ export function CookingStationPanel({
   onTakeBoil: () => void;
   onClose: () => void;
 }) {
-  const count = countOf(hud);
+  const count = (kind: ResourceKind) => itemCount(hud.slots, kind);
   const [roastCounts, setRoastCounts] = useState<Record<string, number>>({});
   const [boilCounts, setBoilCounts] = useState<Record<string, number>>({});
   const info = hud.cookingStationInfo;
