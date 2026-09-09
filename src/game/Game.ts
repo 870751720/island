@@ -21,7 +21,7 @@ import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
-import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
+import { TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
@@ -56,7 +56,6 @@ import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
 import { firstFoodIn, FOODS, COOKABLE_KINDS, type Food } from './systems/Food';
-import { itemSortIndex } from './systems/Items';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
 import type { FishTier } from './systems/FishTable';
@@ -79,7 +78,7 @@ import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
-import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
+import { EQUIPMENT, Equipment, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import type { DeathReport } from './systems/RunStats';
 import { SurvivalSystem } from './systems/SurvivalSystem';
@@ -116,6 +115,7 @@ import { buildDeathReport as createDeathReport } from './systems/DeathReportBuil
 import { InteractionIndicatorBuilder } from './presentation/InteractionIndicatorBuilder';
 import { GameCameraController } from './presentation/GameCameraController';
 import { FacilityInteractionController } from './systems/FacilityInteractionController';
+import { PlayerCommandController } from './systems/PlayerCommandController';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
@@ -226,6 +226,7 @@ export class Game {
   private lastMoving = false;
   private lastBiteClicks = 0;
   private drops: DropSystem;
+  private playerCommands: PlayerCommandController;
   private dayNight: DayNightSystem;
   private dayEvents: DayEventSystem;
   private weather: WeatherSystem;
@@ -720,6 +721,12 @@ export class Game {
     );
     this.registerFacilities();
     this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio);
+    this.playerCommands = new PlayerCommandController(
+      this.guestNet,
+      this.drops,
+      this.workbench,
+      (actor) => this.asleepFor(actor)
+    );
     this.attachSessionSystems(this.local);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
@@ -2952,91 +2959,42 @@ export class Game {
 
   /** 丢弃道具到玩家附近的地上(可指定数量,超出持有数按实际丢弃) */
   dropItem(kind: ResourceKind, count = 1, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('dropItem', [kind, count]);
-
-    const a = actor;
-    if (this.asleepFor(a)) return false;
-    const n = Math.min(count, a.inventory.count(kind));
-    if (n <= 0) return false;
-    a.inventory.remove(kind, n);
-    this.drops.drop(kind, n, a);
-    return true;
+    return this.playerCommands.dropItem(kind, count, actor);
   }
 
   /** 背包格之间移动道具(拖拽交换/合并),返回是否成功 */
   moveItem(from: number, to: number, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('moveItem', [from, to]);
-
-    return actor.inventory.move(from, to);
+    return this.playerCommands.moveItem(from, to, actor);
   }
 
   /** 整理背包:同类合并到一格并按物品分类排序 */
   sortInventory(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('sortInventory', []);
-
-    actor.inventory.sort(itemSortIndex);
-    return true;
+    return this.playerCommands.sortInventory(actor);
   }
 
   /** 从背包装备一件道具(物品详情点击「装备」),返回是否成功 */
   equipItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('equipItem', [kind]);
-
-    return isEquipKind(kind) ? actor.equipment.equip(kind, actor.inventory, true) : false;
+    return this.playerCommands.equipItem(kind, actor);
   }
 
   /** 卸下某栏位的装备放回背包,背包放不下则失败 */
   unequipItem(slot: EquipSlot, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('unequipItem', [slot]);
-
-    return actor.equipment.unequip(slot, actor.inventory);
+    return this.playerCommands.unequipItem(slot, actor);
   }
 
   /** 发起定时合成(站定敲打,进度走头顶圆环),返回是否成功开始 */
   craftTool(id: CraftId, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('craftTool', [id]);
-
-    const a = actor;
-    if (this.asleepFor(a) || this.workbench.isUpgrading(a) || this.workbench.isDigging(a)) return false;
-    const recipe = RECIPES.find((r) => r.id === id);
-    return recipe && recipe.station === 'hand' ? a.crafting.start(recipe) : false;
+    return this.playerCommands.craftTool(id, actor);
   }
 
   /** 在工作台发起制作(可选个数,逐个完成),玩家须在的工作范围内,返回是否成功开始 */
   craftAtWorkbench(id: CraftId, count: number, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('craftAtWorkbench', [id, count]);
-
-    const a = actor;
-    if (
-      this.asleepFor(a) ||
-      this.workbench.isUpgrading(a) ||
-      this.workbench.isDigging(a) ||
-      !this.workbench.isNear(a)
-    ) {
-      return false;
-    }
-    const recipe = RECIPES.find((r) => r.id === id);
-    return recipe &&
-      recipe.station === 'workbench' &&
-      (recipe.minBenchLevel ?? 1) <= this.workbench.level(a)
-      ? a.crafting.start(recipe, count)
-      : false;
+    return this.playerCommands.craftAtWorkbench(id, count, actor);
   }
 
   /** 发起工作台升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
   upgradeWorkbench(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('upgradeWorkbench', []);
-
-    if (this.asleepFor(actor) || actor.crafting.isWorking || actor.eating.isWorking) return false;
-    return this.workbench.upgrade(actor);
+    return this.playerCommands.upgradeWorkbench(actor);
   }
 
   start(): void {
