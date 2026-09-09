@@ -43,6 +43,8 @@ export function nextToolEntry(
     entries.push({ tool: placement.toolOf(kind) ?? 'place', kind });
   }
   const current: CycleEntry = { tool: session.player.currentTool, kind: placement.heldKind(session) };
-  const index = entries.findIndex((entry) => entry.tool === current.tool && entry.kind === current.kind);
+  let index = entries.findIndex((entry) => entry.tool === current.tool && entry.kind === current.kind);
+  // 工具驱动的零消耗设施(如锄头→土壤)不占道具位:精确匹配不到时按工具位回退匹配
+  if (index < 0) index = entries.findIndex((entry) => entry.tool === current.tool);
   return entries[(index + 1) % entries.length] ?? entries[0];
 }

@@ -57,6 +57,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'cookingStation' ||
     kind === 'loom' ||
     kind === 'deadCampfire' ||
+    kind === 'campfire' ||
     kind === 'fenceWood' ||
     kind === 'fenceStone' ||
     kind === 'fenceGate' ||

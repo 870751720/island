@@ -37,3 +37,9 @@
 - 2026-09-09(迭代):**设施行为全面统一,围栏并入同一体系**。新增 `src/game/systems/Facilities.ts`(FacilityDef 定义 + 干地格校验助手 `dryCellReason`),`AutoPlaceSystem` 升级为统一设施注册表(`toolOf/defOf/heldKind` 按定义的 tool 匹配手持工具);围栏木/石/围栏门注册为普通设施(`target` 接线优先、`onPreview` 横杆显隐与门朝向、门 `holdTime` 5 秒),`FenceSystem` 退化为围栏世界状态 + 放置/挖除结算,删除其独立的选中入口/预览/自动放置;`Game` 的 11 个 `useXxx` 放置入口合并为 `useFacilityItem`/`settleFacility`,联机动作合并为一个 `useFacility [kind]`;`isPlaceable`/`cycleEntries`/`pickPlaceItem`/`heldPlaceItem`/`buildHandModel` 与背包「使用」全部查注册表,10 个系统的重复 `canPlaceAt` 委托 `dryCellReason`。新增一种设施只需:Inventory kind + Items 条目 + 设施系统 + `registerFacilities` 一行(+ 可选配方/存档/联机世界段)。存档与同步协议字段不变。
 - 2026-09-09(迭代):**设施制作完成后自动拿在手上,不再直接落地**。新增道具「火堆」(`campfire`,放下即引燃,初始燃料 60 秒);工作台与火堆的原「原地搭建」直放路径删除,改为普通手搓配方(产出 `workbench1`/`campfire` 道具),`WorkbenchSystem`/`CampfireSystem` 只保留升级、加燃料、烹饪、挖掘回收与放置(`CampfireSystem.place(kind, at)` 统一两种火堆道具的放下入口);`CraftingSystem` 完成结算新增 `onOutput` 回调,产物为注册表内设施时自动切到手上(手持铲子时不切,防原地误挖);配方可见性:工作台全局唯一(已放置或背包已有工作台道具则隐藏),火堆在背包已有火堆/熄灭火堆/烹饪台时隐藏。HUD 删 `canCraftWorkbench/canBuildCampfire` 等特殊卡片字段,新增 `workbenchCrafted`;联机删 `craftWorkbench/craftCampfire` 动作。存档与协议字段不变。
 - 2026-09-09(迭代):**支持工具驱动的零消耗设施**。`FacilityDef` 新增 `free`(不检查/不扣除背包)、`name`(非道具设施的展示名)与函数式 `holdTime(actor)`(按发起者动态取时长);`FacilityKind = ResourceKind | 'soil'`,`heldKind` 先按当前手持工具匹配 `free` 设施再走道具选中路径。首个接入的是土壤:手持锄头即出现土壤绿/红预览并站定自动开出(时长按锄头等级 2/1.5/1 秒),零消耗,铲子可挖掉还原(无掉落);锄头手上仍是工具模型(不走 placeMount)。
+
+### 2026-09-09(迭代):工具按钮点击始终可循环切出
+
+- 修复:点击工具按钮在资源点/可钓点旁会被「场景需要的工具」截住,循环不出其他已拥有工具与可放置道具;现改为**仅空手时**才由点击直接切到场景需要的工具(树→斧、石→镐、可钓点→鱼竿),其余情况一律循环切换(`Game.useToolButton`)。
+- 修复循环顺序:手持工具驱动的零消耗设施(锄头→土壤)时,循环匹配不到当前项导致下次点击跳回空手;`nextToolEntry` 精确匹配不到时按工具位回退匹配,持锄头点击可正常切到下一项。
+- 修复背包「使用」:捆好的火堆(`campfire`)道具此前不在可使用列表,现在可从背包使用进入手持安放模式(`Backpack.isUsable`)。

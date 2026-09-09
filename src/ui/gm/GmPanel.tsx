@@ -25,7 +25,6 @@ export type GmActions = {
   giveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
   spawnAnimal: (species: AnimalSpecies) => void;
   triggerCrocodile: () => void;
-  placeSoil: () => void;
 };
 
 const TABS = [
@@ -65,7 +64,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
         {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
         {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
-        {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} onPlaceSoil={actions.placeSoil} />}
+        {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
         {tab === 'events' && (
           <EventsTab onTriggerCrocodile={actions.triggerCrocodile} onSetConfig={actions.setConfig} />

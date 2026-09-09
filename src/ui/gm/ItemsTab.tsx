@@ -17,12 +17,9 @@ function giveCounts(category: ItemCategory): number[] {
 export function ItemsTab({
   onGiveItem,
   onGiveTool,
-  onPlaceSoil,
 }: {
   onGiveItem: (kind: ResourceKind, count: number) => void;
   onGiveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
-  /** 土壤是零消耗设施,没有背包道具:GM 直接在面前格开出一格 */
-  onPlaceSoil: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ItemCategory>('材料');
@@ -85,18 +82,6 @@ export function ItemsTab({
             </span>
           </div>
         ))}
-        {category === '设施' && (
-          <div style={rowStyle}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🟫</span> 土壤
-            </span>
-            <span style={{ display: 'flex', gap: 6 }}>
-              <button onClick={onPlaceSoil} style={giveStyle}>
-                放面前
-              </button>
-            </span>
-          </div>
-        )}
         {kinds.map((kind) => {
           const item = ITEMS[kind];
           return (

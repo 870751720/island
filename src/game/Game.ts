@@ -1979,13 +1979,14 @@ export class Game {
     }
   }
 
-  /** 工具按钮点击:牵着羊时原地打桩拴住;场景有明确需要的工具时直接切过去;否则循环切换 */
+  /** 工具按钮点击:牵着羊时原地打桩拴住;空手且场景有明确需要的工具时直接切过去;其余情况一律循环切换,
+   * 保证点击总能依次切出已拥有的工具与可放置道具,不被场景自动切换截住 */
   useToolButton(): void {
     if (this.player.currentTool === 'lasso' && this.wildlife.leashedBy(this.player)) {
       this.stakeLasso();
       return;
     }
-    const need = this.wantedTool();
+    const need = this.player.currentTool === 'hand' ? this.wantedTool() : null;
     if (need) {
       this.autoEquipTimer = 0;
       this.selectTool(need);
@@ -2169,14 +2170,6 @@ export class Game {
       return;
     }
     this.giveItem(kind, count, actor);
-  }
-
-  /** GM 在面前格直接开出一格土壤(零消耗设施,统一走设施结算入口,失败给出落点原因) */
-  gmPlaceSoil(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('gmPlaceSoil', []);
-
-    return this.settleFacility('soil', actor, null);
   }
 
   /** GM 直接把工具点亮到指定等级(1 基础 / 2 高级) */

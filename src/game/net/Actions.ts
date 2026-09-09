@@ -105,7 +105,6 @@ const ACTIONS: NetActionRegistry = {
     g.gmTriggerCrocodileFor(a);
     return true;
   },
-  gmPlaceSoil: (g, a) => g.gmPlaceSoil(a),
   gmGiveItem: (g, a, [kind, count]) => {
     g.gmGiveItem(kind, count, a);
     return true;
