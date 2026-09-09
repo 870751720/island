@@ -57,7 +57,6 @@ import { EatingSystem } from './systems/EatingSystem';
 import { firstFoodIn, FOODS, COOKABLE_KINDS, type Food } from './systems/Food';
 import { WaterSystem } from './systems/WaterSystem';
 import { FishingSystem, type FishingState } from './systems/FishingSystem';
-import type { FishTier } from './systems/FishTable';
 import { BowSystem } from './systems/BowSystem';
 import { SwordSystem } from './systems/SwordSystem';
 import { LassoSystem } from './systems/LassoSystem';
@@ -76,7 +75,7 @@ import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
-import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
+import { DEFAULT_CAPACITY, Inventory, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
 import type { DeathReport } from './systems/RunStats';
@@ -116,6 +115,7 @@ import { GameCameraController } from './presentation/GameCameraController';
 import { FacilityInteractionController } from './systems/FacilityInteractionController';
 import { PlayerCommandController } from './systems/PlayerCommandController';
 import { WorldReplicationController } from './net/WorldReplicationController';
+import { GuestHudSynchronizer } from './net/GuestHudSynchronizer';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
@@ -260,20 +260,15 @@ export class Game {
   private hudTimer = 0;
   private noticeId = 0;
   private notice: { id: number; text: string } | null = null;
-  private netIndicator: HudSnapshot['indicator'] = { label: null, progress: null };
   /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
   private netDrift = new THREE.Vector2();
   /** 每个已发送输入对应的本地预测位置，用于按房主 ack 重放尚未确认的位移。 */
   private netInputHistory: { seq: number; x: number; z: number }[] = [];
   private netAckInputSeq = 0;
-  /** 客人端进食特效已播放到的快照进度档(0~3) */
-  private netEatTick = 0;
   private lastHurtSfxAt = -10;
   /** 游戏循环累计时间(音效节流用) */
   private loopElapsed = 0;
-  private netIndicatorProgress: number | null = null;
-  private netIndicatorVelocity = 0;
-  private netIndicatorAt = 0;
+  private guestHud: GuestHudSynchronizer;
   private autoEquipTimer = 0;
   private swordEquipTimer = 0;
   private resizeObserver: ResizeObserver;
@@ -726,6 +721,18 @@ export class Game {
       (actor) => this.asleepFor(actor)
     );
     this.attachSessionSystems(this.local);
+    this.guestHud = new GuestHudSynchronizer(
+      this.local,
+      this.pickupPresentation,
+      this.audio,
+      this.fx,
+      () => this.syncToolTiers(this.local),
+      (snapshot) => this.onHud(snapshot),
+      () => ({
+        autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
+        notice: this.notice,
+      })
+    );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
     this.worldSaveSystems = {
@@ -1510,81 +1517,7 @@ export class Game {
 
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
-    // 客人端入包不走 Inventory.add,对比快照前后数量差补发拾取飘字
-    const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> => {
-      const map = new Map<ResourceKind, number>();
-      for (const slot of slots) if (slot) map.set(slot.kind, (map.get(slot.kind) ?? 0) + slot.count);
-      return map;
-    };
-    const before = countSlots(this.local.inventory.snapshot());
-    this.local.inventory.load(snap.slots, snap.capacity);
-    for (const [kind, n] of countSlots(snap.slots)) {
-      const gained = n - (before.get(kind) ?? 0);
-      if (gained > 0) this.pickupPresentation.emit(kind, gained);
-    }
-    Object.assign(this.local.tools, snap.toolTiers);
-    // 弹药数以房主快照为准回流,数量增加时补拾取飘字(与背包槽同一策略)
-    for (const kind of ['arrow', 'bait'] as const) {
-      const gained = snap[kind] - this.local.ammo.count(kind);
-      this.local.ammo[kind] = snap[kind];
-      if (gained > 0) this.pickupPresentation.emit(kind, gained);
-    }
-    this.local.craftedIds.clear();
-    for (const id of snap.craftedIds) this.local.craftedIds.add(id);
-    this.syncToolTiers(this.local);
-    this.local.player.setTool(snap.tool);
-    // 装备穿戴由房主权威结算:快照回流后同步本地装备状态,触发外观/背包容量刷新
-    const equipChanged = SLOT_ORDER.some(
-      (slot) => this.local.equipment.getEquipped(slot) !== snap.equipped[slot]
-    );
-    if (equipChanged) this.local.equipment.restore(snap.equipped, this.local.inventory);
-    const now = performance.now() / 1000;
-    const previous = this.netIndicator;
-    if (
-      previous.label === snap.indicator.label &&
-      previous.progress !== null &&
-      snap.indicator.progress !== null &&
-      this.netIndicatorAt > 0
-    ) {
-      const dt = Math.max(0.05, now - this.netIndicatorAt);
-      this.netIndicatorVelocity = THREE.MathUtils.clamp(
-        (snap.indicator.progress - previous.progress) / dt,
-        -2,
-        2
-      );
-    } else {
-      this.netIndicatorVelocity = 0;
-      this.netIndicatorProgress = snap.indicator.progress;
-    }
-    this.netIndicator = snap.indicator;
-    this.netIndicatorAt = now;
-    // 钓鱼阶段与等待时长对齐本地表现(起播/咬钩时刻/中鱼收线/结束);
-    // 对齐期间静音:兜底起播的音效已由房主 feedback 事件补播,这里再播会重一声
-    this.audio.silent = true;
-    this.fishing.netSyncState(snap.fishingState, snap.biteClicks, snap.fishingTier as FishTier, snap.fishingWaitLeft);
-    this.audio.silent = false;
-    // 客人端本地复现进食特效(权威结算在房主):快照进度每过 1/3 触发一次咀嚼声与掉渣
-    const food = snap.eatName ? FOODS.find((f) => f.name === snap.eatName) : null;
-    if (food) {
-      const tick = Math.floor(snap.eatProgress * 3);
-      if (tick !== this.netEatTick) {
-        this.netEatTick = tick;
-        if (tick >= 1) {
-          this.audio.play('munch');
-          const p = this.player.group.position.clone();
-          p.y += 2;
-          this.fx.burst(p, food.fxColor, 3);
-        }
-      }
-    } else {
-      this.netEatTick = 0;
-    }
-    // 自动切工具进度由客人本地计时(房主不知道客人端该值),提示也只用客人本地 notice,覆盖后再下发 UI
-    this.onHud({
-      ...snap,
-      autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
-      notice: this.notice,
-    });
+    this.guestHud.apply(snap);
   }
 
   /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗;客人背包有无限箭袋则免扣)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
@@ -3299,22 +3232,7 @@ export class Game {
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
   private updateIndicator(delta: number): void {
-    let indicator = this.guestMode ? this.netIndicator : this.indicatorFor(this.local);
-    if (this.guestMode && indicator.progress !== null) {
-      const age = Math.min(0.25, performance.now() / 1000 - this.netIndicatorAt);
-      const estimated = THREE.MathUtils.clamp(
-        indicator.progress + this.netIndicatorVelocity * age,
-        0,
-        1
-      );
-      const current = this.netIndicatorProgress ?? estimated;
-      this.netIndicatorProgress = THREE.MathUtils.lerp(
-        current,
-        estimated,
-        1 - Math.exp(-18 * delta)
-      );
-      indicator = { ...indicator, progress: this.netIndicatorProgress };
-    }
+    let indicator = this.guestMode ? this.guestHud.indicator(delta) : this.indicatorFor(this.local);
     // 客人端自动切工具的等待提示无法来自房主快照(计时在客人本地),这里本地补上
     if (this.guestMode && this.autoEquipTimer > 0) {
       const nearby = this.collect.getNearby();
