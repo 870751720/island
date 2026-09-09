@@ -17,6 +17,8 @@
 
 `Game` 的设施与玩家命令已分别由 `FacilityInteractionController` 和 `PlayerCommandController` 协调。客人端继续使用原有 action 名与参数上行，房主仍通过 `Actions.ts` 调用 `Game` 的稳定公开门面完成权威结算，状态由原有 HUD/世界快照回流；本次模块拆分不新增网络消息或持久化字段。
 
+世界离散状态由 `WorldReplicationController` 维护客人镜像和 revision；增量断档时仍使用原有 world resync 请求全量快照。`PlayerSnapshotBuilder` 保持房主姿态载荷字段，`GuestHudSynchronizer` 负责将定向 HUD 回流到客人本地状态并补播纯表现效果。三者都不改变房主权威边界或网络协议。
+
 ### 连接状态与网络限制
 
 - 房间信令回复只代表找到房间，客人此时显示“正在连接房主”；只有两条 WebRTC 数据通道都打开后，才显示“等待房主开始游戏”。
