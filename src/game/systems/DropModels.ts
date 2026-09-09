@@ -81,6 +81,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
   shovel: '#8a7a5a',
+  hoe: '#9a8a72',
   fishingrod: '#a97c50',
   bow: '#8b6b42',
   sword: '#c9a877',
@@ -775,6 +776,17 @@ function makeShovel(): THREE.Object3D {
   return g;
 }
 
+/** 锄头:木柄 + 顶端横向扁刃 */
+function makeHoeDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const handle = toolHandle(clay('#8b6239'));
+  const headMat = clay(DROP_COLORS.hoe);
+  const blade = mesh(new THREE.BoxGeometry(0.24, 0.06, 0.12), headMat);
+  blade.position.set(0, 0.78, 0);
+  g.add(handle, blade);
+  return g;
+}
+
 /** 可挖走的丛:一团长叶体点缀小果(浆果丛)或纯叶团(灌木丛) */
 function makeBushDrop(color: string, withBerries: boolean): THREE.Object3D {
   const g = new THREE.Group();
@@ -1116,6 +1128,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   axe: makeAxe,
   pickaxe: makePickaxe,
   shovel: makeShovel,
+  hoe: makeHoeDrop,
   fishingrod: makeFishingRod,
   bow: makeBow,
   sword: makeSword,

@@ -7,6 +7,7 @@ import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 import type { DropEntry } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
+import type { SoilSave } from '../entities/Soil';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { BrewBarrelSave } from './BrewBarrelSystem';
 import type { WaterPurifierSave } from './WaterPurifierSystem';
@@ -94,6 +95,8 @@ export type SaveData = {
   beds: (PlacementSave & { level: number })[];
   /** 场上所有神龛(种类与落点;可放置多个) */
   shrines: ShrineSave[];
+  /** 场上所有土壤(落点;手持锄头开出,可放置多个;旧档缺省视为无) */
+  soils: SoilSave[];
   /** 场上所有木箱(落点与箱内格子) */
   crates: CrateSave[];
   /** 场上所有饵料桶(落点与桶内食物/鱼饵) */

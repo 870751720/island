@@ -36,3 +36,8 @@ export function pickaxeHits(kind: 'rock' | 'iron' | 'meteor', tier: number): num
 export function shovelHits(tier: number): number {
   return [3, 2, 1][clampTier(tier) - 1];
 }
+
+/** 锄头开出土壤的站定放置时长(秒,等级越高锄得越快) */
+export function hoePlaceTime(tier: number): number {
+  return [2, 1.5, 1][clampTier(tier) - 1];
+}

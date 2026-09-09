@@ -8,6 +8,7 @@ import type { CraftId, Tools } from './systems/Crafting';
 import type { DropInfo } from './systems/DropSystem';
 import type { EquipKind, EquipSlot } from './systems/Equipment';
 import type { FishingState } from './systems/FishingSystem';
+import type { FacilityKind } from './systems/Facilities';
 import type { HudBuff } from './systems/BuffSystem';
 import type { InventorySlot, ResourceKind } from './systems/Inventory';
 import type { LoomInfo } from './systems/LoomSystem';
@@ -23,7 +24,7 @@ export type HudSnapshot = {
   bait: number;
   heldFenceCount: number;
   heldPlaceCount: number;
-  heldItemKind: ResourceKind | null;
+  heldItemKind: FacilityKind | null;
   placeables: { kind: ResourceKind; count: number }[];
   slots: InventorySlot[];
   capacity: number;

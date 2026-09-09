@@ -1,6 +1,7 @@
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { PlayerState } from './Protocol';
 import type { ResourceKind } from '../systems/Inventory';
+import type { FacilityKind } from '../systems/Facilities';
 import type { DayNightSystem } from '../systems/DayNightSystem';
 import type { WeatherSystem } from '../systems/WeatherSystem';
 
@@ -9,7 +10,7 @@ export function buildPlayersState(
   sessions: readonly PlayerSession[],
   dayNight: DayNightSystem,
   weather: WeatherSystem,
-  heldPlaceItem: (session: PlayerSession) => ResourceKind | null
+  heldPlaceItem: (session: PlayerSession) => FacilityKind | null
 ) {
   const wind = weather.wind;
   return {

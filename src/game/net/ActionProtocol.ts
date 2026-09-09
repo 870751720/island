@@ -135,11 +135,11 @@ const NET_ACTION_ARG_COUNTS = {
 } as const satisfies Record<NetActionName, readonly number[]>;
 
 const HAND_TOOLS: ReadonlySet<string> = new Set([
-  'hand', 'axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword', 'lasso', 'fence', 'fenceGate', 'place',
+  'hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso', 'fence', 'fenceGate', 'place',
 ]);
 const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack']);
 const ANIMAL_SPECIES: ReadonlySet<string> = new Set(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile']);
-const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword']);
+const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword']);
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';

@@ -5,7 +5,7 @@ import { ITEMS } from '@/game/systems/Items';
 import type { PickerItem } from './PlacePicker';
 import { TOOL_ICONS, TOOL_LABELS } from './ToolButton';
 
-const STANDARD_TOOLS = ['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword'] as const;
+const STANDARD_TOOLS = ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'] as const;
 
 export interface PlacePickerItem extends PickerItem {
   tool?: HandTool;

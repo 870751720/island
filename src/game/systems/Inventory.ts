@@ -71,6 +71,7 @@ export type ResourceKind =
   | 'axe'
   | 'pickaxe'
   | 'shovel'
+  | 'hoe'
   | 'fishingrod'
   | 'bow'
   | 'sword'

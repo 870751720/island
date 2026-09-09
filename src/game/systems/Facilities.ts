@@ -4,9 +4,13 @@ import type { Props } from '../world/Props';
 import { PROP_NAMES } from '../world/Props';
 import type { PlaceOccupancy } from './PlaceOccupancy';
 import type { PlayerSession } from '../mp/PlayerSession';
+import type { ResourceKind } from './Inventory';
 
-/** 设施手持时对应的工具位(工具循环/按钮分组) */
-export type FacilityTool = 'place' | 'fence' | 'fenceGate';
+/** 设施手持时对应的工具位(工具循环/按钮分组);hoe 为工具驱动:手持锄头即触发,不占背包道具 */
+export type FacilityTool = 'place' | 'fence' | 'fenceGate' | 'hoe';
+
+/** 设施注册键:背包道具种类,或工具驱动的零消耗设施(如土壤) */
+export type FacilityKind = ResourceKind | 'soil';
 
 /**
  * 一种设施(可放置道具)的行为定义,注册进 AutoPlaceSystem 后统一获得:
@@ -27,8 +31,12 @@ export interface FacilityDef {
   onPreview?: (preview: THREE.Object3D, actor: PlayerSession, x: number, z: number) => void;
   /** 权威放置(落格已由统一入口校验,只做入包扣除与实体生成) */
   place: (actor: PlayerSession, at: THREE.Vector3) => boolean;
-  /** 站定自动放置的时长(秒,缺省 2;围栏门 5) */
-  holdTime?: number;
+  /** 零消耗设施(工具驱动,如锄头开土壤):不检查/不扣除背包,持有对应工具即可放 */
+  free?: boolean;
+  /** 展示名(缺省取 ITEMS;非道具设施如土壤必须提供) */
+  name?: string;
+  /** 站定自动放置的时长(秒,缺省 2;围栏门 5;可按发起者动态,如锄头等级越高越快) */
+  holdTime?: number | ((actor: PlayerSession) => number);
   /** 落点可放但结算仍失败时的提示(缺省「这里放不下…」) */
   failText?: (actor: PlayerSession) => string;
 }

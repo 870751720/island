@@ -9,7 +9,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 22;
+export const NET_PROTOCOL_VERSION = 23;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -80,6 +80,7 @@ export type WorldPatch = Partial<
     | 'fenceGates'
     | 'beds'
     | 'shrines'
+    | 'soils'
     | 'stakes'
     | 'drops'
   >

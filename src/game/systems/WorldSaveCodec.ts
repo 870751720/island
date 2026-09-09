@@ -14,6 +14,7 @@ import type { LoomSystem } from './LoomSystem';
 import type { RabbitBurrowSystem } from './RabbitBurrowSystem';
 import type { SaveData } from './SaveSystem';
 import type { ShrineSystem } from './ShrineSystem';
+import type { SoilSystem } from './SoilSystem';
 import type { SmelterSystem } from './SmelterSystem';
 import type { StakeSystem } from './StakeSystem';
 import type { WaterPurifierSystem } from './WaterPurifierSystem';
@@ -35,6 +36,7 @@ export type WorldSaveSystems = {
   fences: FenceSystem;
   beds: BedSystem;
   shrines: ShrineSystem;
+  soils: SoilSystem;
   stakes: StakeSystem;
   drops: DropSystem;
   dog: Pomeranian;
@@ -58,6 +60,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.fences.restore(save.fences, save.fenceGates);
   s.beds.restore(save.beds);
   s.shrines.restore(save.shrines);
+  s.soils.restore(save.soils ?? []);
   s.stakes.restore(save.stakes);
   if (!guestMode) {
     for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
@@ -85,6 +88,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     fenceGates: s.fences.snapshotGates(),
     beds: s.beds.snapshot(),
     shrines: s.shrines.snapshot(),
+    soils: s.soils.snapshot(),
     stakes: s.stakes.snapshot(),
     drops: s.drops.snapshot(),
     burrows: s.burrows.snapshot(),

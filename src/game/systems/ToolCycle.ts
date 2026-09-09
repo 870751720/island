@@ -2,11 +2,12 @@ import type { HandTool } from '../entities/Player';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { CycleEntry } from '../GameTypes';
 import type { ResourceKind } from './Inventory';
+import type { FacilityKind } from './Facilities';
 
 export type ToolCyclePlacement = {
   supports(kind: ResourceKind): boolean;
   toolOf(kind: ResourceKind): HandTool | null;
-  heldKind(session: PlayerSession): ResourceKind | null;
+  heldKind(session: PlayerSession): FacilityKind | null;
 };
 
 export function listPlaceables(
@@ -34,7 +35,7 @@ export function nextToolEntry(
   lastKind: ResourceKind | null,
   hasTool: (tool: Exclude<HandTool, 'hand'>) => boolean
 ): CycleEntry {
-  const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword', 'lasso'];
+  const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'];
   const entries: CycleEntry[] = order
     .filter((tool) => tool === 'hand' || hasTool(tool))
     .map((tool) => ({ tool, kind: null }));

@@ -35,6 +35,7 @@ export class WorldReplicationController {
       fenceGates: s.fences.snapshotGates(),
       beds: s.beds.snapshot(),
       shrines: s.shrines.snapshot(),
+      soils: s.soils.snapshot(),
       stakes: s.stakes.snapshot(),
       drops: s.drops.snapshot(),
       burrows: s.burrows.netSnapshot(),
@@ -64,6 +65,7 @@ export class WorldReplicationController {
     s.fences.setChangeSinks(send('fences'), send('fenceGates'));
     s.beds.setChangeSink(send('beds'));
     s.shrines.setChangeSink(send('shrines'));
+    s.soils.setChangeSink(send('soils'));
     s.stakes.setChangeSink(send('stakes'));
     s.drops.setChangeSink(send('drops'));
   }
@@ -120,6 +122,7 @@ export class WorldReplicationController {
     if (state.fences || state.fenceGates) s.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
     if (state.beds) s.beds.netApply(state.beds);
     if (state.shrines) s.shrines.netApply(state.shrines);
+    if (state.soils) s.soils.netApply(state.soils);
     if (state.stakes) s.stakes.netApply(state.stakes);
     if (state.drops) s.drops.netApply(state.drops);
   }

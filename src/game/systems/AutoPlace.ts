@@ -4,7 +4,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { ResourceKind } from './Inventory';
 import { ActionHold } from './ActionHold';
 import { cardinalRotY } from '../core/Facing';
-import type { FacilityDef, FacilityTool } from './Facilities';
+import type { FacilityDef, FacilityKind, FacilityTool } from './Facilities';
 
 /** 安放网格与围栏共用同一整数格网(FENCE_GRID=1),落点取玩家面前一格吸附后的格中心 */
 const PLACE_AHEAD = 0.9;
@@ -43,7 +43,7 @@ type SessionState = {
   /** 原地自动放置是否已用过:null 表示可放,放置后记位,移动即复位 */
   lastPlaceX: number | null;
   preview: THREE.Group | null;
-  previewKind: ResourceKind | null;
+  previewKind: FacilityKind | null;
   /** 工具循环切入时选中的设施道具 */
   selectedKind: ResourceKind | null;
   meshes: THREE.Mesh[];
@@ -57,7 +57,7 @@ type SessionState = {
  * 放置结算统一经 settle 回调走 Game 的权威入口(联机时自动上行房主),预览与进度两端各自本地驱动。
  */
 export class AutoPlaceSystem {
-  private defs = new Map<ResourceKind, FacilityDef>();
+  private defs = new Map<FacilityKind, FacilityDef>();
   private states = new Map<PlayerSession, SessionState>();
   private okMat = ghostMaterial(PREVIEW_OK);
   private badMat = ghostMaterial(PREVIEW_BAD);
@@ -68,11 +68,11 @@ export class AutoPlaceSystem {
     /** 其他占用双手的行为(如合成/采集中),为真时安放让位 */
     private isBusy: (actor: PlayerSession) => boolean = () => false,
     /** 统一放置结算入口(由 Game 提供:失败提示、铲子收起等外围处理都在那边) */
-    private settle: (kind: ResourceKind, actor: PlayerSession, cell: { x: number; z: number } | null) => boolean = () => false
+    private settle: (kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number } | null) => boolean = () => false
   ) {}
 
   /** 注册一种可放置设施 */
-  register(kind: ResourceKind, def: FacilityDef): void {
+  register(kind: FacilityKind, def: FacilityDef): void {
     this.defs.set(kind, def);
   }
 
@@ -86,25 +86,32 @@ export class AutoPlaceSystem {
     return this.defs.get(kind)?.tool ?? null;
   }
 
-  defOf(kind: ResourceKind): FacilityDef | undefined {
+  defOf(kind: FacilityKind): FacilityDef | undefined {
     return this.defs.get(kind);
   }
 
   /** 手持设施工具的背包剩余个数(工具按钮角标) */
   heldCount(actor: PlayerSession): number {
     const kind = this.heldKind(actor);
-    return kind ? actor.inventory.count(kind) : 0;
+    return kind && kind !== 'soil' ? actor.inventory.count(kind) : 0;
   }
 
-  /** 手持设施工具时选中的道具(未选中/已耗尽/工具不对为 null) */
-  heldKind(actor: PlayerSession): ResourceKind | null {
+  /** 手持设施工具时选中的道具(未选中/已耗尽/工具不对为 null);
+   * 工具驱动的零消耗设施(如锄头→土壤)直接按当前手持工具推导 */
+  heldKind(actor: PlayerSession): FacilityKind | null {
+    const tool = actor.player.currentTool;
+    for (const [kind, def] of this.defs) {
+      if (def.free && def.tool === tool && actor.tools[def.tool as keyof typeof actor.tools] > 0) return kind;
+    }
     const kind = this.states.get(actor)?.selectedKind ?? null;
-    if (!kind || !this.defs.has(kind) || actor.inventory.count(kind) <= 0) return null;
-    return this.defs.get(kind)!.tool === actor.player.currentTool ? kind : null;
+    if (!kind || !this.defs.has(kind)) return null;
+    const def = this.defs.get(kind)!;
+    if (!def.free && actor.inventory.count(kind) <= 0) return null;
+    return def.tool === tool ? kind : null;
   }
 
   /** 某设施的预览/手持建模(真实材质,由外层接管材质或缩放) */
-  previewModelOf(kind: ResourceKind): THREE.Object3D | null {
+  previewModelOf(kind: FacilityKind): THREE.Object3D | null {
     const def = this.defs.get(kind);
     if (!def) return null;
     return (def.handModel ?? def.buildPreview)();
@@ -114,7 +121,7 @@ export class AutoPlaceSystem {
    * 就近最优落点(默认策略):面前格附近一圈格中心里离面前最近的可放格;
    * 全都放不下时返回面前格与其不可放原因(红色预览与头顶提示用)。
    */
-  target(actor: PlayerSession, kind: ResourceKind): { x: number; z: number; reason: string | null } {
+  target(actor: PlayerSession, kind: FacilityKind): { x: number; z: number; reason: string | null } {
     const def = this.defs.get(kind);
     const ahead = snapAheadCell(actor);
     if (!def?.valid) return { ...ahead, reason: null };
@@ -141,9 +148,15 @@ export class AutoPlaceSystem {
   }
 
   /** 该设施的落点:自定义打分(围栏/门接线优先)优先,否则用默认就近搜索 */
-  resolveTarget(actor: PlayerSession, kind: ResourceKind): { x: number; z: number; reason: string | null } {
+  resolveTarget(actor: PlayerSession, kind: FacilityKind): { x: number; z: number; reason: string | null } {
     const def = this.defs.get(kind);
     return def?.target ? def.target(actor) : this.target(actor, kind);
+  }
+
+  /** 某设施对该玩家的站定放置时长(动态值按发起者取,缺省 2 秒) */
+  private holdTimeOf(def: FacilityDef | undefined, actor: PlayerSession): number {
+    if (!def?.holdTime) return AUTO_PLACE_TIME;
+    return typeof def.holdTime === 'function' ? def.holdTime(actor) : def.holdTime;
   }
 
   private st(actor: PlayerSession): SessionState {
@@ -178,7 +191,7 @@ export class AutoPlaceSystem {
     const st = this.states.get(actor);
     if (!st || st.placeTimer <= 0) return null;
     const kind = this.heldKind(actor);
-    const need = (kind ? this.defs.get(kind)?.holdTime : undefined) ?? AUTO_PLACE_TIME;
+    const need = kind ? this.holdTimeOf(this.defs.get(kind), actor) : AUTO_PLACE_TIME;
     return Math.min(st.placeTimer / need, 1);
   }
 
@@ -210,7 +223,7 @@ export class AutoPlaceSystem {
     if (actor.player.isMoving) st.lastPlaceX = null;
     const kind = this.heldKind(actor);
     const def = kind ? this.defs.get(kind) : undefined;
-    if (!kind || !def || actor.inventory.count(kind) <= 0) {
+    if (!kind || !def || (!def.free && actor.inventory.count(kind as ResourceKind) <= 0)) {
       st.placeTimer = 0;
       return;
     }
@@ -227,7 +240,7 @@ export class AutoPlaceSystem {
     }
     st.hold.hold(actor.player, 'craft');
     st.placeTimer += delta;
-    if (st.placeTimer < (def.holdTime ?? AUTO_PLACE_TIME)) return;
+    if (st.placeTimer < this.holdTimeOf(def, actor)) return;
     st.placeTimer = 0;
     // 失败也记位,避免同一位置反复弹出失败提示;移动一下即恢复
     st.lastPlaceX = actor.player.group.position.x;
@@ -237,7 +250,7 @@ export class AutoPlaceSystem {
   private updatePreview(actor: PlayerSession, st: SessionState): void {
     const kind = this.heldKind(actor);
     const def = kind ? this.defs.get(kind) : undefined;
-    if (!kind || !def || actor.player.isSwimming || actor.inventory.count(kind) <= 0) {
+    if (!kind || !def || actor.player.isSwimming || (!def.free && actor.inventory.count(kind as ResourceKind) <= 0)) {
       if (st.preview) st.preview.visible = false;
       return;
     }

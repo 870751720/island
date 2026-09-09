@@ -11,6 +11,7 @@ export const TOOL_ICONS: Record<HandTool, string> = {
   axe: '🪓',
   pickaxe: '⛏️',
   shovel: '🥄',
+  hoe: '🌱',
   fishingrod: '🎣',
   bow: '🏹',
   sword: '🗡️',
@@ -26,6 +27,7 @@ export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
   axe: '斧子',
   pickaxe: '镐子',
   shovel: '铲子',
+  hoe: '锄头',
   fishingrod: '鱼竿',
   bow: '弓',
   sword: '剑',
@@ -103,8 +105,8 @@ export function ToolButton({
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
   placeCount?: number;
-  /** 手持的可安放道具(图标跟随,缺省用 📦) */
-  placeKind?: ResourceKind | null;
+  /** 手持的可安放道具(图标跟随,缺省用 📦;工具驱动的零消耗设施如土壤也走此字段) */
+  placeKind?: ResourceKind | 'soil' | null;
   /** 背包剩余套索数(持套索且未牵着羊时角标展示) */
   lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
@@ -274,7 +276,9 @@ export function ToolButton({
                     : untie
                       ? '🔓'
                       : placeKind
-                        ? ITEMS[placeKind].icon
+                        ? placeKind in ITEMS
+                          ? ITEMS[placeKind as ResourceKind].icon
+                          : '📦'
                         : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&

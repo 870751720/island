@@ -12,10 +12,12 @@ export type GameOptions = {
   save?: SaveData | null;
 };
 
-export type CycleEntry = { tool: HandTool; kind: ResourceKind | null };
+import type { FacilityKind } from './systems/Facilities';
+
+export type CycleEntry = { tool: HandTool; kind: FacilityKind | null };
 
 export type InteractionKind =
   | 'collect' | 'milk' | 'crafting' | 'eating' | 'fishing' | 'archery' | 'sword'
   | 'lasso' | 'water' | 'workbench' | 'campfire' | 'crates' | 'baitBarrels'
   | 'brewBarrels' | 'waterPurifiers' | 'burrows' | 'smelters' | 'cookingStations'
-  | 'looms' | 'fences' | 'beds' | 'shrines' | 'autoPlace';
+  | 'looms' | 'fences' | 'beds' | 'shrines' | 'soils' | 'autoPlace';

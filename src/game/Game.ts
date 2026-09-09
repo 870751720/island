@@ -16,7 +16,7 @@ import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
-import { pickaxeUnlocked } from './systems/ToolTiers';
+import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
@@ -46,11 +46,13 @@ import { Loom } from './entities/Loom';
 import { CookingStation } from './entities/CookingStation';
 import { Campfire } from './entities/Campfire';
 import { AutoPlaceSystem, buildGhost, miniHeldModel, snapAheadCell } from './systems/AutoPlace';
-import { dryCellReason, type FacilityDef } from './systems/Facilities';
+import { dryCellReason, type FacilityDef, type FacilityKind } from './systems/Facilities';
 import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine } from './entities/Shrine';
+import { SoilSystem } from './systems/SoilSystem';
+import { Soil } from './entities/Soil';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -219,6 +221,7 @@ export class Game {
   private stakes: StakeSystem;
   private beds: BedSystem;
   private shrines: ShrineSystem;
+  private soils: SoilSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private lastFishingState: FishingState | null = null;
@@ -701,8 +704,19 @@ export class Game {
       // 火把火光的光源池
       this.flameLights
     );
+    this.soils = new SoilSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'soils')
+    );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -752,6 +766,7 @@ export class Game {
       fences: this.fences,
       beds: this.beds,
       shrines: this.shrines,
+      soils: this.soils,
       stakes: this.stakes,
       drops: this.drops,
       dog: this.dog,
@@ -775,6 +790,7 @@ export class Game {
       fences: this.fences,
       beds: this.beds,
       shrines: this.shrines,
+      soils: this.soils,
       campfire: this.campfire,
     });
     this.hudSnapshotBuilder = new HudSnapshotBuilder(
@@ -957,6 +973,7 @@ export class Game {
           this.refreshHandModels();
           this.beds.updateActor(s, simDelta);
           this.shrines.updateActor(s, simDelta);
+          this.soils.updateActor(s, simDelta);
           this.workbench.updateActor(s, simDelta);
           this.campfire.updateActor(s, simDelta);
           // 手里的种子/围栏/可放置道具用光后自动收起,回到空手
@@ -1899,7 +1916,8 @@ export class Game {
    * 可放置道具也可经长按工具按钮的选择面板直接点选 */
   cycleTool(): void {
     const next = nextToolEntry(this.local, this.autoPlace, this.lastPlaceKind, (tool) => this.hasTool(tool));
-    this.selectTool(next.tool, next.kind ?? undefined);
+    // 工具驱动的零消耗设施(土壤)不占道具位:切到锄头本身即可,不传选中道具
+    this.selectTool(next.tool, next.kind !== 'soil' ? next.kind ?? undefined : undefined);
   }
 
   /** 某会话背包里可手持放置的道具清单(去重;上次使用的排最前,便于连续放置) */
@@ -1914,17 +1932,17 @@ export class Game {
   }
 
   /** 该会话手里正举着的可放置道具,供图标、手持模型与快照用 */
-  private heldPlaceItem(s: PlayerSession): ResourceKind | null {
+  private heldPlaceItem(s: PlayerSession): FacilityKind | null {
     return this.autoPlace.heldKind(s);
   }
 
   /** 某可放置道具的手持模型(真实建模缩到手心大小) */
-  private buildHandModel(kind: ResourceKind): THREE.Object3D {
+  private buildHandModel(kind: FacilityKind): THREE.Object3D {
     return miniHeldModel(this.autoPlace.previewModelOf(kind) ?? new THREE.Group());
   }
 
   /** 各玩家手持的可放置道具模型随选中/耗尽实时替换(缓存避免每帧重建) */
-  private handModelKind = new Map<PlayerSession, ResourceKind | null>();
+  private handModelKind = new Map<PlayerSession, FacilityKind | null>();
   private refreshHandModels(): void {
     for (const s of this.sessions) {
       const kind = this.heldPlaceItem(s);
@@ -2339,12 +2357,12 @@ export class Game {
   }
 
   /** 设施的权威结算:cell 已由站定自动放置选好时直接用,否则就近最优格;失败给出具体提示 */
-  private settleFacility(kind: ResourceKind, actor: PlayerSession, cell: { x: number; z: number } | null): boolean {
+  private settleFacility(kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number } | null): boolean {
     const def = this.autoPlace.defOf(kind);
     if (!def || this.asleepFor(actor)) return false;
     const t = cell ? { x: cell.x, z: cell.z, reason: null as string | null } : this.autoPlace.resolveTarget(actor, kind);
     const at = new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z);
-    if (actor.inventory.count(kind) <= 0 || t.reason || !def.place(actor, at)) {
+    if ((!def.free && actor.inventory.count(kind as ResourceKind) <= 0) || t.reason || !def.place(actor, at)) {
       this.notify(this.placeFailText(actor, kind, t.reason), actor);
       return false;
     }
@@ -2422,9 +2440,9 @@ export class Game {
   }
 
   /** 放置失败提示:落点原因优先,道具已不在背包时点名,设施自定义次之,不再笼统说放不下 */
-  private placeFailText(actor: PlayerSession, kind: ResourceKind, reason: string | null): string {
+  private placeFailText(actor: PlayerSession, kind: FacilityKind, reason: string | null): string {
     if (reason) return reason;
-    if (actor.inventory.count(kind) <= 0) return '背包里已经没有这个道具了';
+    if (kind !== 'soil' && actor.inventory.count(kind) <= 0) return '背包里已经没有这个道具了';
     return this.autoPlace.defOf(kind)?.failText?.(actor) ?? '这里放不下,找个没东西的干地试试';
   }
 
@@ -2435,7 +2453,7 @@ export class Game {
 
   /** 注册全部设施:每种可放置道具一份 FacilityDef——位置校验沿用各系统规则,预览复用实体/资源点建模,放置直达对应系统 */
   private registerFacilities(): void {
-    const def = (kind: ResourceKind, facility: FacilityDef): void => {
+    const def = (kind: FacilityKind, facility: FacilityDef): void => {
       this.autoPlace.register(kind, facility);
     };
     const ghost = (build: (scene: THREE.Scene) => THREE.Object3D): (() => THREE.Object3D) =>
@@ -2492,6 +2510,17 @@ export class Game {
     def('shrubBush', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeShrub(), place: (a, at) => this.placeBush('shrubBush', at, a) });
     def('grassTuft', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeGrassTuft(), place: (a, at) => this.placeBush('grassTuft', at, a) });
     def('wormNest', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeWormNest().group, place: (a, at) => this.placeBush('wormNest', at, a) });
+    // 土壤:手持锄头即触发的零消耗设施,站定自动开出一格土壤(高等级锄头更快),铲子可挖掉还原
+    def('soil', {
+      tool: 'hoe',
+      free: true,
+      name: '土壤',
+      valid: (a, x, z) => this.soils.canPlaceAt(a, x, z),
+      buildPreview: ghost((sc) => new Soil(sc, new THREE.Vector3()).group),
+      place: (a, at) => this.soils.place(a, at),
+      holdTime: (a) => hoePlaceTime(a.tools.hoe),
+      failText: () => '这里锄不了,找块没东西的干地试试',
+    });
     // 围栏木/石:落点优先接上现有围栏线,预览横杆按邻居显隐
     for (const [kind, fenceKind] of [['fenceWood', 'branch'], ['fenceStone', 'stone']] as const) {
       def(kind, {
@@ -2831,6 +2860,7 @@ export class Game {
     this.autoPlace.detach(session);
     this.beds.detach(session);
     this.shrines.detach(session);
+    this.soils.detach(session);
     this.scene.remove(session.player.group);
     session.nameTag.dispose();
     session.player.dispose();
@@ -2869,6 +2899,7 @@ export class Game {
     if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
     if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
+    if (exclude !== 'soils' && this.soils.isDigging(s)) return true;
     if (exclude !== 'autoPlace' && this.autoPlace.isPlacing(s)) return true;
     return false;
   }

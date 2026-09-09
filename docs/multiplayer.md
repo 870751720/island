@@ -230,3 +230,5 @@
 2026-09-09(代码健康):资源与配方参数在房主分发前复用 `ITEMS`、`RECIPES` 注册表校验,未登记 ID 不再进入动作处理;注册表同时导出通用类型守卫,不复制资源/配方清单。协议格式、版本及合法动作行为不变。
 
 2026-09-09(代码健康):房主 `ACTIONS` 注册表按动作名映射到 `NetActionArgs` 的具体参数元组,处理器不再逐字段强制断言;不可信数组只在运行时校验通过后的统一分发函数中转换一次。进食消息显式兼容 JSON 数组中的 `null`,执行前仍归一为未指定食物。线上协议与结算行为不变。
+
+2026-09-09(迭代):新增锄头工具与土壤设施(`NET_PROTOCOL_VERSION` 22→23)。世界段 `WorldPatch` 增加 `soils` section(土壤落点列表,`SoilSystem` 增删经 world delta 回流,客人端 `netApply` 重放);土壤放置/挖除无新动作——手持锄头的站定自动放置由房主 `AutoPlaceSystem.updateActor` 权威结算(工具驱动的零消耗设施,`free` 定义不检查背包),持铲挖除同理,客人端仅本地驱动落点预览(`updatePreviewFor`)。锄头加入 `tool` 动作工具白名单与 `gmGiveTool` 枚举,等级经 HUD `toolTiers` 快照同步。存档新增 `soils` 字段(旧档缺省视为无,`SAVE_VERSION` 不变)。

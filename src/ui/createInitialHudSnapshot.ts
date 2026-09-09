@@ -22,7 +22,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     lassoCount: 0,
     leading: false,
     nearTether: false,
-    toolTiers: { axe: 0, pickaxe: 0, shovel: 0, fishingrod: 0, bow: 0, sword: 0 },
+    toolTiers: { axe: 0, pickaxe: 0, shovel: 0, hoe: 0, fishingrod: 0, bow: 0, sword: 0 },
     craftedIds: [],
     nearCrate: false,
     nearBaitBarrel: false,

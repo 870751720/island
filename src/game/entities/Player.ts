@@ -51,12 +51,13 @@ export type ActionType =
   | 'slash'
   | 'sleep';
 
-/** 手持工具:空手/斧子/镐子/铲子/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏)/安放(可放置道具通用) */
+/** 手持工具:空手/斧子/镐子/铲子/锄头/鱼竿/弓/木剑/套索(套羊)/围栏(木/石通用)与围栏门(用于沿途立栏)/安放(可放置道具通用) */
 export type HandTool =
   | 'hand'
   | 'axe'
   | 'pickaxe'
   | 'shovel'
+  | 'hoe'
   | 'fishingrod'
   | 'bow'
   | 'sword'
@@ -202,6 +203,26 @@ function makeShovelModel(tier: 1 | 2 | 3): THREE.Group {
   return g;
 }
 
+/** 锄头:木柄 + 顶端横向扁刃(与柄垂直,锄地时切土);一级木锄、二级石锄、三级铁锄(刃更宽) */
+function makeHoeModel(tier: 1 | 2 | 3): THREE.Group {
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.045, 0.62, 5),
+    clayMaterial('#8a6239')
+  );
+  const bladeColor = tier === 3 ? '#aab2ba' : tier === 2 ? '#7d7d82' : '#9a8a72';
+  const bladeMat = clayMaterial(bladeColor);
+  const width = tier === 3 ? 0.22 : tier === 2 ? 0.18 : 0.14;
+  // 锄刃:横在柄顶的扁方块,朝向与柄垂直
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(width, 0.07, 0.12), bladeMat);
+  blade.position.y = 0.36;
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.06), bladeMat);
+  neck.position.y = 0.29;
+  g.add(handle, blade, neck);
+  g.rotation.x = Math.PI / 2.4;
+  return g;
+}
+
 /** 剑:木柄 + 十字护手 + 扁剑身;一级(木剑)木色剑身,二级(石剑)更短的磨石剑身,三级(铁剑)铁色长剑身 */
 function makeSwordModel(tier: 1 | 2 | 3): THREE.Group {
   const g = new THREE.Group();
@@ -339,6 +360,7 @@ export class Player implements Updatable {
       ['axe', [makeAxeModel(1), makeAxeModel(2), makeAxeModel(3)]],
       ['pickaxe', [makePickaxeModel(1), makePickaxeModel(2), makePickaxeModel(3)]],
       ['shovel', [makeShovelModel(1), makeShovelModel(2), makeShovelModel(3)]],
+      ['hoe', [makeHoeModel(1), makeHoeModel(2), makeHoeModel(3)]],
       ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2), makeFishingRodModel(3)]],
       ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
