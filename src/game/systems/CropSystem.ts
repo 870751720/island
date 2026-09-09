@@ -11,6 +11,8 @@ const HARVEST_RANGE = 1.6; // 空手可采收成熟作物的距离
 const HARVEST_TIME = 0.6; // 一次采收动作时长(秒)
 const SWAY_AMOUNT = 0.05; // 随风轻摆的幅度(弧度)
 const SPARKLE_INTERVAL = 2.2; // 成熟作物粒子的间隔(秒)
+const SEED_BONUS_CHANCE = 0.1; // 采收额外掉 1 个种子的基础概率,「良种」2 级再 +10%
+const SEEDLINE_MATURE_CUT = 8; // 「良种」3 级:未成熟→成熟阶段时长减少的秒数
 /** 快照对账容差:客人本地累计的生长秒数与房主差距在该值内时保留本地值(柔和对账) */
 const AGE_SYNC_TOLERANCE = 5;
 
@@ -42,7 +44,9 @@ export class CropSystem {
     /** 其他占用双手的行为(如采集中),为真时采收让位 */
     private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
     /** 采收粒子同步给联机客人 */
-    private onFx: (position: THREE.Vector3, color: string, count: number) => void = () => {}
+    private onFx: (position: THREE.Vector3, color: string, count: number) => void = () => {},
+    /** 局外养成「良种」等级(0-3,联机/默认 0):2 级提升额外种子概率,3 级缩短成熟阶段时长 */
+    private seedlineLevel: () => number = () => 0
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
@@ -96,7 +100,9 @@ export class CropSystem {
   }
 
   private spawn(kind: CropKind, at: THREE.Vector3, grown: number): Crop {
-    const crop = new Crop(this.scene, CROP_SPECS[kind], at.clone(), grown);
+    const spec = CROP_SPECS[kind];
+    const immatureSeconds = this.seedlineLevel() >= 3 ? spec.immatureSeconds - SEEDLINE_MATURE_CUT : spec.immatureSeconds;
+    const crop = new Crop(this.scene, spec, at.clone(), grown, immatureSeconds);
     this.crops.push(crop);
     const p = crop.group.position;
     this.onChanged?.({
@@ -156,8 +162,9 @@ export class CropSystem {
     const p = crop.group.position;
     this.destroy(crop);
     actor.inventory.add(spec.product, spec.yieldCount);
-    // 采收必掉 1 个对应种子,10% 概率额外多掉 1 个(随机只在权威结算端发生,背包随快照回流)
-    actor.inventory.add(spec.seed, Math.random() < 0.1 ? 2 : 1);
+    // 采收必掉 1 个对应种子,小概率额外多掉 1 个(良种 2 级把概率再 +10%;随机只在权威结算端发生,背包随快照回流)
+    const seedChance = SEED_BONUS_CHANCE + (this.seedlineLevel() >= 2 ? SEED_BONUS_CHANCE : 0);
+    actor.inventory.add(spec.seed, Math.random() < seedChance ? 2 : 1);
     this.audio.play('pick');
     const fxPos = p.clone();
     fxPos.y += 0.3;

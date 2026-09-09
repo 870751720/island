@@ -35,7 +35,7 @@
 |---|---|---|---|---|---|
 | 采集·巧匠 | 拾穗 | 草丛/灌木 10% 额外 1 份 | 摘果 10% 多 1 果 | 每日首次采集双倍(再结算一次 yield) | `CollectSystem.applyMetaYield` |
 | | 碎石成金 | 岩石 10% 多 1 石 | 铁矿点必多 1 铁 | 凿陨石 1% 出珍宝(复用珍宝转盘) | 同上;转盘走 `Game.openCollectTreasure/claimCollectTreasure` + HUD `collectTreasure` |
-| | 良种 | 伐木必多 1 木 | 伐木 10% 多 1 种子 | 伐木必多 1 种子 | 同上 |
+| | 良种 | 伐木必多 1 木 | 采收作物额外种子概率 +10%(基础 10%→20%) | 作物未成熟→成熟时长 -8 秒 | Ⅰ:`CollectSystem.applyMetaYield`;Ⅱ/Ⅲ:`CropSystem`(seedlineLevel 注入) |
 | 钓鱼·渔父 | 省饵 | 每天前 2 竿免饵 | 每竿 10% 免饵 | 裸钓惩罚减轻 10%(杂物权重按比例匀给高档) | `FishingSystem.start` + `FishTable.rollTier(meta)` |
 | | 不脱钩 | 每日首次咬钩跳过点击直接中鱼 | 大鱼连点 -1 | 珍宝连点 -1 | `biteNeed` getter / 咬钩转场 |
 | | 满载 | 10% 渔获翻倍 | 每日第一竿保底 2 档 | 珍宝档权重 +1 | `settleCatch` / `rollTier` |

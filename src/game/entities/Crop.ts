@@ -85,10 +85,10 @@ export const CROP_OF_SEED: Partial<Record<ResourceKind, CropKind>> = {
   pumpkinSeed: 'pumpkin',
 };
 
-/** 按累计生长秒数推导当前阶段 */
-export function cropStageOf(spec: CropSpec, age: number): CropStage {
+/** 按累计生长秒数推导当前阶段(immatureSeconds 可覆盖未成熟→成熟时长,局外养成「良种」用) */
+export function cropStageOf(spec: CropSpec, age: number, immatureSeconds = spec.immatureSeconds): CropStage {
   if (age < spec.sproutSeconds) return 0;
-  if (age < spec.sproutSeconds + spec.immatureSeconds) return 1;
+  if (age < spec.sproutSeconds + immatureSeconds) return 1;
   return 2;
 }
 
@@ -109,12 +109,13 @@ export class Crop {
     scene: THREE.Scene,
     readonly spec: CropSpec,
     readonly position: THREE.Vector3,
-    private age: number
+    private age: number,
+    private immatureSeconds: number = spec.immatureSeconds
   ) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
     scene.add(this.group);
-    this.applyStage(cropStageOf(spec, age));
+    this.applyStage(cropStageOf(spec, age, this.immatureSeconds));
   }
 
   /** 累计生长秒数(存档/快照字段) */
@@ -134,7 +135,7 @@ export class Crop {
   /** 推进生长:跨过阶段阈值时重建对应阶段的模型 */
   grow(delta: number): void {
     this.age += delta;
-    this.applyStage(cropStageOf(this.spec, this.age));
+    this.applyStage(cropStageOf(this.spec, this.age, this.immatureSeconds));
   }
 
   private applyStage(stage: CropStage): void {

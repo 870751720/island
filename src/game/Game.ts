@@ -734,7 +734,9 @@ export class Game {
       (position, color, count) => {
         if (!this.hostRef) return;
         this.hostRef.broadcastEvent({ kind: 'collectFx', x: position.x, y: position.y, z: position.z, color, count });
-      }
+      },
+      // 局外养成「良种」等级(单机生效,联机 metaOn 为假时恒 0)
+      () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
     for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils]) {

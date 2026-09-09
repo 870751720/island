@@ -382,13 +382,9 @@ export class CollectSystem {
     if (rockWealth >= 3 && kind === 'meteor' && Math.random() < 0.01) {
       this.meta.meteorTreasure();
     }
-    // 良种:伐倒成树必多 1 根木头,种子从 10% 概率到必掉
+    // 良种:伐倒成树必多 1 根木头;2/3 级效果属于种植系统,见 CropSystem
     if (seedline >= 1 && kind === 'tree') {
       this.inventory.add('wood', 1);
-    }
-    if (kind === 'tree') {
-      if (seedline >= 3) this.inventory.add(SEED_OF[prop.species ?? 'oak'], 1);
-      else if (seedline >= 2 && Math.random() < 0.1) this.inventory.add(SEED_OF[prop.species ?? 'oak'], 1);
     }
     // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次 yield)
     if (gleaning >= 3 && !this.isDigging(prop) && this.meta.takeFirstCollect()) {
