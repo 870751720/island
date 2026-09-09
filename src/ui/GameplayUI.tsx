@@ -35,13 +35,13 @@ import { SettingsPanel } from './SettingsPanel';
 import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
-import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
 import { createInitialHudSnapshot } from './createInitialHudSnapshot';
 import { useFacilityPanels } from './useFacilityPanels';
 import { createPlacePickerItems } from './placePickerItems';
+import { getPromptVisibility } from './promptVisibility';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -249,6 +249,7 @@ export function GameplayUI({
   const digHijack =
     hud.tool === 'shovel' &&
     isNearbyFacilityDiggable(hud);
+  const promptVisibility = getPromptVisibility(hud, backpackOpen);
 
   return (
     <div
@@ -636,35 +637,20 @@ export function GameplayUI({
               onClose={() => closePanel('loom')}
             />
           )}
-          {(() => {
-            // 左侧弹出卡片三选一,优先级:捡回 > 进食 > 手搓;各自组件内再判定自身细条件
-            const dropActive = !!hud.nearDrop && !hud.dead && !hud.moving && !backpackOpen;
-            const eatActive =
-              !dropActive &&
-              hud.eatName === null &&
-              hud.hunger < EAT_PROMPT_HUNGER &&
-              !hud.dead &&
-              !hud.moving &&
-              !!firstFoodEntryIn(hud.slots);
-            return (
-              <>
-                <CraftPrompt
-                  hud={hud}
-                  onCraft={(id) => gameRef.current?.craftTool(id)}
-                  suppressed={dropActive || eatActive}
-                />
-                <EatPrompt
-                  hud={hud}
-                  onEat={() => gameRef.current?.eatFood()}
-                  onEatFull={() => gameRef.current?.eatUntilFull()}
-                  suppressed={dropActive}
-                />
-                {!backpackOpen && (
-                  <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
-                )}
-              </>
-            );
-          })()}
+          <CraftPrompt
+            hud={hud}
+            onCraft={(id) => gameRef.current?.craftTool(id)}
+            suppressed={promptVisibility.dropActive || promptVisibility.eatActive}
+          />
+          <EatPrompt
+            hud={hud}
+            onEat={() => gameRef.current?.eatFood()}
+            onEatFull={() => gameRef.current?.eatUntilFull()}
+            suppressed={promptVisibility.dropActive}
+          />
+          {!backpackOpen && (
+            <DropPrompt hud={hud} onPickup={() => gameRef.current?.pickupDrop()} />
+          )}
           <FishingControls
             hud={hud}
             onStart={() => gameRef.current?.startFishing()}
