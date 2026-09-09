@@ -3,10 +3,9 @@
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
-import { Game } from '@/game/Game';
-import type { HudSnapshot, MapSnapshot, PickupToast } from '@/game/GameContracts';
+import type { MapSnapshot } from '@/game/GameContracts';
 import type { NetGuest } from '@/game/net/NetGuest';
-import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
+import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -38,10 +37,10 @@ import { fadeStyle } from './fade';
 import { MapIcon, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
-import { createInitialHudSnapshot } from './createInitialHudSnapshot';
 import { useFacilityPanels } from './useFacilityPanels';
 import { createPlacePickerItems } from './placePickerItems';
 import { getPromptVisibility } from './promptVisibility';
+import { useGameLifecycle } from './useGameLifecycle';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -61,24 +60,23 @@ export function GameplayUI({
   /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
   onBecomeHost: (host: NetHost) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<Game | null>(null);
-  const [hud, setHud] = useState<HudSnapshot>(createInitialHudSnapshot);
-  // 世界生成期间的遮罩,首帧渲染完成后淡出
-  const [worldReady, setWorldReady] = useState(false);
+  const {
+    gameRef,
+    containerRef,
+    labelRef,
+    mumbleRef,
+    dogEmojiRef,
+    vitalWarnRef,
+    hud,
+    worldReady,
+    pickups,
+    damagePops,
+    bottleMsg,
+    setBottleMsg,
+  } = useGameLifecycle({ net, initialSave });
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
-  const mumbleRef = useRef<HTMLDivElement>(null);
-  const dogEmojiRef = useRef<HTMLDivElement>(null);
-  const vitalWarnRef = useRef<VitalWarnHandle>(null);
-  // 拾取飘字:入包时在玩家头顶飘出图标与数量,动画结束后自动移除
-  const pickupIdRef = useRef(0);
-  const [pickups, setPickups] = useState<(PickupToast & { id: number })[]>([]);
-  // 受伤飘字:头顶飘出红色伤害数字,动画结束后自动移除
-  const damageIdRef = useRef(0);
-  const [damagePops, setDamagePops] = useState<{ id: number; amount: number; x: number; y: number }[]>([]);
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -101,8 +99,6 @@ export function GameplayUI({
   }, [hud.dead]);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
-  // 瓶中信:拔开漂流瓶后弹出的留言,关闭后清空
-  const [bottleMsg, setBottleMsg] = useState<string | null>(null);
   // 海神的信:拆开后弹出的信纸,关闭后清空
   const [letterMsg, setLetterMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
@@ -144,92 +140,6 @@ export function GameplayUI({
       setBackpackOpen(false);
     }
   }, [hud.dead]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    // 世界生成在 Game 构造函数里同步阻塞主线程,先让浏览器画一帧 loading 遮罩再开始构建
-    let cancelled = false;
-    let game: Game | null = null;
-    const id = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        if (cancelled || !containerRef.current) return;
-        game = new Game(
-      container,
-      setHud,
-      // 头顶提示文字每帧更新,直接写 DOM 避免触发 React 重渲染(预告彩字带颜色)
-      (label: string | null, x: number, y: number, color?: string) => {
-        const el = labelRef.current;
-        if (!el) return;
-        el.style.display = label ? 'block' : 'none';
-        if (label) {
-          el.textContent = label;
-          el.style.color = color ?? '#fff';
-          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-        }
-      },
-      // 自言自语气泡同样每帧直写 DOM,挂在角色头顶
-      (text, x, y) => {
-        const el = mumbleRef.current;
-        if (!el) return;
-        el.style.display = text ? 'block' : 'none';
-        if (text) {
-          el.textContent = text;
-          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-        }
-      },
-      // 低数值提醒:每帧直写 DOM,组件内部自行判断是否显示
-      (vitals, x, y) => vitalWarnRef.current?.update(vitals, x, y),
-      // 背包入包时头顶飘出「图标 ×数量」
-      (toast) => {
-        const id = ++pickupIdRef.current;
-        setPickups((list) => [...list, { ...toast, id }]);
-        setTimeout(() => setPickups((list) => list.filter((t) => t.id !== id)), 1400);
-      },
-      // 受伤时头顶飘出伤害数字
-      (amount, x, y) => {
-        const id = ++damageIdRef.current;
-        setDamagePops((list) => [...list, { id, amount, x, y }]);
-        setTimeout(() => setDamagePops((list) => list.filter((d) => d.id !== id)), 1000);
-      },
-      // 博美头顶的小表情,同样每帧直写 DOM
-      (emoji, x, y) => {
-        const el = dogEmojiRef.current;
-        if (!el) return;
-        el.style.display = emoji ? 'block' : 'none';
-        if (emoji) {
-          el.textContent = emoji;
-          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-        }
-      },
-      setBottleMsg,
-      {
-        host: net?.host,
-        guest: net?.guest,
-        // 房主可在大厅选择新岛或恢复上一次由房主持有的联机存档。
-        ...(net?.host
-          ? {
-              seeds: { terrainSeed: net.host.terrainSeed },
-              save: net.host.initialSave,
-            }
-          : net?.guest
-            ? {}
-            : { save: initialSave ?? null }),
-      }
-        );
-        gameRef.current = game;
-        game.start();
-        // 首帧已入队后再撤遮罩,确保玩家看到的是渲染好的画面
-        requestAnimationFrame(() => setWorldReady(true));
-      })
-    );
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(id);
-      game?.dispose();
-      gameRef.current = null;
-    };
-  }, []);
 
   // 地图打开期间低频读取表现快照，足够跟随移动且避免把位置数据塞进高频 HUD。
   useEffect(() => {
