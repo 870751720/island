@@ -112,6 +112,7 @@ import {
 import type { GameOptions, InteractionKind } from './GameTypes';
 import { PickupPresentation } from './presentation/PickupPresentation';
 import { listPlaceables, nextToolEntry } from './systems/ToolCycle';
+import { restoreSession, snapshotSession } from './systems/SessionSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -1866,62 +1867,15 @@ export class Game {
 
   /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */
   private applyPlayerSave(session: PlayerSession, data: SessionSave): void {
-    session.player.setGender(data.gender ?? 'boy');
-    const p = session.player.group.position;
-    p.set(data.player.x, data.player.y, data.player.z);
-    session.survival.state.hunger = data.survival.hunger;
-    session.survival.state.thirst = data.survival.thirst;
-    session.survival.state.health = data.survival.health;
-    session.survival.state.stamina = data.survival.stamina;
-    session.lastHealth = data.survival.health;
-    session.survival.state.dead = false;
-    session.inventory.load(data.slots, data.capacity);
-    session.ammo.reset();
-    session.ammo.arrow = data.ammo?.arrow ?? 0;
-    session.ammo.bait = data.ammo?.bait ?? 0;
-    // 旧档背包格里的箭/鱼饵归一化到独立弹药存储
-    for (const slot of session.inventory.snapshot()) {
-      if (slot?.kind === 'arrow' || slot?.kind === 'bait') {
-        session.inventory.remove(slot.kind, slot.count);
-        session.ammo.add(slot.kind, slot.count);
-      }
-    }
-    session.equipment.restore(data.equipped, session.inventory);
-    // 恢复已拥有的工具(含等级)
-    for (const [id, tier] of Object.entries(data.tools)) {
-      if (tier > 0) session.tools[id as ToolId] = tier;
-    }
-    session.craftedIds.clear();
-    for (const id of data.crafted ?? []) session.craftedIds.add(id);
-    // 战绩计数与死因随档恢复(旧档缺省为 0/null)
-    session.stats.kills = data.stats?.kills ?? 0;
-    session.stats.collected = data.stats?.collected ?? 0;
-    session.survival.deathCause = null;
-    this.syncToolTiers(session);
-    if (data.handTool === 'hand' || this.hasToolFor(session, data.handTool)) {
-      session.player.setTool(data.handTool);
-    }
+    restoreSession(session, data, {
+      hasTool: (tool) => this.hasToolFor(session, tool),
+      syncToolTiers: () => this.syncToolTiers(session),
+    });
   }
 
   /** 汇总一名玩家的会话进度为存档数据 */
   private collectPlayerSave(session: PlayerSession): SessionSave {
-    const p = session.player.group.position;
-    const sv = session.survival.state;
-    return {
-      id: session.id,
-      name: session.name,
-      player: { x: p.x, y: p.y, z: p.z },
-      survival: { hunger: sv.hunger, thirst: sv.thirst, health: sv.health, stamina: sv.stamina },
-      slots: session.inventory.snapshot(),
-      capacity: session.inventory.capacity,
-      ammo: session.ammo.snapshot(),
-      tools: { ...session.tools },
-      crafted: [...session.craftedIds],
-      equipped: session.equipment.snapshotForSave(),
-      handTool: session.player.currentTool,
-      gender: session.player.currentGender,
-      stats: { ...session.stats },
-    };
+    return snapshotSession(session);
   }
 
   /** 汇总当前进度为存档数据(联机时房主把全部玩家会话一并保存);纯快照,不改现场状态 */
