@@ -104,6 +104,7 @@ import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } 
 import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
+import { buildMapSnapshot, buildMapTerrain } from './systems/MapSnapshotBuilder';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 
 /** Game 构造选项:联机时由 UI 传入网络会话与种子/初始存档 */
@@ -194,34 +195,14 @@ export class Game {
 
   /** 获取地图表现所需的即时状态；客人端读取的玩家/设施均已由房主快照回流。 */
   getMapSnapshot(): MapSnapshot {
-    if (!this.mapTerrain) {
-      const columns = 100;
-      const rows = 500;
-      const pixels = new Uint8Array(columns * rows);
-      for (let row = 0; row < rows; row++) {
-        const z = -this.terrain.halfLength + ((row + 0.5) / rows) * this.terrain.length;
-        for (let column = 0; column < columns; column++) {
-          const x = -this.terrain.halfWidth + ((column + 0.5) / columns) * this.terrain.width;
-          const water = this.terrain.getWaterKind(x, z);
-          const height = this.terrain.getHeight(x, z);
-          pixels[row * columns + column] = water === 'pond' ? 4 : water === 'sea' ? 0 : height < 0.05 ? 1 : height < 1.8 ? 2 : 3;
-        }
-      }
-      this.mapTerrain = { columns, rows, pixels };
-    }
-    return {
-      island: { width: this.terrain.width, length: this.terrain.length },
-      terrain: this.mapTerrain,
-      localPlayerId: this.local.id,
-      players: this.sessions.map((session) => ({
-        id: session.id,
-        name: session.name,
-        x: session.player.group.position.x,
-        z: session.player.group.position.z,
-        dead: session.survival.state.dead,
-      })),
-      workbenches: this.workbench.positions,
-    };
+    this.mapTerrain ??= buildMapTerrain(this.terrain);
+    return buildMapSnapshot(
+      this.terrain,
+      this.mapTerrain,
+      this.local.id,
+      this.sessions,
+      this.workbench.positions
+    );
   }
   private waterFx: WaterFx;
   private pondLife: PondLife;
