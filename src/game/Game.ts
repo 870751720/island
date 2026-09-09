@@ -115,6 +115,7 @@ import { restoreSession, snapshotSession } from './systems/SessionSaveCodec';
 import { HudSnapshotBuilder } from './presentation/HudSnapshotBuilder';
 import { buildDeathReport as createDeathReport } from './systems/DeathReportBuilder';
 import { InteractionIndicatorBuilder } from './presentation/InteractionIndicatorBuilder';
+import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -143,6 +144,7 @@ export class Game {
   private audio = new GameAudio();
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
+  private worldSaveSystems: WorldSaveSystems;
 
   /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
   playUiSfx(name: SfxName): void {
@@ -702,6 +704,27 @@ export class Game {
     this.attachSessionSystems(this.local);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    this.worldSaveSystems = {
+      dayNight: this.dayNight,
+      props: this.props,
+      campfire: this.campfire,
+      workbench: this.workbench,
+      crates: this.crates,
+      baitBarrels: this.baitBarrels,
+      brewBarrels: this.brewBarrels,
+      waterPurifiers: this.waterPurifiers,
+      burrows: this.burrows,
+      smelters: this.smelters,
+      cookingStations: this.cookingStations,
+      looms: this.looms,
+      fences: this.fences,
+      beds: this.beds,
+      shrines: this.shrines,
+      stakes: this.stakes,
+      drops: this.drops,
+      dog: this.dog,
+      wildlife: this.wildlife,
+    };
     this.interactionIndicatorBuilder = new InteractionIndicatorBuilder({
       workbench: this.workbench,
       crates: this.crates,
@@ -1872,34 +1895,8 @@ export class Game {
 
   /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
-    this.dayNight.restore(save.dayTime, save.day ?? 1);
     this.poseidonGraceUsed = save.poseidonGraceUsed ?? false;
-    this.props.applySave(save.props);
-    // 旧档里没有蚯蚓窝资源点(改版前蚯蚓是不入档的环境生物),补撒一批野生的
-    this.props.seedWildWormNests();
-    this.campfire.restore(save.campfires);
-    if (save.workbenches) this.workbench.restore(save.workbenches);
-    if (save.workbenchCrafted) this.workbench.restoreCrafted();
-    this.crates.restore(save.crates);
-    if (save.baitBarrels) this.baitBarrels.restore(save.baitBarrels);
-    if (save.brewBarrels) this.brewBarrels.restore(save.brewBarrels);
-    if (save.waterPurifiers) this.waterPurifiers.restore(save.waterPurifiers);
-    if (save.burrows) this.burrows.restore(save.burrows);
-    if (save.smelters) this.smelters.restore(save.smelters);
-    if (save.cookingStations) this.cookingStations.restore(save.cookingStations);
-    if (save.looms) this.looms.restore(save.looms);
-    this.fences.restore(save.fences ?? [], save.fenceGates ?? []);
-    this.beds.restore(save.beds ?? []);
-    this.shrines.restore(save.shrines ?? []);
-    if (save.stakes) {
-      this.stakes.restore(save.stakes);
-      // 拴住的羊入档:读档时在每个桩位生成一只已拴住的羊(只在权威端生成,客人端由姿态快照补建)
-      if (!this.guestMode) {
-        for (const s of save.stakes) this.wildlife.spawnStakedSheep(s.x, s.z);
-      }
-    }
-    this.drops.restore(save.drops);
-    if (save.dog) this.dog.restore(save.dog.x, save.dog.z);
+    restoreWorld(this.worldSaveSystems, save, this.guestMode);
     this.drawnTreasures = new Set(save.drawnTreasures ?? []);
     this.tier4Pity.count = save.tier4Pity ?? 0;
   }
@@ -1942,28 +1939,8 @@ export class Game {
       ],
       version: SAVE_VERSION,
       terrainSeed: this.terrainSeed,
-      dayTime: this.dayNight.time,
-      day: this.dayNight.day,
+      ...snapshotWorld(this.worldSaveSystems),
       poseidonGraceUsed: this.poseidonGraceUsed,
-      props: this.props.snapshot(),
-      campfires: this.campfire.snapshot(),
-      workbenches: this.workbench.snapshot(),
-      workbenchCrafted: this.workbench.hasCrafted,
-      crates: this.crates.snapshot(),
-      baitBarrels: this.baitBarrels.snapshot(),
-      brewBarrels: this.brewBarrels.snapshot(),
-      waterPurifiers: this.waterPurifiers.snapshot(),
-      smelters: this.smelters.snapshot(),
-      cookingStations: this.cookingStations.snapshot(),
-      looms: this.looms.snapshot(),
-      fences: this.fences.snapshotFences(),
-      fenceGates: this.fences.snapshotGates(),
-      beds: this.beds.snapshot(),
-      shrines: this.shrines.snapshot(),
-      stakes: this.stakes.snapshot(),
-      drops: this.drops.snapshot(),
-      burrows: this.burrows.snapshot(),
-      dog: this.dog.snapshot(),
       drawnTreasures: [...this.drawnTreasures],
       tier4Pity: this.tier4Pity.count,
       stats: { ...this.local.stats },
