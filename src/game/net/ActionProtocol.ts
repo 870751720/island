@@ -132,9 +132,108 @@ const NET_ACTION_ARG_COUNTS = {
   gmConfig: [1],
 } as const satisfies Record<NetActionName, readonly number[]>;
 
-export function hasValidNetActionArity<Name extends NetActionName>(
-  name: Name,
-  args: unknown[],
-): boolean {
-  return (NET_ACTION_ARG_COUNTS[name] as readonly number[]).includes(args.length);
+const HAND_TOOLS: ReadonlySet<string> = new Set([
+  'hand', 'axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword', 'lasso', 'fence', 'fenceGate', 'place',
+]);
+const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack']);
+const ANIMAL_SPECIES: ReadonlySet<string> = new Set(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile']);
+const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'fishingrod', 'bow', 'sword']);
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value);
+}
+
+/** 校验来自 DataChannel 的不可信参数；资源和配方 ID 的注册表校验留给对应玩法入口。 */
+export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boolean {
+  if (!(NET_ACTION_ARG_COUNTS[name] as readonly number[]).includes(args.length)) return false;
+  const [first, second, third, fourth] = args;
+
+  switch (name) {
+    case 'startFishing':
+    case 'hookFish':
+    case 'claimTreasure':
+    case 'sleep':
+    case 'baitBarrelCollect':
+    case 'baitBarrelTakeFoods':
+    case 'brewBarrelCollect':
+    case 'brewBarrelTakeRaw':
+    case 'smelterCollect':
+    case 'smelterTakeOre':
+    case 'cookingCollect':
+    case 'cookingTakeBoil':
+    case 'loomCollect':
+    case 'loomTakeRope':
+    case 'useBottle':
+    case 'pickupDrop':
+    case 'sortInventory':
+    case 'upgradeWorkbench':
+    case 'lassoStake':
+    case 'lassoUntie':
+    case 'gmTriggerCrocodile':
+    case 'gmRestoreStatus':
+      return true;
+    case 'eatFood':
+    case 'eatUntilFull':
+      return first == null || isString(first);
+    case 'tool':
+      return isString(first) && HAND_TOOLS.has(first) && (second === null || isString(second));
+    case 'useFacility':
+    case 'cookingAddFuel':
+    case 'useSeed':
+    case 'campfireAddFuel':
+    case 'equipItem':
+    case 'craftTool':
+      return isString(first);
+    case 'unequipItem':
+      return isString(first) && EQUIP_SLOTS.has(first);
+    case 'baitBarrelFeed':
+    case 'brewBarrelFeed':
+    case 'cookingRoast':
+    case 'cookingBoil':
+    case 'campfireCook':
+    case 'dropItem':
+    case 'craftAtWorkbench':
+    case 'gmGiveItem':
+      return isString(first) && isSafeInteger(second);
+    case 'smelterFeed':
+    case 'loomFeed':
+    case 'swordHit':
+      return isSafeInteger(first);
+    case 'crateStore':
+    case 'crateTake':
+      return isString(first) && (second === null || isSafeInteger(second));
+    case 'moveItem':
+      return isSafeInteger(first) && isSafeInteger(second);
+    case 'arrowHit':
+      return (first === 'wildlife' || first === 'crab' || first === 'bird')
+        && isSafeInteger(second) && isFiniteNumber(third) && isFiniteNumber(fourth);
+    case 'arrowShot':
+    case 'lassoThrow':
+      return isFiniteNumber(first) && isFiniteNumber(second);
+    case 'lassoHit':
+    case 'milkSheep':
+      return isSafeInteger(first) && isFiniteNumber(second) && isFiniteNumber(third);
+    case 'gmSpawnAnimal':
+      return isString(first) && ANIMAL_SPECIES.has(first);
+    case 'gmGiveTool':
+      return isString(first) && TOOL_IDS.has(first) && (second === 1 || second === 2 || second === 3);
+    case 'gmSetGender':
+      return first === 'boy' || first === 'girl';
+    case 'gmSetTime':
+      return isFiniteNumber(first);
+    case 'gmSetDay':
+      return isSafeInteger(first);
+    case 'gmSetWeather':
+      return first === 'sunny' || first === 'rain';
+    case 'gmConfig':
+      return typeof first === 'object' && first !== null && !Array.isArray(first);
+  }
 }
