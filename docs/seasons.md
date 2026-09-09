@@ -22,7 +22,7 @@
 - 存档:本期纯表现层,不落盘,`SAVE_VERSION` 不变。
 - 水洼结冰(第二期玩法化):约 6 成水洼在生成时按地形种子确定性标记 `freezable`(主客由相同 terrainSeed 得到一致集合)。雪量 ≥ 0.7(`IslandTerrain.FREEZE_SNOW`)时这些水洼结冰:
   - 表现:每个可冻水洼在 `terrain.iceGroup` 中有一片共享冰面材质的圆盘(略高于洼面),透明度随雪量在 0.4→0.7 区间渐显,无雪时整组隐藏,零新增 drawcall 负担仅在有雪时出现。
-  - 玩法:`getHeight` 对结冰水洼把地面高度钳到洼面(冰面高度),因此 `getWaterKind` 在冰上返回 null——玩家可在冰上行走(不游泳不涉水),也无法在冰面上触发喝水(`WaterSystem`)或向该水洼抛竿钓鱼(`FishingSystem` 的目标水体判定);海水永不结冰。
+  - 玩法:`getHeight` 对结冰水洼把地面高度钳到洼面(冰面高度),因此 `getWaterKind` 在冰上返回 null——玩家可在冰上行走(不游泳不涉水),也无法在冰面上触发喝水(`WaterSystem`)或向该水洼抛竿钓鱼(`FishingSystem` 的目标水体判定);海水永不结冰。冰面滑行:`Player` 在冰上移动速度 ×2(判定走 `terrain.isOnIce`)。
   - 联机:无新增协议——雪开关走既有 `gmConfig` 同步,结冰集合由 terrainSeed 确定,主客各自本地计算一致;冰上行走是各端本地物理,天然一致。
 
 ## 迭代记录

@@ -407,6 +407,11 @@ export class IslandTerrain {
     return pond ?? null;
   }
 
+  /** 该点是否站在结冰冰面上(供冰面加速滑行等玩法判定) */
+  isOnIce(x: number, z: number): boolean {
+    return this.frozenPondAt(x, z) !== null;
+  }
+
   /** 玩家是否处于任意水面附近(喝水判定) */
   isNearWater(pos: THREE.Vector3, extraRange: number): boolean {
     return this.waterAreas.some(
