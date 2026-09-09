@@ -42,31 +42,28 @@ export type WorldSaveSystems = {
 };
 
 export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boolean): void {
-  s.dayNight.restore(save.dayTime, save.day ?? 1);
+  s.dayNight.restore(save.dayTime, save.day);
   s.props.applySave(save.props);
-  s.props.seedWildWormNests();
   s.campfire.restore(save.campfires);
-  if (save.workbenches) s.workbench.restore(save.workbenches);
+  s.workbench.restore(save.workbenches);
   if (save.workbenchCrafted) s.workbench.restoreCrafted();
   s.crates.restore(save.crates);
-  if (save.baitBarrels) s.baitBarrels.restore(save.baitBarrels);
-  if (save.brewBarrels) s.brewBarrels.restore(save.brewBarrels);
-  if (save.waterPurifiers) s.waterPurifiers.restore(save.waterPurifiers);
-  if (save.burrows) s.burrows.restore(save.burrows);
-  if (save.smelters) s.smelters.restore(save.smelters);
-  if (save.cookingStations) s.cookingStations.restore(save.cookingStations);
-  if (save.looms) s.looms.restore(save.looms);
-  s.fences.restore(save.fences ?? [], save.fenceGates ?? []);
-  s.beds.restore(save.beds ?? []);
-  s.shrines.restore(save.shrines ?? []);
-  if (save.stakes) {
-    s.stakes.restore(save.stakes);
-    if (!guestMode) {
-      for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
-    }
+  s.baitBarrels.restore(save.baitBarrels);
+  s.brewBarrels.restore(save.brewBarrels);
+  s.waterPurifiers.restore(save.waterPurifiers);
+  s.burrows.restore(save.burrows);
+  s.smelters.restore(save.smelters);
+  s.cookingStations.restore(save.cookingStations);
+  s.looms.restore(save.looms);
+  s.fences.restore(save.fences, save.fenceGates);
+  s.beds.restore(save.beds);
+  s.shrines.restore(save.shrines);
+  s.stakes.restore(save.stakes);
+  if (!guestMode) {
+    for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
   }
   s.drops.restore(save.drops);
-  if (save.dog) s.dog.restore(save.dog.x, save.dog.z);
+  s.dog.restore(save.dog.x, save.dog.z);
 }
 
 export function snapshotWorld(s: WorldSaveSystems) {

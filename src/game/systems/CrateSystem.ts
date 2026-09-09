@@ -23,14 +23,14 @@ type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget:
 /** 存取结果:ok 成功;empty 一侧已无该物品(连点已空格子,静默);full 对方装不下 */
 export type TransferResult = 'ok' | 'empty' | 'full';
 
-/** 木箱的存档/网络快照(落点、箱种与箱内格子;kind 缺省为木箱,兼容旧档) */
+/** 木箱的存档/网络快照(落点、箱种与箱内格子)。 */
 export type CrateSave = {
   id?: string;
   x: number;
   y: number;
   z: number;
-  rotY?: number;
-  kind?: CrateKind;
+  rotY: number;
+  kind: CrateKind;
   slots: InventorySlot[];
 };
 
@@ -264,7 +264,7 @@ export class CrateSystem {
   /** 从存档恢复木箱(含箱内物品) */
   restore(list: CrateSave[]): void {
     for (const c of list) {
-      const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.kind ?? 'crate', c.rotY ?? 0);
+      const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.kind, c.rotY);
       crate.storage.load(c.slots, crate.storage.capacity);
       crate.updateIcon();
       this.ids.set(crate, c.id);
@@ -293,7 +293,7 @@ export class CrateSystem {
     for (const value of list) {
       let crate = value.id ? current.get(value.id) : undefined;
       if (!crate) {
-        crate = new Crate(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'crate', value.rotY ?? 0);
+        crate = new Crate(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind, value.rotY);
         this.ids.set(crate, value.id);
         this.crates.push(crate);
       }

@@ -13,20 +13,20 @@ export function buildDeathReport(
     save.campfires.length +
     save.workbenches.length +
     save.crates.length +
-    (save.baitBarrels?.length ?? 0) +
-    (save.waterPurifiers?.length ?? 0) +
-    (save.smelters?.length ?? 0) +
-    (save.cookingStations?.length ?? 0) +
-    (save.looms?.length ?? 0) +
+    save.baitBarrels.length +
+    save.waterPurifiers.length +
+    save.smelters.length +
+    save.cookingStations.length +
+    save.looms.length +
     save.fences.length +
     save.fenceGates.length +
     save.beds.length +
-    (save.shrines?.length ?? 0) +
-    (save.stakes?.length ?? 0);
-  const legacyPoints = legacyPointsForDay(save.day ?? 1);
+    save.shrines.length +
+    save.stakes.length;
+  const legacyPoints = legacyPointsForDay(save.day);
   if (legacyPoints > 0) MetaProgress.grant(legacyPoints);
   return {
-    day: save.day ?? 1,
+    day: save.day,
     cause: session.survival.deathCause ?? 'animal',
     kills: session.stats.kills,
     collected: session.stats.collected,

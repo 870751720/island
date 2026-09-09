@@ -20,8 +20,8 @@ export const SHRINE_JUNK_CUT = 1;
 /** 光环类神龛(治愈水晶/雨神祭坛)的生效半径(米) */
 export const SHRINE_AURA_RANGE = 30;
 
-/** 存档/快照里的一座神龛;旧档缺 kind 时按波塞冬解释 */
-export type ShrineSave = { id?: string; kind?: ShrineKind; x: number; y: number; z: number };
+/** 存档/快照里的一座神龛。 */
+export type ShrineSave = { id?: string; kind: ShrineKind; x: number; y: number; z: number };
 
 /** 每玩家的挖掘进度(神像是世界共享的) */
 type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Shrine | null };
@@ -216,11 +216,10 @@ export class ShrineSystem {
     this.shrines = [];
   }
 
-  /** 从存档恢复全部神像(旧档没有 kind,一律按波塞冬解释) */
+  /** 从存档恢复全部神像。 */
   restore(list: ShrineSave[]): void {
     for (const s of list) {
-      const kind = s.kind ?? 'poseidonBlessing';
-      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z), kind, this.lights);
+      const shrine = new Shrine(this.scene, new THREE.Vector3(s.x, s.y, s.z), s.kind, this.lights);
       this.ids.set(shrine, s.id);
       this.shrines.push(shrine);
     }
@@ -237,7 +236,7 @@ export class ShrineSystem {
     const current = new Map(this.shrines.map((s) => [this.ids.get(s), s]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind ?? 'poseidonBlessing', this.lights);
+      const shrine = new Shrine(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.kind, this.lights);
       this.ids.set(shrine, value.id);
       this.shrines.push(shrine);
     }

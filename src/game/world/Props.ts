@@ -663,27 +663,6 @@ export class Props implements Updatable {
     return prop;
   }
 
-  /** 旧档补撒野生蚯蚓窝:改版前蚯蚓是不入档的环境生物,老档里没有蚯蚓窝资源点 */
-  seedWildWormNests(): void {
-    if (this.list.some((prop) => prop.kind === 'wormNest')) return;
-    const cells = landCells(this.terrain);
-    const target = Math.max(4, Math.round((cells.length * 16 * 7) / 10000));
-    for (let i = 0; i < target * 20 && this.list.filter((prop) => prop.kind === 'wormNest').length < target; i++) {
-      const c = cells[Math.floor(Math.random() * cells.length)];
-      if (!c) break;
-      const x = c.x + (Math.random() - 0.5) * 4;
-      const z = c.z + (Math.random() - 0.5) * 4;
-      const y = this.terrain.getHeight(x, z);
-      const p = new THREE.Vector3(x, y, z);
-      if (y <= 0.3 || this.terrain.isNearWater(p, 1)) continue;
-      if (!this.terrain.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < w.radius + 18)) continue;
-      if (this.isOccupied(p, 1)) continue;
-      const spot: PropSpot = { kind: 'wormNest', x, z };
-      this.createWildProp(spot, Math.random);
-    }
-  }
-
-
   removeProp(prop: Prop): void {
     this.dropProp(prop);
     this.scene.remove(prop.group);

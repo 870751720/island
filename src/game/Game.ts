@@ -1877,7 +1877,7 @@ export class Game {
     if (!save) return;
     if (this.guestMode) {
       // 客人:按房主会话顺序重放,自己的那份落到本地会话(其余建为遥控玩家)
-      const all = [save as SessionSave, ...(save.others ?? [])];
+      const all = [save as SessionSave, ...save.others];
       const roster = this.guestNet?.welcome?.roster ?? [];
       for (let i = 0; i < all.length; i++) {
         const id = roster[i];
@@ -1886,7 +1886,7 @@ export class Game {
     } else {
       this.applyPlayerSave(this.local, save);
       // 只有房主继续联机岛时恢复队友；单机继续不生成无人控制的远程角色。
-      for (const other of this.hostRef ? (save.others ?? []) : []) {
+      for (const other of this.hostRef ? save.others : []) {
         this.savedRemoteSessions.push(other);
       }
     }
@@ -1895,10 +1895,10 @@ export class Game {
 
   /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
-    this.poseidonGraceUsed = save.poseidonGraceUsed ?? false;
+    this.poseidonGraceUsed = save.poseidonGraceUsed;
     restoreWorld(this.worldSaveSystems, save, this.guestMode);
-    this.drawnTreasures = new Set(save.drawnTreasures ?? []);
-    this.tier4Pity.count = save.tier4Pity ?? 0;
+    this.drawnTreasures = new Set(save.drawnTreasures);
+    this.tier4Pity.count = save.tier4Pity;
   }
 
   /** 把一名玩家的会话存档写回其会话(位置/生存/背包/工具/穿戴) */

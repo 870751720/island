@@ -16,9 +16,10 @@ import type { CookingStationSave } from './CookingStationSystem';
 import type { LoomSave } from './LoomSystem';
 import type { StakeSave } from '../entities/Stake';
 import type { RunStats } from './RunStats';
+import type { CrateSave } from './CrateSystem';
 
 const SAVE_KEY = 'island.save.v1';
-export const SAVE_VERSION = 31;
+export const SAVE_VERSION = 32;
 
 /** 资源点完整世界状态；所有资源都直接保存落点，不依赖种子复算布局。 */
 export type PropSave = {
@@ -39,21 +40,20 @@ export type PropSave = {
 export type SessionSave = {
   id: string;
   name: string;
-  /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
-  gender?: PlayerGender;
+  gender: PlayerGender;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
-  /** 独立弹药存储(箭/鱼饵,不占背包格;旧档缺省为 0,背包格里的旧数据读档时归一化) */
-  ammo?: { arrow: number; bait: number };
+  /** 独立弹药存储(箭/鱼饵,不占背包格) */
+  ammo: { arrow: number; bait: number };
   tools: Partial<Record<ToolId, number>>;
   equipped: Partial<Record<EquipSlot, EquipKind>>;
   handTool: HandTool;
-  /** 已制作过的配方 id(旧档缺省为空) */
-  crafted?: CraftId[];
-  /** 本局战绩计数(击杀/采集,旧档缺省为 0) */
-  stats?: RunStats;
+  /** 已制作过的配方 id */
+  crafted: CraftId[];
+  /** 本局战绩计数(击杀/采集) */
+  stats: RunStats;
 };
 
 /** 火堆/工作台/掉落物等摆件的落点(朝向仅上下左右四向,旧档缺省视为 0) */
@@ -64,25 +64,26 @@ export type SaveData = {
   version: number;
   id: string;
   name: string;
-  /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
-  gender?: PlayerGender;
+  gender: PlayerGender;
   terrainSeed: number;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
   capacity: number;
-  /** 独立弹药存储(箭/鱼饵,不占背包格;旧档缺省为 0,背包格里的旧数据读档时归一化) */
-  ammo?: { arrow: number; bait: number };
+  /** 独立弹药存储(箭/鱼饵,不占背包格) */
+  ammo: { arrow: number; bait: number };
   /** 已拥有的工具及其等级(0/未拥有不入档,1 基础,2 二级;制作一次永久拥有,不进背包) */
   tools: Partial<Record<ToolId, number>>;
   /** 各栏位已装备的道具(未装备的栏位缺省) */
   equipped: Partial<Record<EquipSlot, EquipKind>>;
   handTool: HandTool;
+  /** 已制作过的配方 id */
+  crafted: CraftId[];
   dayTime: number;
-  /** 当前是第几天(缺省视为第 1 天) */
-  day?: number;
-  /** 本局波塞冬的庇佑是否已触发过(单局仅一次,缺省视为未触发) */
-  poseidonGraceUsed?: boolean;
+  /** 当前是第几天 */
+  day: number;
+  /** 本局波塞冬的庇佑是否已触发过(单局仅一次) */
+  poseidonGraceUsed: boolean;
   props: PropSave[];
   campfires: (PlacementSave & { fuel: number })[];
   /** 场上所有工作台(落点与等级;可放置多个) */
@@ -91,41 +92,41 @@ export type SaveData = {
   workbenchCrafted: boolean;
   /** 场上所有床(落点与等级;可放置多个) */
   beds: (PlacementSave & { level: number })[];
-  /** 场上所有神龛(种类与落点;可放置多个,旧档缺 kind 时按波塞冬解释) */
-  shrines?: ShrineSave[];
+  /** 场上所有神龛(种类与落点;可放置多个) */
+  shrines: ShrineSave[];
   /** 场上所有木箱(落点与箱内格子) */
-  crates: (PlacementSave & { slots: InventorySlot[] })[];
-  /** 场上所有饵料桶(落点与桶内食物/鱼饵,旧档缺省视为无) */
-  baitBarrels?: BaitBarrelSave[];
-  /** 场上所有酿酒桶(落点与桶内原料/酒,旧档缺省视为无) */
-  brewBarrels?: BrewBarrelSave[];
-  /** 场上所有海水净化器(落点,旧档缺省视为无) */
-  waterPurifiers?: WaterPurifierSave[];
-  /** 场上所有兔子洞(落点与状态,旧档缺省视为无) */
-  burrows?: RabbitBurrowSave[];
-  /** 场上所有冶炼炉(落点与炉内矿石/铁锭,旧档缺省视为无) */
-  smelters?: SmelterSave[];
-  /** 场上所有烹饪台(落点与燃料/煮制队列/产出,旧档缺省视为无) */
-  cookingStations?: CookingStationSave[];
-  /** 场上所有纺织机(落点与机内绳线/布料,旧档缺省视为无) */
-  looms?: LoomSave[];
+  crates: CrateSave[];
+  /** 场上所有饵料桶(落点与桶内食物/鱼饵) */
+  baitBarrels: BaitBarrelSave[];
+  /** 场上所有酿酒桶(落点与桶内原料/酒) */
+  brewBarrels: BrewBarrelSave[];
+  /** 场上所有海水净化器落点 */
+  waterPurifiers: WaterPurifierSave[];
+  /** 场上所有兔子洞(落点与状态) */
+  burrows: RabbitBurrowSave[];
+  /** 场上所有冶炼炉(落点与炉内矿石/铁锭) */
+  smelters: SmelterSave[];
+  /** 场上所有烹饪台(落点与燃料/煮制队列/产出) */
+  cookingStations: CookingStationSave[];
+  /** 场上所有纺织机(落点与机内绳线/布料) */
+  looms: LoomSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[];
-  /** 场上所有拴羊桩(落点;读档时在桩位生成一只已拴住的羊,旧档缺省视为无) */
-  stakes?: StakeSave[];
+  /** 场上所有拴羊桩(落点;读档时在桩位生成一只已拴住的羊) */
+  stakes: StakeSave[];
   drops: DropEntry[];
   /** 黑色博美伴侣的落点 */
-  dog?: { x: number; z: number };
-  /** 本局已抽中过的珍宝(保底权重用,集齐后清空;旧档缺省视为无) */
-  drawnTreasures?: ResourceKind[];
-  /** 有饵连续未出四档的次数(四档保底用,出四档清零;旧档缺省视为 0) */
-  tier4Pity?: number;
-  /** 本局本地玩家的战绩计数(击杀/采集;旧档缺省为 0) */
-  stats?: RunStats;
+  dog: { x: number; z: number };
+  /** 本局已抽中过的珍宝(保底权重用,集齐后清空) */
+  drawnTreasures: ResourceKind[];
+  /** 有饵连续未出四档的次数(四档保底用,出四档清零) */
+  tier4Pity: number;
+  /** 本局本地玩家的战绩计数(击杀/采集) */
+  stats: RunStats;
   /** 联机时房主保存的远程玩家会话(下标顺序与接入顺序一致;单机为空) */
-  others?: SessionSave[];
+  others: SessionSave[];
 };
 
 /** localStorage 存档:定期自动写入,死亡清档,下次进入恢复 */
