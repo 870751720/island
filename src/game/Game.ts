@@ -1940,9 +1940,12 @@ export class Game {
   private lastPlaceKind: ResourceKind | null = null;
 
   /** 循环切换手持工具:空手 → 斧子 → … → 套索 → 背包里每种可放置道具各一格(围栏区分木/石);
-   * 可放置道具也可经长按工具按钮的选择面板直接点选 */
+ * 循环列表必须用稳定顺序(不按「上次使用」重排):选中本身会更新 lastPlaceKind,
+ * 重排会让下一步永远落在刚选过的道具附近,在多个道具间来回乒乓切不出去;
+ * 「上次使用的排最前」只用于长按选择面板(placeableList);
+ * 可放置道具也可经长按工具按钮的选择面板直接点选 */
   cycleTool(): void {
-    const next = nextToolEntry(this.local, this.autoPlace, this.lastPlaceKind, (tool) => this.hasTool(tool));
+    const next = nextToolEntry(this.local, this.autoPlace, null, (tool) => this.hasTool(tool));
     // 工具驱动的零消耗设施(土壤)不占道具位:切到锄头本身即可,不传选中道具
     this.selectTool(next.tool, next.kind !== 'soil' ? next.kind ?? undefined : undefined);
   }
