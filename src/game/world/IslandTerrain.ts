@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { patchSnowMaterial } from './SeasonSnow';
+import { getSnowAmount, patchSnowMaterial } from './SeasonSnow';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
 function createNoise(seed: number) {
@@ -63,11 +63,15 @@ export type WaterArea = {
   wobP4: number;
   depth: number;
   waterY: number;
+  /** 入雪后是否会结冰(由种子确定性决定,主客一致) */
+  freezable: boolean;
 };
 
 export class IslandTerrain {
   readonly mesh: THREE.Mesh;
   readonly waterGroup = new THREE.Group();
+  /** 结冰水洼的冰面圆盘(仅 freezable 水洼有,透明度随雪量驱动) */
+  readonly iceGroup = new THREE.Group();
   /** 全部水面区域(水洼),供资源生成等避让 */
   readonly waterAreas: WaterArea[] = [];
   /** 岛屿东西向(短轴)宽度 */
@@ -158,14 +162,21 @@ export class IslandTerrain {
         transparent: true,
         opacity: 0.65,
       });
-    const addWater = (area: WaterArea) => {
-      this.waterAreas.push(area);
-      // 水面形状与 carve 边界一致(略收缩 4% 避免边缘穿出洼坑)
+    // 冰面材质全场共享,透明度随雪量在 updateWater 中驱动
+    const iceMat = new THREE.MeshStandardMaterial({
+      color: '#cfe4ee',
+      roughness: 0.25,
+      metalness: 0.05,
+      transparent: true,
+      opacity: 0,
+    });
+    // 水洼水面/冰面共用的圆盘轮廓(与 carve 边界一致,shrink 略收缩避免边缘穿出洼坑)
+    const pondShape = (area: WaterArea, shrink: number) => {
       const shape = new THREE.Shape();
       const steps = 48;
       for (let s = 0; s <= steps; s++) {
         const a = (s / steps) * Math.PI * 2;
-        const r = this.pondBoundary(area, a) * 0.96;
+        const r = this.pondBoundary(area, a) * shrink;
         const ca = Math.cos(area.rot);
         const sa = Math.sin(area.rot);
         const lx = Math.cos(a) * r;
@@ -176,11 +187,22 @@ export class IslandTerrain {
         if (s === 0) shape.moveTo(px, -pz);
         else shape.lineTo(px, -pz);
       }
-      const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape), waterMat());
+      return shape;
+    };
+    const addWater = (area: WaterArea) => {
+      this.waterAreas.push(area);
+      const disc = new THREE.Mesh(new THREE.ShapeGeometry(pondShape(area, 0.96)), waterMat());
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(area.x, area.waterY, area.z);
       disc.userData.baseY = area.waterY;
       this.waterGroup.add(disc);
+      if (area.freezable) {
+        const ice = new THREE.Mesh(new THREE.ShapeGeometry(pondShape(area, 0.94)), iceMat);
+        ice.rotation.x = -Math.PI / 2;
+        ice.position.set(area.x, area.waterY + 0.02, area.z);
+        ice.receiveShadow = true;
+        this.iceGroup.add(ice);
+      }
     };
 
     // 内陆水洼:数量随岛屿面积(按需求收缩为原来的 1/3),间距与短轴挂钩,不写死上限
@@ -214,6 +236,8 @@ export class IslandTerrain {
         radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3) + Math.abs(wobA4)),
         depth: 1.6,
         waterY: y - 0.5,
+        // 约 6 成水洼入雪结冰(同种子下主客一致)
+        freezable: rng(i + 950) < 0.6,
       });
     }
 
@@ -346,13 +370,30 @@ export class IslandTerrain {
     return this.waterAreas.some((w) => Math.hypot(x - w.x, z - w.z) < gap + w.radius);
   }
 
-  /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒) */
+  /** 雪量达到该值后可冻水洼完全结冰(冰面在此前已随雪量逐渐显形) */
+  static readonly FREEZE_SNOW = 0.7;
+
+  /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒);同时驱动冰面随雪量显隐 */
   updateWater(elapsed: number): void {
     this.waterGroup.children.forEach((disc, i) => {
       disc.position.y = disc.userData.baseY + Math.sin(elapsed * 1.1 + i * 1.7) * 0.02;
       const s = 1 + Math.sin(elapsed * 0.8 + i * 2.3) * 0.012;
       disc.scale.setScalar(s);
     });
+    const ice = THREE.MathUtils.clamp((getSnowAmount() - 0.4) / 0.3, 0, 1);
+    this.iceGroup.visible = ice > 0;
+    if (this.iceGroup.visible) {
+      const first = this.iceGroup.children[0] as THREE.Mesh | undefined;
+      const mat = first?.material as THREE.MeshStandardMaterial | undefined;
+      if (mat) mat.opacity = ice * 0.95;
+    }
+  }
+
+  /** 该点的水洼是否已结冰(雪量达标且该洼可冻);返回冰面即洼面高度 */
+  private frozenPondAt(x: number, z: number): WaterArea | null {
+    if (getSnowAmount() < IslandTerrain.FREEZE_SNOW) return null;
+    const pond = this.waterAreas.find((w) => w.freezable && this.pondDist(w, x, z) < 0.96);
+    return pond ?? null;
   }
 
   /** 玩家是否处于任意水面附近(喝水判定) */
@@ -407,7 +448,11 @@ export class IslandTerrain {
   }
 
   getHeight(x: number, z: number): number {
-    return this.heightAt(x, z);
+    const h = this.heightAt(x, z);
+    // 结冰水洼的可行走面是冰面(洼面高度);由此 getWaterKind 也返回 null,
+    // 站上冰面既不游泳也不涉水,喝水/钓鱼判定自然失效
+    const frozen = this.frozenPondAt(x, z);
+    return frozen ? Math.max(h, frozen.waterY) : h;
   }
 
   /** 出生点固定在岛最南端(+z 为屏幕下方):从南端海岸向岛内扫,找第一处水线上方的干地 */

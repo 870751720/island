@@ -43,6 +43,11 @@ export function patchSnowMaterial(mat: THREE.MeshStandardMaterial, wither = fals
   mat.customProgramCacheKey = () => (wither ? 'season-snow-wither' : 'season-snow');
 }
 
+/** 当前雪量(0=无雪,1=积雪饱和),供水洼结冰等玩法判定读取 */
+export function getSnowAmount(): number {
+  return snowAmount.value;
+}
+
 /** 每帧驱动:雪量向 GM 目标值平滑过渡(需主机与客人各自本地执行) */
 export function updateSeasonSnow(delta: number): void {
   const target = GmSystem.snowPreview ? 1 : 0;

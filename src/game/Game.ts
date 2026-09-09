@@ -400,6 +400,7 @@ export class Game {
     );
 
     this.scene.add(terrain.waterGroup);
+    this.scene.add(terrain.iceGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
     this.decorations = new Decorations(this.scene, terrain, this.terrainSeed);
