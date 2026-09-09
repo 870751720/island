@@ -79,7 +79,6 @@ import { Wind } from './fx/Wind';
 import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
-import { ItemFlyFx } from './fx/ItemFlyFx';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
 import { DEFAULT_CAPACITY, Inventory, type InventorySlot, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, isEquipKind, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
@@ -111,6 +110,7 @@ import {
   SWORD_AUTO_EQUIP_DELAY, SWORD_AUTO_EQUIP_RANGE, TETHER_RANGE, VIEW_SIZE,
 } from './GameConfig';
 import type { CycleEntry, GameOptions, InteractionKind } from './GameTypes';
+import { PickupPresentation } from './presentation/PickupPresentation';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -133,7 +133,7 @@ export class Game {
   /** 有饵连续未出四档的次数(四档保底,全体玩家共享,随存档持久化) */
   private tier4Pity = { count: 0 };
   private fx: Particles;
-  private itemFly: ItemFlyFx;
+  private pickupPresentation: PickupPresentation;
   /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
   private leashLines: LeashLines;
   private audio = new GameAudio();
@@ -382,7 +382,14 @@ export class Game {
     this.fx = new Particles(this.scene);
     this.waterFx = new WaterFx(this.scene, this.fx);
     // 入包表现的目标点:玩家后背(朝向反方向、肩部高度),玩家移动时终点实时跟随
-    this.itemFly = new ItemFlyFx(this.scene, () => this.itemFlyTargetFor(this.local)());
+    this.pickupPresentation = new PickupPresentation(
+      this.scene,
+      () => this.local,
+      this.camera,
+      () => ({ width: this.renderer.domElement.clientWidth, height: this.renderer.domElement.clientHeight }),
+      (toast) => this.onPickup(toast),
+      () => this.audio.play('pickup')
+    );
 
     this.scene.add(terrain.waterGroup);
     this.footprints = new Footprints(this.scene, terrain);
@@ -747,7 +754,7 @@ export class Game {
         this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
-        this.itemFly.update(simDelta);
+        this.pickupPresentation.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
         this.footprints.update(simDelta);
@@ -956,7 +963,7 @@ export class Game {
           }
         }
         if (!this.guestMode) this.pushHud(delta);
-        this.flushPickups();
+        this.pickupPresentation.flush();
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
         if (this.guestMode) {
           this.collect.scanNearby();
@@ -1357,7 +1364,7 @@ export class Game {
       if (event.actor === this.local.id) return;
       const s = this.sessions.find((x) => x.id === event.actor);
       if (!s) return;
-      this.spawnItemFlights(s, new THREE.Vector3(event.x, event.y, event.z), [
+      this.pickupPresentation.spawn(s, new THREE.Vector3(event.x, event.y, event.z), [
         { kind: event.item, count: event.count },
       ]);
       return;
@@ -1537,14 +1544,14 @@ export class Game {
     this.local.inventory.load(snap.slots, snap.capacity);
     for (const [kind, n] of countSlots(snap.slots)) {
       const gained = n - (before.get(kind) ?? 0);
-      if (gained > 0) this.emitPickup(kind, gained);
+      if (gained > 0) this.pickupPresentation.emit(kind, gained);
     }
     Object.assign(this.local.tools, snap.toolTiers);
     // 弹药数以房主快照为准回流,数量增加时补拾取飘字(与背包槽同一策略)
     for (const kind of ['arrow', 'bait'] as const) {
       const gained = snap[kind] - this.local.ammo.count(kind);
       this.local.ammo[kind] = snap[kind];
-      if (gained > 0) this.emitPickup(kind, gained);
+      if (gained > 0) this.pickupPresentation.emit(kind, gained);
     }
     this.local.craftedIds.clear();
     for (const id of snap.craftedIds) this.local.craftedIds.add(id);
@@ -1653,7 +1660,7 @@ export class Game {
     if (!this.wildlife.takeMilk(sheepId)) return false;
     const pos = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
     this.giveItem('milk', 1, actor);
-    this.markPickupOrigin(pos, actor);
+    this.pickupPresentation.markOrigin(pos, actor);
     // 入包音效由拾取飞行(flushPickups/快照回流)统一播放,这里不再播,避免客人端补播两次
     this.fx.burst(new THREE.Vector3(pos.x, pos.y + 0.8, pos.z), '#f6f1e4', 8);
     if (this.hostRef && actor !== this.local) {
@@ -2072,106 +2079,12 @@ export class Game {
     }
   }
 
-  /** 背包入包时道具模型飞向玩家后背,到达后头顶飘出图标与数量 */
-  /** 本帧入包待合并的拾取项(同帧多种道具合并为一条提示) */
-  private pendingPickups: { kind: ResourceKind; count: number }[] = [];
-  /** 各玩家入包道具的飞行起点:采集/捡拾时为资源点/掉落物位置,短时保留。
-   * 客人端入包由 HUD 快照回流触发,起点要短暂保留等待快照到达 */
-  private pickupOrigins = new Map<string, { pos: THREE.Vector3; until: number }>();
-  /** 各玩家的入包飞行终点(后背跟随回调,按会话缓存复用向量) */
-  private itemFlyTargets = new Map<string, () => THREE.Vector3>();
-
-  /** 记录入包飞行起点(短时保留:客人端入包由快照回流,晚几帧才触发) */
-  private markPickupOrigin(position: THREE.Vector3, session: PlayerSession = this.local): void {
-    this.pickupOrigins.set(session.id, { pos: position.clone(), until: performance.now() + 1000 });
-  }
-
-  /** 取某玩家有效的飞行起点,过期或无记录返回 null(由调用方兜底) */
-  private peekPickupOrigin(s: PlayerSession): THREE.Vector3 | null {
-    const o = this.pickupOrigins.get(s.id);
-    if (!o) return null;
-    if (performance.now() > o.until) {
-      this.pickupOrigins.delete(s.id);
-      return null;
-    }
-    return o.pos;
-  }
-
-  /** 某玩家入包飞行的终点回调:玩家后背(朝向反方向、肩部高度),玩家移动时实时跟随 */
-  private itemFlyTargetFor(s: PlayerSession): () => THREE.Vector3 {
-    let t = this.itemFlyTargets.get(s.id);
-    if (!t) {
-      const v = new THREE.Vector3();
-      t = () => {
-        const p = s.player.group.position;
-        const rot = s.player.group.rotation.y;
-        return v.set(p.x - Math.sin(rot) * 0.45, p.y + 1.5, p.z - Math.cos(rot) * 0.45);
-      };
-      this.itemFlyTargets.set(s.id, t);
-    }
-    return t;
-  }
-
-  private emitPickup(kind: ResourceKind, count: number): void {
-    const existing = this.pendingPickups.find((p) => p.kind === kind);
-    if (existing) existing.count += count;
-    else this.pendingPickups.push({ kind, count });
-  }
-
-  /** 无明确起点时的兜底:道具从玩家身前出发(合成产出等来源) */
-  private defaultPickupOrigin(s: PlayerSession = this.local): THREE.Vector3 {
-    const p = s.player.group.position;
-    const rot = s.player.group.rotation.y;
-    return new THREE.Vector3(p.x + Math.sin(rot) * 0.9, p.y + 1, p.z + Math.cos(rot) * 0.9);
-  }
-
-  /** 为某位玩家播入包飞行:每件道具单独模型错峰起飞(同种最多 3 个),全部到达后触发 onDone */
-  private spawnItemFlights(
-    s: PlayerSession,
-    origin: THREE.Vector3,
-    items: { kind: ResourceKind; count: number }[],
-    onDone?: () => void
-  ): void {
-    const spawns: { kind: ResourceKind; delay: number }[] = [];
-    for (const item of items) {
-      const n = Math.min(item.count, 3);
-      for (let j = 0; j < n; j++) spawns.push({ kind: item.kind, delay: spawns.length * 0.12 });
-    }
-    let remaining = spawns.length;
-    const target = this.itemFlyTargetFor(s);
-    for (const sp of spawns) {
-      this.itemFly.spawn(sp.kind, origin, sp.delay, () => {
-        if (--remaining === 0) onDone?.();
-      }, target);
-    }
-  }
-
   /** 房主广播入包飞行事件并就地表现远程玩家(客人端本地只触发自己的,其余靠该事件补播) */
   private broadcastItemFly(s: PlayerSession, kind: ResourceKind, count: number): void {
     if (!this.hostRef) return;
-    const origin = this.peekPickupOrigin(s) ?? this.defaultPickupOrigin(s);
-    if (s !== this.local) this.spawnItemFlights(s, origin, [{ kind, count }]);
+    const origin = this.pickupPresentation.originFor(s);
+    if (s !== this.local) this.pickupPresentation.spawn(s, origin, [{ kind, count }]);
     this.hostRef.broadcastEvent({ kind: 'itemFly', actor: s.id, item: kind, count, x: origin.x, y: origin.y, z: origin.z });
-  }
-
-  /** 帧末统一发出本帧的拾取:道具模型从起点错峰飞向玩家后背缩没,全部到达后合并飘一条提示 */
-  private flushPickups(): void {
-    if (this.pendingPickups.length === 0) return;
-    const items = this.pendingPickups;
-    this.pendingPickups = [];
-    const origin = this.peekPickupOrigin(this.local) ?? this.defaultPickupOrigin();
-    this.spawnItemFlights(this.local, origin, items, () => {
-      this.audio.play('pickup');
-      const p = this.player.group.position;
-      const head = new THREE.Vector3(p.x, p.y + 3.2, p.z).project(this.camera);
-      const w = this.renderer.domElement.clientWidth;
-      const h = this.renderer.domElement.clientHeight;
-      this.onPickup({
-        items,
-        x: Math.round(((head.x + 1) / 2) * w),
-        y: Math.round(((1 - head.y) / 2) * h),
-      });
-    });
   }
 
   private onContextLost = (event: Event): void => {
@@ -3010,7 +2923,7 @@ export class Game {
     // 客人端:动作上行车主权威结算,状态由快照回流;飞行起点取本地同步到的掉落物位置
     if (this.guestNet) {
       const near = this.drops.getNearby(this.local);
-      if (near) this.markPickupOrigin(near.position);
+      if (near) this.pickupPresentation.markOrigin(near.position);
       return this.guestNet.action('pickupDrop', []);
     }
 
@@ -3027,7 +2940,7 @@ export class Game {
       this.notify('背包满了,装不下更多东西', a);
       return false;
     }
-    this.markPickupOrigin(near.position, a);
+    this.pickupPresentation.markOrigin(near.position, a);
     // 工具类掉落物(死亡掉落的斧/镐等)捡回即重新点亮对应等级,不进背包
     return this.drops.pickupNearby(a, (d) => {
       if (d.kind === 'arrow' || d.kind === 'bait') return a.ammo.add(d.kind, d.count);
@@ -3496,7 +3409,7 @@ export class Game {
     const s = session;
     // 拾取提示只飘在本地玩家头顶;房主广播入包飞行事件,让其他玩家也看得到该玩家的入包表现
     s.inventory.onAdd = (kind, count) => {
-      if (s === this.local) this.emitPickup(kind, count);
+      if (s === this.local) this.pickupPresentation.emit(kind, count);
       this.broadcastItemFly(s, kind, count);
     };
     // 穿戴变化即时反映到玩家模型;背包类装备扩容,卸下/换小背包则收缩并溢出掉落。
@@ -3536,7 +3449,7 @@ export class Game {
       // 记录采集产出的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => {
         s.stats.collected += 1;
-        this.markPickupOrigin(position, s);
+        this.pickupPresentation.markOrigin(position, s);
       },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
       () => this.shrines.berryBlessed,
@@ -3586,7 +3499,7 @@ export class Game {
       this.audio,
       s.tools,
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
-      (position) => this.markPickupOrigin(position, s),
+      (position) => this.pickupPresentation.markOrigin(position, s),
       // 波塞冬神像放置期间杂物概率降低
       () => this.shrines.junkCut,
       // 珍宝保底:共享的已抽珍宝集合
@@ -3758,6 +3671,7 @@ export class Game {
     this.waterDebug.dispose();
     this.ocean.dispose();
     this.oceanDepth.dispose();
+    this.pickupPresentation.dispose();
     this.audio.dispose();
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
