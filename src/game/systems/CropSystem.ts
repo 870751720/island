@@ -20,7 +20,7 @@ type PlayerSessionState = { hold: ActionHold; swingTimer: number; harvestTarget:
 /**
  * 作物系统(世界共享,按发起者 actor 结算):种子只能种在没种作物的土壤格上;
  * 生长分幼苗/未成熟/成熟三阶段,各阶段时长按作物种类配置(只在游戏内累计,离线不快进);
- * 成熟后空手靠近站定即可采收,产出以掉落物落在作物旁;模型随风轻摆,成熟时有粒子表现。
+ * 成熟后空手靠近站定即可采收,产出直接进发起者背包(与采集浆果丛一致);模型随风轻摆,成熟时有粒子表现。
  */
 export class CropSystem {
   private crops: Crop[] = [];
@@ -37,8 +37,6 @@ export class CropSystem {
     private scene: THREE.Scene,
     private fx: Particles,
     private audio: GameAudio,
-    /** 统一掉落物系统:采收产出掉在作物旁,走「捡回」卡片拾取 */
-    private dropAt: (kind: ResourceKind, count: number, x: number, z: number) => void,
     /** 该格中心是否有土壤(播种校验用) */
     private soilAt: (x: number, z: number) => boolean,
     /** 其他占用双手的行为(如采集中),为真时采收让位 */
@@ -145,19 +143,19 @@ export class CropSystem {
       st.swingTimer += delta;
       if (st.swingTimer < HARVEST_TIME) return;
       st.swingTimer = 0;
-      this.harvest(target);
+      this.harvest(actor, target);
       st.harvestTarget = null;
     } finally {
       st.hold.commit(actor.player);
     }
   }
 
-  /** 采收一株成熟作物:作物消失,产出掉落在原地 */
-  private harvest(crop: Crop): void {
+  /** 采收一株成熟作物:作物消失,产出直接进发起者背包(联机时经房主权威结算,背包随快照回流) */
+  private harvest(actor: PlayerSession, crop: Crop): void {
     const spec = crop.spec;
     const p = crop.group.position;
     this.destroy(crop);
-    this.dropAt(spec.product, spec.yieldCount, p.x, p.z);
+    actor.inventory.add(spec.product, spec.yieldCount);
     this.audio.play('pick');
     const fxPos = p.clone();
     fxPos.y += 0.3;

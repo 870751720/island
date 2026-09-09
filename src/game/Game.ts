@@ -726,8 +726,6 @@ export class Game {
       this.scene,
       this.fx,
       this.audio,
-      // 采收产出掉落在作物旁,统一走「捡回」卡片拾取
-      (kind, count, x, z) => this.drops.dropAt(kind, count, x, z),
       // 播种校验:该格必须有土壤
       (x, z) => this.soils.soilAt(x, z),
       // 其他占用双手的行为进行中时采收让位
