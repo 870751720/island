@@ -21,7 +21,7 @@
 - `src/game/systems/CropSystem.ts`:世界共享、按 actor 结算——`canPlantAt`(有土壤且无作物)、`plant`(扣种子)、`updateActor`(空手采收,`ActionHold` 持 pick 动作)、`update`(生长计时/随风摆动/成熟粒子,两端各自跑)、`cropAt`/`removeAt`(供铲子优先级)、snapshot/restore/netApply(同土壤模式)。
 - 设施注册(`Game.registerFacilities`):两种种子各注册一份 `FacilityDef`(`tool: 'place'`,预览 `makeCropSproutPreview`),播种经统一 `settleFacility` 入口(联机自动上行房主)。
 - 铲子优先级:`SoilSystem` 注入 `hasCropAt`/`removeCropAt` 回调,挖完一格先铲作物、土壤保留;`isDiggingCrop` 供头顶提示。
-- 数值:胡萝卜为食物(饥饿 +8、口渴 +3,可入饵料桶 4 饵/个);小麦为材料(burnTime 15,后续烹饪配方用)。
+- 数值:胡萝卜为食物(饥饿 +8、口渴 +3,可入饵料桶 4 饵/个);小麦为材料兼食材(burnTime 15,可烤成烤面包,见下)。
 - 掉落物模型:`DropModels` 新增胡萝卜(斜放橙锥+绿缨)、小麦(麦秆捆)与两种种子造型。
 
 ## 联机
@@ -37,3 +37,7 @@
 ### 2026-09-09(迭代):采收产出直接进背包
 
 - 采收成熟作物不再以掉落物落在作物旁(需走「捡回」卡片拾取),改为与采集浆果丛一致:产出直接加入发起者背包(`CropSystem.harvest` 经 `actor.inventory.add`);联机下采收本就由房主在 `updateActor` 权威结算,客人背包随快照回流,协议不变。
+
+### 2026-09-09(迭代):作物可烹饪
+
+- 胡萝卜可烤成烤胡萝卜(12/1/2)、可煮成胡萝卜汤(10/5/3);小麦可烤成烤面包(15/0/3,仍保留燃料用途)。配方接入统一 `COOKABLE`/`BOILABLE` 映射,火堆与烹饪台通用,数值详见 `cooking-station.md`。

@@ -57,6 +57,9 @@ export const FOODS: Food[] = [
   { kind: 'boiledCrabMeat', name: '煮蟹肉', icon: '🍲', action: 'eat_fish', fxColor: '#e07a5a', hunger: 10, thirst: 5, health: 3 },
   { kind: 'boiledBirdMeat', name: '鸟肉汤', icon: '🍜', action: 'eat_fish', fxColor: '#c4a06a', hunger: 10, thirst: 5, health: 3 },
   { kind: 'boiledGameMeat', name: '兽肉汤', icon: '🍲', action: 'eat_fish', fxColor: '#a06a4a', hunger: 15, thirst: 28, health: 24 },
+  { kind: 'cookedCarrot', name: '烤胡萝卜', icon: '🍢', action: 'eat_berry', fxColor: '#c96a2a', hunger: 12, thirst: 1, health: 2 },
+  { kind: 'boiledCarrot', name: '胡萝卜汤', icon: '🍲', action: 'eat_berry', fxColor: '#d98a4a', hunger: 10, thirst: 5, health: 3 },
+  { kind: 'bread', name: '烤面包', icon: '🍞', action: 'eat_berry', fxColor: '#d9a441', hunger: 15, thirst: 0, health: 3 },
   { kind: 'wineBerry', name: '浆果酒', icon: '🍷', action: 'eat_berry', fxColor: '#a34a6b', hunger: 4, thirst: 2, health: 0 },
   { kind: 'wineFruit', name: '苹果酒', icon: '🍶', action: 'eat_berry', fxColor: '#d9a441', hunger: 8, thirst: 4, health: 0 },
   { kind: 'wineMilk', name: '奶酒', icon: '🥛', action: 'eat_berry', fxColor: '#f0e6d2', hunger: 10, thirst: 15, health: 5 },
@@ -94,6 +97,9 @@ export const BAIT_YIELD: Partial<Record<ResourceKind, number>> = {
   gameMeat: 10,
   goldenFish: 40,
   cookedBerry: 2,
+  cookedCarrot: 4,
+  boiledCarrot: 4,
+  bread: 2,
   cookedCrabMeat: 4,
   cookedBirdMeat: 6,
   cookedSmallFish: 4,
@@ -124,6 +130,8 @@ export const COOKABLE: Partial<Record<ResourceKind, ResourceKind>> = {  berry: '
   crabMeat: 'cookedCrabMeat',
   birdMeat: 'cookedBirdMeat',
   gameMeat: 'cookedGameMeat',
+  carrot: 'cookedCarrot',
+  wheat: 'bread',
 };
 
 /** 可烹饪(烤或煮)的生食材种类,供背包检查等场景遍历 */
@@ -155,6 +163,7 @@ export const BOILABLE: Partial<Record<ResourceKind, ResourceKind>> = {
   crabMeat: 'boiledCrabMeat',
   birdMeat: 'boiledBirdMeat',
   gameMeat: 'boiledGameMeat',
+  carrot: 'boiledCarrot',
 };
 
 /** 按背包格子顺序找第一个食物(「背包里最前面的食物」) */

@@ -81,6 +81,9 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   pineFruit: '#8a6b45',
   fruitFruit: '#c0392b',
   carrot: '#e07b2a',
+  cookedCarrot: '#c96a2a',
+  boiledCarrot: '#d98a4a',
+  bread: '#d9a441',
   wheat: '#d9b45a',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
@@ -479,6 +482,40 @@ function makeCookedBerry(): THREE.Object3D {
     g.add(b);
   }
   g.add(stick);
+  return g;
+}
+
+/** 烤胡萝卜:两根焦糖色的胡萝卜斜串在小枝上 */
+function makeCookedCarrot(): THREE.Object3D {
+  const g = new THREE.Group();
+  const stick = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4), clay('#a97c50'));
+  stick.rotation.z = 0.5;
+  stick.position.y = 0.24;
+  const rootMat = clay(DROP_COLORS.cookedCarrot);
+  for (let i = 0; i < 2; i++) {
+    const root = mesh(new THREE.ConeGeometry(0.06, 0.26, 6), rootMat);
+    root.rotation.z = Math.PI / 2.4;
+    root.position.set(-i * 0.14 + 0.03, 0.22 + i * 0.08, 0);
+    g.add(root);
+  }
+  g.add(stick);
+  return g;
+}
+
+/** 烤面包:一块金黄的粗粮面包,顶上划着斜口 */
+function makeBread(): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.SphereGeometry(0.16, 6, 5), clay(DROP_COLORS.bread));
+  body.scale.set(1.3, 0.7, 0.9);
+  body.position.y = 0.11;
+  g.add(body);
+  const crustMat = clay('#b5813f');
+  for (let i = 0; i < 2; i++) {
+    const slash = mesh(new THREE.BoxGeometry(0.12, 0.02, 0.05), crustMat);
+    slash.rotation.y = 0.6;
+    slash.position.set(0, 0.21 - i * 0.06, (i - 0.5) * 0.07);
+    g.add(slash);
+  }
   return g;
 }
 
@@ -1125,6 +1162,9 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedBirdMeat: () => makeRoast(DROP_COLORS.cookedBirdMeat),
   cookedGameMeat: () => makeRoast(DROP_COLORS.cookedGameMeat),
   boiledBerry: () => makeSoup(DROP_COLORS.boiledBerry, 0.8),
+  cookedCarrot: makeCookedCarrot,
+  boiledCarrot: () => makeSoup(DROP_COLORS.boiledCarrot, 0.85),
+  bread: makeBread,
   boiledSmallFish: () => makeSoup(DROP_COLORS.boiledSmallFish),
   boiledBigFish: () => makeSoup(DROP_COLORS.boiledBigFish, 1.2),
   boiledGoldenFish: () => makeSoup(DROP_COLORS.boiledGoldenFish, 1.3),

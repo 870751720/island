@@ -448,6 +448,24 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🍲',
     description: '咕嘟咕嘟炖了半天的兽肉浓汤,大补。',
   },
+  cookedCarrot: {
+    kind: 'cookedCarrot',
+    name: '烤胡萝卜',
+    icon: '🍢',
+    description: '烤得外焦里嫩的胡萝卜,甜味更浓了。',
+  },
+  boiledCarrot: {
+    kind: 'boiledCarrot',
+    name: '胡萝卜汤',
+    icon: '🍲',
+    description: '慢煮出来的胡萝卜汤,暖胃又解渴。',
+  },
+  bread: {
+    kind: 'bread',
+    name: '烤面包',
+    icon: '🍞',
+    description: '麦穗烤得金黄喷香的粗粮面包,管饱。',
+  },
   arrow: {
     kind: 'arrow',
     name: '箭',
