@@ -23,7 +23,6 @@ import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem } from './systems/WeatherSystem';
 import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
-import { PhotoCamera } from './systems/PhotoCamera';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
@@ -115,18 +114,16 @@ import { restoreSession, snapshotSession } from './systems/SessionSaveCodec';
 import { HudSnapshotBuilder } from './presentation/HudSnapshotBuilder';
 import { buildDeathReport as createDeathReport } from './systems/DeathReportBuilder';
 import { InteractionIndicatorBuilder } from './presentation/InteractionIndicatorBuilder';
+import { GameCameraController } from './presentation/GameCameraController';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
-
-/** updateCamera 复用的注视点偏移临时向量 */
-const _camOffset = new THREE.Vector3();
-
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.OrthographicCamera;
+  private cameraController: GameCameraController;
   private loop = new GameLoop();
   /** 全部玩家会话(下标 0 为本地玩家;联机时由房主持有远程会话) */
   private sessions: PlayerSession[] = [];
@@ -407,6 +404,12 @@ export class Game {
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
       this.youId ?? undefined,
       this.guestMode ? '我' : this.hostRef ? (loadProfile()?.name || '房主') : '我'
+    );
+    this.cameraController = new GameCameraController(
+      this.renderer,
+      this.scene,
+      this.camera,
+      () => this.player.group.position
     );
     // 自己的头顶不显示名牌，避免与作业提示和自言自语重叠。
     this.local.nameTag.sprite.visible = false;
@@ -788,7 +791,7 @@ export class Game {
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
         // 单机拍照模式:时间与全部玩法模拟冻结(玩家无敌),相机取景与渲染照常
-        const simDelta = this.photo.active && !this.guestMode && !this.hostRef ? 0 : delta;
+        const simDelta = this.cameraController.photoActive && !this.guestMode && !this.hostRef ? 0 : delta;
         for (const session of this.sessions) session.player.update(simDelta, elapsed);
         this.dayNight.update(simDelta);
         this.crates.update(simDelta);
@@ -1953,57 +1956,40 @@ export class Game {
     saveAudioSettings(settings);
   }
 
-  /** 相机模式(拍照模式)状态:纯本地表现,不影响联机同步 */
-  private photo = new PhotoCamera();
-
   /** 进入相机模式:以玩家当前位置为注视点,停掉移动输入(摇杆层已隐藏不会触发抬起) */
   enterPhotoMode(): void {
     this.setJoystick(0, 0);
-    this.photo.enter(this.player.group.position);
-    this.camera.zoom = this.photo.zoom;
-    this.camera.updateProjectionMatrix();
+    this.cameraController.enterPhotoMode();
   }
 
   /** 退出相机模式:恢复常规跟随视角与缩放(位置由跟随插值平滑过渡) */
   exitPhotoMode(): void {
-    this.photo.exit();
-    this.camera.zoom = 1;
-    this.camera.updateProjectionMatrix();
+    this.cameraController.exitPhotoMode();
   }
 
   /** 相机模式内按屏幕像素平移注视点(单指拖动) */
   photoPan(dxPx: number, dyPx: number): void {
-    if (!this.photo.active) return;
-    const h = this.renderer.domElement.clientHeight || 1;
-    const worldPerPx = ((this.camera.top - this.camera.bottom) / h) / this.photo.zoom;
-    this.photo.pan(dxPx, dyPx, worldPerPx, this.player.group.position);
+    this.cameraController.pan(dxPx, dyPx);
   }
 
   /** 相机模式内缩放(双指捏合或按钮),返回新倍率供 UI 显示 */
   photoZoomBy(factor: number): number {
-    if (!this.photo.active) return this.photo.zoom;
-    this.photo.zoomBy(factor);
-    this.camera.zoom = this.photo.zoom;
-    this.camera.updateProjectionMatrix();
-    return this.photo.zoom;
+    return this.cameraController.zoomBy(factor);
   }
 
   /** 相机模式内绕注视点水平旋转(双指旋转) */
   photoRotate(delta: number): void {
-    if (!this.photo.active) return;
-    this.photo.rotate(delta);
+    this.cameraController.rotate(delta);
   }
 
   /** 相机模式内俯仰(双指上下滑动):delta 为弧度增量 */
   photoRotatePitch(delta: number): void {
-    if (!this.photo.active) return;
-    this.photo.rotatePitch(delta);
+    this.cameraController.rotatePitch(delta);
   }
 
   /** 拍照:立即渲染一帧并读回画面(避免依赖读回缓冲保留),无照片返回 null */
   requestPhoto(cb: (photo: string | null) => void): void {
-    this.renderer.render(this.scene, this.camera);
-    cb(this.captureScene());
+    cb(this.cameraController.renderAndCapture());
   }
 
   /** 单机死亡的结算快照,死亡界面展示并生成分享卡片;确认退出后随实例丢弃 */
@@ -2012,16 +1998,7 @@ export class Game {
   /** 汇总本局战绩(天数/死因/击杀/采集来自会话,建造从存档快照的摆件数量汇总) */
   private buildDeathReport(s: PlayerSession): DeathReport {
     const save = this.collectSave();
-    return createDeathReport(save, s, this.captureScene());
-  }
-
-  /** 抓取当前画面作卡片底图(本帧已渲染,同一任务内读回缓冲安全) */
-  private captureScene(): string | null {
-    try {
-      return this.renderer.domElement.toDataURL('image/jpeg', 0.85);
-    } catch {
-      return null;
-    }
+    return createDeathReport(save, s, this.cameraController.capture());
   }
 
   /** 房主广播入包飞行事件并就地表现远程玩家(客人端本地只触发自己的,其余靠该事件补播) */
@@ -2072,27 +2049,7 @@ export class Game {
    * 与键盘 W/摇杆上推的移动语义一致(俯角与旧版对角视角相同,只改水平朝向)。
    * 相机模式下改为注视 PhotoCamera 的中心(可平移/缩放/旋转),不再跟随玩家。 */
   private updateCamera(delta: number): void {
-    const target = this.photo.active ? this.photo.center : this.player.group.position;
-    const off = this.photo.offset(_camOffset);
-    const desiredX = target.x + off.x;
-    const desiredY = target.y + off.y;
-    const desiredZ = target.z + off.z;
-    if (this.photo.active) {
-      // 拖动平移要求 1:1 跟手,不做平滑插值
-      this.camera.position.set(desiredX, desiredY, desiredZ);
-    } else {
-      const k = 1 - Math.pow(0.001, delta);
-      this.camera.position.x += (desiredX - this.camera.position.x) * k;
-      this.camera.position.y += (desiredY - this.camera.position.y) * k;
-      this.camera.position.z += (desiredZ - this.camera.position.z) * k;
-    }
-    this.camera.lookAt(target.x, target.y, target.z);
-
-    // 太阳与阴影范围跟随玩家(方向由昼夜系统维护),大岛也能全程有影子
-    const d = this.dayNight.sunOffset;
-    this.sun.position.set(target.x + d.x, target.y + d.y, target.z + d.z);
-    this.sun.target.position.copy(target);
-    this.sun.target.updateMatrixWorld();
+    this.cameraController.update(delta, this.sun, this.dayNight.sunOffset);
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -3219,9 +3176,7 @@ export class Game {
     // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
     this.audio.start();
     // 相机直接落位到玩家出生点,否则会从世界原点收敛,开局出现镜头突变
-    const target = this.player.group.position;
-    this.camera.position.copy(target).add(this.photo.offset());
-    this.camera.lookAt(target.x, target.y, target.z);
+    this.cameraController.placeImmediately();
     this.loop.start();
   }
 
