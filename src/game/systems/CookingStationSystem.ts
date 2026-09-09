@@ -285,11 +285,11 @@ export class CookingStationSystem {
     return this.isRoasting(actor) || this.isDigging(actor);
   }
 
-  /** 世界侧每帧更新:权威端结算燃料消耗与煮制产出,所有端推进特效表现 */
-  update(delta: number, elapsed: number, authority: boolean): void {
+  /** 世界侧每帧更新:权威端结算燃料消耗与煮制产出,所有端推进特效表现(雨天压火,消耗按雨量加快) */
+  update(delta: number, elapsed: number, authority: boolean, rainIntensity = 0): void {
     for (const station of this.stations) {
       const wasLit = station.isLit;
-      if (station.isLit) station.fuel = Math.max(0, station.fuel - delta);
+      if (station.isLit) station.fuel = Math.max(0, station.fuel - delta * (1 + 0.1 * rainIntensity));
       if (station.isLit && station.boilQueue > 0) {
         station.tickLeft -= delta;
         if (authority && station.tickLeft <= 0) {

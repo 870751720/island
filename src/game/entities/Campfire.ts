@@ -114,9 +114,10 @@ export class Campfire {
     return this.fuel > 0;
   }
 
-  update(delta: number, elapsed: number): void {
+  update(delta: number, elapsed: number, rainIntensity = 0): void {
     if (!this.isLit) return;
-    this.fuel = Math.max(0, this.fuel - delta);
+    // 雨天雨水压火,燃烧消耗按雨量线性加快
+    this.fuel = Math.max(0, this.fuel - delta * (1 + 0.1 * rainIntensity));
     // 濒熄时火苗抖得更快更慌,平时慢悠悠地摇
     const low = this.fuel < LOW_FUEL;
     const flickerSpeed = low ? 16 : 9;

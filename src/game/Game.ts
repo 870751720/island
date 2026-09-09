@@ -773,6 +773,7 @@ export class Game {
     );
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    this.weather = new WeatherSystem(sun, hemi, this.scene);
     this.worldSaveSystems = {
       dayNight: this.dayNight,
       props: this.props,
@@ -834,6 +835,7 @@ export class Game {
         shrines: this.shrines,
         drops: this.drops,
         dayNight: this.dayNight,
+        weather: this.weather,
       },
       (session) => this.placeableList(session),
       (session) => this.indicatorFor(session)
@@ -854,8 +856,7 @@ export class Game {
       this.dayNight,
       this.fx
     );
-    // 天气在昼夜之后更新,对光照与天空做调制
-    this.weather = new WeatherSystem(sun, hemi, this.scene);
+    // 天气在昼夜之后更新,对光照与天空做调制(状态机已在昼夜系统处创建)
     this.rain = new Rain();
     this.scene.add(this.rain.lines);
     this.rainImpact = new RainImpact(terrain, this.waterFx, this.fx);
@@ -1023,15 +1024,15 @@ export class Game {
           }
         }
         this.fences.update(simDelta, this.sessions.map((s) => s.player.group.position));
-        this.campfire.update(simDelta, elapsed);
+        this.campfire.update(simDelta, elapsed, this.weather.rainIntensity);
         this.shrines.update(simDelta, elapsed);
-        this.crops.update(simDelta, elapsed);
+        this.crops.update(simDelta, elapsed, this.weather.rainIntensity);
         this.baitBarrels.update(simDelta, elapsed, !this.guestMode);
         this.brewBarrels.update(simDelta, elapsed, !this.guestMode);
         this.waterPurifiers.update(simDelta, elapsed);
         this.burrows.update(simDelta, !this.guestMode);
     this.smelters.update(simDelta, elapsed, !this.guestMode);
-    this.cookingStations.update(simDelta, elapsed, !this.guestMode);
+        this.cookingStations.update(simDelta, elapsed, !this.guestMode, this.weather.rainIntensity);
     this.looms.update(simDelta, elapsed, !this.guestMode);
         this.drops.update(simDelta, elapsed);
         this.mumbles.update(delta, {
@@ -2141,7 +2142,7 @@ export class Game {
     ) {
       return false;
     }
-    return a.fishing.start();
+    return a.fishing.start(this.weather.rainIntensity > 0.5);
   }
 
   /** 咬钩窗口内点击屏幕任意处收竿 */

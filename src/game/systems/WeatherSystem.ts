@@ -110,9 +110,9 @@ export class WeatherSystem {
     };
   }
 
-  /** 口渴消耗乘数:雨天淋雨减缓口渴 */
+  /** 口渴消耗乘数:雨天淋雨大幅减缓口渴(雨水恩泽 buff) */
   get thirstDrainMultiplier(): number {
-    return 1 - 0.4 * this.rainAmount;
+    return 1 - 0.9 * this.rainAmount;
   }
 
   /** GM 强制切换天气:立即生效并重新计时轮换 */

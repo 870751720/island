@@ -200,18 +200,29 @@ export function pickTease(stage: TeaseStage): Tease {
  * 按 GM 权重随机档位;无鱼饵时改用裸钓权重(杂物 90/普通鱼 6/大鱼 3.9/珍宝 0.1)。
  * junkCut 为杂物概率的降低量(百分点,波塞冬的祝福):从一档权重中扣下,
  * 转移给二档,保持总权重不变。
+ * rainShift 为雨天雨水恩泽:有饵时二档扣 5 个百分点转给三档,
+ * 裸钓时杂物(一档)扣 5 个百分点转给二档。
  */
 const BAITLESS_TIER_WEIGHTS = [90, 6, 3.9, 0.1];
+const RAIN_SHIFT = 5;
 
 export function rollTier(
   baited = true,
   junkCut = 0,
+  rainShift = false,
   meta?: { baitlessRelief?: number; tier4Bonus?: number }
 ): FishTier {
   const base = baited ? [...GmSystem.fishingTierWeights] : [...BAITLESS_TIER_WEIGHTS];
   const cut = Math.min(junkCut, base[0]);
   base[0] -= cut;
   base[1] += cut;
+  // 雨天雨水恩泽:档位权重整体上抬一档
+  if (rainShift) {
+    const from = baited ? 1 : 0;
+    const shift = Math.min(RAIN_SHIFT, base[from]);
+    base[from] -= shift;
+    base[from + 1] += shift;
+  }
   // 局外养成「省饵」满级:裸钓惩罚减轻——按比例从杂物权重中扣下一成,匀给三个高档位
   if (!baited && meta?.baitlessRelief) {
     const relief = Math.min(base[0] * Math.min(1, Math.max(0, meta.baitlessRelief)), base[0]);

@@ -15,6 +15,7 @@ import type { LoomSystem } from '../systems/LoomSystem';
 import type { ResourceKind } from '../systems/Inventory';
 import type { ShrineSystem } from '../systems/ShrineSystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
+import type { WeatherSystem } from '../systems/WeatherSystem';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import type { Wildlife } from '../entities/Wildlife';
 
@@ -33,6 +34,7 @@ type HudSystems = {
   shrines: ShrineSystem;
   drops: DropSystem;
   dayNight: DayNightSystem;
+  weather: WeatherSystem;
 };
 
 export type HudRuntime = {
@@ -137,6 +139,7 @@ export class HudSnapshotBuilder {
     const position = session.player.group.position;
     if (shrines.inAura('healCrystal', position)) list.push({ ...BUFFS.healCrystal, remain: null });
     if (shrines.inAura('rainAltar', position)) list.push({ ...BUFFS.rainAltar, remain: null });
+    if (this.systems.weather.rainIntensity > 0.5) list.push({ ...BUFFS.rainBlessing, remain: null });
     if (session.player.slowSeconds > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(session.player.slowSeconds) });
     if (session.player.refreshSeconds > 0) list.push({ ...BUFFS.refresh, remain: Math.ceil(session.player.refreshSeconds) });
     if (session.player.tipsySeconds > 0) list.push({ ...BUFFS.tipsy, remain: Math.ceil(session.player.tipsySeconds) });

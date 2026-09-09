@@ -1,7 +1,15 @@
 /** Buff 的静态定义与快照结构。
  * 生效判定不在这里:各 buff 由对应系统(神像/玩家减速)驱动,这里只承载
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
-export type BuffId = 'poseidon' | 'beehive' | 'healCrystal' | 'rainAltar' | 'bearSlow' | 'refresh' | 'tipsy';
+export type BuffId =
+  | 'poseidon'
+  | 'beehive'
+  | 'healCrystal'
+  | 'rainAltar'
+  | 'rainBlessing'
+  | 'bearSlow'
+  | 'refresh'
+  | 'tipsy';
 
 export type BuffDef = {
   id: BuffId;
@@ -39,6 +47,13 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     name: '雨神祭坛',
     icon: '🌧️',
     description: '身处雨神祭坛 30 米光环内,口渴值不再下降。',
+    good: true,
+  },
+  rainBlessing: {
+    id: 'rainBlessing',
+    name: '雨水恩泽',
+    icon: '🌧️',
+    description: '细雨润物,雨水正滋养着你与这座岛。',
     good: true,
   },
   bearSlow: {

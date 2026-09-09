@@ -174,11 +174,11 @@ export class CampfireSystem {
     return true;
   }
 
-  /** 世界侧每帧更新:火堆燃烧;各玩家的搭建/挖掘/烹饪由 updateActor 推进 */
-  update(delta: number, elapsed: number): void {
+  /** 世界侧每帧更新:火堆燃烧(雨天压火,消耗加快);各玩家的搭建/挖掘/烹饪由 updateActor 推进 */
+  update(delta: number, elapsed: number, rainIntensity = 0): void {
     for (const fire of this.fires) {
       const wasLit = fire.isLit;
-      fire.update(delta, elapsed);
+      fire.update(delta, elapsed, rainIntensity);
       if (wasLit && !fire.isLit) this.onChanged?.({ op: 'set', id: this.ids.get(fire), fields: { fuel: 0 } });
     }
   }

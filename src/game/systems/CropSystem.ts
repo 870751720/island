@@ -184,10 +184,12 @@ export class CropSystem {
     return Math.min(st.swingTimer / HARVEST_TIME, 1);
   }
 
-  /** 全场作物推进:生长计时(两端各自累计,快照柔和对账)、随风轻摆与成熟粒子 */
-  update(delta: number, elapsed: number): void {
+  /** 全场作物推进:生长计时(两端各自累计,快照柔和对账)、随风轻摆与成熟粒子;
+   * 雨天雨水滋养,生长速度按雨量线性提升 */
+  update(delta: number, elapsed: number, rainIntensity = 0): void {
+    const growthScale = 1 + 0.3 * rainIntensity;
     for (const crop of this.crops) {
-      crop.grow(delta);
+      crop.grow(delta * growthScale);
       crop.group.rotation.z = Math.sin(elapsed * 1.4 + crop.swayPhase) * SWAY_AMOUNT;
       crop.group.rotation.x = Math.cos(elapsed * 1.1 + crop.swayPhase) * SWAY_AMOUNT * 0.6;
     }

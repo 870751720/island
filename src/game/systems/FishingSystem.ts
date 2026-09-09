@@ -183,7 +183,8 @@ export class FishingSystem {
     );
   }
 
-  start(): boolean {
+  /** 抛竿;rainBoost 为雨天雨水恩泽:档位权重向上偏移(仅房主结算端生效) */
+  start(rainBoost = false): boolean {
     if (!this.canStart()) return false;
     const target = this.findBobberTarget();
     if (!target) return false;
@@ -204,7 +205,7 @@ export class FishingSystem {
     this.tier =
       baited && pity.count >= TIER4_PITY_CASTS
         ? 4
-        : rollTier(baited, this.junkCut(), {
+        : rollTier(baited, this.junkCut(), rainBoost, {
             baitlessRelief: this.meta.levels.baitSave >= 3 ? 0.1 : 0,
             tier4Bonus: this.meta.levels.fullLoad >= 3 ? 1 : 0,
           });
