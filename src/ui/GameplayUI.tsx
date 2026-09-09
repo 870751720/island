@@ -270,6 +270,7 @@ export function GameplayUI({
             giveTool: (tool, tier) => gameRef.current?.gmGiveTool(tool, tier),
             spawnAnimal: (species) => gameRef.current?.gmSpawnAnimal(species),
             triggerCrocodile: () => gameRef.current?.gmTriggerCrocodile(),
+            placeSoil: () => gameRef.current?.gmPlaceSoil(),
           }}
         />
       )}

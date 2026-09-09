@@ -2144,6 +2144,14 @@ export class Game {
     this.giveItem(kind, count, actor);
   }
 
+  /** GM 在面前格直接开出一格土壤(零消耗设施,统一走设施结算入口,失败给出落点原因) */
+  gmPlaceSoil(actor: PlayerSession = this.local): boolean {
+    // 客人端:动作上行车主权威结算,状态由快照回流
+    if (this.guestNet) return this.guestNet.action('gmPlaceSoil', []);
+
+    return this.settleFacility('soil', actor, null);
+  }
+
   /** GM 直接把工具点亮到指定等级(1 基础 / 2 高级) */
   gmGiveTool(tool: ToolId, tier: 1 | 2 | 3, actor: PlayerSession = this.local): void {
     // 客人端:动作上行车主权威结算,状态由快照回流

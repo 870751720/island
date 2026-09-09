@@ -276,12 +276,13 @@ export function ToolButton({
                     ? '📍'
                     : untie
                       ? '🔓'
-                      : placeKind
-                        ? placeKind in ITEMS
-                          ? ITEMS[placeKind as ResourceKind].icon
-                          : '📦'
-                        : tool === 'hoe'
-                          ? <HoeIcon size={30} />
+                      // 土壤是工具驱动的零消耗设施:持锄头时图标跟工具走,不落入道具/📦 分支
+                      : tool === 'hoe'
+                        ? <HoeIcon size={30} />
+                        : placeKind
+                          ? placeKind in ITEMS
+                            ? ITEMS[placeKind as ResourceKind].icon
+                            : '📦'
                           : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&

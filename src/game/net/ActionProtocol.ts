@@ -60,6 +60,7 @@ export interface NetActionArgs {
   milkSheep: [sheepId: number, x: number, z: number];
   gmSpawnAnimal: [species: AnimalSpecies];
   gmTriggerCrocodile: [];
+  gmPlaceSoil: [];
   gmGiveItem: [kind: ResourceKind, count: number];
   gmGiveTool: [tool: ToolId, tier: 1 | 2 | 3];
   gmSetGender: [gender: PlayerGender];
@@ -124,6 +125,7 @@ const NET_ACTION_ARG_COUNTS = {
   milkSheep: [3],
   gmSpawnAnimal: [1],
   gmTriggerCrocodile: [0],
+  gmPlaceSoil: [0],
   gmGiveItem: [2],
   gmGiveTool: [2],
   gmSetGender: [1],
@@ -181,6 +183,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'lassoUntie':
     case 'gmTriggerCrocodile':
     case 'gmRestoreStatus':
+    case 'gmPlaceSoil':
       return true;
     case 'eatFood':
     case 'eatUntilFull':
