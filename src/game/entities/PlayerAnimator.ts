@@ -60,7 +60,7 @@ export class PlayerAnimator {
     const [body, head, left, right, elbowL, elbowR, legL, legR, kneeL, kneeR] = this.targets;
     for (const target of this.targets) target.set(0, 0, 0);
     this.weight += (Math.min(speed / 5, 1.5) - this.weight) * (1 - Math.exp(-12 * delta));
-    this.gait += Math.min(speed, 9) * delta * 2.1;
+    this.gait += Math.min(speed, 9) * delta * 1.6;
     const step = Math.sin(this.gait);
     const breath = Math.sin(elapsed * 2.1);
     this.height = Math.abs(Math.sin(this.gait)) * 0.025 * this.weight;
@@ -87,10 +87,11 @@ export class PlayerAnimator {
       this.height = 0;
       body.set(0, Math.sin(swim) * 0.07, 0);
       head.x = -0.2;
-      left.set(-0.65 + Math.sin(swim) * 0.55, 0, 0.35);
-      right.set(-0.65 + Math.sin(swim + Math.PI) * 0.55, 0, -0.35);
-      elbowL.x = -0.3 - (Math.cos(swim) + 1) * 0.3;
-      elbowR.x = -0.3 - (1 - Math.cos(swim)) * 0.3;
+      // 双臂在身前交替划水:前伸入水后向后扒,同侧肘部随划水节奏屈伸
+      left.set(-1.7 + Math.sin(swim) * 0.6, 0, 0.12);
+      right.set(-1.7 + Math.sin(swim + Math.PI) * 0.6, 0, -0.12);
+      elbowL.x = -0.25 - Math.max(0, Math.cos(swim)) * 0.5;
+      elbowR.x = -0.25 - Math.max(0, -Math.cos(swim)) * 0.5;
       legL.x = Math.sin(swim * 2) * 0.3;
       legR.x = -legL.x;
       kneeL.x = 0.2 + Math.max(0, legL.x);
