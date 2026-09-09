@@ -16,8 +16,12 @@ export function buildPlayersState(
   return {
     time: dayNight.time,
     day: dayNight.day,
-    weather: weather.rainIntensity > 0.05 ? 'rain' as const : 'sunny' as const,
+    weather:
+      weather.rainIntensity > 0.05 ? 'rain' as const
+      : weather.snowIntensity > 0.05 ? 'snow' as const
+      : 'sunny' as const,
     rain: weather.rainIntensity,
+    snow: weather.snowIntensity,
     windAmount: weather.windIntensity,
     windDirX: wind.dirX,
     windDirZ: wind.dirZ,

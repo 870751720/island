@@ -24,7 +24,7 @@ export function WorldTab({
 }: {
   onSetTime: (t: number) => void;
   onSetDay: (day: number) => void;
-  onSetWeather: (type: 'sunny' | 'rain') => void;
+  onSetWeather: (type: 'sunny' | 'rain' | 'snow') => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
   const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
@@ -132,6 +132,7 @@ export function WorldTab({
         <div style={{ display: 'flex', gap: 6 }}>
           <ActionButton label="☀️ 晴天" onClick={() => onSetWeather('sunny')} />
           <ActionButton label="🌧️ 雨天" onClick={() => onSetWeather('rain')} />
+          <ActionButton label="🌨️ 雪天" onClick={() => onSetWeather('snow')} />
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

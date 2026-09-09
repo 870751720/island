@@ -74,6 +74,7 @@ import type { SfxName } from './audio/Sfx';
 import { WaterFx } from './fx/WaterFx';
 import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
+import { Snow } from './fx/Snow';
 import { Wind } from './fx/Wind';
 import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
@@ -239,6 +240,7 @@ export class Game {
   private weather: WeatherSystem;
   private rain: Rain;
   private rainImpact: RainImpact;
+  private snow: Snow;
   private windFx: Wind;
   private terrain: IslandTerrain;
   private ocean: Ocean;
@@ -860,6 +862,8 @@ export class Game {
     // 天气在昼夜之后更新,对光照与天空做调制(状态机已在昼夜系统处创建)
     this.rain = new Rain();
     this.scene.add(this.rain.lines);
+    this.snow = new Snow();
+    this.scene.add(this.snow.points);
     this.rainImpact = new RainImpact(terrain, this.waterFx, this.fx);
     this.windFx = new Wind();
     this.scene.add(this.windFx.mesh);
@@ -879,6 +883,7 @@ export class Game {
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
+        this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
         this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
@@ -1279,7 +1284,7 @@ export class Game {
     if (day !== undefined) this.dayNight.day = day;
     // 天气与风采用房主权威值,本地只做表现插值(不再随机轮换/重掷风向)
     if (msg.rain !== undefined && msg.windAmount !== undefined && msg.windDirX !== undefined && msg.windDirZ !== undefined) {
-      this.weather.netSync(msg.rain, msg.windAmount, msg.windDirX, msg.windDirZ);
+      this.weather.netSync(msg.rain, msg.snow ?? 0, msg.windAmount, msg.windDirX, msg.windDirZ);
     }
     const list = msg.players.full ?? [];
     const liveIds = new Set(list.map((p) => p.id));
@@ -2323,7 +2328,7 @@ export class Game {
   }
 
   /** GM 强制切换天气;客人端上行车主权威结算,天气随快照回流 */
-  gmSetWeather(type: 'sunny' | 'rain'): void {
+  gmSetWeather(type: 'sunny' | 'rain' | 'snow'): void {
     if (this.guestNet) {
       this.guestNet.action('gmSetWeather', [type]);
       return;
@@ -3212,6 +3217,7 @@ export class Game {
     this.props.dispose();
     this.decorations.dispose();
     this.rain.dispose();
+    this.snow.dispose();
     this.clouds.dispose();
     this.windFx.dispose();
     this.footprints.dispose();

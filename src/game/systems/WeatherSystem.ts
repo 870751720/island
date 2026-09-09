@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GmSystem } from './GmSystem';
 
-export type WeatherType = 'sunny' | 'rain';
+export type WeatherType = 'sunny' | 'rain' | 'snow';
 
 /** 传给植被摇摆与风中飘叶的风状态 */
 export type WindParams = {
@@ -14,14 +14,17 @@ const MIN_DURATION = 50; // 一种天气持续的最短/最长秒数
 const MAX_DURATION = 110;
 const TRANSITION = 10; // 天气强度过渡秒数
 const RAIN_CHANCE = 1 / 20; // 每次天气轮换时切换为雨天的概率
+const SNOW_CHANCE = 1 / 25; // 每次天气轮换时切换为雪天的概率
 const WIND_CHANCE = 1 / 10; // 每轮晴天起风的概率
 const WIND_TRANSITION = 6; // 风起/风停过渡秒数
 
 const RAIN_SKY = new THREE.Color('#5f7280');
 const RAIN_SUN = new THREE.Color('#8fa3b4');
+const SNOW_SKY = new THREE.Color('#aebac6');
+const SNOW_SUN = new THREE.Color('#c7d2dc');
 
 /**
- * 天气系统:晴/雨随机轮换(每次轮换仅小概率切到雨天),强度平滑过渡。
+ * 天气系统:晴/雨/雪随机轮换(每次轮换仅小概率切到雨/雪天),强度平滑过渡。
  * 在昼夜系统之后执行,对天空色、灯光做一层调制;
  * 雨天提供口渴消耗系数(可接雨水)。
  * 风是晴天下的附属状态:每轮晴天按概率起风,GM 可强制三态;
@@ -33,6 +36,8 @@ export class WeatherSystem {
   private timer = this.pickDuration();
   /** 当前雨强度(过渡插值),输出给粒子 */
   private rainAmount = this.type === 'rain' ? 1 : 0;
+  /** 当前雪强度(过渡插值),输出给雪花粒子 */
+  private snowAmount = this.type === 'snow' ? 1 : 0;
   /** 本轮晴天是否起风(auto 模式的目标) */
   private windy = false;
   private windAmount = 0;
@@ -41,6 +46,7 @@ export class WeatherSystem {
   /** 客人端:天气与风由房主快照驱动,本地不再随机轮换 */
   private net = false;
   private netRain = this.type === 'rain' ? 1 : 0;
+  private netSnow = this.type === 'snow' ? 1 : 0;
   private netWind = 0;
 
   constructor(
@@ -56,6 +62,7 @@ export class WeatherSystem {
     if (this.net) {
       // 客人端:向房主权威值短时常数插值,保证 100ms 快照间隔内平滑无跳变
       this.rainAmount = THREE.MathUtils.lerp(this.rainAmount, this.netRain, delta / 0.3);
+      this.snowAmount = THREE.MathUtils.lerp(this.snowAmount, this.netSnow, delta / 0.3);
       this.windAmount = THREE.MathUtils.lerp(this.windAmount, this.netWind, delta / 0.3);
       this.windPhase += delta;
       this.modulate();
@@ -69,6 +76,11 @@ export class WeatherSystem {
       this.type === 'rain' ? 1 : 0,
       k
     );
+    this.snowAmount = THREE.MathUtils.lerp(
+      this.snowAmount,
+      this.type === 'snow' ? 1 : 0,
+      k
+    );
 
     const gm = GmSystem.wind;
     this.windAmount = THREE.MathUtils.lerp(
@@ -80,7 +92,7 @@ export class WeatherSystem {
     this.modulate();
   }
 
-  /** 雨天压暗并去饱和:天空偏深灰蓝,阳光变冷 */
+  /** 雨天压暗去饱和,雪天蒙上浅灰白:调制天空色与阳光 */
   private modulate(): void {
     const sky = this.scene.background as THREE.Color;
     const a = this.rainAmount;
@@ -88,11 +100,21 @@ export class WeatherSystem {
     this.sun.color.lerp(RAIN_SUN, a * 0.7);
     this.sun.intensity *= 1 - 0.55 * a;
     this.hemi.intensity *= 1 - 0.45 * a;
+    const s = this.snowAmount;
+    sky.lerp(SNOW_SKY, s * 0.5);
+    this.sun.color.lerp(SNOW_SUN, s * 0.5);
+    this.sun.intensity *= 1 - 0.3 * s;
+    this.hemi.intensity *= 1 - 0.15 * s;
   }
 
   /** 雨滴粒子强度 */
   get rainIntensity(): number {
     return this.rainAmount;
+  }
+
+  /** 雪花粒子强度 */
+  get snowIntensity(): number {
+    return this.snowAmount;
   }
 
   /** 阵风包络后的风强度(0~1),供植被与飘叶消费 */
@@ -122,20 +144,20 @@ export class WeatherSystem {
   }
 
   /** 客人端:采用房主权威的天气/风状态(强度 + 风向),本地只做表现插值 */
-  netSync(rainAmount: number, windAmount: number, dirX: number, dirZ: number): void {
+  netSync(rainAmount: number, snowAmount: number, windAmount: number, dirX: number, dirZ: number): void {
     this.net = true;
     this.netRain = rainAmount;
+    this.netSnow = snowAmount;
     this.netWind = windAmount;
     this.windDir = Math.atan2(dirZ, dirX);
-    const type: WeatherType = rainAmount >= 0.5 ? 'rain' : 'sunny';
-    this.type = type;
-    this.state.type = type;
-    this.state.label = type === 'rain' ? '🌧️ 雨' : '☀️ 晴';
+    const type: WeatherType = rainAmount >= 0.5 ? 'rain' : snowAmount >= 0.5 ? 'snow' : 'sunny';
+    this.applyType(type);
   }
 
   private switchWeather(): void {
     this.timer = this.pickDuration();
-    this.applyType(Math.random() < RAIN_CHANCE ? 'rain' : 'sunny');
+    const r = Math.random();
+    this.applyType(r < RAIN_CHANCE ? 'rain' : r < RAIN_CHANCE + SNOW_CHANCE ? 'snow' : 'sunny');
   }
 
   /** 切换天气类型并重掷本轮风:晴天按概率起风,起风时换一个随机风向 */
@@ -144,7 +166,7 @@ export class WeatherSystem {
     this.windy = type === 'sunny' && Math.random() < WIND_CHANCE;
     if (this.windy) this.windDir = Math.random() * Math.PI * 2;
     this.state.type = type;
-    this.state.label = type === 'rain' ? '🌧️ 雨' : '☀️ 晴';
+    this.state.label = type === 'rain' ? '🌧️ 雨' : type === 'snow' ? '🌨️ 雪' : '☀️ 晴';
   }
 
   private pickDuration(): number {
