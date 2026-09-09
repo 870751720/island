@@ -1,7 +1,20 @@
 import * as THREE from 'three';
 import type { ResourceKind } from '../systems/Inventory';
+import { CROP_MESH_MAKERS } from './cropMeshes';
 
-export type CropKind = 'carrot' | 'wheat';
+export type CropKind =
+  | 'carrot'
+  | 'wheat'
+  | 'potato'
+  | 'sweetPotato'
+  | 'corn'
+  | 'soybean'
+  | 'tomato'
+  | 'pepper'
+  | 'eggplant'
+  | 'strawberry'
+  | 'cabbage'
+  | 'pumpkin';
 
 /** 生长阶段:幼苗 → 未成熟 → 成熟 */
 export type CropStage = 0 | 1 | 2;
@@ -18,6 +31,8 @@ export type CropSpec = {
   immatureSeconds: number;
   /** 成熟采收时的掉落数量 */
   yieldCount: number;
+  /** 采收粒子/特效色 */
+  fxColor: string;
 };
 
 /** 作物规格表:阶段时长按种类各自配置,当前两种作物先统一各 2 分钟 */
@@ -30,6 +45,7 @@ export const CROP_SPECS: Record<CropKind, CropSpec> = {
     sproutSeconds: 120,
     immatureSeconds: 120,
     yieldCount: 2,
+    fxColor: '#e07b2a',
   },
   wheat: {
     kind: 'wheat',
@@ -39,13 +55,34 @@ export const CROP_SPECS: Record<CropKind, CropSpec> = {
     sproutSeconds: 120,
     immatureSeconds: 120,
     yieldCount: 2,
+    fxColor: '#e8c56a',
   },
+  potato: { kind: 'potato', name: '土豆', seed: 'potatoSeed', product: 'potato', sproutSeconds: 120, immatureSeconds: 120, yieldCount: 2, fxColor: '#c9a06a' },
+  sweetPotato: { kind: 'sweetPotato', name: '红薯', seed: 'sweetPotatoSeed', product: 'sweetPotato', sproutSeconds: 180, immatureSeconds: 180, yieldCount: 2, fxColor: '#c96a3a' },
+  corn: { kind: 'corn', name: '玉米', seed: 'cornSeed', product: 'corn', sproutSeconds: 120, immatureSeconds: 120, yieldCount: 2, fxColor: '#e8c56a' },
+  soybean: { kind: 'soybean', name: '大豆', seed: 'soybeanSeed', product: 'soybean', sproutSeconds: 180, immatureSeconds: 180, yieldCount: 3, fxColor: '#9aa74e' },
+  tomato: { kind: 'tomato', name: '番茄', seed: 'tomatoSeed', product: 'tomato', sproutSeconds: 120, immatureSeconds: 120, yieldCount: 2, fxColor: '#d94a3a' },
+  pepper: { kind: 'pepper', name: '辣椒', seed: 'pepperSeed', product: 'pepper', sproutSeconds: 120, immatureSeconds: 120, yieldCount: 3, fxColor: '#d93a2a' },
+  eggplant: { kind: 'eggplant', name: '茄子', seed: 'eggplantSeed', product: 'eggplant', sproutSeconds: 180, immatureSeconds: 180, yieldCount: 2, fxColor: '#6a3a8a' },
+  strawberry: { kind: 'strawberry', name: '草莓', seed: 'strawberrySeed', product: 'strawberry', sproutSeconds: 120, immatureSeconds: 120, yieldCount: 3, fxColor: '#d93a4a' },
+  cabbage: { kind: 'cabbage', name: '卷心菜', seed: 'cabbageSeed', product: 'cabbage', sproutSeconds: 180, immatureSeconds: 180, yieldCount: 2, fxColor: '#8fc47a' },
+  pumpkin: { kind: 'pumpkin', name: '南瓜', seed: 'pumpkinSeed', product: 'pumpkin', sproutSeconds: 300, immatureSeconds: 300, yieldCount: 1, fxColor: '#e0862a' },
 };
 
 /** 种子道具 → 作物种类的映射(播种入口用) */
 export const CROP_OF_SEED: Partial<Record<ResourceKind, CropKind>> = {
   carrotSeed: 'carrot',
   wheatSeed: 'wheat',
+  potatoSeed: 'potato',
+  sweetPotatoSeed: 'sweetPotato',
+  cornSeed: 'corn',
+  soybeanSeed: 'soybean',
+  tomatoSeed: 'tomato',
+  pepperSeed: 'pepper',
+  eggplantSeed: 'eggplant',
+  strawberrySeed: 'strawberry',
+  cabbageSeed: 'cabbage',
+  pumpkinSeed: 'pumpkin',
 };
 
 /** 按累计生长秒数推导当前阶段 */
@@ -55,100 +92,9 @@ export function cropStageOf(spec: CropSpec, age: number): CropStage {
   return 2;
 }
 
-function cropMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
-
-/** 按落点取 0-1 的确定性伪随机(与土壤的土坷垃同款,读档/联机重放不漂移) */
-function cellRandom(x: number, z: number, i: number): number {
-  const v = Math.sin(x * 127.1 + z * 311.7 + i * 74.7) * 43758.5453;
-  return v - Math.floor(v);
-}
-
-/** 一片叶片:绕自身倾斜的扁片,从根部散开 */
-function leaf(color: string, len: number, tilt: number, rotY: number): THREE.Group {
-  const m = new THREE.Mesh(new THREE.ConeGeometry(0.035, len, 4), cropMaterial(color));
-  m.position.y = len / 2;
-  m.rotation.z = tilt;
-  const pivot = new THREE.Group();
-  pivot.rotation.y = rotY;
-  pivot.add(m);
-  return pivot;
-}
-
-/** 沿三道土垄各摆一丛植株,坐标按落点伪随机散布(与土壤质感呼应) */
-function plantSpots(x: number, z: number): THREE.Vector3[] {
-  const spots: THREE.Vector3[] = [];
-  for (let i = 0; i < 3; i++) {
-    spots.push(
-      new THREE.Vector3(cellRandom(x, z, i) * 0.3 - 0.15, 0.1, -1 / 3 + i / 3 + cellRandom(x, z, i + 3) * 0.08 - 0.04)
-    );
-  }
-  return spots;
-}
-
-function makeCarrotMesh(stage: CropStage, x: number, z: number): THREE.Group {
-  const g = new THREE.Group();
-  const leafColor = stage === 2 ? '#4a8a35' : '#5da345';
-  for (const spot of plantSpots(x, z)) {
-    const plant = new THREE.Group();
-    plant.position.copy(spot);
-    if (stage === 0) {
-      plant.add(leaf(leafColor, 0.14, 0.35, 0), leaf(leafColor, 0.12, -0.3, 2.2));
-    } else {
-      const count = stage === 1 ? 4 : 6;
-      const len = stage === 1 ? 0.22 : 0.3;
-      for (let i = 0; i < count; i++) {
-        plant.add(leaf(leafColor, len + cellRandom(x, z, i) * 0.06, 0.5 + (i % 3) * 0.15, (i / count) * Math.PI * 2));
-      }
-      // 成熟:橙色根茎顶出土面,一眼能看出该收了
-      if (stage === 2) {
-        const root = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 0.12, 6), cropMaterial('#e07b2a'));
-        root.position.y = 0.04;
-        plant.add(root);
-      }
-    }
-    g.add(plant);
-  }
-  return g;
-}
-
-function makeWheatMesh(stage: CropStage, x: number, z: number): THREE.Group {
-  const g = new THREE.Group();
-  const stalkColor = stage === 2 ? '#d9b45a' : '#7aa74e';
-  for (const spot of plantSpots(x, z)) {
-    const plant = new THREE.Group();
-    plant.position.copy(spot);
-    const count = stage === 0 ? 2 : stage === 1 ? 4 : 5;
-    const len = stage === 0 ? 0.16 : stage === 1 ? 0.38 : 0.55;
-    for (let i = 0; i < count; i++) {
-      const stalk = new THREE.Group();
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.02, len, 5), cropMaterial(stalkColor));
-      stem.position.y = len / 2;
-      stalk.add(stem);
-      stalk.rotation.z = 0.08 + cellRandom(x, z, i) * 0.12;
-      stalk.rotation.y = (i / count) * Math.PI * 2;
-      // 未成熟抽出细长叶片,成熟换成饱满的麦穗
-      if (stage === 1) {
-        stalk.add(leaf('#7aa74e', 0.2, 0.55, 0.8));
-      } else if (stage === 2) {
-        const head = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 5), cropMaterial('#e8c56a'));
-        head.position.y = len + 0.06;
-        stalk.add(head);
-        const awn = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.1, 3), cropMaterial('#c9a441'));
-        awn.position.y = len + 0.16;
-        stalk.add(awn);
-      }
-      plant.add(stalk);
-    }
-    g.add(plant);
-  }
-  return g;
-}
-
 /** 幼苗阶段的单株建模(播种预览/手持模型共用:一小丛刚冒头的绿芽) */
 export function makeCropSproutPreview(kind: CropKind): THREE.Group {
-  return kind === 'carrot' ? makeCarrotMesh(0, 0, 0) : makeWheatMesh(0, 0, 0);
+  return CROP_MESH_MAKERS[kind](0, 0, 0);
 }
 
 /** 场景中的一株作物:种在土壤格上,按累计生长秒数切换幼苗/未成熟/成熟三阶段模型 */
@@ -195,9 +141,7 @@ export class Crop {
     if (stage === this.stage && this.stageMesh) return;
     this.stage = stage;
     if (this.stageMesh) this.group.remove(this.stageMesh);
-    this.stageMesh = this.spec.kind === 'carrot'
-      ? makeCarrotMesh(stage, this.position.x, this.position.z)
-      : makeWheatMesh(stage, this.position.x, this.position.z);
+    this.stageMesh = CROP_MESH_MAKERS[this.spec.kind](stage, this.position.x, this.position.z);
     this.group.add(this.stageMesh);
   }
 }

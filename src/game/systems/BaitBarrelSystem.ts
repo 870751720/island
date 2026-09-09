@@ -30,6 +30,8 @@ export type BaitBarrelSave = {
   rotY?: number;
   foods: { kind: ResourceKind; count: number }[];
   bait: number;
+  /** 堆肥彩蛋:桶里冒出的南瓜种子数(旧档缺省为 0) */
+  seeds?: number;
   tickLeft: number;
 };
 
@@ -40,6 +42,7 @@ type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget:
 export type BaitBarrelInfo = {
   foods: { kind: ResourceKind; count: number }[];
   bait: number;
+  seeds: number;
   /** 当前发酵进度 0-1(无食物为 0) */
   progress: number;
 };
@@ -153,11 +156,14 @@ export class BaitBarrelSystem {
   /** 把身旁饵料桶里发酵好的鱼饵全部收回背包,返回是否收回任何数量 */
   collect(actor: PlayerSession): boolean {
     const barrel = this.nearby(actor);
-    if (!barrel || barrel.bait <= 0) return false;
+    if (!barrel || (barrel.bait <= 0 && barrel.seeds <= 0)) return false;
     const n = barrel.bait;
+    const seeds = barrel.seeds;
     barrel.bait = 0;
+    barrel.seeds = 0;
     this.emitState(barrel);
     this.give('bait', n, actor);
+    if (seeds > 0) this.give('pumpkinSeed', seeds, actor);
     this.audio.play('success');
     return true;
   }
@@ -188,6 +194,8 @@ export class BaitBarrelSystem {
       food.count -= 1;
       if (food.count <= 0) barrel.foods.shift();
       barrel.bait += BAIT_YIELD[food.kind] ?? 1;
+      // 堆肥彩蛋:每发酵一个食物有极小概率桶里冒出一颗南瓜种子
+      if (Math.random() < 0.005) barrel.seeds += 1;
       barrel.tickLeft += BAIT_CONVERT_INTERVAL;
       if (authority) {
         this.emitState(barrel);
@@ -239,6 +247,7 @@ export class BaitBarrelSystem {
       this.give('baitBarrel', 1, actor);
       for (const food of target.foods) this.give(food.kind, food.count, actor);
       if (target.bait > 0) this.give('bait', target.bait, actor);
+      if (target.seeds > 0) this.give('pumpkinSeed', target.seeds, actor);
       this.fx.burst(target.group.position, '#9a6b3f', 14);
     } finally {
       st.hold.commit(actor.player);
@@ -260,6 +269,7 @@ export class BaitBarrelSystem {
     return {
       foods: barrel.foods.map((f) => ({ ...f })),
       bait: barrel.bait,
+      seeds: barrel.seeds,
       progress: barrel.hasFood ? 1 - Math.max(barrel.tickLeft, 0) / BAIT_CONVERT_INTERVAL : 0,
     };
   }
@@ -268,7 +278,7 @@ export class BaitBarrelSystem {
   snapshot(): BaitBarrelSave[] {
     return this.barrels.map((barrel) => {
       const p = barrel.group.position;
-      return { id: this.ids.get(barrel), x: p.x, y: p.y, z: p.z, rotY: barrel.group.rotation.y, foods: barrel.foods.map((f) => ({ ...f })), bait: barrel.bait, tickLeft: barrel.tickLeft };
+      return { id: this.ids.get(barrel), x: p.x, y: p.y, z: p.z, rotY: barrel.group.rotation.y, foods: barrel.foods.map((f) => ({ ...f })), bait: barrel.bait, seeds: barrel.seeds, tickLeft: barrel.tickLeft };
     });
   }
 
@@ -285,6 +295,7 @@ export class BaitBarrelSystem {
       this.ids.set(barrel, b.id);
       barrel.foods = b.foods.map((f) => ({ ...f }));
       barrel.bait = b.bait;
+      barrel.seeds = b.seeds ?? 0;
       barrel.tickLeft = b.tickLeft;
       this.barrels.push(barrel);
     }
@@ -295,7 +306,7 @@ export class BaitBarrelSystem {
     this.onChanged?.({
       op: 'set',
       id: this.ids.get(barrel),
-      fields: { foods: barrel.foods.map((f) => ({ ...f })), bait: barrel.bait, tickLeft: barrel.tickLeft },
+      fields: { foods: barrel.foods.map((f) => ({ ...f })), bait: barrel.bait, seeds: barrel.seeds, tickLeft: barrel.tickLeft },
     });
   }
 
@@ -322,6 +333,7 @@ export class BaitBarrelSystem {
       }
       barrel.foods = value.foods.map((f) => ({ ...f }));
       barrel.bait = value.bait;
+      barrel.seeds = value.seeds ?? 0;
       barrel.tickLeft = value.tickLeft;
     }
   }

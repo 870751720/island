@@ -112,7 +112,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
               <div style={{ fontSize: 13, color: '#999' }}>桶是空的,丢点吃的进来吧</div>
             )}
           </div>
-          <span style={{ fontSize: 14 }}>🪱×{info.bait}</span>
+          <span style={{ fontSize: 14 }}>🪱×{info.bait}{info.seeds > 0 ? ` 🌱×${info.seeds}` : ''}</span>
           <button
             onPointerDown={(e) => {
               e.preventDefault();
@@ -128,8 +128,8 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
               e.preventDefault();
               onCollect();
             }}
-            disabled={info.bait <= 0}
-            style={{ ...convertCollectButtonStyle, opacity: info.bait > 0 ? 1 : 0.45 }}
+            disabled={info.bait <= 0 && info.seeds <= 0}
+            style={{ ...convertCollectButtonStyle, opacity: info.bait > 0 || info.seeds > 0 ? 1 : 0.45 }}
           >
             收取
           </button>

@@ -49,6 +49,8 @@ export class BaitBarrel {
   foods: { kind: ResourceKind; count: number }[] = [];
   /** 已发酵好待收取的鱼饵数 */
   bait = 0;
+  /** 堆肥彩蛋:发酵时桶里偶尔自己冒出的南瓜种子数 */
+  seeds = 0;
   /** 距离下一次发酵的剩余秒数(无食物时为满值) */
   tickLeft = 0;
   private blob: THREE.Object3D | null = null;

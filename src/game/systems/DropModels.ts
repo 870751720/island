@@ -85,6 +85,46 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   boiledCarrot: '#d98a4a',
   bread: '#d9a441',
   wheat: '#d9b45a',
+  potatoSeed: '#c9a06a',
+  sweetPotatoSeed: '#c96a3a',
+  cornSeed: '#e8c56a',
+  soybeanSeed: '#9aa74e',
+  tomatoSeed: '#d94a3a',
+  pepperSeed: '#d93a2a',
+  eggplantSeed: '#6a3a8a',
+  strawberrySeed: '#d93a4a',
+  cabbageSeed: '#8fc47a',
+  pumpkinSeed: '#e8c56a',
+  potato: '#c9a06a',
+  sweetPotato: '#c96a3a',
+  corn: '#e8c56a',
+  soybean: '#c9b06a',
+  tomato: '#d94a3a',
+  pepper: '#d93a2a',
+  eggplant: '#6a3a8a',
+  strawberry: '#d93a4a',
+  cabbage: '#8fc47a',
+  pumpkin: '#e0862a',
+  cookedPotato: '#b5813f',
+  boiledPotato: '#d9b98a',
+  cookedSweetPotato: '#a95a2a',
+  boiledSweetPotato: '#d99a6a',
+  cookedCorn: '#d9a441',
+  boiledCorn: '#e3c56d',
+  cookedSoybean: '#8a8a3a',
+  boiledSoybean: '#c9b98a',
+  cookedTomato: '#b5423a',
+  boiledTomato: '#d96a4a',
+  cookedPepper: '#a9321a',
+  boiledPepper: '#c94a2a',
+  cookedEggplant: '#5a2a7a',
+  boiledEggplant: '#8a5aaa',
+  cookedStrawberry: '#a93a5a',
+  boiledStrawberry: '#e38ab0',
+  cookedCabbage: '#7aa35a',
+  boiledCabbage: '#a9c47a',
+  cookedPumpkin: '#c96a1a',
+  boiledPumpkin: '#e8a04a',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
   shovel: '#8a7a5a',
@@ -515,6 +555,140 @@ function makeBread(): THREE.Object3D {
     slash.rotation.y = 0.6;
     slash.position.set(0, 0.21 - i * 0.06, (i - 0.5) * 0.07);
     g.add(slash);
+  }
+  return g;
+}
+
+
+/** 土豆:几颗滚圆的土豆堆在一起 */
+function makePotatoDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const spots = [[0, 0.06, 0], [0.14, 0.05, 0.06], [-0.12, 0.05, -0.05]];
+  for (const [x, y, z] of spots) {
+    const b = mesh(new THREE.IcosahedronGeometry(0.09, 0), mat);
+    b.position.set(x, y, z);
+    b.scale.set(1.15, 0.85, 1);
+    g.add(b);
+  }
+  return g;
+}
+
+/** 红薯:两根细长的纺锤形根 */
+function makeSweetPotatoDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  for (const [x, z, rot] of [[0.05, 0, 0.5], [-0.08, 0.08, -0.6]]) {
+    const root = mesh(new THREE.ConeGeometry(0.07, 0.34, 6), mat);
+    root.rotation.z = rot;
+    root.position.set(x, 0.1, z);
+    g.add(root);
+  }
+  return g;
+}
+
+/** 玉米:金黄玉米棒,半裹着绿叶 */
+function makeCornDrop(): THREE.Group {
+  const g = new THREE.Group();
+  const cob = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.34, 7), clay(DROP_COLORS.corn));
+  cob.rotation.z = Math.PI / 2.6;
+  cob.position.y = 0.1;
+  g.add(cob);
+  const huskMat = clay('#6aa74e');
+  for (const rot of [0.4, -0.4]) {
+    const husk = mesh(new THREE.ConeGeometry(0.08, 0.2, 4), huskMat);
+    husk.rotation.z = rot;
+    husk.position.set(rot * 0.12, 0.06, 0);
+    g.add(husk);
+  }
+  return g;
+}
+
+/** 豆类:一小捧豆子 */
+function makeBeanDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = clay(color);
+  const spots = [[0, 0.04, 0], [0.1, 0.04, 0.05], [-0.09, 0.04, 0.04], [0.02, 0.09, -0.07], [-0.04, 0.09, 0.06]];
+  for (const [x, y, z] of spots) {
+    const b = mesh(new THREE.IcosahedronGeometry(0.05, 0), mat);
+    b.scale.set(1, 0.7, 1);
+    b.position.set(x, y, z);
+    g.add(b);
+  }
+  return g;
+}
+
+/** 圆果:番茄/南瓜类的圆身 + 顶蒂 */
+function makeRoundFruitDrop(color: string, r: number): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.IcosahedronGeometry(r, 1), clay(color));
+  body.position.y = r * 0.85;
+  g.add(body);
+  const stem = mesh(new THREE.CylinderGeometry(r * 0.09, r * 0.13, r * 0.4, 4), clay('#7a6a3a'));
+  stem.position.y = r * 1.85;
+  g.add(stem);
+  return g;
+}
+
+/** 尖果:倒垂的辣椒 */
+function makePepperDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.ConeGeometry(0.06, 0.26, 6), clay(color));
+  body.rotation.z = Math.PI;
+  body.rotation.x = 0.25;
+  body.position.y = 0.16;
+  g.add(body);
+  const stem = mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.08, 4), clay('#5a8a3a'));
+  stem.position.y = 0.31;
+  g.add(stem);
+  return g;
+}
+
+/** 长果:茄子类的斜放胶囊 */
+function makeLongFruitDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.CapsuleGeometry(0.065, 0.2, 2, 6), clay(color));
+  body.rotation.z = 0.9;
+  body.position.y = 0.12;
+  g.add(body);
+  const calyx = mesh(new THREE.ConeGeometry(0.05, 0.08, 4), clay('#5a8a3a'));
+  calyx.rotation.z = 0.9;
+  calyx.position.set(-0.15, 0.2, 0);
+  g.add(calyx);
+  return g;
+}
+
+/** 草莓:红果 + 顶部绿叶冠 */
+function makeStrawberryDrop(color: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.ConeGeometry(0.08, 0.18, 6), clay(color));
+  body.position.y = 0.11;
+  g.add(body);
+  const crownMat = clay('#5a8a3a');
+  for (let i = 0; i < 3; i++) {
+    const l = mesh(new THREE.ConeGeometry(0.03, 0.08, 3), crownMat);
+    l.rotation.z = 0.8;
+    l.rotation.y = (i / 3) * Math.PI * 2;
+    l.position.y = 0.2;
+    g.add(l);
+  }
+  return g;
+}
+
+/** 卷心菜:抱球 + 外层散叶 */
+function makeCabbageDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const head = mesh(new THREE.IcosahedronGeometry(0.14, 1), clay(DROP_COLORS.cabbage));
+  head.position.y = 0.12;
+  head.scale.y = 0.9;
+  g.add(head);
+  const leafMat = clay('#6aa74e');
+  for (let i = 0; i < 4; i++) {
+    const l = mesh(new THREE.ConeGeometry(0.05, 0.16, 4), leafMat);
+    l.rotation.z = 1.1;
+    l.rotation.y = (i / 4) * Math.PI * 2;
+    l.position.y = 0.08;
+    g.add(l);
   }
   return g;
 }
@@ -1165,6 +1339,26 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedCarrot: makeCookedCarrot,
   boiledCarrot: () => makeSoup(DROP_COLORS.boiledCarrot, 0.85),
   bread: makeBread,
+  cookedPotato: () => makeRoast(DROP_COLORS.cookedPotato, 0.9),
+  boiledPotato: () => makeSoup(DROP_COLORS.boiledPotato, 0.85),
+  cookedSweetPotato: () => makeRoast(DROP_COLORS.cookedSweetPotato, 0.9),
+  boiledSweetPotato: () => makeSoup(DROP_COLORS.boiledSweetPotato, 0.85),
+  cookedCorn: () => makeRoast(DROP_COLORS.cookedCorn, 0.9),
+  boiledCorn: () => makeSoup(DROP_COLORS.boiledCorn, 0.85),
+  cookedSoybean: () => makeRoast(DROP_COLORS.cookedSoybean, 0.9),
+  boiledSoybean: () => makeSoup(DROP_COLORS.boiledSoybean, 0.85),
+  cookedTomato: () => makeRoast(DROP_COLORS.cookedTomato, 0.9),
+  boiledTomato: () => makeSoup(DROP_COLORS.boiledTomato, 0.85),
+  cookedPepper: () => makeRoast(DROP_COLORS.cookedPepper, 0.9),
+  boiledPepper: () => makeSoup(DROP_COLORS.boiledPepper, 0.85),
+  cookedEggplant: () => makeRoast(DROP_COLORS.cookedEggplant, 0.9),
+  boiledEggplant: () => makeSoup(DROP_COLORS.boiledEggplant, 0.85),
+  cookedStrawberry: () => makeRoast(DROP_COLORS.cookedStrawberry, 0.9),
+  boiledStrawberry: () => makeSoup(DROP_COLORS.boiledStrawberry, 0.85),
+  cookedCabbage: () => makeRoast(DROP_COLORS.cookedCabbage, 0.9),
+  boiledCabbage: () => makeSoup(DROP_COLORS.boiledCabbage, 0.85),
+  cookedPumpkin: () => makeRoast(DROP_COLORS.cookedPumpkin, 0.9),
+  boiledPumpkin: () => makeSoup(DROP_COLORS.boiledPumpkin, 0.85),
   boiledSmallFish: () => makeSoup(DROP_COLORS.boiledSmallFish),
   boiledBigFish: () => makeSoup(DROP_COLORS.boiledBigFish, 1.2),
   boiledGoldenFish: () => makeSoup(DROP_COLORS.boiledGoldenFish, 1.3),
@@ -1208,6 +1402,26 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   wheatSeed: () => makeSeed(DROP_COLORS.wheatSeed),
   carrot: makeCarrotDrop,
   wheat: makeWheatDrop,
+  potatoSeed: () => makeSeed(DROP_COLORS.potatoSeed),
+  sweetPotatoSeed: () => makeSeed(DROP_COLORS.sweetPotatoSeed),
+  cornSeed: () => makeSeed(DROP_COLORS.cornSeed),
+  soybeanSeed: () => makeSeed(DROP_COLORS.soybeanSeed),
+  tomatoSeed: () => makeSeed(DROP_COLORS.tomatoSeed),
+  pepperSeed: () => makeSeed(DROP_COLORS.pepperSeed),
+  eggplantSeed: () => makeSeed(DROP_COLORS.eggplantSeed),
+  strawberrySeed: () => makeSeed(DROP_COLORS.strawberrySeed),
+  cabbageSeed: () => makeSeed(DROP_COLORS.cabbageSeed),
+  pumpkinSeed: () => makeSeed(DROP_COLORS.pumpkinSeed),
+  potato: () => makePotatoDrop(DROP_COLORS.potato),
+  sweetPotato: () => makeSweetPotatoDrop(DROP_COLORS.sweetPotato),
+  corn: makeCornDrop,
+  soybean: () => makeBeanDrop(DROP_COLORS.soybean),
+  tomato: () => makeRoundFruitDrop(DROP_COLORS.tomato, 0.11),
+  pepper: () => makePepperDrop(DROP_COLORS.pepper),
+  eggplant: () => makeLongFruitDrop(DROP_COLORS.eggplant),
+  strawberry: () => makeStrawberryDrop(DROP_COLORS.strawberry),
+  cabbage: makeCabbageDrop,
+  pumpkin: () => makeRoundFruitDrop(DROP_COLORS.pumpkin, 0.2),
   oakFruit: () => makeFruit(DROP_COLORS.oakFruit),
   pineFruit: () => makeFruit(DROP_COLORS.pineFruit),
   fruitFruit: () => makeFruit(DROP_COLORS.fruitFruit),

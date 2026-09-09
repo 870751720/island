@@ -41,6 +41,7 @@ const SEA_FISH: Record<2 | 3, LootEntry[]> = {
     { kind: 'saury', weight: 2, size: 1.0, color: '#7d97a8', shape: 'long' },
     { kind: 'hairtail', weight: 2, size: 1.0, color: '#cfd8dc', shape: 'long' },
     { kind: 'cuttlefish', weight: 2, size: 1.0, color: '#6b5f8a', shape: 'flat' },
+    { kind: 'pepperSeed', weight: 0.2, size: 0.7, color: '#d93a2a', shape: 'junk' },
   ],
   3: [
     { kind: 'grouper', weight: 3, size: 1.5, color: '#6d7b5a', shape: 'fish' },
@@ -57,6 +58,7 @@ const POND_FISH: Record<2 | 3, LootEntry[]> = {
     { kind: 'loach', weight: 3, size: 1.0, color: '#8a7a4a', shape: 'long' },
     { kind: 'puffer', weight: 2, size: 1.05, color: '#d9c15a', shape: 'fish' },
     { kind: 'crabMeat', weight: 2, size: 0.9, color: '#e2793a', shape: 'flat' },
+    { kind: 'eggplantSeed', weight: 0.13, size: 0.7, color: '#6a3a8a', shape: 'junk' },
   ],
   3: [
     { kind: 'catfish', weight: 3, size: 1.6, color: '#5b664f', shape: 'long' },

@@ -159,8 +159,8 @@ export class CropSystem {
     this.audio.play('pick');
     const fxPos = p.clone();
     fxPos.y += 0.3;
-    this.fx.burst(fxPos, spec.kind === 'carrot' ? '#e07b2a' : '#e8c56a', 12);
-    this.onFx(fxPos, spec.kind === 'carrot' ? '#e07b2a' : '#e8c56a', 12);
+    this.fx.burst(fxPos, spec.fxColor, 12);
+    this.onFx(fxPos, spec.fxColor, 12);
   }
 
   /** 正在采收作物 */

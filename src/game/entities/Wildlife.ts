@@ -1300,6 +1300,10 @@ export class Wildlife implements Updatable {
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
     if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
     if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
+    // 作物种子战利品:野牛肚里的谷粒、兔子窝里偷藏的菜种、熊携带的莓果籽
+    if (species === 'bison' && Math.random() < 0.03) loot.push({ kind: 'cornSeed', count: 1 });
+    if (species === 'rabbit' && Math.random() < 0.1) loot.push({ kind: 'cabbageSeed', count: 1 });
+    if (species === 'bear' && Math.random() < 0.5) loot.push({ kind: 'strawberrySeed', count: 1 });
     return this.lootMeta(species, loot);
   }
 

@@ -29,6 +29,16 @@
 | 鸟肉 | 鸟肉汤 boiledBirdMeat | 10/5/3 | 🍜 |
 | 兽肉 | 兽肉汤 boiledGameMeat | 15/28/24 | 🍲 |
 | 胡萝卜 | 胡萝卜汤 boiledCarrot | 10/5/3 | 🍲 |
+| 土豆 | 土豆汤 boiledPotato | 11/6/3 | 🥣 |
+| 红薯 | 红薯粥 boiledSweetPotato | 12/8/4 | 🍚 |
+| 玉米 | 玉米汤 boiledCorn | 10/6/3 | 🥣 |
+| 大豆 | 豆汤 boiledSoybean | 8/10/5 | 🥣 |
+| 番茄 | 番茄汤 boiledTomato | 7/9/4 | 🥣 |
+| 辣椒 | 辣椒汤 boiledPepper | 5/4/6 | 🍲 |
+| 茄子 | 茄子汤 boiledEggplant | 9/6/4 | 🍲 |
+| 草莓 | 草莓汤 boiledStrawberry | 6/8/4 | 🍧 |
+| 卷心菜 | 蔬菜汤 boiledCabbage | 8/8/4 | 🥣 |
+| 南瓜 | 南瓜浓汤 boiledPumpkin | 14/12/6 | 🍲 |
 
 映射表 `BOILABLE`(`src/game/systems/Food.ts`)与烤制的 `COOKABLE` 同构:多种生食归并为同一种汤。
 
@@ -65,3 +75,7 @@
 ### 作物入厨(2026-09-09)
 
 - 种植作物接入烤/煮产线:胡萝卜可烤成**烤胡萝卜** cookedCarrot(12/1/2,🍢)、可煮成**胡萝卜汤** boiledCarrot(10/5/3,🍲);小麦可烤成**烤面包** bread(15/0/3,🍞,同时保留 burnTime 15 的燃料用途)。三者均可入饵料桶(胡萝卜制品 4 饵/个、面包 2 饵/个)。
+
+### 作物扩产(2026-09-10)
+
+- 新增 10 种作物的烤/煮产线(烤土豆、烤红薯、烤玉米、烤豆、烤番茄、烤辣椒、烤茄子、烤草莓、烤卷心菜、烤南瓜及对应汤品,数值见 `crops.md` 总表),接入 `COOKABLE`/`BOILABLE`,火堆与烹饪台通用。

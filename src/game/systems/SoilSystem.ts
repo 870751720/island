@@ -156,6 +156,11 @@ export class SoilSystem {
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
       this.scene.remove(target.group);
       this.audio.play('drop');
+      // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
+      if (Math.random() < 0.005) {
+        actor.inventory.add('sweetPotatoSeed', 1);
+        this.fx.burst(target.group.position.clone().setY(target.group.position.y + 0.3), '#c96a3a', 6);
+      }
     } finally {
       st.hold.commit(actor.player);
     }

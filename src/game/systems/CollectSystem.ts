@@ -64,7 +64,11 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 1,
     fxColor: '#c0392b',
-    yield: (inv) => inv.add(FRUIT_OF.fruit, fruitPickCount()),
+    yield: (inv) => {
+      inv.add(FRUIT_OF.fruit, fruitPickCount());
+      // 摘果时果树上偶尔缠着番茄藤,顺手捎回种子
+      if (Math.random() < 0.01) inv.add('tomatoSeed', 1);
+    },
   },
   tree: {
     action: 'chop',
@@ -77,6 +81,8 @@ const HARVEST_CONFIG: Record<
       const species = prop.species ?? 'oak';
       if (Math.random() < SEED_DROP_CHANCE) inv.add(SEED_OF[species], 1);
       if (Math.random() < FRUIT_DROP_CHANCE) inv.add(FRUIT_OF[species], 1);
+      // 林下偶有野生大豆,砍树时小概率捎回豆种
+      if (Math.random() < 0.01) inv.add('soybeanSeed', 1);
     },
   },
   stump: {
@@ -155,7 +161,11 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 1,
     fxColor: '#d98a8a',
-    yield: (inv) => inv.add('worm', 1 + Math.floor(Math.random() * 3)),
+    yield: (inv) => {
+      inv.add('worm', 1 + Math.floor(Math.random() * 3));
+      // 翻湿土偶尔带出一颗漏收的土豆
+      if (Math.random() < 0.02) inv.add('potatoSeed', 1);
+    },
   },
 };
 
