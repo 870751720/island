@@ -8,7 +8,6 @@ import type { NetGuest } from './net/NetGuest';
 import { loadProfile, saveProfileGender } from './playerProfile';
 import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
-import { applyWorldDelta, type WorldDeltaOp } from './net/WorldDelta';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
@@ -116,6 +115,7 @@ import { InteractionIndicatorBuilder } from './presentation/InteractionIndicator
 import { GameCameraController } from './presentation/GameCameraController';
 import { FacilityInteractionController } from './systems/FacilityInteractionController';
 import { PlayerCommandController } from './systems/PlayerCommandController';
+import { WorldReplicationController } from './net/WorldReplicationController';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
@@ -280,9 +280,7 @@ export class Game {
   private container: HTMLElement;
   private hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
-  private netWorldRevision = 0;
-  private netWorldMirror: WorldPatch | null = null;
-  private netWorldResyncPending = false;
+  private worldReplication: WorldReplicationController;
   private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
   /** 客人自己在房主侧的稳定玩家标识。 */
@@ -751,6 +749,11 @@ export class Game {
       dog: this.dog,
       wildlife: this.wildlife,
     };
+    this.worldReplication = new WorldReplicationController(
+      this.worldSaveSystems,
+      () => this.hostRef,
+      this.guestNet
+    );
     this.interactionIndicatorBuilder = new InteractionIndicatorBuilder({
       workbench: this.workbench,
       crates: this.crates,
@@ -1118,10 +1121,9 @@ export class Game {
       };
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
-      this.netWorldMirror = this.netWorldState();
-      this.netWorldRevision = this.guestNet.welcome?.worldRevision ?? 0;
-      this.guestNet.onWorldDelta = (revision, ops) => this.netApplyWorldDelta(revision, ops);
-      this.guestNet.onWorldFull = (revision, state) => this.netApplyWorldFull(revision, state);
+      this.worldReplication.beginGuest(this.guestNet.welcome?.worldRevision ?? 0);
+      this.guestNet.onWorldDelta = (revision, ops) => this.worldReplication.applyDelta(revision, ops);
+      this.guestNet.onWorldFull = (revision, state) => this.worldReplication.applyFull(revision, state);
       this.guestNet.onHud = (snap) => this.netApplyHud(snap);
       this.guestNet.onEvent = (event) => this.netApplyEvent(event);
       this.guestNet.begin();
@@ -1243,83 +1245,11 @@ export class Game {
 
   /** 联机世界离散状态；连续倒计时不入网络比较。 */
   netWorldState(): WorldPatch {
-    return {
-      props: this.props.snapshot().map(({ regrowLeft: _, ...prop }) => prop),
-      campfires: this.campfire.snapshot(),
-      workbenches: this.workbench.snapshot(),
-      workbenchCrafted: this.workbench.hasCrafted,
-      crates: this.crates.snapshot(),
-      baitBarrels: this.baitBarrels.snapshot(),
-      brewBarrels: this.brewBarrels.snapshot(),
-      waterPurifiers: this.waterPurifiers.snapshot(),
-      smelters: this.smelters.snapshot(),
-      cookingStations: this.cookingStations.snapshot(),
-      looms: this.looms.snapshot(),
-      fences: this.fences.snapshotFences(),
-      fenceGates: this.fences.snapshotGates(),
-      beds: this.beds.snapshot(),
-      shrines: this.shrines.snapshot(),
-      stakes: this.stakes.snapshot(),
-      drops: this.drops.snapshot(),
-      burrows: this.burrows.netSnapshot(),
-    };
+    return this.worldReplication.snapshot();
   }
 
   private bindWorldChangeSinks(): void {
-    const send = (section: keyof WorldPatch) =>
-      (change: import('./systems/WorldEntityId').EntityChange) => this.hostRef?.broadcastWorldChange(section, change);
-    this.props.setChangeSink(send('props'));
-    this.campfire.setChangeSink(send('campfires'));
-    this.workbench.setChangeSink((change) => {
-      send('workbenches')(change);
-      if (change.op === 'add' && this.workbench.hasCrafted) {
-        send('workbenchCrafted')({ op: 'set', id: '', fields: { value: true } });
-      }
-    });
-    this.crates.setChangeSink(send('crates'));
-    this.baitBarrels.setChangeSink(send('baitBarrels'));
-    this.brewBarrels.setChangeSink(send('brewBarrels'));
-    this.waterPurifiers.setChangeSink(send('waterPurifiers'));
-    this.burrows.setChangeSink(send('burrows'));
-    this.smelters.setChangeSink(send('smelters'));
-    this.cookingStations.setChangeSink(send('cookingStations'));
-    this.looms.setChangeSink(send('looms'));
-    this.fences.setChangeSinks(send('fences'), send('fenceGates'));
-    this.beds.setChangeSink(send('beds'));
-    this.shrines.setChangeSink(send('shrines'));
-    this.stakes.setChangeSink(send('stakes'));
-    this.drops.setChangeSink(send('drops'));
-  }
-
-  private netApplyWorldDelta(revision: number, ops: WorldDeltaOp[]): void {
-    if (!this.netWorldMirror || revision <= this.netWorldRevision || this.netWorldResyncPending) return;
-    if (revision !== this.netWorldRevision + 1) {
-      this.netWorldResyncPending = true;
-      this.guestNet?.requestWorldResync(this.netWorldRevision);
-      return;
-    }
-    this.netWorldRevision = revision;
-    const changed = applyWorldDelta(this.netWorldMirror, ops);
-    const propOps = ops.filter((op) => op.section === 'props');
-    const propsAppliedInPlace = propOps.length > 0 && this.props.applyNetDelta(propOps);
-    const patch: WorldPatch = {};
-    for (const section of changed) {
-      if (section === 'props' && propsAppliedInPlace) continue;
-      Object.assign(patch, { [section]: this.netWorldMirror[section] });
-    }
-    // 围栏系统会统一重建柱、横杆、门和阻挡线，任一集合变化都要带上另一份镜像。
-    if (changed.has('fences') || changed.has('fenceGates')) {
-      patch.fences = this.netWorldMirror.fences;
-      patch.fenceGates = this.netWorldMirror.fenceGates;
-    }
-    this.netApplyWorld(patch);
-  }
-
-  private netApplyWorldFull(revision: number, state: WorldPatch): void {
-    this.netWorldMirror = state;
-    this.netWorldRevision = revision;
-    this.netWorldResyncPending = false;
-    this.netApplyWorld(state);
+    this.worldReplication.bindHostChangeSinks();
   }
 
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
@@ -1575,51 +1505,7 @@ export class Game {
 
   /** 客人侧:应用房主的世界快照(重放摆件与掉落物,资源点原地更新) */
   netApplyWorld(state: WorldPatch): void {
-    if (state.props) this.props.applySave(state.props);
-    if (state.campfires) this.campfire.netApply(state.campfires);
-    if (state.workbenches) {
-      this.workbench.netApply(state.workbenches);
-    }
-    if (state.workbenchCrafted) this.workbench.restoreCrafted();
-    if (state.crates) {
-      this.crates.netApply(state.crates);
-    }
-    if (state.baitBarrels) {
-      this.baitBarrels.netApply(state.baitBarrels);
-    }
-    if (state.brewBarrels) {
-      this.brewBarrels.netApply(state.brewBarrels);
-    }
-    if (state.waterPurifiers) {
-      this.waterPurifiers.netApply(state.waterPurifiers);
-    }
-    if (state.burrows) {
-      this.burrows.netApply(state.burrows);
-    }
-    if (state.smelters) {
-      this.smelters.netApply(state.smelters);
-    }
-    if (state.cookingStations) {
-      this.cookingStations.netApply(state.cookingStations);
-    }
-    if (state.looms) {
-      this.looms.netApply(state.looms);
-    }
-    if (state.fences || state.fenceGates) {
-      this.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
-    }
-    if (state.beds) {
-      this.beds.netApply(state.beds);
-    }
-    if (state.shrines) {
-      this.shrines.netApply(state.shrines);
-    }
-    if (state.stakes) {
-      this.stakes.netApply(state.stakes);
-    }
-    if (state.drops) {
-      this.drops.netApply(state.drops);
-    }
+    this.worldReplication.apply(state);
   }
 
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
