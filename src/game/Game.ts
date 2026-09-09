@@ -6,7 +6,7 @@ import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
 import { loadProfile, saveProfileGender } from './playerProfile';
-import type { AmbientState, AnimalPose, NetMsg, PlayerState, WorldPatch } from './net/Protocol';
+import type { AmbientState, AnimalPose, NetMsg, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import type { Actor } from './mp/Actor';
 import { Crabs } from './entities/Crab';
@@ -116,6 +116,7 @@ import { FacilityInteractionController } from './systems/FacilityInteractionCont
 import { PlayerCommandController } from './systems/PlayerCommandController';
 import { WorldReplicationController } from './net/WorldReplicationController';
 import { GuestHudSynchronizer } from './net/GuestHudSynchronizer';
+import { buildPlayersState } from './net/PlayerSnapshotBuilder';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
@@ -1191,41 +1192,7 @@ export class Game {
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
   netPlayersState() {
-    const wind = this.weather.wind;
-    return {
-      time: this.dayNight.time,
-      day: this.dayNight.day,
-      weather: this.weather.rainIntensity > 0.05 ? 'rain' : 'sunny',
-      rain: this.weather.rainIntensity,
-      windAmount: this.weather.windIntensity,
-      windDirX: wind.dirX,
-      windDirZ: wind.dirZ,
-      list: this.sessions.map((s): PlayerState => {
-        const p = s.player.group.position;
-        const sv = s.survival.state;
-        return {
-          id: s.id,
-          name: s.name,
-          x: p.x,
-          y: p.y,
-          z: p.z,
-          rotY: s.player.group.rotation.y,
-          tool: s.player.currentTool as string,
-          placeKind: (this.heldPlaceItem(s) as string) ?? null,
-          toolTier: (s.tools as Record<string, number>)[s.player.currentTool],
-          hunger: sv.hunger,
-          thirst: sv.thirst,
-          health: sv.health,
-          stamina: sv.stamina,
-          equipped: s.equipment.snapshot(),
-          gender: s.player.currentGender,
-          dead: sv.dead,
-          action: s.player.currentAction,
-          refresh: Math.round(s.player.refreshSeconds),
-          tipsy: Math.round(s.player.tipsySeconds),
-        };
-      }),
-    };
+    return buildPlayersState(this.sessions, this.dayNight, this.weather, (session) => this.heldPlaceItem(session));
   }
 
   /** 房主侧:动物快照消息 */
