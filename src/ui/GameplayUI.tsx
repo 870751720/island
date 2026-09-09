@@ -42,6 +42,7 @@ import { MapIcon, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
 import { createInitialHudSnapshot } from './createInitialHudSnapshot';
+import { useFacilityPanels } from './useFacilityPanels';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -69,14 +70,7 @@ export function GameplayUI({
   const [worldReady, setWorldReady] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
-  const [workbenchOpen, setWorkbenchOpen] = useState(false);
-  const [campfireOpen, setCampfireOpen] = useState(false);
-  const [crateOpen, setCrateOpen] = useState(false);
-  const [baitBarrelOpen, setBaitBarrelOpen] = useState(false);
-  const [brewBarrelOpen, setBrewBarrelOpen] = useState(false);
-  const [smelterOpen, setSmelterOpen] = useState(false);
-  const [cookingStationOpen, setCookingStationOpen] = useState(false);
-  const [loomOpen, setLoomOpen] = useState(false);
+  const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
   const mumbleRef = useRef<HTMLDivElement>(null);
   const dogEmojiRef = useRef<HTMLDivElement>(null);
   const vitalWarnRef = useRef<VitalWarnHandle>(null);
@@ -145,42 +139,10 @@ export function GameplayUI({
     }
   };
 
-  // 离开工作台/火堆范围自动收起对应面板
-  useEffect(() => {
-    if (!hud.nearWorkbench) setWorkbenchOpen(false);
-  }, [hud.nearWorkbench]);
-  useEffect(() => {
-    if (!hud.nearCampfire) setCampfireOpen(false);
-  }, [hud.nearCampfire]);
-  useEffect(() => {
-    if (!hud.nearCrate) setCrateOpen(false);
-  }, [hud.nearCrate]);
-  useEffect(() => {
-    if (!hud.nearBaitBarrel) setBaitBarrelOpen(false);
-  }, [hud.nearBaitBarrel]);
-  useEffect(() => {
-    if (!hud.nearBrewBarrel) setBrewBarrelOpen(false);
-  }, [hud.nearBrewBarrel]);
-  useEffect(() => {
-    if (!hud.nearSmelter) setSmelterOpen(false);
-  }, [hud.nearSmelter]);
-  useEffect(() => {
-    if (!hud.nearCookingStation) setCookingStationOpen(false);
-  }, [hud.nearCookingStation]);
-  useEffect(() => {
-    if (!hud.nearLoom) setLoomOpen(false);
-  }, [hud.nearLoom]);
   // 死亡后关闭所有弹出的面板
   useEffect(() => {
     if (hud.dead) {
       setBackpackOpen(false);
-      setWorkbenchOpen(false);
-      setCampfireOpen(false);
-      setCrateOpen(false);
-      setBaitBarrelOpen(false);
-      setSmelterOpen(false);
-      setCookingStationOpen(false);
-      setLoomOpen(false);
     }
   }, [hud.dead]);
 
@@ -570,14 +532,14 @@ export function GameplayUI({
               dimmed={hud.busy}
               onLongPress={() => setPlacePickerOpen(true)}
               onCycle={() => gameRef.current?.useToolButton()}
-              onWorkbench={() => setWorkbenchOpen(true)}
-              onCampfire={() => setCampfireOpen(true)}
-              onCrate={() => setCrateOpen(true)}
-              onBaitBarrel={() => setBaitBarrelOpen(true)}
-              onBrewBarrel={() => setBrewBarrelOpen(true)}
-              onSmelter={() => setSmelterOpen(true)}
-              onCookingStation={() => setCookingStationOpen(true)}
-              onLoom={() => setLoomOpen(true)}
+              onWorkbench={() => openPanel('workbench')}
+              onCampfire={() => openPanel('campfire')}
+              onCrate={() => openPanel('crate')}
+              onBaitBarrel={() => openPanel('baitBarrel')}
+              onBrewBarrel={() => openPanel('brewBarrel')}
+              onSmelter={() => openPanel('smelter')}
+              onCookingStation={() => openPanel('cookingStation')}
+              onLoom={() => openPanel('loom')}
               onBed={() => gameRef.current?.sleep()}
               onStake={() => gameRef.current?.stakeLasso()}
               onUntie={() => gameRef.current?.untieLasso()}
@@ -635,85 +597,85 @@ export function GameplayUI({
                 />
               );
             })()}
-          {workbenchOpen && (
+          {facilityPanels.workbench && (
             <WorkbenchPanel
               hud={hud}
               onCraft={(id, count) => {
-                if (gameRef.current?.craftAtWorkbench(id, count)) setWorkbenchOpen(false);
+                if (gameRef.current?.craftAtWorkbench(id, count)) closePanel('workbench');
               }}
               onUpgrade={() => !!gameRef.current?.upgradeWorkbench()}
-              onClose={() => setWorkbenchOpen(false)}
+              onClose={() => closePanel('workbench')}
             />
           )}
-          {campfireOpen && hud.nearCampfire && (
+          {facilityPanels.campfire && hud.nearCampfire && (
             <CampfirePanel
               hud={hud}
               onAddFuel={(kind) => gameRef.current?.campfireAddFuel(kind)}
               onCook={(kind, count) => {
                 gameRef.current?.campfireCook(kind, count);
-                setCampfireOpen(false);
+                closePanel('campfire');
               }}
-              onClose={() => setCampfireOpen(false)}
+              onClose={() => closePanel('campfire')}
             />
           )}
-          {crateOpen && hud.nearCrate && (
+          {facilityPanels.crate && hud.nearCrate && (
             <CratePanel
               hud={hud}
               onStore={(kind, count) => gameRef.current?.crateStore(kind, count) ?? false}
               onTake={(kind, count) => gameRef.current?.crateTake(kind, count) ?? false}
-              onClose={() => setCrateOpen(false)}
+              onClose={() => closePanel('crate')}
             />
           )}
-          {baitBarrelOpen && hud.nearBaitBarrel && (
+          {facilityPanels.baitBarrel && hud.nearBaitBarrel && (
             <BaitBarrelPanel
               hud={hud}
               onFeed={(kind, count) => gameRef.current?.baitBarrelFeed(kind, count)}
               onCollect={() => gameRef.current?.baitBarrelCollect()}
               onTakeFoods={() => gameRef.current?.baitBarrelTakeFoods()}
-              onClose={() => setBaitBarrelOpen(false)}
+              onClose={() => closePanel('baitBarrel')}
             />
           )}
-          {brewBarrelOpen && hud.nearBrewBarrel && (
+          {facilityPanels.brewBarrel && hud.nearBrewBarrel && (
             <BrewBarrelPanel
               hud={hud}
               onFeed={(kind, count) => gameRef.current?.brewBarrelFeed(kind, count)}
               onCollect={() => gameRef.current?.brewBarrelCollect()}
               onTakeRaw={() => gameRef.current?.brewBarrelTakeRaw()}
-              onClose={() => setBrewBarrelOpen(false)}
+              onClose={() => closePanel('brewBarrel')}
             />
           )}
-          {smelterOpen && hud.nearSmelter && (
+          {facilityPanels.smelter && hud.nearSmelter && (
             <SmelterPanel
               hud={hud}
               onFeed={(count) => gameRef.current?.smelterFeed(count)}
               onCollect={() => gameRef.current?.smelterCollect()}
               onTakeOre={() => gameRef.current?.smelterTakeOre()}
-              onClose={() => setSmelterOpen(false)}
+              onClose={() => closePanel('smelter')}
             />
           )}
-          {cookingStationOpen && hud.nearCookingStation && (
+          {facilityPanels.cookingStation && hud.nearCookingStation && (
             <CookingStationPanel
               hud={hud}
               onAddFuel={(kind) => gameRef.current?.cookingAddFuel(kind)}
               onRoast={(kind, count) => {
                 gameRef.current?.cookingRoast(kind, count);
-                setCookingStationOpen(false);
+                closePanel('cookingStation');
               }}
               onBoil={(kind, count) => {
                 gameRef.current?.cookingBoil(kind, count);
               }}
               onCollect={() => gameRef.current?.cookingCollect()}
               onTakeBoil={() => gameRef.current?.cookingTakeBoil()}
-              onClose={() => setCookingStationOpen(false)}
+              onClose={() => closePanel('cookingStation')}
             />
           )}
-          {loomOpen && hud.nearLoom && (
+          {facilityPanels.loom && hud.nearLoom && (
             <LoomPanel
               hud={hud}
               onFeed={(count) => gameRef.current?.loomFeed(count)}
               onCollect={() => gameRef.current?.loomCollect()}
               onTakeRope={() => gameRef.current?.loomTakeRope()}
-              onClose={() => setLoomOpen(false)}
+              onClose={() => closePanel('loom')}
             />
           )}
           {(() => {
