@@ -41,84 +41,7 @@ import { firstFoodEntryIn, EAT_PROMPT_HUNGER } from '@/game/systems/Food';
 import { MapIcon, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
-
-const INITIAL_HUD: HudSnapshot = {
-  hunger: 100,
-  thirst: 100,
-  health: 100,
-  moving: false,
-  dead: false,
-  arrow: 0,
-  bait: 0,
-  slots: [],
-  capacity: 10,
-  hasAxe: false,
-  hasPickaxe: false,
-  hasShovel: false,
-  hasFishingrod: false,
-  hasBow: false,
-  hasSword: false,
-  hasLasso: false,
-  lassoCount: 0,
-  leading: false,
-  nearTether: false,
-  toolTiers: { axe: 0, pickaxe: 0, shovel: 0, fishingrod: 0, bow: 0, sword: 0 },
-  craftedIds: [],
-  nearCrate: false,
-  nearBaitBarrel: false,
-  nearBrewBarrel: false,
-  nearSmelter: false,
-  nearCookingStation: false,
-  nearLoom: false,
-  nearBed: false,
-  bedSleeping: false,
-  bedSleepProgress: 0,
-  crateSlots: null,
-  crateCapacity: null,
-  baitBarrelInfo: null,
-  brewBarrelInfo: null,
-  smelterInfo: null,
-  cookingStationInfo: null,
-  loomInfo: null,
-  equipped: { clothing: null, pants: null, hat: null, backpack: null },
-  gender: 'boy',
-  tool: 'hand' as const,
-  craftId: null,
-  craftProgress: 0,
-  workbenchCrafted: false,
-  campfirePlaced: false,
-  workbenchProgress: 0,
-  workbenchLevel: 0,
-  nearWorkbench: false,
-  campfireProgress: 0,
-  nearCampfire: false,
-  campfireInfo: null,
-  eatName: null,
-  eatProgress: 0,
-  autoEquipProgress: 0,
-  respawnLeft: null,
-  poseidonGrace: false,
-  canFish: false,
-  fishingState: null,
-  fishingProgress: 0,
-  fishingTier: 1,
-  fishingWaitLeft: null,
-  biteActive: false,
-  biteClicks: 0,
-  biteNeed: 1,
-  treasureKind: null,
-  collectTreasure: null,
-  nearDrop: null,
-  notice: null,
-  day: 1,
-  heldFenceCount: 0,
-  heldPlaceCount: 0,
-  heldItemKind: null,
-  placeables: [],
-  busy: false,
-  indicator: { label: null, progress: null },
-  buffs: [],
-};
+import { createInitialHudSnapshot } from './createInitialHudSnapshot';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -141,7 +64,7 @@ export function GameplayUI({
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
-  const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
+  const [hud, setHud] = useState<HudSnapshot>(createInitialHudSnapshot);
   // 世界生成期间的遮罩,首帧渲染完成后淡出
   const [worldReady, setWorldReady] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
