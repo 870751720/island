@@ -3,7 +3,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { SaveData, SessionSave } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
 import { HostSignal } from './Signaling';
-import { ACTIONS, isNetActionName } from './Actions';
+import { dispatchNetAction, isNetActionName } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
 import type { EntityChange } from '../systems/WorldEntityId';
 import type { WorldSection } from './WorldDelta';
@@ -181,8 +181,9 @@ export class NetHost {
       ) return;
       const game = this.game;
       const session = guest.session;
-      const action = ACTIONS[msg.name];
-      game.runNetAction(session, () => action(game, session, msg.args));
+      const actionName = msg.name;
+      const actionArgs = msg.args;
+      game.runNetAction(session, () => dispatchNetAction(game, session, actionName, actionArgs));
     } else if (msg.t === 'worldResync' && guest.session && this.game) {
       guest.net.send({ t: 'worldFull', revision: this.worldRevision, state: this.game.netWorldState() });
     }

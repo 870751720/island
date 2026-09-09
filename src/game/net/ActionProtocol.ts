@@ -11,8 +11,8 @@ import { isResourceKind } from '../systems/Items';
 /** 客人上行的动作名与参数元组；保持现有线格式，仅为发送端和注册表提供静态约束。 */
 export interface NetActionArgs {
   tool: [tool: HandTool, placeKind: ResourceKind | null];
-  eatFood: [kind?: ResourceKind];
-  eatUntilFull: [kind?: ResourceKind];
+  eatFood: [kind?: ResourceKind | null];
+  eatUntilFull: [kind?: ResourceKind | null];
   startFishing: [];
   hookFish: [];
   claimTreasure: [];
