@@ -3,7 +3,7 @@ import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
 import type { ResourceKind } from './Inventory';
 import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
-import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
+import { hasCost, workbenchUpgradeCost } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
@@ -35,13 +35,11 @@ export function workbenchItemLevel(kind: string): number | null {
   return level >= 1 && level <= WORKBENCH_MAX_LEVEL ? level : null;
 }
 
-/** 每玩家的搭建/升级/挖掘进度(工作台本身是世界共享的) */
+/** 每玩家的升级/挖掘进度(工作台本身是世界共享的) */
 type PlayerSessionState = {
   hold: ActionHold;
   timer: number;
   tickTimer: number;
-  /** 当前计时流程是搭建新工作台还是升级现有工作台 */
-  mode: 'build' | 'upgrade';
   /** 升级流程的目标工作台 */
   upgradeTarget: Workbench | null;
   digTarget: Workbench | null;
@@ -51,14 +49,13 @@ type PlayerSessionState = {
 
 /**
  * 工作台系统(世界单实例,按发起者 actor 结算,可放置多个):
- * - 材料满足且场上没有工作台时可通过卡片发起制作,站定敲打完成后在玩家原位放置;
+ * - 「工作台」道具经统一安放流程放回对应等级;
  * - 已放置的工作台可花费石头升级(最高 4 级),操作目标为身旁最近的一台;
- * - 手持铲子靠近工作台站定可整台挖走,变成对应等级的工作台道具;
- * - 背包里点击「使用」工作台道具,校验通过后在玩家脚下原地放回该等级。
+ * - 手持铲子靠近工作台站定可整台挖走,变成对应等级的工作台道具。
  */
 export class WorkbenchSystem {
   private benches: Workbench[] = [];
-  /** 本局是否已制作过工作台(制作卡片只在这局从未制作过时出现) */
+  /** 本局是否已放置过工作台(制作卡片只在这局从未放置过时出现) */
   private crafted = false;
   private states = new Map<PlayerSession, PlayerSessionState>();
   private scratch = new THREE.Vector3();
@@ -88,7 +85,7 @@ export class WorkbenchSystem {
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { hold: new ActionHold(), timer: 0, tickTimer: 0, mode: 'build', upgradeTarget: null, digTarget: null, swingTimer: 0, hits: 0 };
+      st = { hold: new ActionHold(), timer: 0, tickTimer: 0, upgradeTarget: null, digTarget: null, swingTimer: 0, hits: 0 };
       this.states.set(actor, st);
     }
     return st;
@@ -135,14 +132,9 @@ export class WorkbenchSystem {
     return this.nearby(actor)?.level ?? 0;
   }
 
-  isWorking(actor: PlayerSession): boolean {
-    return (this.states.get(actor)?.timer ?? 0) > 0;
-  }
-
   /** 当前是否在升级工作台 */
   isUpgrading(actor: PlayerSession): boolean {
-    const st = this.states.get(actor);
-    return !!st && st.timer > 0 && st.mode === 'upgrade';
+    return (this.states.get(actor)?.timer ?? 0) > 0;
   }
 
   /** 正在挖工作台 */
@@ -153,7 +145,7 @@ export class WorkbenchSystem {
   /** 是否满足升级条件(身旁有工作台、未满级、材料够、不在敲打中) */
   canUpgrade(actor: PlayerSession): boolean {
     const bench = this.nearby(actor);
-    if (!bench || this.isWorking(actor) || this.isDigging(actor)) return false;
+    if (!bench || this.isUpgrading(actor) || this.isDigging(actor)) return false;
     if (bench.level >= WORKBENCH_MAX_LEVEL) return false;
     return hasCost(workbenchUpgradeCost(bench.level), this.countsOf(actor, bench.level));
   }
@@ -180,47 +172,27 @@ export class WorkbenchSystem {
     return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
-  /** 本局是否已制作过工作台 */
+  /** 本局是否已放置过工作台 */
   get hasCrafted(): boolean {
     return this.crafted;
-  }
-
-  /** 是否满足发起条件(本局从未制作过 + 材料齐 + 脚下可摆放) */
-  canStart(actor: PlayerSession): boolean {
-    if (this.crafted || this.isWorking(actor) || this.isDigging(actor)) return false;
-    if (actor.inventory.count('stone') < (WORKBENCH_COST.stone ?? 0)) return false;
-    if (actor.inventory.count('branch') < (WORKBENCH_COST.branch ?? 0)) return false;
-    const p = actor.player.group.position;
-    return this.canPlaceAt(actor, p.x, p.z) === null;
-  }
-
-  start(actor: PlayerSession): boolean {
-    if (!this.canStart(actor)) return false;
-    const st = this.st(actor);
-    st.mode = 'build';
-    st.timer = 0.001;
-    st.tickTimer = 0;
-    return true;
   }
 
   /** 发起升级身旁工作台(站定敲打,完成后换更高等级模型),返回是否成功开始 */
   upgrade(actor: PlayerSession): boolean {
     if (!this.canUpgrade(actor)) return false;
     const st = this.st(actor);
-    st.mode = 'upgrade';
     st.upgradeTarget = this.nearby(actor);
     st.timer = 0.001;
     st.tickTimer = 0;
     return true;
   }
 
-  /** 每帧推进该玩家的搭建/升级/挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
+  /** 每帧推进该玩家的升级/挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       this.updateDig(actor, st, delta);
-      if (st.timer <= 0) return;
-      if (st.mode === 'upgrade' && !st.upgradeTarget) return;
+      if (st.timer <= 0 || !st.upgradeTarget) return;
       if (actor.player.isMoving || actor.player.isSwimming) {
         this.cancel(st);
         return;
@@ -244,24 +216,12 @@ export class WorkbenchSystem {
     }
     if (st.timer >= CRAFT_TIME) {
       st.timer = 0;
-      if (st.mode === 'build') {
-        actor.inventory.remove('stone', WORKBENCH_COST.stone ?? 0);
-        actor.inventory.remove('branch', WORKBENCH_COST.branch ?? 0);
-        const bench = new Workbench(this.scene, actor.player.group.position, 1, cardinalRotY(actor.player.group.rotation.y));
-        this.benches.push(bench);
-        const bp = bench.group.position;
-        this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, rotY: bench.group.rotation.y, level: bench.level } });
-        this.crafted = true;
-        // 通用规则:刚放下的东西可被铲子挖走时收起铲子,避免原地立刻挖掉
-        if (actor.player.currentTool === 'shovel') actor.player.setTool('hand');
-      } else {
-        for (const [kind, n] of Object.entries(workbenchUpgradeCost(st.upgradeTarget!.level))) {
-          actor.inventory.remove(kind as ResourceKind, n ?? 0);
-        }
-        st.upgradeTarget!.upgrade();
-        this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
-        st.upgradeTarget = null;
+      for (const [kind, n] of Object.entries(workbenchUpgradeCost(st.upgradeTarget!.level))) {
+        actor.inventory.remove(kind as ResourceKind, n ?? 0);
       }
+      st.upgradeTarget!.upgrade();
+      this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
+      st.upgradeTarget = null;
       this.audio.play('success');
       const p = actor.player.group.position.clone();
       p.y += 0.8;
@@ -319,12 +279,13 @@ export class WorkbenchSystem {
     return Math.min((st.hits + st.swingTimer / SWING_TIME) / need, 1);
   }
 
-  /** 在吸附格中心放回该等级工作台(背包「使用」与手持自动安放共用入口) */
+  /** 在吸附格中心放回该等级工作台(背包「使用」与手持自动安放共用入口),首次放置标记本局已制作 */
   placeItem(actor: PlayerSession, level: number, at: THREE.Vector3): boolean {
     if (actor.inventory.count(BENCH_ITEM[level]) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove(BENCH_ITEM[level], 1);
     const bench = new Workbench(this.scene, at, level, cardinalRotY(actor.player.group.rotation.y));
     this.benches.push(bench);
+    this.crafted = true;
     const bp = bench.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, rotY: bench.group.rotation.y, level } });
     this.audio.play('success');

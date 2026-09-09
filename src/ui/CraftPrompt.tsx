@@ -7,17 +7,15 @@ import { countsFromSlots } from '@/game/systems/Inventory';
 import {
   RECIPES,
   countsWithEquipped,
-  WORKBENCH_PROMPT_PRIORITY,
   hasCost,
   recipeIconKind,
   recipeIconLevel,
   recipeVisible,
   type Recipe,
 } from '@/game/systems/Crafting';
-import { CAMPFIRE_PROMPT_PRIORITY } from '@/game/systems/CampfireSystem';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
-/** 手搓卡片的一个候选(配方 / 工作台 / 火堆) */
+/** 手搓卡片的一个候选(配方) */
 type PromptCard = {
   priority: number;
   icon: ReactNode;
@@ -29,19 +27,14 @@ type PromptCard = {
 export function CraftPrompt({
   hud,
   onCraft,
-  onCraftWorkbench,
-  onCraftCampfire,
   suppressed,
 }: {
   hud: HudSnapshot;
   onCraft: (id: Recipe['id']) => void;
-  onCraftWorkbench: () => void;
-  onCraftCampfire: () => void;
   suppressed: boolean;
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
-  if (suppressed || hud.moving || hud.craftId !== null || hud.workbenchCrafting || hud.campfireCrafting)
-    return null;
+  if (suppressed || hud.moving || hud.craftId !== null) return null;
   const ownedTools = hud.toolTiers;
   const counts = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const cards: PromptCard[] = RECIPES.filter(
@@ -50,29 +43,13 @@ export function CraftPrompt({
       !r.hidePrompt &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, counts) &&
-      recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots)
+      recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted })
   ).map((r) => ({
     priority: r.promptPriority ?? Number.MAX_SAFE_INTEGER,
     icon: <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />,
     title: `制作${r.name}`,
     onCraft: () => onCraft(r.id),
   }));
-  if (hud.canCraftWorkbench) {
-    cards.push({
-      priority: WORKBENCH_PROMPT_PRIORITY,
-      icon: <span style={{ fontSize: 26 }}>🛠️</span>,
-      title: '制作工作台',
-      onCraft: onCraftWorkbench,
-    });
-  }
-  if (hud.canCraftCampfire) {
-    cards.push({
-      priority: CAMPFIRE_PROMPT_PRIORITY,
-      icon: <span style={{ fontSize: 26 }}>🔥</span>,
-      title: '原地搭小火堆',
-      onCraft: onCraftCampfire,
-    });
-  }
   if (cards.length === 0) return null;
   const best = cards.reduce((a, b) => (b.priority < a.priority ? b : a));
   return (

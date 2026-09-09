@@ -42,7 +42,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
-    'deadCampfire', 'cookingStation',
+    'deadCampfire', 'campfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
@@ -681,6 +681,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '熄灭的火堆',
     icon: '🕯️',
     description: '挖下来的残火堆,柴堆烧得焦黑,正好用来改造成烹饪台。',
+  },
+  campfire: {
+    kind: 'campfire',
+    name: '火堆',
+    icon: '🔥',
+    description: '捆好的火堆,放下去就烧起来了,能照明、取暖、烤东西。',
   },
   cookingStation: {
     kind: 'cookingStation',

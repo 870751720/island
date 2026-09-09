@@ -13,6 +13,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   smelter: '#7d8288',
   loom: '#8a6239',
   deadCampfire: '#3a332c',
+  campfire: '#a4622d',
   cookingStation: '#5c5f66',
   cloth: '#e8e2d4',
   berry: '#c0392b',
@@ -977,6 +978,22 @@ function makeDeadCampfireDrop(): THREE.Object3D {
   return g;
 }
 
+/** 火堆:交叉木柴上顶一簇小火苗 */
+function makeCampfireDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const woodMat = clay(DROP_COLORS.campfire);
+  for (let i = 0; i < 2; i++) {
+    const wood = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 5), woodMat);
+    wood.rotation.set(Math.PI / 2 - 0.4, (i / 2) * Math.PI, 0);
+    wood.position.y = 0.12;
+    g.add(wood);
+  }
+  const flame = mesh(new THREE.ConeGeometry(0.1, 0.28, 5), clay('#ff9a3d'));
+  flame.position.y = 0.32;
+  g.add(flame);
+  return g;
+}
+
 /** 烹饪台:石座上架着一口小铁锅 */
 function makeCookingStationDrop(): THREE.Object3D {
   const g = new THREE.Group();
@@ -1000,6 +1017,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   smelter: makeSmelterDrop,
   loom: makeLoomDrop,
   deadCampfire: makeDeadCampfireDrop,
+  campfire: makeCampfireDrop,
   cookingStation: makeCookingStationDrop,
   cloth: makeCloth,
   berry: makeBerry,

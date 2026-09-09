@@ -83,14 +83,10 @@ const INITIAL_HUD: HudSnapshot = {
   tool: 'hand' as const,
   craftId: null,
   craftProgress: 0,
-  canCraftWorkbench: false,
-  workbenchCrafting: false,
+  workbenchCrafted: false,
   workbenchProgress: 0,
   workbenchLevel: 0,
   nearWorkbench: false,
-  canCraftCampfire: false,
-  canBuildCampfire: false,
-  campfireCrafting: false,
   campfireProgress: 0,
   nearCampfire: false,
   campfireInfo: null,
@@ -568,12 +564,6 @@ export function GameplayUI({
         onCraft={(id) => {
           if (gameRef.current?.craftTool(id)) setBackpackOpen(false);
         }}
-        onCraftWorkbench={() => {
-          if (gameRef.current?.craftWorkbench()) setBackpackOpen(false);
-        }}
-        onCraftCampfire={() => {
-          if (gameRef.current?.craftCampfire()) setBackpackOpen(false);
-        }}
         onEquip={(kind) => gameRef.current?.equipItem(kind)}
         onUnequip={(slot) => gameRef.current?.unequipItem(slot)}
         onMoveItem={(from, to) => gameRef.current?.moveItem(from, to)}
@@ -854,8 +844,6 @@ export function GameplayUI({
                 <CraftPrompt
                   hud={hud}
                   onCraft={(id) => gameRef.current?.craftTool(id)}
-                  onCraftWorkbench={() => gameRef.current?.craftWorkbench()}
-                  onCraftCampfire={() => gameRef.current?.craftCampfire()}
                   suppressed={dropActive || eatActive}
                 />
                 <EatPrompt

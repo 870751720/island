@@ -5,8 +5,7 @@ import type { HudSnapshot } from '@/game/Game';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
-import { RECIPES, TOOL_IDS, WORKBENCH_COST, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
-import { CAMPFIRE_COST } from '@/game/systems/CampfireSystem';
+import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
@@ -24,10 +23,6 @@ type Props = {
   onDropItem: (kind: ResourceKind, count: number) => void;
   /** 在背包里发起手搓制作(站定敲打完成后入包/装备) */
   onCraft: (id: CraftId) => void;
-  /** 在背包里发起搭建工作台(全局唯一,材料齐且场上没有时显示) */
-  onCraftWorkbench: () => void;
-  /** 在背包里发起原地搭小火堆(材料齐、位置可摆即可,火堆数量不限) */
-  onCraftCampfire: () => void;
   /** 从背包装备一件装备(物品详情点击「装备」) */
   onEquip: (kind: ResourceKind) => void;
   /** 卸下某栏位装备放回背包 */
@@ -209,7 +204,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onCraftWorkbench, onCraftCampfire, onEquip, onUnequip, onMoveItem, onSort }: Props) {
+export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -230,7 +225,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) => r.station === 'hand' && recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots)
+    (r) => r.station === 'hand' && recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted })
   );
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
@@ -528,39 +523,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
               </>
             ) : tab === 'craft' ? (
               <div style={CONTENT_STYLE}>
-                {craftables.length === 0 && !hud.canCraftWorkbench && !hud.canBuildCampfire && (
+                {craftables.length === 0 && (
                   <div style={{ fontSize: 13, color: '#999', textAlign: 'center', padding: '14px 0' }}>
                     暂时没有能手搓的东西
-                  </div>
-                )}
-                {hud.canBuildCampfire && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px' }}>
-                    <span style={{ fontSize: 22 }}>🔥</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div>小火堆</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>
-                        {Object.entries(CAMPFIRE_COST)
-                          .filter(([, n]) => !!n)
-                          .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
-                          .join(' + ')}
-                      </div>
-                    </div>
-                    {actionButton(false, '搭建', '#4caf50', onCraftCampfire)}
-                  </div>
-                )}
-                {hud.canCraftWorkbench && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px' }}>
-                    <span style={{ fontSize: 22 }}>🛠️</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div>工作台</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>
-                        {Object.entries(WORKBENCH_COST)
-                          .filter(([, n]) => !!n)
-                          .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
-                          .join(' + ')}
-                      </div>
-                    </div>
-                    {actionButton(false, '制作', '#4caf50', onCraftWorkbench)}
                   </div>
                 )}
                 {craftables.map((r) => (

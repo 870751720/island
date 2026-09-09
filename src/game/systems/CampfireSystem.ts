@@ -15,14 +15,9 @@ import { ActionHold } from './ActionHold';
 import type { LightPool } from '../world/LightPool';
 import { dryCellReason } from './Facilities';
 
-const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
-const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#e0862e';
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
-export const CAMPFIRE_COST = { flint: 1, wood: 2 };
-/** 火堆卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
-export const CAMPFIRE_PROMPT_PRIORITY = 5;
-const INITIAL_FUEL = 60; // 搭好时引燃的初始燃烧秒数
+const INITIAL_FUEL = 60; // 「火堆」道具放下时引燃的初始燃烧秒数
 const DIG_RANGE = 1.6; // 持铲子可开挖熄灭火堆的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 const COOK_TIME = 1.6; // 每份食物的烹饪时长(秒)
@@ -36,11 +31,9 @@ export type CampfireInfo = {
   fuel: number;
 };
 
-/** 每玩家的搭建/烹饪/挖掘进度(火堆本身是世界共享的) */
+/** 每玩家的烹饪/挖掘进度(火堆本身是世界共享的) */
 type PlayerSessionState = {
   hold: ActionHold;
-  timer: number;
-  tickTimer: number;
   swingTimer: number;
   hits: number;
   digTarget: Campfire | null;
@@ -54,8 +47,8 @@ type PlayerSessionState = {
 };
 
 /**
- * 火堆系统(世界单实例,按发起者 actor 结算):材料满足且位置可摆放时通过卡片
- * 发起搭建,站定敲打完成后在玩家原位放置火堆并引燃;火堆持续燃烧消耗燃料,
+ * 火堆系统(世界单实例,按发起者 actor 结算):「火堆」道具经统一安放流程放下时
+ * 引燃(INITIAL_FUEL 起步),「熄灭的火堆」道具放下时未点燃;火堆持续燃烧消耗燃料,
  * 可反复添柴续命(无上限),燃尽后熄灭留在原地(不能再烹饪,添柴可复燃),
  * 手持铲子可把熄灭的火堆整座挖掉(变成「熄灭的火堆」道具回收)。烹饪在燃烧的火堆上批量进行,
  * 一次烤完背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
@@ -81,8 +74,6 @@ export class CampfireSystem {
     private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
-    /** 场上是否已有烹饪台(手搓火堆卡片的弹出条件之一) */
-    private hasCookingStation: () => boolean = () => false,
     /** 火光光源池 */
     private lights?: LightPool
   ) {}
@@ -92,7 +83,7 @@ export class CampfireSystem {
     if (!st) {
       st = {
         hold: new ActionHold(),
-        timer: 0, tickTimer: 0, swingTimer: 0, hits: 0, digTarget: null,
+        swingTimer: 0, hits: 0, digTarget: null,
         cookKind: null, cookFire: null, cookQueue: 0, cookTotal: 0, cookTimer: 0, cookTickTimer: 0,
       };
       this.states.set(actor, st);
@@ -105,19 +96,14 @@ export class CampfireSystem {
     this.states.delete(actor);
   }
 
-  /** 是否正在搭建火堆(站定敲打阶段) */
-  isWorking(actor: PlayerSession): boolean {
-    return (this.states.get(actor)?.timer ?? 0) > 0;
-  }
-
   /** 是否正在烹饪 */
   isCooking(actor: PlayerSession): boolean {
     return (this.states.get(actor)?.cookKind ?? null) !== null;
   }
 
-  /** 搭建、烹饪或挖掘中(占用双手) */
+  /** 烹饪或挖掘中(占用双手) */
   isBusy(actor: PlayerSession): boolean {
-    return this.isWorking(actor) || this.isCooking(actor) || this.isDigging(actor);
+    return this.isCooking(actor) || this.isDigging(actor);
   }
 
   /** 正在挖火堆 */
@@ -167,40 +153,15 @@ export class CampfireSystem {
     return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
-  /** 是否满足制作条件(不忙 + 材料齐 + 脚下可摆放),火堆数量不限 */
-  canBuild(actor: PlayerSession): boolean {
-    if (this.isBusy(actor)) return false;
-    if (actor.inventory.count('flint') < CAMPFIRE_COST.flint) return false;
-    if (actor.inventory.count('wood') < CAMPFIRE_COST.wood) return false;
-    const p = actor.player.group.position;
-    return this.canPlaceAt(actor, p.x, p.z) === null;
-  }
-
-  /** 场景手搓卡片的弹出条件:可制作,且场上与背包里都没有火堆/烹饪台(避免已有灶具后反复弹卡) */
-  canStart(actor: PlayerSession): boolean {
-    if (this.fires.length > 0) return false;
-    if (this.hasCookingStation()) return false;
-    if (actor.inventory.count('deadCampfire') > 0) return false;
-    if (actor.inventory.count('cookingStation') > 0) return false;
-    return this.canBuild(actor);
-  }
-
-  start(actor: PlayerSession): boolean {
-    if (!this.canBuild(actor)) return false;
-    const st = this.st(actor);
-    st.timer = 0.001;
-    st.tickTimer = 0;
-    return true;
-  }
-
-  /** 在吸附格中心放下「熄灭的火堆」道具(背包「使用」与手持自动安放共用入口,放下时未点燃) */
-  placeDead(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (actor.inventory.count('deadCampfire') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
-    actor.inventory.remove('deadCampfire', 1);
-    const fire = new Campfire(this.scene, at, 0, this.lights);
+  /** 在吸附格中心放下火堆道具(背包「使用」与手持自动安放共用入口):「火堆」放下即引燃,「熄灭的火堆」放下未点燃 */
+  place(actor: PlayerSession, kind: 'campfire' | 'deadCampfire', at: THREE.Vector3): boolean {
+    const fuel = kind === 'campfire' ? INITIAL_FUEL : 0;
+    if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
+    actor.inventory.remove(kind, 1);
+    const fire = new Campfire(this.scene, at, fuel, this.lights);
     this.fires.push(fire);
     const firePos = fire.group.position;
-    this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: 0 } });
+    this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel } });
     this.audio.play('success');
     const fxPos = firePos.clone();
     fxPos.y += 0.8;
@@ -217,54 +178,22 @@ export class CampfireSystem {
     }
   }
 
-  /** 每帧推进该玩家的搭建/挖掘/烹饪;帧末统一提交持有的动作,交互结束时自动释放 */
+  /** 每帧推进该玩家的挖掘/烹饪;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
       this.updateDig(actor, st, delta);
-      if (st.timer > 0) return this.updateBuild(actor, st, delta);
       this.updateCooking(actor, st, delta);
     } finally {
       st.hold.commit(actor.player);
     }
   }
 
-  private updateBuild(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
-    if (actor.player.isMoving || actor.player.isSwimming) {
-      st.timer = 0;
-      return;
-    }
-    st.hold.hold(actor.player, 'craft');
-    st.timer += delta;
-    st.tickTimer += delta;
-    if (st.tickTimer >= CRAFT_TICK) {
-      st.tickTimer -= CRAFT_TICK;
-      this.audio.play('knock');
-      const p = actor.player.group.position.clone();
-      p.y += 0.6;
-      this.fx.burst(p, FX_COLOR, 5);
-    }
-    if (st.timer >= CRAFT_TIME) {
-      st.timer = 0;
-      actor.inventory.remove('flint', CAMPFIRE_COST.flint);
-      actor.inventory.remove('wood', CAMPFIRE_COST.wood);
-      const fire = new Campfire(this.scene, actor.player.group.position.clone(), INITIAL_FUEL, this.lights);
-      this.fires.push(fire);
-      const firePos = fire.group.position;
-      this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel: fire.fuel } });
-      this.audio.play('success');
-      const p = actor.player.group.position.clone();
-      p.y += 0.8;
-      this.fx.burst(p, FX_COLOR, 14);
-    }
-  }
-
-  /** 当前搭建/烹饪进度 0-1(烹饪为单份进度),空闲时为 null */
+  /** 当前烹饪进度 0-1(单份进度),空闲时为 null */
   getProgress(actor: PlayerSession): number | null {
     const st = this.states.get(actor);
-    if (!st) return null;
-    if (st.cookKind) return Math.min(st.cookTimer / COOK_TIME, 1);
-    return st.timer > 0 ? Math.min(st.timer / CRAFT_TIME, 1) : null;
+    if (!st?.cookKind) return null;
+    return Math.min(st.cookTimer / COOK_TIME, 1);
   }
 
   /** 向身旁火堆添加 1 个可燃物(树枝/木头等),熄灭的火堆添柴后复燃,返回增加的燃烧秒数,失败为 0 */
@@ -370,7 +299,6 @@ export class CampfireSystem {
     if (
       actor.player.currentTool === 'shovel' &&
       !actor.player.isSwimming &&
-      st.timer <= 0 &&
       !st.cookKind &&
       !this.isOtherBusy(actor)
     ) {

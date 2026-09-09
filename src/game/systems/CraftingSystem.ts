@@ -28,7 +28,9 @@ export class CraftingSystem {
     /** 产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number) => number = (k, n) => inventory.add(k, n),
     /** 已制作配方记录(完成时写入,供图鉴标记与存档) */
-    private craftedIds: Set<CraftId> = new Set()
+    private craftedIds: Set<CraftId> = new Set(),
+    /** 非工具产物完成时的回调(设施道具自动拿在手上等,由外层决定) */
+    private onOutput?: (kind: ResourceKind) => void
   ) {}
 
   start(recipe: Recipe, count = 1): boolean {
@@ -91,6 +93,8 @@ export class CraftingSystem {
       if (recipe.tool) {
         this.player.setToolTier(recipe.tool, this.tools[recipe.tool]);
         if (recipe.tool !== 'shovel') this.player.setTool(recipe.tool);
+      } else if (recipe.output) {
+        this.onOutput?.(recipe.output);
       }
       this.audio.play('success');
       const p = this.player.group.position.clone();

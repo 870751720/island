@@ -99,6 +99,7 @@ export type ResourceKind =
   | 'smelter'
   | 'loom'
   | 'deadCampfire'
+  | 'campfire'
   | 'cookingStation'
   | 'fenceWood'
   | 'fenceStone'

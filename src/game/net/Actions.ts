@@ -43,7 +43,6 @@ export const ACTIONS: Record<string, NetAction> = {
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,
   pickupDrop: (g, a) => g.pickupDrop(a),
-  craftCampfire: (g, a) => g.craftCampfire(a),
   crateStore: (g, a, [kind, count]) => g.crateStore(kind as ResourceKind, (count as number) ?? Infinity, a),
   crateTake: (g, a, [kind, count]) => g.crateTake(kind as ResourceKind, (count as number) ?? Infinity, a),
   campfireAddFuel: (g, a, [kind]) => g.campfireAddFuel(kind as ResourceKind, a),
@@ -55,7 +54,6 @@ export const ACTIONS: Record<string, NetAction> = {
   unequipItem: (g, a, [slot]) => g.unequipItem(slot as EquipSlot, a),
   craftTool: (g, a, [id]) => g.craftTool(id as CraftId, a),
   craftAtWorkbench: (g, a, [id, count]) => g.craftAtWorkbench(id as CraftId, count as number, a),
-  craftWorkbench: (g, a) => g.craftWorkbench(a),
   upgradeWorkbench: (g, a) => g.upgradeWorkbench(a),
   // 客人本地判定命中后的权威结算(联机约定的例外:弓箭命中由射手客户端判定)
   arrowHit: (g, a, [kind, animalId, x, z]) => {

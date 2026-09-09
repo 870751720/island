@@ -193,18 +193,15 @@ export type HudSnapshot = {
   tool: HandTool;
   craftId: CraftId | null;
   craftProgress: number;
-  canCraftWorkbench: boolean;
-  workbenchCrafting: boolean;
+  /** 本局是否已放置过工作台(工作台配方只在从未放置过时出现) */
+  workbenchCrafted: boolean;
+  /** 工作台升级进度 */
   workbenchProgress: number;
   /** 当前工作台等级 1-4(没有工作台为 0) */
   workbenchLevel: number;
   /** 玩家在的工作范围内(工具按钮变为工作台,点击打开制作面板) */
   nearWorkbench: boolean;
-  /** 火堆卡片与搭建进度 */
-  canCraftCampfire: boolean;
-  /** 背包制作页的火堆入口条件(可制作,与卡片弹出条件无关:火堆数量不限) */
-  canBuildCampfire: boolean;
-  campfireCrafting: boolean;
+  /** 火堆烹饪进度 */
   campfireProgress: number;
   /** 玩家在火堆旁(工具按钮变为火堆,点击打开火堆面板) */
   nearCampfire: boolean;
@@ -867,8 +864,6 @@ export class Game {
       (actor) => this.isSessionBusy(actor, 'campfire'),
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
-      // 场上已有烹饪台时不再弹火堆卡片
-      () => this.cookingStations.count > 0,
       // 火光光源池
       this.flameLights
     );
@@ -2590,7 +2585,7 @@ export class Game {
       (this.guestMode && this.player.isActing) ||
       this.archery.isWorking ||
       this.crafting.isWorking ||
-      this.workbench.isWorking(this.local) ||
+      this.workbench.isUpgrading(this.local) ||
       this.eating.isWorking ||
       this.local.milk.isWorking ||
       this.beds.isBusy(this.local) ||
@@ -2697,7 +2692,7 @@ export class Game {
   private eatBlocked(a: PlayerSession): boolean {
     return (
       a.crafting.isWorking ||
-      this.workbench.isWorking(a) ||
+      this.workbench.isUpgrading(a) ||
       a.eating.isWorking ||
       a.fishing.isWorking ||
       this.beds.isBusy(a)
@@ -2717,7 +2712,7 @@ export class Game {
     const a = actor;
     if (
       a.crafting.isWorking ||
-      this.workbench.isWorking(a) ||
+      this.workbench.isUpgrading(a) ||
       this.workbench.isDigging(a) ||
       a.eating.isWorking ||
       this.beds.isBusy(a) ||
@@ -3089,8 +3084,9 @@ export class Game {
     def('smelter', { tool: 'place', valid: (a, x, z) => this.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.smelters.use(a, at) });
     def('loom', { tool: 'place', valid: (a, x, z) => this.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.looms.use(a, at) });
     def('cookingStation', { tool: 'place', valid: (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => this.cookingStations.use(a, at) });
-    // 熄灭的火堆
-    def('deadCampfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.campfire.placeDead(a, at) });
+    // 火堆(放下即引燃)/熄灭的火堆
+    def('campfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 60).group), place: (a, at) => this.campfire.place(a, 'campfire', at) });
+    def('deadCampfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.campfire.place(a, 'deadCampfire', at) });
     // 神龛类(含火把,同一放置入口)
     for (const kind of ['poseidonBlessing', 'beehiveShrine', 'healCrystal', 'rainAltar', 'crocIncense', 'torch'] as const) {
       def(kind, {
@@ -3268,15 +3264,6 @@ export class Game {
   sysNotify(text: string): void {
     if (this.hostRef) this.hostRef.broadcastEvent({ kind: 'sysNotice', text });
     this.notify(text);
-  }
-
-  /** 发起定时搭建火堆(站定敲打,进度走头顶圆环),返回是否成功开始 */
-  craftCampfire(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('craftCampfire', []);
-
-    if (this.asleepFor(actor)) return false;
-    return this.campfire.start(actor);
   }
 
   /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入),整格转移失败时给出提示,连发失败静默 */
@@ -3586,7 +3573,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('craftTool', [id]);
 
     const a = actor;
-    if (this.asleepFor(a) || this.workbench.isWorking(a) || this.workbench.isDigging(a)) return false;
+    if (this.asleepFor(a) || this.workbench.isUpgrading(a) || this.workbench.isDigging(a)) return false;
     const recipe = RECIPES.find((r) => r.id === id);
     return recipe && recipe.station === 'hand' ? a.crafting.start(recipe) : false;
   }
@@ -3599,7 +3586,7 @@ export class Game {
     const a = actor;
     if (
       this.asleepFor(a) ||
-      this.workbench.isWorking(a) ||
+      this.workbench.isUpgrading(a) ||
       this.workbench.isDigging(a) ||
       !this.workbench.isNear(a)
     ) {
@@ -3611,15 +3598,6 @@ export class Game {
       (recipe.minBenchLevel ?? 1) <= this.workbench.level(a)
       ? a.crafting.start(recipe, count)
       : false;
-  }
-
-  /** 发起工作台制作(完成后在原位放置),返回是否成功开始 */
-  craftWorkbench(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('craftWorkbench', []);
-
-    if (this.asleepFor(actor) || actor.crafting.isWorking || actor.eating.isWorking) return false;
-    return this.workbench.start(actor);
   }
 
   /** 发起工作台升级(站定敲打,完成后换更高等级模型),返回是否成功开始 */
@@ -3705,7 +3683,7 @@ export class Game {
     if (exclude !== 'eating' && s.eating.isWorking) return true;
     if (exclude !== 'fishing' && s.fishing.isWorking) return true;
     if (exclude !== 'water' && s.water.isActive) return true;
-    if (exclude !== 'workbench' && (this.workbench.isWorking(s) || this.workbench.isDigging(s)))
+    if (exclude !== 'workbench' && (this.workbench.isUpgrading(s) || this.workbench.isDigging(s)))
       return true;
     if (exclude !== 'campfire' && this.campfire.isBusy(s)) return true;
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
@@ -3795,7 +3773,12 @@ export class Game {
       this.audio,
       // 背包放不下的产物掉在玩家身旁
       (kind, count) => this.giveItem(kind, count, s),
-      s.craftedIds
+      s.craftedIds,
+      // 设施产物制作完成自动拿在手上(铲子除外:避免原地误挖刚做好的设施)
+      (kind) => {
+        if (s.player.currentTool === 'shovel' || !this.autoPlace.supports(kind)) return;
+        this.setToolFor(s, this.autoPlace.toolOf(kind) ?? 'place', kind);
+      }
     );
     s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio, (food) => {
       // 喝酒附带限时增益:舒爽状态下再喝转为晕晕的
@@ -4070,14 +4053,10 @@ export class Game {
       tool: s.player.currentTool,
       craftId: s.crafting.currentRecipe?.id ?? null,
       craftProgress: s.crafting.getProgress() ?? 0,
-      canCraftWorkbench: this.workbench.canStart(s),
-      workbenchCrafting: this.workbench.isWorking(s),
+      workbenchCrafted: this.workbench.hasCrafted,
       workbenchProgress: this.workbench.getProgress(s) ?? 0,
       workbenchLevel: this.workbench.level(s),
       nearWorkbench: this.workbench.isNear(s),
-      canCraftCampfire: this.campfire.canStart(s),
-      canBuildCampfire: this.campfire.canBuild(s),
-      campfireCrafting: this.campfire.isBusy(s),
       campfireProgress: this.campfire.getProgress(s) ?? 0,
       nearCampfire: !!this.campfire.nearby(s),
       campfireInfo: this.campfire.getCampfireInfo(s),
@@ -4233,8 +4212,8 @@ export class Game {
       const { total, current } = session.crafting.queueInfo;
       label = `制作中:${session.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;
       progress = session.crafting.getProgress();
-    } else if (this.workbench.isWorking(session)) {
-      label = this.workbench.isUpgrading(session) ? '升级中:工作台' : '制作中:工作台';
+    } else if (this.workbench.isUpgrading(session)) {
+      label = '升级中:工作台';
       progress = this.workbench.getProgress(session);
     } else if (this.workbench.isDigging(session)) {
       label = '挖工作台…';
@@ -4291,9 +4270,6 @@ export class Game {
       const { total, current } = this.campfire.cookInfo(session);
       const food = ITEMS[this.campfire.cookingKind(session)!];
       label = `烹饪中:${food.icon} ${food.name} ${current}/${total}`;
-      progress = this.campfire.getProgress(session);
-    } else if (this.campfire.isWorking(session)) {
-      label = '搭建中:小火堆';
       progress = this.campfire.getProgress(session);
     } else if (session.eating.isWorking) {
       const food = session.eating.currentFood!;
