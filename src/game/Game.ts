@@ -105,68 +105,18 @@ import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
 import { buildMapSnapshot, buildMapTerrain } from './systems/MapSnapshotBuilder';
+import {
+  AUTOSAVE_INTERVAL, AUTO_EQUIP_DELAY, BEAR_SFX_RANGE, DEATH_DROP_RATIO,
+  IDLE_HIDE_DELAY, MULTIPLAYER_RESPAWN_DELAY, PLANT_DROP_KINDS,
+  SWORD_AUTO_EQUIP_DELAY, SWORD_AUTO_EQUIP_RANGE, TETHER_RANGE, VIEW_SIZE,
+} from './GameConfig';
+import type { CycleEntry, GameOptions, InteractionKind } from './GameTypes';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
-
-/** Game 构造选项:联机时由 UI 传入网络会话与种子/初始存档 */
-export type GameOptions = {
-  /** 房主侧网络会话(提供种子,游戏创建后自动挂接) */
-  host?: NetHost;
-  /** 客人侧网络会话(welcome 已到达,Game 以 guest 模式运行) */
-  guest?: NetGuest;
-  /** 指定世界种子(房主大厅生成,与本地存档无关) */
-  seeds?: { terrainSeed: number };
-  /** 指定初始存档(null 表示开新档;缺省读 localStorage) */
-  save?: SaveData | null;
-};
-
-const VIEW_SIZE = 18;
+export type { GameOptions } from './GameTypes';
 
 /** updateCamera 复用的注视点偏移临时向量 */
 const _camOffset = new THREE.Vector3();
 
-const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
-const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)
-const SWORD_AUTO_EQUIP_DELAY = 1.5; // 持续移动且动物近身多久后自动切换到剑(秒)
-const SWORD_AUTO_EQUIP_RANGE = 3; // 动物近身判定范围(米)
-/** 被拴的羊/桩的「解开套索」按钮判定范围(米) */
-const TETHER_RANGE = 2.2;
-const IDLE_HIDE_DELAY = 5; // 玩家多久不移动/不交互后 HUD 才淡出(秒)
-const MULTIPLAYER_RESPAWN_DELAY = 3;
-/** 联机死亡掉落比例:三种丛类道具必定掉落,其余随身物品(含穿戴装备与工具)按此比例掉在原地 */
-const DEATH_DROP_RATIO = 0.6;
-/** 必定掉落的丛类道具(挖走待种回的植株) */
-const PLANT_DROP_KINDS: readonly ResourceKind[] = ['berryBush', 'shrubBush', 'grassTuft'];
-/** 熊吼/扑击声的可闻范围:声源距任意存活玩家不超过该米数才播放 */
-const BEAR_SFX_RANGE = 20;
-
-/* 会话可被占用的交互类别(isSessionBusy 排除自身时用) */
-/** 工具循环条目:普通工具(kind 为 null)或某种可放置道具 */
-type CycleEntry = { tool: HandTool; kind: ResourceKind | null };
-
-type InteractionKind =
-  | 'collect'
-  | 'milk'
-  | 'crafting'
-  | 'eating'
-  | 'fishing'
-  | 'archery'
-  | 'sword'
-  | 'lasso'
-  | 'water'
-  | 'workbench'
-  | 'campfire'
-  | 'crates'
-  | 'baitBarrels'
-  | 'brewBarrels'
-  | 'waterPurifiers'
-  | 'burrows'
-  | 'smelters'
-  | 'cookingStations'
-  | 'looms'
-  | 'fences'
-  | 'beds'
-  | 'shrines'
-  | 'autoPlace';
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
