@@ -121,7 +121,8 @@ export function createPlayerModel() {
   const legs: THREE.Group[] = [];
   const armSurfaces: THREE.Mesh[] = [];
   const legSurfaces: THREE.Mesh[] = [];
-  for (const side of [-1, 1]) {
+  // 朝向 +Z 时，角色自身左侧为 +X、右侧为 -X；数组统一 [左, 右]。
+  for (const side of [1, -1]) {
     const arm = new THREE.Group();
     arm.position.set(side * 0.275, 1.005 - 0.59, 0);
     upperBody.add(arm);

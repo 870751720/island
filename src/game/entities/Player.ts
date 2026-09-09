@@ -365,7 +365,7 @@ export class Player implements Updatable {
     ];
     for (const [tool, models] of tiers) {
       for (const t of models) {
-        t.position.set(0.006, -0.18, 0.05);
+        t.position.set(-0.006, -0.18, 0.05);
         if (tool === 'fishingrod') {
           t.position.y += Math.cos(Math.PI / 2.4) * 0.3;
           t.position.z += Math.sin(Math.PI / 2.4) * 0.3;
@@ -378,7 +378,7 @@ export class Player implements Updatable {
 
     // 安放/围栏/围栏门工具手持的是当前道具的缩小模型,由外层按选中道具替换
     this.placeMount = new THREE.Group();
-    this.placeMount.position.set(0.006, -0.18, 0.05);
+    this.placeMount.position.set(-0.006, -0.18, 0.05);
     this.placeMount.rotation.x = Math.PI / 2.4;
     this.placeMount.visible = false;
     handR.add(this.placeMount);

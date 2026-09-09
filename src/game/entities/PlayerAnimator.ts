@@ -31,8 +31,8 @@ export class PlayerAnimator {
   constructor(private model: Model) {
     this.nodes = [model.upperBody, model.head, ...model.arms, ...model.elbows, ...model.legs, ...model.knees];
     this.targets = this.nodes.map(() => new THREE.Euler());
-    this.reachLeft = new ArmReach(model.arms[0], model.elbows[0], -1);
-    this.reachRight = new ArmReach(model.arms[1], model.elbows[1], 1);
+    this.reachLeft = new ArmReach(model.arms[0], model.elbows[0], 1);
+    this.reachRight = new ArmReach(model.arms[1], model.elbows[1], -1);
   }
 
   reset(): void {
@@ -47,7 +47,10 @@ export class PlayerAnimator {
     this.gripWeight = 0;
     for (const hand of this.model.hands) hand.scale.setScalar(THREE.MathUtils.lerp(hand.scale.x, 1, 1 - Math.exp(-22 * delta)));
     for (const target of this.targets) target.set(0, 0, 0);
-    for (const i of [2, 3, 6, 7]) this.targets[i].copy(this.nodes[i].rotation);
+    for (const i of [2, 3, 6, 7]) {
+      const rotation = this.nodes[i].rotation;
+      this.targets[i].set(rotation.x, -rotation.y, -rotation.z);
+    }
     this.height = 0;
     this.apply(delta);
   }
@@ -203,11 +206,12 @@ export class PlayerAnimator {
       } else {
         this.wrist.set(-0.05 + swing * 0.01, 0.41 - swing * 0.075, 0.12 + swing * 0.025);
       }
+      this.wrist.x *= -1;
       this.reachRight.solve(this.wrist, this.gripWeight);
       const arm = this.model.arms[1];
       const elbow = this.model.elbows[1];
       this.rotation.copy(arm.quaternion).multiply(elbow.quaternion);
-      this.grip.set(0.006, -0.18 + Math.cos(Math.PI / 2.4) * -0.12,
+      this.grip.set(-0.006, -0.18 + Math.cos(Math.PI / 2.4) * -0.12,
         0.05 + Math.sin(Math.PI / 2.4) * -0.12).applyQuaternion(this.rotation);
       this.wrist.copy(elbow.position).applyQuaternion(arm.quaternion).add(arm.position);
       this.grip.add(this.wrist);
@@ -219,9 +223,9 @@ export class PlayerAnimator {
       this.grip.set(0, -0.113, 0.246).applyQuaternion(this.model.head.quaternion).add(this.model.head.position);
       this.grip.y -= 0.055;
       this.grip.z -= 0.025;
-      this.wrist.copy(this.grip); this.wrist.x -= 0.09;
-      this.reachLeft.solve(this.wrist, lift);
       this.wrist.copy(this.grip); this.wrist.x += 0.09;
+      this.reachLeft.solve(this.wrist, lift);
+      this.wrist.copy(this.grip); this.wrist.x -= 0.09;
       this.reachRight.solve(this.wrist, lift);
       graspLeft = graspRight = lift * 0.65;
     }
@@ -241,8 +245,8 @@ export class PlayerAnimator {
       const rotation = this.nodes[i].rotation;
       const target = this.targets[i];
       rotation.x += (target.x - rotation.x) * k;
-      rotation.y += (target.y - rotation.y) * k;
-      rotation.z += (target.z - rotation.z) * k;
+      rotation.y += (-target.y - rotation.y) * k;
+      rotation.z += (-target.z - rotation.z) * k;
     }
     this.model.root.position.y += (this.height - this.model.root.position.y) * k;
   }

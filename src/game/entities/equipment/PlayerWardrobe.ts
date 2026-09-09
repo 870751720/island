@@ -47,7 +47,7 @@ export class PlayerWardrobe {
         break;
       case 'pants':
         attach(this.model.root, makeOutfitWaist(tier));
-        this.model.legs.forEach((leg, i) => attach(leg, makeOutfitTrouserLeg(tier, i === 0 ? -1 : 1)));
+        this.model.legs.forEach((leg, i) => attach(leg, makeOutfitTrouserLeg(tier, i === 0 ? 1 : -1)));
         break;
     }
     this.worn.set(slot, { kind, parts });
