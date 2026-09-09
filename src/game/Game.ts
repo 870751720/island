@@ -53,7 +53,6 @@ import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine } from './entities/Shrine';
-import { BUFFS, type HudBuff } from './systems/BuffSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -113,6 +112,7 @@ import type { GameOptions, InteractionKind } from './GameTypes';
 import { PickupPresentation } from './presentation/PickupPresentation';
 import { listPlaceables, nextToolEntry } from './systems/ToolCycle';
 import { restoreSession, snapshotSession } from './systems/SessionSaveCodec';
+import { HudSnapshotBuilder } from './presentation/HudSnapshotBuilder';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -139,6 +139,7 @@ export class Game {
   /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
   private leashLines: LeashLines;
   private audio = new GameAudio();
+  private hudSnapshotBuilder: HudSnapshotBuilder;
 
   /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
   playUiSfx(name: SfxName): void {
@@ -698,6 +699,26 @@ export class Game {
     this.attachSessionSystems(this.local);
 
     this.dayNight = new DayNightSystem(sun, hemi, this.scene);
+    this.hudSnapshotBuilder = new HudSnapshotBuilder(
+      {
+        autoPlace: this.autoPlace,
+        wildlife: this.wildlife,
+        crates: this.crates,
+        baitBarrels: this.baitBarrels,
+        brewBarrels: this.brewBarrels,
+        smelters: this.smelters,
+        cookingStations: this.cookingStations,
+        looms: this.looms,
+        beds: this.beds,
+        workbench: this.workbench,
+        campfire: this.campfire,
+        shrines: this.shrines,
+        drops: this.drops,
+        dayNight: this.dayNight,
+      },
+      (session) => this.placeableList(session),
+      (session) => this.indicatorFor(session)
+    );
     // 天数事件:仅房主端结算,刷新的狼/熊经动物姿态快照回流客人
     this.dayEvents = new DayEventSystem(
       this.dayNight,
@@ -3621,101 +3642,13 @@ export class Game {
   }
 
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
-    return {
-      ...s.survival.state,
-      arrow: s.ammo.count('arrow'),
-      bait: s.ammo.count('bait'),
-      heldFenceCount:
-        s.player.currentTool === 'fence'
-          ? s.inventory.count('fenceWood') + s.inventory.count('fenceStone')
-          : s.player.currentTool === 'fenceGate'
-            ? s.inventory.count('fenceGate')
-            : 0,
-      heldPlaceCount: this.autoPlace.heldCount(s),
-      heldItemKind: this.heldPlaceItem(s),
-      placeables: this.placeableList(s),
-      slots: s.inventory.snapshot(),
-      capacity: s.inventory.capacity,
-      hasAxe: !!s.tools.axe,
-      hasPickaxe: !!s.tools.pickaxe,
-      hasShovel: !!s.tools.shovel,
-      hasFishingrod: !!s.tools.fishingrod,
-      hasBow: !!s.tools.bow,
-      hasSword: !!s.tools.sword,
-      hasLasso: s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null,
-      lassoCount: s.inventory.count('lasso'),
-      leading: this.wildlife.leashedBy(s.player) !== null,
-      nearTether:
-        this.wildlife.stakedNear(s.player.group.position, TETHER_RANGE) !== null,
-      toolTiers: { ...s.tools },
-      craftedIds: [...s.craftedIds],
-      nearCrate: !!this.crates.nearby(s),
-      nearBaitBarrel: !!this.baitBarrels.nearby(s),
-      nearBrewBarrel: !!this.brewBarrels.nearby(s),
-      nearSmelter: !!this.smelters.nearby(s),
-      nearLoom: !!this.looms.nearby(s),
-      nearBed: !!this.beds.nearby(s),
-      bedSleeping: this.beds.isSleeping(s),
-      bedSleepProgress: this.beds.getSleepProgress(s) ?? 0,
-      crateSlots: this.crates.nearbySlots(s),
-      crateCapacity: this.crates.nearbyCapacity(s),
-      baitBarrelInfo: this.baitBarrels.nearbyInfo(s),
-      brewBarrelInfo: this.brewBarrels.nearbyInfo(s),
-      smelterInfo: this.smelters.nearbyInfo(s),
-      nearCookingStation: !!this.cookingStations.nearby(s),
-      cookingStationInfo: this.cookingStations.nearbyInfo(s),
-      loomInfo: this.looms.nearbyInfo(s),
-      equipped: s.equipment.snapshot(),
-      gender: s.player.currentGender,
-      tool: s.player.currentTool,
-      craftId: s.crafting.currentRecipe?.id ?? null,
-      craftProgress: s.crafting.getProgress() ?? 0,
-      workbenchCrafted: this.workbench.hasCrafted,
-      campfirePlaced: this.campfire.count > 0 || this.cookingStations.count > 0,
-      workbenchProgress: this.workbench.getProgress(s) ?? 0,
-      workbenchLevel: this.workbench.level(s),
-      nearWorkbench: this.workbench.isNear(s),
-      campfireProgress: this.campfire.getProgress(s) ?? 0,
-      nearCampfire: !!this.campfire.nearby(s),
-      campfireInfo: this.campfire.getCampfireInfo(s),
-      eatName: s.eating.currentFood?.name ?? null,
-      eatProgress: s.eating.getProgress() ?? 0,
-      autoEquipProgress: this.autoEquipTimer > 0 ? this.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
-      respawnLeft: s.survival.state.dead && (this.hostRef || (this.poseidonGrace && s === this.local)) ? s.respawnLeft : null,
-      poseidonGrace: this.poseidonGrace && s === this.local && s.survival.state.dead,
-      canFish: s.fishing.canStart(),
-      fishingState: s.fishing.currentState,
-      fishingProgress: s.fishing.getProgress() ?? 0,
-      fishingTier: s.fishing.lootTier,
-      fishingWaitLeft: s.fishing.waitLeft,
-      biteActive: s.fishing.currentState === 'bite',
-      biteClicks: s.fishing.biteClicks,
-      biteNeed: s.fishing.biteNeed,
-      treasureKind: s.fishing.treasureLoot,
+    const poseidonGrace = this.poseidonGrace && s === this.local;
+    return this.hudSnapshotBuilder.build(s, busy, {
+      autoEquipTimer: this.autoEquipTimer,
+      respawnEnabled: !!this.hostRef || poseidonGrace,
+      poseidonGrace,
       collectTreasure: this.collectTreasure,
-      nearDrop: this.drops.getNearby(s),
-      day: this.dayNight.day,
-      busy,
-      moving: s.player.isMoving,
-      indicator: this.indicatorFor(s),
-      buffs: this.buffsFor(s),
-};
-  }
-  /** 某会话当前生效的 buff:全局祝福(波塞冬/蜂巢) + 光环祝福(治愈水晶/雨神祭坛) + 个人减速(熊扑),供 HUD 图标展示 */
-  private buffsFor(s: PlayerSession): HudBuff[] {
-    const list: HudBuff[] = [];
-    if (this.shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
-    if (this.shrines.berryBlessed) list.push({ ...BUFFS.beehive, remain: null });
-    const pos = s.player.group.position;
-    if (this.shrines.inAura('healCrystal', pos)) list.push({ ...BUFFS.healCrystal, remain: null });
-    if (this.shrines.inAura('rainAltar', pos)) list.push({ ...BUFFS.rainAltar, remain: null });
-    const slow = s.player.slowSeconds;
-    if (slow > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(slow) });
-    const refresh = s.player.refreshSeconds;
-    if (refresh > 0) list.push({ ...BUFFS.refresh, remain: Math.ceil(refresh) });
-    const tipsy = s.player.tipsySeconds;
-    if (tipsy > 0) list.push({ ...BUFFS.tipsy, remain: Math.ceil(tipsy) });
-    return list;
+    });
   }
 
   /** 该玩家正在移动或处于任一交互进行中:闲置满 5s 后据此淡出设置/地图/背包/工具按钮与弹出卡片
