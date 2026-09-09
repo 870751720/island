@@ -35,6 +35,8 @@ export interface FacilityDef {
   free?: boolean;
   /** 展示名(缺省取 ITEMS;非道具设施如土壤必须提供) */
   name?: string;
+  /** 站定放置进行中的提示文案(缺省「安放:{name}…」;锄头开土壤用「锄地开垦…」更贴切) */
+  placingLabel?: string;
   /** 站定自动放置的时长(秒,缺省 2;围栏门 5;可按发起者动态,如锄头等级越高越快) */
   holdTime?: number | ((actor: PlayerSession) => number);
   /** 落点可放但结算仍失败时的提示(缺省「这里放不下…」) */

@@ -81,8 +81,7 @@ export class InteractionIndicatorBuilder {
     } else if (systems.autoPlace.isPlacing(session)) {
       const kind = systems.autoPlace.heldKind(session);
       const def = kind ? systems.autoPlace.defOf(kind) : undefined;
-      const name = def?.name ?? (kind && kind in ITEMS ? ITEMS[kind as keyof typeof ITEMS].name : '');
-      label = `安放:${name}…`;
+      label = def?.placingLabel ?? `安放:${def?.name ?? (kind && kind in ITEMS ? ITEMS[kind as keyof typeof ITEMS].name : '')}…`;
       progress = systems.autoPlace.getPlaceProgress(session);
     } else if (systems.autoPlace.heldKind(session) !== null) {
       label = systems.autoPlace.placeReason(session);

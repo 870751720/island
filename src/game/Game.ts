@@ -2523,6 +2523,7 @@ export class Game {
       tool: 'hoe',
       free: true,
       name: '土壤',
+      placingLabel: '锄地开垦…',
       valid: (a, x, z) => this.soils.canPlaceAt(a, x, z),
       buildPreview: ghost((sc) => new Soil(sc, new THREE.Vector3()).group),
       place: (a, at) => this.soils.place(a, at),
