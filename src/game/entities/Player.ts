@@ -668,7 +668,8 @@ export class Player implements Updatable {
       this.animator.update(delta, elapsed, null, 0,
         Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), true, this.handTool);
       this.appearance.head.getWorldPosition(this.swimHead);
-      p.y += waterY - this.swimHead.y + Math.sin(elapsed * 2) * 0.012;
+      // 头部对齐水线后再整体上抬，让肩膀露出水面
+      p.y += waterY - this.swimHead.y + 0.3 + Math.sin(elapsed * 2) * 0.012;
       this.swordTrail.clear();
       this.waterFx.updateSwimming(delta, p, 0.4, waterY);
       // 游泳时收起工具,避免抡着斧子划水

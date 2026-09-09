@@ -60,7 +60,7 @@ export class PlayerAnimator {
     const [body, head, left, right, elbowL, elbowR, legL, legR, kneeL, kneeR] = this.targets;
     for (const target of this.targets) target.set(0, 0, 0);
     this.weight += (Math.min(speed / 5, 1.5) - this.weight) * (1 - Math.exp(-12 * delta));
-    this.gait += Math.min(speed, 9) * delta * 2.8;
+    this.gait += Math.min(speed, 9) * delta * 2.1;
     const step = Math.sin(this.gait);
     const breath = Math.sin(elapsed * 2.1);
     this.height = Math.abs(Math.sin(this.gait)) * 0.025 * this.weight;
