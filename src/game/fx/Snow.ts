@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const FLAKE_COUNT = 420;
+const FLAKE_COUNT = 520;
 const AREA = 44; // 覆盖玩家周围的方形区域边长
 const TOP = 22;
 const FALL_SPEED_MIN = 1.2; // 雪花下落速度范围,慢速飘落
@@ -50,9 +50,9 @@ export class Snow {
     geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
     this.texture = makeFlakeTexture();
     this.material = new THREE.PointsMaterial({
-      color: '#ffffff',
+      color: '#e6effa',
       map: this.texture,
-      size: 0.22,
+      size: 0.34,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -65,7 +65,7 @@ export class Snow {
   update(delta: number, elapsed: number, center: THREE.Vector3, intensity: number): void {
     this.points.visible = intensity > 0.01;
     if (!this.points.visible) return;
-    this.material.opacity = 0.85 * intensity;
+    this.material.opacity = 0.95 * intensity;
     // 只水平跟随,雪花世界高度独立维护,避免跟随导致的视觉拖拽
     this.points.position.set(center.x, 0, center.z);
     for (let i = 0; i < FLAKE_COUNT; i++) {

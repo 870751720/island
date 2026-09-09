@@ -20,8 +20,8 @@ const WIND_TRANSITION = 6; // 风起/风停过渡秒数
 
 const RAIN_SKY = new THREE.Color('#5f7280');
 const RAIN_SUN = new THREE.Color('#8fa3b4');
-const SNOW_SKY = new THREE.Color('#aebac6');
-const SNOW_SUN = new THREE.Color('#c7d2dc');
+const SNOW_SKY = new THREE.Color('#8ea3b8');
+const SNOW_SUN = new THREE.Color('#bcc9d6');
 
 /**
  * 天气系统:晴/雨/雪随机轮换(每次轮换仅小概率切到雨/雪天),强度平滑过渡。
@@ -101,10 +101,10 @@ export class WeatherSystem {
     this.sun.intensity *= 1 - 0.55 * a;
     this.hemi.intensity *= 1 - 0.45 * a;
     const s = this.snowAmount;
-    sky.lerp(SNOW_SKY, s * 0.5);
+    sky.lerp(SNOW_SKY, s * 0.65);
     this.sun.color.lerp(SNOW_SUN, s * 0.5);
-    this.sun.intensity *= 1 - 0.3 * s;
-    this.hemi.intensity *= 1 - 0.15 * s;
+    this.sun.intensity *= 1 - 0.4 * s;
+    this.hemi.intensity *= 1 - 0.3 * s;
   }
 
   /** 雨滴粒子强度 */
