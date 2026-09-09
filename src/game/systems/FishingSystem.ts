@@ -22,6 +22,7 @@ import {
   type TeaseStage,
 } from './FishTable';
 import { NO_FISHING_META, type FishingMeta } from '../meta/MetaHooks';
+import { clayMaterial } from '../world/ClayMaterial';
 
 const CAST_TIME = 0.7; // 抛竿(秒,各级鱼竿相同)
 const REEL_TIME = 0.45; // 中鱼后鱼线收回(纯表现,期间已入包)
@@ -40,9 +41,6 @@ const WATER_TRACE_STEP = 0.1;
 
 export type FishingState = 'casting' | 'waiting' | 'bite' | 'treasure' | 'reeling';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 浮漂:红白两节的小浮头 */
 function makeBobber(): THREE.Group {

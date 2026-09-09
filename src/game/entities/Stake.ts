@@ -1,8 +1,6 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的拴羊桩:斜切面的短木桩敲进地里,桩顶绕一圈绳结 */
 function makeStakeMesh(): THREE.Group {

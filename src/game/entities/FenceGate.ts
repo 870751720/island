@@ -1,8 +1,6 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 门扇打开的目标角度 */
 const OPEN_ANGLE = 1.35;

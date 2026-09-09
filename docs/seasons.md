@@ -13,11 +13,15 @@
 
 - `src/game/world/SeasonSnow.ts`:季节积雪表现层。
   - 全场材质共享一个 shader uniform `uSnowAmount`(0~1),通过 `onBeforeCompile` 注入 `MeshStandardMaterial`,在法线计算后按表面朝向(`normal.y`)把 diffuse 颜色向雪色(略偏蓝的白)混合——朝上的面覆雪,侧面颜色变淡;不新增模型与 drawcall,移动端友好。
+  - `patchSnowMaterial(mat, wither)`:落叶植被材质传 `wither=true`,除积雪混合外先随雪量把整体颜色向枯黄褐(约 `#998550`)混合(上限 85%),实现阔叶入冬转枯、松柏常绿。
   - `updateSeasonSnow(delta)`:雪量向 GM 目标值平滑过渡(过渡速度 0.08/秒)。
-- 材质接入:`Props.ts` 的 `clayMaterial` 与 `IslandTerrain.ts` 的地表材质(顶点色)统一注入;水面不注入。
+- 材质接入:`src/game/world/ClayMaterial.ts` 提供全场统一的 `clayMaterial(color, wither?)`(flatShading + 高粗糙度 + 自动注入季节 shader),各建筑/物件/植被模块统一引用;`IslandTerrain.ts` 的地表材质(顶点色)单独注入;水面不注入。
+  - 已接入:树/灌木/岩石等场景物件(`Props.ts`)、庄稼(`cropMeshes.ts`)、栅栏/门、工作台、织布机、熔炉、烹饪台外的容器(木箱、酒桶、饵料桶)、净化器、神龛、木桩、兔洞、土壤、帐篷。
+  - 落叶标记(wither):橡树/果树的成树与树苗树冠、灌木;松树、嫩芽、小型动物、玩家与穿戴装备、火焰类自发光材质(营火/烹饪台火光)不参与。大型野兽(野牛、熊)的皮毛材质接入积雪,背上随雪量落一层薄雪,角/蹄/眼/口鼻保持原色。
 - 驱动入口:GM 面板「世界」tab 的「雪季预览」开关(`GmSystem.snowPreview`),走 `gmSnapshot/gmApply`,联机时全房间同步,主机与客人各自本地执行过渡表现。
 - 存档:本期纯表现层,不落盘,`SAVE_VERSION` 不变。
 
 ## 迭代记录
 
 - 2026-09-08 第一期:雪季变色与积雪视觉预览(shader uniform 方案)+ GM 开关。后续计划:季节状态机(按天数推进)、雪天气与雪粒子、植被冬季休眠、体温/取暖玩法。
+- 2026-09-10 落叶入冬转枯:`patchSnowMaterial` 增加 wither 分支,橡树/果树(成树与树苗)与灌木随雪量转枯黄褐,松柏保持常绿;抽共享 `world/ClayMaterial.ts`,把栅栏、工作台、织布机、熔炉、木箱、酒桶、饵料桶、净化器、神龛、木桩、兔洞、土壤、帐篷、庄稼等可放置物件的材质统一接入积雪 shader(生物中仅野牛与熊的皮毛接入,玩家装备与火焰自发光材质不参与)。

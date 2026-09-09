@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import type { ResourceKind } from '../systems/Inventory';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的饵料桶模型:木桶身 + 两道桶箍 + 桶口发酵的鱼饵团 */
 function makeBarrelMesh(): THREE.Group {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 围栏种类:木头 / 石头 */
 export type FenceKind = 'branch' | 'stone';
@@ -6,9 +7,6 @@ export type FenceKind = 'branch' | 'stone';
 /** 四个方向的连接标记(相邻格点有围栏或门时伸横杆) */
 export type FenceConnections = { px: boolean; nx: boolean; pz: boolean; nz: boolean };
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 木围栏柱:粗糙圆木柱 */
 function woodPost(mat: THREE.MeshStandardMaterial): THREE.Mesh {

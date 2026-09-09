@@ -11,6 +11,7 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { Tools } from './Crafting';
 import { GmSystem } from './GmSystem';
 import { AimGuide } from './AimGuide';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
@@ -30,9 +31,6 @@ const STICK_TIME = 6;
 const AIM_DOTS = 9;
 const AIM_START = 1;
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 箭:细木杆 + 石箭头 + 尾羽,箭尖朝 +Y 便于用 quaternion 对准飞行方向 */
 function makeArrowModel(): THREE.Group {

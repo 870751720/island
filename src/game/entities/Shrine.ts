@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { LightPool } from '../world/LightPool';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 火把火光参数(向光源池领取) */
 const TORCH_LIGHT_SPEC = { color: '#ff9d2e', intensity: 1.2, distance: 4.5, decay: 1.5 };
@@ -17,9 +18,6 @@ export const SHRINE_COLORS: Record<ShrineKind, string> = {
   torch: '#ff9d2e',
 };
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 function gemMaterial(color: string, emissive: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.4, emissive });

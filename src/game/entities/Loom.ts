@@ -1,8 +1,6 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /**
  * 程序化拼装的纺织机模型,仿真实框架织布机:

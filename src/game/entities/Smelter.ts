@@ -1,11 +1,9 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 炼出 1 块铁锭消耗的铁矿石数 */
 export const SMELT_ORE_PER_INGOT = 3;
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的冶炼炉模型:石砌炉身 + 炉口火光与炉顶排烟口 */
 function makeSmelterMesh(): THREE.Group {

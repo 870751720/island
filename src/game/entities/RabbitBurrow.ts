@@ -1,10 +1,8 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
 export type BurrowState = 'intact' | 'abandoned';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的兔子洞模型:土堆环绕黑洞口,周围点缀几丛干草 */
 function makeBurrowMesh(): { group: THREE.Group; hole: THREE.Object3D } {

@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import type { CropKind, CropStage } from './Crop';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 生长阶段建模工厂:每种作物一条,按幼苗/未成熟/成熟返回一垄植株 */
 export type CropMeshMaker = (stage: CropStage, x: number, z: number) => THREE.Group;
 
 function cropMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
+  return clayMaterial(color);
 }
 
 /** 按落点取 0-1 的确定性伪随机(与土壤的土坷垃同款,读档/联机重放不漂移) */

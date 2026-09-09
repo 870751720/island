@@ -1,8 +1,6 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的一格土壤:整格(1×1)深色翻土,相邻土壤的土垄正好接上连成一片;
  * 表面留出三道通贯播种沟(后续种植系统沿用),散几个小土坷垃增加松土质感 */

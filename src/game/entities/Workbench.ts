@@ -1,11 +1,9 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 工作台等级上限 */
 export const WORKBENCH_MAX_LEVEL = 4;
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /**
  * 程序化拼装的工作台模型,随等级升级:

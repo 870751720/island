@@ -6,6 +6,7 @@ import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import { AimGuide } from './AimGuide';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 投掷范围:范围内有可套的羊才会进入瞄准状态(比羊的警觉半径远,能隔着安全距离出手) */
 const RANGE = 6;
@@ -23,9 +24,6 @@ const AIM_START = 1;
 /** 绳身粗细 */
 const ROPE_RADIUS = 0.035;
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 绳子:单位长度圆柱,原点在几何中心;按手上→绳头两端点摆位伸缩 */
 function makeRopeModel(): THREE.Mesh {

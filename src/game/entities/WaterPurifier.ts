@@ -1,8 +1,6 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的海水净化器模型:铁皮机身 + 顶部漏斗 + 玻璃净水槽 + 插进湿沙的汲水管 */
 function makePurifierMesh(): THREE.Group {

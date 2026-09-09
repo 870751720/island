@@ -3,6 +3,7 @@ import type { Updatable } from '../core/GameLoop';
 import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import type { WindParams } from '../systems/WeatherSystem';
 import { IslandTerrain } from './IslandTerrain';
+import { clayMaterial } from './ClayMaterial';
 import {
   FRUIT_REGROW,
   GROWTH_CHANCE,
@@ -14,7 +15,6 @@ import { worldEntityKey, type WorldDeltaOp } from '../net/WorldDelta';
 import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
-import { patchSnowMaterial } from './SeasonSnow';
 import { isPassage, landCells } from './SpawnLayout';
 
 const SHAKE_TIME = 0.4;
@@ -110,22 +110,17 @@ export type Prop = {
   fruitLeft?: number;
 };
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  const mat = new THREE.MeshStandardMaterial({
-    color,
-    flatShading: true,
-    roughness: 1,
-  });
-  patchSnowMaterial(mat);
-  return mat;
-}
-
-/** 各树种的树冠配色 */
+/** 各树种的树冠配色;阔叶(oak/fruit)入冬会整体转枯黄,松柏常绿 */
 const CROWN_COLORS: Record<TreeSpecies, string> = {
   oak: '#3f7d33',
   pine: '#2e6b3d',
   fruit: '#4f8f3a',
 };
+
+/** 落叶植被专用材质:与树冠同色,冬季随雪量转枯黄 */
+function leafMaterial(color: string): THREE.MeshStandardMaterial {
+  return clayMaterial(color, true);
+}
 
 /** 发芽:一根细茎顶着两片嫩叶 */
 function makeSproutParts(): THREE.Mesh[] {
@@ -168,7 +163,7 @@ function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
       [0.1, -0.12, 0.82, -0.08],
     ];
     return [trunk, ...leaves.map(([r, x, y, z]) => {
-      const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), clayMaterial(CROWN_COLORS.fruit));
+      const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leafMaterial(CROWN_COLORS.fruit));
       leaf.position.set(x, y, z);
       return leaf;
     })];
@@ -176,12 +171,12 @@ function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   // 橡树苗:两片错开的小叶
   const leafL = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.15, 0),
-    clayMaterial(CROWN_COLORS.oak)
+    leafMaterial(CROWN_COLORS.oak)
   );
   leafL.position.set(-0.08, 0.78, 0);
   const leafR = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.11, 0),
-    clayMaterial('#4f9440')
+    leafMaterial('#4f9440')
   );
   leafR.position.set(0.11, 0.9, 0.06);
   return [trunk, leafL, leafR];
@@ -201,7 +196,7 @@ function makeMatureParts(species: TreeSpecies, withFruit: boolean): THREE.Mesh[]
     const tiers = [0.62, 0.46, 0.3];
     const crowns = tiers.map(
       (r, i) =>
-        new THREE.Mesh(new THREE.ConeGeometry(r, 0.7 - i * 0.12, 6), clayMaterial(crownColor))
+        new THREE.Mesh(new THREE.ConeGeometry(r, 0.7 - i * 0.12, 6), clayMaterial(CROWN_COLORS.pine))
     );
     crowns[0].position.y = 0.85;
     crowns[1].position.y = 1.25;
@@ -225,7 +220,7 @@ function makeMatureParts(species: TreeSpecies, withFruit: boolean): THREE.Mesh[]
       [0.45, 0.05, 1.85, 0.35],
     ];
     for (const [r, x, y, z] of blobs) {
-      const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), clayMaterial(crownColor));
+      const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leafMaterial(crownColor));
       blob.position.set(x, y, z);
       parts.push(blob);
     }
@@ -258,11 +253,11 @@ function makeMatureParts(species: TreeSpecies, withFruit: boolean): THREE.Mesh[]
     clayMaterial(trunkColor)
   );
   trunk.position.y = 0.45;
-  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), clayMaterial(crownColor));
+  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), leafMaterial(crownColor));
   crown.position.y = 1.2;
   const crown2 = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.42, 0),
-    clayMaterial('#4f9440')
+    leafMaterial('#4f9440')
   );
   crown2.position.set(0.15, 1.65, 0.1);
   return [trunk, crown, crown2];
@@ -411,7 +406,7 @@ export function makeGrassTuft(): THREE.Group {
 export function makeShrub(): THREE.Group {
   // 灌木丛:多团叶子,产出树枝
   const g = new THREE.Group();
-  const mat = clayMaterial('#6b8f4e');
+  const mat = leafMaterial('#6b8f4e');
   for (let i = 0; i < 3; i++) {
     const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), mat);
     const a = (i / 3) * Math.PI * 2;

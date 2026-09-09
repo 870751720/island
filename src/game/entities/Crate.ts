@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Inventory } from '../systems/Inventory';
 import { makeDropModel } from '../systems/DropModels';
 import type { ResourceKind } from '../systems/Inventory';
+import { clayMaterial } from '../world/ClayMaterial';
 
 /** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 20 格) */
 export type CrateKind = 'crate' | 'ironCrate';
@@ -24,9 +25,6 @@ const BODY_HALF = 0.33; // 箱体半宽(X/Z)
 const BODY_H = 0.5; // 箱体高
 const ICON_SPIN_SPEED = Math.PI / 3; // 顶面标识自转速度(弧度/秒)
 
-function clayMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
 
 /** 程序化拼装的箱体模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
 function makeCrateMesh(kind: CrateKind): THREE.Group {

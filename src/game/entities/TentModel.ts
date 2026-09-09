@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { clayMaterial } from '../world/ClayMaterial';
 
 type Point = [number, number, number];
 
@@ -7,9 +8,11 @@ type Point = [number, number, number];
 export function makeTentMesh(level: number, miniature = false): THREE.Group {
   const luxury = level >= 3;
   const upgraded = level >= 2;
-  const material = (color: string) => new THREE.MeshStandardMaterial({
-    color, flatShading: true, roughness: 1, side: THREE.DoubleSide,
-  });
+  const material = (color: string) => {
+    const mat = clayMaterial(color);
+    mat.side = THREE.DoubleSide;
+    return mat;
+  };
   const canvas = material(luxury ? '#eee0be' : upgraded ? '#b76543' : '#788650');
   const trim = material(luxury ? '#c79946' : upgraded ? '#e1bc83' : '#b3ab75');
   const wood = material(luxury ? '#594334' : '#785335');

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clayMaterial } from '../world/ClayMaterial';
 
 function clay(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
@@ -283,8 +284,8 @@ function makeSheepModel(): AnimalModel {
 function makeBisonModel(): AnimalModel {
   const group = new THREE.Group();
   group.scale.setScalar(1.08);
-  const coat = clay('#8a5d3b');
-  const darkCoat = clay('#593a27');
+  const coat = clayMaterial('#8a5d3b');
+  const darkCoat = clayMaterial('#593a27');
   const muzzleMat = clay('#c49a7b');
   const hornMat = clay('#ded2b5');
   const hoofMat = clay('#30251e');
@@ -399,7 +400,7 @@ function makeBisonModel(): AnimalModel {
 /** 熊:深棕色敦实大身板 + 圆耳短吻 + 粗壮四肢 */
 function makeBearModel(): AnimalModel {
   const group = new THREE.Group();
-  const fur = clay('#6b4a33');
+  const fur = clayMaterial('#6b4a33');
   const muzzle = clay('#a3806a');
   const dark = clay('#2a2018');
 
