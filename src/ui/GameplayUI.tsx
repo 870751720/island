@@ -3,7 +3,6 @@
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
-import type { MapSnapshot } from '@/game/GameContracts';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
@@ -41,6 +40,7 @@ import { useFacilityPanels } from './useFacilityPanels';
 import { createPlacePickerItems } from './placePickerItems';
 import { getPromptVisibility } from './promptVisibility';
 import { useGameLifecycle } from './useGameLifecycle';
+import { useMapSnapshot } from './useMapSnapshot';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -97,8 +97,7 @@ export function GameplayUI({
   useEffect(() => {
     if (hud.dead && photoMode) exitPhotoMode();
   }, [hud.dead]);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
+  const { mapOpen, mapSnapshot, openMap, closeMap } = useMapSnapshot(gameRef);
   // 海神的信:拆开后弹出的信纸,关闭后清空
   const [letterMsg, setLetterMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
@@ -140,20 +139,6 @@ export function GameplayUI({
       setBackpackOpen(false);
     }
   }, [hud.dead]);
-
-  // 地图打开期间低频读取表现快照，足够跟随移动且避免把位置数据塞进高频 HUD。
-  useEffect(() => {
-    if (!mapOpen) return;
-    const update = () => {
-      const snapshot = gameRef.current?.getMapSnapshot();
-      if (snapshot) setMapSnapshot(snapshot);
-    };
-    update();
-    const timer = window.setInterval(update, 200);
-    return () => window.clearInterval(timer);
-  }, [mapOpen]);
-
-  const closeMap = () => setMapOpen(false);
 
   // 持铲子且面前劫持按钮的东西可被挖走时,按钮保持工具模式(不劫持)
   const digHijack =
@@ -227,7 +212,7 @@ export function GameplayUI({
           </button>
           {!mapOpen && (
             <button
-              onClick={() => setMapOpen(true)}
+              onClick={openMap}
               aria-label="打开小地图"
               style={{
                 width: 44,
