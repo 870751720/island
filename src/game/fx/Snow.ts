@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const FLAKE_COUNT = 520;
+const FLAKE_COUNT = 620;
 const AREA = 44; // 覆盖玩家周围的方形区域边长
 const TOP = 22;
 const FALL_SPEED_MIN = 1.2; // 雪花下落速度范围,慢速飘落
@@ -52,7 +52,7 @@ export class Snow {
     this.material = new THREE.PointsMaterial({
       color: '#e6effa',
       map: this.texture,
-      size: 0.34,
+      size: 0.5,
       transparent: true,
       opacity: 0,
       depthWrite: false,
