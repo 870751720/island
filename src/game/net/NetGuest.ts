@@ -4,6 +4,7 @@ import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, 
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
 import type { HudSnapshot } from '../GameContracts';
+import type { NetActionArgs, NetActionName } from './ActionProtocol';
 import type { PlayerGender } from '../entities/PlayerModel';
 import { applyEntityDelta } from './SnapshotDelta';
 import type { AmbientPose, PlayerState } from './Protocol';
@@ -224,7 +225,7 @@ export class NetGuest {
   }
 
   /** 把一次按钮动作发给房主权威结算(返回值仅表示已发出) */
-  action(name: string, args: unknown[]): boolean {
+  action<Name extends NetActionName>(name: Name, args: NetActionArgs[Name]): boolean {
     this.net?.send({ t: 'action', name, args });
     return true;
   }

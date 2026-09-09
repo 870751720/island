@@ -6,11 +6,12 @@ import type { CraftId } from '../systems/Crafting';
 import type { ResourceKind } from '../systems/Inventory';
 import type { ArrowHit } from '../systems/BowSystem';
 import type { AnimalSpecies } from '../entities/Wildlife';
+import type { NetActionName } from './ActionProtocol';
 
 /** 客人动作 → Game 方法的参数化分发(以该客人的会话为 actor,由房主权威结算) */
 export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => boolean;
 
-export const ACTIONS: Record<string, NetAction> = {
+export const ACTIONS = {
   tool: (g, a, [tool, placeKind]) => {
     // 走 Game 的统一入口:切走套索时先松开正牵着的羊;可放置道具携带具体种类
     g.setToolFor(a, tool as HandTool, (placeKind as ResourceKind) ?? undefined);
@@ -137,4 +138,8 @@ export const ACTIONS: Record<string, NetAction> = {
     g.gmApplyNetConfig(config);
     return true;
   },
-};
+} satisfies Record<NetActionName, NetAction>;
+
+export function isNetActionName(name: string): name is NetActionName {
+  return Object.prototype.hasOwnProperty.call(ACTIONS, name);
+}
