@@ -4,6 +4,7 @@ import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
+import { HoeIcon } from './icons/CustomIcons';
 import { useRef } from 'react';
 
 export const TOOL_ICONS: Record<HandTool, string> = {
@@ -279,7 +280,9 @@ export function ToolButton({
                         ? placeKind in ITEMS
                           ? ITEMS[placeKind as ResourceKind].icon
                           : '📦'
-                        : TOOL_ICONS[tool]}
+                        : tool === 'hoe'
+                          ? <HoeIcon size={30} />
+                          : TOOL_ICONS[tool]}
       {!workbench &&
         !campfire &&
         !crate &&

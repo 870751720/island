@@ -406,6 +406,22 @@ const BerryBushIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
+/** 锄头:斜置木柄 + 顶端横向扁刃(与柄垂直,切土的形状) */
+export const HoeIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <g transform="rotate(45 32 32)">
+      {/* 刃:横在柄顶的扁宽金属块 */}
+      <rect x="15" y="7" width="34" height="10" rx="3" fill="#98a0a8" />
+      {/* 柄颈:连接刃与柄的短粗颈 */}
+      <rect x="28" y="14" width="8" height="8" fill="#98a0a8" />
+      {/* 木柄 */}
+      <rect x="29" y="18" width="6" height="40" rx="3" fill="#8a6239" />
+      {/* 柄尾缠绳 */}
+      <rect x="28" y="48" width="8" height="7" rx="2" fill="#c9b588" />
+    </g>
+  </Svg>
+);
+
 /** 自绘图标表:键为道具 kind,渲染时优先于 ITEMS 的 emoji */
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   oakSeed: OakSeedIcon,
@@ -426,6 +442,7 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   cookedBerry: CookedBerryIcon,
   cookedBigFish: CookedBigFishIcon,
   fur: FurIcon,
+  hoe: HoeIcon,
   cookedSmallFish: CookedSmallFishIcon,
   fruitSeed: FruitSeedIcon,
   grassShirt: GrassShirtIcon,

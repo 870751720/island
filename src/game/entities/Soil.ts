@@ -4,20 +4,37 @@ function clayMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
 }
 
-/** 程序化拼装的一格土壤:深色松土方块,表面留出几道播种沟(后续种植系统沿用) */
-function makeSoilMesh(): THREE.Group {
+/** 程序化拼装的一格土壤:整格(1×1)深色翻土,相邻土壤的土垄正好接上连成一片;
+ * 表面留出三道通贯播种沟(后续种植系统沿用),散几个小土坷垃增加松土质感 */
+/** 按落点取 0-1 的确定性伪随机(每格土坷垃的散布不一样,又不随读档/联机重放漂移) */
+function cellRandom(x: number, z: number, i: number): number {
+  const v = Math.sin(x * 127.1 + z * 311.7 + i * 74.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+function makeSoilMesh(x: number, z: number): THREE.Group {
   const g = new THREE.Group();
-  // 土块:略小于一格的扁方块,微微沉进地面
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.1, 0.92), clayMaterial('#6b4f35'));
-  bed.position.y = 0.05;
+  // 土床:整格扁方块,微微沉进地面,边缘与相邻土壤严丝合缝
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(1, 0.07, 1), clayMaterial('#5e4530'));
+  bed.position.y = 0.035;
   bed.receiveShadow = true;
   g.add(bed);
-  // 播种沟:三道与土块同色的窄高条,翻出土垄的观感
-  const ridge = clayMaterial('#7d5c3e');
+  // 土垄:三道通贯整格的拱起条(间距 1/3 格,相邻土壤的垄自然相连)
+  const ridge = clayMaterial('#71543c');
   for (let i = -1; i <= 1; i++) {
-    const row = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.04, 0.1), ridge);
-    row.position.set(0, 0.11, i * 0.28);
+    const row = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.16), ridge);
+    row.position.set(0, 0.075, i / 3);
+    row.receiveShadow = true;
     g.add(row);
+  }
+  // 小土坷垃:散落的深色小团,翻土的手工质感;散布按落点伪随机,各格不同
+  const clod = clayMaterial('#4e3a28');
+  for (let i = 0; i < 4; i++) {
+    const s = 0.05 + cellRandom(x, z, i) * 0.025;
+    const lump = new THREE.Mesh(new THREE.SphereGeometry(s, 5, 4), clod);
+    lump.position.set(cellRandom(x, z, i + 10) - 0.5, 0.07, cellRandom(x, z, i + 20) - 0.5);
+    lump.scale.y = 0.7;
+    g.add(lump);
   }
   return g;
 }
@@ -30,7 +47,7 @@ export class Soil {
     this.group = new THREE.Group();
     this.group.position.copy(position);
     scene.add(this.group);
-    this.group.add(makeSoilMesh());
+    this.group.add(makeSoilMesh(position.x, position.z));
   }
 }
 
