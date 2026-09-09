@@ -43,7 +43,7 @@ export function CraftPrompt({
       !r.hidePrompt &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, counts) &&
-      recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted })
+      recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted, campfirePlaced: hud.campfirePlaced })
   ).map((r) => ({
     priority: r.promptPriority ?? Number.MAX_SAFE_INTEGER,
     icon: <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />,

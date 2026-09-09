@@ -84,6 +84,7 @@ const INITIAL_HUD: HudSnapshot = {
   craftId: null,
   craftProgress: 0,
   workbenchCrafted: false,
+  campfirePlaced: false,
   workbenchProgress: 0,
   workbenchLevel: 0,
   nearWorkbench: false,

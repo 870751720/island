@@ -111,6 +111,11 @@ export class CampfireSystem {
     return !!this.states.get(actor)?.digTarget;
   }
 
+  /** 场上火堆数(燃着与熄灭的都算) */
+  get count(): number {
+    return this.fires.length;
+  }
+
   /** 场上所有火堆落点(小地图标记用) */
   get positions(): { x: number; z: number }[] {
     return this.fires.map((f) => ({ x: f.group.position.x, z: f.group.position.z }));

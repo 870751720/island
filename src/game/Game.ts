@@ -195,6 +195,8 @@ export type HudSnapshot = {
   craftProgress: number;
   /** 本局是否已放置过工作台(工作台配方只在从未放置过时出现) */
   workbenchCrafted: boolean;
+  /** 场上是否已有火堆/烹饪台(火堆配方在已有时不出现) */
+  campfirePlaced: boolean;
   /** 工作台升级进度 */
   workbenchProgress: number;
   /** 当前工作台等级 1-4(没有工作台为 0) */
@@ -4054,6 +4056,7 @@ export class Game {
       craftId: s.crafting.currentRecipe?.id ?? null,
       craftProgress: s.crafting.getProgress() ?? 0,
       workbenchCrafted: this.workbench.hasCrafted,
+      campfirePlaced: this.campfire.count > 0 || this.cookingStations.count > 0,
       workbenchProgress: this.workbench.getProgress(s) ?? 0,
       workbenchLevel: this.workbench.level(s),
       nearWorkbench: this.workbench.isNear(s),

@@ -225,7 +225,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
-    (r) => r.station === 'hand' && recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted })
+    (r) => r.station === 'hand' && recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots, { workbenchPlaced: hud.workbenchCrafted, campfirePlaced: hud.campfirePlaced })
   );
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
