@@ -36,6 +36,8 @@ export class WorldReplicationController {
       beds: s.beds.snapshot(),
       shrines: s.shrines.snapshot(),
       soils: s.soils.snapshot(),
+      // 作物快照带 grown:新增时客人能直接建对阶段;之后每 tick 的小幅 set 增量由客人柔和对账
+      crops: s.crops.snapshot(),
       stakes: s.stakes.snapshot(),
       drops: s.drops.snapshot(),
       burrows: s.burrows.netSnapshot(),
@@ -66,6 +68,7 @@ export class WorldReplicationController {
     s.beds.setChangeSink(send('beds'));
     s.shrines.setChangeSink(send('shrines'));
     s.soils.setChangeSink(send('soils'));
+    s.crops.setChangeSink(send('crops'));
     s.stakes.setChangeSink(send('stakes'));
     s.drops.setChangeSink(send('drops'));
   }
@@ -123,6 +126,7 @@ export class WorldReplicationController {
     if (state.beds) s.beds.netApply(state.beds);
     if (state.shrines) s.shrines.netApply(state.shrines);
     if (state.soils) s.soils.netApply(state.soils);
+    if (state.crops) s.crops.netApply(state.crops);
     if (state.stakes) s.stakes.netApply(state.stakes);
     if (state.drops) s.drops.netApply(state.drops);
   }

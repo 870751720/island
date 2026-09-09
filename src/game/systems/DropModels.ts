@@ -75,9 +75,13 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   oakSeed: '#b5813f',
   pineSeed: '#8a6b45',
   fruitSeed: '#a0784e',
+  carrotSeed: '#c98a4a',
+  wheatSeed: '#c9b06a',
   oakFruit: '#b5813f',
   pineFruit: '#8a6b45',
   fruitFruit: '#c0392b',
+  carrot: '#e07b2a',
+  wheat: '#d9b45a',
   axe: '#8b5a2b',
   pickaxe: '#7d848a',
   shovel: '#8a7a5a',
@@ -687,6 +691,44 @@ function makeSeed(color: string): THREE.Object3D {
   return g;
 }
 
+/** 胡萝卜:斜放的橙色锥形根,顶上一撮绿缨 */
+function makeCarrotDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const root = mesh(new THREE.ConeGeometry(0.11, 0.42, 6), clay(DROP_COLORS.carrot));
+  root.rotation.z = Math.PI / 2.4;
+  root.position.y = 0.1;
+  g.add(root);
+  const leafMat = clay('#5da345');
+  for (let i = 0; i < 3; i++) {
+    const leafTip = mesh(new THREE.ConeGeometry(0.03, 0.14, 4), leafMat);
+    leafTip.rotation.z = 0.9;
+    leafTip.rotation.y = (i / 3) * Math.PI * 2;
+    leafTip.position.set(0.05, 0.26, 0);
+    g.add(leafTip);
+  }
+  return g;
+}
+
+/** 小麦:一小捆金黄麦秆,穗头朝上聚拢 */
+function makeWheatDrop(): THREE.Object3D {
+  const g = new THREE.Group();
+  const stalkMat = clay(DROP_COLORS.wheat);
+  const headMat = clay('#e8c56a');
+  for (let i = 0; i < 5; i++) {
+    const stalk = new THREE.Group();
+    const stem = mesh(new THREE.CylinderGeometry(0.016, 0.022, 0.42, 5), stalkMat);
+    stem.position.y = 0.21;
+    stalk.add(stem);
+    const head = mesh(new THREE.ConeGeometry(0.045, 0.16, 5), headMat);
+    head.position.y = 0.48;
+    stalk.add(head);
+    stalk.rotation.z = (i - 2) * 0.1;
+    stalk.position.set((i - 2) * 0.05, 0, (i % 2) * 0.04);
+    g.add(stalk);
+  }
+  return g;
+}
+
 /** 果实:一颗饱满的果子带两片叶 */
 function makeFruit(color: string): THREE.Object3D {
   const g = new THREE.Group();
@@ -1122,6 +1164,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   oakSeed: () => makeSeed(DROP_COLORS.oakSeed),
   pineSeed: () => makeSeed(DROP_COLORS.pineSeed),
   fruitSeed: () => makeSeed(DROP_COLORS.fruitSeed),
+  carrotSeed: () => makeSeed(DROP_COLORS.carrotSeed),
+  wheatSeed: () => makeSeed(DROP_COLORS.wheatSeed),
+  carrot: makeCarrotDrop,
+  wheat: makeWheatDrop,
   oakFruit: () => makeFruit(DROP_COLORS.oakFruit),
   pineFruit: () => makeFruit(DROP_COLORS.pineFruit),
   fruitFruit: () => makeFruit(DROP_COLORS.fruitFruit),

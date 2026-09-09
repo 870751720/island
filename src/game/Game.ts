@@ -53,6 +53,8 @@ import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine } from './entities/Shrine';
 import { SoilSystem } from './systems/SoilSystem';
 import { Soil } from './entities/Soil';
+import { CropSystem } from './systems/CropSystem';
+import { CROP_SPECS, makeCropSproutPreview } from './entities/Crop';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -222,6 +224,7 @@ export class Game {
   private beds: BedSystem;
   private shrines: ShrineSystem;
   private soils: SoilSystem;
+  private crops: CropSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
   private lastFishingState: FishingState | null = null;
@@ -713,7 +716,27 @@ export class Game {
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
       this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
-      (actor) => this.isSessionBusy(actor, 'soils')
+      (actor) => this.isSessionBusy(actor, 'soils'),
+      // 铲子挖有作物的土壤时优先铲作物(查询与铲除都由作物系统提供)
+      (x, z) => !!this.crops.cropAt(x, z),
+      (x, z) => this.crops.removeAt(x, z)
+    );
+    // 作物系统:种子种在土壤上,三阶段生长,成熟后空手采收掉落作物道具
+    this.crops = new CropSystem(
+      this.scene,
+      this.fx,
+      this.audio,
+      // 采收产出掉落在作物旁,统一走「捡回」卡片拾取
+      (kind, count, x, z) => this.drops.dropAt(kind, count, x, z),
+      // 播种校验:该格必须有土壤
+      (x, z) => this.soils.soilAt(x, z),
+      // 其他占用双手的行为进行中时采收让位
+      (actor) => this.isSessionBusy(actor, 'crops'),
+      // 采收粒子同步给联机客人
+      (position, color, count) => {
+        if (!this.hostRef) return;
+        this.hostRef.broadcastEvent({ kind: 'collectFx', x: position.x, y: position.y, z: position.z, color, count });
+      }
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
     for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils]) {
@@ -767,6 +790,7 @@ export class Game {
       beds: this.beds,
       shrines: this.shrines,
       soils: this.soils,
+      crops: this.crops,
       stakes: this.stakes,
       drops: this.drops,
       dog: this.dog,
@@ -791,6 +815,7 @@ export class Game {
       beds: this.beds,
       shrines: this.shrines,
       soils: this.soils,
+      crops: this.crops,
       campfire: this.campfire,
     });
     this.hudSnapshotBuilder = new HudSnapshotBuilder(
@@ -974,6 +999,7 @@ export class Game {
           this.beds.updateActor(s, simDelta);
           this.shrines.updateActor(s, simDelta);
           this.soils.updateActor(s, simDelta);
+          this.crops.updateActor(s, simDelta);
           this.workbench.updateActor(s, simDelta);
           this.campfire.updateActor(s, simDelta);
           // 手里的种子/围栏/可放置道具用光后自动收起,回到空手
@@ -999,6 +1025,7 @@ export class Game {
         this.fences.update(simDelta, this.sessions.map((s) => s.player.group.position));
         this.campfire.update(simDelta, elapsed);
         this.shrines.update(simDelta, elapsed);
+        this.crops.update(simDelta, elapsed);
         this.baitBarrels.update(simDelta, elapsed, !this.guestMode);
         this.brewBarrels.update(simDelta, elapsed, !this.guestMode);
         this.waterPurifiers.update(simDelta, elapsed);
@@ -2530,6 +2557,17 @@ export class Game {
       holdTime: (a) => hoePlaceTime(a.tools.hoe),
       failText: () => '这里锄不了,找块没东西的干地试试',
     });
+    // 作物种子:只能种在没有作物的土壤格上,预览为幼苗造型,站定 2 秒播下
+    for (const spec of Object.values(CROP_SPECS)) {
+      def(spec.seed, {
+        tool: 'place',
+        valid: (a, x, z) => this.crops.canPlantAt(a, x, z),
+        buildPreview: () => makeCropSproutPreview(spec.kind),
+        place: (a, at) => this.crops.plant(a, spec.seed, at),
+        placingLabel: `播种:${spec.name}…`,
+        failText: () => '种子只能种在空的土壤上,先用锄头开垦',
+      });
+    }
     // 围栏木/石:落点优先接上现有围栏线,预览横杆按邻居显隐
     for (const [kind, fenceKind] of [['fenceWood', 'branch'], ['fenceStone', 'stone']] as const) {
       def(kind, {
@@ -2870,6 +2908,7 @@ export class Game {
     this.beds.detach(session);
     this.shrines.detach(session);
     this.soils.detach(session);
+    this.crops.detach(session);
     this.scene.remove(session.player.group);
     session.nameTag.dispose();
     session.player.dispose();
@@ -2909,6 +2948,7 @@ export class Game {
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
     if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
     if (exclude !== 'soils' && this.soils.isDigging(s)) return true;
+    if (exclude !== 'crops' && this.crops.isHarvesting(s)) return true;
     if (exclude !== 'autoPlace' && this.autoPlace.isPlacing(s)) return true;
     return false;
   }

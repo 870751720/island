@@ -15,7 +15,14 @@ const DIG_RANGE = 1.6; // 持铲子可开挖土壤的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 
 /** 每玩家的挖掘进度(土壤是世界共享的) */
-type PlayerSessionState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Soil | null };
+type PlayerSessionState = {
+  hold: ActionHold;
+  swingTimer: number;
+  hits: number;
+  digTarget: Soil | null;
+  /** 正在挖的土壤上是否种着作物(先铲作物再挖土壤,提示文案用) */
+  digTargetCrop: boolean;
+};
 
 /**
  * 土壤系统(世界共享,按发起者 actor 结算,可放置多个):
@@ -42,13 +49,17 @@ export class SoilSystem {
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
     private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
-    private isOtherBusy: (actor: PlayerSession) => boolean = () => false
+    private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
+    /** 该位置的土壤上是否种着作物(无副作用查询),与铲除回调都由 CropSystem 提供 */
+    private hasCropAt: (x: number, z: number) => boolean = () => false,
+    /** 铲掉该位置的作物(铲子优先铲作物,无掉落),返回是否铲掉了 */
+    private removeCropAt: (x: number, z: number) => boolean = () => false
   ) {}
 
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, digTargetCrop: false };
       this.states.set(actor, st);
     }
     return st;
@@ -70,6 +81,14 @@ export class SoilSystem {
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
     return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
+  }
+
+  /** 该格中心(水平距离 0.6 内)是否有土壤(播种校验用) */
+  soilAt(x: number, z: number): boolean {
+    return this.soils.some((soil) => {
+      const p = soil.group.position;
+      return Math.hypot(p.x - x, p.z - z) < 0.6;
+    });
   }
 
   /** 在吸附格中心开出一格土壤(手持锄头自动安放的 place 委托,落格已校验,零消耗) */
@@ -108,11 +127,14 @@ export class SoilSystem {
       }
       if (!target || actor.player.isMoving) {
         st.digTarget = null;
+        st.digTargetCrop = false;
         st.swingTimer = 0;
         st.hits = 0;
         return;
       }
       st.digTarget = target;
+      const tp0 = target.group.position;
+      st.digTargetCrop = this.hasCropAt(tp0.x, tp0.z);
       st.hold.hold(actor.player, 'mine');
       st.swingTimer += delta;
       if (st.swingTimer < SWING_TIME) return;
@@ -122,6 +144,14 @@ export class SoilSystem {
       if (st.hits < shovelHits(actor.tools.shovel)) return;
       st.hits = 0;
       st.digTarget = null;
+      // 土壤上种着作物时先铲掉作物(无掉落),下一次挖完这格才移除土壤本身
+      const tp = target.group.position;
+      if (this.removeCropAt(tp.x, tp.z)) {
+        st.digTargetCrop = false;
+        this.fx.burst(new THREE.Vector3(tp.x, tp.y + 0.25, tp.z), '#7fae55', 8);
+        this.audio.play('drop');
+        return;
+      }
       this.soils.splice(this.soils.indexOf(target), 1);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
       this.scene.remove(target.group);
@@ -134,6 +164,12 @@ export class SoilSystem {
   /** 正在挖土壤 */
   isDigging(actor: PlayerSession): boolean {
     return !!this.states.get(actor)?.digTarget;
+  }
+
+  /** 正在挖的土壤上是否种着作物(先铲作物,提示文案用) */
+  isDiggingCrop(actor: PlayerSession): boolean {
+    const st = this.states.get(actor);
+    return !!st?.digTarget && st.digTargetCrop;
   }
 
   /** 当前挖土壤进度 0-1,未在挖掘时为 null */

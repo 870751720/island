@@ -17,7 +17,7 @@ export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'worm', 'adventureBook',
+    'fiber', 'rope', 'cloth', 'fur', 'worm', 'wheat', 'adventureBook',
   ],
   工具: ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
@@ -46,7 +46,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'fenceWood', 'fenceStone', 'fenceGate',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
-    'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest',
+    'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest', 'carrotSeed', 'wheatSeed',
   ],
   道具: [
     'oakSeed', 'pineSeed', 'fruitSeed',
@@ -501,6 +501,31 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '苹果',
     icon: '🍎',
     description: '红彤彤的果子,看着就多汁。',
+  },
+  carrotSeed: {
+    kind: 'carrotSeed',
+    name: '胡萝卜种子',
+    icon: '🌱',
+    description: '从灌木丛里扒出来的种子,种在土壤上,过一阵子就能收胡萝卜。',
+  },
+  wheatSeed: {
+    kind: 'wheatSeed',
+    name: '小麦种子',
+    icon: '🌾',
+    description: '草丛里捡到的麦种,种在土壤上,等麦穗金黄就能收成了。',
+  },
+  carrot: {
+    kind: 'carrot',
+    name: '胡萝卜',
+    icon: '🥕',
+    description: '自己种出来的胡萝卜,脆甜多汁,擦擦泥就能啃。',
+  },
+  wheat: {
+    kind: 'wheat',
+    name: '小麦',
+    icon: '🌾',
+    description: '沉甸甸的麦穗,磨粉烤饼都是好料,也是上好的柴火。',
+    burnTime: 15,
   },
   axe: {
     kind: 'axe',

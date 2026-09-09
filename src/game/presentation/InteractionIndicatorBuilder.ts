@@ -13,6 +13,7 @@ import type { LoomSystem } from '../systems/LoomSystem';
 import type { RabbitBurrowSystem } from '../systems/RabbitBurrowSystem';
 import type { ShrineSystem } from '../systems/ShrineSystem';
 import type { SoilSystem } from '../systems/SoilSystem';
+import type { CropSystem } from '../systems/CropSystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import { ITEMS } from '../systems/Items';
@@ -32,6 +33,7 @@ type IndicatorSystems = {
   beds: BedSystem;
   shrines: ShrineSystem;
   soils: SoilSystem;
+  crops: CropSystem;
   campfire: CampfireSystem;
 };
 
@@ -94,7 +96,10 @@ export class InteractionIndicatorBuilder {
     } else if (systems.shrines.isDigging(session)) {
       label = '拆神像…'; progress = systems.shrines.getDigProgress(session);
     } else if (systems.soils.isDigging(session)) {
-      label = '挖土壤…'; progress = systems.soils.getDigProgress(session);
+      label = systems.soils.isDiggingCrop(session) ? '铲作物…' : '挖土壤…';
+      progress = systems.soils.getDigProgress(session);
+    } else if (systems.crops.isHarvesting(session)) {
+      label = '采收作物…'; progress = systems.crops.getHarvestProgress(session);
     } else if (systems.campfire.isDigging(session)) {
       label = '挖火堆…'; progress = systems.campfire.getDigProgress(session);
     } else if (systems.campfire.isCooking(session)) {

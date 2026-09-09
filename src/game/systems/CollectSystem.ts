@@ -19,6 +19,10 @@ import type { GameAudio } from '../audio/GameAudio';
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
 const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
+/** 采草丛/灌木时掉落作物种子的概率(两种种子随机其一) */
+const GRASS_SEED_CHANCE = 0.2;
+const SHRUB_SEED_CHANCE = 0.15;
+const CROP_SEEDS = ['carrotSeed', 'wheatSeed'] as const;
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
 /** 铲子挖走的丛/窝对应的道具 */
@@ -132,13 +136,19 @@ const HARVEST_CONFIG: Record<
     action: 'pick',
     hits: 2,
     fxColor: '#6b8f4e',
-    yield: (inv) => inv.add('branch', 1),
+    yield: (inv) => {
+      inv.add('branch', 1);
+      if (Math.random() < SHRUB_SEED_CHANCE) inv.add(CROP_SEEDS[Math.floor(Math.random() * CROP_SEEDS.length)], 1);
+    },
   },
   grass: {
     action: 'pick',
     hits: 1,
     fxColor: '#a4c46a',
-    yield: (inv) => inv.add('fiber', 1),
+    yield: (inv) => {
+      inv.add('fiber', 1);
+      if (Math.random() < GRASS_SEED_CHANCE) inv.add(CROP_SEEDS[Math.floor(Math.random() * CROP_SEEDS.length)], 1);
+    },
   },
   wormNest: {
     // 捉蚯蚓:空手从窝里捉走蚯蚓,每次 1-3 只
