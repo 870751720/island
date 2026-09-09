@@ -6,7 +6,6 @@ import type { CraftId } from '../systems/Crafting';
 import type { ResourceKind } from '../systems/Inventory';
 import type { ArrowHit } from '../systems/BowSystem';
 import type { AnimalSpecies } from '../entities/Wildlife';
-import type { ShrineKind } from '../entities/Shrine';
 
 /** 客人动作 → Game 方法的参数化分发(以该客人的会话为 actor,由房主权威结算) */
 export type NetAction = (game: Game, actor: PlayerSession, args: unknown[]) => boolean;
@@ -23,38 +22,26 @@ export const ACTIONS: Record<string, NetAction> = {
   hookFish: (g, a) => g.hookFish(a),
   claimTreasure: (g, a) => g.claimTreasure(a),
   sleep: (g, a) => g.sleep(a),
-  useCrate: (g, a, [kind]) => g.useCrate(kind as 'crate' | 'ironCrate', a),
-  useBaitBarrel: (g, a) => g.useBaitBarrel(a),
-  useWaterPurifier: (g, a) => g.useWaterPurifier(a),
+  useFacility: (g, a, [kind]) => g.useFacilityItem(kind as ResourceKind, a),
   baitBarrelFeed: (g, a, [kind, count]) => g.baitBarrelFeed(kind as ResourceKind, (count as number) ?? 0, a),
   baitBarrelCollect: (g, a) => g.baitBarrelCollect(a),
   baitBarrelTakeFoods: (g, a) => g.baitBarrelTakeFoods(a),
-  useBrewBarrel: (g, a) => g.useBrewBarrel(a),
   brewBarrelFeed: (g, a, [kind, count]) => g.brewBarrelFeed(kind as ResourceKind, (count as number) ?? 0, a),
   brewBarrelCollect: (g, a) => g.brewBarrelCollect(a),
   brewBarrelTakeRaw: (g, a) => g.brewBarrelTakeRaw(a),
-  useSmelter: (g, a) => g.useSmelter(a),
   smelterFeed: (g, a, [count]) => g.smelterFeed((count as number) ?? 0, a),
   smelterCollect: (g, a) => g.smelterCollect(a),
   smelterTakeOre: (g, a) => g.smelterTakeOre(a),
-  useCookingStation: (g, a) => g.useCookingStation(a),
   cookingAddFuel: (g, a, [kind]) => g.cookingAddFuel(kind as ResourceKind, a),
   cookingRoast: (g, a, [kind, count]) => g.cookingRoast(kind as ResourceKind, count as number, a),
   cookingBoil: (g, a, [kind, count]) => g.cookingBoil(kind as ResourceKind, count as number, a),
   cookingCollect: (g, a) => g.cookingCollect(a),
   cookingTakeBoil: (g, a) => g.cookingTakeBoil(a),
-  useLoom: (g, a) => g.useLoom(a),
   loomFeed: (g, a, [count]) => g.loomFeed((count as number) ?? 0, a),
   loomCollect: (g, a) => g.loomCollect(a),
   loomTakeRope: (g, a) => g.loomTakeRope(a),
-  useWorkbenchItem: (g, a, [kind]) => g.useWorkbenchItem(kind as ResourceKind, a),
-  useBedItem: (g, a, [kind]) => g.useBedItem(kind as ResourceKind, a),
-  useShrine: (g, a, [kind]) => g.useShrine(a, kind as ShrineKind),
-  useFenceItem: (g, a, [kind]) => g.useFenceItem(kind as ResourceKind, a),
-  useDeadCampfire: (g, a) => g.useDeadCampfire(a),
   useSeed: (g, a, [kind]) => g.useSeed(kind as ResourceKind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,
-  useBush: (g, a, [kind]) => g.useBush(kind as 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', a),
   pickupDrop: (g, a) => g.pickupDrop(a),
   craftCampfire: (g, a) => g.craftCampfire(a),
   crateStore: (g, a, [kind, count]) => g.crateStore(kind as ResourceKind, (count as number) ?? Infinity, a),

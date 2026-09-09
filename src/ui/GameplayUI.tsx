@@ -551,18 +551,13 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          // 可安放道具(建筑/丛/神龛等)直接在就近最优格放下,放不下时提示原因
-          if (gameRef.current?.useAutoPlaceItem(kind)) {
+          // 可放置道具(建筑/丛/神龛/围栏等)统一在就近最优格放下,放不下时提示原因
+          if (gameRef.current?.useFacilityItem(kind)) {
             setBackpackOpen(false);
             return;
           }
           if (kind === 'oakSeed' || kind === 'pineSeed' || kind === 'fruitSeed') {
             gameRef.current?.useSeed(kind);
-            setBackpackOpen(false);
-            return;
-          }
-          if (kind === 'fenceWood' || kind === 'fenceStone' || kind === 'fenceGate') {
-            gameRef.current?.useFenceItem(kind);
             setBackpackOpen(false);
             return;
           }

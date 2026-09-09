@@ -6,18 +6,17 @@ import { Workbench, WORKBENCH_MAX_LEVEL } from '../entities/Workbench';
 import { WORKBENCH_COST, hasCost, workbenchUpgradeCost } from './Crafting';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
-import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
+import { dryCellReason } from './Facilities';
 
 const CRAFT_TIME = 2.4; // 制作总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#c9a15c';
-const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距工作台小于该值时算在工作范围内
 const DIG_RANGE = 1.6; // 持铲子可开挖工作台的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
@@ -178,13 +177,7 @@ export class WorkbenchSystem {
   }
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return '游泳时不能安放';
-    if (this.terrain.isNearWater(p, 1)) return '离水太近';
-    if (p.y <= 0) return '这里在水里';
-    if (this.occupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 本局是否已制作过工作台 */

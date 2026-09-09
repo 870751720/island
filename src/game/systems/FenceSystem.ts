@@ -24,52 +24,26 @@ const GATE_AUTO_RANGE = 1.6;
 const DIG_RANGE = 1.5;
 /** 铲子挖围栏的命中次数(二级铲 1 次) */
 const SWING_TIME = 0.6;
-/** 手持围栏站定自动放置的时长(秒) */
-const PLACE_TIME = 2;
-/** 手持围栏门站定自动放置的时长(秒) */
-const GATE_PLACE_TIME = 5;
-/** 放置预览的可用提示色(附近没有可放位置时预览直接隐藏) */
-const PREVIEW_OK = '#7fd67f';
-
-/** 半透明黏土预览材质(全部预览件共用,改色即整体变色) */
-function previewMaterial(): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color: PREVIEW_OK,
-    emissive: PREVIEW_OK,
-    emissiveIntensity: 0.55,
-    transparent: true,
-    opacity: 0.7,
-    flatShading: true,
-    roughness: 1,
-    depthWrite: false,
-  });
-}
 
 /** 阻挡线段:XZ 平面上的有向线段(闭合围栏连接与关着的门) */
 type Segment = { ax: number; az: number; bx: number; bz: number };
 
-/** 每玩家的放置/挖掘进度与落点幽灵预览(围栏与门本身是世界共享的) */
+/** 幽灵预览里命名横杆(rail-px/nx/pz/nz)的集合 */
+function ghostRailsOf(preview: THREE.Object3D): THREE.Object3D[] {
+  const rails: THREE.Object3D[] = [];
+  preview.traverse((o) => {
+    if (o.name.startsWith('rail-')) rails.push(o);
+  });
+  return rails;
+}
+
+/** 每玩家的挖掘进度(围栏与门本身是世界共享的) */
 type PlayerSessionState = {
   hold: ActionHold;
   swingTimer: number;
   hits: number;
   digTarget: { kind: 'fence' | 'gate'; key: string } | null;
-  /** 手里架着的围栏道具(木/石) */
-  fenceItem: 'fenceWood' | 'fenceStone' | null;
-  placeTimer: number;
-  /** 原地自动放置是否可用:null 表示可放,放置后记位,移动即复位 */
-  lastPlaceX: number | null;
-  fencePreview: THREE.Group;
-  previewRails: Record<'px' | 'nx' | 'pz' | 'nz', THREE.Object3D[]>;
-  gatePreview: THREE.Group;
 };
-
-/** 围栏物品 → 场上围栏种类 */
-export function fenceKindOfItem(kind: ResourceKind): FenceKind | null {
-  if (kind === 'fenceWood') return 'branch';
-  if (kind === 'fenceStone') return 'stone';
-  return null;
-}
 
 /** 手持迷你围栏(真材质,外层再整体缩放到手心大小) */
 export function makeFenceHandModel(kind: FenceKind): THREE.Group {
@@ -104,12 +78,57 @@ export function makeFenceGateHandModel(): THREE.Group {
   return g;
 }
 
+/** 围栏幽灵预览的建模:柱子 + 四方向横杆(横杆命名 rail-px/nx/pz/nz,由安放系统按邻居显隐) */
+export function makeFenceGhost(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.85, 6), mat);
+  post.position.y = 0.42;
+  g.add(post);
+  const railOffsets: Record<'px' | 'nx' | 'pz' | 'nz', [number, number]> = {
+    px: [0.5, 0],
+    nx: [-0.5, 0],
+    pz: [0, 0.5],
+    nz: [0, -0.5],
+  };
+  for (const dir of ['px', 'nx', 'pz', 'nz'] as const) {
+    for (const y of [0.3, 0.6]) {
+      // 横杆跨满相邻两柱(与实际围栏一致),只在对应方向有邻居时显示
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.09, 0.05), mat);
+      rail.position.set(railOffsets[dir][0], y, railOffsets[dir][1]);
+      if (dir === 'pz' || dir === 'nz') rail.rotation.y = Math.PI / 2;
+      rail.name = `rail-${dir}`;
+      g.add(rail);
+    }
+  }
+  return g;
+}
+
+/** 围栏门幽灵预览的建模(朝向由安放系统按目标门带方向设置) */
+export function makeGateGhost(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
+  for (const x of [-0.92, 0.92]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), mat);
+    post.position.set(x, 0.47, 0);
+    g.add(post);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(1.98, 0.07, 0.07), mat);
+  beam.position.y = 0.92;
+  g.add(beam);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 0.05), mat);
+  leaf.position.set(0, 0.45, 0);
+  g.add(leaf);
+  return g;
+}
+
 /**
- * 围栏系统(世界单实例,按发起者 actor 结算):
+ * 围栏系统(世界单实例):围栏世界状态与放置/挖除结算——
  * - 围栏柱吸附在整数格点上,相邻柱/门之间自动伸出横杆,沿边逐个放置即可围出无缝闭合的圈;
  * - 围栏门占一条格点边,玩家靠近自动开、走远自动关,动物不会开门;
  * - 围栏连接与关着的门构成阻挡线段:玩家移动被推出,动物(兔/羊/野牛/狼/熊/蟹)绕行判定被挡住;
  * - 手持铲子靠近站定自动把围栏/门挖回道具。
+ * 手持放置的落点选择/预览/站定自动放置统一走 AutoPlaceSystem,经 FacilityDef 委托到本系统。
  */
 export class FenceSystem implements ObstacleSolver {
   private fences = new Map<string, Fence>();
@@ -125,7 +144,6 @@ export class FenceSystem implements ObstacleSolver {
     this.onFenceChanged = fences;
     this.onGateChanged = gates;
   }
-  private previewMat = previewMaterial();
 
   constructor(
     private scene: THREE.Scene,
@@ -142,62 +160,14 @@ export class FenceSystem implements ObstacleSolver {
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
     if (!st) {
-      // 落点幽灵预览:手持围栏/门时常驻显示,绿=可放、红=不可放
-      const fencePreview = new THREE.Group();
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.09, 0.85, 6),
-        this.previewMat
-      );
-      post.position.y = 0.42;
-      fencePreview.add(post);
-      const previewRails: Record<'px' | 'nx' | 'pz' | 'nz', THREE.Object3D[]> = {
-        px: [], nx: [], pz: [], nz: [],
-      };
-      const railOffsets: Record<'px' | 'nx' | 'pz' | 'nz', [number, number]> = {
-        px: [0.5, 0],
-        nx: [-0.5, 0],
-        pz: [0, 0.5],
-        nz: [0, -0.5],
-      };
-      for (const dir of ['px', 'nx', 'pz', 'nz'] as const) {
-        for (const y of [0.3, 0.6]) {
-          // 横杆跨满相邻两柱(与实际围栏一致),只在对应方向有邻居时显示
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.09, 0.05), this.previewMat);
-          rail.position.set(railOffsets[dir][0], y, railOffsets[dir][1]);
-          if (dir === 'pz' || dir === 'nz') rail.rotation.y = Math.PI / 2;
-          fencePreview.add(rail);
-          previewRails[dir].push(rail);
-        }
-      }
-      fencePreview.visible = false;
-      this.scene.add(fencePreview);
-
-      const gatePreview = new THREE.Group();
-      for (const x of [-0.92, 0.92]) {
-        const gatePost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), this.previewMat);
-        gatePost.position.set(x, 0.47, 0);
-        gatePreview.add(gatePost);
-      }
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(1.98, 0.07, 0.07), this.previewMat);
-      beam.position.y = 0.92;
-      gatePreview.add(beam);
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 0.05), this.previewMat);
-      leaf.position.set(0, 0.45, 0);
-      gatePreview.add(leaf);
-      gatePreview.visible = false;
-      this.scene.add(gatePreview);
-
-      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null, fenceItem: null, placeTimer: 0, lastPlaceX: null, fencePreview, previewRails, gatePreview };
+      st = { hold: new ActionHold(), swingTimer: 0, hits: 0, digTarget: null };
       this.states.set(actor, st);
     }
     return st;
   }
 
-  /** 移除会话时清理其个人进度与落点预览 */
+  /** 移除会话时清理其个人进度 */
   detach(actor: PlayerSession): void {
-    const st = this.states.get(actor);
-    if (!st) return;
-    this.scene.remove(st.fencePreview, st.gatePreview);
     this.states.delete(actor);
   }
 
@@ -328,7 +298,7 @@ export class FenceSystem implements ObstacleSolver {
   /** 背包里点击「使用」围栏:按「就近连接优先」吸附放下 */
   useFence(actor: PlayerSession, kind: FenceKind): boolean {
     const item: ResourceKind = kind === 'branch' ? 'fenceWood' : 'fenceStone';
-    const target = this.pickVertex(actor);
+    const target = this.vertexTarget(actor);
     if (actor.inventory.count(item) <= 0 || !target) return false;
     const { gx, gz } = target;
     actor.inventory.remove(item, 1);
@@ -338,7 +308,6 @@ export class FenceSystem implements ObstacleSolver {
     this.onFenceChanged?.({ op: 'add', id: this.fenceIds.get(fence), value: { id: this.fenceIds.get(fence), x: gx, z: gz, kind } });
     this.refreshAround(gx, gz);
     this.rebuildSegments();
-    this.markPlaced(actor);
     this.audio.play('success');
     const fxPos = new THREE.Vector3(gx, y + 0.5, gz);
     this.fx.burst(fxPos, kind === 'branch' ? '#a97b48' : '#9a9a9a', 10);
@@ -358,7 +327,7 @@ export class FenceSystem implements ObstacleSolver {
    * 手持围栏时的最佳落点:面前附近一圈格点里打分——
    * 能与现有围栏/门相连的格点优先(接上玩家身边的围栏线),否则取离面前最近的。
    */
-  private pickVertex(actor: PlayerSession): { gx: number; gz: number } | null {
+  vertexTarget(actor: PlayerSession): { gx: number; gz: number } | null {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
@@ -384,7 +353,7 @@ export class FenceSystem implements ObstacleSolver {
 
   /** 背包里点击「使用」围栏门:按「就近连接优先」吸附放下(门跨两格,双扇对开) */
   useGate(actor: PlayerSession): boolean {
-    const target = this.pickEdge(actor);
+    const target = this.gateTarget(actor);
     if (actor.inventory.count('fenceGate') <= 0 || !target) return false;
     const { gx, gz, dir } = target;
     actor.inventory.remove('fenceGate', 1);
@@ -400,7 +369,6 @@ export class FenceSystem implements ObstacleSolver {
     this.refreshAround(gx, gz);
     this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
-    this.markPlaced(actor);
     this.audio.play('success');
     this.fx.burst(new THREE.Vector3(gate.centerX, this.terrain.getHeight(gate.centerX, gate.centerZ) + 0.5, gate.centerZ), '#8a6239', 12);
     return true;
@@ -434,7 +402,7 @@ export class FenceSystem implements ObstacleSolver {
    * 手持围栏门时的最佳落位:门带中心在玩家面前的候选里打分——
    * 端点接着现有围栏柱的优先(把门嵌进围栏线的缺口),否则取离面前最近的。
    */
-  private pickEdge(actor: PlayerSession): { gx: number; gz: number; dir: 'x' | 'z' } | null {
+  gateTarget(actor: PlayerSession): { gx: number; gz: number; dir: 'x' | 'z' } | null {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
@@ -465,119 +433,20 @@ export class FenceSystem implements ObstacleSolver {
     return best;
   }
 
-  // ---- 手持自动放置 ----
+  // ---- 统一安放的委托助手 ----
 
-  /** 选中要在手里架起来的围栏道具(工具循环切入时记录,用完自动落到背包里排最前的) */
-  selectFenceItem(actor: PlayerSession, item: 'fenceWood' | 'fenceStone'): void {
-    this.st(actor).fenceItem = item;
-  }
-
-  /** 手持围栏道具对应的场上种类(优先上次选中的,没道具或非手持为 null) */
-  private heldFenceKind(actor: PlayerSession): FenceKind | null {
-    if (actor.player.currentTool !== 'fence') return null;
-    const st = this.states.get(actor);
-    if (st?.fenceItem && actor.inventory.count(st.fenceItem) > 0) {
-      return fenceKindOfItem(st.fenceItem);
+  /** 围栏幽灵预览的落位刷新:横杆按目标格点的实际邻居显隐 */
+  applyGhost(preview: THREE.Object3D, gx: number, gz: number): void {
+    const conns = this.connectionsOf(gx, gz);
+    for (const rail of ghostRailsOf(preview)) {
+      rail.visible = conns[rail.name.slice('rail-'.length) as keyof FenceConnections];
     }
-    const slot = actor.inventory
-      .snapshot()
-      .find((s) => s?.kind === 'fenceWood' || s?.kind === 'fenceStone');
-    return slot ? fenceKindOfItem(slot.kind) : null;
   }
 
-  /** 手持的围栏道具(木/石,供外层挑手持模型与图标) */
-  heldFenceItem(actor: PlayerSession): 'fenceWood' | 'fenceStone' | null {
-    const kind = this.heldFenceKind(actor);
-    return kind ? (kind === 'branch' ? 'fenceWood' : 'fenceStone') : null;
-  }
-
-  /** 正在手持围栏/门放置中 */
-  isPlacing(actor: PlayerSession): boolean {
-    return (this.states.get(actor)?.placeTimer ?? 0) > 0;
-  }
-
-  /** 当前放置进度 0-1,未在放置时为 null */
-  getPlaceProgress(actor: PlayerSession): number | null {
-    const st = this.states.get(actor);
-    if (!st || st.placeTimer <= 0) return null;
-    const need = actor.player.currentTool === 'fenceGate' ? GATE_PLACE_TIME : PLACE_TIME;
-    return Math.min(st.placeTimer / need, 1);
-  }
-
-  /** 手持围栏/门站定自动放到面前的格点(边)上,面前已满或不可放则不打扰 */
-  private updateAutoPlace(actor: PlayerSession, st: PlayerSessionState, delta: number): void {
-    // 移动即恢复自动放置资格(原地只放一次;挪过步再回来也能放)
-    if (actor.player.isMoving) st.lastPlaceX = null;
-    const fenceKind = this.heldFenceKind(actor);
-    const gate = actor.player.currentTool === 'fenceGate';
-    const item: ResourceKind | null = fenceKind
-      ? fenceKind === 'branch'
-        ? 'fenceWood'
-        : 'fenceStone'
-      : gate
-        ? 'fenceGate'
-        : null;
-    const placeable =
-      item !== null &&
-      !actor.player.isMoving &&
-      !actor.player.isSwimming &&
-      !this.isBusy(actor) &&
-      st.lastPlaceX === null &&
-      (fenceKind ? this.pickVertex(actor) !== null : this.pickEdge(actor) !== null);
-    if (!placeable) {
-      st.placeTimer = 0;
-      return;
-    }
-    st.hold.hold(actor.player, 'craft');
-    st.placeTimer += delta;
-    const need = gate ? GATE_PLACE_TIME : PLACE_TIME;
-    if (st.placeTimer < need) return;
-    st.placeTimer = 0;
-    if (fenceKind) this.useFence(actor, fenceKind);
-    else this.useGate(actor);
-  }
-
-  // ---- 落点预览 ----
-
-  /** 手持围栏/门时在面前吸附点常驻半透明预览:绿=可放、红=不可放;横杆按当前邻居实时显示 */
-  private updatePreview(actor: PlayerSession, st: PlayerSessionState): void {
-    const fenceKind = this.heldFenceKind(actor);
-    const gate = actor.player.currentTool === 'fenceGate';
-    if ((!fenceKind && !gate) || actor.player.isSwimming) {
-      st.fencePreview.visible = false;
-      st.gatePreview.visible = false;
-      return;
-    }
-    if (fenceKind) {
-      st.gatePreview.visible = false;
-      const target = this.pickVertex(actor);
-      if (target) {
-        const conns = this.connectionsOf(target.gx, target.gz);
-        for (const dir of ['px', 'nx', 'pz', 'nz'] as const) {
-          for (const rail of st.previewRails[dir]) rail.visible = conns[dir];
-        }
-        st.fencePreview.position.set(
-          target.gx,
-          this.terrain.getHeight(target.gx, target.gz) - 0.03,
-          target.gz
-        );
-        st.fencePreview.visible = true;
-      } else {
-        st.fencePreview.visible = false;
-      }
-      return;
-    }
-    st.fencePreview.visible = false;
-    const target = this.pickEdge(actor);
-    if (target) {
-      const mx = target.gx + (target.dir === 'x' ? 1 : 0);
-      const mz = target.gz + (target.dir === 'z' ? 1 : 0);
-      st.gatePreview.position.set(mx, this.terrain.getHeight(mx, mz) - 0.02, mz);
-      st.gatePreview.rotation.y = target.dir === 'x' ? 0 : Math.PI / 2;
-      st.gatePreview.visible = true;
-    } else {
-      st.gatePreview.visible = false;
-    }
+  /** 围栏门幽灵预览的朝向:与目标门带方向一致 */
+  gateGhostRotY(actor: PlayerSession): number {
+    const t = this.gateTarget(actor);
+    return t ? (t.dir === 'x' ? 0 : Math.PI / 2) : 0;
   }
 
   // ---- 挖除 ----
@@ -608,23 +477,10 @@ export class FenceSystem implements ObstacleSolver {
     if (this.gates.size > 0) this.rebuildSegments();
   }
 
-  /** 客人端表现驱动:只刷新该玩家的落点预览,放置/挖掘仍由房主权威结算 */
-  updatePreviewFor(actor: PlayerSession): void {
-    this.updatePreview(actor, this.st(actor));
-  }
-
-  /** 记录本回合已放置:原地不再自动放置,移动一下即恢复 */
-  private markPlaced(actor: PlayerSession): void {
-    this.st(actor).lastPlaceX = actor.player.group.position.x;
-  }
-
-  /** 每帧推进该玩家的落点预览、自动放置与自动挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
+  /** 每帧推进该玩家的自动挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
-      this.updatePreview(actor, st);
-      this.updateAutoPlace(actor, st, delta);
-
       const holding = actor.player.currentTool === 'shovel';
       let target: { kind: 'fence' | 'gate'; key: string } | null = null;
       if (holding && !actor.player.isSwimming && !this.isBusy(actor)) {

@@ -25,9 +25,9 @@ import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './syst
 import { CraftingSystem } from './systems/CraftingSystem';
 import { PhotoCamera } from './systems/PhotoCamera';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
-import { WorkbenchSystem, workbenchItemLevel } from './systems/WorkbenchSystem';
+import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
-import { Crate, type CrateKind } from './entities/Crate';
+import { Crate } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { wineOf, isWineKind, TIPSY_DURATION } from './systems/Wine';
 import { BrewBarrelSystem, type BrewBarrelInfo } from './systems/BrewBarrelSystem';
@@ -36,8 +36,8 @@ import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { CookingStationSystem, type CookingStationInfo } from './systems/CookingStationSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
-import { FenceSystem, fenceKindOfItem, makeFenceHandModel, makeFenceGateHandModel } from './systems/FenceSystem';
-import { BedSystem, bedItemLevel } from './systems/BedSystem';
+import { FenceSystem, makeFenceHandModel, makeFenceGateHandModel, makeFenceGhost, makeGateGhost } from './systems/FenceSystem';
+import { BedSystem } from './systems/BedSystem';
 import { Bed } from './entities/Bed';
 import { Workbench } from './entities/Workbench';
 import { BaitBarrel } from './entities/BaitBarrel';
@@ -47,11 +47,12 @@ import { Smelter } from './entities/Smelter';
 import { Loom } from './entities/Loom';
 import { CookingStation } from './entities/CookingStation';
 import { Campfire } from './entities/Campfire';
-import { AutoPlaceSystem, buildGhost, miniHeldModel } from './systems/AutoPlace';
+import { AutoPlaceSystem, buildGhost, miniHeldModel, snapAheadCell } from './systems/AutoPlace';
+import { dryCellReason, type FacilityDef } from './systems/Facilities';
 import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
-import { Shrine, type ShrineKind } from './entities/Shrine';
+import { Shrine } from './entities/Shrine';
 import { BUFFS, type HudBuff } from './systems/BuffSystem';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
@@ -91,7 +92,7 @@ import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
-import { Props, PROP_NAMES, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
+import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
 import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
@@ -890,13 +891,15 @@ export class Game {
     for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines]) {
       this.placeOccupancy.register(occupant);
     }
-    // 通用「限定位置 + 自动安放」:可安放道具共用围栏同款整数格网吸附、落点预览与站定自动放置
+    // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
+    // 共用同一套工具入口、落点预览、站定自动放置与背包「使用」放置
     this.autoPlace = new AutoPlaceSystem(
       this.scene,
       this.terrain,
-      (actor) => this.isSessionBusy(actor, 'autoPlace')
+      (actor) => this.isSessionBusy(actor, 'autoPlace'),
+      (kind, actor, cell) => this.settleFacility(kind, actor, cell)
     );
-    this.registerAutoPlaceDefs();
+    this.registerFacilities();
     this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio);
     this.attachSessionSystems(this.local);
 
@@ -1199,7 +1202,6 @@ export class Game {
             // 远程玩家的交互音效按设计只给发起者本人听
             this.audio.silent = true;
             s.fishing.update(delta, false);
-            this.fences.updatePreviewFor(s);
             this.autoPlace.updatePreviewFor(s);
           }
           this.audio.silent = false;
@@ -2475,12 +2477,9 @@ export class Game {
   setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
-    if (tool === 'place' && placeKind) {
+    if (placeKind && this.autoPlace.supports(placeKind)) {
       this.lastPlaceKind = placeKind;
       this.autoPlace.select(s, placeKind);
-    }
-    if (tool === 'fence' && (placeKind === 'fenceWood' || placeKind === 'fenceStone')) {
-      this.fences.selectFenceItem(s, placeKind);
     }
   }
 
@@ -2514,15 +2513,7 @@ export class Game {
       .filter((t) => t === 'hand' || this.hasTool(t))
       .map((tool) => ({ tool, kind: null }));
     for (const { kind } of this.placeableList(this.local)) {
-      list.push({
-        tool:
-          kind === 'fenceWood' || kind === 'fenceStone'
-            ? 'fence'
-            : kind === 'fenceGate'
-              ? 'fenceGate'
-              : 'place',
-        kind,
-      });
+      list.push({ tool: this.autoPlace.toolOf(kind) ?? 'place', kind });
     }
     return list;
   }
@@ -2544,46 +2535,25 @@ export class Game {
     return list.filter((e) => e.count > 0);
   }
 
-  /** 该道具是否可作为手持放置项(围栏木/石/门走围栏系统,其余由安放系统判定) */
+  /** 该道具是否可作为手持放置项(所有已注册设施,含围栏木/石/门) */
   private isPlaceable(s: PlayerSession, kind: ResourceKind): boolean {
-    return (
-      kind === 'fenceWood' ||
-      kind === 'fenceStone' ||
-      kind === 'fenceGate' ||
-      this.autoPlace.supports(kind)
-    );
+    return this.autoPlace.supports(kind);
   }
 
-  /** 从选择面板选中一种可放置道具切入对应手持模式(围栏类走围栏系统,其余走安放系统) */
+  /** 从选择面板选中一种可放置道具切入对应手持模式 */
   pickPlaceItem(kind: ResourceKind): void {
-    const tool: HandTool | null =
-      kind === 'fenceWood' || kind === 'fenceStone'
-        ? 'fence'
-        : kind === 'fenceGate'
-          ? 'fenceGate'
-          : this.autoPlace.supports(kind)
-            ? 'place'
-            : null;
-    if (!tool) return;
-    this.selectTool(tool, kind);
+    const tool = this.autoPlace.toolOf(kind);
+    if (tool) this.selectTool(tool, kind);
   }
 
-  /** 该会话手里正举着的可放置道具(安放工具选中的/围栏木/石/围栏门),供图标、手持模型与快照用 */
+  /** 该会话手里正举着的可放置道具,供图标、手持模型与快照用 */
   private heldPlaceItem(s: PlayerSession): ResourceKind | null {
-    const tool = s.player.currentTool;
-    if (tool === 'place') return this.autoPlace.heldKind(s);
-    if (tool === 'fence') return this.fences.heldFenceItem(s);
-    if (tool === 'fenceGate') return s.inventory.count('fenceGate') > 0 ? 'fenceGate' : null;
-    return null;
+    return this.autoPlace.heldKind(s);
   }
 
   /** 某可放置道具的手持模型(真实建模缩到手心大小) */
   private buildHandModel(kind: ResourceKind): THREE.Object3D {
-    if (kind === 'fenceWood') return miniHeldModel(makeFenceHandModel('branch'));
-    if (kind === 'fenceStone') return miniHeldModel(makeFenceHandModel('stone'));
-    if (kind === 'fenceGate') return miniHeldModel(makeFenceGateHandModel());
-    const model = this.autoPlace.previewModelOf(kind);
-    return miniHeldModel(model ?? new THREE.Group());
+    return miniHeldModel(this.autoPlace.previewModelOf(kind) ?? new THREE.Group());
   }
 
   /** 各玩家手持的可放置道具模型随选中/耗尽实时替换(缓存避免每帧重建) */
@@ -2993,45 +2963,22 @@ export class Game {
     return actor.player.isSleeping;
   }
 
-  /** 安放木箱/铁箱:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useCrate(kind: CrateKind, actor: PlayerSession = this.local): boolean {
+  /** 统一设施放置入口(背包「使用」与手持自动安放共用):客人上行房主权威结算,房主就近最优格落下 */
+  useFacilityItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useCrate', [kind]);
+    if (this.guestNet) return this.guestNet.action('useFacility', [kind]);
 
-    if (this.asleepFor(actor)) return false;
-    const { at, reason } = this.autoPlaceCell(actor, kind);
-    if (reason || !this.crates.use(actor, kind, at)) {
-      this.notify(this.placeFailText(actor, kind, reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
+    return this.settleFacility(kind, actor, null);
   }
 
-  /** 安放工作台道具:落在面前吸附格中心放回对应等级(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useWorkbenchItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useWorkbenchItem', [kind]);
-
-    const level = workbenchItemLevel(kind);
-    const { at, reason } = this.autoPlaceCell(actor, kind);
-    if (this.asleepFor(actor) || level === null || reason || !this.workbench.placeItem(actor, level, at)) {
-      this.notify(this.placeFailText(actor, kind, reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
-  /** 安放床道具:落在面前吸附格中心放下对应等级的床(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useBedItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useBedItem', [kind]);
-
-    const level = bedItemLevel(kind);
-    const { at, reason } = this.autoPlaceCell(actor, kind);
-    if (this.asleepFor(actor) || level === null || reason || !this.beds.place(actor, level, at)) {
-      this.notify(this.placeFailText(actor, kind, reason), actor);
+  /** 设施的权威结算:cell 已由站定自动放置选好时直接用,否则就近最优格;失败给出具体提示 */
+  private settleFacility(kind: ResourceKind, actor: PlayerSession, cell: { x: number; z: number } | null): boolean {
+    const def = this.autoPlace.defOf(kind);
+    if (!def || this.asleepFor(actor)) return false;
+    const t = cell ? { x: cell.x, z: cell.z, reason: null as string | null } : this.autoPlace.resolveTarget(actor, kind);
+    const at = new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z);
+    if (actor.inventory.count(kind) <= 0 || t.reason || !def.place(actor, at)) {
+      this.notify(this.placeFailText(actor, kind, t.reason), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3079,41 +3026,7 @@ export class Game {
     );
   }
 
-  /** 背包里点击「使用」围栏/围栏门:吸附到面前的格点(边)放下,不满足时给出提示 */
-  useFenceItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useFenceItem', [kind]);
-
-    const a = actor;
-    if (this.asleepFor(a)) return false;
-    const fenceKind = fenceKindOfItem(kind);
-    const ok = fenceKind
-      ? this.fences.useFence(a, fenceKind)
-      : kind === 'fenceGate'
-        ? this.fences.useGate(a)
-        : false;
-    if (!ok) {
-      this.notify('这里放不下,找块没东西的干地正对着要围的方向试试', a);
-      return false;
-    }
-    this.afterPlaceDiggable(a);
-    return true;
-  }
-
   /** 安放神龛道具:落在面前吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useShrine(actor: PlayerSession = this.local, kind: ShrineKind = 'poseidonBlessing'): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useShrine', [kind]);
-
-    const { at, reason } = this.autoPlaceCell(actor, kind);
-    if (this.asleepFor(actor) || reason || !this.shrines.place(actor, kind, at)) {
-      this.notify(this.placeFailText(actor, kind, reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
   /** 死亡瞬间的复活石结算:碎裂一颗,免惩罚在出生点苏醒(血量回半,携带不变);没有则返回 false */
   private tryReviveWithStone(session: PlayerSession): boolean {
     if (!session.inventory.remove('reviveStone', 1)) return false;
@@ -3141,107 +3054,108 @@ export class Game {
     if (actor.player.currentTool === 'shovel') actor.player.setTool('hand');
   }
 
-  /** 可安放道具的统一落点:就近最优可放格中心(与围栏共用同一格网),及其不可放原因(可放为 null) */
-  private autoPlaceCell(actor: PlayerSession, kind: ResourceKind): { at: THREE.Vector3; reason: string | null } {
-    const t = this.autoPlace.target(actor, kind);
-    return { at: new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z), reason: t.reason };
-  }
-
-  /** 放置失败提示:落点原因优先,道具已不在背包时点名,不再笼统说放不下 */
+  /** 放置失败提示:落点原因优先,道具已不在背包时点名,设施自定义次之,不再笼统说放不下 */
   private placeFailText(actor: PlayerSession, kind: ResourceKind, reason: string | null): string {
     if (reason) return reason;
     if (actor.inventory.count(kind) <= 0) return '背包里已经没有这个道具了';
-    return '这里放不下,找个没东西的干地试试';
+    return this.autoPlace.defOf(kind)?.failText?.(actor) ?? '这里放不下,找个没东西的干地试试';
   }
 
   /** 丛/蚯蚓窝的落点校验:返回 null=可放,否则为不可放原因 */
   private bushCellOk(actor: PlayerSession, x: number, z: number): string | null {
-    if (actor.player.isSwimming) return '游泳时不能安放';
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (this.terrain.isNearWater(p, 1)) return '离水太近';
-    if (p.y <= 0) return '这里在水里';
-    if (this.placeOccupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, 1);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return dryCellReason(actor, x, z, this.terrain, this.placeOccupancy, this.props);
   }
 
-  /** 背包里点「使用」可安放道具:直接在就近最优格放下(与围栏的背包使用一致) */
-  useAutoPlaceItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    if (this.asleepFor(actor) || !this.autoPlace.supports(kind)) return false;
-    return this.autoPlace.placeNow(kind, actor);
-  }
-
-  /** 安放熄灭的火堆道具:落在面前吸附格中心放回一座熄灭的火堆(背包「使用」与手持自动安放共用入口) */
-  useDeadCampfire(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useDeadCampfire', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'deadCampfire');
-    if (this.asleepFor(actor) || reason || !this.campfire.placeDead(actor, at)) {
-      this.notify(this.placeFailText(actor, 'deadCampfire', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
-  /** 注册全部可安放道具:位置校验沿用各系统规则,预览复用实体/资源点建模,放置走原 Game.useXxx 入口 */
-  private registerAutoPlaceDefs(): void {
-    const def = (
-      kind: ResourceKind,
-      valid: (actor: PlayerSession, x: number, z: number) => string | null,
-      buildPreview: () => THREE.Object3D,
-      place: (actor: PlayerSession) => boolean
-    ): void => {
-      this.autoPlace.register(kind, { valid, buildPreview, place });
+  /** 注册全部设施:每种可放置道具一份 FacilityDef——位置校验沿用各系统规则,预览复用实体/资源点建模,放置直达对应系统 */
+  private registerFacilities(): void {
+    const def = (kind: ResourceKind, facility: FacilityDef): void => {
+      this.autoPlace.register(kind, facility);
     };
     const ghost = (build: (scene: THREE.Scene) => THREE.Object3D): (() => THREE.Object3D) =>
       () => buildGhost(build);
     // 木箱/铁箱
-    def('crate', (a, x, z) => this.crates.canPlaceAt(a, x, z), ghost((sc) => new Crate(sc, new THREE.Vector3(), 'crate').group), (a) => this.useCrate('crate', a));
-    def('ironCrate', (a, x, z) => this.crates.canPlaceAt(a, x, z), ghost((sc) => new Crate(sc, new THREE.Vector3(), 'ironCrate').group), (a) => this.useCrate('ironCrate', a));
+    def('crate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'crate').group), place: (a, at) => this.crates.use(a, 'crate', at) });
+    def('ironCrate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'ironCrate').group), place: (a, at) => this.crates.use(a, 'ironCrate', at) });
     // 饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台
-    def('baitBarrel', (a, x, z) => this.baitBarrels.canPlaceAt(a, x, z), ghost((sc) => new BaitBarrel(sc, new THREE.Vector3(), 0).group), (a) => this.useBaitBarrel(a));
-    def('brewBarrel', (a, x, z) => this.brewBarrels.canPlaceAt(a, x, z), ghost((sc) => new BrewBarrel(sc, new THREE.Vector3(), 0).group), (a) => this.useBrewBarrel(a));
-    def('waterPurifier', (a, x, z) => this.waterPurifiers.canPlaceAt(a, x, z), ghost((sc) => new WaterPurifier(sc, new THREE.Vector3(), 0).group), (a) => this.useWaterPurifier(a));
-    def('smelter', (a, x, z) => this.smelters.canPlaceAt(a, x, z), ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), (a) => this.useSmelter(a));
-    def('loom', (a, x, z) => this.looms.canPlaceAt(a, x, z), ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), (a) => this.useLoom(a));
-    def('cookingStation', (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), (a) => this.useCookingStation(a));
+    def('baitBarrel', { tool: 'place', valid: (a, x, z) => this.baitBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BaitBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.baitBarrels.use(a, at) });
+    def('brewBarrel', { tool: 'place', valid: (a, x, z) => this.brewBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BrewBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.brewBarrels.use(a, at) });
+    def('waterPurifier', {
+      tool: 'place',
+      valid: (a, x, z) => this.waterPurifiers.canPlaceAt(a, x, z),
+      buildPreview: ghost((sc) => new WaterPurifier(sc, new THREE.Vector3(), 0).group),
+      place: (a, at) => this.waterPurifiers.use(a, at),
+      failText: () => '净化器只能放在海边湿沙滩上,去浅滩试试',
+    });
+    def('smelter', { tool: 'place', valid: (a, x, z) => this.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.smelters.use(a, at) });
+    def('loom', { tool: 'place', valid: (a, x, z) => this.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.looms.use(a, at) });
+    def('cookingStation', { tool: 'place', valid: (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => this.cookingStations.use(a, at) });
     // 熄灭的火堆
-    def('deadCampfire', (a, x, z) => this.campfire.canPlaceAt(a, x, z), ghost((sc) => new Campfire(sc, new THREE.Vector3(), 0).group), (a) => this.useDeadCampfire(a));
+    def('deadCampfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.campfire.placeDead(a, at) });
     // 神龛类(含火把,同一放置入口)
     for (const kind of ['poseidonBlessing', 'beehiveShrine', 'healCrystal', 'rainAltar', 'crocIncense', 'torch'] as const) {
-      def(
-        kind,
-        (a, x, z) => this.shrines.canPlaceAt(a, x, z),
-        ghost((sc) => new Shrine(sc, new THREE.Vector3(), kind).group),
-        (a) => this.useShrine(a, kind)
-      );
+      def(kind, {
+        tool: 'place',
+        valid: (a, x, z) => this.shrines.canPlaceAt(a, x, z),
+        buildPreview: ghost((sc) => new Shrine(sc, new THREE.Vector3(), kind).group),
+        place: (a, at) => this.shrines.place(a, kind, at),
+      });
     }
     // 床/工作台(各等级道具共用对应等级模型)
     const bedLevels: Partial<Record<ResourceKind, number>> = { bed1: 1, bed2: 2, bed3: 3 };
     for (const [kind, level] of Object.entries(bedLevels) as [ResourceKind, number][]) {
-      def(
-        kind,
-        (a, x, z) => this.beds.canPlaceAt(a, x, z),
-        ghost((sc) => new Bed(sc, new THREE.Vector3(), level).group),
-        (a) => this.useBedItem(kind, a)
-      );
+      def(kind, {
+        tool: 'place',
+        valid: (a, x, z) => this.beds.canPlaceAt(a, x, z),
+        buildPreview: ghost((sc) => new Bed(sc, new THREE.Vector3(), level).group),
+        place: (a, at) => this.beds.place(a, level, at),
+      });
     }
     const benchLevels: Partial<Record<ResourceKind, number>> = { workbench1: 1, workbench2: 2, workbench3: 3, workbench4: 4 };
     for (const [kind, level] of Object.entries(benchLevels) as [ResourceKind, number][]) {
-      def(
-        kind,
-        (a, x, z) => this.workbench.canPlaceAt(a, x, z),
-        ghost((sc) => new Workbench(sc, new THREE.Vector3(), level).group),
-        (a) => this.useWorkbenchItem(kind, a)
-      );
+      def(kind, {
+        tool: 'place',
+        valid: (a, x, z) => this.workbench.canPlaceAt(a, x, z),
+        buildPreview: ghost((sc) => new Workbench(sc, new THREE.Vector3(), level).group),
+        place: (a, at) => this.workbench.placeItem(a, level, at),
+      });
     }
     // 挖来的丛/蚯蚓窝
-    def('berryBush', (a, x, z) => this.bushCellOk(a, x, z), () => makeBerryBush().group, (a) => this.useBush('berryBush', a));
-    def('shrubBush', (a, x, z) => this.bushCellOk(a, x, z), () => makeShrub(), (a) => this.useBush('shrubBush', a));
-    def('grassTuft', (a, x, z) => this.bushCellOk(a, x, z), () => makeGrassTuft(), (a) => this.useBush('grassTuft', a));
-    def('wormNest', (a, x, z) => this.bushCellOk(a, x, z), () => makeWormNest().group, (a) => this.useBush('wormNest', a));
+    def('berryBush', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeBerryBush().group, place: (a, at) => this.placeBush('berryBush', at, a) });
+    def('shrubBush', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeShrub(), place: (a, at) => this.placeBush('shrubBush', at, a) });
+    def('grassTuft', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeGrassTuft(), place: (a, at) => this.placeBush('grassTuft', at, a) });
+    def('wormNest', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeWormNest().group, place: (a, at) => this.placeBush('wormNest', at, a) });
+    // 围栏木/石:落点优先接上现有围栏线,预览横杆按邻居显隐
+    for (const [kind, fenceKind] of [['fenceWood', 'branch'], ['fenceStone', 'stone']] as const) {
+      def(kind, {
+        tool: 'fence',
+        target: (a) => {
+          const t = this.fences.vertexTarget(a);
+          return t ? { x: t.gx, z: t.gz, reason: null } : { ...snapAheadCell(a), reason: '附近没有能立围栏柱的格点,挪个位置再试' };
+        },
+        buildPreview: makeFenceGhost,
+        handModel: () => makeFenceHandModel(fenceKind),
+        onPreview: (preview, _a, x, z) => this.fences.applyGhost(preview, x, z),
+        place: (a) => this.fences.useFence(a, fenceKind),
+        failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
+      });
+    }
+    // 围栏门:占一条两格边,落点优先嵌进围栏线缺口,站定自动放置耗时更长
+    def('fenceGate', {
+      tool: 'fenceGate',
+      holdTime: 5,
+      target: (a) => {
+        const t = this.fences.gateTarget(a);
+        if (!t) return { ...snapAheadCell(a), reason: '附近没有能放围栏门的位置,挪个位置再试' };
+        return { x: t.gx + (t.dir === 'x' ? 1 : 0), z: t.gz + (t.dir === 'z' ? 1 : 0), reason: null };
+      },
+      buildPreview: makeGateGhost,
+      handModel: () => makeFenceGateHandModel(),
+      onPreview: (preview, a) => {
+        preview.rotation.y = this.fences.gateGhostRotY(a);
+      },
+      place: (a) => this.fences.useGate(a),
+      failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
+    });
   }
 
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
@@ -3289,28 +3203,16 @@ export class Game {
     return true;
   }
 
-  /** 安放挖来的丛/蚯蚓窝:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),校验与工作台摆放一致 */
-  useBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useBush', [kind]);
-
-    const a = actor;
-    if (this.asleepFor(a)) return false;
-    if (a.inventory.count(kind) <= 0) return false;
-    const { at, reason } = this.autoPlaceCell(a, kind);
-    if (reason) {
-      this.notify(reason, a);
-      return false;
-    }
+  /** 在给定格中心种回挖来的丛/蚯蚓窝(统一设施结算的 place 委托,落格已校验) */
+  private placeBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', at: THREE.Vector3, actor: PlayerSession): boolean {
     const cell = { x: at.x, z: at.z };
-    a.inventory.remove(kind, 1);
+    actor.inventory.remove(kind, 1);
     if (kind === 'wormNest') {
       this.props.placeWormNest(cell.x, cell.z);
     } else {
       const bushKind = kind === 'berryBush' ? 'berry' : kind === 'grassTuft' ? 'grass' : 'shrub';
       this.props.placeBush(bushKind, cell.x, cell.z);
     }
-    this.afterPlaceDiggable(a);
     this.audio.play('success');
     const fxPos = new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z) + 0.5, cell.z);
     this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : kind === 'grassTuft' ? '#a4c46a' : kind === 'wormNest' ? '#6f5a44' : '#6b8f4e', 10);
@@ -3401,34 +3303,6 @@ export class Game {
     return result === 'ok';
   }
 
-  /** 安放饵料桶:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useBaitBarrel(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useBaitBarrel', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'baitBarrel');
-    if (this.asleepFor(actor) || reason || !this.baitBarrels.use(actor, at)) {
-      this.notify(this.placeFailText(actor, 'baitBarrel', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
-  /** 安放酿酒桶:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useBrewBarrel(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useBrewBarrel', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'brewBarrel');
-    if (this.asleepFor(actor) || reason || !this.brewBarrels.use(actor, at)) {
-      this.notify(this.placeFailText(actor, 'brewBarrel', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
   /** 把背包里该种类原料丢进身旁酿酒桶(count ≤ 0 为全部,一次只酿一种,桶被占用时只接受同种),失败时给出提示 */
   brewBarrelFeed(kind: ResourceKind, count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
@@ -3465,23 +3339,6 @@ export class Game {
       this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
-    return true;
-  }
-
-  /** 安放海水净化器:落在面前吸附格中心(背包「使用」与手持自动安放共用入口,仅湿沙滩),不满足时给出提示 */
-  useWaterPurifier(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行房主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useWaterPurifier', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'waterPurifier');
-    if (this.asleepFor(actor) || reason || !this.waterPurifiers.use(actor, at)) {
-      this.notify(
-        reason ?? (actor.inventory.count('waterPurifier') <= 0 ? '背包里已经没有这个道具了' : '净化器只能放在湿沙滩上,去海边浅滩试试'),
-        actor
-      );
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
     return true;
   }
 
@@ -3524,20 +3381,6 @@ export class Game {
     return true;
   }
 
-  /** 安放冶炼炉:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useSmelter(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useSmelter', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'smelter');
-    if (this.asleepFor(actor) || reason || !this.smelters.use(actor, at)) {
-      this.notify(this.placeFailText(actor, 'smelter', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
-  }
-
   /** 把背包里的铁矿石丢进身旁冶炼炉(count ≤ 0 为全部,每 15 秒用 3 块矿石炼 1 块铁锭),失败时给出提示 */
   smelterFeed(count = 0, actor: PlayerSession = this.local): boolean {
     // 客人端:动作上行车主权威结算,状态由快照回流
@@ -3574,20 +3417,6 @@ export class Game {
       this.notify('背包满了,装不下更多东西', actor);
       return false;
     }
-    return true;
-  }
-
-  /** 安放纺织机:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useLoom(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useLoom', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'loom');
-    if (this.asleepFor(actor) || reason || !this.looms.use(actor, at)) {
-      this.notify(this.placeFailText(actor, 'loom', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
     return true;
   }
 
@@ -3636,21 +3465,6 @@ export class Game {
 
     if (this.asleepFor(actor)) return false;
     return this.campfire.addFuel(actor, kind) > 0;
-  }
-
-  /** 背包里点击「使用」烹饪台:校验通过后在玩家脚下原地放下(未点燃,需添柴),不满足时给出提示 */
-  /** 安放烹饪台:落在面前吸附格中心(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  useCookingStation(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useCookingStation', []);
-
-    const { at, reason } = this.autoPlaceCell(actor, 'cookingStation');
-    if (this.asleepFor(actor) || reason || !this.cookingStations.use(actor, at)) {
-      this.notify(this.placeFailText(actor, 'cookingStation', reason), actor);
-      return false;
-    }
-    this.afterPlaceDiggable(actor);
-    return true;
   }
 
   /** 向身旁烹饪台添加 1 个可燃物,返回是否成功 */
@@ -3902,8 +3716,7 @@ export class Game {
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'cookingStations' && this.cookingStations.isBusy(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
-    if (exclude !== 'fences' && (this.fences.isDigging(s) || this.fences.isPlacing(s)))
-      return true;
+    if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
     if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
     if (exclude !== 'autoPlace' && this.autoPlace.isPlacing(s)) return true;
@@ -4459,9 +4272,6 @@ export class Game {
     } else if (this.autoPlace.heldKind(session) !== null) {
       // 落点附近一圈都放不下:红色预览同款原因显示在头顶(与「需要斧子」同款提示)
       label = this.autoPlace.placeReason(session);
-    } else if (this.fences.isPlacing(session)) {
-      label = session.player.currentTool === 'fenceGate' ? '装围栏门…' : '立围栏…';
-      progress = this.fences.getPlaceProgress(session);
     } else if (this.fences.isDigging(session)) {
       label = '拆围栏…';
       progress = this.fences.getDigProgress(session);

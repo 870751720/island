@@ -5,15 +5,14 @@ import { Shrine, SHRINE_COLORS, type ShrineKind } from '../entities/Shrine';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
-import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
 import type { LightPool } from '../world/LightPool';
+import { dryCellReason } from './Facilities';
 
-const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const DIG_RANGE = 1.6; // 持铲子可开挖神像的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 /** 波塞冬的祝福:每座神像降低的钓鱼杂物概率(百分点) */
@@ -116,13 +115,7 @@ export class ShrineSystem {
   }
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return '游泳时不能安放';
-    if (this.terrain.isNearWater(p, 1)) return '离水太近';
-    if (p.y <= 0) return '这里在水里';
-    if (this.occupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 在吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口) */

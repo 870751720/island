@@ -7,7 +7,6 @@ import { ITEMS } from './Items';
 import { COOKABLE, BOILABLE } from './Food';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
-import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -15,8 +14,8 @@ import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
 import type { LightPool } from '../world/LightPool';
+import { dryCellReason } from './Facilities';
 
-const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距烹饪台小于该值时算在台旁
 const DIG_RANGE = 1.6; // 持铲子可开挖烹饪台的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
@@ -169,13 +168,7 @@ export class CookingStationSystem {
   }
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return '游泳时不能安放';
-    if (this.terrain.isNearWater(p, 1)) return '离水太近';
-    if (p.y <= 0) return '这里在水里';
-    if (this.occupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 在吸附格中心放下烹饪台(背包「使用」与手持自动安放共用入口,未点燃,需添柴引火) */

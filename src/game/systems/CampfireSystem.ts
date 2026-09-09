@@ -7,18 +7,17 @@ import { ITEMS } from './Items';
 import { COOKABLE } from './Food';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
-import { PROP_NAMES } from '../world/Props';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
 import type { LightPool } from '../world/LightPool';
+import { dryCellReason } from './Facilities';
 
 const CRAFT_TIME = 2.4; // 搭建火堆总时长(秒)
 const CRAFT_TICK = 0.6; // 每次敲击特效间隔(秒)
 const FX_COLOR = '#e0862e';
-const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处落脚摆放
 const NEAR_RANGE = 2.2; // 玩家距火堆小于该值时算在火堆旁
 export const CAMPFIRE_COST = { flint: 1, wood: 2 };
 /** 火堆卡片在手搓卡片中的弹出优先级(数值含义同 Recipe.promptPriority) */
@@ -165,13 +164,7 @@ export class CampfireSystem {
   }
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (actor.player.isSwimming) return '游泳时不能安放';
-    if (this.terrain.isNearWater(p, 1)) return '离水太近';
-    if (p.y <= 0) return '这里在水里';
-    if (this.occupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 是否满足制作条件(不忙 + 材料齐 + 脚下可摆放),火堆数量不限 */

@@ -17,14 +17,14 @@
 
 ## 设计方案
 
-- **通用基座** `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → AutoPlaceDef` 注册表,`AutoPlaceDef = { valid(actor,x,z), buildPreview(), place(actor) }`。进度计时、原地一次限制(`lastPlaceX` 记位、移动复位)、预览生成与绿/红切换、忙碌让位(`isSessionBusy(..., 'autoPlace')`)全部在基座内,各系统只提供校验与模型。
-- **落点**:`snapAheadCell(actor)` 取玩家面前 0.9 处吸附到最近整数格中心;`Game.autoPlaceCell` 再查地形高度得到世界坐标,作为各 `useXxx` 的统一落点传入。
-- **注册**:`Game.registerAutoPlaceDefs()` 集中注册全部可安放道具;预览模型经 `buildGhost` 在一次性场景里复用实体构造器(木箱/床/工作台/桶/炉/机/烹饪台/火堆/神龛)或 Props 的建模函数(丛/蚯蚓窝)构建,统一接管材质。
-- **各系统改造**:各系统把原私有 `canPlace`(取玩家脚下)改为公开 `canPlaceAt(actor, x, z)`(取指定落点),`use/place` 增加落点参数;`CampfireSystem` 新增 `placeDead`(放置熄灭的火堆道具,放下时未点燃),`Game.useDeadCampfire` 为其共用入口。净水器的湿沙滩限定保持不变,只是判定点从脚下改为落点格。
-- **UI**:背包「使用」对可安放道具统一路由到 `Game.useAutoPlaceItem(kind)`(就近最优格直接放置,漂流瓶/信/种子/围栏仍走原入口);`Backpack.isUsable` 补入 `deadCampfire`;工具按钮长按弹出的选择面板与角标支持安放工具(角标为手持道具剩余个数),可放置清单经 HUD 快照 `placeables` 字段下发(上次使用的排最前)。
-- **进度环**:`Game` 头顶进度环优先取 `autoPlace.getPlaceProgress`,围栏沿用原逻辑。
-- **联机**:不改变同步协议。放置动作仍走各自 `useXxx` 上行、房主权威结算;安放工具的切换走既有 `tool` 动作;新增 `useDeadCampfire` 动作;客人端 `updatePreviewFor` 本地驱动预览(同围栏模式)。详见 `multiplayer.md`。
-- **存档兼容**:不改变任何持久化 ID 与存档结构,`SAVE_VERSION` 不变(仅放置坐标来源从脚下自由坐标变为格中心)。
+- **设施注册表** `src/game/systems/Facilities.ts` + `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → FacilityDef` 注册表,`FacilityDef = { tool, valid?, target?, buildPreview, handModel?, onPreview?, place(actor, at), holdTime?, failText? }`。所有可放置道具(建筑/神龛/丛/围栏木/石/围栏门)注册一份定义即获得全套行为:工具循环与长按选择面板入口、手持模型、绿/红落点预览、站定自动放置与背包「使用」就近放置。
+- **统一结算**:`Game.settleFacility(kind, actor, cell?)` 为唯一权威结算(失败提示、铲子收起等外围处理集中于此);`Game.useFacilityItem(kind)` 是背包「使用」与联机上行的统一入口。`AutoPlaceSystem` 构造时注入该 settle 回调,站定自动放置走满后带已选格回调。
+- **落点**:`snapAheadCell(actor)` 取面前 0.9 处吸附格中心;默认在面前 3x3 格内取最近可放格;围栏/门提供自定义 `target`(接线优先打分),预览的横杆显隐与门朝向经 `onPreview` 委托 `FenceSystem`。
+- **注册**:`Game.registerFacilities()` 集中注册全部设施;预览模型经 `buildGhost` 复用实体构造器或 Props 建模函数构建,统一接管材质。
+- **干地校验**:各系统 `canPlaceAt` 统一委托 `Facilities.dryCellReason`(游泳/离水/占格/资源点占位,返回原因短语);净水器保持湿沙滩特例。`toolOf(kind)` 给出设施手持对应的工具位(place/fence/fenceGate),`isPlaceable`/`cycleEntries`/`pickPlaceItem`/`heldPlaceItem`/UI 全部查注册表,不再散落 kind 硬编码。
+- **UI**:背包「使用」统一路由到 `Game.useFacilityItem(kind)`(漂流瓶/信/种子仍走原入口);工具按钮长按选择面板与角标照旧,数据源不变。
+- **联机**:全部放置动作合并为一个 `useFacility [kind]` 上行、房主权威结算;工具切换仍走 `tool` 动作;客人端 `updatePreviewFor` 本地驱动预览。详见 `multiplayer.md`。
+- **存档兼容**:不改变任何持久化 ID 与存档结构,`SAVE_VERSION` 不变。
 
 ## 迭代记录
 
@@ -34,3 +34,4 @@
 - 2026-09-09(迭代):**安放判定条件全部统一**。新增共享占格服务 `src/game/systems/PlaceOccupancy.ts`,11 个放置系统(工作台/箱/饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台/床/火堆/神龛)各实现 `blocksCell(p)` 注册进去;各系统 `canPlaceAt` 的同类间距特殊值(神龛 1.2、床 1.1、其余 0.8/0.9)全部删除,统一为「落点同格(1 米内)被任何已放置实体占据即不可放」,预览与结算共用同一份判定;原火堆/工作台没有的占格检查一并补上。放置失败提示补漏:道具已不在背包时明确提示,不再笼统「这里放不下」。
 - 2026-09-09(迭代):可放置道具(约 30 种)串在工具循环链上切换繁琐,新增**长按工具按钮弹出手持选择面板**作为快速直达入口(按住不动约 0.35s 触发,提前抬起或手指移动都算普通点击);面板含空手、已拥有工具与全部可放置道具(当前手持高亮,上次使用的道具排最前),单击循环行为保持不变;面板含空手、已拥有工具与全部可放置道具(当前手持高亮,上次使用的道具排最前)。`Game.pickPlaceItem(kind)` 为道具统一入口,选中仍走 `selectTool`/`tool` 动作,同步协议不变;HUD 快照新增 `placeables` 字段。
 - 2026-09-09(迭代):修正 11 个放置系统在最终结算时误将 `canPlaceAt` 的 `null`(可放)取反为失败的问题,使绿色预览与实际落地结果保持一致。
+- 2026-09-09(迭代):**设施行为全面统一,围栏并入同一体系**。新增 `src/game/systems/Facilities.ts`(FacilityDef 定义 + 干地格校验助手 `dryCellReason`),`AutoPlaceSystem` 升级为统一设施注册表(`toolOf/defOf/heldKind` 按定义的 tool 匹配手持工具);围栏木/石/围栏门注册为普通设施(`target` 接线优先、`onPreview` 横杆显隐与门朝向、门 `holdTime` 5 秒),`FenceSystem` 退化为围栏世界状态 + 放置/挖除结算,删除其独立的选中入口/预览/自动放置;`Game` 的 11 个 `useXxx` 放置入口合并为 `useFacilityItem`/`settleFacility`,联机动作合并为一个 `useFacility [kind]`;`isPlaceable`/`cycleEntries`/`pickPlaceItem`/`heldPlaceItem`/`buildHandModel` 与背包「使用」全部查注册表,10 个系统的重复 `canPlaceAt` 委托 `dryCellReason`。新增一种设施只需:Inventory kind + Items 条目 + 设施系统 + `registerFacilities` 一行(+ 可选配方/存档/联机世界段)。存档与同步协议字段不变。
