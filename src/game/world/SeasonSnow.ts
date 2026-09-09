@@ -35,7 +35,7 @@ export function patchSnowMaterial(mat: THREE.MeshStandardMaterial, wither = fals
         `#include <normal_fragment_maps>
         {
           ${wither ? `diffuseColor.rgb = mix(diffuseColor.rgb, ${WITHER_COLOR}, uSnowAmount * 0.85);` : ''}
-          float cover = uSnowAmount * smoothstep(0.05, 0.9, normal.y);
+          float cover = uSnowAmount * smoothstep(-0.15, 0.6, normal.y);
           diffuseColor.rgb = mix(diffuseColor.rgb, ${SNOW_COLOR}, cover);
         }`
       );

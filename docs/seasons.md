@@ -12,7 +12,7 @@
 ## 设计方案
 
 - `src/game/world/SeasonSnow.ts`:季节积雪表现层。
-  - 全场材质共享一个 shader uniform `uSnowAmount`(0~1),通过 `onBeforeCompile` 注入 `MeshStandardMaterial`,在法线计算后按表面朝向(`normal.y`)把 diffuse 颜色向雪色(略偏蓝的白)混合——朝上的面覆雪,侧面颜色变淡;不新增模型与 drawcall,移动端友好。
+  - 全场材质共享一个 shader uniform `uSnowAmount`(0~1),通过 `onBeforeCompile` 注入 `MeshStandardMaterial`,在法线计算后按表面朝向(`normal.y`)把 diffuse 颜色向雪色(略偏蓝的白)混合——朝上的面覆雪,侧面颜色变淡;覆盖曲线 smoothstep(-0.15, 0.6, normal.y),让锥形树冠等斜面各朝向都能吃满雪,垂直墙面只留淡淡一层;不新增模型与 drawcall,移动端友好。
   - `patchSnowMaterial(mat, wither)`:落叶植被材质传 `wither=true`,除积雪混合外先随雪量把整体颜色向枯黄褐(约 `#998550`)混合(上限 85%),实现阔叶入冬转枯、松柏常绿。
   - `updateSeasonSnow(delta)`:雪量向 GM 目标值平滑过渡(过渡速度 0.08/秒)。
 - 材质接入:`src/game/world/ClayMaterial.ts` 提供全场统一的 `clayMaterial(color, wither?)`(flatShading + 高粗糙度 + 自动注入季节 shader),各建筑/物件/植被模块统一引用;`IslandTerrain.ts` 的地表材质(顶点色)单独注入;水面不注入。
