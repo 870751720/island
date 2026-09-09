@@ -95,8 +95,8 @@ import { updateSeasonSnow } from './world/SeasonSnow';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
-import { MetaProgress, legacyPointsForDay } from './meta/MetaProgress';
 import { MetaDaily } from './meta/MetaDaily';
+import { MetaProgress } from './meta/MetaProgress';
 import type { MetaNodeId } from './meta/MetaTree';
 import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } from './meta/MetaHooks';
 import { rollLoot } from './systems/FishTable';
@@ -113,6 +113,7 @@ import { PickupPresentation } from './presentation/PickupPresentation';
 import { listPlaceables, nextToolEntry } from './systems/ToolCycle';
 import { restoreSession, snapshotSession } from './systems/SessionSaveCodec';
 import { HudSnapshotBuilder } from './presentation/HudSnapshotBuilder';
+import { buildDeathReport as createDeathReport } from './systems/DeathReportBuilder';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -2017,33 +2018,7 @@ export class Game {
   /** 汇总本局战绩(天数/死因/击杀/采集来自会话,建造从存档快照的摆件数量汇总) */
   private buildDeathReport(s: PlayerSession): DeathReport {
     const save = this.collectSave();
-    const built =
-      save.campfires.length +
-      save.workbenches.length +
-      save.crates.length +
-      (save.baitBarrels?.length ?? 0) +
-      (save.waterPurifiers?.length ?? 0) +
-      (save.smelters?.length ?? 0) +
-      (save.cookingStations?.length ?? 0) +
-      (save.looms?.length ?? 0) +
-      save.fences.length +
-      save.fenceGates.length +
-      save.beds.length +
-      (save.shrines?.length ?? 0) +
-      (save.stakes?.length ?? 0);
-    // 局外养成:本局沉淀的求生心得(超过 2 天才开始结算),写入局外存储并展示在死亡界面
-    const legacyPoints = legacyPointsForDay(save.day ?? 1);
-    if (legacyPoints > 0) MetaProgress.grant(legacyPoints);
-    return {
-      day: save.day ?? 1,
-      cause: s.survival.deathCause ?? 'animal',
-      kills: s.stats.kills,
-      collected: s.stats.collected,
-      crafted: s.craftedIds.size,
-      built,
-      legacyPoints,
-      scene: this.captureScene(),
-    };
+    return createDeathReport(save, s, this.captureScene());
   }
 
   /** 抓取当前画面作卡片底图(本帧已渲染,同一任务内读回缓冲安全) */
