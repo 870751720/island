@@ -100,8 +100,8 @@ export class PlayerAnimator {
       switch (action) {
         case 'chop':
         case 'mine': {
-          // 身体向左转肩蓄力，前挥时保持同侧持柄的轮廓。
-          body.set(0.1 + s * 0.12, -0.48 + s * 0.2, 0.12 - s * 0.04);
+          // 身体向右转肩蓄力，前挥时保持同侧持柄的轮廓。
+          body.set(0.1 + s * 0.12, 0.48 - s * 0.2, -0.12 + s * 0.04);
           head.set(0.08 - s * 0.04, -body.y * 0.55, -body.z * 0.4);
           right.set(-1.35 + s * 0.85, 0.08, -0.16);
           elbowR.x = -0.55 + s * 0.35;
@@ -199,12 +199,12 @@ export class PlayerAnimator {
     this.gripWeight += ((twoHanded || fishing ? 1 : 0) - this.gripWeight) * (1 - Math.exp(-28 * delta));
     if (twoHanded || fishing) {
       const swing = stroke(time, action === 'mine' ? 0.7 : 0.95);
-      // 左侧持柄；钓鱼时改为身前居中、双手握竿尾。
+      // 右侧持柄；钓鱼时改为身前居中、双手握竿尾。
       if (fishing) {
         const cast = action === 'cast' ? 1 - ease((time - 0.2) / 0.18) : 0;
         this.wrist.set(0, 0.4 + cast * 0.09 + breath * 0.004, 0.14 - cast * 0.025);
       } else {
-        this.wrist.set(-0.05 + swing * 0.01, 0.41 - swing * 0.075, 0.12 + swing * 0.025);
+        this.wrist.set(0.05 - swing * 0.01, 0.41 - swing * 0.075, 0.12 + swing * 0.025);
       }
       this.wrist.x *= -1;
       this.reachRight.solve(this.wrist, this.gripWeight);
