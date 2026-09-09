@@ -5,6 +5,7 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';
+import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
@@ -48,6 +49,8 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'shrubBush' ||
     kind === 'grassTuft' ||
     kind === 'wormNest' ||
+    // 作物种子:背包里直接使用即原地播种
+    kind in CROP_OF_SEED ||
     kind === 'crate' ||
     kind === 'ironCrate' ||
     kind === 'baitBarrel' ||

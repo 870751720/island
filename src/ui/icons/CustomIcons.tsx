@@ -423,6 +423,73 @@ export const HoeIcon: FC<IconProps> = ({ size }) => (
 );
 
 /** 自绘图标表:键为道具 kind,渲染时优先于 ITEMS 的 emoji */
+/** 作物种子通用形:土色种粒 + 顶上一支嫩芽,旁边配一小块作物色的果标记区分种类 */
+function CropSeedIcon({
+  size,
+  color,
+  marker,
+}: IconProps & {
+  color: string;
+  marker: 'round' | 'taper' | 'cob' | 'bean' | 'berry' | 'head' | 'big' | 'potato' | 'egg' | 'grain';
+}): React.ReactNode {
+  return (
+    <Svg size={size}>
+      <ellipse cx={26} cy={40} rx={11} ry={14} fill="#c9a06a" transform="rotate(-12 26 40)" />
+      <rect x={24.6} y={18} width={2.8} height={12} rx={1.4} fill="#7fae55" />
+      <ellipse cx={18} cy={19} rx={7.5} ry={4.2} fill="#8fc47a" transform="rotate(-35 18 19)" />
+      <ellipse cx={34} cy={17} rx={7.5} ry={4.2} fill="#8fc47a" transform="rotate(30 34 17)" />
+      {marker === 'round' && <circle cx={47} cy={44} r={9} fill={color} />}
+      {marker === 'berry' && <path d="M47 37c6 0 9 4 9 9 0 6-4 10-9 10s-9-4-9-10c0-5 3-9 9-9z" fill={color} />}
+      {marker === 'taper' && <polygon points="42,36 52,36 47,56" fill={color} />}
+      {marker === 'cob' && (
+        <g>
+          <rect x={42} y={34} width={10} height={20} rx={5} fill={color} />
+          <rect x={40} y={40} width={4} height={10} rx={2} fill="#6aa74e" />
+        </g>
+      )}
+      {marker === 'bean' && (
+        <g>
+          <ellipse cx={44} cy={45} rx={6} ry={4.5} fill={color} />
+          <ellipse cx={53} cy={50} rx={6} ry={4.5} fill={color} />
+        </g>
+      )}
+      {marker === 'head' && (
+        <g>
+          <circle cx={47} cy={45} r={9} fill={color} />
+          <path d="M38 46q9 6 18 0" stroke="#6aa74e" strokeWidth={2} fill="none" />
+        </g>
+      )}
+      {marker === 'big' && (
+        <g>
+          <ellipse cx={47} cy={45} rx={11} ry={9} fill={color} />
+          <rect x={45.8} y={33} width={2.4} height={6} rx={1.2} fill="#7a6a3a" />
+        </g>
+      )}
+      {marker === 'potato' && <ellipse cx={47} cy={45} rx={10} ry={8} fill={color} transform="rotate(-15 47 45)" />}
+      {marker === 'egg' && <rect x={42} y={33} width={10} height={22} rx={5} fill={color} transform="rotate(18 47 44)" />}
+      {marker === 'grain' && (
+        <g>
+          <ellipse cx={47} cy={41} rx={4} ry={8} fill={color} transform="rotate(15 47 41)" />
+          <ellipse cx={53} cy={49} rx={4} ry={8} fill={color} transform="rotate(-20 53 49)" />
+        </g>
+      )}
+    </Svg>
+  );
+}
+
+const CarrotSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e07b2a" marker="taper" />;
+const WheatSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e8c56a" marker="grain" />;
+const PotatoSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#c9a06a" marker="potato" />;
+const SweetPotatoSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#c96a3a" marker="taper" />;
+const CornSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e8c56a" marker="cob" />;
+const SoybeanSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#9aa74e" marker="bean" />;
+const TomatoSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#d94a3a" marker="round" />;
+const PepperSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#d93a2a" marker="taper" />;
+const EggplantSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#6a3a8a" marker="egg" />;
+const StrawberrySeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#d93a4a" marker="berry" />;
+const CabbageSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#8fc47a" marker="head" />;
+const PumpkinSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e0862a" marker="big" />;
+
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
@@ -453,4 +520,16 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   arrow: ArrowIcon,
   ironOre: IronOreIcon,
   torch: TorchIcon,
+  carrotSeed: CarrotSeedIcon,
+  wheatSeed: WheatSeedIcon,
+  potatoSeed: PotatoSeedIcon,
+  sweetPotatoSeed: SweetPotatoSeedIcon,
+  cornSeed: CornSeedIcon,
+  soybeanSeed: SoybeanSeedIcon,
+  tomatoSeed: TomatoSeedIcon,
+  pepperSeed: PepperSeedIcon,
+  eggplantSeed: EggplantSeedIcon,
+  strawberrySeed: StrawberrySeedIcon,
+  cabbageSeed: CabbageSeedIcon,
+  pumpkinSeed: PumpkinSeedIcon,
 };

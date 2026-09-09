@@ -23,3 +23,7 @@
 - **配方图标去冗余**:`Crafting.ts` 删除 `Recipe.icon` 字段,新增 `recipeIconKind`/`recipeIconLevel` 按产物推导,精致工具配方自动带 2 级角标。
 - **拾取提示**:头飘 toast 的数据从 `{icon,count}` 改为 `{kind,count}`(按道具合并),由 GameplayUI 用 `ItemIcon` 渲染。
 - 纯文本场合(进食/烹饪进度条等 `Food.icon`)保留 emoji 回退;小地图 canvas 标记(工作台/火堆/床)为场景概念,维持独立 emoji。
+
+### 作物种子自绘图标(2026-09-10)
+
+- 12 种作物种子全部改为自绘 `CropSeedIcon`(土色种粒 + 嫩芽 + 作物色果标记,按 round/taper/cob/bean/berry/head/big/potato/egg/grain 十种轮廓参数化区分),解决多个种子共用 🌱、麦种与植物纤维共用 🌾 的重复;emoji 仅作纯文本回退。
