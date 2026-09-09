@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS } from '@/game/systems/Food';

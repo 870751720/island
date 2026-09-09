@@ -3,7 +3,7 @@
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { LOOM_ROPE_PER_CLOTH, LOOM_INTERVAL } from '@/game/systems/LoomSystem';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { ItemIcon } from './ItemIcon';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { ITEMS } from '@/game/systems/Items';
 import { TOOL_IDS, toolName } from '@/game/systems/Crafting';
 import { promptCardStyle, promptWrapStyle } from './promptCard';

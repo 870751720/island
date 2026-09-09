@@ -4,7 +4,7 @@ import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import { BREWABLE, BREW_COST, BREW_INTERVAL } from '@/game/systems/Wine';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertListStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 

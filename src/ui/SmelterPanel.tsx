@@ -3,7 +3,7 @@
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { SMELT_ORE_PER_INGOT, SMELT_INTERVAL } from '@/game/systems/SmelterSystem';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 
 /** 屏幕中心的钓鱼按钮与咬钩全屏点击层:手持鱼竿站在可钓点时出现按钮;咬钩时点击屏幕任意处收竿 */
 export function FishingControls({

@@ -2,9 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import type { CSSProperties } from 'react';
-
-/** 三条生存数值(0-100),与 SurvivalState 同步 */
-export type VitalLevels = { hunger: number; thirst: number; health: number };
+import type { VitalLevels } from '@/game/GameContracts';
 
 export type VitalWarnHandle = {
   update: (vitals: VitalLevels | null, x: number, y: number) => void;

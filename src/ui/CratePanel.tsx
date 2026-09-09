@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { ItemIcon } from './ItemIcon';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { CRATE_CAPACITY } from '@/game/entities/Crate';
 import { startHoldTap } from './holdRepeat';

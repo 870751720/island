@@ -3,7 +3,7 @@ import { GuestSignal, normalizeRoomCode } from './Signaling';
 import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
-import type { HudSnapshot } from '../Game';
+import type { HudSnapshot } from '../GameContracts';
 import type { PlayerGender } from '../entities/PlayerModel';
 import { applyEntityDelta } from './SnapshotDelta';
 import type { AmbientPose, PlayerState } from './Protocol';

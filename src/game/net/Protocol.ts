@@ -1,7 +1,7 @@
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { SaveData } from '../systems/SaveSystem';
 import type { ResourceKind } from '../systems/Inventory';
-import type { HudSnapshot } from '../Game';
+import type { HudSnapshot } from '../GameContracts';
 import type { SfxName } from '../audio/Sfx';
 import type { ActionType } from '../entities/Player';
 import type { AnimalSpecies, LeashPose } from '../entities/Wildlife';

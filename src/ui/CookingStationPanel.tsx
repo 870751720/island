@@ -4,7 +4,7 @@ import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, COOKABLE, BOILABLE } from '@/game/systems/Food';
 import { convertListStyle } from './ConvertRow';

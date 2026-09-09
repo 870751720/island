@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import { BAIT_YIELD } from '@/game/systems/Food';
 import { BAIT_CONVERT_INTERVAL } from '@/game/systems/BaitBarrelSystem';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ConvertRow, convertOverlayStyle, convertPanelStyle, convertRowStyle, convertListStyle, convertActionButtonStyle, convertCollectButtonStyle, convertTakeButtonStyle, convertBarStyle } from './ConvertRow';
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 
 function StatRow({ icon, value, color }: { icon: string; value: number; color: string }) {

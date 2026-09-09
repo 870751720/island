@@ -2,7 +2,7 @@
 
 import { ItemIcon } from './ItemIcon';
 import type { CSSProperties } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { EAT_PROMPT_HUNGER, firstFoodEntryIn } from '@/game/systems/Food';
 import { isWineKind } from '@/game/systems/Wine';
 import { promptCardStyle, promptWrapStyle } from './promptCard';

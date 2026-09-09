@@ -2,7 +2,7 @@
 
 import { ItemIcon } from './ItemIcon';
 import type { ReactNode } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots } from '@/game/systems/Inventory';
 import {
   RECIPES,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { MapSnapshot } from '@/game/Game';
+import type { MapSnapshot } from '@/game/GameContracts';
 
 type MapPanelProps = {
   snapshot: MapSnapshot;

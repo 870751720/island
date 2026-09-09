@@ -3,7 +3,7 @@
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type ResourceKind } from '@/game/systems/Inventory';
 import {
   RECIPES,

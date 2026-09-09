@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { HudSnapshot } from '@/game/Game';
+import type { HudSnapshot } from '@/game/GameContracts';
 import { fadeStyle } from './fade';
 
 /**

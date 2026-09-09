@@ -103,7 +103,8 @@ import type { MetaNodeId } from './meta/MetaTree';
 import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } from './meta/MetaHooks';
 import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
-import type { VitalLevels } from '../ui/VitalWarn';
+import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
+export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 
 /** Game 构造选项:联机时由 UI 传入网络会话与种子/初始存档 */
 export type GameOptions = {
@@ -117,154 +118,10 @@ export type GameOptions = {
   save?: SaveData | null;
 };
 
-export type HudSnapshot = {
-  hunger: number;
-  thirst: number;
-  health: number;
-  dead: boolean;
-  /** 剩余箭数(弹药存储,持弓时工具按钮角标展示) */
-  arrow: number;
-  /** 剩余鱼饵数(弹药存储,持鱼竿时工具按钮角标展示) */
-  bait: number;
-  /** 手持围栏/围栏门时背包剩余个数(工具按钮角标) */
-  heldFenceCount: number;
-  /** 手持安放道具时背包剩余个数(工具按钮角标) */
-  heldPlaceCount: number;
-  /** 手持的可放置道具(含围栏/门,工具按钮图标跟随,未手持为 null) */
-  heldItemKind: ResourceKind | null;
-  /** 背包里可手持放置的道具清单(去重、上次使用的排最前),供长按工具按钮的选择面板展示 */
-  placeables: { kind: ResourceKind; count: number }[];
-  /** 背包格子快照(空格为 null)与容量 */
-  slots: InventorySlot[];
-  capacity: number;
-  hasAxe: boolean;
-  hasPickaxe: boolean;
-  hasShovel: boolean;
-  hasFishingrod: boolean;
-  hasBow: boolean;
-  hasSword: boolean;
-  /** 背包里有套索(或正牵着羊):工具按钮出现套索项 */
-  hasLasso: boolean;
-  /** 背包剩余套索数(持套索时角标展示) */
-  lassoCount: number;
-  /** 正牵着一只羊(工具按钮变为「打桩」) */
-  leading: boolean;
-  /** 身旁有被拴在桩上的羊(工具按钮变为「解开套索」) */
-  nearTether: boolean;
-  /** 各工具当前等级(0 未拥有、1 基础、2 高级) */
-  toolTiers: Tools;
-  /** 已制作过的配方 id(图鉴「已制作」标记与工作台列表展示) */
-  craftedIds: CraftId[];
-  /** 背包里是否有种子(可切换到种子播种) */
-  /** 玩家在木箱旁(工具按钮变为木箱,点击打开储物面板) */
-  nearCrate: boolean;
-  /** 玩家在饵料桶旁(工具按钮变为饵料桶,点击打开投喂/收取面板) */
-  nearBaitBarrel: boolean;
-  /** 玩家在酿酒桶旁(工具按钮变为酿酒桶,点击打开投料/收取面板) */
-  nearBrewBarrel: boolean;
-  /** 玩家在冶炼炉旁(工具按钮变为冶炼炉,点击打开投料/收取面板) */
-  nearSmelter: boolean;
-  /** 玩家在纺织机旁(工具按钮变为纺织机,点击打开投料/收取面板) */
-  nearLoom: boolean;
-  /** 玩家在床旁(工具按钮变为床,点击开始睡觉) */
-  nearBed: boolean;
-  /** 睡觉过渡进行中与进度 */
-  bedSleeping: boolean;
-  bedSleepProgress: number;
-  /** 身旁木箱的格子快照(不在木箱旁为 null) */
-  crateSlots: InventorySlot[] | null;
-  /** 身旁木箱的收纳格数(木箱 10 / 铁箱 20,不在木箱旁为 null) */
-  crateCapacity: number | null;
-  /** 身旁饵料桶的状态(桶内食物/鱼饵与发酵进度,不在桶旁为 null) */
-  baitBarrelInfo: BaitBarrelInfo | null;
-  /** 身旁酿酒桶的状态(桶内原料/酒与发酵进度,不在桶旁为 null) */
-  brewBarrelInfo: BrewBarrelInfo | null;
-  /** 身旁冶炼炉的状态(炉内矿石/铁锭与冶炼进度,不在炉旁为 null) */
-  smelterInfo: SmelterInfo | null;
-  /** 玩家在烹饪台旁(工具按钮变为烹饪台,点击打开烤制/煮汤面板) */
-  nearCookingStation: boolean;
-  /** 身旁烹饪台的状态(燃料/煮制队列/存放的汤品,不在台旁为 null) */
-  cookingStationInfo: CookingStationInfo | null;
-  /** 身旁纺织机的状态(机内绳线/布料与织布进度,不在机旁为 null) */
-  loomInfo: LoomInfo | null;
-  /** 四个装备栏位当前穿戴的道具(未装备为 null) */
-  equipped: Record<EquipSlot, EquipKind | null>;
-  gender: PlayerGender;
-  tool: HandTool;
-  craftId: CraftId | null;
-  craftProgress: number;
-  /** 本局是否已放置过工作台(工作台配方只在从未放置过时出现) */
-  workbenchCrafted: boolean;
-  /** 场上是否已有火堆/烹饪台(火堆配方在已有时不出现) */
-  campfirePlaced: boolean;
-  /** 工作台升级进度 */
-  workbenchProgress: number;
-  /** 当前工作台等级 1-4(没有工作台为 0) */
-  workbenchLevel: number;
-  /** 玩家在的工作范围内(工具按钮变为工作台,点击打开制作面板) */
-  nearWorkbench: boolean;
-  /** 火堆烹饪进度 */
-  campfireProgress: number;
-  /** 玩家在火堆旁(工具按钮变为火堆,点击打开火堆面板) */
-  nearCampfire: boolean;
-  /** 身旁火堆的状态(燃烧与否与剩余燃料),不在火堆旁为 null */
-  campfireInfo: CampfireInfo | null;
-  eatName: string | null;
-  eatProgress: number;
-  /** 空手站定等待自动切换工具的进度(0~1,0 表示未在等待) */
-  autoEquipProgress: number;
-  /** 联机死亡后的复活倒计时剩余秒数(房主权威),未在倒计时时为 null;单机波塞冬庇佑期间也复用该倒计时 */
-  respawnLeft: number | null;
-  /** 波塞冬的庇佑进行中(单机新手宽容期触发,死亡界面切海洋主题并倒计时复活) */
-  poseidonGrace: boolean;
-  /** 站在可钓点且手持鱼竿时出现钓鱼按钮 */
-  canFish: boolean;
-  /** 钓鱼进行中的阶段,空闲为 null */
-  fishingState: FishingState | null;
-  fishingProgress: number;
-  /** 本轮奖池档位与等待期剩余秒数(客人端以此对齐咬钩时刻),非等待态为 null */
-  fishingTier: number;
-  fishingWaitLeft: number | null;
-  /** 咬钩反应窗口进行中(点/连点屏幕收竿)与连点进度 */
-  biteActive: boolean;
-  biteClicks: number;
-  biteNeed: number;
-  /** 四档珍宝转盘的目标道具(非转盘态为 null,客人端随快照回流) */
-  treasureKind: ResourceKind | null;
-  /** 采集挖出的珍宝(碎石成金满级):非空时 HUD 弹珍宝转盘 */
-  collectTreasure: ResourceKind | null;
-  /** 玩家附近可捡回的掉落物,无时为 null */
-  nearDrop: DropInfo | null;
-  /** 通用临时提示(自动消失),如「背包满了」 */
-  notice: { id: number; text: string } | null;
-  /** 当前是第几天(跨过清晨计一天,睡觉跳夜也会推进) */
-  day: number;
-  /** 玩家正在移动或处于任一交互进行中(用于淡化非必要 HUD 按钮) */
-  busy: boolean;
-  /** 玩家正在移动(移动中不显示左侧弹出卡片) */
-  moving: boolean;
-  /** 房主权威计算的头顶交互提示；联机客人不在本地推进交互系统。 */
-  indicator: { label: string | null; progress: number | null; color?: string };
-  /** 当前生效的 buff(全局祝福 + 个人减速),点图标看效果 tip */
-  buffs: HudBuff[];
-};
-
 const VIEW_SIZE = 18;
 
 /** updateCamera 复用的注视点偏移临时向量 */
 const _camOffset = new THREE.Vector3();
-
-/** 拾取提示(玩家头顶飘图标):道具、数量与诞生时的屏幕坐标 */
-export type PickupToast = { items: { kind: ResourceKind; count: number }[]; x: number; y: number };
-
-/** 地图只读快照：UI 定时读取当前已同步到本机的玩家与放置物位置。 */
-export type MapSnapshot = {
-  island: { width: number; length: number };
-  terrain: { columns: number; rows: number; pixels: Uint8Array };
-  localPlayerId: string;
-  players: { id: string; name: string; x: number; z: number; dead: boolean }[];
-  workbenches: { x: number; z: number }[];
-};
 
 const AUTOSAVE_INTERVAL = 5; // 自动存档间隔(秒)
 const AUTO_EQUIP_DELAY = 0.5; // 站定不动多久后自动切换到需要的工具(秒)

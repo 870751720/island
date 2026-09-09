@@ -10,7 +10,7 @@ import type { WorldSection } from './WorldDelta';
 import { diffEntities, diffObject, quantize } from './SnapshotDelta';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
-import type { HudSnapshot } from '../Game';
+import type { HudSnapshot } from '../GameContracts';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可按离场快照恢复角色

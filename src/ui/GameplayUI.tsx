@@ -3,7 +3,8 @@
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
-import { Game, type HudSnapshot, type MapSnapshot, type PickupToast } from '@/game/Game';
+import { Game } from '@/game/Game';
+import type { HudSnapshot, MapSnapshot, PickupToast } from '@/game/GameContracts';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn, type VitalWarnHandle } from './VitalWarn';
 import { Hud } from './Hud';
