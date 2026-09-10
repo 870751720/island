@@ -17,7 +17,6 @@ export interface NetActionArgs {
   hookFish: [];
   claimTreasure: [];
   sleep: [];
-  useFacility: [kind: ResourceKind];
   baitBarrelFeed: [kind: ResourceKind, count: number];
   baitBarrelCollect: [];
   baitBarrelTakeFoods: [];
@@ -81,7 +80,6 @@ const NET_ACTION_ARG_COUNTS = {
   hookFish: [0],
   claimTreasure: [0],
   sleep: [0],
-  useFacility: [1],
   baitBarrelFeed: [2],
   baitBarrelCollect: [0],
   baitBarrelTakeFoods: [0],
@@ -187,7 +185,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return first == null || isResourceKind(first);
     case 'tool':
       return isString(first) && HAND_TOOLS.has(first) && (second === null || isResourceKind(second));
-    case 'useFacility':
     case 'cookingAddFuel':
     case 'useSeed':
     case 'campfireAddFuel':

@@ -68,7 +68,7 @@ export class AutoPlaceSystem {
     /** 其他占用双手的行为(如合成/采集中),为真时安放让位 */
     private isBusy: (actor: PlayerSession) => boolean = () => false,
     /** 统一放置结算入口(由 Game 提供:失败提示、铲子收起等外围处理都在那边) */
-    private settle: (kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number } | null) => boolean = () => false
+    private settle: (kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number }) => boolean = () => false
   ) {}
 
   /** 注册一种可放置设施 */

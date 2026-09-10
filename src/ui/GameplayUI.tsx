@@ -294,8 +294,8 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          // 可放置道具(建筑/丛/神龛/围栏等)统一在就近最优格放下,放不下时提示原因
-          if (gameRef.current?.useFacilityItem(kind)) {
+          // 可放置道具(建筑/丛/神龛/围栏等)使用后拿在手上,走站定安放流程(预览+自动放置)
+          if (gameRef.current?.pickPlaceItem(kind)) {
             setBackpackOpen(false);
             return;
           }

@@ -24,7 +24,6 @@ const ACTIONS: NetActionRegistry = {
   hookFish: (g, a) => g.hookFish(a),
   claimTreasure: (g, a) => g.claimTreasure(a),
   sleep: (g, a) => g.sleep(a),
-  useFacility: (g, a, [kind]) => g.useFacilityItem(kind, a),
   baitBarrelFeed: (g, a, [kind, count]) => g.baitBarrelFeed(kind, count, a),
   baitBarrelCollect: (g, a) => g.baitBarrelCollect(a),
   baitBarrelTakeFoods: (g, a) => g.baitBarrelTakeFoods(a),

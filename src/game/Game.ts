@@ -1979,10 +1979,12 @@ export class Game {
     return listPlaceables(s, this.autoPlace, this.lastPlaceKind);
   }
 
-  /** 从选择面板选中一种可放置道具切入对应手持模式 */
-  pickPlaceItem(kind: ResourceKind): void {
+  /** 从选择面板或背包「使用」选中一种可放置道具切入对应手持模式(联机经 tool 动作上行) */
+  pickPlaceItem(kind: ResourceKind): boolean {
     const tool = this.autoPlace.toolOf(kind);
-    if (tool) this.selectTool(tool, kind);
+    if (!tool) return false;
+    this.selectTool(tool, kind);
+    return true;
   }
 
   /** 该会话手里正举着的可放置道具,供图标、手持模型与快照用 */
@@ -2403,22 +2405,13 @@ export class Game {
     return actor.player.isSleeping;
   }
 
-  /** 统一设施放置入口(背包「使用」与手持自动安放共用):客人上行房主权威结算,房主就近最优格落下 */
-  useFacilityItem(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useFacility', [kind]);
-
-    return this.settleFacility(kind, actor, null);
-  }
-
-  /** 设施的权威结算:cell 已由站定自动放置选好时直接用,否则就近最优格;失败给出具体提示 */
-  private settleFacility(kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number } | null): boolean {
+  /** 设施的权威结算:cell 由站定自动放置选好,客人上行房主结算;失败给出具体提示 */
+  private settleFacility(kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number }): boolean {
     const def = this.autoPlace.defOf(kind);
     if (!def || this.asleepFor(actor)) return false;
-    const t = cell ? { x: cell.x, z: cell.z, reason: null as string | null } : this.autoPlace.resolveTarget(actor, kind);
-    const at = new THREE.Vector3(t.x, this.terrain.getHeight(t.x, t.z), t.z);
-    if ((!def.free && actor.inventory.count(kind as ResourceKind) <= 0) || t.reason || !def.place(actor, at)) {
-      this.notify(this.placeFailText(actor, kind, t.reason), actor);
+    const at = new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z), cell.z);
+    if ((!def.free && actor.inventory.count(kind as ResourceKind) <= 0) || !def.place(actor, at)) {
+      this.notify(this.placeFailText(actor, kind, null), actor);
       return false;
     }
     this.afterPlaceDiggable(actor);
@@ -3046,9 +3039,9 @@ export class Game {
       // 背包放不下的产物掉在玩家身旁
       (kind, count) => this.giveItem(kind, count, s),
       s.craftedIds,
-      // 设施产物制作完成自动拿在手上(铲子除外:避免原地误挖刚做好的设施)
+      // 仅火把/火堆/一级工作台制作完成自动拿在手上,其余设施产物进背包
       (kind) => {
-        if (s.player.currentTool === 'shovel' || !this.autoPlace.supports(kind)) return;
+        if (kind !== 'torch' && kind !== 'campfire' && kind !== 'workbench1') return;
         this.setToolFor(s, this.autoPlace.toolOf(kind) ?? 'place', kind);
       }
     );
