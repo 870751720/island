@@ -1222,6 +1222,7 @@ export class Game {
   private hookHostNotices(host: NetHost): void {
     host.onGuestJoined = (name) => this.sysNotify(`${name} 加入了游戏`);
     host.onGuestLeft = (name) => this.sysNotify(`${name} 离开了游戏`);
+    host.onGuestConnectionFailed = () => this.sysNotify('有玩家尝试加入，但连接未完成，请让对方重试或切换网络');
   }
 
   /** 房主恢复旧联机岛后，按昵称优先认领此前保存的队友角色；excludeIds 为仍在断线保留期内的角色。 */

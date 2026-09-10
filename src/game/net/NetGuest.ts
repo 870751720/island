@@ -89,6 +89,7 @@ export class NetGuest {
     };
     net.onOpen = () => {
       if (this.net !== net || this.disposed) return;
+      this.startInput();
       this.onConnectionStatus('连接成功，等待房主开始游戏');
       signal.close();
       this.signal = null;
@@ -209,7 +210,7 @@ export class NetGuest {
         this.lastHeartbeatSent = now;
         this.net?.send({ t: 'heartbeat' });
       }
-      if (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ) {
+      if (this.ready && (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ)) {
         this.sentInputX = this.inputX;
         this.sentInputZ = this.inputZ;
         const seq = ++this.inputSeq;

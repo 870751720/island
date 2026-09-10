@@ -26,6 +26,7 @@ type Guest = {
   net: PeerNet;
   session: PlayerSession | null;
   name: string;
+  joined: boolean;
   /** 客人 hello 上报的个人档案性别,创建新角色时生效;断线恢复沿用存档性别 */
   gender: PlayerGender | null;
   lastSeen: number;
@@ -61,6 +62,7 @@ export class NetHost {
 
   onGuestJoined: (name: string) => void = () => {};
   onGuestLeft: (name: string) => void = () => {};
+  onGuestConnectionFailed: () => void = () => {};
 
   constructor() {
     this.terrainSeed = Math.random() * 1000;
@@ -75,7 +77,7 @@ export class NetHost {
 
   /** 已接入的客人名字(含未开始的) */
   get guestNames(): string[] {
-    return this.guests.filter((g) => g.net.connected || g.session).map((g) => g.name || '朋友');
+    return this.guests.filter((g) => g.joined).map((g) => g.name);
   }
 
   /** 创建五位数字码房间；之后加入者由信令服务自动接入。 */
@@ -101,6 +103,7 @@ export class NetHost {
       net,
       session: null,
       name: '',
+      joined: false,
       gender: null,
       lastSeen: performance.now(),
       resumeToken: crypto.randomUUID(),
@@ -109,6 +112,7 @@ export class NetHost {
       dog: null, hud: null, climate: '',
     };
     this.guests.push(guest);
+    net.onOpen = () => { guest.lastSeen = performance.now(); };
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
     net.onClose = () => this.dropGuest(guest);
     try {
@@ -123,7 +127,7 @@ export class NetHost {
     this.game = game;
     // 信令保持在线:断线客人需要它重新握手,用原房间码回来即可恢复席位
     for (const guest of this.guests) {
-      if (guest.net.connected && !guest.session) this.welcome(guest);
+      if (guest.joined && guest.net.connected && !guest.session) this.welcome(guest);
     }
     if (!this.timer) this.timer = setInterval(() => this.tick(), FAST_TICK_MS);
   }
@@ -146,6 +150,7 @@ export class NetHost {
   private onMessage(guest: Guest, msg: NetMsg): void {
     guest.lastSeen = performance.now();
     if (msg.t === 'hello') {
+      if (guest.joined) return;
       if (msg.protocol !== NET_PROTOCOL_VERSION) {
         guest.net.send({ t: 'reject', reason: '双方游戏版本不一致，请刷新页面后重试' });
         setTimeout(() => this.dropGuest(guest), 100);
@@ -161,6 +166,7 @@ export class NetHost {
         guest.name = msg.name?.trim().slice(0, 16) || '朋友';
         guest.gender = msg.gender === 'girl' ? 'girl' : msg.gender === 'boy' ? 'boy' : null;
       }
+      guest.joined = true;
       if (this.game && !guest.session) this.welcome(guest);
       else if (this.game) this.sendWelcome(guest);
       this.onGuestJoined(guest.name);
@@ -245,7 +251,8 @@ export class NetHost {
       this.resumable.set(guest.resumeToken, { save, name: guest.name, expires: performance.now() + RESUME_GRACE });
     }
     guest.net.close();
-    this.onGuestLeft(guest.name || '朋友');
+    if (guest.joined) this.onGuestLeft(guest.name);
+    else this.onGuestConnectionFailed();
   }
 
   /** 40ms 一拍：玩家与战斗动物 25Hz；普通动物/环境 10Hz；HUD 5Hz 检查。 */
@@ -265,7 +272,8 @@ export class NetHost {
     if (hudFrame) this.hudElapsed %= HUD_TICK_MS;
     const now = performance.now();
     for (const guest of [...this.guests]) {
-      if (now - guest.lastSeen > INPUT_TIMEOUT) {
+      // 握手由 PeerNet 的 30 秒计时器负责；通道打开后才检查心跳。
+      if (guest.net.connected && now - guest.lastSeen > INPUT_TIMEOUT) {
         this.dropGuest(guest);
         continue;
       }
