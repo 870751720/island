@@ -24,6 +24,7 @@ export interface NetActionArgs {
   brewBarrelCollect: [];
   brewBarrelTakeRaw: [];
   smelterFeed: [count: number];
+  smelterAddFuel: [kind: ResourceKind];
   smelterCollect: [];
   smelterTakeOre: [];
   cookingAddFuel: [kind: ResourceKind];
@@ -87,6 +88,7 @@ const NET_ACTION_ARG_COUNTS = {
   brewBarrelCollect: [0],
   brewBarrelTakeRaw: [0],
   smelterFeed: [1],
+  smelterAddFuel: [1],
   smelterCollect: [0],
   smelterTakeOre: [0],
   cookingAddFuel: [1],
@@ -186,6 +188,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'tool':
       return isString(first) && HAND_TOOLS.has(first) && (second === null || isResourceKind(second));
     case 'cookingAddFuel':
+    case 'smelterAddFuel':
     case 'useSeed':
     case 'campfireAddFuel':
     case 'equipItem':

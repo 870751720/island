@@ -11,6 +11,9 @@ import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
 import { dryCellReason } from './Facilities';
+import { ITEMS } from './Items';
+import type { ResourceKind } from './Inventory';
+import type { LightPool } from '../world/LightPool';
 
 const NEAR_RANGE = 2.2; // 玩家距冶炼炉小于该值时算在炉旁
 const DIG_RANGE = 1.6; // 持铲子可开挖冶炼炉的距离
@@ -20,13 +23,14 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 export const SMELT_INTERVAL = 15;
 export { SMELT_ORE_PER_INGOT };
 
-/** 冶炼炉存档/网络快照(落点 + 炉内矿石与铁锭存量) */
+/** 冶炼炉存档/网络快照(落点 + 燃料 + 炉内矿石与铁锭存量) */
 export type SmelterSave = {
   id?: string;
   x: number;
   y: number;
   z: number;
   rotY?: number;
+  fuel?: number;
   ore: number;
   ingot: number;
   tickLeft: number;
@@ -37,9 +41,13 @@ type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget:
 
 /** 身旁冶炼炉的 HUD 快照 */
 export type SmelterInfo = {
+  /** 是否在燃烧(只有燃着才能冶炼) */
+  lit: boolean;
+  /** 剩余燃烧秒数 */
+  fuel: number;
   ore: number;
   ingot: number;
-  /** 当前冶炼进度 0-1(无矿石为 0) */
+  /** 当前冶炼进度 0-1(未在冶炼为 0) */
   progress: number;
 };
 
@@ -47,7 +55,8 @@ export type SmelterInfo = {
  * 冶炼炉系统(世界多实例,按发起者 actor 结算):
  * - 背包里点击「使用」冶炼炉,校验通过后在玩家脚下原地放下
  *   (与木箱摆放同一套规则:不能在水里/水边,脚下不能被资源点或其他冶炼炉占住);
- * - 靠近后可把背包里的铁矿石丢进炉:每 15 秒用 3 块矿石炼出 1 块铁锭(矿石不足 3 块时等待补足,不计时),存放在炉内待收取;
+ * - 靠近后可把背包里的铁矿石丢进炉:添柴燃着后每 15 秒用 3 块矿石炼出 1 块铁锭
+ *   (熄火或矿石不足 3 块时等待,不计时),存放在炉内待收取;
  * - 手持铲子靠近站定自动整炉挖走(变回冶炼炉道具,炉内矿石与铁锭一并回到背包/掉落)。
  * 冶炼计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
@@ -71,7 +80,9 @@ export class SmelterSystem {
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
     private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
-    private isBusy: (actor: PlayerSession) => boolean = () => false
+    private isBusy: (actor: PlayerSession) => boolean = () => false,
+    /** 火光光源池 */
+    private lights?: LightPool
   ) {}
 
   /** 岛上已放置的熔炉数量 */
@@ -135,11 +146,27 @@ export class SmelterSystem {
   }
 
   private placeAt(position: THREE.Vector3, rotY: number): Smelter {
-    const smelter = new Smelter(this.scene, position, rotY);
+    const smelter = new Smelter(this.scene, position, rotY, 0, this.lights);
     this.smelters.push(smelter);
     const sp = smelter.group.position;
-    this.onChanged?.({ op: 'add', id: this.ids.get(smelter), value: { id: this.ids.get(smelter), x: sp.x, y: sp.y, z: sp.z, rotY: smelter.group.rotation.y, ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft } });
+    this.onChanged?.({ op: 'add', id: this.ids.get(smelter), value: { id: this.ids.get(smelter), x: sp.x, y: sp.y, z: sp.z, rotY: smelter.group.rotation.y, fuel: smelter.fuel, ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft } });
     return smelter;
+  }
+
+  /** 向身旁冶炼炉添加 1 个可燃物,熄灭的炉子添柴后复燃,返回增加的燃烧秒数,失败为 0 */
+  addFuel(actor: PlayerSession, kind: ResourceKind): number {
+    const smelter = this.nearby(actor);
+    const burnTime = ITEMS[kind].burnTime;
+    if (!smelter || !burnTime || !actor.inventory.remove(kind, 1)) return 0;
+    const wasLit = smelter.isLit;
+    smelter.fuel += burnTime;
+    if (!wasLit) smelter.relight();
+    this.emitState(smelter);
+    this.audio.play('stoke');
+    const p = smelter.group.position.clone();
+    p.y += 0.5;
+    this.fx.burst(p, '#ff9a3d', 6);
+    return burnTime;
   }
 
   /** 把背包里的铁矿石丢进身旁冶炼炉(count ≤ 0 为全部),返回是否丢入任何数量 */
@@ -179,12 +206,15 @@ export class SmelterSystem {
     return true;
   }
 
-  /** 每帧推进:权威端结算冶炼,所有端推进炉门特效;客人端本地倒数只做表现 */
+  /** 每帧推进:权威端结算冶炼,所有端推进燃料消耗与炉口特效;客人端本地倒数只做表现 */
   update(delta: number, elapsed: number, authority: boolean): void {
     for (const smelter of this.smelters) {
+      const wasLit = smelter.isLit;
+      if (smelter.isLit) smelter.fuel = Math.max(0, smelter.fuel - delta);
+      if (wasLit && !smelter.isLit) this.emitState(smelter);
       smelter.update(elapsed);
-      // 矿石不足一炉时视为空闲:不计时不出炉,等待补足矿石
-      if (smelter.ore < SMELT_ORE_PER_INGOT) {
+      // 熄火或矿石不足一炉时视为空闲:不计时不出炉,等待添柴或补足矿石
+      if (!smelter.isSmelting) {
         smelter.tickLeft = SMELT_INTERVAL;
         continue;
       }
@@ -239,6 +269,7 @@ export class SmelterSystem {
       this.smelters.splice(this.smelters.indexOf(target), 1);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
       this.scene.remove(target.group);
+      target.dispose();
       this.give('smelter', 1, actor);
       if (target.ore > 0) this.give('ironOre', target.ore, actor);
       if (target.ingot > 0) this.give('ironIngot', target.ingot, actor);
@@ -261,9 +292,11 @@ export class SmelterSystem {
     const smelter = this.nearby(actor);
     if (!smelter) return null;
     return {
+      lit: smelter.isLit,
+      fuel: smelter.fuel,
       ore: smelter.ore,
       ingot: smelter.ingot,
-      progress: smelter.ore >= SMELT_ORE_PER_INGOT ? 1 - Math.max(smelter.tickLeft, 0) / SMELT_INTERVAL : 0,
+      progress: smelter.isSmelting ? 1 - Math.max(smelter.tickLeft, 0) / SMELT_INTERVAL : 0,
     };
   }
 
@@ -271,24 +304,25 @@ export class SmelterSystem {
   snapshot(): SmelterSave[] {
     return this.smelters.map((smelter) => {
       const p = smelter.group.position;
-      return { id: this.ids.get(smelter), x: p.x, y: p.y, z: p.z, rotY: smelter.group.rotation.y, ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft };
+      return { id: this.ids.get(smelter), x: p.x, y: p.y, z: p.z, rotY: smelter.group.rotation.y, fuel: smelter.fuel, ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft };
     });
   }
 
   /** 清空场上全部冶炼炉(客人侧重放世界快照前调用) */
   clear(): void {
-    for (const smelter of this.smelters) this.scene.remove(smelter.group);
+    for (const smelter of this.smelters) {
+      this.scene.remove(smelter.group);
+      smelter.dispose();
+    }
     this.smelters = [];
   }
 
-  /** 从存档恢复全部冶炼炉(含炉内矿石与铁锭) */
+  /** 从存档恢复全部冶炼炉(含燃料与炉内矿石、铁锭) */
   restore(list: SmelterSave[]): void {
     for (const s of list) {
-      const smelter = new Smelter(this.scene, new THREE.Vector3(s.x, s.y, s.z), s.rotY ?? 0);
+      const smelter = new Smelter(this.scene, new THREE.Vector3(s.x, s.y, s.z), s.rotY ?? 0, s.fuel ?? 0, this.lights);
       this.ids.set(smelter, s.id);
-      smelter.ore = s.ore;
-      smelter.ingot = s.ingot;
-      smelter.tickLeft = s.tickLeft;
+      smelter.netApply({ fuel: s.fuel ?? 0, ore: s.ore, ingot: s.ingot, tickLeft: s.tickLeft });
       this.smelters.push(smelter);
     }
   }
@@ -298,7 +332,7 @@ export class SmelterSystem {
     this.onChanged?.({
       op: 'set',
       id: this.ids.get(smelter),
-      fields: { ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft },
+      fields: { fuel: smelter.fuel, ore: smelter.ore, ingot: smelter.ingot, tickLeft: smelter.tickLeft },
     });
   }
 
@@ -315,7 +349,7 @@ export class SmelterSystem {
       const existed = value.id ? current.get(value.id) : undefined;
       let smelter = existed;
       if (!smelter) {
-        smelter = new Smelter(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0);
+        smelter = new Smelter(this.scene, new THREE.Vector3(value.x, value.y, value.z), value.rotY ?? 0, value.fuel ?? 0, this.lights);
         this.ids.set(smelter, value.id);
         this.smelters.push(smelter);
       }
@@ -323,9 +357,16 @@ export class SmelterSystem {
       if (existed && value.ingot > smelter.ingot) {
         this.fx.burst(smelter.group.position.clone().setY(smelter.group.position.y + 0.85), '#e8703a', 4);
       }
-      smelter.ore = value.ore;
-      smelter.ingot = value.ingot;
-      smelter.tickLeft = value.tickLeft;
+      smelter.netApply({ fuel: value.fuel ?? 0, ore: value.ore, ingot: value.ingot, tickLeft: value.tickLeft });
+    }
+  }
+
+  /** 时间快进(睡觉跳到第二天):燃料按跳过的秒数继续烧,冶炼暂停(燃尽即熄) */
+  passTime(seconds: number): void {
+    for (const smelter of this.smelters) {
+      smelter.fuel = Math.max(0, smelter.fuel - seconds);
+      if (!smelter.isLit) smelter.tickLeft = SMELT_INTERVAL;
+      this.emitState(smelter);
     }
   }
 }

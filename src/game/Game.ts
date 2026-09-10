@@ -636,7 +636,9 @@ export class Game {
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
       this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
-      (actor) => this.isSessionBusy(actor, 'smelters')
+      (actor) => this.isSessionBusy(actor, 'smelters'),
+      // 火光光源池
+      this.flameLights
     );
     this.cookingStations = new CookingStationSystem(
       this.scene,
@@ -2446,6 +2448,7 @@ export class Game {
         this.dayNight.endSleep();
         this.props.advance(skipped);
         this.campfire.passTime(skipped, performance.now() / 1000);
+        this.smelters.passTime(skipped);
         this.cookingStations.passTime(skipped);
         s.hunger -= stats.cost;
         s.thirst -= stats.cost;
@@ -2770,6 +2773,10 @@ export class Game {
   /** 把背包里的铁矿石丢进身旁冶炼炉(count ≤ 0 为全部,每 15 秒用 3 块矿石炼 1 块铁锭),失败时给出提示 */
   smelterFeed(count = 0, actor: PlayerSession = this.local): boolean {
     return this.facilityInteractions.smelterFeed(count, actor);
+  }
+
+  smelterAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
+    return this.facilityInteractions.smelterAddFuel(kind, actor);
   }
 
   /** 把身旁冶炼炉里还没炼的矿石取回背包,失败时给出提示 */

@@ -31,6 +31,7 @@ const ACTIONS: NetActionRegistry = {
   brewBarrelCollect: (g, a) => g.brewBarrelCollect(a),
   brewBarrelTakeRaw: (g, a) => g.brewBarrelTakeRaw(a),
   smelterFeed: (g, a, [count]) => g.smelterFeed(count, a),
+  smelterAddFuel: (g, a, [kind]) => g.smelterAddFuel(kind, a),
   smelterCollect: (g, a) => g.smelterCollect(a),
   smelterTakeOre: (g, a) => g.smelterTakeOre(a),
   cookingAddFuel: (g, a, [kind]) => g.cookingAddFuel(kind, a),

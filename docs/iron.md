@@ -10,7 +10,7 @@
 - 陨石采集在原有产出(石头 ×2 + 25% 燧石)基础上,**新增铁矿石 ×2-4**。
 - 新增道具「铁矿石」与「铁锭」。
 - 新增可制作放置物「冶炼炉」(🏭):**三级工作台**制作,配方 **石头 ×10 + 燧石 ×3**;放置规则与木箱/饵料桶一致(干地、无遮挡),可被铲子挖走回收(炉内矿石与铁锭一并返还)。
-- 靠近冶炼炉接管工具按钮,打开面板:按数量把背包里的铁矿石投入炉内(无容量上限),也可随时取回还没炼的矿石,**每 15 秒用 3 块铁矿石炼出 1 块铁锭**,可随时收取;矿石足够(≥3 块)时炉门火光闪动,不足 3 块时视为空闲(不计时、火光熄灭、进度为 0),等待补足后再继续。
+- 靠近冶炼炉接管工具按钮,打开面板:按数量把背包里的铁矿石投入炉内(无容量上限),也可随时取回还没炼的矿石,**每 15 秒用 3 块铁矿石炼出 1 块铁锭**,可随时收取;**炉子需要添柴引火(燃料系统与烹饪台一致,`fuel > 0` 即燃着)**,燃着且矿石足够(≥3 块)时才计时冶炼,炉门口烧着摇曳火焰并透出动态火光;熄火或矿石不足 3 块时视为空闲(不计时、火焰熄灭、进度为 0),添柴/补足后自动继续。
 
 ## 设计方案
 
@@ -18,10 +18,10 @@
 - 撒点 `world/PropSpawner.ts`:`Rule` 新增可选 `minT` 硬性纬度下限,落点与候选格双重过滤;铁矿 `density: 40、radius: 1.2、patch: 4、weights: [0.4, 0.6, 1, 1.3]、minT: 0.5`(密度以北半区有效陆地计,总量不少于全岛石矿的一半)。出生点保底不含铁矿。
 - 采集 `systems/CollectSystem.ts`:`HARVEST_CONFIG.iron`(mine、4 击、二级镐 3 击)与 meteor 条目均加 `ironOre 2-4`;iron 与 rock/meteor 同样要求手持镐子(自动换工具、提示文案同步)。
 - 道具:`ResourceKind` 新增 `ironOre`(铁矿石 🧲)/`ironIngot`(铁锭 ⚙️)/`smelter`(冶炼炉 🏭),`ITEMS`/`DROP_COLORS`/`BUILDERS`(矿石 = 灰岩嵌锈红斑、铁锭 = 梯形块、炉 = 小石炉带火光)配套。
-- 冶炼炉完全镜像饵料桶(`entities/Smelter.ts` + `systems/SmelterSystem.ts`):状态为 `ore/ingot/tickLeft`;摆放校验、铲子挖走、`nearby`、`snapshot/restore/netApply`、`EntityChangeSink` 增量上报一一对齐;冶炼计时只在权威端结算,客人端本地倒数只做表现。面板 `ui/SmelterPanel.tsx`(矿石/铁锭存量、进度条、投入/收取)。
+- 冶炼炉镜像饵料桶与烹饪台(`entities/Smelter.ts` + `systems/SmelterSystem.ts`):状态为 `fuel/ore/ingot/tickLeft`;添柴(可燃物 `burnTime` 续秒)、燃料消耗、燃/灭表现切换与烹饪台同款(火焰锥体 + `LightPool` 动态火光,随燃料缩放摇曳,低燃料闪烁加剧);摆放校验、铲子挖走、`nearby`、`snapshot/restore/netApply`、`EntityChangeSink` 增量上报一一对齐;燃料消耗与冶炼计时只在权威端结算,客人端本地倒数只做表现。面板 `ui/SmelterPanel.tsx`(添柴区、矿石/铁锭存量、进度条、投入/收取)。
 - 配方:`Crafting.ts` 新增 `smelter`(`station: 'workbench' + minBenchLevel: 3`,石头 ×10 + 燧石 ×3)。
-- 存档:`SaveData` 新增可选字段 `smelters`(落点 + ore/ingot/tickLeft),旧档缺省视为无炉,`SAVE_VERSION` 保持不变。
-- 联机:动作 `useSmelter/smelterFeed/smelterCollect` 上行房主结算,世界段 `smelters` 增量回流(同 `baitBarrels`);采集走既有 collectFx/掉落事件通道,无新增同步。
+- 存档:`SaveData` 新增可选字段 `smelters`(落点 + fuel/ore/ingot/tickLeft),旧档缺省视为无炉,旧炉快照缺 `fuel` 字段按 0(熄火)恢复,`SAVE_VERSION` 保持不变。
+- 联机:动作 `smelterFeed/smelterAddFuel/smelterCollect/smelterTakeOre` 上行房主结算,世界段 `smelters` 增量回流(同 `baitBarrels`/`cookingStations`,燃尽瞬间 emitState 对账);采集走既有 collectFx/掉落事件通道,无新增同步。
 
 ## 迭代记录
 
@@ -50,3 +50,7 @@
 ### 面板对齐烹饪台(2026-09)
 
 - 冶炼炉面板改为与烹饪台煮汤区同款布局(`ui/ConvertRow.tsx` 共享组件):投入铁矿石前可用步进按钮选数量;新增「取回」按钮,可把炉内还没炼的矿石取回背包(取回后冶炼计时复位为满值)。联机走 `smelterFeed[count]`/`smelterTakeOre` 动作上行,房主权威结算。
+
+### 燃料系统(2026-09)
+
+- 冶炼炉加入与烹饪台一致的燃料系统:状态新增 `fuel`(剩余燃烧秒数),面板新增添柴区(可燃物按 `ITEMS.burnTime` 续秒);**熄火时无法冶炼**(不计时不出锭),添柴复燃后自动继续。表现区分:燃着时炉门火口发亮闪动、火口烧三簇随燃料缩放摇曳的火焰并领取 `LightPool` 动态火光(低燃料闪烁加剧),熄火后火口发暗、无火焰无光。睡觉快进按跳过秒数烧燃料、冶炼暂停。联机:动作 `smelterAddFuel[kind]` 上行,`fuel` 字段随 `smelters` 世界段增量回流,客人端本地倒数表现 + 快照对账;旧档缺 `fuel` 按 0 恢复(`SAVE_VERSION` 不变)。

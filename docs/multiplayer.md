@@ -121,7 +121,7 @@
 
 ### 冶炼炉同步(2026-09)
 
-- 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed[count]/smelterCollect/smelterTakeOre`:放置/投料/收取由客人上行、房主权威结算,炉内 `ore/ingot/tickLeft` 经世界增量回流;冶炼计时只在房主端推进(同饵料桶)。
+- 新增世界段 `smelters` 与动作 `useSmelter/smelterFeed[count]/smelterAddFuel[kind]/smelterCollect/smelterTakeOre`:放置/投料/添柴/收取由客人上行、房主权威结算,炉内 `fuel/ore/ingot/tickLeft` 经世界增量回流(燃尽瞬间 emitState 对账);冶炼计时与出炉只在房主端推进,燃料消耗与火焰表现各端本地倒数/驱动(同烹饪台)。
 - 纺织机同款约定:世界段 `looms` 与动作 `useLoom/loomFeed[count]/loomCollect/loomTakeRope`,机内 `rope/cloth/tickLeft` 经世界增量回流,织布计时只在房主端推进。
 
 ### 海水净化器同步(2026-09)

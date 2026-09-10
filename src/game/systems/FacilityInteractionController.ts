@@ -87,6 +87,11 @@ export class FacilityInteractionController {
     return false;
   }
 
+  smelterAddFuel(kind: ResourceKind, actor: PlayerSession): boolean {
+    if (this.guest) return this.guest.action('smelterAddFuel', [kind]);
+    return !this.asleep(actor) && this.systems.smelters.addFuel(actor, kind) > 0;
+  }
+
   smelterTakeOre(actor: PlayerSession): boolean {
     return this.take('smelterTakeOre', actor, () => this.systems.smelters.takeOre(actor));
   }

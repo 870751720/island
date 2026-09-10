@@ -505,6 +505,7 @@ export function GameplayUI({
             <SmelterPanel
               hud={hud}
               onFeed={(count) => gameRef.current?.smelterFeed(count)}
+              onAddFuel={(kind) => gameRef.current?.smelterAddFuel(kind)}
               onCollect={() => gameRef.current?.smelterCollect()}
               onTakeOre={() => gameRef.current?.smelterTakeOre()}
               onClose={() => closePanel('smelter')}
