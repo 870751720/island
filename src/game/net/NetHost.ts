@@ -159,8 +159,10 @@ export class NetHost {
       const resume = msg.resumeToken ? this.resumable.get(msg.resumeToken) : undefined;
       if (this.game && resume && resume.expires > performance.now()) {
         this.resumable.delete(msg.resumeToken!);
-        guest.session = this.game.resumeRemoteSession(resume.save, resume.name);
-        guest.name = resume.name;
+        const name = msg.name?.trim().slice(0, 16) || resume.name;
+        guest.gender = msg.gender === 'girl' ? 'girl' : msg.gender === 'boy' ? 'boy' : null;
+        guest.session = this.game.resumeRemoteSession(resume.save, name);
+        guest.name = name;
         guest.resumeToken = msg.resumeToken!;
       } else {
         guest.name = msg.name?.trim().slice(0, 16) || '朋友';
