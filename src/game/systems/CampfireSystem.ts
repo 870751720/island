@@ -44,6 +44,7 @@ type PlayerSessionState = {
   cookTotal: number;
   cookTimer: number;
   cookTickTimer: number;
+  cookFullNotified: boolean;
 };
 
 /**
@@ -74,6 +75,8 @@ export class CampfireSystem {
     private isOtherBusy: (actor: PlayerSession) => boolean = () => false,
     /** 烹饪产物入包(背包放不下的部分由该函数负责掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
+    /** 背包满导致烹饪暂停时的提示(缺省不提示) */
+    private notifyFull: (text: string, actor: PlayerSession) => void = () => {},
     /** 火光光源池 */
     private lights?: LightPool
   ) {}
@@ -84,7 +87,7 @@ export class CampfireSystem {
       st = {
         hold: new ActionHold(),
         swingTimer: 0, hits: 0, digTarget: null,
-        cookKind: null, cookFire: null, cookQueue: 0, cookTotal: 0, cookTimer: 0, cookTickTimer: 0,
+        cookKind: null, cookFire: null, cookQueue: 0, cookTotal: 0, cookTimer: 0, cookTickTimer: 0, cookFullNotified: false,
       };
       this.states.set(actor, st);
     }
@@ -225,6 +228,11 @@ export class CampfireSystem {
     const cooked = COOKABLE[kind];
     const owned = actor.inventory.count(kind);
     if (!fire || !fire.isLit || !cooked || owned < 1) return false;
+    // 背包放不下烤制品时不让开烤,避免烤好掉地上
+    if (!actor.inventory.canFit(cooked)) {
+      this.notifyFull('背包满了,装不下烤好的食物', actor);
+      return false;
+    }
     const n = Math.min(count, owned);
     actor.inventory.remove(kind, n);
     st.cookKind = kind;
@@ -233,6 +241,7 @@ export class CampfireSystem {
     st.cookTotal = n;
     st.cookTimer = 0;
     st.cookTickTimer = 0;
+    st.cookFullNotified = false;
     return true;
   }
 
@@ -248,6 +257,15 @@ export class CampfireSystem {
       st.cookFire = null;
       return;
     }
+    // 背包放不下产物时暂停烹饪(不烤、不掉地上),腾出空间自动继续
+    if (!actor.inventory.canFit(COOKABLE[kind]!)) {
+      if (!st.cookFullNotified) {
+        st.cookFullNotified = true;
+        this.notifyFull('背包满了,装不下烤好的食物,腾出空间后继续烹饪', actor);
+      }
+      return;
+    }
+    st.cookFullNotified = false;
     st.hold.hold(actor.player, 'cook');
     st.cookTimer += delta;
     st.cookTickTimer += delta;

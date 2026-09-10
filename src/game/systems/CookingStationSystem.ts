@@ -243,10 +243,11 @@ export class CookingStationSystem {
     return 'ok';
   }
 
-  /** 收取身旁烹饪台上煮好的全部汤品,返回收取个数 */
-  collect(actor: PlayerSession): number {
+  /** 收取身旁烹饪台上煮好的全部汤品:背包放不下时不收取并返回 'full' */
+  collect(actor: PlayerSession): 'ok' | 'empty' | 'full' {
     const station = this.nearby(actor);
-    if (!station || !station.outKind || station.outCount <= 0) return 0;
+    if (!station || !station.outKind || station.outCount <= 0) return 'empty';
+    if (!actor.inventory.canFit(station.outKind)) return 'full';
     const kind = station.outKind;
     const n = station.outCount;
     station.outKind = null;
@@ -257,7 +258,7 @@ export class CookingStationSystem {
     const p = station.group.position.clone();
     p.y += 0.9;
     this.fx.burst(p, '#ffcf5e', 8);
-    return n;
+    return 'ok';
   }
 
   /** 把身旁烹饪台锅里还没煮的食材取回背包,返回是否取回任何数量 */

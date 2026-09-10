@@ -693,6 +693,8 @@ export class Game {
       (actor) => this.isSessionBusy(actor, 'campfire'),
       // 烹饪好的食物背包放不下时掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 背包满导致烹饪暂停时提示
+      (text, actor) => this.notify(text, actor),
       // 火光光源池
       this.flameLights
     );

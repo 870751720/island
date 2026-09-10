@@ -155,6 +155,7 @@ export class BrewBarrelSystem {
     const barrel = this.nearby(actor);
     if (!barrel || barrel.kind === null || barrel.bottles <= 0) return false;
     const wine = BREWABLE[barrel.kind]!;
+    if (!actor.inventory.canFit(wine)) return false;
     const n = barrel.bottles;
     barrel.bottles = 0;
     if (!barrel.busy) barrel.kind = null;

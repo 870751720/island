@@ -158,6 +158,7 @@ export class LoomSystem {
   collect(actor: PlayerSession): boolean {
     const loom = this.nearby(actor);
     if (!loom || loom.cloth <= 0) return false;
+    if (!actor.inventory.canFit('cloth')) return false;
     const n = loom.cloth;
     loom.cloth = 0;
     this.emitState(loom);

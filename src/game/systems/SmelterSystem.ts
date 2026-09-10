@@ -185,6 +185,7 @@ export class SmelterSystem {
   collect(actor: PlayerSession): boolean {
     const smelter = this.nearby(actor);
     if (!smelter || smelter.ingot <= 0) return false;
+    if (!actor.inventory.canFit('ironIngot')) return false;
     const n = smelter.ingot;
     smelter.ingot = 0;
     this.emitState(smelter);

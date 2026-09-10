@@ -143,8 +143,9 @@ export class FacilityInteractionController {
   cookingCollect(actor: PlayerSession): boolean {
     if (this.guest) return this.guest.action('cookingCollect', []);
     if (this.asleep(actor)) return false;
-    if (this.systems.cookingStations.collect(actor) > 0) return true;
-    this.notify('还没有煮好的汤', actor);
+    const result = this.systems.cookingStations.collect(actor);
+    if (result === 'ok') return true;
+    this.notify(result === 'full' ? '背包满了,装不下更多东西' : '还没有煮好的汤', actor);
     return false;
   }
 

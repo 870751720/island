@@ -157,6 +157,7 @@ export class BaitBarrelSystem {
   collect(actor: PlayerSession): boolean {
     const barrel = this.nearby(actor);
     if (!barrel || (barrel.bait <= 0 && barrel.seeds <= 0)) return false;
+    if ((barrel.bait > 0 && !actor.inventory.canFit('bait')) || (barrel.seeds > 0 && !actor.inventory.canFit('pumpkinSeed'))) return false;
     const n = barrel.bait;
     const seeds = barrel.seeds;
     barrel.bait = 0;
