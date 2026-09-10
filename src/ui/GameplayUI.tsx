@@ -8,6 +8,7 @@ import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
+import { PerformanceOverlay } from './gm/PerformanceTab';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
 import { ToolButton } from './ToolButton';
@@ -172,6 +173,7 @@ export function GameplayUI({
       {!photoMode && (
         <>
           <FpsOverlay />
+          <PerformanceOverlay getGame={() => gameRef.current} />
           <TrafficOverlay />
               <Hud
                 hud={hud}
@@ -260,6 +262,7 @@ export function GameplayUI({
           gender={hud.gender}
           onClose={() => setGmOpen(false)}
           actions={{
+            getGame: () => gameRef.current,
             restoreStatus: () => gameRef.current?.gmRestoreStatus(),
             setGender: (gender) => gameRef.current?.gmSetGender(gender),
             setTime: (t) => gameRef.current?.gmSetTime(t),

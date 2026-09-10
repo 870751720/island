@@ -3,6 +3,8 @@ export type Updatable = {
 };
 
 export class GameLoop {
+  onFrame: ((interval: number, cpu: number) => void) | null = null;
+
   private updatables: Updatable[] = [];
   private rafId = 0;
   private lastTime = 0;
@@ -18,10 +20,13 @@ export class GameLoop {
     this.lastTime = performance.now();
     const tick = (now: number) => {
       if (!this.running) return;
+      const interval = now - this.lastTime;
+      const start = this.onFrame ? performance.now() : 0;
       const delta = Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
       const elapsed = now / 1000;
       for (const u of this.updatables) u.update(delta, elapsed);
+      this.onFrame?.(interval, performance.now() - start);
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);

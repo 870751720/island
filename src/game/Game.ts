@@ -1,3 +1,4 @@
+import { PerformanceMonitor } from './core/PerformanceMonitor';
 import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
@@ -132,6 +133,15 @@ export class Game {
   private camera: THREE.OrthographicCamera;
   private cameraController: GameCameraController;
   private loop = new GameLoop();
+  readonly performanceMonitor = new PerformanceMonitor();
+
+  gmPerformance(enabled: boolean): void {
+    this.performanceMonitor.enabled = enabled;
+    this.performanceMonitor.reset();
+    this.loop.onFrame = enabled
+      ? (interval, cpu) => this.performanceMonitor.record(interval, cpu, this.renderer, this.guestMode ? "客人" : this.hostRef ? "房主" : "单机")
+      : null;
+  }
   /** 全部玩家会话(下标 0 为本地玩家;联机时由房主持有远程会话) */
   private sessions: PlayerSession[] = [];
   private mapTerrain?: MapSnapshot['terrain'];
@@ -1069,7 +1079,9 @@ export class Game {
         this.updateLeashLines();
         this.updateCamera(delta);
         this.ocean.update(this.camera, elapsed);
+        const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.renderer.render(this.scene, this.camera);
+        if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
             // 倒下时松开手里的绳子:套索掉在羊脚下,羊恢复野生
