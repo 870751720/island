@@ -30,3 +30,9 @@
 - **恢复时机**:`Game` 构造时读取存档,用地形种子生成岛形后,统一在 `applySave` 按完整列表重建资源与恢复各系统状态。
 - **清档**:检测到死亡的瞬间 `SaveSystem.clear()`,下次进入生成新岛。
 - 各系统暴露 `snapshot()/restore()`:Inventory(load)、Props、CampfireSystem、WorkbenchSystem、DropSystem;DayNightSystem 暴露 `time` 存取器。
+
+## 迭代记录
+
+### 设施存档往返累积下沉修复
+
+各设施实体构造时曾直接 `group.position.y -= 嵌地深度` 做视觉下沉,而各系统 `snapshot()` 原样序列化 `group.position`,读档重建时构造函数再扣一次——每经历一次「存档→读档」设施就额外陷入地面 0.02~0.05。修复约定:**设施的 `group.position` 始终保持为权威落点坐标(放置时等于该点地形高度),视觉嵌地一律只作用于内部模型**——多子节点实体在建模完成后调用 `core/sinkModel.ts` 的 `sinkModel(group, depth)` 平移全部子节点;后续会重建模型的实体(Workbench 升级、Crate 刷新标识)把深度直接写在模型根节点上。存量旧档中已经陷下去的偏移不做自动搬回,仅停止继续累积。

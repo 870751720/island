@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
+import { sinkModel } from '../core/sinkModel';
 
 /** 炼出 1 块铁锭消耗的铁矿石数 */
 export const SMELT_ORE_PER_INGOT = 3;
@@ -54,12 +55,12 @@ export class Smelter {
   constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     const mesh = makeSmelterMesh();
     this.fire = mesh.getObjectByName('smelterFire') ?? null;
     this.group.add(mesh);
+    sinkModel(this.group, 0.02);
   }
 
   /** 每帧表现:矿石足够冶炼时炉门火光闪动,否则熄灭 */

@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -38,9 +39,9 @@ export class Stake {
   constructor(scene: THREE.Scene, position: THREE.Vector3) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     scene.add(this.group);
     this.group.add(makeStakeMesh());
+    sinkModel(this.group, 0.02);
   }
 }
 

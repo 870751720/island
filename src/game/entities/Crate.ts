@@ -78,10 +78,13 @@ export class Crate {
     this.color = CRATE_STYLES[kind].body;
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
-    this.group.add(makeCrateMesh(kind));
+    // 模型整体下沉嵌地;iconLayer 同步下移保持贴着箱体,均不动 group 落点
+    const body = makeCrateMesh(kind);
+    body.position.y -= 0.02;
+    this.group.add(body);
+    this.iconLayer.position.y -= 0.02;
     this.group.add(this.iconLayer);
     this.storage = new Inventory();
     this.storage.setCapacity(CRATE_STYLES[kind].capacity);
@@ -99,6 +102,7 @@ export class Crate {
     this.iconKind = kind;
     this.group.remove(this.iconLayer);
     this.iconLayer = new THREE.Group();
+    this.iconLayer.position.y -= 0.02;
     if (kind) {
       const topIcon = makeDropModel(kind);
       topIcon.position.y = BODY_H + 0.1;

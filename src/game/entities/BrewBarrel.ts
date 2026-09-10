@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import type { ResourceKind } from '../systems/Inventory';
 import { clayMaterial } from '../world/ClayMaterial';
@@ -58,12 +59,12 @@ export class BrewBarrel {
   constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     const mesh = makeBarrelMesh();
     this.blob = mesh.getObjectByName('wineBlob') ?? null;
     this.group.add(mesh);
+    sinkModel(this.group, 0.02);
   }
 
   get busy(): boolean {

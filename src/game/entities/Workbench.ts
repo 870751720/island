@@ -113,7 +113,6 @@ export class Workbench {
     this.currentLevel = Math.min(Math.max(level, 1), WORKBENCH_MAX_LEVEL);
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.05;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     this.rebuild();
@@ -138,6 +137,9 @@ export class Workbench {
       }
     });
     this.group.clear();
-    this.group.add(makeWorkbenchMesh(this.currentLevel));
+    // 模型整体下沉嵌地,只动模型根节点、不动 group 落点
+    const mesh = makeWorkbenchMesh(this.currentLevel);
+    mesh.position.y -= 0.05;
+    this.group.add(mesh);
   }
 }

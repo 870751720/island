@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import { FOODS, BOILABLE } from '../systems/Food';
 import type { ResourceKind } from '../systems/Inventory';
@@ -123,7 +124,7 @@ export class CookingStation {
     }
 
     mergeClayMeshes(this.group, [this.pot, this.fireRoot, ...this.steam.map(({ mesh }) => mesh)]);
-    this.group.position.y -= 0.05;
+    sinkModel(this.group, 0.05);
     scene.add(this.group);
     if (initialFuel > 0) {
       this.applyStage();

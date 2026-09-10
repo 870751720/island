@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -71,12 +72,12 @@ export class WaterPurifier {
   constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     const mesh = makePurifierMesh();
     this.water = mesh.getObjectByName('cleanWater') ?? null;
     this.group.add(mesh);
+    sinkModel(this.group, 0.02);
   }
 
   /** 每帧表现:净水槽水面轻微起伏 */

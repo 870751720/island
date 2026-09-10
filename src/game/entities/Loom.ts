@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -100,7 +101,6 @@ export class Loom {
   constructor(scene: THREE.Scene, position: THREE.Vector3, rotY = 0) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     const mesh = makeLoomMesh();
@@ -108,6 +108,7 @@ export class Loom {
     this.heddle = mesh.getObjectByName('loomHeddle') ?? null;
     this.clothBeam = mesh.getObjectByName('loomClothBeam') ?? null;
     this.group.add(mesh);
+    sinkModel(this.group, 0.02);
   }
 
   /** 每帧表现:织布时梭子左右穿行、综片上下提落;卷布辊随积攒的布料变粗 */

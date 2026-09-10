@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeTentMesh } from './TentModel';
+import { sinkModel } from '../core/sinkModel';
 
 /** 床等级上限 */
 export const BED_MAX_LEVEL = 3;
@@ -17,9 +18,9 @@ export class Bed {
     this.level = Math.min(Math.max(level, 1), BED_MAX_LEVEL);
     this.group = new THREE.Group();
     this.group.position.copy(position);
-    this.group.position.y -= 0.02;
     this.group.rotation.y = rotY;
     scene.add(this.group);
     this.group.add(makeTentMesh(this.level));
+    sinkModel(this.group, 0.02);
   }
 }

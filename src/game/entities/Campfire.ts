@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import type { LightPool } from '../world/LightPool';
 
@@ -105,7 +106,7 @@ export class Campfire {
 
     // 燃尽时柴堆换成烧焦色,示意熄灭但还能添柴复燃
     this.charredMat = clayMaterial('#2e2a26');
-    this.group.position.y -= 0.05;
+    sinkModel(this.group, 0.05);
     scene.add(this.group);
     if (initialFuel > 0) {
       this.applyStage();
