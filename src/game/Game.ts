@@ -2046,7 +2046,7 @@ export class Game {
       return null;
     }
     // 手持可放置道具(含围栏/围栏门)时是玩家手动选择,不自动切换
-    if (['place', 'fence', 'fenceGate'].includes(this.player.currentTool)) {
+    if (this.player.holdsFacility) {
       return null;
     }
     const nearby = this.collect.getNearby();
@@ -2945,6 +2945,8 @@ export class Game {
   private isSessionBusy(s: PlayerSession, exclude?: InteractionKind): boolean {
     // 牵着羊时双手被绳子占用:除套索自身外的所有站定交互(采集/喝水/制作等)一律不可开始
     if (exclude !== 'lasso' && this.wildlife.leashedBy(s.player)) return true;
+    // 手持设施(安放/围栏/围栏门)时双手被道具占用:除安放外的所有空手站定交互(采集/挤奶/喝水等)一律不可开始
+    if (exclude !== 'autoPlace' && s.player.holdsFacility) return true;
     // 弓优先级最高:瞄准中(虚线可见)或放箭动作期间,其他站定交互(采集/喝水等)让位,先放箭再交互
     if (exclude !== 'archery' && (s.archery.isWorking || s.archery.isAiming)) return true;
     if (exclude !== 'sword' && s.sword.isWorking) return true;

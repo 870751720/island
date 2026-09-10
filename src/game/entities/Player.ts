@@ -400,6 +400,11 @@ export class Player implements Updatable {
     return this.handTool;
   }
 
+  /** 手里正举着可放置道具(安放/围栏/围栏门),双手被占用,其余站定交互一律让位 */
+  get holdsFacility(): boolean {
+    return this.handTool === 'place' || this.handTool === 'fence' || this.handTool === 'fenceGate';
+  }
+
   /** 切换手持工具(仅视觉,不影响采集资格) */
   setTool(tool: HandTool): void {
     this.handTool = tool;
