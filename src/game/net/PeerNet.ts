@@ -12,6 +12,11 @@ const STATE_LOW_WATER = 32 * 1024;
 const CONTROL_HIGH_WATER = 512 * 1024;
 const CONTROL_LOW_WATER = 128 * 1024;
 const STATE_TYPES = new Set(['input']);
+// 单条 DataChannel 消息超过浏览器安全上限(约 256KB)会发送失败,大存档等消息按 UTF-16 单元分片;
+// 每单元最多 3 字节 UTF-8,20000 单元 ≤ 60KB,远离上限。
+const FRAG_UNITS = 20_000;
+const FRAG_TYPE = '__frag';
+type FragFrame = { t: typeof FRAG_TYPE; f: number; i: number; n: number; d: string };
 
 export type PeerSignal =
   | { description: RTCSessionDescriptionInit }
@@ -25,6 +30,10 @@ export class PeerNet {
   private readonly pendingCandidates: RTCIceCandidateInit[] = [];
   private readonly controlQueue: string[] = [];
   private readonly latestState = new Map<string, string>();
+  private nextFragId = 1;
+  private fragRecvId = 0;
+  private fragRecvParts: string[] | null = null;
+  private fragRecvBytes = 0;
   private closeNotified = false;
   private openNotified = false;
   private readonly channelId = allocChannelId();
@@ -120,15 +129,38 @@ export class PeerNet {
 
   private receive(raw: unknown, channel: 'control' | 'state'): void {
     if (typeof raw !== 'string') return;
-    const bytes = NetTraffic.byteLength(raw);
-    NetTraffic.recvBytes += bytes;
+    NetTraffic.recvBytes += NetTraffic.byteLength(raw);
     try {
-      const msg = JSON.parse(raw) as { t?: string; ts?: number };
-      NetTraffic.record('down', channel, typeof msg.t === 'string' ? msg.t : 'unknown', bytes);
-      if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
-      else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
-      else this.onMessage(msg);
+      const msg = JSON.parse(raw) as { t?: string };
+      if (msg.t === FRAG_TYPE) this.collectFrag(msg as FragFrame, channel);
+      else this.dispatch(msg, channel, NetTraffic.byteLength(raw));
     } catch { /* 坏包忽略。 */ }
+  }
+
+  private dispatch(msg: { t?: string; ts?: number }, channel: 'control' | 'state', bytes: number): void {
+    NetTraffic.record('down', channel, typeof msg.t === 'string' ? msg.t : 'unknown', bytes);
+    if (msg.t === 'ping') this.send({ t: 'pong', ts: msg.ts });
+    else if (msg.t === 'pong') updateRtt(this.channelId, Math.round(performance.now() - (msg.ts ?? 0)));
+    else this.onMessage(msg);
+  }
+
+  /** 分片按发送顺序到达(可靠有序通道),同一时刻只保留一组未完成的分片。 */
+  private collectFrag(frame: FragFrame, channel: 'control' | 'state'): void {
+    const { f, i, n, d } = frame;
+    if (f !== this.fragRecvId) {
+      this.fragRecvId = f;
+      this.fragRecvParts = new Array<string>(n).fill('');
+      this.fragRecvBytes = 0;
+    }
+    const parts = this.fragRecvParts;
+    if (!parts || i >= parts.length || parts[i]) return;
+    parts[i] = d;
+    this.fragRecvBytes += NetTraffic.byteLength(JSON.stringify(frame));
+    if (parts.some((part) => !part)) return;
+    try {
+      this.dispatch(JSON.parse(parts.join('')) as { t?: string }, channel, this.fragRecvBytes);
+    } catch { /* 坏包忽略。 */ }
+    this.fragRecvParts = null;
   }
 
   send(msg: unknown): void {
@@ -145,6 +177,12 @@ export class PeerNet {
   }
 
   private sendControl(data: string): void {
+    const frames = this.fragment(data);
+    if (frames.length > 1) {
+      for (const frame of frames) this.controlQueue.push(frame);
+      this.flushControl();
+      return;
+    }
     const channel = this.controlChannel;
     if (!channel || channel.readyState !== 'open' || this.controlQueue.length > 0 || channel.bufferedAmount >= CONTROL_HIGH_WATER) {
       this.controlQueue.push(data);
@@ -152,6 +190,24 @@ export class PeerNet {
       return;
     }
     if (!this.sendNow(channel, data)) this.controlQueue.push(data);
+  }
+
+  /** 超大消息按 UTF-16 单元切成多帧;收缩边界避免拆开代理对。 */
+  private fragment(data: string): string[] {
+    if (NetTraffic.byteLength(data) <= FRAG_UNITS * 3) return [data];
+    const chunks: string[] = [];
+    let start = 0;
+    while (start < data.length) {
+      let end = Math.min(start + FRAG_UNITS, data.length);
+      if (end < data.length) {
+        const prev = data.charCodeAt(end - 1);
+        if (prev >= 0xd800 && prev <= 0xdbff) end--;
+      }
+      chunks.push(data.slice(start, end));
+      start = end;
+    }
+    const f = this.nextFragId++;
+    return chunks.map((d, i) => JSON.stringify({ t: FRAG_TYPE, f, i, n: chunks.length, d }));
   }
 
   private flushControl(): void {
