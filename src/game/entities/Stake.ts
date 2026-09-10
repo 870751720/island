@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -26,6 +27,7 @@ function makeStakeMesh(): THREE.Group {
   const mound = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 4), clayMaterial('#7a6a4d'));
   mound.scale.y = 0.4;
   g.add(mound);
+  mergeClayMeshes(g);
   return g;
 }
 

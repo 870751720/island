@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import type { LightPool } from '../world/LightPool';
 import { clayMaterial } from '../world/ClayMaterial';
@@ -68,6 +69,7 @@ function makePoseidonMesh(): ShrineMesh {
   const cross = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.05), prongMat);
   cross.position.y = 1.8;
   group.add(cross);
+  mergeClayMeshes(group, [gem]);
   return { group, gem, gemY: 0.56 };
 }
 
@@ -90,13 +92,16 @@ function makeBeehiveMesh(): ShrineMesh {
     bee.position.set(dx, 0.9, 0.12);
     group.add(bee);
   }
+  mergeClayMeshes(group, [gem]);
   return { group, gem, gemY: 0.68 };
 }
 
 /** 治愈水晶:粉晶簇从石座中生长出来 */
 function makeHealCrystalMesh(): ShrineMesh {
   const group = new THREE.Group();
-  group.add(makeBase());
+  const base = makeBase();
+  mergeClayMeshes(base);
+  group.add(base);
   const gemMat = gemMaterial(SHRINE_COLORS.healCrystal, '#c4537f');
   const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), gemMat);
   gem.scale.y = 1.9;
@@ -130,6 +135,7 @@ function makeRainAltarMesh(): ShrineMesh {
   gem.position.y = 0.74;
   gem.castShadow = true;
   group.add(gem);
+  mergeClayMeshes(group, [gem]);
   return { group, gem, gemY: 0.74 };
 }
 
@@ -163,6 +169,7 @@ function makeCrocIncenseMesh(): ShrineMesh {
     group.add(smoke);
     smokes.push(smoke);
   }
+  mergeClayMeshes(group, [gem, ...smokes]);
   return {
     group,
     gem,

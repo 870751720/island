@@ -1,3 +1,4 @@
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -116,6 +117,7 @@ export class CropSystem {
   private destroy(crop: Crop): void {
     this.onChanged?.({ op: 'remove', id: this.ids.get(crop) });
     this.scene.remove(crop.group);
+    disposeOwnedMeshes(crop.group);
     this.crops.splice(this.crops.indexOf(crop), 1);
   }
 
@@ -215,7 +217,10 @@ export class CropSystem {
 
   /** 清空场上全部作物(客人侧重放世界快照前调用) */
   clear(): void {
-    for (const crop of this.crops) this.scene.remove(crop.group);
+    for (const crop of this.crops) {
+      this.scene.remove(crop.group);
+      disposeOwnedMeshes(crop.group);
+    }
     this.crops = [];
   }
 
@@ -235,6 +240,7 @@ export class CropSystem {
       const match = incoming.get(this.ids.get(crop));
       if (!match) {
         this.scene.remove(crop.group);
+        disposeOwnedMeshes(crop.group);
         this.crops.splice(i, 1);
         continue;
       }

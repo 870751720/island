@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import type { ResourceKind } from '../systems/Inventory';
 import { clayMaterial } from '../world/ClayMaterial';
@@ -34,6 +35,7 @@ function makeBarrelMesh(): THREE.Group {
   blob.name = 'wineBlob';
   g.add(blob);
 
+  mergeClayMeshes(g, [blob]);
   return g;
 }
 

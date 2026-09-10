@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -76,6 +77,7 @@ function makeLoomMesh(): THREE.Group {
   shuttle.name = 'loomShuttle';
   g.add(shuttle);
 
+  mergeClayMeshes(g, [clothBeam, heddle, shuttle]);
   return g;
 }
 

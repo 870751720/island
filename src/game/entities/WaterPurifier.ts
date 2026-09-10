@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -55,6 +56,7 @@ function makePurifierMesh(): THREE.Group {
   pipe.position.set(-0.28, 0.16, -0.16);
   g.add(pipe);
 
+  mergeClayMeshes(g, [tank, water]);
   return g;
 }
 

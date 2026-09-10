@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -48,9 +49,11 @@ export class FenceGate {
     beam.castShadow = true;
     this.group.add(beam);
 
+    mergeClayMeshes(this.group);
+
     // 双扇对开:两扇门分别绕两端立柱旋转,向两侧打开
     const makeLeaf = (sign: 1 | -1): THREE.Object3D => {
-      const pivot = new THREE.Object3D();
+      const pivot = new THREE.Group();
       pivot.position.set(0.88 * sign, 0, 0);
       const doorMat = clayMaterial('#a97b48');
       for (const y of [0.28, 0.62]) {
@@ -62,6 +65,7 @@ export class FenceGate {
       const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.1), clayMaterial('#7a5a32'));
       handle.position.set(-0.76 * sign, 0.45, 0.04);
       pivot.add(handle);
+      mergeClayMeshes(pivot);
       this.group.add(pivot);
       return pivot;
     };

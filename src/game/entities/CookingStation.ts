@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { FOODS, BOILABLE } from '../systems/Food';
 import type { ResourceKind } from '../systems/Inventory';
@@ -121,6 +122,7 @@ export class CookingStation {
       this.steam.push({ mesh: puff, offset: i / 3 });
     }
 
+    mergeClayMeshes(this.group, [this.pot, this.fireRoot, ...this.steam.map(({ mesh }) => mesh)]);
     this.group.position.y -= 0.05;
     scene.add(this.group);
     if (initialFuel > 0) {

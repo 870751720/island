@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -43,6 +44,7 @@ function makeBurrowMesh(): { group: THREE.Group; hole: THREE.Object3D } {
   rubble.name = 'rubble';
   g.add(rubble);
 
+  mergeClayMeshes(g, [hole, rubble]);
   return { group: g, hole };
 }
 

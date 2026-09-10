@@ -345,6 +345,7 @@ function makeIron(): THREE.Group {
     bit.rotation.set(0.4, 0.8, 0.2);
     g.add(bit);
   }
+  mergeClayMeshes(g);
   return g;
 }
 
@@ -361,6 +362,7 @@ function makeGravel(): THREE.Group {
     pebble.castShadow = true;
     g.add(pebble);
   }
+  mergeClayMeshes(g);
   return g;
 }
 
@@ -403,6 +405,7 @@ export function makeGrassTuft(): THREE.Group {
     blade.castShadow = true;
     g.add(blade);
   }
+  mergeClayMeshes(g);
   return g;
 }
 
@@ -417,6 +420,7 @@ export function makeShrub(): THREE.Group {
     blob.castShadow = true;
     g.add(blob);
   }
+  mergeClayMeshes(g);
   return g;
 }
 

@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -99,6 +100,7 @@ function makeWorkbenchMesh(level: number): THREE.Group {
     g.add(sawHandle);
   }
 
+  mergeClayMeshes(g);
   return g;
 }
 

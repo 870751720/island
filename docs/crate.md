@@ -54,3 +54,6 @@
 
 - 快速连点存取时,HUD 格盘快照滞后一帧,第二下点到已空的格子会让 `store/take` 因「无该物品」失败,旧实现统一提示「背包满了/木箱装不下」,造成误报。木箱与铁箱均有此问题。
 - `CrateSystem.store/take` 返回值由布尔改为 `TransferResult`(`ok | empty | full`);`Game.crateStore/crateTake` 仅在 `full`(对方真装不下)且整格转移时提示,`empty` 静默。
+
+## 模型绘制
+木箱和铁箱箱体的 13 个静态部件合为 1 个网格，顶面内容标识保留原来的独立旋转层。详见 [绘制优化](render-batching.md)。

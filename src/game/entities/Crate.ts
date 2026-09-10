@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { Inventory } from '../systems/Inventory';
 import { makeDropModel } from '../systems/DropModels';
@@ -58,6 +59,7 @@ function makeCrateMesh(kind: CrateKind): THREE.Group {
       g.add(post);
     }
   }
+  mergeClayMeshes(g);
   return g;
 }
 

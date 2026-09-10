@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clayMaterial } from '../world/ClayMaterial';
@@ -133,5 +134,6 @@ export function makeTentMesh(level: number, miniature = false): THREE.Group {
     mesh.receiveShadow = true;
     group.add(mesh);
   }
+  mergeClayMeshes(group);
   return group;
 }

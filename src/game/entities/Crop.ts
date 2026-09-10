@@ -1,3 +1,5 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import type { ResourceKind } from '../systems/Inventory';
 import { CROP_MESH_MAKERS } from './cropMeshes';
@@ -141,8 +143,12 @@ export class Crop {
   private applyStage(stage: CropStage): void {
     if (stage === this.stage && this.stageMesh) return;
     this.stage = stage;
-    if (this.stageMesh) this.group.remove(this.stageMesh);
+    if (this.stageMesh) {
+      this.group.remove(this.stageMesh);
+      disposeOwnedMeshes(this.stageMesh);
+    }
     this.stageMesh = CROP_MESH_MAKERS[this.spec.kind](stage, this.position.x, this.position.z);
+    mergeClayMeshes(this.stageMesh);
     this.group.add(this.stageMesh);
   }
 }

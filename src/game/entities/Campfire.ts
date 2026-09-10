@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import type { LightPool } from '../world/LightPool';
 
@@ -99,6 +100,8 @@ export class Campfire {
       this.group.add(puff);
       this.smoke.push({ mesh: puff, offset: i / 3 });
     }
+
+    mergeClayMeshes(this.group, [this.logs, this.fireRoot, ...this.smoke.map(({ mesh }) => mesh)]);
 
     // 燃尽时柴堆换成烧焦色,示意熄灭但还能添柴复燃
     this.charredMat = clayMaterial('#2e2a26');
