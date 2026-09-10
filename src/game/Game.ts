@@ -1080,6 +1080,7 @@ export class Game {
         this.updateCamera(delta);
         this.ocean.update(this.camera, elapsed);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
+        this.clouds.faceCamera(this.camera);
         this.renderer.render(this.scene, this.camera);
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {

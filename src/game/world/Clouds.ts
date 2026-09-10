@@ -1,65 +1,58 @@
 import * as THREE from 'three';
-import { createCloudGeometry } from './CloudModel';
+import { createCloudTexture } from './CloudModel';
 
 const CLOUD_COUNT = 6;
 const DRIFT_DIR = new THREE.Vector3(1, 0, 0.25).normalize();
-/** 低多边形白云:高空缓慢飘过岛上,并在地面投下移动的影子 */
+
+/** 稀疏柔边云团：共享纹理与平面，逐朵排序，随场景光照变化。 */
 export class Clouds {
   readonly group = new THREE.Group();
-  private clouds: { mesh: THREE.Mesh; speed: number; margin: number }[] = [];
-  private readonly material = new THREE.MeshStandardMaterial({
-    color: '#ffffff', roughness: 1, metalness: 0, flatShading: true,
-  });
-  private spanX: number;
-  private spanZ: number;
+  private readonly clouds: { mesh: THREE.Mesh; margin: number }[] = [];
+  private readonly geometry = new THREE.PlaneGeometry(1, 1);
+  private readonly materials = Array.from({ length: 3 }, (_, index) => new THREE.MeshStandardMaterial({
+    map: createCloudTexture(index), transparent: true, depthWrite: false,
+    roughness: 1, metalness: 0, side: THREE.DoubleSide,
+  }));
+  private readonly cameraRotation = new THREE.Quaternion();
 
-  /** 飘动范围(世界坐标,东西/南北各一个边长),略大于岛尺寸,保证每隔一阵就有云飘过头顶 */
-  constructor(spanX = 150, spanZ = 150) {
-    this.spanX = spanX;
-    this.spanZ = spanZ;
+  constructor(private readonly spanX = 150, private readonly spanZ = 150) {
     for (let i = 0; i < CLOUD_COUNT; i++) {
-      const mesh = this.buildCloud(i);
-      const margin = (mesh.geometry.boundingSphere!.radius
-        + mesh.geometry.boundingSphere!.center.length()) * Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z);
-      this.clouds.push({ mesh, speed: 1 + Math.random() * 1.2, margin });
+      const mesh = new THREE.Mesh(this.geometry, this.materials[i % this.materials.length]);
+      const width = 19 + (i % 3) * 2;
+      mesh.scale.set(width, width * 0.5, 1);
+      // 分为两列三行，等速漂移保持留白，避免随机扎堆变成云海。
+      mesh.position.set(
+        ((i % 2) - 0.5) * spanX * 0.55 + (Math.floor(i / 2) - 1) * spanX * 0.08,
+        26 + (i % 3) * 3,
+        (Math.floor(i / 2) - 1) * spanZ / 3,
+      );
+      this.clouds.push({ mesh, margin: width * 0.56 });
       this.group.add(mesh);
     }
   }
 
-  private buildCloud(seed: number): THREE.Mesh {
-    const rng = (i: number) => {
-      const n = Math.sin(seed * 91.7 + i * 391.3) * 43758.5453;
-      return n - Math.floor(n);
-    };
-    const g = new THREE.Mesh(createCloudGeometry(seed), this.material);
-    const scale = 1.05 + rng(20) * 0.3;
-    g.scale.set(scale * (0.95 + rng(21) * 0.3), scale * (0.8 + rng(22) * 0.35), scale);
-    g.rotation.y = (rng(23) - 0.5) * Math.PI;
-    g.castShadow = true;
-    g.position.set(
-      (rng(10) * 2 - 1) * this.spanX * 0.5,
-      26 + rng(11) * 8,
-      (rng(12) * 2 - 1) * this.spanZ * 0.5
-    );
-    return g;
-  }
-
   update(delta: number): void {
-    const halfX = this.spanX / 2;
-    const halfZ = this.spanZ / 2;
-    for (const c of this.clouds) {
-      c.mesh.position.addScaledVector(DRIFT_DIR, c.speed * delta);
-      // 完整云体离开岛屿范围后才回绕，分别处理两个轴，保留高度。
-      const limitX = halfX + c.margin;
-      const limitZ = halfZ + c.margin;
-      if (c.mesh.position.x > limitX) c.mesh.position.x -= limitX * 2;
-      if (c.mesh.position.z > limitZ) c.mesh.position.z -= limitZ * 2;
+    for (const { mesh, margin } of this.clouds) {
+      mesh.position.addScaledVector(DRIFT_DIR, delta * 1.15);
+      const limitX = this.spanX / 2 + margin;
+      const limitZ = this.spanZ / 2 + margin;
+      if (mesh.position.x > limitX) mesh.position.x -= limitX * 2;
+      if (mesh.position.z > limitZ) mesh.position.z -= limitZ * 2;
     }
   }
 
+  /** 在相机完成本帧移动后对齐，兼容拍照模式的旋转和俯仰。 */
+  faceCamera(camera: THREE.Camera): void {
+    camera.getWorldQuaternion(this.cameraRotation);
+    for (const { mesh } of this.clouds) mesh.quaternion.copy(this.cameraRotation);
+  }
+
   dispose(): void {
-    for (const cloud of this.clouds) cloud.mesh.geometry.dispose();
-    this.material.dispose();
+    this.geometry.dispose();
+    for (const material of this.materials) {
+      material.map?.dispose();
+      material.dispose();
+    }
     this.clouds.length = 0;
     this.group.clear();
   }
