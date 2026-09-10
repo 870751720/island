@@ -31,6 +31,7 @@ export type HudSnapshot = {
   hasAxe: boolean;
   hasPickaxe: boolean;
   hasShovel: boolean;
+  hasHoe: boolean;
   hasFishingrod: boolean;
   hasBow: boolean;
   hasSword: boolean;

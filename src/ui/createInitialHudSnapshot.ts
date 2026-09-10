@@ -15,6 +15,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     hasAxe: false,
     hasPickaxe: false,
     hasShovel: false,
+    hasHoe: false,
     hasFishingrod: false,
     hasBow: false,
     hasSword: false,

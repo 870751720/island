@@ -69,6 +69,7 @@ export class HudSnapshotBuilder {
       hasAxe: !!session.tools.axe,
       hasPickaxe: !!session.tools.pickaxe,
       hasShovel: !!session.tools.shovel,
+      hasHoe: !!session.tools.hoe,
       hasFishingrod: !!session.tools.fishingrod,
       hasBow: !!session.tools.bow,
       hasSword: !!session.tools.sword,

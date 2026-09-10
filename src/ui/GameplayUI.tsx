@@ -322,10 +322,12 @@ export function GameplayUI({
           {(hud.hasAxe ||
             hud.hasPickaxe ||
             hud.hasShovel ||
+            hud.hasHoe ||
             hud.hasFishingrod ||
             hud.hasBow ||
             hud.hasSword ||
             hud.hasLasso ||
+            hud.placeables.length > 0 ||
             hud.nearTether ||
             hud.nearWorkbench ||
             hud.nearCampfire ||
