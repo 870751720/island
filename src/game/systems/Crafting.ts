@@ -649,15 +649,17 @@ export function recipeVisible(
   equipped: EquippedMap,
   slots: (InventorySlot | null)[] = [],
   /** 世界侧抑制条件(手上/场上已有就不再重复提示制作) */
-  world: { workbenchPlaced?: boolean; campfirePlaced?: boolean } = {}
+  world: { workbenchPlaced?: boolean; campfirePlaced?: boolean } = {},
+  /** 跳过工作台/火堆的「已有就不再显示」抑制(背包制作页始终列出,仅卡片提示遵守抑制) */
+  ignoreUnique = false
 ): boolean {
   // 工作台全局唯一:已放置或背包里已有任意等级工作台道具时不再显示配方
-  if (recipe.id === 'workbench') {
+  if (!ignoreUnique && recipe.id === 'workbench') {
     if (world.workbenchPlaced) return false;
     if (slots.some((slot) => slot && /^workbench[1-4]$/.test(slot.kind))) return false;
   }
   // 火堆:背包里已有火堆/熄灭的火堆/烹饪台,或场上已存在火堆/烹饪台时不再显示配方(避免反复弹卡)
-  if (recipe.id === 'campfire') {
+  if (!ignoreUnique && recipe.id === 'campfire') {
     const owned = new Set(slots.filter(Boolean).map((slot) => slot!.kind));
     if (owned.has('campfire') || owned.has('deadCampfire') || owned.has('cookingStation')) return false;
     if (world.campfirePlaced) return false;
