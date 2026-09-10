@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -34,6 +35,7 @@ function makeSoilMesh(x: number, z: number): THREE.Group {
     lump.scale.y = 0.7;
     g.add(lump);
   }
+  mergeClayMeshes(g);
   return g;
 }
 

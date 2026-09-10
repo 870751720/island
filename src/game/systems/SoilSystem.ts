@@ -1,3 +1,4 @@
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -155,6 +156,7 @@ export class SoilSystem {
       this.soils.splice(this.soils.indexOf(target), 1);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
       this.scene.remove(target.group);
+      disposeOwnedMeshes(target.group);
       this.audio.play('drop');
       // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
       if (Math.random() < 0.005) {
@@ -195,7 +197,10 @@ export class SoilSystem {
 
   /** 清空场上全部土壤(客人侧重放世界快照前调用) */
   clear(): void {
-    for (const soil of this.soils) this.scene.remove(soil.group);
+    for (const soil of this.soils) {
+      this.scene.remove(soil.group);
+      disposeOwnedMeshes(soil.group);
+    }
     this.soils = [];
   }
 
@@ -213,6 +218,7 @@ export class SoilSystem {
     for (let i = this.soils.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.soils[i]))) continue;
       this.scene.remove(this.soils[i].group);
+      disposeOwnedMeshes(this.soils[i].group);
       this.soils.splice(i, 1);
     }
     const current = new Map(this.soils.map((s) => [this.ids.get(s), s]));

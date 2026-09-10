@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
@@ -375,14 +376,16 @@ function makeBushBody(color: string): { group: THREE.Group; body: THREE.Mesh } {
 export function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
   const { group } = makeBushBody('#5d8a3a');
   const berryMat = clayMaterial('#c0392b');
-  const berries: THREE.Mesh[] = [];
+  const berryGroup = new THREE.Group();
   for (let i = 0; i < 4; i++) {
     const berry = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), berryMat);
     const a = (i / 4) * Math.PI * 2;
     berry.position.set(Math.cos(a) * 0.28, 0.38, Math.sin(a) * 0.28);
-    berries.push(berry);
-    group.add(berry);
+    berryGroup.add(berry);
   }
+  mergeClayMeshes(berryGroup);
+  const berries = berryGroup.children as THREE.Mesh[];
+  group.add(berryGroup);
   return { group, berries };
 }
 
@@ -748,6 +751,7 @@ export class Props implements Updatable {
       part.castShadow = true;
       prop.group.add(part);
     }
+    mergeClayMeshes(prop.group);
     prop.group.scale.setScalar(TREE_MODEL_SCALE);
     this.treeLooks.set(prop, look);
   }

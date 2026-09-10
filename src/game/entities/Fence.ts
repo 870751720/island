@@ -1,3 +1,4 @@
+import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -76,6 +77,7 @@ function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
       g.add(r);
     }
   }
+  mergeClayMeshes(g);
   return g;
 }
 
