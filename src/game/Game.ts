@@ -364,7 +364,7 @@ export class Game {
     this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.resize();
     container.appendChild(this.renderer.domElement);
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -385,6 +385,9 @@ export class Game {
     sun.shadow.camera.top = 40;
     sun.shadow.camera.bottom = -40;
     sun.shadow.mapSize.set(1024, 1024);
+    // Wider PCF filtering softens sampling changes as the sun moves, at mobile resolution.
+    sun.shadow.radius = 2;
+    sun.shadow.normalBias = 0.025;
     this.scene.add(sun, sun.target);
     this.sun = sun;
 

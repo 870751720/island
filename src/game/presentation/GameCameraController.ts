@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { PhotoCamera } from '../systems/PhotoCamera';
+import { StableSunShadow } from './StableSunShadow';
 
 const cameraOffset = new THREE.Vector3();
 
 /** Coordinates the regular follow camera and the local-only photo-mode controls. */
 export class GameCameraController {
   private readonly photo = new PhotoCamera();
+  private readonly sunShadow = new StableSunShadow();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -87,8 +89,6 @@ export class GameCameraController {
       this.camera.position.z += (desiredZ - this.camera.position.z) * smoothing;
     }
     this.camera.lookAt(target.x, target.y, target.z);
-    sun.position.set(target.x + sunOffset.x, target.y + sunOffset.y, target.z + sunOffset.z);
-    sun.target.position.copy(target);
-    sun.target.updateMatrixWorld();
+    this.sunShadow.update(sun, target, sunOffset);
   }
 }
