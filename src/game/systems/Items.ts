@@ -43,6 +43,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'cookedTomato', 'boiledTomato', 'cookedPepper', 'boiledPepper',
     'cookedEggplant', 'boiledEggplant', 'cookedStrawberry', 'boiledStrawberry',
     'cookedCabbage', 'boiledCabbage', 'cookedPumpkin', 'boiledPumpkin',
+    'cookedCarrot', 'boiledCarrot', 'bread',
   ],
   设施: [
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
