@@ -422,6 +422,34 @@ export const HoeIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
+/** 植物纤维:根部捆在一起、扇形展开的一束草茎(与掉落物造型一致,区别于麦穗 🌾) */
+const FiberIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    {/* 草茎:从捆扎点向上扇出 */}
+    <g strokeLinecap="round" fill="none">
+      <path d="M32 30 Q20 18 12 6" stroke="#8fae4e" strokeWidth={3.4} />
+      <path d="M32 30 Q26 14 24 4" stroke="#a3bf5f" strokeWidth={3.4} />
+      <path d="M32 30 L32 4" stroke="#8fae4e" strokeWidth={3.4} />
+      <path d="M32 30 Q38 14 40 4" stroke="#a3bf5f" strokeWidth={3.4} />
+      <path d="M32 30 Q44 18 52 6" stroke="#8fae4e" strokeWidth={3.4} />
+      <path d="M32 30 Q14 24 5 16" stroke="#7d9a43" strokeWidth={3} />
+      <path d="M32 30 Q50 24 59 16" stroke="#7d9a43" strokeWidth={3} />
+    </g>
+    {/* 顶端草叶 */}
+    <path d="M24 8 q-6 -5 -5 -8 q6 1 6 6 Z" fill="#a3bf5f" />
+    <path d="M40 8 q6 -5 5 -8 q-6 1 -6 6 Z" fill="#a3bf5f" />
+    {/* 捆扎的绳结与纤维须 */}
+    <rect x={24} y={28} width={16} height={6} rx={3} fill="#c9b588" />
+    <path d="M27 28 l-2 -5 M32 28 l0 -5 M37 28 l2 -5" stroke="#b8a274" strokeWidth={1.6} strokeLinecap="round" />
+    {/* 下垂的散纤维 */}
+    <g stroke="#c9b588" strokeWidth={2.4} strokeLinecap="round" fill="none">
+      <path d="M28 36 Q26 46 27 54" />
+      <path d="M32 36 L32 56" />
+      <path d="M36 36 Q38 46 37 54" />
+    </g>
+  </Svg>
+);
+
 /** 自绘图标表:键为道具 kind,渲染时优先于 ITEMS 的 emoji */
 /** 作物种子通用形:土色种粒 + 顶上一支嫩芽,旁边配一小块作物色的果标记区分种类 */
 function CropSeedIcon({
@@ -491,6 +519,7 @@ const CabbageSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#8fc47
 const PumpkinSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e0862a" marker="big" />;
 
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
+  fiber: FiberIcon,
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
   colaZero: ColaZeroIcon,
