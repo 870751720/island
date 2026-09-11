@@ -8,7 +8,7 @@ const LEATHER = '#77503d';
 const PALETTES = [
   { main: '#81976b', dark: '#526952', accent: '#d18b61', bag: '#d6b47c' },
   { main: '#b77d55', dark: '#674d43', accent: '#708f8a', bag: '#a66b49' },
-  { main: '#8b5564', dark: '#4a3340', accent: '#7a9078', bag: '#d2b17a' },
+  { main: '#6dada6', dark: '#3f6f6b', accent: '#e6d2a4', bag: '#d7c196' },
 ] as const;
 
 /** 帽子使用头部局部坐标；帽口包住发帽，前沿高于刘海和眼睛。 */
@@ -32,14 +32,14 @@ export function makeOutfitHat(tier: OutfitTier): THREE.Group {
     b.oval(p.dark, [-0.03, 0.408, -0.012], [0.033, 0.017, 0.03]);
     b.box(BRASS, [-0.23, 0.194, 0.235], [0.07, 0.04, 0.023], [0, -0.55, 0]);
   } else {
-    // 酒红毡帽：软圆冠 + 中等帽檐，轮廓跟草帽同一家族，只比报童帽多一圈檐。
-    b.add(p.main, new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      [-0.018, 0.168, -0.008], [0.345, 0.238, 0.305], [0, 0, 0.06]);
-    b.add(p.main, new THREE.CylinderGeometry(0.41, 0.43, 0.034, 16),
-      [0, 0.17, 0.018], [1, 1, 0.88]);
-    b.ring(p.dark, [0, 0.198, 0], 0.322, 0.026, [1, 0.9, 1]);
-    b.oval(p.accent, [-0.272, 0.236, 0.188], [0.042, 0.1, 0.018], [0, 0, -0.58]);
-    b.box(BRASS, [-0.228, 0.19, 0.232], [0.058, 0.034, 0.02], [0, -0.5, 0]);
+    // 海沫水手帽：软布平顶圆冠 + 短前檐，帽墙略外扩，不是铁盔圆顶。
+    b.add(CREAM, new THREE.CylinderGeometry(0.348, 0.322, 0.115, 16), [0, 0.228, 0]);
+    b.add(CREAM, new THREE.CylinderGeometry(0.352, 0.352, 0.028, 16), [0, 0.286, 0]);
+    b.ring(p.main, [0, 0.174, 0], 0.318, 0.03, [1, 0.88, 1]);
+    b.oval(CREAM, [0, 0.158, 0.248], [0.248, 0.022, 0.128], [-0.1, 0, 0]);
+    b.box(p.dark, [0.025, 0.132, -0.318], [0.038, 0.11, 0.014], [0.45, 0, 0]);
+    b.box(p.dark, [-0.028, 0.122, -0.312], [0.036, 0.09, 0.013], [0.62, 0, 0]);
+    b.box(BRASS, [-0.21, 0.178, 0.228], [0.048, 0.03, 0.016], [0, -0.5, 0]);
   }
   return b.finish();
 }
@@ -56,22 +56,26 @@ export function makeOutfitShirt(tier: OutfitTier): THREE.Group {
     b.oval(BRASS, [0, 0.98, 0.15], [0.026, 0.025, 0.02]);
     b.box(p.dark, [-0.113, 0.84, 0.142], [0.1, 0.107, 0.028]);
     b.box(CREAM, [-0.113, 0.88, 0.161], [0.106, 0.025, 0.017]);
-  } else {
+  } else if (tier === 1) {
     for (const side of [-1, 1]) {
       b.oval(p.main, [side * 0.127, 0.855, 0.06], [0.133, 0.231, 0.131]);
       b.box(CREAM, [side * 0.076, 1.008, 0.116],
         [0.085, 0.13, 0.043], [0.22, 0, side * -0.42]);
       b.box(p.dark, [side * 0.127, 0.758, 0.159], [0.11, 0.082, 0.034]);
-      b.box(tier === 1 ? p.main : p.accent, [side * 0.127, 0.795, 0.18], [0.116, 0.022, 0.023]);
+      b.box(p.main, [side * 0.127, 0.795, 0.18], [0.116, 0.022, 0.023]);
     }
     b.box(p.dark, [0, 0.866, 0.173], [0.018, 0.22, 0.02]);
     for (const y of [0.92, 0.84]) b.oval(BRASS, [0, y, 0.192], [0.014, 0.015, 0.009]);
-    if (tier === 2) {
-      for (const side of [-1, 1]) {
-        b.box(p.accent, [side * 0.042, 1.018, 0.12], [0.07, 0.088, 0.026], [0.28, 0, side * -0.46]);
-      }
-      b.oval(BRASS, [0, 0.988, 0.148], [0.022, 0.021, 0.016]);
+  } else {
+    b.ring(CREAM, [0, 1.065, 0], 0.108, 0.024, [1, 0.82, 1]);
+    for (const side of [-1, 1]) {
+      b.box(CREAM, [side * 0.058, 1.014, 0.12], [0.1, 0.128, 0.034], [0.22, 0, side * -0.44]);
     }
+    b.box(CREAM, [0, 1.02, -0.11], [0.24, 0.1, 0.036]);
+    b.box(p.dark, [0, 0.968, 0.146], [0.072, 0.092, 0.03], [0.32, 0, 0]);
+    b.oval(BRASS, [0, 0.942, 0.164], [0.02, 0.02, 0.014]);
+    b.box(p.dark, [-0.113, 0.84, 0.142], [0.1, 0.1, 0.028]);
+    b.box(CREAM, [-0.113, 0.878, 0.16], [0.106, 0.024, 0.016]);
   }
   return b.finish();
 }
@@ -100,6 +104,9 @@ export function makeOutfitTrouserLeg(tier: OutfitTier, side: number): THREE.Grou
     [0.07, 0.11, 0.053], [0, side * 0.45, 0]);
   b.box(tier === 0 ? CREAM : p.main, [side * 0.079, -0.047, 0.095],
     [0.076, 0.027, 0.024], [0, side * 0.45, 0]);
+  if (tier === 2) {
+    b.box(CREAM, [side * 0.092, -0.082, 0.012], [0.018, 0.155, 0.036]);
+  }
   return b.finish();
 }
 
