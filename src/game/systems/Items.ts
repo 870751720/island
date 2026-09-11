@@ -898,7 +898,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'ironHat',
     name: '铁帽',
     icon: '🧢',
-    description: '软布水手帽,减伤 19%,防御 +2,口渴速度 -5%。',
+    description: '奶油宽檐水手帽,减伤 19%,防御 +2,口渴速度 -5%。',
   },
   ironBackpack: {
     kind: 'ironBackpack',
