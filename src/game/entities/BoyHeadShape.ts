@@ -22,9 +22,8 @@ export class BoyHeadShape {
       const positions = geometry.getAttribute('position');
       for (let i = 0; i < positions.count; i++) {
         const x = original[i * 3], y = original[i * 3 + 1], z = original[i * 3 + 2];
-        // 颧骨以下渐收下颌，额头保留宽度；五官、耳朵和发型同步贴合。
-        const jaw = THREE.MathUtils.smoothstep(-y, 0.03, 0.29);
-        positions.setXYZ(i, boy ? x * (0.89 - jaw * 0.16) : x,
+        // 均匀收窄成自然椭圆脸，避免下半脸额外挤压形成尖颌。
+        positions.setXYZ(i, boy ? x * 0.9 : x,
           boy ? y * 1.025 : y, boy ? z * 0.94 : z);
       }
       positions.needsUpdate = true;
