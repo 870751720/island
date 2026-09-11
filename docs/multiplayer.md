@@ -276,3 +276,9 @@
 `PeerNet` 控制通道在序列化后超过约 60KB 的消息(如长进度存档的 `welcome` 全量状态)会按 UTF-16 单元切成多帧 `__frag` 消息,经可靠有序通道依次发送,接收端按分片 id 重组后再走原有分发路径。分片对上层协议完全透明,消息结构、协议版本与存档版本均不变。此前单条 DataChannel 消息超过浏览器安全上限(约 256KB)会导致大档玩家加入时 welcome 发送失败、卡在连接阶段。
 
 2026-09-11(迭代):删除 `useFacility` 动作(`NET_PROTOCOL_VERSION` 24→25)——背包「使用」可放置道具改为切入手持安放模式,经既有 `tool` 动作(携带 placeKind)上行,放置结算统一由 `AutoPlaceSystem` 站定放置路径触发(`settleFacility` 仅保留 cell 入参);制作完成自动手持收窄为火把/火堆/一级工作台,其余设施产物入包,不影响协议。存档不变。
+
+## 男孩模型预览同步
+
+- 男孩模型预览为全房间 GM 视觉配置 `boyModelVariant`，允许 original / soft / natural / adventure。客人经 `NetGuest.action('gmConfig', ...)` 上行，房主 `Actions.ts` 调用配置校验后可靠广播 GM 事件；无新增玩法结算。
+- 房主 `PlayerSnapshotBuilder` 还在 `PlayerState` 中携带可选 `boyModelVariant`，客人收到完整还原的玩家列表时校验并应用。新加入、重连和事件漏收可由后续快照恢复，旧载荷缺省 original，无需单独动作补播。
+- 各端 `Player.update` 将已确认配置交给同一基础模型变形模块，仅在版本或性别变化时更新顶点；女孩强制使用原始顶点。玩家姿态、工具、装备和伤口沿用现有同步，不修改位置、碰撞、存档格式或存档版本。

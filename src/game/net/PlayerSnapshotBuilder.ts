@@ -1,3 +1,4 @@
+import { GmSystem } from '../systems/GmSystem';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { PlayerState } from './Protocol';
 import type { ResourceKind } from '../systems/Inventory';
@@ -47,6 +48,7 @@ export function buildPlayersState(
         stamina: survival.stamina,
         equipped: session.equipment.snapshot(),
         gender: session.player.currentGender,
+        boyModelVariant: GmSystem.boyModelVariant,
         dead: survival.dead,
         action: session.player.currentAction,
         refresh: Math.round(session.player.refreshSeconds),

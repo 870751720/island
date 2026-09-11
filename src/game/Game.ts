@@ -1326,6 +1326,7 @@ export class Game {
       let s = this.sessions.find((session) => session.id === p.id);
       if (!s) s = this.addRemoteSession(true, p.id, p.name);
       s.setName(s === this.local ? '我' : p.name);
+      gmApply({ boyModelVariant: p.boyModelVariant ?? 'original' });
       s.player.setGender(p.gender ?? 'boy');
       if (s !== this.local && SLOT_ORDER.some((slot) => s.equipment.getEquipped(slot) !== p.equipped[slot])) {
         s.equipment.restore(p.equipped, s.inventory);

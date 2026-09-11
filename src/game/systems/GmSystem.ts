@@ -1,7 +1,11 @@
+import { isBoyModelVariant, type BoyModelVariant } from '../entities/BoyModelVariants';
+
 /** GM 调试开关:运行时内存态,不入存档,新对局重置为默认值 */
 export const GmSystem = {
   /** 是否允许死亡;关闭后生命耗尽也不会死 */
   allowDeath: true,
+  /** 全房间男孩外观预览，不入存档 */
+  boyModelVariant: 'original' as BoyModelVariant,
   /** 无敌模式:饥饿/口渴不掉、生命与体力回满 */
   godMode: false,
   /** 锁定时刻 t∈[0,1);null 表示不锁定,时间自然流逝 */
@@ -31,6 +35,7 @@ export type GmConfig = typeof GmSystem;
 export function gmSnapshot(): GmConfig {
   return {
     allowDeath: GmSystem.allowDeath,
+    boyModelVariant: GmSystem.boyModelVariant,
     godMode: GmSystem.godMode,
     lockTime: GmSystem.lockTime,
     fishingTierWeights: [...GmSystem.fishingTierWeights],
@@ -46,6 +51,7 @@ export function gmSnapshot(): GmConfig {
 
 /** 按 snapshot 覆盖 GM 配置(字段级校验,非法值忽略) */
 export function gmApply(config: Partial<GmConfig>): void {
+  if (isBoyModelVariant(config.boyModelVariant)) GmSystem.boyModelVariant = config.boyModelVariant;
   if (typeof config.allowDeath === 'boolean') GmSystem.allowDeath = config.allowDeath;
   if (typeof config.godMode === 'boolean') GmSystem.godMode = config.godMode;
   if (config.lockTime === null || (typeof config.lockTime === 'number'
