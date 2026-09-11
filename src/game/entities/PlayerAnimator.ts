@@ -237,9 +237,9 @@ export class PlayerAnimator {
       const hand = this.model.hands[i];
       const closed = twoHanded || fishing ? this.gripWeight : i === 0 ? graspLeft : graspRight;
       const k = 1 - Math.exp(-24 * delta);
-      hand.scale.x += (1 + closed * 0.08 - hand.scale.x) * k;
-      hand.scale.y += (1 - closed * 0.25 - hand.scale.y) * k;
-      hand.scale.z += (1 - closed * 0.12 - hand.scale.z) * k;
+      hand.scale.x += (1 + closed * 0.04 - hand.scale.x) * k;
+      hand.scale.y += (1 - closed * 0.05 - hand.scale.y) * k;
+      hand.scale.z += (1 + closed * 0.03 - hand.scale.z) * k;
     }
   }
 

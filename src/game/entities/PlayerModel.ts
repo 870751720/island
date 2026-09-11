@@ -120,7 +120,7 @@ export function createPlayerModel() {
     elbow.position.set(side * 0.012, -0.21, 0);
     arm.add(elbow);
     elbows.push(elbow);
-    const surface = oval(elbow, skin, [0, -0.067, 0], [0.071, 0.105, 0.074]);
+    const surface = oval(elbow, skin, [0, -0.078, 0], [0.06, 0.118, 0.062]);
     sleeves.push(oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]));
     const hand = createClayHand(elbow, skin, side, oval);
     batchParts(hand);
