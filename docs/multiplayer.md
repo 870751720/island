@@ -279,7 +279,7 @@
 
 ## 男孩整套造型同步
 
-- 全房间 GM 视觉配置 `boyModelVariant` 允许 original / graffiti / islander / overalls / wild。客人经 `NetGuest.action('gmConfig', ...)` 上行，房主 `Actions.ts` 校验配置后可靠广播 GM 事件，无新增玩法结算。
+- 全房间 GM 视觉配置 `boyModelVariant` 允许 original / child / teen。客人经 `NetGuest.action('gmConfig', ...)` 上行，房主 `Actions.ts` 校验配置后可靠广播 GM 事件，无新增玩法结算。
 - 房主 `PlayerSnapshotBuilder` 在 `PlayerState` 携带可选 `boyModelVariant`，客人从完整还原的玩家列表中校验并应用。新加入、重连和事件漏收由后续快照恢复，旧载荷缺省 original，无需单独动作补播。
 - 各端 `Player.update` 将配置交给统一预览控制器，仅在版本或性别变化时切换独立模型并释放旧资源。女孩恢复原始材质。动作姿态、工具和伤口沿用原有同步，各方案嘴部位置供吃东西动作读取。
 - 各端同步隐藏预览男孩的穿戴装备网格，保持权威装备数据、属性和存档不变；切回原版或女孩恢复装备外观。方案选择不持久化，不修改存档版本。

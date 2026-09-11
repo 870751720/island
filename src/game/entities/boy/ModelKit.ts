@@ -82,25 +82,3 @@ export class ModelKit {
     return { meshes, material };
   }
 }
-
-export function limbs(kit: ModelKit, rig: BoyRig, options: {
-  skin: string; sleeve: string | null; pants: string; shoe: string;
-  arm: number; leg: number; sleeveWidth: number; shortsWidth: number;
-  trouserLength: number; barefoot?: boolean;
-}): void {
-  for (let i = 0; i < 2; i++) {
-    kit.capsule(rig.arms[i], options.skin, [0, -0.105, 0], options.arm, 0.13);
-    if (options.sleeve) kit.tube(rig.arms[i], options.sleeve, [0, -0.06, 0],
-      options.sleeveWidth * 0.86, options.sleeveWidth, 0.17);
-    kit.capsule(rig.elbows[i], options.skin, [0, -0.065, 0], options.arm * 0.9, 0.12);
-    kit.box(rig.hands[i], options.skin, [0, 0, 0.005], [options.arm * 1.9, 0.12, options.arm * 1.4], 0.035);
-    kit.capsule(rig.legs[i], options.skin, [0, -0.19, 0], options.leg, 0.1);
-    kit.tube(rig.legs[i], options.pants, [0, -0.09, 0], options.shortsWidth, options.shortsWidth * 0.94,
-      options.trouserLength, 1.05);
-    kit.capsule(rig.knees[i], options.skin, [0, -0.095, 0], options.leg, 0.16);
-    kit.box(rig.knees[i], options.barefoot ? options.skin : options.shoe,
-      [0, -0.26, 0.035], [options.leg * 2.8, 0.16, 0.29], 0.045);
-    if (!options.barefoot) kit.box(rig.knees[i], '#eee4ce', [0, -0.323, 0.035],
-      [options.leg * 2.85, 0.034, 0.292], 0.012);
-  }
-}
