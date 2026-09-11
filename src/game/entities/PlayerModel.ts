@@ -48,13 +48,16 @@ export function createPlayerModel() {
   const head = oval(root, skin, [0, 1.335, 0.015], [0.305, 0.3, 0.265]);
   for (const side of [-1, 1]) {
     oval(head, skin, [side * 0.295, -0.015, 0], [0.065, 0.09, 0.055]);
-    oval(head, blush, [side * 0.326, -0.012, 0.028], [0.019, 0.044, 0.022]);
     oval(head, face, [side * 0.105, 0.012, 0.248], [0.026, 0.038, 0.015]);
     oval(head, cream, [side * 0.105 - 0.006, 0.025, 0.26], [0.008, 0.01, 0.005]);
-    oval(head, blush, [side * 0.174, -0.058, 0.207], [0.045, 0.022, 0.012]);
   }
   oval(head, skin, [0, -0.035, 0.268], [0.041, 0.043, 0.038]);
   oval(head, face, [0, -0.113, 0.246], [0.038, 0.01, 0.009]);
+  const girlBlush = new THREE.Group();
+  for (const side of [-1, 1]) {
+    oval(girlBlush, blush, [side * 0.326, -0.012, 0.028], [0.019, 0.044, 0.022]);
+    oval(girlBlush, blush, [side * 0.174, -0.058, 0.207], [0.045, 0.022, 0.012]);
+  }
 
   // 静态五官与两套发型分别合批；切换性别只切显隐，不重建关节或工具。
   function batchParts(parent: THREE.Object3D) {
@@ -77,11 +80,14 @@ export function createPlayerModel() {
     }
   }
   batchParts(head);
+  batchParts(girlBlush);
+  girlBlush.visible = false;
+  head.add(girlBlush);
   const hairstyles = { boy: new THREE.Group(), girl: new THREE.Group() };
   for (const gender of ['boy', 'girl'] as const) {
     const style = hairstyles[gender];
     if (gender === 'boy') {
-      createBoyHair(style, clay('#292725'));
+      createBoyHair(style, clay('#352820'));
     } else {
       oval(style, hair, [0, 0.045, -0.09], [0.312, 0.273, 0.215]);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2)
@@ -176,6 +182,7 @@ export function createPlayerModel() {
       upperShape.apply(gender === 'boy');
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';
+      girlBlush.visible = gender === 'girl';
     },
   };
 }
