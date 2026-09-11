@@ -1,6 +1,7 @@
 'use client';
 
-import type { PlayerGender } from '@/game/entities/PlayerModel';
+import type { BoyHairId, PlayerGender } from '@/game/entities/PlayerModel';
+import { BOY_HAIR_STYLES } from '@/game/entities/PlayerModel';
 import { useState } from 'react';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { MetaProgress } from '@/game/meta/MetaProgress';
@@ -9,12 +10,16 @@ import { ActionButton, StepperRow, ToggleRow } from './controls';
 /** 玩家 tab:无敌/死亡开关、攻击倍率与状态回满 */
 export function PlayerTab({
   gender,
+  boyHair,
   onSetGender,
+  onSetBoyHair,
   onRestoreStatus,
   onSetConfig,
 }: {
   gender: PlayerGender;
+  boyHair: BoyHairId;
   onSetGender: (gender: PlayerGender) => void;
+  onSetBoyHair: (id: BoyHairId) => void;
   onRestoreStatus: () => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
@@ -42,6 +47,29 @@ export function PlayerTab({
             {value === 'boy' ? '男孩' : '女孩'}
           </button>
         ))}
+      </div>
+      <div role="group" aria-label="男孩发型预览" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ color: '#4a3b2a' }}>男孩发型（预览，不存档）</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {BOY_HAIR_STYLES.map((style) => (
+            <button
+              key={style.id}
+              aria-pressed={boyHair === style.id}
+              onClick={() => onSetBoyHair(style.id)}
+              style={{
+                flex: '1 1 28%',
+                minHeight: 44,
+                border: 'none',
+                borderRadius: 10,
+                background: boyHair === style.id ? '#4a3b2a' : 'rgba(0,0,0,0.06)',
+                color: boyHair === style.id ? '#fff' : '#4a3b2a',
+                fontSize: 14,
+              }}
+            >
+              {style.id + 1} {style.name}
+            </button>
+          ))}
+        </div>
       </div>
       <ToggleRow
         label="无敌模式"
