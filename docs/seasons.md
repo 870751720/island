@@ -11,14 +11,16 @@
 
 ## 设计方案
 
-- `src/game/world/SeasonSnow.ts`:季节积雪表现层。
-  - 全场材质共享一个 shader uniform `uSnowAmount`(0~1),通过 `onBeforeCompile` 注入 `MeshStandardMaterial`,在法线计算后按表面朝向(`normal.y`)把 diffuse 颜色向雪色(略偏蓝的白)混合——朝上的面覆雪,侧面颜色变淡;覆盖曲线 smoothstep(-0.15, 0.6, normal.y),让锥形树冠等斜面各朝向都能吃满雪,垂直墙面只留淡淡一层;不新增模型与 drawcall,移动端友好。
-  - `patchSnowMaterial(mat, wither)`:落叶植被材质传 `wither=true`,除积雪混合外先随雪量把整体颜色向枯黄褐(约 `#998550`)混合(上限 85%),实现阔叶入冬转枯、松柏常绿。
-  - `updateSeasonSnow(delta)`:雪量向 GM 目标值平滑过渡(过渡速度 0.08/秒)。
-- 材质接入:`src/game/world/ClayMaterial.ts` 提供全场统一的 `clayMaterial(color, wither?)`(flatShading + 高粗糙度 + 自动注入季节 shader),各建筑/物件/植被模块统一引用;`IslandTerrain.ts` 的地表材质(顶点色)单独注入;水面不注入。
+- `src/game/world/SeasonVisuals.ts`:季节视觉表现层,通过全场材质共享的三个连续 shader uniform 驱动换季变色:
+  - `uDry`(夏季干绿)、`uAutumn`(秋季橙红)、`uSnowAmount`(积雪),经 `onBeforeCompile` 注入 `MeshStandardMaterial`,shader 内按 绿→干绿→秋色→积雪 的固定顺序混合,同一时刻最多两个系数非零,换季过渡天然平滑。
+  - 积雪仍按表面朝向(`normal.y`)只覆朝上的面,覆盖曲线 smoothstep(-0.15, 0.6, normal.y),锥形树冠各朝向吃满雪,垂直墙面只留薄层;不新增模型与 drawcall,移动端友好。
+  - 材质季节类别 `SeasonKind`:`foliage`(阔叶树冠、灌木、草丛等落叶植被,吃满三季:夏干混 `#99a047` 方向黄绿、秋混 `#b05c29` 方向橙红、入冬先整体转枯黄褐上限 85% 再叠雪)、`terrain`(地表顶点色材质,轻微吃夏秋、系数减半)、`plain`(其余建筑/物件,只吃积雪)。松柏常绿走 plain。
+  - `updateSeasonVisuals(delta)`:三系数各自向 GM 目标季节的预设(spring 全零/summer dry=1/autumn autumn=1/winter snow=1)以 0.08/秒平滑过渡。
+- 光照季节调制:`DayNightSystem.apply()` 在昼夜光照算完后按同一组季节系数连续调制——夏季天空更蓝(`#7fc4e8`)、太阳强度 +15%、环境光 +10%;秋季天空偏暖灰(`#c2cbb8`)、阳光偏金(`#ffd9a0`)、强度 -10%;冬季天空苍白(`#dfe8f0`)、阳光偏冷(`#e8f0f8`)、强度 -20%。因系数平滑过渡,光照换季无跳变;`WeatherSystem` 的天气调制在其后叠加,互不干扰。
+- 材质接入:`src/game/world/ClayMaterial.ts` 提供全场统一的 `clayMaterial(color, foliage?)`(flatShading + 高粗糙度 + 自动注入季节 shader),各建筑/物件/植被模块统一引用;`IslandTerrain.ts` 的地表材质(顶点色)以 `terrain` 类别单独注入;水面不注入;`mergeClayMeshes` 按 `season-plain`/`season-foliage` 缓存 key 分批合并。
   - 已接入:树/灌木/岩石等场景物件(`Props.ts`)、庄稼(`cropMeshes.ts`)、栅栏/门、工作台、织布机、熔炉、烹饪台外的容器(木箱、酒桶、饵料桶)、净化器、神龛、木桩、兔洞、土壤、帐篷。
   - 落叶标记(wither):橡树/果树的成树与树苗树冠、灌木、浆果丛、草丛;松树、嫩芽、小型动物、玩家与穿戴装备、火焰类自发光材质(营火/烹饪台火光)不参与。大型野兽(野牛、熊)的皮毛材质接入积雪,背上随雪量落一层薄雪,角/蹄/眼/口鼻保持原色。
-- 驱动入口:GM 面板「世界」tab 的「强制季节」四选一按钮(`GmSystem.season`,春/夏/秋/冬;夏秋视觉暂用春季表现,冬季即雪季),走 `gmSnapshot/gmApply`,联机时全房间同步,主机与客人各自本地执行过渡表现。
+- 驱动入口:GM 面板「世界」tab 的「强制季节」四选一按钮(`GmSystem.season`,春/夏/秋/冬四态各有独立视觉,冬季即雪季),走 `gmSnapshot/gmApply`,联机时全房间同步,主机与客人各自本地执行过渡表现。
 - 存档:本期纯表现层,不落盘,`SAVE_VERSION` 不变。
 - 水洼结冰(第二期玩法化):约 6 成水洼在生成时按地形种子确定性标记 `freezable`(主客由相同 terrainSeed 得到一致集合)。雪量 ≥ 0.7(`IslandTerrain.FREEZE_SNOW`)时这些水洼结冰:
   - 表现:每个可冻水洼在 `terrain.iceGroup` 中有一片共享冰面材质的圆盘(略高于洼面),透明度随雪量在 0.4→0.7 区间渐显,无雪时整组隐藏,零新增 drawcall 负担仅在有雪时出现。
@@ -27,6 +29,7 @@
 
 ## 迭代记录
 
+- 2026-09-11 夏秋视觉差异化(纯表现层,不含玩法):`SeasonSnow.ts` 泛化为 `SeasonVisuals.ts`,雪量单系数扩展为 夏干/秋色/积雪 三系数,材质按 plain/foliage/terrain 三类分级吃季;夏季植被偏黄绿 + 天更蓝光更足,秋季阔叶转橙红 + 天偏暖灰光偏金,冬季新增苍白冷光微调;光照随系数连续调制,与积雪过渡同步平滑。GM 四态从此各有独立表现。
 - 2026-09-11 「雪季预览」开关升级为「强制季节」四态(春/夏/秋/冬):冬季等价原雪季预览,夏秋暂用春季视觉,待后续差异化。
 - 2026-09-08 第一期:雪季变色与积雪视觉预览(shader uniform 方案)+ GM 开关。后续计划:季节状态机(按天数推进)、雪天气与雪粒子、植被冬季休眠、体温/取暖玩法。
 - 2026-09-10 落叶入冬转枯:`patchSnowMaterial` 增加 wither 分支,橡树/果树(成树与树苗)与灌木随雪量转枯黄褐,松柏保持常绿;抽共享 `world/ClayMaterial.ts`,把栅栏、工作台、织布机、熔炉、木箱、酒桶、饵料桶、净化器、神龛、木桩、兔洞、土壤、帐篷、庄稼等可放置物件的材质统一接入积雪 shader(生物中仅野牛与熊的皮毛接入,玩家装备与火焰自发光材质不参与)。

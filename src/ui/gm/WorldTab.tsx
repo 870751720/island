@@ -63,7 +63,7 @@ export function WorldTab({
         onChange={(v) => getGame()?.gmPerformance(v)}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制季节(冬季覆雪,夏秋暂用春季表现)</div>
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制季节(春/夏/秋/冬独立视觉)</div>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['spring', 'summer', 'autumn', 'winter'] as const).map((s) => (
             <button

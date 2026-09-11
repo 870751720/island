@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { GmSystem } from './GmSystem';
+import { getSeasonTint, getSnowAmount } from '../world/SeasonVisuals';
 
 const DAY_LENGTH = 240; // 一整轮昼夜(秒,按白天流速计)
 /** 读档落在清晨前最后 1 秒时直接贴到清晨,避免加载首帧看起来凭空加一天 */
@@ -15,6 +16,14 @@ const SKY_NIGHT = new THREE.Color('#2b3d63');
 const SUN_DAY = new THREE.Color('#fff3d6');
 const SUN_DUSK = new THREE.Color('#ffb36b');
 const MOON_LIGHT = new THREE.Color('#7d9fd4');
+
+// 季节对光照的调制目标:夏季天更蓝、光更足;秋季天偏暖灰、光偏金;
+// 冬季天色苍白、光偏冷且更弱。按季节系数连续混合,换季过渡天然平滑。
+const SKY_SUMMER = new THREE.Color('#7fc4e8');
+const SKY_AUTUMN = new THREE.Color('#c2cbb8');
+const SKY_WINTER = new THREE.Color('#dfe8f0');
+const SUN_AUTUMN = new THREE.Color('#ffd9a0');
+const SUN_WINTER = new THREE.Color('#e8f0f8');
 
 export type DayPhase = 'day' | 'dusk' | 'night' | 'dawn';
 
@@ -196,6 +205,14 @@ export class DayNightSystem implements Updatable {
       this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.25, k);
       this.state.phase = 'night';
     }
+
+    // 季节调制:夏干/秋色/积雪三个连续系数与材质共用,过渡一致
+    const { dry, autumn } = getSeasonTint();
+    const snow = getSnowAmount();
+    sky.lerp(SKY_SUMMER, dry * 0.6).lerp(SKY_AUTUMN, autumn * 0.5).lerp(SKY_WINTER, snow * 0.5);
+    sunColor.lerp(SUN_AUTUMN, autumn * 0.5).lerp(SUN_WINTER, snow * 0.6);
+    this.sun.intensity *= 1 + dry * 0.15 - autumn * 0.1 - snow * 0.2;
+    this.hemi.intensity *= 1 + dry * 0.1 - autumn * 0.05 - snow * 0.1;
 
     this.sun.color.copy(sunColor);
     this.scene.background = sky;

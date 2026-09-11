@@ -20,7 +20,7 @@ export function mergeClayMeshes(root: THREE.Group, preserved: readonly THREE.Obj
 }
 
 function mergeOwnedClayMeshes(root: THREE.Group, preserved: readonly THREE.Object3D[]): void {
-  const batches = new Map<string, { geometries: THREE.BufferGeometry[]; wither: boolean; seasonal: boolean; side: THREE.Side; cast: boolean; receive: boolean }>();
+  const batches = new Map<string, { geometries: THREE.BufferGeometry[]; foliage: boolean; seasonal: boolean; side: THREE.Side; cast: boolean; receive: boolean }>();
   const identity = new THREE.Matrix4();
   const visit = (object: THREE.Object3D, parentMatrix: THREE.Matrix4): void => {
     object.updateMatrix();
@@ -28,12 +28,12 @@ function mergeOwnedClayMeshes(root: THREE.Group, preserved: readonly THREE.Objec
     if (object instanceof THREE.Mesh) {
       const material = object.material as THREE.MeshStandardMaterial;
       const shaderKey = material.customProgramCacheKey();
-      const wither = shaderKey === 'season-snow-wither';
+      const foliage = shaderKey === 'season-foliage';
       const seasonal = shaderKey !== STANDARD_SHADER_KEY;
-      const key = `${seasonal}:${wither}:${material.side}:${object.castShadow}:${object.receiveShadow}`;
+      const key = `${seasonal}:${foliage}:${material.side}:${object.castShadow}:${object.receiveShadow}`;
       let batch = batches.get(key);
       if (!batch) {
-        batch = { geometries: [], wither, seasonal, side: material.side, cast: object.castShadow, receive: object.receiveShadow };
+        batch = { geometries: [], foliage, seasonal, side: material.side, cast: object.castShadow, receive: object.receiveShadow };
         batches.set(key, batch);
       }
       const geometry = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
@@ -63,7 +63,7 @@ function mergeOwnedClayMeshes(root: THREE.Group, preserved: readonly THREE.Objec
       || mat.vertexColors || mat.roughness !== 1 || mat.metalness !== 0 || !mat.flatShading
       || (mat.emissiveIntensity !== 0 && mat.emissive.getHex() !== 0)
       || Object.values(mat).some((value) => value instanceof THREE.Texture)
-      || ![STANDARD_SHADER_KEY, 'season-snow', 'season-snow-wither'].includes(mat.customProgramCacheKey())) supported = false;
+      || ![STANDARD_SHADER_KEY, 'season-plain', 'season-foliage'].includes(mat.customProgramCacheKey())) supported = false;
   });
   if (!supported) return;
   for (const child of root.children) visit(child, identity);
@@ -78,7 +78,7 @@ function mergeOwnedClayMeshes(root: THREE.Group, preserved: readonly THREE.Objec
       return;
     }
     const material = batch.seasonal
-      ? clayMaterial('#ffffff', batch.wither)
+      ? clayMaterial('#ffffff', batch.foliage)
       : new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
     material.vertexColors = true;
     material.side = batch.side;

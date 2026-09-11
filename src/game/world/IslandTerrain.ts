@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getSnowAmount, patchSnowMaterial } from './SeasonSnow';
+import { getSnowAmount, patchSeasonMaterial } from './SeasonVisuals';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
 function createNoise(seed: number) {
@@ -327,7 +327,7 @@ export class IslandTerrain {
           flatShading: true,
           roughness: 1,
         });
-        patchSnowMaterial(mat);
+        patchSeasonMaterial(mat, 'terrain');
         return mat;
       })()
     );

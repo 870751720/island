@@ -92,7 +92,7 @@ import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { Clouds } from './world/Clouds';
 import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
-import { updateSeasonSnow } from './world/SeasonSnow';
+import { updateSeasonVisuals } from './world/SeasonVisuals';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
@@ -891,7 +891,7 @@ export class Game {
         this.crates.update(simDelta);
         this.meteor.update(simDelta);
         this.weather.update(simDelta);
-        updateSeasonSnow(simDelta);
+        updateSeasonVisuals(simDelta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
