@@ -245,14 +245,12 @@ const ArrowIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 皮毛:带四肢皮筒的兽皮 */
+/** 皮毛:毛面翻开、露出深色衬里 */
 const FurIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <path
-      d="M14 20 Q12 34 20 42 Q14 46 12 52 Q10 56 15 55 Q22 53 24 48 Q32 54 40 48 Q42 53 49 55 Q54 56 52 52 Q50 46 44 42 Q52 34 50 20 Q44 10 32 12 Q20 10 14 20 Z"
-      fill="#a97a4f"
-    />
-    <ellipse cx={32} cy={32} rx={13} ry={15} fill="#c69a6d" />
+    <path d="M12 20 L52 12 L56 48 L16 56 Z" fill="#7a4e30" />
+    <path d="M12 20 L48 14 L44 44 L16 50 Z" fill="#c69a6d" />
+    <path d="M18 26 l4 -6 M26 24 l4 -6 M34 22 l4 -6 M42 20 l4 -6" stroke="#e2c49a" strokeWidth={3} strokeLinecap="round" />
   </Svg>
 );
 
@@ -325,22 +323,47 @@ const GrassPantsIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 铁矿石:灰岩断面嵌金属铁矿斑 */
+/** 铁矿石:灰岩角砾嵌金属与锈斑 */
 const IronOreIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <path d="M12 40 L18 18 L34 10 L50 20 L54 42 L40 56 L20 54 Z" fill="#7d858f" />
-    <path d="M18 18 L34 10 L38 26 L24 32 Z" fill="#8f97a1" />
-    <path d="M38 26 L50 20 L54 42 L40 48 Z" fill="#6c747e" />
-    <g fill="#4d5560">
-      <circle cx={27} cy={38} r={5} />
-      <circle cx={41} cy={34} r={4} />
-      <circle cx={33} cy={47} r={4.5} />
-    </g>
-    <g fill="#c6d0da">
-      <circle cx={25.5} cy={36.5} r={1.6} />
-      <circle cx={40} cy={33} r={1.3} />
-      <circle cx={32} cy={46} r={1.3} />
-    </g>
+    <path d="M10 36 L16 16 L36 8 L54 24 L56 46 L36 58 L14 52 Z" fill="#6c747e" />
+    <path d="M16 16 L36 8 L40 22 L22 28 Z" fill="#8f97a1" />
+    <polygon points="22,34 30,28 38,36 32,44" fill="#c9ccd1" />
+    <polygon points="36,40 46,34 50,44 40,50" fill="#b07a5a" />
+    <polygon points="18,44 26,42 28,52 18,52" fill="#4a5560" />
+    <circle cx={34} cy={32} r={1.5} fill="#fff" />
+  </Svg>
+);
+
+/** 铁锭:两块叠放的梯形锭 */
+const IronIngotIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <polygon points="14,28 44,22 50,36 20,42" fill="#6b737c" />
+    <polygon points="14,28 44,22 42,16 16,22" fill="#aeb6be" />
+    <polygon points="16,34 48,28 54,44 22,50" fill="#8a9199" />
+    <polygon points="16,34 48,28 46,22 18,28" fill="#d5dbe2" />
+    <polygon points="48,28 54,44 50,44 46,28" fill="#5a626b" />
+  </Svg>
+);
+
+/** 燧石:剥片燧石,尖端顶焰 */
+const FlintIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <polygon points="8,56 16,28 40,22 50,48 28,60" fill="#3d4550" />
+    <polygon points="16,28 40,22 38,34 20,38" fill="#9aa3ad" />
+    <polygon points="20,38 38,34 46,50 28,58" fill="#5a6470" />
+    <path d="M34 24 L42 6 L52 22 L40 28 Z" fill="#f4c84a" />
+    <path d="M40 20 L48 4 L56 20 Z" fill="#f28b2e" />
+    <path d="M44 14 L52 6" stroke="#ffe9a0" strokeWidth={2.4} strokeLinecap="round" />
+  </Svg>
+);
+
+/** 树枝:弯枝分杈 */
+const BranchIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M12 52 Q26 44 34 28 Q40 16 52 10" stroke="#6b3e1c" strokeWidth={10} fill="none" strokeLinecap="round" />
+    <path d="M12 52 Q26 44 34 28 Q40 16 52 10" stroke="#8b5a2b" strokeWidth={7} fill="none" strokeLinecap="round" />
+    <path d="M34 30 L18 18" stroke="#9a6a3a" strokeWidth={5.5} strokeLinecap="round" />
   </Svg>
 );
 
@@ -422,31 +445,12 @@ export const HoeIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 植物纤维:根部捆在一起、扇形展开的一束草茎(与掉落物造型一致,区别于麦穗 🌾) */
+/** 植物纤维:三片宽叶(区别于麦穗 🌾) */
 const FiberIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    {/* 草茎:从捆扎点向上扇出 */}
-    <g strokeLinecap="round" fill="none">
-      <path d="M32 30 Q20 18 12 6" stroke="#8fae4e" strokeWidth={3.4} />
-      <path d="M32 30 Q26 14 24 4" stroke="#a3bf5f" strokeWidth={3.4} />
-      <path d="M32 30 L32 4" stroke="#8fae4e" strokeWidth={3.4} />
-      <path d="M32 30 Q38 14 40 4" stroke="#a3bf5f" strokeWidth={3.4} />
-      <path d="M32 30 Q44 18 52 6" stroke="#8fae4e" strokeWidth={3.4} />
-      <path d="M32 30 Q14 24 5 16" stroke="#7d9a43" strokeWidth={3} />
-      <path d="M32 30 Q50 24 59 16" stroke="#7d9a43" strokeWidth={3} />
-    </g>
-    {/* 顶端草叶 */}
-    <path d="M24 8 q-6 -5 -5 -8 q6 1 6 6 Z" fill="#a3bf5f" />
-    <path d="M40 8 q6 -5 5 -8 q-6 1 -6 6 Z" fill="#a3bf5f" />
-    {/* 捆扎的绳结与纤维须 */}
-    <rect x={24} y={28} width={16} height={6} rx={3} fill="#c9b588" />
-    <path d="M27 28 l-2 -5 M32 28 l0 -5 M37 28 l2 -5" stroke="#b8a274" strokeWidth={1.6} strokeLinecap="round" />
-    {/* 下垂的散纤维 */}
-    <g stroke="#c9b588" strokeWidth={2.4} strokeLinecap="round" fill="none">
-      <path d="M28 36 Q26 46 27 54" />
-      <path d="M32 36 L32 56" />
-      <path d="M36 36 Q38 46 37 54" />
-    </g>
+    <path d="M32 56 Q12 40 16 12 Q32 22 32 56" fill="#7d9a43" />
+    <path d="M32 58 Q32 20 32 8 Q48 18 32 58" fill="#b5d47a" />
+    <path d="M32 56 Q52 40 48 12 Q32 22 32 56" fill="#8fae4e" />
   </Svg>
 );
 
@@ -519,6 +523,9 @@ const CabbageSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#8fc47
 const PumpkinSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e0862a" marker="big" />;
 
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
+  branch: BranchIcon,
+  flint: FlintIcon,
+  ironIngot: IronIngotIcon,
   fiber: FiberIcon,
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
