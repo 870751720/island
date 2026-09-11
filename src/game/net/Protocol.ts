@@ -1,4 +1,3 @@
-import type { BoyModelVariant } from '../entities/BoyModelVariants';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { SaveData } from '../systems/SaveSystem';
 import type { ResourceKind } from '../systems/Inventory';
@@ -18,7 +17,6 @@ export type PlayerState = {
   name: string;
   /** 基础人物性别，旧档/旧快照缺省为小男孩。 */
   gender?: PlayerGender;
-  boyModelVariant?: BoyModelVariant;
   x: number;
   y: number;
   z: number;

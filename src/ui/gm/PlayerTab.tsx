@@ -1,8 +1,7 @@
 'use client';
 
 import type { PlayerGender } from '@/game/entities/PlayerModel';
-import { useEffect, useState } from 'react';
-import { BOY_MODEL_VARIANTS } from '@/game/entities/BoyModelVariants';
+import { useState } from 'react';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { MetaProgress } from '@/game/meta/MetaProgress';
 import { ActionButton, StepperRow, ToggleRow } from './controls';
@@ -19,11 +18,6 @@ export function PlayerTab({
   onRestoreStatus: () => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
-  const [boyVariant, setBoyVariant] = useState(GmSystem.boyModelVariant);
-  useEffect(() => {
-    const timer = window.setInterval(() => setBoyVariant(GmSystem.boyModelVariant), 250);
-    return () => window.clearInterval(timer);
-  }, []);
   const [godMode, setGodMode] = useState(GmSystem.godMode);
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
   const [attackMultiplier, setAttackMultiplier] = useState(GmSystem.attackMultiplier);
@@ -49,24 +43,6 @@ export function PlayerTab({
           </button>
         ))}
       </div>
-      <fieldset style={{ border: '1px solid #d8c9b4', borderRadius: 10, margin: 0, padding: 10 }}>
-        <legend style={{ color: '#4a3b2a' }}>男孩整套造型</legend>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {BOY_MODEL_VARIANTS.map((variant) => (
-            <button key={variant.id} aria-pressed={boyVariant === variant.id}
-              onClick={() => { onSetConfig({ boyModelVariant: variant.id }); setBoyVariant(variant.id); }}
-              style={{ minHeight: 64, padding: 8, border: 'none', borderRadius: 8,
-                background: boyVariant === variant.id ? '#4a3b2a' : 'rgba(0,0,0,0.06)',
-                color: boyVariant === variant.id ? '#fff' : '#4a3b2a', textAlign: 'left' }}>
-              <span style={{ display: 'block', fontSize: 14 }}>{variant.label}</span>
-              <span style={{ display: 'block', fontSize: 12, marginTop: 4 }}>{variant.description}</span>
-            </button>
-          ))}
-        </div>
-        <p style={{ margin: '8px 0 0', fontSize: 12, color: '#75634e' }}>
-          全房间男孩同步切换，女孩不变。预览时隐藏穿戴装备外观（属性保留），切回原版恢复；选择不写入存档。
-        </p>
-      </fieldset>
       <ToggleRow
         label="无敌模式"
         value={godMode}

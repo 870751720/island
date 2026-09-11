@@ -4,7 +4,6 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { BoyUpperBody } from './BoyUpperBody';
 import { createBoyHair } from './BoyHair';
 import { BoyHeadShape } from './BoyHeadShape';
-import { BoyModelVariants, type BoyModelVariant } from './BoyModelVariants';
 
 export type PlayerGender = 'boy' | 'girl';
 
@@ -165,22 +164,16 @@ export function createPlayerModel() {
   const upperShape = new BoyUpperBody(head, torso, neck, sleeves);
   upperShape.apply(true);
   const boyMouth = new THREE.Vector3(0, -0.113 * 1.025, 0.246 * 0.94);
-  const variants = new BoyModelVariants({ root, upperBody, head, torso, armSurfaces, legSurfaces, arms, elbows, hands, legs, knees });
+  const girlMouth = new THREE.Vector3(0, -0.113, 0.246);
   return {
     root, upperBody, torso, head, arms, legs, elbows, knees, ankles, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
-    get useBoyGait() { return currentGender === 'boy' && !variants.active; },
-    get isBoyPreview() { return variants.active; },
-    get mouthPosition() { return currentGender === 'boy' && !variants.active ? boyMouth : variants.mouth; },
-    disposePreview() { variants.dispose(); upperShape.dispose(); },
-    setBoyVariant(variant: BoyModelVariant) {
-      variants.apply(currentGender === 'boy' ? variant : 'original');
-      upperShape.apply(currentGender === 'boy' && variant === 'original');
-    },
+    get useBoyGait() { return currentGender === 'boy'; },
+    get mouthPosition() { return currentGender === 'boy' ? boyMouth : girlMouth; },
+    dispose() { upperShape.dispose(); },
     setGender(gender: PlayerGender) {
       currentGender = gender;
       headShape.apply(gender === 'boy');
-      if (gender === 'girl') variants.apply('original');
-      upperShape.apply(gender === 'boy' && !variants.active);
+      upperShape.apply(gender === 'boy');
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';
     },
