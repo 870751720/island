@@ -1,6 +1,6 @@
 'use client';
 
-import type { BoyHairId, PlayerGender } from '@/game/entities/PlayerModel';
+import type { PlayerGender } from '@/game/entities/PlayerModel';
 import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import type { ToolId } from '@/game/systems/Crafting';
@@ -19,8 +19,6 @@ export type GmActions = {
   getGame: () => Game | null;
   restoreStatus: () => void;
   setGender: (gender: PlayerGender) => void;
-  getBoyHair: () => BoyHairId;
-  setBoyHair: (id: BoyHairId) => void;
   setDay: (day: number) => void;
   setWeather: (type: 'sunny' | 'wind' | 'rain' | 'snow') => void;
   setConfig: (patch: Partial<GmConfig>) => void;
@@ -44,7 +42,6 @@ type TabId = (typeof TABS)[number]['id'];
 /** GM 面板:分模块 tab 的调试工具弹窗 */
 export function GmPanel({ onClose, actions, gender }: { onClose: () => void; actions: GmActions; gender: PlayerGender }) {
   const [tab, setTab] = useState<TabId>('player');
-  const [boyHair, setBoyHair] = useState<BoyHairId>(() => actions.getBoyHair());
 
   return (
     <div onClick={onClose} style={overlayStyle}>
@@ -65,11 +62,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
             </button>
           ))}
         </div>
-        {tab === 'player' && <PlayerTab gender={gender} boyHair={boyHair} onSetGender={actions.setGender} onSetBoyHair={(id) => {
-          actions.setBoyHair(id);
-          setBoyHair(id);
-          if (gender !== 'boy') actions.setGender('boy');
-        }} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
+        {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
         {tab === 'world' && <WorldTab getGame={actions.getGame} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}

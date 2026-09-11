@@ -7,7 +7,7 @@ import type { Footprints } from '../fx/Footprints';
 import type { EquipKind, EquipSlot } from '../systems/Equipment';
 import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
-import { createPlayerModel, type BoyHairId, type PlayerGender } from './PlayerModel';
+import { createPlayerModel, type PlayerGender } from './PlayerModel';
 import { SwordTrail } from '../fx/SwordTrail';
 import { PlayerAnimator } from './PlayerAnimator';
 import { PlayerWardrobe } from './equipment/PlayerWardrobe';
@@ -448,14 +448,6 @@ export class Player implements Updatable {
     this.gender = gender;
     this.appearance.setGender(gender);
     this.wardrobe.setGender(gender);
-  }
-
-  get currentBoyHair(): BoyHairId {
-    return this.appearance.boyHair;
-  }
-
-  setBoyHair(id: number): void {
-    this.appearance.setBoyHair(id);
   }
 
   /** 本地穿戴与联机快照共用的装备外观入口。 */

@@ -1,5 +1,5 @@
 import { PerformanceMonitor } from './core/PerformanceMonitor';
-import type { BoyHairId, PlayerGender } from './entities/PlayerModel';
+import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { Player, type HandTool } from './entities/Player';
@@ -2256,15 +2256,6 @@ export class Game {
     actor.player.setGender(gender);
     if (actor === this.local) saveProfileGender(gender);
     SaveSystem.save(this.collectSave());
-  }
-
-  /** GM 预览男孩发型：只改本机角色外观，不入存档、不同步。 */
-  gmSetBoyHair(id: number): void {
-    this.local.player.setBoyHair(id);
-  }
-
-  gmBoyHair(): BoyHairId {
-    return this.local.player.currentBoyHair;
   }
 
   /** GM 生存状态回满并复活 */

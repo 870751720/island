@@ -2,11 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 import { BoyUpperBody } from './BoyUpperBody';
-import { BOY_HAIR_STYLES, createBoyHair, isBoyHairId, type BoyHairId } from './BoyHair';
+import { createBoyHair } from './BoyHair';
 import { BoyHeadShape } from './BoyHeadShape';
-
-export type { BoyHairId } from './BoyHair';
-export { BOY_HAIR_STYLES } from './BoyHair';
 
 export type PlayerGender = 'boy' | 'girl';
 
@@ -87,15 +84,9 @@ export function createPlayerModel() {
   girlBlush.visible = false;
   head.add(girlBlush);
   const hairstyles = { boy: new THREE.Group(), girl: new THREE.Group() };
-  const boyHairMaterial = clay('#352820');
-  let boyHairId: BoyHairId = 0;
-  for (const def of BOY_HAIR_STYLES) {
-    const style = new THREE.Group();
-    createBoyHair(style, boyHairMaterial, def.id);
-    batchParts(style);
-    style.visible = def.id === 0;
-    hairstyles.boy.add(style);
-  }
+  createBoyHair(hairstyles.boy, clay('#352820'));
+  batchParts(hairstyles.boy);
+  hairstyles.boy.visible = true;
   const girlStyle = hairstyles.girl;
   oval(girlStyle, hair, [0, 0.045, -0.09], [0.312, 0.273, 0.215]);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2)
@@ -177,22 +168,11 @@ export function createPlayerModel() {
   upperShape.apply(true);
   const boyMouth = new THREE.Vector3(0, -0.113 * 1.025, 0.246 * 0.94);
   const girlMouth = new THREE.Vector3(0, -0.113, 0.246);
-  const showBoyHair = (id: BoyHairId) => {
-    boyHairId = id;
-    hairstyles.boy.children.forEach((style, index) => {
-      style.visible = currentGender === 'boy' && index === id;
-    });
-  };
   return {
     root, upperBody, torso, head, arms, legs, elbows, knees, ankles, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
     get useBoyGait() { return currentGender === 'boy'; },
     get mouthPosition() { return currentGender === 'boy' ? boyMouth : girlMouth; },
-    get boyHair() { return boyHairId; },
     dispose() { upperShape.dispose(); },
-    setBoyHair(id: number) {
-      if (!isBoyHairId(id) || id === boyHairId) return;
-      showBoyHair(id);
-    },
     setGender(gender: PlayerGender) {
       currentGender = gender;
       headShape.apply(gender === 'boy');
@@ -200,7 +180,6 @@ export function createPlayerModel() {
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';
       girlBlush.visible = gender === 'girl';
-      showBoyHair(boyHairId);
     },
   };
 }
