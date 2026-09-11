@@ -4,10 +4,8 @@ export const GmSystem = {
   allowDeath: true,
   /** 无敌模式:饥饿/口渴不掉、生命与体力回满 */
   godMode: false,
-  /** 是否锁定白天;开启后时间停止在正午(与锁定夜晚互斥) */
-  lockDaytime: false,
-  /** 是否锁定夜晚;开启后时间停止在午夜(与锁定白天互斥) */
-  lockNighttime: false,
+  /** 锁定时刻 t∈[0,1);null 表示不锁定,时间自然流逝 */
+  lockTime: null as number | null,
   /** 风表现三态:auto=晴天按概率自然起风,on=强制有风,off=强制无风 */
   wind: 'auto' as 'auto' | 'on' | 'off',
   /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */
@@ -16,8 +14,6 @@ export const GmSystem = {
   showFps: false,
   /** 是否显示网络流量浮层(TrafficOverlay 轮询此标记,仅本机显示) */
   showTraffic: false,
-  /** 是否显示实际水体判定覆盖层：洋红=海水，亮绿=水洼 */
-  showWaterDebug: false,
   /** 玩家攻击力倍率(作用于剑与弓箭对生物的伤害结算) */
   attackMultiplier: 1,
   /** 玩家移动速度倍率(赶路调试用,1 为正常) */
@@ -38,13 +34,11 @@ export function gmSnapshot(): GmConfig {
   return {
     allowDeath: GmSystem.allowDeath,
     godMode: GmSystem.godMode,
-    lockDaytime: GmSystem.lockDaytime,
-    lockNighttime: GmSystem.lockNighttime,
+    lockTime: GmSystem.lockTime,
     wind: GmSystem.wind,
     fishingTierWeights: [...GmSystem.fishingTierWeights],
     showFps: GmSystem.showFps,
     showTraffic: GmSystem.showTraffic,
-    showWaterDebug: GmSystem.showWaterDebug,
     attackMultiplier: GmSystem.attackMultiplier,
     speedMultiplier: GmSystem.speedMultiplier,
     crocodileChance: GmSystem.crocodileChance,
@@ -57,12 +51,9 @@ export function gmSnapshot(): GmConfig {
 export function gmApply(config: Partial<GmConfig>): void {
   if (typeof config.allowDeath === 'boolean') GmSystem.allowDeath = config.allowDeath;
   if (typeof config.godMode === 'boolean') GmSystem.godMode = config.godMode;
-  if (typeof config.lockDaytime === 'boolean') GmSystem.lockDaytime = config.lockDaytime;
-  if (typeof config.lockNighttime === 'boolean') GmSystem.lockNighttime = config.lockNighttime;
-  // 锁白天/锁夜晚互斥:后设置者生效,另一个自动解除
-  if (GmSystem.lockDaytime && GmSystem.lockNighttime) {
-    if (config.lockDaytime) GmSystem.lockNighttime = false;
-    else GmSystem.lockDaytime = false;
+  if (config.lockTime === null || (typeof config.lockTime === 'number'
+    && Number.isFinite(config.lockTime) && config.lockTime >= 0 && config.lockTime < 1)) {
+    GmSystem.lockTime = config.lockTime;
   }
   if (config.wind === 'auto' || config.wind === 'on' || config.wind === 'off') GmSystem.wind = config.wind;
   if (Array.isArray(config.fishingTierWeights) && config.fishingTierWeights.length === 4
@@ -71,7 +62,6 @@ export function gmApply(config: Partial<GmConfig>): void {
   }
   if (typeof config.showFps === 'boolean') GmSystem.showFps = config.showFps;
   if (typeof config.showTraffic === 'boolean') GmSystem.showTraffic = config.showTraffic;
-  if (typeof config.showWaterDebug === 'boolean') GmSystem.showWaterDebug = config.showWaterDebug;
   if (typeof config.attackMultiplier === 'number' && Number.isFinite(config.attackMultiplier)) {
     GmSystem.attackMultiplier = Math.min(1000, Math.max(0.1, config.attackMultiplier));
   }

@@ -90,7 +90,6 @@ import { GmSystem, gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem
 import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
-import { WaterDebugOverlay } from './world/WaterDebugOverlay';
 import { Clouds } from './world/Clouds';
 import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
 import { updateSeasonSnow } from './world/SeasonSnow';
@@ -255,7 +254,6 @@ export class Game {
   private terrain: IslandTerrain;
   private ocean: Ocean;
   private oceanDepth: OceanDepth;
-  private waterDebug: WaterDebugOverlay;
   private crabs: Crabs;
   private butterflies: Butterflies;
   private birds: Birds;
@@ -397,8 +395,6 @@ export class Game {
     this.oceanDepth = new OceanDepth(terrain);
     this.ocean = new Ocean(terrain.seaLevel, this.oceanDepth);
     this.scene.add(this.ocean.mesh);
-    this.waterDebug = new WaterDebugOverlay(terrain);
-    this.scene.add(this.waterDebug.mesh);
     this.clouds = new Clouds(terrain.width, terrain.length);
     this.scene.add(this.clouds.group);
     this.props = new Props(this.scene, terrain, !save);
@@ -903,7 +899,6 @@ export class Game {
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
-        this.waterDebug.mesh.visible = GmSystem.showWaterDebug;
         if (!this.guestMode) {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);
@@ -2332,15 +2327,6 @@ export class Game {
       if (tier > 0 && Math.random() < DEATH_DROP_RATIO) this.drops.drop(id, 1, session, tier);
     }
   }
-  /** GM 跳转昼夜时刻,t∈[0,1),0.25 为正午;客人端上行车主权威结算,时刻随快照回流 */
-  gmSetTime(t: number): void {
-    if (this.guestNet) {
-      this.guestNet.action('gmSetTime', [t]);
-      return;
-    }
-    this.dayNight.time = t;
-  }
-
   /** GM 设置当前天数;客人端上行车主权威结算,天数随快照回流 */
   gmSetDay(day: number): void {
     if (this.guestNet) {
@@ -3242,7 +3228,6 @@ export class Game {
     this.clouds.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
-    this.waterDebug.dispose();
     this.ocean.dispose();
     this.oceanDepth.dispose();
     this.pickupPresentation.dispose();

@@ -123,10 +123,6 @@ const ACTIONS: NetActionRegistry = {
     g.gmRestoreStatus(a);
     return true;
   },
-  gmSetTime: (g, a, [t]) => {
-    g.gmSetTime(t);
-    return true;
-  },
   gmSetDay: (g, a, [day]) => {
     g.gmSetDay(day);
     return true;

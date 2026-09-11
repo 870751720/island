@@ -265,7 +265,6 @@ export function GameplayUI({
             getGame: () => gameRef.current,
             restoreStatus: () => gameRef.current?.gmRestoreStatus(),
             setGender: (gender) => gameRef.current?.gmSetGender(gender),
-            setTime: (t) => gameRef.current?.gmSetTime(t),
             setDay: (day) => gameRef.current?.gmSetDay(day),
             setWeather: (type) => gameRef.current?.gmSetWeather(type),
             setConfig: (patch) => gameRef.current?.gmSetConfig(patch),

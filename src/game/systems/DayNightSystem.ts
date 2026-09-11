@@ -97,7 +97,7 @@ export class DayNightSystem implements Updatable {
    * setSleepProgress 逐帧推向清晨,最后 endSleep 落定。
    */
   beginSleep(): number {
-    if (GmSystem.lockDaytime || GmSystem.lockNighttime) return 0;
+    if (GmSystem.lockTime !== null) return 0;
     this.sleepFrom = this.t;
     const dt = this.t < DayNightSystem.MORNING_T
       ? DayNightSystem.MORNING_T - this.t
@@ -127,20 +127,11 @@ export class DayNightSystem implements Updatable {
   }
 
   update(delta: number): void {
-    if (GmSystem.lockDaytime) {
-      // 锁定白天:时间停在正午,若当前不在白天先拉回白天
-      if (this.sunElevation() < 0.25) {
-        this.t = 0.25;
-        this.apply();
-      }
-      return;
-    }
-    if (GmSystem.lockNighttime) {
-      // 锁定夜晚:时间停在午夜,若当前不在深夜先拉回夜晚
-      if (this.sunElevation() > -0.05) {
-        this.t = 0.75;
-        this.apply();
-      }
+    if (GmSystem.lockTime !== null) {
+      // 锁定时刻:时间停在锁定值。apply 每帧都要重放,
+      // 否则 WeatherSystem 对灯光强度的逐帧乘法调制会复利衰减,把场景压黑。
+      this.t = GmSystem.lockTime;
+      this.apply();
       return;
     }
     // 夜里时钟加速,让自然夜(约 116 秒)压到约 40 秒;白天与晨昏仍按原速走

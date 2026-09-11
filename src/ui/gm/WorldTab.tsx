@@ -15,24 +15,20 @@ const TIME_PRESETS: { label: string; t: number }[] = [
   { label: '🌅 清晨', t: 0.97 },
 ];
 
-/** 世界 tab:昼夜锁定/跳转与强制天气 */
+/** 世界 tab:时刻锁定与强制天气 */
 export function WorldTab({
-  onSetTime,
   onSetDay,
   onSetWeather,
   onSetConfig,
 }: {
-  onSetTime: (t: number) => void;
   onSetDay: (day: number) => void;
   onSetWeather: (type: 'sunny' | 'rain' | 'snow') => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
-  const [lockDaytime, setLockDaytime] = useState(GmSystem.lockDaytime);
-  const [lockNighttime, setLockNighttime] = useState(GmSystem.lockNighttime);
+  const [lockTime, setLockTime] = useState<number | null>(GmSystem.lockTime);
   const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
-  const [showWaterDebug, setShowWaterDebug] = useState(GmSystem.showWaterDebug);
   const [snowPreview, setSnowPreview] = useState(GmSystem.snowPreview);
   const [dayInput, setDayInput] = useState('');
 
@@ -55,14 +51,6 @@ export function WorldTab({
         }}
       />
       <ToggleRow
-        label="显示水体判定（洋红海/亮绿水洼）"
-        value={showWaterDebug}
-        onChange={(v) => {
-          onSetConfig({ showWaterDebug: v });
-          setShowWaterDebug(v);
-        }}
-      />
-      <ToggleRow
         label="雪季预览（地形植被覆雪）"
         value={snowPreview}
         onChange={(v) => {
@@ -70,37 +58,18 @@ export function WorldTab({
           setSnowPreview(v);
         }}
       />
-      <ToggleRow
-        label="锁定白天"
-        value={lockDaytime}
-        onChange={(v) => {
-          onSetConfig({ lockDaytime: v });
-          setLockDaytime(v);
-          if (v) setLockNighttime(false);
-        }}
-      />
-      <ToggleRow
-        label="锁定夜晚"
-        value={lockNighttime}
-        onChange={(v) => {
-          onSetConfig({ lockNighttime: v });
-          setLockNighttime(v);
-          if (v) setLockDaytime(false);
-        }}
-      />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>跳转时刻(会解除锁定)</div>
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>锁定时刻(再次点击解锁)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {TIME_PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => {
-                onSetConfig({ lockDaytime: false, lockNighttime: false });
-                setLockDaytime(false);
-                setLockNighttime(false);
-                onSetTime(p.t);
+                const next = lockTime === p.t ? null : p.t;
+                onSetConfig({ lockTime: next });
+                setLockTime(next);
               }}
-              style={presetStyle}
+              style={{ ...presetStyle, background: lockTime === p.t ? '#a8823f' : '#8a6f4b' }}
             >
               {p.label}
             </button>

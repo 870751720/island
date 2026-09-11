@@ -20,7 +20,6 @@ export type GmActions = {
   getGame: () => Game | null;
   restoreStatus: () => void;
   setGender: (gender: PlayerGender) => void;
-  setTime: (t: number) => void;
   setDay: (day: number) => void;
   setWeather: (type: 'sunny' | 'rain' | 'snow') => void;
   setConfig: (patch: Partial<GmConfig>) => void;
@@ -67,7 +66,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
         </div>
         {tab === 'performance' && <PerformanceTab getGame={actions.getGame} />}
         {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
-        {tab === 'world' && <WorldTab onSetTime={actions.setTime} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
+        {tab === 'world' && <WorldTab onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}

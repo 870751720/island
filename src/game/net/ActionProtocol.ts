@@ -64,7 +64,6 @@ export interface NetActionArgs {
   gmGiveTool: [tool: ToolId, tier: 1 | 2 | 3];
   gmSetGender: [gender: PlayerGender];
   gmRestoreStatus: [];
-  gmSetTime: [time: number];
   gmSetDay: [day: number];
   gmSetWeather: [weather: 'sunny' | 'rain' | 'snow'];
   gmConfig: [config: GmConfig];
@@ -128,7 +127,6 @@ const NET_ACTION_ARG_COUNTS = {
   gmGiveTool: [2],
   gmSetGender: [1],
   gmRestoreStatus: [0],
-  gmSetTime: [1],
   gmSetDay: [1],
   gmSetWeather: [1],
   gmConfig: [1],
@@ -231,8 +229,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isString(first) && TOOL_IDS.has(first) && (second === 1 || second === 2 || second === 3);
     case 'gmSetGender':
       return first === 'boy' || first === 'girl';
-    case 'gmSetTime':
-      return isFiniteNumber(first);
     case 'gmSetDay':
       return isSafeInteger(first);
     case 'gmSetWeather':
