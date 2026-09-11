@@ -6,6 +6,9 @@ import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 import { usePerformanceReport } from './PerformanceOverlay';
 
+/** 季节四态标签:夏秋视觉暂用春季表现 */
+const SEASON_LABELS = { spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
+
 /** 风表现三态标签:auto 走自然概率,on/off 强制 */
 const WIND_LABELS = { auto: '🍃 自动', on: '🌬️ 强制风', off: '🚫 无风' } as const;
 
@@ -33,7 +36,7 @@ export function WorldTab({
   const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
-  const [snowPreview, setSnowPreview] = useState(GmSystem.snowPreview);
+  const [season, setSeason] = useState(GmSystem.season);
   const [dayInput, setDayInput] = useState('');
   const perf = usePerformanceReport(getGame);
 
@@ -60,14 +63,23 @@ export function WorldTab({
         value={perf.enabled}
         onChange={(v) => getGame()?.gmPerformance(v)}
       />
-      <ToggleRow
-        label="雪季预览（地形植被覆雪）"
-        value={snowPreview}
-        onChange={(v) => {
-          onSetConfig({ snowPreview: v });
-          setSnowPreview(v);
-        }}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制季节(冬季覆雪,夏秋暂用春季表现)</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['spring', 'summer', 'autumn', 'winter'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                onSetConfig({ season: s });
+                setSeason(s);
+              }}
+              style={{ ...presetStyle, background: season === s ? '#a8823f' : '#8a6f4b' }}
+            >
+              {SEASON_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>锁定时刻(再次点击解锁)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

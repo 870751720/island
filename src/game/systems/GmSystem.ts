@@ -22,8 +22,8 @@ export const GmSystem = {
   crocodileChance: 0.005,
   /** 树生长判定间隔(秒,每次判定有 1/2 概率升阶;作用于房主侧生长判定) */
   treeGrowthInterval: 60,
-  /** 雪季视觉预览:开启后地形与植被渐变覆雪(季节系统第一版表现层) */
-  snowPreview: false,
+  /** 强制季节:春/夏/秋/冬;夏秋视觉暂用春季表现,冬季为雪季(地形植被覆雪+水洼结冰) */
+  season: 'spring' as 'spring' | 'summer' | 'autumn' | 'winter',
 };
 
 /** GM 配置快照类型:联机时全房间同步这一份 */
@@ -43,7 +43,7 @@ export function gmSnapshot(): GmConfig {
     speedMultiplier: GmSystem.speedMultiplier,
     crocodileChance: GmSystem.crocodileChance,
     treeGrowthInterval: GmSystem.treeGrowthInterval,
-    snowPreview: GmSystem.snowPreview,
+    season: GmSystem.season,
   };
 }
 
@@ -74,5 +74,6 @@ export function gmApply(config: Partial<GmConfig>): void {
   if (typeof config.treeGrowthInterval === 'number' && Number.isFinite(config.treeGrowthInterval)) {
     GmSystem.treeGrowthInterval = Math.min(3600, Math.max(1, config.treeGrowthInterval));
   }
-  if (typeof config.snowPreview === 'boolean') GmSystem.snowPreview = config.snowPreview;
+  if (config.season === 'spring' || config.season === 'summer'
+    || config.season === 'autumn' || config.season === 'winter') GmSystem.season = config.season;
 }

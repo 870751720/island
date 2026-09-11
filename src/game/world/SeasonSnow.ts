@@ -48,9 +48,9 @@ export function getSnowAmount(): number {
   return snowAmount.value;
 }
 
-/** 每帧驱动:雪量向 GM 目标值平滑过渡(需主机与客人各自本地执行) */
+/** 每帧驱动:雪量向 GM 目标季节平滑过渡,冬季积雪其余无雪(需主机与客人各自本地执行) */
 export function updateSeasonSnow(delta: number): void {
-  const target = GmSystem.snowPreview ? 1 : 0;
+  const target = GmSystem.season === 'winter' ? 1 : 0;
   const step = SNOW_FADE_SPEED * Math.max(delta, 0);
   const diff = target - snowAmount.value;
   if (Math.abs(diff) <= step) snowAmount.value = target;
