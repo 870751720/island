@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
+import { BoyHeadShape } from './BoyHeadShape';
 import { BoyModelVariants, type BoyModelVariant } from './BoyModelVariants';
 
 export type PlayerGender = 'boy' | 'girl';
@@ -120,6 +121,7 @@ export function createPlayerModel() {
   const hands: THREE.Mesh[] = [];
   const elbows: THREE.Group[] = [];
   const knees: THREE.Group[] = [];
+  const ankles: THREE.Group[] = [];
   const arms: THREE.Group[] = [];
   const legs: THREE.Group[] = [];
   const armSurfaces: THREE.Mesh[] = [];
@@ -149,23 +151,32 @@ export function createPlayerModel() {
     knees.push(knee);
     const calf = oval(knee, skin, [0, -0.09, 0], [0.075, 0.15, 0.08]);
     oval(leg, legMaterial, [0, -0.095, 0], [0.108, 0.16, 0.119]);
-    oval(knee, cream, [0, -0.175, 0], [0.078, 0.065, 0.084]);
-    oval(knee, shoes, [0, -0.255, 0.034], [0.104, 0.085, 0.15]);
+    const ankle = new THREE.Group();
+    ankle.position.y = -0.2;
+    knee.add(ankle);
+    ankles.push(ankle);
+    oval(ankle, cream, [0, 0.025, 0], [0.078, 0.065, 0.084]);
+    oval(ankle, shoes, [0, -0.055, 0.034], [0.104, 0.085, 0.15]);
     legs.push(leg);
     legSurfaces.push(calf);
   }
   ball.dispose();
+  const headShape = new BoyHeadShape(head, hairstyles.boy);
+  headShape.apply(true);
+  const boyMouth = new THREE.Vector3(0, -0.113 * 1.025, 0.246 * 0.94);
   const variants = new BoyModelVariants({ root, upperBody, head, torso, armSurfaces, legSurfaces, arms, elbows, hands, legs, knees });
   return {
-    root, upperBody, torso, head, arms, legs, elbows, knees, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
+    root, upperBody, torso, head, arms, legs, elbows, knees, ankles, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
+    get useBoyGait() { return currentGender === 'boy' && !variants.active; },
     get isBoyPreview() { return variants.active; },
-    get mouthPosition() { return variants.mouth; },
+    get mouthPosition() { return currentGender === 'boy' && !variants.active ? boyMouth : variants.mouth; },
     disposePreview() { variants.dispose(); },
     setBoyVariant(variant: BoyModelVariant) {
       variants.apply(currentGender === 'boy' ? variant : 'original');
     },
     setGender(gender: PlayerGender) {
       currentGender = gender;
+      headShape.apply(gender === 'boy');
       if (gender === 'girl') variants.apply('original');
       hairstyles.boy.visible = gender === 'boy';
       hairstyles.girl.visible = gender === 'girl';

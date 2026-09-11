@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { boyGait } from './BoyGait';
 import { ArmReach } from './ArmReach';
 import type { ActionType, HandTool } from './Player';
 import type { createPlayerModel } from './PlayerModel';
@@ -29,7 +30,7 @@ export class PlayerAnimator {
   private height = 0;
 
   constructor(private model: Model) {
-    this.nodes = [model.upperBody, model.head, ...model.arms, ...model.elbows, ...model.legs, ...model.knees];
+    this.nodes = [model.upperBody, model.head, ...model.arms, ...model.elbows, ...model.legs, ...model.knees, ...model.ankles];
     this.targets = this.nodes.map(() => new THREE.Euler());
     this.reachLeft = new ArmReach(model.arms[0], model.elbows[0], 1);
     this.reachRight = new ArmReach(model.arms[1], model.elbows[1], -1);
@@ -74,6 +75,8 @@ export class PlayerAnimator {
     legR.x = step * 0.58 * this.weight;
     kneeL.x = Math.max(0, step) * 0.65 * this.weight;
     kneeR.x = Math.max(0, -step) * 0.65 * this.weight;
+    if (this.model.useBoyGait) boyGait(this.targets, this.gait, this.weight);
+    if (swimming || action) { this.targets[10].set(0, 0, 0); this.targets[11].set(0, 0, 0); }
     if (tool !== 'hand') { right.x *= 0.45; elbowR.x -= 0.15; }
 
     let graspLeft = 0;

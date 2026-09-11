@@ -3,7 +3,7 @@ import { ModelKit, type BoyRig } from './boy/ModelKit';
 import { naturalBoy } from './boy/NaturalBoy';
 
 export const BOY_MODEL_VARIANTS = [
-  { id: 'original', label: '原版对照', description: '原有男孩，显示已穿装备' },
+  { id: 'original', label: '原版 · 新动作', description: '肩肘膝踝联动 / 收窄下颌 / 显示已穿装备' },
   { id: 'child', label: 'A · 十岁男孩', description: '自然圆脸 / 黑色短发 / 蓝灰短袖 / 短裤球鞋' },
   { id: 'teen', label: 'B · 十三四岁少年', description: '小头清瘦 / 黑色偏分短发 / 浅色短袖 / 深色短裤' },
 ] as const;
