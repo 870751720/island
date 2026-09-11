@@ -134,6 +134,8 @@ export type NetMsg =
       t: 'players';
       time?: number;
       day?: number;
+      /** 房主权威季节(客人端驱动 HUD 标签与季节视觉过渡) */
+      season?: 'spring' | 'summer' | 'autumn' | 'winter';
       weather?: 'sunny' | 'wind' | 'rain' | 'snow';
       /** 房主权威天气连续值(客人端驱动画表现,不再本地随机轮换) */
       rain?: number;

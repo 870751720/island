@@ -283,7 +283,7 @@ export class NetHost {
       const state = game.netPlayersState();
       const qPlayers = state.list.map((p) => ({ ...p, x: quantize(p.x, .02), y: quantize(p.y, .02), z: quantize(p.z, .02), rotY: quantize(p.rotY, .01), hunger: quantize(p.hunger, .1), thirst: quantize(p.thirst, .1), health: quantize(p.health, .1), stamina: quantize(p.stamina, .1) }));
       const players = diffEntities(qPlayers, guest.players, recoveryFrame);
-      const climate = { time: quantize(state.time, .01), day: state.day, weather: state.weather, rain: quantize(state.rain, .02), windAmount: quantize(state.windAmount, .02), windDirX: quantize(state.windDirX, .02), windDirZ: quantize(state.windDirZ, .02) };
+      const climate = { time: quantize(state.time, .01), day: state.day, season: state.season, weather: state.weather, rain: quantize(state.rain, .02), windAmount: quantize(state.windAmount, .02), windDirX: quantize(state.windDirX, .02), windDirZ: quantize(state.windDirZ, .02) };
       const climateKey = JSON.stringify(climate);
       if (players || climateKey !== guest.climate) {
         const climateChanged = climateKey !== guest.climate;

@@ -4,6 +4,7 @@ import type { ResourceKind } from '../systems/Inventory';
 import type { FacilityKind } from '../systems/Facilities';
 import type { DayNightSystem } from '../systems/DayNightSystem';
 import type { WeatherSystem } from '../systems/WeatherSystem';
+import { getSeason } from '../systems/SeasonSystem';
 
 /** Builds the host-authoritative player/environment payload sent on the pose channel. */
 export function buildPlayersState(
@@ -16,6 +17,7 @@ export function buildPlayersState(
   return {
     time: dayNight.time,
     day: dayNight.day,
+    season: getSeason(),
     weather:
       weather.rainIntensity > 0.05 ? 'rain' as const
       : weather.snowIntensity > 0.05 ? 'snow' as const

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 
+/** 季节标签:天数行尾缀展示 */
+const SEASON_LABELS = { spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
+
 function StatRow({ icon, value, color }: { icon: string; value: number; color: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
@@ -120,7 +123,7 @@ export function Hud({
             marginTop: 2,
           }}
         >
-          第 {hud.day} 天
+          第 {hud.day} 天 · {SEASON_LABELS[hud.season]}
         </div>
       </div>
       {hud.buffs.length > 0 && (

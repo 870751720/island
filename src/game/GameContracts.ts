@@ -88,6 +88,8 @@ export type HudSnapshot = {
   nearDrop: DropInfo | null;
   notice: { id: number; text: string } | null;
   day: number;
+  /** 当前季节(左上角天数行展示) */
+  season: 'spring' | 'summer' | 'autumn' | 'winter';
   busy: boolean;
   moving: boolean;
   indicator: { label: string | null; progress: number | null; color?: string };

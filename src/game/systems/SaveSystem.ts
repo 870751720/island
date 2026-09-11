@@ -84,6 +84,10 @@ export type SaveData = {
   dayTime: number;
   /** 当前是第几天 */
   day: number;
+  /** 当前季节(旧档缺省视为春季) */
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
+  /** 当前季节第一天的天数锚点(旧档缺省视为 1) */
+  seasonStartDay?: number;
   /** 本局波塞冬的庇佑是否已触发过(单局仅一次) */
   poseidonGraceUsed: boolean;
   props: PropSave[];

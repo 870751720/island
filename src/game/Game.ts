@@ -19,6 +19,7 @@ import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
+import { advanceSeasonForDay, rollInitialSeason, setSeason } from './systems/SeasonSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
 import { TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
@@ -888,6 +889,11 @@ export class Game {
         const simDelta = this.cameraController.photoActive && !this.guestMode && !this.hostRef ? 0 : delta;
         for (const session of this.sessions) session.player.update(simDelta, elapsed);
         this.dayNight.update(simDelta);
+        // 季节推进为房主/单机权威:每帧按天数对账换季,入冬当日强制降雪
+        if (!this.guestMode) {
+          const newSeason = advanceSeasonForDay(this.dayNight.day);
+          if (newSeason === 'winter') this.weather.force('snow');
+        }
         this.crates.update(simDelta);
         this.meteor.update(simDelta);
         this.weather.update(simDelta);
@@ -1298,6 +1304,8 @@ export class Game {
     const { time, day } = msg;
     if (time !== undefined) this.dayNight.time = time;
     if (day !== undefined) this.dayNight.day = day;
+    // 季节由房主快照回流,客人只做表现(HUD 标签与季节视觉过渡)
+    if (msg.season !== undefined) setSeason(msg.season);
     // 天气与风采用房主权威值,本地只做表现插值(不再随机轮换/重掷风向)
     if (msg.rain !== undefined && msg.windAmount !== undefined && msg.windDirX !== undefined && msg.windDirZ !== undefined) {
       this.weather.netSync(msg.rain, msg.snow ?? 0, msg.windAmount, msg.windDirX, msg.windDirZ);
@@ -1753,7 +1761,11 @@ export class Game {
 
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
   private applySave(save: SaveData | null): void {
-    if (!save) return;
+    // 新开局掷初始季节:91% 春季第一天,夏/秋/冬各 3%(读档路径在 restoreWorld 恢复)
+    if (!save) {
+      rollInitialSeason();
+      return;
+    }
     if (this.guestMode) {
       // 客人:按房主会话顺序重放,自己的那份落到本地会话(其余建为遥控玩家)
       const all = [save as SessionSave, ...save.others];

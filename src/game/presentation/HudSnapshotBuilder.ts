@@ -16,6 +16,7 @@ import type { ResourceKind } from '../systems/Inventory';
 import type { ShrineSystem } from '../systems/ShrineSystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
 import type { WeatherSystem } from '../systems/WeatherSystem';
+import { getSeason } from '../systems/SeasonSystem';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import type { Wildlife } from '../entities/Wildlife';
 
@@ -125,6 +126,7 @@ export class HudSnapshotBuilder {
       collectTreasure: runtime.collectTreasure,
       nearDrop: s.drops.getNearby(session),
       day: s.dayNight.day,
+      season: getSeason(),
       busy,
       moving: session.player.isMoving,
       indicator: this.indicator(session),

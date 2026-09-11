@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GmSystem } from '../systems/GmSystem';
+import { getSeason } from '../systems/SeasonSystem';
 
 /**
  * 季节视觉表现:通过共享 shader uniform 驱动全场材质随季节变色。
@@ -69,9 +70,9 @@ export function getSeasonTint(): { dry: number; autumn: number } {
   return { dry: dryAmount.value, autumn: autumnAmount.value };
 }
 
-/** 每帧驱动:各系数向 GM 目标季节平滑过渡(需主机与客人各自本地执行) */
+/** 每帧驱动:各系数向目标季节(GM 覆盖或真实季节)平滑过渡(需主机与客人各自本地执行) */
 export function updateSeasonVisuals(delta: number): void {
-  const targets = SEASON_TARGETS[GmSystem.season];
+  const targets = SEASON_TARGETS[GmSystem.season === 'auto' ? getSeason() : GmSystem.season];
   const step = SEASON_FADE_SPEED * Math.max(delta, 0);
   for (const [current, target] of [
     [dryAmount, targets.dry],

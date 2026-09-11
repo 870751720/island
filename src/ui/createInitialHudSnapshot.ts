@@ -72,6 +72,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     nearDrop: null,
     notice: null,
     day: 1,
+    season: 'spring',
     heldFenceCount: 0,
     heldPlaceCount: 0,
     heldItemKind: null,

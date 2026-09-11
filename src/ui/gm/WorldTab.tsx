@@ -6,8 +6,8 @@ import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 import { usePerformanceReport } from './PerformanceOverlay';
 
-/** 季节四态标签:夏秋视觉暂用春季表现 */
-const SEASON_LABELS = { spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
+/** 季节五态标签:auto=跟随真实季节(默认),其余为强制覆盖 */
+const SEASON_LABELS = { auto: '🔁 跟随', spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
 
 /** 天气四态标签 */
 const WEATHER_LABELS = { sunny: '☀️ 晴天', wind: '🌬️ 刮风', rain: '🌧️ 雨天', snow: '🌨️ 雪天' } as const;
@@ -63,9 +63,9 @@ export function WorldTab({
         onChange={(v) => getGame()?.gmPerformance(v)}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制季节(春/夏/秋/冬独立视觉)</div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['spring', 'summer', 'autumn', 'winter'] as const).map((s) => (
+        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>季节(跟随真实季节 / 强制覆盖)</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {(['auto', 'spring', 'summer', 'autumn', 'winter'] as const).map((s) => (
             <button
               key={s}
               onClick={() => {

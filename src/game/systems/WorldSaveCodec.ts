@@ -14,6 +14,7 @@ import type { LoomSystem } from './LoomSystem';
 import type { RabbitBurrowSystem } from './RabbitBurrowSystem';
 import type { SaveData } from './SaveSystem';
 import type { ShrineSystem } from './ShrineSystem';
+import { setSeason, getSeason, getSeasonStartDay } from './SeasonSystem';
 import type { SoilSystem } from './SoilSystem';
 import type { CropSystem } from './CropSystem';
 import type { SmelterSystem } from './SmelterSystem';
@@ -47,6 +48,7 @@ export type WorldSaveSystems = {
 
 export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boolean): void {
   s.dayNight.restore(save.dayTime, save.day);
+  setSeason(save.season ?? 'spring', save.seasonStartDay ?? 1);
   s.props.applySave(save.props);
   s.campfire.restore(save.campfires);
   s.workbench.restore(save.workbenches);
@@ -76,6 +78,8 @@ export function snapshotWorld(s: WorldSaveSystems) {
   return {
     dayTime: s.dayNight.time,
     day: s.dayNight.day,
+    season: getSeason(),
+    seasonStartDay: getSeasonStartDay(),
     props: s.props.snapshot(),
     campfires: s.campfire.snapshot(),
     workbenches: s.workbench.snapshot(),
