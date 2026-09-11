@@ -20,7 +20,7 @@ import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
-import { WeatherSystem } from './systems/WeatherSystem';
+import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
 import { TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
@@ -2337,7 +2337,7 @@ export class Game {
   }
 
   /** GM 强制切换天气;客人端上行车主权威结算,天气随快照回流 */
-  gmSetWeather(type: 'sunny' | 'rain' | 'snow'): void {
+  gmSetWeather(type: WeatherType): void {
     if (this.guestNet) {
       this.guestNet.action('gmSetWeather', [type]);
       return;

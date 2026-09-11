@@ -9,8 +9,8 @@ import { usePerformanceReport } from './PerformanceOverlay';
 /** 季节四态标签:夏秋视觉暂用春季表现 */
 const SEASON_LABELS = { spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
 
-/** 风表现三态标签:auto 走自然概率,on/off 强制 */
-const WIND_LABELS = { auto: '🍃 自动', on: '🌬️ 强制风', off: '🚫 无风' } as const;
+/** 天气四态标签 */
+const WEATHER_LABELS = { sunny: '☀️ 晴天', wind: '🌬️ 刮风', rain: '🌧️ 雨天', snow: '🌨️ 雪天' } as const;
 
 /** 昼夜时刻预设:t∈[0,1),按太阳高度取白天正午/黄昏/深夜/清晨 */
 const TIME_PRESETS: { label: string; t: number }[] = [
@@ -29,11 +29,10 @@ export function WorldTab({
 }: {
   getGame: () => Game | null;
   onSetDay: (day: number) => void;
-  onSetWeather: (type: 'sunny' | 'rain' | 'snow') => void;
+  onSetWeather: (type: 'sunny' | 'wind' | 'rain' | 'snow') => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
 }) {
   const [lockTime, setLockTime] = useState<number | null>(GmSystem.lockTime);
-  const [wind, setWind] = useState(GmSystem.wind);
   const [showFps, setShowFps] = useState(GmSystem.showFps);
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
   const [season, setSeason] = useState(GmSystem.season);
@@ -121,25 +120,8 @@ export function WorldTab({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制天气</div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <ActionButton label="☀️ 晴天" onClick={() => onSetWeather('sunny')} />
-          <ActionButton label="🌧️ 雨天" onClick={() => onSetWeather('rain')} />
-          <ActionButton label="🌨️ 雪天" onClick={() => onSetWeather('snow')} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>风表现</div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['auto', 'on', 'off'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => {
-                onSetConfig({ wind: mode });
-                setWind(mode);
-              }}
-              style={{ ...presetStyle, background: wind === mode ? '#a8823f' : '#8a6f4b' }}
-            >
-              {WIND_LABELS[mode]}
-            </button>
+          {(['sunny', 'wind', 'rain', 'snow'] as const).map((w) => (
+            <ActionButton key={w} label={WEATHER_LABELS[w]} onClick={() => onSetWeather(w)} />
           ))}
         </div>
       </div>

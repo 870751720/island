@@ -19,6 +19,7 @@ export function buildPlayersState(
     weather:
       weather.rainIntensity > 0.05 ? 'rain' as const
       : weather.snowIntensity > 0.05 ? 'snow' as const
+      : weather.windIntensity > 0.05 ? 'wind' as const
       : 'sunny' as const,
     rain: weather.rainIntensity,
     snow: weather.snowIntensity,

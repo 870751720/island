@@ -134,7 +134,7 @@ export type NetMsg =
       t: 'players';
       time?: number;
       day?: number;
-      weather?: 'sunny' | 'rain' | 'snow';
+      weather?: 'sunny' | 'wind' | 'rain' | 'snow';
       /** 房主权威天气连续值(客人端驱动画表现,不再本地随机轮换) */
       rain?: number;
       snow?: number;

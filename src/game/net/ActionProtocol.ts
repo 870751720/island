@@ -65,7 +65,7 @@ export interface NetActionArgs {
   gmSetGender: [gender: PlayerGender];
   gmRestoreStatus: [];
   gmSetDay: [day: number];
-  gmSetWeather: [weather: 'sunny' | 'rain' | 'snow'];
+  gmSetWeather: [weather: 'sunny' | 'wind' | 'rain' | 'snow'];
   gmConfig: [config: GmConfig];
 }
 
@@ -232,7 +232,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'gmSetDay':
       return isSafeInteger(first);
     case 'gmSetWeather':
-      return first === 'sunny' || first === 'rain' || first === 'snow';
+      return first === 'sunny' || first === 'wind' || first === 'rain' || first === 'snow';
     case 'gmConfig':
       return typeof first === 'object' && first !== null && !Array.isArray(first);
   }

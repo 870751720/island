@@ -6,8 +6,6 @@ export const GmSystem = {
   godMode: false,
   /** 锁定时刻 t∈[0,1);null 表示不锁定,时间自然流逝 */
   lockTime: null as number | null,
-  /** 风表现三态:auto=晴天按概率自然起风,on=强制有风,off=强制无风 */
-  wind: 'auto' as 'auto' | 'on' | 'off',
   /** 钓鱼四档概率权重(杂物/普通鱼/大鱼/珍宝),按权重归一抽取 */
   fishingTierWeights: [25, 40, 34.5, 0.5],
   /** 是否显示帧率浮层(FpsOverlay 轮询此标记) */
@@ -35,7 +33,6 @@ export function gmSnapshot(): GmConfig {
     allowDeath: GmSystem.allowDeath,
     godMode: GmSystem.godMode,
     lockTime: GmSystem.lockTime,
-    wind: GmSystem.wind,
     fishingTierWeights: [...GmSystem.fishingTierWeights],
     showFps: GmSystem.showFps,
     showTraffic: GmSystem.showTraffic,
@@ -55,7 +52,6 @@ export function gmApply(config: Partial<GmConfig>): void {
     && Number.isFinite(config.lockTime) && config.lockTime >= 0 && config.lockTime < 1)) {
     GmSystem.lockTime = config.lockTime;
   }
-  if (config.wind === 'auto' || config.wind === 'on' || config.wind === 'off') GmSystem.wind = config.wind;
   if (Array.isArray(config.fishingTierWeights) && config.fishingTierWeights.length === 4
     && config.fishingTierWeights.every((w) => Number.isFinite(w) && w >= 0)) {
     GmSystem.fishingTierWeights = [...config.fishingTierWeights] as GmConfig['fishingTierWeights'];
