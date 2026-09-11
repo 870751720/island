@@ -5,6 +5,7 @@ import { PlayerUpperBody } from './PlayerUpperBody';
 import { createBoyHair } from './BoyHair';
 import { createGirlHair } from './GirlHair';
 import { BoyHeadShape } from './BoyHeadShape';
+import { createClayHand } from './PlayerHands';
 
 export type PlayerGender = 'boy' | 'girl';
 
@@ -121,7 +122,9 @@ export function createPlayerModel() {
     elbows.push(elbow);
     const surface = oval(elbow, skin, [0, -0.067, 0], [0.071, 0.105, 0.074]);
     sleeves.push(oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]));
-    hands.push(oval(elbow, skin, [side * 0.006, -0.155, 0.012], [0.081, 0.09, 0.079]));
+    const hand = createClayHand(elbow, skin, side, oval);
+    batchParts(hand);
+    hands.push(hand.children[0] as THREE.Mesh);
     arms.push(arm);
     armSurfaces.push(surface);
 
