@@ -8,7 +8,7 @@ const LEATHER = '#77503d';
 const PALETTES = [
   { main: '#81976b', dark: '#526952', accent: '#d18b61', bag: '#d6b47c' },
   { main: '#b77d55', dark: '#674d43', accent: '#708f8a', bag: '#a66b49' },
-  { main: '#7895a5', dark: '#435b70', accent: '#c88a63', bag: '#59798a' },
+  { main: '#8b5564', dark: '#4a3340', accent: '#7a9078', bag: '#d2b17a' },
 ] as const;
 
 /** 帽子使用头部局部坐标；帽口包住发帽，前沿高于刘海和眼睛。 */
@@ -32,14 +32,14 @@ export function makeOutfitHat(tier: OutfitTier): THREE.Group {
     b.oval(p.dark, [-0.03, 0.408, -0.012], [0.033, 0.017, 0.03]);
     b.box(BRASS, [-0.23, 0.194, 0.235], [0.07, 0.04, 0.023], [0, -0.55, 0]);
   } else {
-    // 轻便蓝灰探险盔：保持完整脸部，顶部护脊与黄铜徽章识别等级。
+    // 酒红毡帽：软圆冠 + 中等帽檐，轮廓跟草帽同一家族，只比报童帽多一圈檐。
     b.add(p.main, new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      [0, 0.145, 0], [0.347, 0.267, 0.309]);
-    b.ring(p.dark, [0, 0.152, 0], 0.344, 0.025, [1, 0.9, 1]);
-    b.oval(p.main, [0, 0.147, 0.242], [0.3, 0.025, 0.13]);
-    b.oval(CREAM, [0, 0.337, 0], [0.035, 0.088, 0.21]);
-    b.oval(BRASS, [0, 0.255, 0.295], [0.058, 0.064, 0.019]);
-    b.oval(p.dark, [0, 0.258, 0.312], [0.025, 0.03, 0.009]);
+      [-0.018, 0.168, -0.008], [0.345, 0.238, 0.305], [0, 0, 0.06]);
+    b.add(p.main, new THREE.CylinderGeometry(0.41, 0.43, 0.034, 16),
+      [0, 0.17, 0.018], [1, 1, 0.88]);
+    b.ring(p.dark, [0, 0.198, 0], 0.322, 0.026, [1, 0.9, 1]);
+    b.oval(p.accent, [-0.272, 0.236, 0.188], [0.042, 0.1, 0.018], [0, 0, -0.58]);
+    b.box(BRASS, [-0.228, 0.19, 0.232], [0.058, 0.034, 0.02], [0, -0.5, 0]);
   }
   return b.finish();
 }
@@ -59,16 +59,18 @@ export function makeOutfitShirt(tier: OutfitTier): THREE.Group {
   } else {
     for (const side of [-1, 1]) {
       b.oval(p.main, [side * 0.127, 0.855, 0.06], [0.133, 0.231, 0.131]);
-      b.box(tier === 1 ? CREAM : p.dark, [side * 0.076, 1.008, 0.116],
+      b.box(CREAM, [side * 0.076, 1.008, 0.116],
         [0.085, 0.13, 0.043], [0.22, 0, side * -0.42]);
       b.box(p.dark, [side * 0.127, 0.758, 0.159], [0.11, 0.082, 0.034]);
-      b.box(tier === 1 ? p.main : CREAM, [side * 0.127, 0.795, 0.18], [0.116, 0.022, 0.023]);
+      b.box(tier === 1 ? p.main : p.accent, [side * 0.127, 0.795, 0.18], [0.116, 0.022, 0.023]);
     }
     b.box(p.dark, [0, 0.866, 0.173], [0.018, 0.22, 0.02]);
     for (const y of [0.92, 0.84]) b.oval(BRASS, [0, y, 0.192], [0.014, 0.015, 0.009]);
     if (tier === 2) {
-      b.box(CREAM, [0, 0.936, 0.165], [0.27, 0.095, 0.039]);
-      b.oval(BRASS, [0, 0.938, 0.194], [0.038, 0.038, 0.013]);
+      for (const side of [-1, 1]) {
+        b.box(p.accent, [side * 0.042, 1.018, 0.12], [0.07, 0.088, 0.026], [0.28, 0, side * -0.46]);
+      }
+      b.oval(BRASS, [0, 0.988, 0.148], [0.022, 0.021, 0.016]);
     }
   }
   return b.finish();
@@ -76,9 +78,8 @@ export function makeOutfitShirt(tier: OutfitTier): THREE.Group {
 
 export function makeOutfitSleeve(tier: OutfitTier): THREE.Group {
   const b = new ClayParts();
-  const p = PALETTES[tier];
-  b.ring(tier === 2 ? p.main : CREAM, [0, -0.102, 0], 0.086, 0.017);
-  if (tier === 2) b.oval(p.main, [0, 0.003, 0], [0.112, 0.071, 0.117]);
+  b.ring(CREAM, [0, -0.102, 0], 0.086, 0.017);
+  if (tier === 2) b.ring(PALETTES[tier].dark, [0, -0.086, 0], 0.078, 0.009);
   return b.finish();
 }
 
@@ -90,7 +91,7 @@ export function makeOutfitWaist(tier: OutfitTier): THREE.Group {
   return b.finish();
 }
 
-/** 短裤保留儿童比例；口袋、卷边、护膝均随各自髋关节摆动。 */
+/** 短裤保留儿童比例；口袋与卷边随各自髋关节摆动。 */
 export function makeOutfitTrouserLeg(tier: OutfitTier, side: number): THREE.Group {
   const b = new ClayParts();
   const p = PALETTES[tier];
@@ -99,10 +100,6 @@ export function makeOutfitTrouserLeg(tier: OutfitTier, side: number): THREE.Grou
     [0.07, 0.11, 0.053], [0, side * 0.45, 0]);
   b.box(tier === 0 ? CREAM : p.main, [side * 0.079, -0.047, 0.095],
     [0.076, 0.027, 0.024], [0, side * 0.45, 0]);
-  if (tier === 2) {
-    b.oval(p.main, [0, -0.237, 0.071], [0.074, 0.073, 0.034]);
-    b.box(CREAM, [0, -0.227, 0.104], [0.072, 0.022, 0.014]);
-  }
   return b.finish();
 }
 
@@ -125,17 +122,15 @@ export function makeOutfitBackpack(tier: OutfitTier): THREE.Group {
   b.ring(LEATHER, [0, 1.015, -0.242], 0.052, 0.014, [1, 0.75, 1], [0, 0, 0]);
   if (tier === 0) {
     b.oval(p.main, [0.083, 0.963, -0.387], [0.032, 0.058, 0.012], [0, 0, -0.55]);
-  } else if (tier === 1) {
+  } else {
     b.add(p.accent, new THREE.CylinderGeometry(0.062, 0.062, 0.35, 10),
       [0, 1.04, -0.255], [1, 1, 1], [0, 0, Math.PI / 2]);
     for (const x of [-0.104, 0.104]) {
       b.ring(LEATHER, [x, 1.04, -0.255], 0.063, 0.012, [1, 1, 1], [0, Math.PI / 2, 0]);
     }
-  } else {
-    for (const side of [-1, 1]) {
-      b.box(p.main, [side * 0.177, 0.728, -0.337], [0.044, 0.12, 0.084]);
+    if (tier === 2) {
+      b.oval(p.main, [0.09, 0.74, -0.392], [0.03, 0.052, 0.012], [0, 0, -0.5]);
     }
-    b.oval(BRASS, [0, 0.949, -0.387], [0.039, 0.045, 0.013]);
   }
   return b.finish();
 }

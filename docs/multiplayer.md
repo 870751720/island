@@ -228,7 +228,7 @@
 
 ### 玩家装备穿搭
 
-12 件穿戴装备使用 `PlayerWardrobe` 与 `OutfitModels` 在房主、客人及远程角色上统一构建。穿戴/卸下沿用 `equipItem` / `unequipItem` 上行动作，由房主权威结算；原有装备快照回流后调用 `Player.setEquip`，重复 ID 不重建，变更时仅替换对应槽位模型。初次加入、重连及读档直接按现有装备 ID 恢复新造型。袖口、肩片、裤袋、护膝挂载原有动画关节，随玩家姿态在各端本地表现，无新增事件补播、协议字段或存档版本变化；属性和容量规则保持原样。
+12 件穿戴装备使用 `PlayerWardrobe` 与 `OutfitModels` 在房主、客人及远程角色上统一构建。穿戴/卸下沿用 `equipItem` / `unequipItem` 上行动作，由房主权威结算；原有装备快照回流后调用 `Player.setEquip`，重复 ID 不重建，变更时仅替换对应槽位模型。初次加入、重连及读档直接按现有装备 ID 恢复新造型。袖口、裤袋挂载原有动画关节，随玩家姿态在各端本地表现，无新增事件补播、协议字段或存档版本变化；属性和容量规则保持原样。
 
 2026-09-09(迭代):设施放置动作统一。原分散的 `useCrate/useBaitBarrel/useBrewBarrel/useWaterPurifier/useSmelter/useLoom/useCookingStation/useWorkbenchItem/useBedItem/useShrine/useFenceItem/useDeadCampfire/useBush` 合并为单一动作 `useFacility [kind]`(客人上行,房主经 `Game.settleFacility` 权威结算,围栏/门同样适用);工具切换仍走 `tool` 动作(携带 placeKind),客人端落点预览统一由 `AutoPlaceSystem.updatePreviewFor` 本地驱动(围栏预览并入)。世界段、快照与事件协议字段不变,存档版本不变。
 

@@ -45,8 +45,8 @@ export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
   furPants: { kind: 'furPants', slot: 'pants', score: 3, defense: 2, reduce: 0.2, bodyColor: '#775a49' },
   furHat: { kind: 'furHat', slot: 'hat', score: 4, defense: 1, reduce: 0.16, thirstMod: 0.95 },
   furBackpack: { kind: 'furBackpack', slot: 'backpack', score: 4, capacity: 16 },
-  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, reduce: 0.3, bodyColor: '#435b70' },
-  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, reduce: 0.26, bodyColor: '#465e70' },
+  ironShirt: { kind: 'ironShirt', slot: 'clothing', score: 5, defense: 5, reduce: 0.3, bodyColor: '#ead7b8' },
+  ironPants: { kind: 'ironPants', slot: 'pants', score: 5, defense: 4, reduce: 0.26, bodyColor: '#6a4552' },
   ironHat: { kind: 'ironHat', slot: 'hat', score: 6, defense: 2, reduce: 0.19, thirstMod: 0.95 },
   ironBackpack: { kind: 'ironBackpack', slot: 'backpack', score: 6, capacity: 20 },
 };
