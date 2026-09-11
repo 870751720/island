@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import type { Game } from '@/game/Game';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
+import { usePerformanceReport } from './PerformanceOverlay';
 
 /** 风表现三态标签:auto 走自然概率,on/off 强制 */
 const WIND_LABELS = { auto: '🍃 自动', on: '🌬️ 强制风', off: '🚫 无风' } as const;
@@ -17,10 +19,12 @@ const TIME_PRESETS: { label: string; t: number }[] = [
 
 /** 世界 tab:时刻锁定与强制天气 */
 export function WorldTab({
+  getGame,
   onSetDay,
   onSetWeather,
   onSetConfig,
 }: {
+  getGame: () => Game | null;
   onSetDay: (day: number) => void;
   onSetWeather: (type: 'sunny' | 'rain' | 'snow') => void;
   onSetConfig: (patch: Partial<GmConfig>) => void;
@@ -31,6 +35,7 @@ export function WorldTab({
   const [showTraffic, setShowTraffic] = useState(GmSystem.showTraffic);
   const [snowPreview, setSnowPreview] = useState(GmSystem.snowPreview);
   const [dayInput, setDayInput] = useState('');
+  const perf = usePerformanceReport(getGame);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -49,6 +54,11 @@ export function WorldTab({
           onSetConfig({ showTraffic: v });
           setShowTraffic(v);
         }}
+      />
+      <ToggleRow
+        label="本机性能诊断"
+        value={perf.enabled}
+        onChange={(v) => getGame()?.gmPerformance(v)}
       />
       <ToggleRow
         label="雪季预览（地形植被覆雪）"

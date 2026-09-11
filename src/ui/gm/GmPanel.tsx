@@ -6,7 +6,6 @@ import type { ResourceKind } from '@/game/systems/Inventory';
 import type { ToolId } from '@/game/systems/Crafting';
 import type { GmConfig } from '@/game/systems/GmSystem';
 import type { AnimalSpecies } from '@/game/entities/Wildlife';
-import { PerformanceTab } from './PerformanceTab';
 import type { Game } from '@/game/Game';
 import { PlayerTab } from './PlayerTab';
 import { WorldTab } from './WorldTab';
@@ -30,7 +29,6 @@ export type GmActions = {
 };
 
 const TABS = [
-  { id: 'performance', label: '性能' },
   { id: 'player', label: '玩家' },
   { id: 'world', label: '世界' },
   { id: 'fishing', label: '钓鱼' },
@@ -64,9 +62,8 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
             </button>
           ))}
         </div>
-        {tab === 'performance' && <PerformanceTab getGame={actions.getGame} />}
         {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
-        {tab === 'world' && <WorldTab onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
+        {tab === 'world' && <WorldTab getGame={actions.getGame} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}

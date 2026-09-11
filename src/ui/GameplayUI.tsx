@@ -8,7 +8,7 @@ import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
-import { PerformanceOverlay } from './gm/PerformanceTab';
+import { PerformanceOverlay } from './gm/PerformanceOverlay';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
 import { ToolButton } from './ToolButton';
