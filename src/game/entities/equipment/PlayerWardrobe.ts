@@ -11,6 +11,7 @@ type PlayerModel = ReturnType<typeof createPlayerModel>;
 /** 同一套挂载逻辑服务本地和远程玩家；只创建已穿装备，换下即释放。 */
 export class PlayerWardrobe {
   private gender: PlayerGender = 'boy';
+  private preview = false;
   private worn = new Map<EquipSlot, { kind: EquipKind; parts: THREE.Group[] }>();
 
   constructor(private model: PlayerModel) {}
@@ -35,6 +36,7 @@ export class PlayerWardrobe {
     const parts: THREE.Group[] = [];
     const attach = (parent: THREE.Object3D, part: THREE.Group) => {
       if (parent === this.model.upperBody) part.position.y -= 0.59;
+      part.visible = !this.model.isBoyPreview;
       parent.add(part);
       parts.push(part);
     };
@@ -51,6 +53,13 @@ export class PlayerWardrobe {
         break;
     }
     this.worn.set(slot, { kind, parts });
+  }
+
+  /** 整套 GM 造型预览隐藏穿搭网格，装备属性与持有状态不变。 */
+  syncPreview(): void {
+    if (this.preview === this.model.isBoyPreview) return;
+    this.preview = this.model.isBoyPreview;
+    for (const { parts } of this.worn.values()) for (const part of parts) part.visible = !this.preview;
   }
 
   private clear(slot: EquipSlot): void {

@@ -1,80 +1,89 @@
 import * as THREE from 'three';
+import { ModelKit, type BoyRig } from './boy/ModelKit';
+import { graffitiBoy } from './boy/GraffitiBoy';
+import { islandBoy } from './boy/IslandBoy';
+import { overallBoy } from './boy/OverallBoy';
+import { wildBoy } from './boy/WildBoy';
 
 export const BOY_MODEL_VARIANTS = [
-  { id: 'original', label: '原版对照', description: '原有圆球拼接轮廓' },
-  { id: 'soft', label: 'A · 圆润童趣', description: '饱满脸颊、短下巴、宽松短袖' },
-  { id: 'natural', label: 'B · 自然少年', description: '收窄脸型、修长四肢、利落侧分' },
-  { id: 'adventure', label: 'C · 蓬松冒险家', description: '蓬松偏分、方圆脸、厚实衣裤' },
+  { id: 'original', label: '原版对照', description: '原有男孩，显示已穿装备' },
+  { id: 'graffiti', label: 'A · 涂鸦小子', description: '方圆大头 / 黑锯齿发 / 青绿卫衣 / 红板鞋' },
+  { id: 'islander', label: 'B · 海岛少年', description: '清瘦小脸 / 金色长刘海 / 蓝马甲 / 凉鞋' },
+  { id: 'overalls', label: 'C · 背带裤男孩', description: '圆墩身材 / 红棕卷发 / 笑眯眼 / 背带裤' },
+  { id: 'wild', label: 'D · 野外小猎手', description: '棱角脸 / 放射刺发 / 红头带 / 兽皮赤脚' },
 ] as const;
 export type BoyModelVariant = typeof BOY_MODEL_VARIANTS[number]['id'];
 export function isBoyModelVariant(value: unknown): value is BoyModelVariant {
   return BOY_MODEL_VARIANTS.some((variant) => variant.id === value);
 }
 
-export type BoyPart = 'head' | 'hair' | 'torso' | 'waist' | 'sleeve' | 'arm' | 'forearm' | 'hand' | 'shorts' | 'calf';
-const shapes = {
-  soft: { faceWidth: 1.04, chin: 0.13, body: 1.04, limb: 1.04, hair: 1.02 },
-  natural: { faceWidth: 0.92, chin: 0.22, body: 0.94, limb: 0.91, hair: 0.96 },
-  adventure: { faceWidth: 1, chin: 0.07, body: 1.09, limb: 1.02, hair: 1.09 },
+const builders = { graffiti: graffitiBoy, islander: islandBoy, overalls: overallBoy, wild: wildBoy };
+const mouths = {
+  original: [0, -0.113, 0.246], graffiti: [0.055, -0.235, 0.287],
+  islander: [0.018, -0.175, 0.194], overalls: [0, -0.174, 0.264], wild: [0, -0.19, 0.216],
+} as const;
+
+// 隐藏表面仍承载伤口与血滴，匹配各方案身体宽深；不缩放动作关节。
+const surfaces = {
+  original: { width: 1, depth: 1, arm: 1, leg: 1 },
+  graffiti: { width: 1.28, depth: 1.48, arm: 0.83, leg: 0.88 },
+  islander: { width: 0.85, depth: 0.9, arm: 0.64, leg: 0.71 },
+  overalls: { width: 1.38, depth: 1.5, arm: 1.05, leg: 0.96 },
+  wild: { width: 1.02, depth: 1.05, arm: 0.84, leg: 0.81 },
 };
 
-/** 只改基础网格顶点，关节、装备和伤口挂点不缩放；缓存 CPU 顶点以精确恢复原版。 */
+/** 保留原关节与挂点，按需挂载独立造型；切换即释放上一套 GPU 资源。 */
 export class BoyModelVariants {
-  private parts: { mesh: THREE.Mesh; role: BoyPart; original: Float32Array; height: number }[] = [];
+  private baseMaterials = new Set<THREE.Material>();
   private current: BoyModelVariant = 'original';
+  private preview: ReturnType<ModelKit['finish']> | null = null;
+  readonly mouth = new THREE.Vector3(...mouths.original);
 
-  register(mesh: THREE.Mesh, role: BoyPart): void {
-    const positions = mesh.geometry.getAttribute('position');
-    const original = new Float32Array(positions.array);
-    let height = 0;
-    for (let i = 1; i < original.length; i += 3) height = Math.max(height, Math.abs(original[i]));
-    this.parts.push({ mesh, role, original, height });
+  constructor(private rig: BoyRig) {
+    // 在工具、伤口和装备挂入之前捕获基础材质，隐藏表面时不隐藏任何关节子树。
+    rig.root.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        for (const material of Array.isArray(node.material) ? node.material : [node.material]) this.baseMaterials.add(material);
+      }
+    });
   }
+
+  get active(): boolean { return this.current !== 'original'; }
 
   apply(variant: BoyModelVariant): void {
     if (variant === this.current) return;
-    this.current = variant;
-    for (const { mesh, role, original, height } of this.parts) {
-      const positions = mesh.geometry.getAttribute('position');
-      for (let i = 0; i < positions.count; i++) {
-        let x = original[i * 3], y = original[i * 3 + 1], z = original[i * 3 + 2];
-        if (variant !== 'original') {
-          const shape = shapes[variant];
-          if (role === 'head' || role === 'hair') {
-            // 同一映射用于脸和合批五官，避免眼鼻浮空；下颌自然收束。
-            const lower = THREE.MathUtils.clamp(-y / 0.3, 0, 1);
-            x *= shape.faceWidth * (1 - shape.chin * lower);
-            if (role === 'head') {
-              z *= 1 - lower * 0.08;
-              y *= variant === 'soft' ? 0.96 : 1;
-            } else {
-              x *= shape.hair;
-              y = 0.08 + (y - 0.08) * shape.hair;
-              if (z > 0.1 && y > 0.08) {
-                y += (variant === 'adventure' ? 0.045 : 0.018) * Math.sin(x * 13 + 0.7);
-              }
-            }
-          } else {
-            const t = Math.min(1, Math.abs(y) / height);
-            // 扩展椭球两端截面，形成圆角衣筒/肢体，消除串珠式细接缝。
-            const clothing = role === 'torso' || role === 'waist' || role === 'sleeve' || role === 'shorts';
-            const fullness = Math.pow(Math.max(0.035, 1 - t * t), clothing ? -0.32 : -0.18);
-            const width = clothing ? shape.body : shape.limb;
-            x *= fullness * width;
-            z *= fullness * (clothing ? 1 : 0.96);
-            if (role === 'hand') { x *= 0.88; z *= 0.8; }
-            if (role === 'forearm' || role === 'calf') {
-              const taper = 1 + (y / height) * 0.08;
-              x *= taper; z *= taper;
-            }
-          }
-        }
-        positions.setXYZ(i, x, y, z);
-      }
-      positions.needsUpdate = true;
-      mesh.geometry.computeVertexNormals();
-      mesh.geometry.computeBoundingBox();
-      mesh.geometry.computeBoundingSphere();
+    this.clearPreview();
+    if (variant !== 'original') {
+      const kit = new ModelKit();
+      builders[variant](kit, this.rig);
+      this.preview = kit.finish();
     }
+    for (const material of this.baseMaterials) material.visible = variant === 'original';
+    this.current = variant;
+    const [x, y, z] = mouths[variant];
+    this.mouth.set(x, y, z);
+    this.fitSurfaces(variant);
+  }
+
+  private fitSurfaces(variant: BoyModelVariant): void {
+    const shape = surfaces[variant];
+    this.rig.torso.scale.set(shape.width, 1, shape.depth);
+    for (const mesh of this.rig.armSurfaces) mesh.scale.set(shape.arm, 1, shape.arm);
+    for (const mesh of this.rig.legSurfaces) mesh.scale.set(shape.leg, 1, shape.leg);
+  }
+
+  private clearPreview(): void {
+    if (!this.preview) return;
+    for (const mesh of this.preview.meshes) { mesh.removeFromParent(); mesh.geometry.dispose(); }
+    this.preview.material.dispose();
+    this.preview = null;
+  }
+
+  dispose(): void {
+    this.clearPreview();
+    for (const material of this.baseMaterials) material.visible = true;
+    this.current = 'original';
+    this.mouth.set(...mouths.original);
+    this.fitSurfaces('original');
   }
 }

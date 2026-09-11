@@ -50,7 +50,7 @@ export function PlayerTab({
         ))}
       </div>
       <fieldset style={{ border: '1px solid #d8c9b4', borderRadius: 10, margin: 0, padding: 10 }}>
-        <legend style={{ color: '#4a3b2a' }}>男孩模型对比</legend>
+        <legend style={{ color: '#4a3b2a' }}>男孩整套造型</legend>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {BOY_MODEL_VARIANTS.map((variant) => (
             <button key={variant.id} aria-pressed={boyVariant === variant.id}
@@ -64,7 +64,7 @@ export function PlayerTab({
           ))}
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 12, color: '#75634e' }}>
-          全房间男孩同步切换，女孩不变。建议卸下帽子和衣裤后对比；模型选择不写入存档。
+          全房间男孩同步切换，女孩不变。预览时隐藏穿戴装备外观（属性保留），切回原版恢复；选择不写入存档。
         </p>
       </fieldset>
       <ToggleRow

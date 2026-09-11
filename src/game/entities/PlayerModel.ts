@@ -17,7 +17,6 @@ function clay(color: string): THREE.MeshStandardMaterial {
 /** 朝向 +Z、脚底为原点的黏土儿童；关节与表面分离，供程序动画和伤口挂载。 */
 export function createPlayerModel() {
   const root = new THREE.Group();
-  const variants = new BoyModelVariants();
   let currentGender: PlayerGender = 'boy';
   // 材质仅在单个玩家内共享，避免受击闪红或换装影响其他玩家。
   const skin = clay('#efbd91');
@@ -42,8 +41,7 @@ export function createPlayerModel() {
   }
 
   const torso = oval(root, torsoMaterial, [0, 0.84, 0], [0.25, 0.29, 0.165]);
-  variants.register(torso, 'torso');
-  variants.register(oval(root, legMaterial, [0, 0.585, 0], [0.235, 0.115, 0.155]), 'waist');
+  oval(root, legMaterial, [0, 0.585, 0], [0.235, 0.115, 0.155]);
   const neck = oval(root, skin, [0, 1.09, 0], [0.085, 0.105, 0.085]);
   const head = oval(root, skin, [0, 1.335, 0.015], [0.305, 0.3, 0.265]);
   for (const side of [-1, 1]) {
@@ -77,8 +75,6 @@ export function createPlayerModel() {
     }
   }
   batchParts(head);
-  variants.register(head, 'head');
-  for (const child of head.children) variants.register(child as THREE.Mesh, 'head');
   const hairstyles = { boy: new THREE.Group(), girl: new THREE.Group() };
   for (const gender of ['boy', 'girl'] as const) {
     const style = hairstyles[gender];
@@ -109,7 +105,6 @@ export function createPlayerModel() {
       }
     }
     batchParts(style);
-    if (gender === 'boy') for (const child of style.children) variants.register(child as THREE.Mesh, 'hair');
     style.visible = gender === 'boy';
     head.add(style);
   }
@@ -134,16 +129,14 @@ export function createPlayerModel() {
     const arm = new THREE.Group();
     arm.position.set(side * 0.275, 1.005 - 0.59, 0);
     upperBody.add(arm);
-    variants.register(oval(arm, skin, [side * 0.008, -0.105, 0], [0.074, 0.115, 0.075]), 'arm');
+    oval(arm, skin, [side * 0.008, -0.105, 0], [0.074, 0.115, 0.075]);
     const elbow = new THREE.Group();
     elbow.position.set(side * 0.012, -0.21, 0);
     arm.add(elbow);
     elbows.push(elbow);
     const surface = oval(elbow, skin, [0, -0.067, 0], [0.071, 0.105, 0.074]);
-    variants.register(oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]), 'sleeve');
+    oval(arm, torsoMaterial, [0, -0.045, 0], [0.105, 0.125, 0.108]);
     hands.push(oval(elbow, skin, [side * 0.006, -0.155, 0.012], [0.081, 0.09, 0.079]));
-    variants.register(hands[hands.length - 1], 'hand');
-    variants.register(surface, 'forearm');
     arms.push(arm);
     armSurfaces.push(surface);
 
@@ -155,16 +148,19 @@ export function createPlayerModel() {
     leg.add(knee);
     knees.push(knee);
     const calf = oval(knee, skin, [0, -0.09, 0], [0.075, 0.15, 0.08]);
-    variants.register(oval(leg, legMaterial, [0, -0.095, 0], [0.108, 0.16, 0.119]), 'shorts');
+    oval(leg, legMaterial, [0, -0.095, 0], [0.108, 0.16, 0.119]);
     oval(knee, cream, [0, -0.175, 0], [0.078, 0.065, 0.084]);
     oval(knee, shoes, [0, -0.255, 0.034], [0.104, 0.085, 0.15]);
     legs.push(leg);
     legSurfaces.push(calf);
-    variants.register(calf, 'calf');
   }
   ball.dispose();
+  const variants = new BoyModelVariants({ root, upperBody, head, torso, armSurfaces, legSurfaces, arms, elbows, hands, legs, knees });
   return {
     root, upperBody, torso, head, arms, legs, elbows, knees, hands, armSurfaces, legSurfaces, torsoMaterial, legMaterial,
+    get isBoyPreview() { return variants.active; },
+    get mouthPosition() { return variants.mouth; },
+    disposePreview() { variants.dispose(); },
     setBoyVariant(variant: BoyModelVariant) {
       variants.apply(currentGender === 'boy' ? variant : 'original');
     },

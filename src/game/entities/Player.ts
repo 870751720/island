@@ -590,6 +590,7 @@ export class Player implements Updatable {
 
   update(delta: number, elapsed: number): void {
     this.appearance.setBoyVariant(GmSystem.boyModelVariant);
+    this.wardrobe.syncPreview();
     // 受击泛红:每帧按剩余时间衰减,结束后归零还原
     if (this.hurtFlash > 0) {
       this.hurtFlash = Math.max(0, this.hurtFlash - delta);
@@ -737,6 +738,7 @@ export class Player implements Updatable {
   }
 
   dispose(): void {
+    this.appearance.disposePreview();
     this.swordTrail.dispose();
     this.wardrobe.dispose();
     this.input.dispose();

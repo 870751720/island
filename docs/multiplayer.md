@@ -277,8 +277,9 @@
 
 2026-09-11(迭代):删除 `useFacility` 动作(`NET_PROTOCOL_VERSION` 24→25)——背包「使用」可放置道具改为切入手持安放模式,经既有 `tool` 动作(携带 placeKind)上行,放置结算统一由 `AutoPlaceSystem` 站定放置路径触发(`settleFacility` 仅保留 cell 入参);制作完成自动手持收窄为火把/火堆/一级工作台,其余设施产物入包,不影响协议。存档不变。
 
-## 男孩模型预览同步
+## 男孩整套造型同步
 
-- 男孩模型预览为全房间 GM 视觉配置 `boyModelVariant`，允许 original / soft / natural / adventure。客人经 `NetGuest.action('gmConfig', ...)` 上行，房主 `Actions.ts` 调用配置校验后可靠广播 GM 事件；无新增玩法结算。
-- 房主 `PlayerSnapshotBuilder` 还在 `PlayerState` 中携带可选 `boyModelVariant`，客人收到完整还原的玩家列表时校验并应用。新加入、重连和事件漏收可由后续快照恢复，旧载荷缺省 original，无需单独动作补播。
-- 各端 `Player.update` 将已确认配置交给同一基础模型变形模块，仅在版本或性别变化时更新顶点；女孩强制使用原始顶点。玩家姿态、工具、装备和伤口沿用现有同步，不修改位置、碰撞、存档格式或存档版本。
+- 全房间 GM 视觉配置 `boyModelVariant` 允许 original / graffiti / islander / overalls / wild。客人经 `NetGuest.action('gmConfig', ...)` 上行，房主 `Actions.ts` 校验配置后可靠广播 GM 事件，无新增玩法结算。
+- 房主 `PlayerSnapshotBuilder` 在 `PlayerState` 携带可选 `boyModelVariant`，客人从完整还原的玩家列表中校验并应用。新加入、重连和事件漏收由后续快照恢复，旧载荷缺省 original，无需单独动作补播。
+- 各端 `Player.update` 将配置交给统一预览控制器，仅在版本或性别变化时切换独立模型并释放旧资源。女孩恢复原始材质。动作姿态、工具和伤口沿用原有同步，各方案嘴部位置供吃东西动作读取。
+- 各端同步隐藏预览男孩的穿戴装备网格，保持权威装备数据、属性和存档不变；切回原版或女孩恢复装备外观。方案选择不持久化，不修改存档版本。

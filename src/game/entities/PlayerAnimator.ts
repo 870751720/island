@@ -221,7 +221,7 @@ export class PlayerAnimator {
     if (eating) {
       // 从实际嘴部位置推导双掌目标；短手臂尽量靠近嘴边，掌心自然捧合。
       const lift = ease(time / 0.25);
-      this.grip.set(0, -0.113, 0.246).applyQuaternion(this.model.head.quaternion).add(this.model.head.position);
+      this.grip.copy(this.model.mouthPosition).applyQuaternion(this.model.head.quaternion).add(this.model.head.position);
       this.grip.y -= 0.055;
       this.grip.z -= 0.025;
       this.wrist.copy(this.grip); this.wrist.x += 0.09;
