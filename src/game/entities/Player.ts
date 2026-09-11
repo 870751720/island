@@ -293,6 +293,8 @@ export class Player implements Updatable {
   private hurtFlash = 0;
   /** 减速 debuff 剩余时长(熊扑击命中时施加) */
   private slowLeft = 0;
+  /** 天气驱动的移动速度乘数(风之加护),由 Game 每帧写入 */
+  weatherSpeedMultiplier = 1;
   /** 「舒爽」增益剩余时长(喝酒获得,移动加速) */
   private refreshLeft = 0;
   /** 「晕晕的」状态剩余时长(舒爽时再喝酒转为,减速但增伤) */
@@ -641,7 +643,7 @@ export class Player implements Updatable {
     } else if (this.moving) {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
-      let speed = base;
+      let speed = base * this.weatherSpeedMultiplier;
       // 冰面滑行:结冰水洼上移动速度翻倍
       if (!this.swimming && this.terrain.isOnIce(p.x, p.z)) speed *= 2;
       if (this.slowLeft > 0) speed *= 0.5;

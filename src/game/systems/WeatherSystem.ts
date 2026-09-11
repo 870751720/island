@@ -133,9 +133,24 @@ export class WeatherSystem {
     };
   }
 
-  /** 口渴消耗乘数:雨天淋雨大幅减缓口渴(雨水恩泽 buff) */
+  /** 口渴消耗乘数:雨天淋雨大幅减缓口渴(雨水恩泽),雪天寒意减缓(雪之馈赠) */
   get thirstDrainMultiplier(): number {
-    return 1 - 0.9 * this.rainAmount;
+    return 1 - 0.9 * this.rainAmount - 0.3 * this.snowAmount;
+  }
+
+  /** 饥饿消耗乘数:雪天寒意让身体沉静(雪之馈赠 buff) */
+  get hungerDrainMultiplier(): number {
+    return 1 - 0.3 * this.snowAmount;
+  }
+
+  /** 玩家移动速度乘数:刮风天顺轻快的步伐(风之加护 buff),不区分风向 */
+  get speedMultiplier(): number {
+    return 1 + 0.2 * this.windAmount;
+  }
+
+  /** 风之加护是否生效(以未包络的风量判定,避免阵风起伏导致 buff 忽隐忽现) */
+  get windy(): boolean {
+    return this.windAmount > 0.5;
   }
 
   /** GM 强制切换天气:立即生效并重新计时轮换 */

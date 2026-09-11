@@ -143,6 +143,8 @@ export class HudSnapshotBuilder {
     if (shrines.inAura('healCrystal', position)) list.push({ ...BUFFS.healCrystal, remain: null });
     if (shrines.inAura('rainAltar', position)) list.push({ ...BUFFS.rainAltar, remain: null });
     if (this.systems.weather.rainIntensity > 0.5) list.push({ ...BUFFS.rainBlessing, remain: null });
+    if (this.systems.weather.windy) list.push({ ...BUFFS.windBlessing, remain: null });
+    if (this.systems.weather.snowIntensity > 0.5) list.push({ ...BUFFS.snowBlessing, remain: null });
     if (session.player.slowSeconds > 0) list.push({ ...BUFFS.bearSlow, remain: Math.ceil(session.player.slowSeconds) });
     if (session.player.refreshSeconds > 0) list.push({ ...BUFFS.refresh, remain: Math.ceil(session.player.refreshSeconds) });
     if (session.player.tipsySeconds > 0) list.push({ ...BUFFS.tipsy, remain: Math.ceil(session.player.tipsySeconds) });

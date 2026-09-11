@@ -755,7 +755,7 @@ export class Wildlife implements Updatable {
         const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
         // 兔子优先往最近的完好洞里钻,超出寻找范围才背向逃窜
         let angle = hostile ? away + Math.PI : away;
-        const burrow = animal.species === 'rabbit'
+        const burrow = animal.species === 'rabbit' && !this.windCalm
           ? this.burrowSource?.nearestIntact(animal.pos.x, animal.pos.z, RABBIT_BURROW_SEEK)
           : null;
         if (burrow) {
@@ -821,6 +821,12 @@ export class Wildlife implements Updatable {
   setBurrowSource(source: BurrowSource): void {
     this.burrowSource = source;
   }
+
+  /** 刮风天(风之加护):兔子兴奋得不再往洞里钻,由游戏侧每帧写入 */
+  windCalm = false;
+
+  /** 雪天(雪之馈赠):击杀战利品的兽肉/兽皮各 +1,由游戏侧每帧写入 */
+  snowBlessed = false;
 
   /** 注入持绳玩家 → 会话 id 的解析(姿态快照序列化用) */
   setPlayerIdResolver(fn: (player: Player) => string): void {
@@ -1298,6 +1304,12 @@ export class Wildlife implements Updatable {
   /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书);局外养成剥取加成最后改写 */
   lootOf(species: AnimalSpecies): AnimalLoot {
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
+    // 雪之馈赠:冬季皮厚膘肥,兽肉与兽皮各多 1 份
+    if (this.snowBlessed) {
+      for (const item of loot) {
+        if (item.kind === 'gameMeat' || item.kind === 'fur') item.count += 1;
+      }
+    }
     if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
     if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
     // 作物种子战利品:野牛肚里的谷粒、兔子窝里偷藏的菜种、熊携带的莓果籽

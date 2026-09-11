@@ -7,6 +7,8 @@ export type BuffId =
   | 'healCrystal'
   | 'rainAltar'
   | 'rainBlessing'
+  | 'windBlessing'
+  | 'snowBlessing'
   | 'bearSlow'
   | 'refresh'
   | 'tipsy';
@@ -54,6 +56,20 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     name: '雨水恩泽',
     icon: '🌧️',
     description: '细雨润物,雨水正滋养着你与这座岛。',
+    good: true,
+  },
+  windBlessing: {
+    id: 'windBlessing',
+    name: '风之加护',
+    icon: '🌬️',
+    description: '风推着你的脚步,吹得草木慷慨,连兔子都兴奋得忘了躲进洞里。',
+    good: true,
+  },
+  snowBlessing: {
+    id: 'snowBlessing',
+    name: '雪之馈赠',
+    icon: '🌨️',
+    description: '寒意让你身心沉静,冰雪之下的鱼儿肥美、走兽皮毛厚实。',
     good: true,
   },
   bearSlow: {

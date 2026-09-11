@@ -202,14 +202,18 @@ export function pickTease(stage: TeaseStage): Tease {
  * 转移给二档,保持总权重不变。
  * rainShift 为雨天雨水恩泽:有饵时二档扣 5 个百分点转给三档,
  * 裸钓时杂物(一档)扣 5 个百分点转给二档。
+ * snowShift 为雪天雪之馈赠:仅有饵时杂物(一档)扣 5 个百分点,
+ * 分 3/2/1 转给二、三、四档。
  */
 const BAITLESS_TIER_WEIGHTS = [90, 6, 3.9, 0.1];
 const RAIN_SHIFT = 5;
+const SNOW_SHIFT = [3, 2, 1];
 
 export function rollTier(
   baited = true,
   junkCut = 0,
   rainShift = false,
+  snowShift = false,
   meta?: { baitlessRelief?: number; tier4Bonus?: number }
 ): FishTier {
   const base = baited ? [...GmSystem.fishingTierWeights] : [...BAITLESS_TIER_WEIGHTS];
@@ -222,6 +226,14 @@ export function rollTier(
     const shift = Math.min(RAIN_SHIFT, base[from]);
     base[from] -= shift;
     base[from + 1] += shift;
+  }
+  // 雪天雪之馈赠:杂物权重分 3/2/1 转给二、三、四档
+  if (snowShift && baited) {
+    const shift = Math.min(SNOW_SHIFT[0] + SNOW_SHIFT[1] + SNOW_SHIFT[2], base[0]);
+    base[0] -= shift;
+    base[1] += (shift * SNOW_SHIFT[0]) / 6;
+    base[2] += (shift * SNOW_SHIFT[1]) / 6;
+    base[3] += (shift * SNOW_SHIFT[2]) / 6;
   }
   // 局外养成「省饵」满级:裸钓惩罚减轻——按比例从杂物权重中扣下一成,匀给三个高档位
   if (!baited && meta?.baitlessRelief) {

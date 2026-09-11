@@ -940,9 +940,16 @@ export class Game {
           this.audio.silent = s !== this.local;
           // 雨神祭坛光环内口渴值冻结(口渴速率归零,饥饿不受影响)
           const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
-          s.survival.drainMultiplier = this.dayNight.isNight ? 1.5 : 1;
+          s.survival.drainMultiplier = (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier() * (rainAltar ? 0 : 1);
+          // 风之加护:天气驱动的移动速度乘数
+          s.player.weatherSpeedMultiplier = this.weather.speedMultiplier;
+          // 风之加护/雪之馈赠:兔子不进窝、击杀战利品兽肉兽皮各 +1(动物 AI 与战利品结算仅权威端跑)
+          if (!this.guestMode) {
+            this.wildlife.windCalm = this.weather.windy;
+            this.wildlife.snowBlessed = this.weather.snowIntensity > 0.5;
+          }
           s.survival.swimming = s.player.isSwimming;
           s.survival.sleeping = s.player.isSleeping;
           // 治愈水晶光环内每 10 秒回复 1 血(与生存结算同源,数值随玩家快照回流客人)
@@ -2178,7 +2185,7 @@ export class Game {
     ) {
       return false;
     }
-    return a.fishing.start(this.weather.rainIntensity > 0.5);
+    return a.fishing.start(this.weather.rainIntensity > 0.5, this.weather.snowIntensity > 0.5);
   }
 
   /** 咬钩窗口内点击屏幕任意处收竿 */
@@ -3024,6 +3031,8 @@ export class Game {
       },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
       () => this.shrines.berryBlessed,
+      // 刮风天(风之加护)碎石堆/草丛/浆果丛有概率多掉 1 份主产出
+      () => this.weather.windy,
       // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现
       () => this.sessions.map((session) => session.player.group.position),
       // 局外养成「采集·巧匠」
