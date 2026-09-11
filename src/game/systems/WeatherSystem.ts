@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getSeason, type Season } from './SeasonSystem';
 
 export type WeatherType = 'sunny' | 'wind' | 'rain' | 'snow';
 
@@ -12,9 +13,13 @@ export type WindParams = {
 const MIN_DURATION = 50; // 一种天气持续的最短/最长秒数
 const MAX_DURATION = 110;
 const TRANSITION = 10; // 各天气强度统一过渡秒数
-const RAIN_CHANCE = 1 / 20; // 每次天气轮换时切换为雨天的概率
-const SNOW_CHANCE = 1 / 25; // 每次天气轮换时切换为雪天的概率
-const WIND_CHANCE = 1 / 10; // 每次天气轮换时切换为刮风天的概率
+/** 各季节天气概率表:雨(夏 25%/春秋 10%/冬 0%)、雪(仅冬 30%)、风(春秋 25%/夏 10%/冬 0%),其余为晴 */
+const CHANCES: Record<Season, { rain: number; snow: number; wind: number }> = {
+  spring: { rain: 0.1, snow: 0, wind: 0.25 },
+  summer: { rain: 0.25, snow: 0, wind: 0.1 },
+  autumn: { rain: 0.1, snow: 0, wind: 0.25 },
+  winter: { rain: 0, snow: 0.3, wind: 0 },
+};
 
 const RAIN_SKY = new THREE.Color('#5f7280');
 const RAIN_SUN = new THREE.Color('#8fa3b4');
@@ -22,7 +27,7 @@ const SNOW_SKY = new THREE.Color('#8ea3b8');
 const SNOW_SUN = new THREE.Color('#bcc9d6');
 
 /**
- * 天气系统:晴/风/雨/雪随机轮换(每次轮换仅小概率切到风/雨/雪天),强度统一平滑过渡。
+ * 天气系统:晴/风/雨/雪按季节概率表随机轮换,强度统一平滑过渡。
  * 在昼夜系统之后执行,对天空色、灯光做一层调制;
  * 雨天提供口渴消耗系数(可接雨水)。
  * 刮风天视觉与晴天一致,输出阵风包络的强度与随机风向,
@@ -155,12 +160,13 @@ export class WeatherSystem {
     this.applyType(this.rollType());
   }
 
-  /** 按概率掷出下一轮天气:风/雨/雪各为小概率事件,其余为晴天 */
+  /** 按当前季节的概率表掷出下一轮天气 */
   private rollType(): WeatherType {
+    const { rain, snow, wind } = CHANCES[getSeason()];
     const r = Math.random();
-    return r < RAIN_CHANCE ? 'rain'
-      : r < RAIN_CHANCE + SNOW_CHANCE ? 'snow'
-      : r < RAIN_CHANCE + SNOW_CHANCE + WIND_CHANCE ? 'wind'
+    return r < rain ? 'rain'
+      : r < rain + snow ? 'snow'
+      : r < rain + snow + wind ? 'wind'
       : 'sunny';
   }
 
