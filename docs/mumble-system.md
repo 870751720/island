@@ -44,6 +44,8 @@
 | meteorFall | 陨石开始坠落(边沿) | 关注落点,天亮去采集 | — |
 | opening | 开局 15s 后仍两手空空(一次性) | 四处走走收集材料 | 一次性 |
 
+不进上表的例外:`seaPanic`(泡在海里第 8 秒,恐慌)与 `seaDread`(第 13 秒,感觉海里有东西)各 20 句,由 `SeaThreatSystem` 按泡海时长剧本调用 `MumbleSystem.forceSay` 点名触发——绕过持续判定/条件冷却,也不受全局间隔约束,但说完会重置全局计时,避免普通台词插进这条危险序列(见 [sea-threat.md](sea-threat.md))。
+
 ### 节流与防重复
 
 - **牌堆抽取(shuffle bag)**:每条件的 20 句打乱成队列逐句弹出;抽空后重新打乱,且避免新堆下一句与上一轮最后一句相同。
@@ -75,3 +77,7 @@
 - **中期发展**:`craftWorkbench`(没工作台)→ `craftSmelter`(没熔炉)→ `ironTools`(斧/镐未到铁制,按 `Tools` 等级 3 判定)→ `craftLoom`(没纺织机)、`cookFood`(有生食没烹饪台,生食判定用 `Food.COOKABLE_KINDS`)。设施存在与否用各系统的 `count`(SmelterSystem/LoomSystem/WorkbenchSystem/BedSystem 本次补充,CookingStationSystem 原有)。
 - **事件反应**:`windRise`(风强度上穿 0.5,输入 `WeatherSystem.windIntensity`)、`meteorFall`(MeteorSystem 新增 `active`,陨石开始坠落)、`bottleHint`(背包有漂流瓶)。
 - **夜晚行为**:`sleepHint`(夜晚 + 岛上有床 + 未采集,引导回床睡觉跳过黑夜)。
+
+### 迭代 2026-09-12:seaPanic / seaDread 与 forceSay
+
+- 新增 `seaPanic` / `seaDread` 两个台词池(各 20 句,泡在海里的恐慌铺垫与「水下有东西」的察觉),不进触发规则表,由 `SeaThreatSystem` 按泡海时长(8 秒 / 13 秒)调用新增的 `MumbleSystem.forceSay` 定点触发;`forceSay` 重置全局间隔,保证危险序列不被普通台词打断、其后普通台词也让路 20 秒。详见 [sea-threat.md](sea-threat.md)。

@@ -70,6 +70,7 @@ import { StakeSystem } from './systems/StakeSystem';
 import type { StakeSave } from './entities/Stake';
 import { LeashLines } from './fx/LeashLines';
 import { MumbleSystem } from './systems/MumbleSystem';
+import { SeaThreatSystem } from './systems/SeaThreatSystem';
 import { Particles } from './fx/Particles';
 import { GameAudio } from './audio/GameAudio';
 import type { SfxName } from './audio/Sfx';
@@ -178,6 +179,7 @@ export class Game {
   }
   private waterFx: WaterFx;
   private pondLife: PondLife;
+  private seaThreat: SeaThreatSystem;
   private decorations: Decorations;
   private footprints: Footprints;
   /** 单机/本地玩家专用入口:HUD、相机与本地交互都绑定在本地会话上 */
@@ -415,6 +417,18 @@ export class Game {
     this.scene.add(terrain.iceGroup);
     this.footprints = new Footprints(this.scene, terrain);
     this.pondLife = new PondLife(this.scene, terrain);
+    // 海中巨影:泡在海里太久先恐慌、再察觉水下有东西、然后遇袭;
+    // 每端各自本地表现,咬击伤害只在权威端(单机/房主)结算
+    this.seaThreat = new SeaThreatSystem(
+      this.scene,
+      terrain,
+      this.waterFx,
+      this.mumbles,
+      () => this.sessions,
+      () => this.local,
+      !this.guestMode,
+      (session, damage) => this.applySeaBite(session, damage)
+    );
     this.decorations = new Decorations(this.scene, terrain, this.terrainSeed);
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
@@ -928,6 +942,7 @@ export class Game {
         this.pickupPresentation.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
+        this.seaThreat.update(delta, elapsed);
         this.footprints.update(simDelta);
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
@@ -1673,6 +1688,16 @@ export class Game {
     // 客人被击中的表现在客人端补播(闪红与音效由血量快照驱动,这里补齐粒子/数字/减速)
     if (this.hostRef && session !== this.local) {
       this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage: final, pounce });
+    }
+  }
+
+  /** 海中巨影咬击:固定伤害不吃装备防御,受击表现与狼袭同路(粒子/伤害数字/音效 + 客人补播) */
+  private applySeaBite(session: PlayerSession, damage: number): void {
+    session.markCombat();
+    session.survival.damage(damage);
+    this.playWildlifeHitFeedback(session, damage);
+    if (this.hostRef && session !== this.local) {
+      this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage, pounce: false });
     }
   }
 
@@ -3271,6 +3296,7 @@ export class Game {
     this.clouds.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
+    this.seaThreat.dispose();
     this.ocean.dispose();
     this.oceanDepth.dispose();
     this.pickupPresentation.dispose();

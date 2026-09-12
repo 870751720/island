@@ -217,6 +217,15 @@ export class MumbleSystem {
     }
   }
 
+  /**
+   * 外部按剧本时序点名说话(海中威胁的恐慌铺垫):不走持续判定/条件冷却,
+   * 也不受全局间隔约束;但说完重置全局计时,让普通台词为这条序列让路。
+   */
+  forceSay(id: MumbleTrigger): void {
+    this.globalTimer = 0;
+    this.onMumble(id, this.pick(id));
+  }
+
   private sustained(id: MumbleTrigger, active: boolean, delta: number): boolean {
     if (!active) {
       this.sustainTimers.delete(id);
