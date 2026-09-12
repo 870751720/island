@@ -78,31 +78,8 @@ export function makeFenceGateHandModel(): THREE.Group {
   return g;
 }
 
-/** 围栏幽灵预览的建模:柱子 + 四方向横杆(横杆命名 rail-px/nx/pz/nz,由安放系统按邻居显隐) */
-export function makeFenceGhost(): THREE.Group {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.85, 6), mat);
-  post.position.y = 0.42;
-  g.add(post);
-  const railOffsets: Record<'px' | 'nx' | 'pz' | 'nz', [number, number]> = {
-    px: [0.5, 0],
-    nx: [-0.5, 0],
-    pz: [0, 0.5],
-    nz: [0, -0.5],
-  };
-  for (const dir of ['px', 'nx', 'pz', 'nz'] as const) {
-    for (const y of [0.3, 0.6]) {
-      // 横杆跨满相邻两柱(与实际围栏一致),只在对应方向有邻居时显示
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.09, 0.05), mat);
-      rail.position.set(railOffsets[dir][0], y, railOffsets[dir][1]);
-      if (dir === 'pz' || dir === 'nz') rail.rotation.y = Math.PI / 2;
-      rail.name = `rail-${dir}`;
-      g.add(rail);
-    }
-  }
-  return g;
-}
+/** 围栏幽灵预览的建模:与实物同款几何(区分木/石),横杆命名 rail-px/nx/pz/nz 由安放系统按邻居显隐 */
+export { makeFencePreview as makeFenceGhost } from '../entities/Fence';
 
 /** 围栏门幽灵预览的建模(朝向由安放系统按目标门带方向设置) */
 export function makeGateGhost(): THREE.Group {

@@ -34,8 +34,9 @@ function stonePost(): THREE.Group {
 /**
  * 按连接方向拼装围栏网格:每个方向伸出两根横杆(各覆盖半格,相邻柱合起来无缝),
  * 连接变化时整体重建。
+ * nameRails 为真时不合并网格,并把横杆命名 rail-px/nx/pz/nz(幽灵预览按邻居显隐用)。
  */
-function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
+function buildFenceMesh(kind: FenceKind, conns: FenceConnections, nameRails = false): THREE.Group {
   const g = new THREE.Group();
   const branch = kind === 'branch';
   g.add(branch ? woodPost(clayMaterial('#a97b48')) : stonePost());
@@ -59,26 +60,35 @@ function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
     if (conns.px) {
       const r = makeRail(true, y);
       r.position.x = 0.27;
+      if (nameRails) r.name = 'rail-px';
       g.add(r);
     }
     if (conns.nx) {
       const r = makeRail(true, y);
       r.position.x = -0.27;
+      if (nameRails) r.name = 'rail-nx';
       g.add(r);
     }
     if (conns.pz) {
       const r = makeRail(false, y);
       r.position.z = 0.27;
+      if (nameRails) r.name = 'rail-pz';
       g.add(r);
     }
     if (conns.nz) {
       const r = makeRail(false, y);
       r.position.z = -0.27;
+      if (nameRails) r.name = 'rail-nz';
       g.add(r);
     }
   }
-  mergeClayMeshes(g);
+  if (!nameRails) mergeClayMeshes(g);
   return g;
+}
+
+/** 围栏幽灵预览建模:与实物同款几何(区分木/石),四方向横杆全显并命名 rail-<dir>,由安放系统按邻居显隐 */
+export function makeFencePreview(kind: FenceKind): THREE.Group {
+  return buildFenceMesh(kind, { px: true, nx: true, pz: true, nz: true }, true);
 }
 
 /** 释放网格资源(重建与挖除时调用) */

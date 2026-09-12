@@ -2599,9 +2599,13 @@ export class Game {
           const t = this.fences.vertexTarget(a);
           return t ? { x: t.gx, z: t.gz, reason: null } : { ...snapAheadCell(a), reason: '附近没有能立围栏柱的格点,挪个位置再试' };
         },
-        buildPreview: makeFenceGhost,
+        buildPreview: () => makeFenceGhost(fenceKind),
         handModel: () => makeFenceHandModel(fenceKind),
-        onPreview: (preview, _a, x, z) => this.fences.applyGhost(preview, x, z),
+        onPreview: (preview, _a, x, z) => {
+          // 实物围栏不旋转,预览固定朝向,横杆显隐方向才与实际连接一致
+          preview.rotation.y = 0;
+          this.fences.applyGhost(preview, x, z);
+        },
         place: (a) => this.fences.useFence(a, fenceKind),
         failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
       });
