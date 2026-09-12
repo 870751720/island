@@ -2,6 +2,7 @@
 
 import type { FC } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
+import { CLAY_ICONS } from './ClayIcons';
 
 /**
  * 自绘道具图标:emoji 找不到贴切表达(或与其他道具撞图标)时用简笔 SVG 补位。
@@ -96,16 +97,6 @@ const PineFruitIcon: FC<IconProps> = ({ size }) => (
       <path d="M21 46 q6 4 11 0 q6 4 11 0" fill="none" />
       <path d="M24 53 q5 4 8 0 q4 4 8 0" fill="none" />
     </g>
-  </Svg>
-);
-
-/** 无糖可乐:黑色易拉罐,与可乐(🥤)区分 */
-const ColaZeroIcon: FC<IconProps> = ({ size }) => (
-  <Svg size={size}>
-    <rect x={20} y={14} width={24} height={42} rx={5} fill="#2f3542" />
-    <ellipse cx={32} cy={15} rx={12} ry={4} fill="#c8cdd6" />
-    <path d="M29 12 q3 -3 6 0" stroke="#c8cdd6" strokeWidth={2} fill="none" />
-    <path d="M20 26 h24 M20 44 h24" stroke="#4a5262" strokeWidth={3} />
   </Svg>
 );
 
@@ -219,18 +210,6 @@ const CookedBerryIcon: FC<IconProps> = ({ size }) => (
     <circle cx={44} cy={28} r={6} fill="#a0522d" />
     <circle cx={24} cy={22} r={1.8} fill="#c97b7b" />
     <circle cx={37} cy={36} r={1.8} fill="#c97b7b" />
-  </Svg>
-);
-
-/** 烤大鱼:焦棕鱼身 + 烤痕 */
-const CookedBigFishIcon: FC<IconProps> = ({ size }) => (
-  <Svg size={size}>
-    <FishShape color="#b06a35" rx={19} ry={13} />
-    <g stroke="#7c4520" strokeWidth={3} strokeLinecap="round">
-      <path d="M20 24 q2 8 0 16" fill="none" />
-      <path d="M28 22 q2 10 0 20" fill="none" />
-      <path d="M36 24 q2 8 0 16" fill="none" />
-    </g>
   </Svg>
 );
 
@@ -740,7 +719,6 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   fiber: FiberIcon,
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
-  colaZero: ColaZeroIcon,
   loach: LoachIcon,
   grouper: GrouperIcon,
   catfish: CatfishIcon,
@@ -754,7 +732,6 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   manta: MantaIcon,
   goldenFish: GoldenFishIcon,
   cookedBerry: CookedBerryIcon,
-  cookedBigFish: CookedBigFishIcon,
   fur: FurIcon,
   cookedSmallFish: CookedSmallFishIcon,
   fruitSeed: FruitSeedIcon,
@@ -778,4 +755,5 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   strawberrySeed: StrawberrySeedIcon,
   cabbageSeed: CabbageSeedIcon,
   pumpkinSeed: PumpkinSeedIcon,
+  ...CLAY_ICONS,
 };

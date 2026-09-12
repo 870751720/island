@@ -65,3 +65,10 @@
 - 设施入口图标全部走 `ItemIcon`:`ToolButton` 靠近设施时的按钮图标(工作台/火堆/木箱/饵料桶/酿酒桶/冶炼炉/烹饪台/纺织机/床;打桩/解绳无独立道具,统一用套索图标),以及各设施面板标题(含 CratePanel 铁箱/木箱区分)。
 - `BaitBarrelPanel` 文案中的 🪱/🌱 硬编码改为 `ItemIcon`(鱼饵 `bait` / 南瓜种子 `pumpkinSeed`,与桶的实际产出一致);`ConvertRow` 的 `hint` 改为 ReactNode 以支持内嵌图标。
 - `BottleMessage` 的 `icon`(emoji 字符串)改为 `kind`(ResourceKind),内部走 `ItemIcon`,漂流瓶/海神的信与道具配置一致。
+
+### 2026-09-12 黏土风第二批选型定稿(基础材料/食物/饮品)
+
+- 经四轮 HTML 选型页(`docs/icon-preview.html`,17 个物品 10~35 种方案)由玩家挑选,14 个道具定为黏土质感自绘:木头、绳线、布料、浆果、可乐、无糖可乐、河豚、蟹肉、鸟肉、烤大鱼、烤黄金鱼、烤蟹肉、烤鸟肉、兽肉;虾、墨鱼、烤兽肉保留 emoji 不改。
+- 新增 `src/ui/icons/ClayIcons.tsx`:黏土风图标独立模块(64×64 视口,软色块 + 暗部弧 + 高光 + 落影,原始 SVG 静态字符串经 `dangerouslySetInnerHTML` 注入按 viewBox 缩放),导出 `CLAY_ICONS` 由 `CustomIcons` 合并进 `CUSTOM_ICONS`。
+- 造型要点:兽肉/鸟肉同为生肉红且鸟肉个头更小;烤制品带烤签;无糖可乐与可乐靠罐身配色区分。旧的简笔版无糖可乐、烤大鱼组件随之删除。
+- 联机无影响:图标为纯客户端表现,快照/动作只传 kind。
