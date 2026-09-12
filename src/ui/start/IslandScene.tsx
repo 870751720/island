@@ -12,7 +12,7 @@ export function IslandScene() {
     try {
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: 'low-power' });
     } catch {
-      return; // The illustrated CSS horizon remains visible without WebGL.
+      return; // The CSS backdrop and menu remain visible without WebGL.
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -22,7 +22,7 @@ export function IslandScene() {
     camera.position.set(9, 10, 15);
     camera.lookAt(0, 0.6, 0);
     scene.add(new THREE.HemisphereLight('#fff1d6', '#286960', 2.8));
-    const sun = new THREE.DirectionalLight('#ffcf91', 3);
+    const sun = new THREE.DirectionalLight('#fff2da', 3);
     sun.position.set(-5, 8, 5);
     scene.add(sun);
     const world = new THREE.Group();

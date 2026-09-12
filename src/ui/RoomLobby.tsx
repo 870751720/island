@@ -6,6 +6,8 @@ import { NetHost } from '@/game/net/NetHost';
 import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
 import { normalizeRoomCode } from '@/game/net/Signaling';
 import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
+import { menuFormsCss } from './start/formStyles';
+import { MenuIcon } from './start/MenuIcon';
 import { ProfileSetup } from './ProfileSetup';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
@@ -107,11 +109,21 @@ export function RoomLobby({
 
   return (
     <div className="room-lobby">
-      <style>{css}</style>
-      <div className="room-panel">
+      <style>{menuFormsCss}</style>
+      <div className="room-layout">
+      <aside className="room-intro">
+        <span className="room-brand"><MenuIcon name="compass" /> 去你的岛。</span>
+        <p className="form-eyebrow">BETTER TOGETHER</p>
+        <h1>{mode === 'host' ? <>留一片海，<br />给朋友。</> : <>循着海风，<br />来找你。</>}</h1>
+        <p>一起拾起第一根木头，<br />把荒岛变成我们的家。</p>
+        <span className="room-intro-foot">一座岛 · 一起生活</span>
+      </aside>
+      <main className="room-panel">
+        <div className="form-emblem"><MenuIcon name={mode === 'host' ? 'flag' : 'people'} /></div>
+        <p className="form-eyebrow">{mode === 'host' ? 'SEND AN INVITATION / 发出邀请' : 'MEET ON THE ISLAND / 海岛相聚'}</p>
         <h2>{mode === 'host' ? '创建房间' : '加入房间'}</h2>
         <p className="room-subtitle">
-          {mode === 'host' ? '免费直连，邀请任意数量的朋友' : '输入房主分享的五位数字房间码'}
+          {mode === 'host' ? '生起营火，等朋友一起靠岸' : '输入房主分享的五位数字房间码'}
         </p>
 
         {mode === 'host' ? (
@@ -130,13 +142,14 @@ export function RoomLobby({
           ) : (
             <>
               <div className="room-code-card">
-                <span>房间码</span>
+                <span className="form-eyebrow">登岛口令 · 房间码</span>
                 <strong>{roomCode}</strong>
                 {qr && <img className="room-qr" src={qr} alt={`房间 ${roomCode} 的邀请二维码`} />}
                 <small>朋友扫码后输入昵称即可加入</small>
               </div>
               <button className="room-button" onClick={shareRoom}>分享邀请</button>
               <div className="room-players">
+                <span className="form-eyebrow">已靠岸 · {players.length + 1} 人</span>
                 <p className="connected">● {profile?.name || '房主'}（你）</p>
                 {players.map((player) => <p className="connected" key={player}>● {player}</p>)}
                 {!players.length && <p className="waiting"><span /> 等待朋友加入…</p>}
@@ -169,7 +182,7 @@ export function RoomLobby({
               className={`room-name-row ${profile ? '' : 'unset'}`}
               onClick={() => setShowSetup(true)}
             >
-              {profile ? profile.name : '点击设置昵称与形象'}
+              <MenuIcon name="user" /><span>{profile ? profile.name : '点击设置昵称与形象'}</span><small>修改 →</small>
             </button>
             <button
               className="room-button"
@@ -181,8 +194,9 @@ export function RoomLobby({
           </>
         )}
 
-        {status && <p className="room-status">{status}</p>}
-        <button className="room-back" onClick={back}>返回</button>
+        {status && <p className="room-status" role="status">{status}</p>}
+        <button className="room-back" onClick={back}>← 返回海岛首页</button>
+      </main>
       </div>
       {showSetup && (
         <ProfileSetup
@@ -201,31 +215,3 @@ export function RoomLobby({
     </div>
   );
 }
-
-const css = `
-.room-lobby { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(#6fc3ee,#cfeefb 70%,#f3e2b8); font-family:sans-serif; overflow-y:auto; }
-.room-panel { width:min(86vw,400px); margin:20px 0; padding:clamp(18px,5vw,26px); background:linear-gradient(rgba(255,253,245,.97),rgba(255,248,232,.95)); border:2px solid rgba(255,255,255,.85); border-radius:22px; box-shadow:0 16px 48px rgba(20,60,90,.35); text-align:center; }
-.room-panel h2 { margin:0 0 14px; color:#2c5f2d; letter-spacing:.1em; }
-.room-subtitle { margin:-6px 0 18px; color:#6b7a5e; font-size:13px; }
-.room-resume { min-height:44px; display:flex; align-items:center; gap:10px; margin:0 0 12px; text-align:left; color:#35452f; font-size:14px; }
-.room-resume input { width:22px; height:22px; accent-color:#4d9e4f; }
-.room-code-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px; border-radius:16px; background:rgba(255,255,255,.72); color:#53664a; }
-.room-code-card strong { color:#2c5f2d; font-size:34px; letter-spacing:.18em; font-family:monospace; }
-.room-code-card small { font-size:12px; }
-.room-qr { width:min(48vw,190px); height:min(48vw,190px); border-radius:8px; }
-.room-label { display:block; margin:12px 0 6px; text-align:left; color:#44513a; font-size:13px; font-weight:700; }
-.room-code-input { width:100%; min-height:48px; box-sizing:border-box; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font:700 25px monospace; letter-spacing:.2em; }
-.room-name-row { width:100%; min-height:48px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:8px; border:1.5px solid rgba(44,95,45,.25); border-radius:12px; background:rgba(255,255,255,.86); color:#2f402c; text-align:center; font-size:16px; cursor:pointer; }
-.room-name-row.unset { color:#9aa58a; border-style:dashed; }
-.room-button { margin-top:14px; width:100%; min-height:48px; border:0; border-radius:14px; background:linear-gradient(#ffbe5c,#f59a1f); color:#fff; font-size:16px; font-weight:700; letter-spacing:.08em; box-shadow:0 5px 0 #c97c12; cursor:pointer; }
-.room-button:disabled { background:linear-gradient(#c9c2b4,#a89f8d); box-shadow:0 5px 0 #8a8272; }
-.room-start { background:linear-gradient(#7fd67f,#4d9e4f); box-shadow:0 5px 0 #37793a; }
-.room-players { margin:14px 0 0; padding:10px 14px; border-radius:12px; background:rgba(44,95,45,.06); text-align:left; font-size:14px; }
-.room-players p { margin:7px 0; }
-.connected { color:#3d7b3f; }
-.waiting { color:#76836d; }
-.waiting span { display:inline-block; width:8px; height:8px; border-radius:50%; background:#f59a1f; animation:room-pulse 1.2s infinite; }
-@keyframes room-pulse { 50% { opacity:.3; transform:scale(.75); } }
-.room-status { margin:12px 0 0; font-size:12px; color:#9a6018; }
-.room-back { margin-top:14px; width:100%; min-height:44px; border:1.5px solid rgba(44,95,45,.25); border-radius:10px; background:rgba(44,95,45,.06); color:#2c5f2d; font-size:14px; cursor:pointer; }
-`;

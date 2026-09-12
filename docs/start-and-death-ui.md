@@ -4,7 +4,7 @@
 游戏开始页需要呈现荒岛求生的氛围，并承载单人存档、联机与玩家形象入口。手机竖屏优先，同时适配电脑与手机横屏。
 
 ## 需求描述
-- 使用「日落漂流手记」视觉：海天背景、奶油色标题、暖橙色主按钮、实时低多边形小岛。
+- 使用「海岛手记」视觉：纯代码海绿色渐变背景、奶油色标题、暖橙色主按钮、实时低多边形小岛。
 - 保留开始游戏、继续游戏、开新档、重开结算确认、荒岛传承、设置形象、创建房间、加入房间与断线提示。
 - 加入入场动画、棕榈摆动、海浪扩散、小船起伏、营火跳动与海鸟漂移。
 - 提供海浪环境声和按钮拨弦提示，独立开关持久化；首次触摸后启动声音，遵循浏览器播放限制。
@@ -13,8 +13,15 @@
 ### 界面与响应式
 - `src/ui/StartScreen.tsx` 保留存档和档案流程，只负责菜单状态与入口编排；表现拆分至 `src/ui/start/`。
 - `styles.ts` 定义响应式视觉。约 375px 手机纵向排列，电脑宽屏左侧标题与操作、右侧岛屿；低高度横屏使用两列紧凑布局。短屏可纵向滚动，安全区留白，所有按钮触控高度至少 44px。
-- 背景由内置 image_gen 生成，最终资源为 `src/ui/start/menu-sunset.webp`（1024×1536，约 72 KB）。图片只包含海天氛围，不含文字、按钮或前景岛屿；使用 cover 裁切兼容电脑宽屏。静态导入交给构建器生成带前缀和哈希的资源地址。
-- 标题、入口、图标与 3D 岛屿独立绘制；背景载入前有渐变底色。减少动态效果的系统偏好会关闭 CSS 动画并冻结场景动画。
+- `start/palette.ts` 共享纯 CSS 渐变底色，开始页增加轻微呼吸的椭圆波纹与光晕，不使用背景图片或生图资源；电脑和手机均由 CSS 自适应绘制。
+- 标题、入口、图标与 3D 岛屿独立绘制；背景直接由 CSS 绘制。减少动态效果的系统偏好会关闭 CSS 动画并冻结场景动画。
+
+### 形象设置与联机大厅
+- `start/formStyles.ts` 统一子界面样式：奶油纸张卡片、海绿色文字和选中态、暖橙主按钮，复用纯 CSS 渐变背景与线性图标。
+- 形象设置以岛民档案呈现，保留昵称长度校验、性别选择、首次确认和修改保存；输入框关联标签，性别按钮提供选中状态语义。
+- 创建与加入房间采用同一大厅框架，手机单列、电脑宽屏左侧邀请文案与右侧操作卡片；短屏允许完整滚动，安全区留白，按钮至少 44px。
+- 邀请卡突出五位房间码，保留二维码与分享操作；队友区显示已靠岸人数，连接消息使用状态提示。保留继续旧岛、房主开局条件、客人昵称设置和所有返回清理逻辑。
+- 入场与等待动画遵循减少动态效果设置；子界面不增加 WebGL 场景或生成图资源。
 
 ### 动态场景与声音
 - `IslandScene.tsx` 用 Three.js 基础几何、正交相机、粗糙平面着色材质搭建沙岛、棕榈、帐篷、岩石、营火和小船。不使用外部模型或骨骼动画。
@@ -25,8 +32,3 @@
 - `GameCanvas.tsx` 继续在开始页、房主大厅、客人大厅与游戏之间路由。装饰场景不创建 Game 实例，不读写世界状态，不改变存档版本。
 - 房主与客人入口沿用现有大厅与同步链路；菜单动画和音频属于各端本地表现，不上行动作、不发快照、不广播事件。
 - `DeathScreen.tsx` 确认后经 `GameplayUI.onExit` 返回开始界面；游戏初始化仍先绘制「正在登上小岛…」遮罩，世界构建和相机落位完成后淡出。
-
-### 背景生成提示词
-使用内置 image_gen，未使用 CLI。最终提示词如下：
-
-> Use case: stylized-concept. Asset type: production background art for a mobile portrait island survival game start screen. Create a beautiful refined hand-painted matte low-poly clay-style tropical ocean at sunset, vertical 2:3 composition. Upper 35 percent muted deep teal sky with soft peach clouds only at outer edges, a pale apricot sun at upper right near the horizon at 38 percent height. Bottom 60 percent tranquil jade and turquoise open ocean, subtle broad horizontal brushwork and warm reflected glints. Very distant tiny hazy island silhouettes at far edges of horizon only. Center must be spacious empty water for a separately rendered 3D miniature island, upper center quiet dark teal negative space for cream typography, bottom quarter dark petrol teal subdued water for UI controls. Gentle atmospheric depth, sophisticated illustrated travel journal mood, warm summer evening, restrained textures. No foreground island, no trees in foreground, no boats, no people, no text, no letters, no UI, no borders, no watermark. Not photorealistic. The image is a background layer, not a screenshot.

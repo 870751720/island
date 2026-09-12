@@ -1,4 +1,4 @@
-import sunset from './menu-sunset.webp';
+import { menuBackdrop } from './palette';
 
 export const startScreenCss = `
 .start-screen{position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:#103e43;color:#fff2d4;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
@@ -6,12 +6,13 @@ export const startScreenCss = `
 .start-screen button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .2s,background .2s,box-shadow .2s}
 .start-screen button:active{transform:scale(.97)}
 .start-screen button:focus-visible{outline:3px solid #ffdc90;outline-offset:4px}
-.start-atmosphere{position:absolute;inset:0;min-height:100%;z-index:-2;overflow:hidden;background:linear-gradient(180deg,#173c48 0%,#507e7c 36%,#4faca3 53%,#123e43 100%)}
-.start-atmosphere:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,39,44,.28),transparent 40%,rgba(5,36,40,.3) 64%,#0c3239 100%),url('${typeof sunset === 'string' ? sunset : sunset.src}') center 44%/cover no-repeat}
-.start-atmosphere:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 48%,transparent 15%,rgba(6,36,41,.18) 85%);pointer-events:none}
-.menu-birds{position:absolute;top:34%;left:20%;display:flex;gap:18px;animation:menu-birds 18s ease-in-out infinite;opacity:.7}
-.menu-birds i{width:16px;height:7px;border-top:2px solid #254f50;border-radius:50%;transform:rotate(15deg)}
-.menu-birds i:after{content:"";display:block;width:16px;height:7px;border-top:2px solid #254f50;border-radius:50%;margin-left:14px;transform:rotate(-25deg)}
+ .start-atmosphere{position:absolute;inset:0;min-height:100%;z-index:-2;overflow:hidden;background:${menuBackdrop}}
+.start-atmosphere:before{content:"";position:absolute;width:76vmax;height:76vmax;left:42%;top:12%;border:1px solid #c4ead015;border-radius:50%;box-shadow:0 0 0 45px #c4ead006,0 0 0 90px #c4ead008,0 0 0 150px #c4ead005;transform:rotateX(55deg);animation:menu-tide 14s ease-in-out infinite}
+.start-atmosphere:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 52% 45%,transparent 25%,#092d344d);pointer-events:none}
+@keyframes menu-tide{50%{transform:translate(-20px,12px) rotateX(55deg) scale(1.06);opacity:.55}}
+.menu-birds{position:absolute;top:28%;left:74%;display:flex;gap:18px;animation:menu-birds 18s ease-in-out infinite;opacity:.7}
+.menu-birds i{width:16px;height:7px;border-top:2px solid #a7caba;border-radius:50%;transform:rotate(15deg)}
+.menu-birds i:after{content:"";display:block;width:16px;height:7px;border-top:2px solid #a7caba;border-radius:50%;margin-left:14px;transform:rotate(-25deg)}
 .menu-birds i:nth-child(2){margin-top:-15px;transform:scale(.7)}
 .menu-birds i:nth-child(3){margin-top:9px;transform:scale(.6)}
 .start-layout{max-width:1200px;margin:auto;min-height:100%;padding:calc(16px + env(safe-area-inset-top)) 24px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
