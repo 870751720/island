@@ -315,10 +315,10 @@ export class CollectSystem {
     return true;
   }
 
-  /** 当前作业进度 0-1(连续:已命中次数 + 本次挥动进度),无作业时为 null */
+  /** 当前作业进度 0-1(连续:已命中次数 + 本次挥动进度);仅作业期间有值,走近未作业时为 null,避免头顶常驻空进度环 */
   getHarvestInfo(): HarvestInfo | null {
     const prop = this.nearby;
-    if (!prop || !this.canCollect()) return null;
+    if (!prop || !this.workingNow) return null;
     const done = this.hitCounts.get(prop) ?? 0;
     const swing = Math.min(this.swingTimer / SWING_TIME, 1);
     return { progress: Math.min((done + swing) / this.hitsFor(prop), 1) };

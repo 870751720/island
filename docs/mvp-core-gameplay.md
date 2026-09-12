@@ -31,3 +31,10 @@ MVP 范围(砍到最小):
 - `src/game/systems/CollectSystem.ts`:靠近资源点采集。
 - `src/ui/GameCanvas.tsx`:React 客户端组件,挂载 canvas 并桥接游戏状态到 HUD。
 - 发布:Next.js `output: 'export'` + `basePath: '/island'`,CI 将 `out/` 发布至 GitHub Pages。
+
+## 迭代记录
+
+### 2026-09-12 头顶进度环仅在作业时显示
+
+- 问题:玩家移动路过可采集资源点(浆果丛、树、石等)时,头顶在显示交互提示文字的同时常驻一个空进度环,观感像多余的空进度条。
+- 修复:`CollectSystem.getHarvestInfo()` 原本只要靠近且可采集就返回进度(未作业时为 0),导致 `InteractionIndicatorBuilder` 让头顶环以空进度常驻;改为仅在真正作业中(`workingNow`:站定未移动、未被其他行为占用)返回进度,走近未作业时返回 null,进度环随作业开始才出现、中断即消失。交互提示文字(如"采浆果")仍靠近即显示。联机客人端的指示器来自房主快照(GuestHudSynchronizer),自动跟随,无需两端分别处理。
