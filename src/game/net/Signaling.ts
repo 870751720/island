@@ -1,7 +1,14 @@
 import mqtt, { type MqttClient } from 'mqtt';
 import type { PeerSignal } from './PeerNet';
 
-const BROKER_URL = 'wss://broker-cn.emqx.io:8084/mqtt';
+// 备选公共 MQTT broker,房主与客人按同一优先级顺序依次尝试,
+// 保证双方在网络可用性一致时落到同一节点完成握手
+const BROKER_URLS = [
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://broker-cn.emqx.io:8084/mqtt',
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://test.mosquitto.org:8081/mqtt',
+];
 const TOPIC_PREFIX = 'island-game/v1';
 const ROOM_CHARS = '0123456789';
 const CONNECT_TIMEOUT = 10_000;
@@ -33,10 +40,22 @@ function parseMessage(payload: Uint8Array): unknown {
   }
 }
 
-/** 连接国内公共 MQTT；它只传递 WebRTC 握手信息，不承载游戏数据。 */
-function connectBroker(role: 'host' | 'guest', reconnectPeriod = 0): Promise<MqttClient> {
+/** 依次尝试备选公共 MQTT broker，全部失败才报错；它们只传递 WebRTC 握手信息，不承载游戏数据。 */
+async function connectBroker(role: 'host' | 'guest', reconnectPeriod = 0): Promise<MqttClient> {
+  let lastError = '未知错误';
+  for (const brokerUrl of BROKER_URLS) {
+    try {
+      return await connectBrokerUrl(brokerUrl, role, reconnectPeriod);
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error(`无法连接联机服务：${lastError}`);
+}
+
+function connectBrokerUrl(brokerUrl: string, role: 'host' | 'guest', reconnectPeriod: number): Promise<MqttClient> {
   return new Promise((resolve, reject) => {
-    const client = mqtt.connect(BROKER_URL, {
+    const client = mqtt.connect(brokerUrl, {
       clean: true,
       clientId: `island_${role}_${randomId(12)}`,
       connectTimeout: CONNECT_TIMEOUT,
@@ -46,7 +65,7 @@ function connectBroker(role: 'host' | 'guest', reconnectPeriod = 0): Promise<Mqt
     });
     const timer = window.setTimeout(() => {
       client.end(true);
-      reject(new Error('连接国内联机服务超时'));
+      reject(new Error('连接超时'));
     }, CONNECT_TIMEOUT);
     client.once('connect', () => {
       window.clearTimeout(timer);
@@ -55,7 +74,7 @@ function connectBroker(role: 'host' | 'guest', reconnectPeriod = 0): Promise<Mqt
     client.once('error', (error) => {
       window.clearTimeout(timer);
       client.end(true);
-      reject(new Error(`无法连接国内联机服务：${error.message}`));
+      reject(error);
     });
   });
 }
