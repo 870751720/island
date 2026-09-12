@@ -278,47 +278,49 @@ const FruitSeedIcon: FC<IconProps> = ({ size }) => (
 );
 
 /** 草衣:草编上衣,领口、衣袖与下摆草须,衣身织纹 */
+/** 草衣:圆领草织上衣(苔绿) */
 const GrassShirtIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    {/* 衣袖 */}
-    <path d="M20 14 L10 22 L12 32 L22 27 Z" fill="#8f9e3e" />
-    <path d="M44 14 L54 22 L52 32 L42 27 Z" fill="#8f9e3e" />
-    {/* 衣身 */}
-    <path d="M20 13 Q32 8 44 13 L44 48 L20 48 Z" fill="#a9b24a" />
-    {/* 领口 */}
-    <path d="M27 12 Q32 18 37 12 Q32 9 27 12 Z" fill="#6f7a2e" />
-    {/* 织纹:横向草束 + 交错针脚 */}
-    <g stroke="#8f9e3e" strokeWidth={2} strokeLinecap="round">
-      <path d="M21 22 h22 M21 30 h22 M21 38 h22" />
+    <path d="M20 16 L44 16 L56 28 L48 34 L46 56 L18 56 L16 34 L8 28 Z" fill="#7fae5e" />
+    <path d="M32 16 L32 56" stroke="#5e8c44" strokeWidth={1.6} />
+    <g stroke="#5e8c44" strokeWidth={1.4}>
+      <path d="M22 24 l-4 8 M42 24 l4 8 M22 42 l-3 8 M42 42 l3 8" />
     </g>
-    <g stroke="#c3ca6e" strokeWidth={1.6} strokeLinecap="round">
-      <path d="M24 26 l4 -3 M32 26 l4 -3 M24 34 l4 -3 M32 34 l4 -3 M24 42 l4 -3 M32 42 l4 -3" />
-    </g>
-    {/* 下摆草须 */}
-    <g stroke="#8f9e3e" strokeWidth={2.2} strokeLinecap="round">
-      <path d="M22 48 v8 M27 48 v10 M32 48 v9 M37 48 v10 M42 48 v8" />
+    <path d="M26 16 q6 5 12 0" stroke="#466b32" strokeWidth={2} fill="none" />
+  </Svg>
+);
+
+/** 草裤:缀叶草裤(苔绿) */
+const GrassPantsIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 12 L46 12 L44 54 L34 54 L32 32 L30 54 L20 54 Z" fill="#7fae5e" />
+    <rect x={18} y={12} width={28} height={5} fill="#5e8c44" />
+    <g fill="#7fae4e">
+      <ellipse cx={26} cy={24} rx={2.5} ry={5} transform="rotate(15 26 24)" />
+      <ellipse cx={38} cy={24} rx={2.5} ry={5} transform="rotate(-15 38 24)" />
+      <ellipse cx={26} cy={46} rx={2.5} ry={5} transform="rotate(10 26 46)" />
+      <ellipse cx={38} cy={46} rx={2.5} ry={5} transform="rotate(-10 38 46)" />
     </g>
   </Svg>
 );
 
-/** 草裤:草编短裤,腰带 + 织纹 + 裤脚草须 */
-const GrassPantsIcon: FC<IconProps> = ({ size }) => (
+/** 草帽:宽檐草帽(嫩绿) */
+const StrawHatIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    {/* 裤身 */}
-    <path d="M18 16 L46 16 L44 46 L36 46 L33 28 L30 46 L20 46 Z" fill="#a9b24a" />
-    {/* 腰带 */}
-    <rect x={17} y={11} width={30} height={7} rx={2} fill="#8f9e3e" />
-    <rect x={29} y={10} width={6} height={9} rx={2} fill="#6f7a2e" />
-    {/* 织纹:横向草束 + 交错针脚 */}
-    <g stroke="#8f9e3e" strokeWidth={2} strokeLinecap="round">
-      <path d="M20 24 h12 M33 24 h11 M20 32 h10 M32 32 h11 M21 40 h9 M33 40 h10" />
-    </g>
-    <g stroke="#c3ca6e" strokeWidth={1.6} strokeLinecap="round">
-      <path d="M23 28 l4 -3 M38 28 l4 -3 M24 36 l4 -3 M38 36 l4 -3" />
-    </g>
-    {/* 裤脚草须 */}
-    <g stroke="#8f9e3e" strokeWidth={2.2} strokeLinecap="round">
-      <path d="M21 46 v8 M25 46 v9 M39 46 v9 M43 46 v8" />
+    <ellipse cx={32} cy={40} rx={28} ry={8} fill="#8aab4e" />
+    <path d="M14 40 Q32 10 50 40 Z" fill="#a8c86a" />
+    <path d="M14 38 q18 -6 36 0" fill="none" stroke="#6d8c3a" strokeWidth={2} />
+    <path d="M18 34 q14 -8 28 0" stroke="#6d8c3a" strokeWidth={1.4} fill="none" opacity={0.6} />
+  </Svg>
+);
+
+/** 草包:网兜提包(嫩绿) */
+const StrawBackpackIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 22 L46 22 L52 52 L12 52 Z" fill="#a8c86a" />
+    <path d="M22 22 q10 -16 20 0" fill="none" stroke="#8a5a32" strokeWidth={3.5} />
+    <g stroke="#6d8c3a" strokeWidth={1.3} fill="none">
+      <path d="M20 30 h24 M17 40 h30 M14 50 h34 M24 22 l-4 30 M32 22 l0 30 M40 22 l4 30" />
     </g>
   </Svg>
 );
@@ -335,14 +337,105 @@ const IronOreIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 铁锭:两块叠放的梯形锭 */
+/** 铁锭:梯形亮锭 + 金属光泽星 */
 const IronIngotIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <polygon points="14,28 44,22 50,36 20,42" fill="#6b737c" />
-    <polygon points="14,28 44,22 42,16 16,22" fill="#aeb6be" />
-    <polygon points="16,34 48,28 54,44 22,50" fill="#8a9199" />
-    <polygon points="16,34 48,28 46,22 18,28" fill="#d5dbe2" />
-    <polygon points="48,28 54,44 50,44 46,28" fill="#5a626b" />
+    <polygon points="16,42 48,42 43,26 21,26" fill="#aab4bc" />
+    <polygon points="21,26 43,26 41.6,23 22.4,23" fill="#c7d0d7" />
+    <path d="M14 12 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z" fill="#f2d27a" />
+    <path d="M50 12 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4 Z" fill="#f2d27a" opacity={0.7} />
+  </Svg>
+);
+
+/** 蚯蚓:叶片旁的 C 形粉蚯蚓 */
+const WormIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <ellipse cx={24} cy={20} rx={10} ry={6} fill="#7fae4e" transform="rotate(-24 24 20)" />
+    <path d="M14 46 C14 28 46 28 46 46" fill="none" stroke="#e8a0a8" strokeWidth={8} strokeLinecap="round" />
+    <circle cx={16} cy={44} r={1.4} fill="#5a3a3e" />
+  </Svg>
+);
+
+/** 冒险家的经验书:摊开的书页 + 知识星光 */
+const AdventureBookIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M8 22 Q20 18 32 24 Q44 18 56 22 L56 48 Q44 44 32 50 Q20 44 8 48 Z" fill="#f5ecd8" />
+    <path d="M32 24 L32 50" stroke="#d8cdb2" strokeWidth={2} />
+    <g stroke="#b9ad90" strokeWidth={2} strokeLinecap="round">
+      <path d="M14 28 q8 -2 14 1 M14 34 q8 -2 14 1 M36 29 q8 -3 14 -1 M36 35 q8 -3 14 -1" />
+    </g>
+    <path
+      d="M20 8 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z M46 6 l1.3 3.2 3.2 1.3 -3.2 1.3 -1.3 3.2 -1.3 -3.2 -3.2 -1.3 3.2 -1.3 Z"
+      fill="#f2d27a"
+    />
+  </Svg>
+);
+
+/** 木斧:竖柄石斧,月牙石刃绑绳 */
+const AxeIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <rect x={29} y={14} width={5} height={44} rx={2.5} fill="#b07b4a" />
+    <path d="M32 10 L18 8 Q8 20 20 34 L32 24 Z" fill="#9aa0a6" />
+    <path d="M18 8 Q8 20 20 34" fill="none" stroke="#b7bdc2" strokeWidth={2} />
+    <g stroke="#c8a86a" strokeWidth={2}>
+      <path d="M28 16 l8 6 M27 21 l8 6" />
+    </g>
+  </Svg>
+);
+
+/** 木镐:月牙双尖镐头垂直穿过竖柄 */
+const PickaxeIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <rect x={30} y={14} width={5} height={46} rx={2.5} fill="#b07b4a" />
+    <path d="M6 22 Q32 0 58 22 L54 27 Q32 8 10 27 Z" fill="#aab4bc" />
+    <rect x={28} y={12} width={9} height={7} fill="#5a636b" opacity={0.35} />
+    <path d="M14 24 Q30 10 50 24" fill="none" stroke="#e7edf1" strokeWidth={1.4} opacity={0.6} />
+  </Svg>
+);
+
+/** 木铲:木柄 + 金属套管 + 梯形圆弧铲刃 */
+const ShovelIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <rect x={30} y={6} width={5} height={30} rx={2.5} fill="#b07b4a" />
+    <rect x={27} y={32} width={11} height={7} rx={1} fill="#5a636b" />
+    <path d="M24 39 L40 39 L45 48 Q45 58 32 60 Q19 58 19 48 Z" fill="#aab4bc" />
+    <path d="M24 44.5 L40 44.5" stroke="#7d8790" strokeWidth={1.5} opacity={0.5} />
+    <path d="M23 50 Q27 55 32 55" fill="none" stroke="#e7edf1" strokeWidth={1.6} opacity={0.7} />
+  </Svg>
+);
+
+/** 树枝鱼竿:弯竿钓起一尾小鱼,水面起波 */
+const FishingRodIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M10 56 Q18 24 50 14" fill="none" stroke="#8a5a32" strokeWidth={4.5} strokeLinecap="round" />
+    <path d="M50 14 Q56 30 48 40" fill="none" stroke="#e8e2d0" strokeWidth={1.5} />
+    <path d="M42 42 q8 -6 12 0 l-3 6 q-5 6 -11 0 Z" fill="#6fa8c9" />
+    <circle cx={45} cy={44} r={1.2} fill="#22333c" />
+    <path d="M8 50 q10 -6 20 -2" stroke="#8fc6e6" strokeWidth={2} fill="none" />
+  </Svg>
+);
+
+/** 树枝弓:弯弓搭箭 */
+const BowIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M16 8 Q52 32 16 56" fill="none" stroke="#8a5a32" strokeWidth={4} strokeLinecap="round" />
+    <path d="M16 8 L16 56" stroke="#e8e2d0" strokeWidth={1.5} />
+    <path d="M8 32 L52 32" stroke="#b07b4a" strokeWidth={3} strokeLinecap="round" />
+    <polygon points="52,32 44,28 44,36" fill="#aab4bc" />
+    <polygon points="12,32 20,27 20,29.5 16,32 20,34.5 20,37" fill="#e2e0d2" />
+  </Svg>
+);
+
+/** 木剑:十字护手 + 圆头柄剑 */
+const SwordIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <rect x={29} y={6} width={6} height={38} fill="#aab4bc" />
+    <polygon points="32,2 28,10 36,10" fill="#aab4bc" opacity={0.9} />
+    <path d="M31 10 L31 42" stroke="#ffffff" strokeWidth={1.4} opacity={0.5} />
+    <rect x={18} y={44} width={28} height={6} rx={2} fill="#e6b84c" />
+    <rect x={18} y={47} width={28} height={3} rx={1.5} fill="#b98f2f" opacity={0.6} />
+    <rect x={28} y={50} width={8} height={9} rx={2} fill="#8a5a32" />
+    <circle cx={32} cy={60} r={3} fill="#e6b84c" />
   </Svg>
 );
 
@@ -429,19 +522,13 @@ const BerryBushIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 锄头:斜置木柄 + 顶端横向扁刃(与柄垂直,切土的形状) */
+/** 锄头:长柄底部垂直伸出的锄板,刃在板外缘 */
 export const HoeIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <g transform="rotate(45 32 32)">
-      {/* 刃:横在柄顶的扁宽金属块 */}
-      <rect x="15" y="7" width="34" height="10" rx="3" fill="#98a0a8" />
-      {/* 柄颈:连接刃与柄的短粗颈 */}
-      <rect x="28" y="14" width="8" height="8" fill="#98a0a8" />
-      {/* 木柄 */}
-      <rect x="29" y="18" width="6" height="40" rx="3" fill="#8a6239" />
-      {/* 柄尾缠绳 */}
-      <rect x="28" y="48" width="8" height="7" rx="2" fill="#c9b588" />
-    </g>
+    <rect x={30} y={6} width={5} height={44} rx={2.5} fill="#b07b4a" />
+    <path d="M33 44 L16 37 Q5 37 8 51 L21 52 L33 52 Z" fill="#aab4bc" />
+    <path d="M16 37 Q5 37 8 51" fill="none" stroke="#7d8790" strokeWidth={2} />
+    <rect x={29} y={42} width={8} height={11} fill="#5a636b" opacity={0.3} />
   </Svg>
 );
 
@@ -526,6 +613,17 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   branch: BranchIcon,
   flint: FlintIcon,
   ironIngot: IronIngotIcon,
+  worm: WormIcon,
+  adventureBook: AdventureBookIcon,
+  axe: AxeIcon,
+  pickaxe: PickaxeIcon,
+  shovel: ShovelIcon,
+  hoe: HoeIcon,
+  fishingrod: FishingRodIcon,
+  bow: BowIcon,
+  sword: SwordIcon,
+  strawHat: StrawHatIcon,
+  strawBackpack: StrawBackpackIcon,
   fiber: FiberIcon,
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
@@ -545,7 +643,6 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   cookedBerry: CookedBerryIcon,
   cookedBigFish: CookedBigFishIcon,
   fur: FurIcon,
-  hoe: HoeIcon,
   cookedSmallFish: CookedSmallFishIcon,
   fruitSeed: FruitSeedIcon,
   grassShirt: GrassShirtIcon,

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图标选型 · 荒岛求生</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f3ead8; color: #3a2f24; padding: 16px; }
+  h1 { font-size: 20px; }
+  p.tip { font-size: 13px; color: #7a6a52; margin: 4px 0 16px; }
+  .item { margin-bottom: 28px; }
+  .item h2 { font-size: 16px; border-left: 4px solid #b07b4a; padding-left: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  .card {
+    background: #fffdf6; border: 2px solid #d8c9a8; border-radius: 10px;
+    padding: 8px 4px 6px; text-align: center; cursor: pointer; user-select: none;
+    transition: transform .08s, border-color .08s, box-shadow .08s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card.selected { border-color: #e0702a; background: #fff3e2; box-shadow: 0 0 0 2px #e0702a55; }
+  .card svg { width: 64px; height: 64px; display: block; margin: 0 auto; }
+  .card .label { font-size: 11px; color: #7a6a52; margin-top: 2px; }
+  #summary { position: sticky; bottom: 0; background: #3a2f24; color: #f3ead8; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 20px; }
+  #summary b { color: #ffb066; }
+  #summary .empty::after { content: "（还没有选择，点击卡片选择）"; color: #b8a888; }
+  #summary code { background: #00000030; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>自绘图标选型(每项 18 种)</h1>
+<p class="tip">点击卡片选中,底部汇总"物品 = 编号"。7 号起为新增方案;草系列为多配色。</p>
+<div id="app"></div>
+<div id="summary"><div class="empty"></div></div>
+
+<script>
+// ===== 通用调色 =====
+const WOOD = '#b07b4a', WOOD_D = '#8a5a32', IRON = '#aab4bc', IRON_D = '#7d8790',
+  IRON_DD = '#5a636b', STONE = '#9aa0a6', STONE_D = '#6f767c',
+  PINK = '#e8a0a8', PINK_D = '#c97d87', SOIL = '#8a6238', SOIL_D = '#6b4a29',
+  ROPE = '#c8a86a', RED = '#c0504a', RED_D = '#963a35', PAPER = '#f5ecd8', GOLD = '#e6b84c',
+  LEAF_D = '#5e8c39';
+// 金属色系(工具头)
+const METALS = {
+  iron: [IRON, IRON_D, IRON_DD],
+  bronze: ['#c9964a', '#a5763a', '#7d5729'],
+  stone: [STONE, STONE_D, '#565c62'],
+  gold: ['#e6b84c', '#c29532', '#967021'],
+  dark: ['#6a7078', '#4d535b', '#363b42'],
+};
+// 木柄色系
+const WOODS = {
+  wood: [WOOD, WOOD_D], dark: ['#8a5a32', '#6b4425'],
+  pale: ['#c99a68', '#a5774a'], bamboo: ['#a8b06a', '#879150'],
+};
+
+// ===== 工具生成器:同一造型换角度/配色批量出方案 =====
+const rot = (deg, body) => `<g transform="rotate(${deg} 32 32)">${body}</g>`;
+
+function axeBody(m, w) {
+  const [M, MD] = METALS[m], [W, WD] = WOODS[w];
+  return `<rect x="30" y="12" width="5" height="48" rx="2.5" fill="${W}"/>
+   <rect x="30" y="12" width="2" height="48" rx="1" fill="${WD}" opacity=".5"/>
+   <path d="M32 8 L58 13 L53 27 L32 22 Z" fill="${M}"/>
+   <path d="M32 8 L20 8 Q10 20 20 34 L32 22 Z" fill="${M}"/>
+   <path d="M20 8 Q10 20 20 34" fill="none" stroke="${MD}" stroke-width="2"/>
+   <rect x="29" y="8" width="8" height="16" fill="${MD}" opacity=".3"/>`;
+}
+function pickBody(m, w) {
+  const [M, MD] = METALS[m], [W, WD] = WOODS[w];
+  return `<rect x="30" y="14" width="5" height="46" rx="2.5" fill="${W}"/>
+   <rect x="30" y="14" width="2" height="46" rx="1" fill="${WD}" opacity=".5"/>
+   <path d="M6 22 Q32 0 58 22 L54 27 Q32 8 10 27 Z" fill="${M}"/>
+   <rect x="28" y="12" width="9" height="7" fill="${MD}" opacity=".35"/>`;
+}
+function shovelBody(m, w) {
+  const [M, MD] = METALS[m], [W, WD] = WOODS[w];
+  return `<rect x="30" y="6" width="5" height="30" rx="2.5" fill="${W}"/>
+   <rect x="30" y="6" width="2" height="30" rx="1" fill="${WD}" opacity=".5"/>
+   <rect x="27" y="32" width="11" height="7" rx="1" fill="${MD}"/>
+   <path d="M24 39 L40 39 L45 48 Q45 58 32 60 Q19 58 19 48 Z" fill="${M}"/>
+   <path d="M24 44.5 L40 44.5" stroke="${MD}" stroke-width="1.5" opacity=".5"/>`;
+}
+function hoeBody(m, w) {
+  const [M, MD] = METALS[m], [W, WD] = WOODS[w];
+  return `<rect x="30" y="6" width="5" height="44" rx="2.5" fill="${W}"/>
+   <rect x="30" y="6" width="2" height="44" rx="1" fill="${WD}" opacity=".5"/>
+   <path d="M33 44 L16 37 Q5 37 8 51 L21 52 L33 52 Z" fill="${M}"/>
+   <path d="M16 37 Q5 37 8 51" fill="none" stroke="${MD}" stroke-width="2"/>
+   <rect x="29" y="42" width="8" height="11" fill="${MD}" opacity=".3"/>`;
+}
+function rodBody(w, line = '#e8e2d0') {
+  const [W, WD] = WOODS[w];
+  return `<path d="M14 56 L52 10" stroke="${WD}" stroke-width="4.5" stroke-linecap="round"/>
+   <path d="M52 10 q-2 14 -6 22" fill="none" stroke="${line}" stroke-width="1.5"/>
+   <path d="M46 32 q0 8 -6 10 q-6 2 -6 8" fill="none" stroke="${line}" stroke-width="1.5"/>
+   <path d="M34 50 q-3 6 2 8 q5 2 5 -4" fill="none" stroke="${IRON}" stroke-width="2" stroke-linecap="round"/>`;
+}
+function bowBody(m, w, string = '#e8e2d0') {
+  const [M] = METALS[m], [W, WD] = WOODS[w];
+  return `<path d="M18 8 Q52 32 18 56" fill="none" stroke="${WD}" stroke-width="4" stroke-linecap="round"/>
+   <path d="M18 8 L18 56" stroke="${string}" stroke-width="1.5"/>
+   <path d="M10 32 L50 32" stroke="${W}" stroke-width="3" stroke-linecap="round"/>
+   <polygon points="56,32 48,28 48,36" fill="${M}"/>`;
+}
+function swordBody(m, hilt) {
+  const [M, MD] = METALS[m], [G, GD] = hilt === 'gold' ? ['#e6b84c', '#b98f2f'] : ['#c0504a', '#963a35'];
+  return `<rect x="29" y="6" width="6" height="38" fill="${M}"/>
+   <polygon points="32,2 28,10 36,10" fill="${M}" opacity=".9"/>
+   <path d="M31 10 L31 42" stroke="#ffffff" stroke-width="1.4" opacity=".5"/>
+   <rect x="18" y="44" width="28" height="6" rx="2" fill="${G}"/>
+   <rect x="18" y="47" width="28" height="3" rx="1.5" fill="${GD}" opacity=".6"/>
+   <rect x="28" y="50" width="8" height="9" rx="2" fill="#8a5a32"/>
+   <circle cx="32" cy="60" r="3" fill="${G}"/>`;
+}
+
+// ===== 草系列:形状函数 × 配色 =====
+const GRASS_PALETTES = {
+  '草黄': ['#d9c46b', '#bda44a', '#9c873c'],
+  '嫩绿': ['#a8c86a', '#8aab4e', '#6d8c3a'],
+  '苔绿': ['#7fae5e', '#5e8c44', '#466b32'],
+  '海沫青': ['#7fc0b3', '#5da295', '#428075'],
+  '天蓝': ['#8fb6d9', '#6a94bd', '#4f7399'],
+  '暖橙': ['#dfa75f', '#bd8342', '#96612f'],
+  '砖红': ['#cf8272', '#ac6355', '#874a3f'],
+  '灰白': ['#d9d3c5', '#b5ae9e', '#8f887a'],
+  '紫藤': ['#a695c2', '#8a78a8', '#6b5c8a'],
+  '玫粉': ['#d68fa8', '#b56e88', '#8e5268'],
+  '棕褐': ['#b08a5e', '#8f6c45', '#6f5233'],
+  '墨蓝': ['#7a8fa8', '#5c7188', '#43566a'],
+};
+
+const G = {
+// 正面圆领上衣
+shirt: (c, cd, cdd) => `<path d="M20 16 L44 16 L56 28 L48 34 L46 56 L18 56 L16 34 L8 28 Z" fill="${c}"/>
+ <path d="M32 16 L32 56" stroke="${cd}" stroke-width="1.6"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M22 24 l-4 8 M42 24 l4 8 M22 42 l-3 8 M42 42 l3 8"/></g>
+ <path d="M26 16 q6 5 12 0" stroke="${cdd}" stroke-width="2" fill="none"/>`,
+// 背心
+vest: (c, cd, cdd) => `<path d="M22 14 Q32 22 42 14 L52 26 L45 30 L44 56 L20 56 L19 30 L12 26 Z" fill="${c}"/>
+ <path d="M22 14 Q32 22 42 14" fill="none" stroke="${cdd}" stroke-width="2.5"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M26 32 l0 16 M38 32 l0 16 M32 28 l0 22"/></g>`,
+// 系带束腰
+tied: (c, cd, cdd) => `<path d="M20 16 L44 16 L54 26 L47 32 L45 54 L19 54 L17 32 L10 26 Z" fill="${c}"/>
+ <circle cx="32" cy="26" r="2" fill="${cdd}"/>
+ <path d="M32 26 v8 M27 38 h10" stroke="${ROPE}" stroke-width="2.2" stroke-linecap="round"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M21 42 l-2 10 M43 42 l2 10"/></g>`,
+// 披风
+poncho: (c, cd, cdd) => `<path d="M24 12 L40 12 L52 54 L12 54 Z" fill="${c}"/>
+ <path d="M24 12 Q32 20 40 12" fill="none" stroke="${cdd}" stroke-width="2.5"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M22 24 l-3 26 M32 22 l0 28 M42 24 l3 26"/></g>
+ <circle cx="32" cy="16" r="2" fill="${cdd}"/>`,
+// 叶片缀饰
+leafy: (c, cd, cdd) => `<path d="M22 14 L42 14 L50 22 L46 52 L18 52 L14 22 Z" fill="${c}"/>
+ <g fill="#7fae4e"><ellipse cx="24" cy="34" rx="3" ry="6" transform="rotate(20 24 34)"/><ellipse cx="40" cy="34" rx="3" ry="6" transform="rotate(-20 40 34)"/><ellipse cx="28" cy="46" rx="3" ry="6" transform="rotate(12 28 46)"/><ellipse cx="36" cy="46" rx="3" ry="6" transform="rotate(-12 36 46)"/></g>
+ <path d="M27 14 q5 4 10 0" stroke="${cdd}" stroke-width="2" fill="none"/>`,
+// 长袖
+sleeved: (c, cd, cdd) => `<path d="M24 14 L40 14 L50 22 L58 40 L50 44 L45 32 L45 54 L19 54 L19 32 L14 44 L6 40 L14 22 Z" fill="${c}"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M24 24 l-4 12 M40 24 l4 12 M32 20 l0 30"/></g>
+ <path d="M27 16 q5 4 10 0" stroke="${cdd}" stroke-width="2" fill="none"/>`,
+// 短打对襟
+wrap: (c, cd, cdd) => `<path d="M18 14 L46 14 L50 24 L44 28 L46 52 L20 52 L22 28 L14 24 Z" fill="${c}"/>
+ <path d="M18 14 L32 30 L46 14" fill="none" stroke="${cdd}" stroke-width="2"/>
+ <path d="M32 30 L32 52" stroke="${cdd}" stroke-width="1.6"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M24 34 l-1 14 M40 34 l1 14"/></g>`,
+// 高领斗篷
+hooded: (c, cd, cdd) => `<path d="M22 18 L42 18 L54 34 L47 38 L45 56 L19 56 L17 38 L10 34 Z" fill="${c}"/>
+ <path d="M22 18 Q32 2 42 18" fill="${cd}"/>
+ <path d="M25 18 Q32 8 39 18" fill="${cdd}" opacity=".4"/>
+ <path d="M32 40 l0 12 M25 44 l14 0" stroke="${ROPE}" stroke-width="2" stroke-linecap="round"/>`,
+};
+const P = {
+// 经典长裤
+pants: (c, cd, cdd) => `<path d="M18 10 L46 10 L44 54 L34 54 L32 32 L30 54 L20 54 Z" fill="${c}"/>
+ <rect x="18" y="10" width="28" height="6" fill="${cd}"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M24 20 l-1 30 M40 20 l1 30"/></g>
+ <path d="M18 10 h28" stroke="${ROPE}" stroke-width="2.5"/>`,
+// 短裤
+shorts: (c, cd, cdd) => `<path d="M18 16 L46 16 L44 42 L34 42 L32 28 L30 42 L20 42 Z" fill="${c}"/>
+ <rect x="18" y="16" width="28" height="6" fill="${cd}"/>
+ <path d="M24 26 l-1 12 M40 26 l1 12" stroke="${cd}" stroke-width="1.4"/>
+ <path d="M18 16 h28" stroke="${ROPE}" stroke-width="2.5"/>`,
+// 背带裤
+overall: (c, cd, cdd) => `<path d="M18 16 L46 16 L44 54 L34 54 L32 34 L30 54 L20 54 Z" fill="${c}"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M25 24 l-1 26 M39 24 l1 26"/></g>
+ <path d="M22 16 L18 6 M42 16 L46 6" stroke="${ROPE}" stroke-width="3" stroke-linecap="round"/>
+ <rect x="15" y="4" width="7" height="5" rx="2" fill="${cdd}"/><rect x="42" y="4" width="7" height="5" rx="2" fill="${cdd}"/>`,
+// 灯笼裤
+bloomer: (c, cd, cdd) => `<path d="M20 14 Q10 30 16 52 L28 52 Q26 36 30 30 Q34 36 32 52 L44 52 Q50 30 40 14 Z" fill="${c}"/>
+ <rect x="20" y="14" width="20" height="5" fill="${cd}"/>
+ <path d="M20 14 h20" stroke="${ROPE}" stroke-width="2.5"/>
+ <path d="M18 44 q10 4 24 0" stroke="${cd}" stroke-width="1.6" fill="none"/>`,
+// 缀叶裤
+leafPants: (c, cd, cdd) => `<path d="M18 12 L46 12 L44 54 L34 54 L32 32 L30 54 L20 54 Z" fill="${c}"/>
+ <rect x="18" y="12" width="28" height="5" fill="${cd}"/>
+ <g fill="#7fae4e"><ellipse cx="26" cy="24" rx="2.5" ry="5" transform="rotate(15 26 24)"/><ellipse cx="38" cy="24" rx="2.5" ry="5" transform="rotate(-15 38 24)"/><ellipse cx="26" cy="46" rx="2.5" ry="5" transform="rotate(10 26 46)"/><ellipse cx="38" cy="46" rx="2.5" ry="5" transform="rotate(-10 38 46)"/></g>`,
+// 侧视裤
+sidePants: (c, cd, cdd) => `<path d="M16 12 L44 12 L48 34 L40 36 L38 22 L36 54 L26 54 L28 36 L12 38 Z" fill="${c}"/>
+ <rect x="16" y="12" width="28" height="6" fill="${cd}"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M24 22 l-6 12 M36 22 l6 12"/></g>`,
+// 卷边裤
+cuffed: (c, cd, cdd) => `<path d="M18 12 L46 12 L44 48 L34 48 L32 30 L30 48 L20 48 Z" fill="${c}"/>
+ <rect x="18" y="12" width="28" height="5" fill="${cd}"/>
+ <rect x="18" y="44" width="13" height="5" fill="${cd}"/><rect x="33" y="44" width="13" height="5" fill="${cd}"/>
+ <g stroke="${cdd}" stroke-width="1.2"><path d="M25 20 l-1 22 M39 20 l1 22"/></g>`,
+// 宽松束脚裤
+tiePants: (c, cd, cdd) => `<path d="M19 12 L45 12 L47 34 Q47 46 41 52 L34 52 Q38 40 32 32 Q26 40 30 52 L23 52 Q17 46 17 34 Z" fill="${c}"/>
+ <rect x="19" y="12" width="26" height="5" fill="${cd}"/>
+ <path d="M23 50 h7 M34 50 h7" stroke="${ROPE}" stroke-width="2.2" stroke-linecap="round"/>`,
+// 补丁裤
+patch: (c, cd, cdd) => `<path d="M18 12 L46 12 L44 54 L34 54 L32 32 L30 54 L20 54 Z" fill="${c}"/>
+ <rect x="18" y="12" width="28" height="5" fill="${cd}"/>
+ <rect x="21" y="24" width="8" height="8" rx="1" fill="${cd}" stroke="${cdd}" stroke-width="1" stroke-dasharray="2 1.6"/>
+ <rect x="36" y="40" width="7" height="7" rx="1" fill="${cd}" stroke="${cdd}" stroke-width="1" stroke-dasharray="2 1.6"/>`,
+};
+const H = {
+// 宽檐侧视
+wide: (c, cd, cdd) => `<ellipse cx="32" cy="40" rx="28" ry="8" fill="${cd}"/>
+ <path d="M14 40 Q32 10 50 40 Z" fill="${c}"/>
+ <path d="M14 38 q18 -6 36 0" fill="none" stroke="${cdd}" stroke-width="2"/>
+ <path d="M18 34 q14 -8 28 0" stroke="${cdd}" stroke-width="1.4" fill="none" opacity=".6"/>`,
+// 圆锥斗笠
+cone: (c, cd, cdd) => `<polygon points="32,8 56,48 8,48" fill="${c}"/>
+ <path d="M14 44 q18 8 36 0" fill="none" stroke="${cd}" stroke-width="3"/>
+ <path d="M20 38 q12 6 24 0 M25 28 q7 4 14 0" stroke="${cdd}" stroke-width="1.4" fill="none" opacity=".6"/>
+ <circle cx="32" cy="8" r="2.5" fill="${cd}"/>`,
+// 系带圆帽
+ribbon: (c, cd, cdd) => `<ellipse cx="32" cy="40" rx="26" ry="7" fill="${cd}"/>
+ <path d="M15 40 Q32 12 49 40 Z" fill="${c}"/>
+ <path d="M16.5 35 q15.5 -7 31 0 l0 5 q-15.5 -7 -31 0 Z" fill="${'#c0504a'}"/>
+ <circle cx="32" cy="33" r="2.5" fill="${'#e6b84c'}"/>`,
+// 平顶水手帽
+sailor: (c, cd, cdd) => `<ellipse cx="32" cy="42" rx="24" ry="6" fill="${cd}"/>
+ <path d="M12 42 L12 30 Q32 22 52 30 L52 42 Z" fill="${c}"/>
+ <ellipse cx="32" cy="30" rx="20" ry="5" fill="${c}" opacity=".55"/>
+ <path d="M13 36 q19 -6 38 0" stroke="${cdd}" stroke-width="1.6" fill="none" opacity=".7"/>`,
+// 俯视织纹
+top: (c, cd, cdd) => `<circle cx="32" cy="32" r="26" fill="${cd}"/>
+ <circle cx="32" cy="32" r="12" fill="${c}"/>
+ <g stroke="${cdd}" stroke-width="1.2" fill="none" opacity=".7"><circle cx="32" cy="32" r="17"/><circle cx="32" cy="32" r="22"/></g>
+ <circle cx="32" cy="32" r="5" fill="${cd}"/>`,
+// 下巴带
+strap: (c, cd, cdd) => `<ellipse cx="32" cy="34" rx="27" ry="8" fill="${cd}"/>
+ <path d="M15 34 Q32 6 49 34 Z" fill="${c}"/>
+ <path d="M16 30 q16 -6 32 0" fill="none" stroke="${cdd}" stroke-width="1.6"/>
+ <path d="M18 38 q-2 12 8 14 M46 38 q2 12 -8 14" fill="none" stroke="${ROPE}" stroke-width="2"/>`,
+// 尖顶渔夫帽
+baker: (c, cd, cdd) => `<ellipse cx="32" cy="42" rx="22" ry="7" fill="${cd}"/>
+ <path d="M14 42 Q18 16 32 16 Q46 16 50 42 Z" fill="${c}"/>
+ <path d="M15 36 q17 -5 34 0" stroke="${cdd}" stroke-width="1.6" fill="none" opacity=".7"/>
+ <circle cx="32" cy="16" r="2.5" fill="${cd}"/>`,
+// 卷边软帽
+soft: (c, cd, cdd) => `<ellipse cx="32" cy="44" rx="25" ry="8" fill="${cd}"/>
+ <path d="M15 44 Q20 18 32 18 Q44 18 49 44 Z" fill="${c}"/>
+ <path d="M16 40 q16 8 32 0 l0 -6 q-16 6 -32 0 Z" fill="${cd}" opacity=".7"/>`,
+};
+const B = {
+// 提篮包
+basket: (c, cd, cdd) => `<path d="M8 54 L12 26 L52 26 L56 54 Z" fill="${c}"/>
+ <path d="M8 54 L56 54 L55 58 L9 58 Z" fill="${cd}"/>
+ <path d="M20 26 q12 -20 24 0" fill="none" stroke="${WOOD_D}" stroke-width="4"/>
+ <g stroke="${cd}" stroke-width="1.6"><path d="M14 34 h36 M13 42 h38 M12 50 h40"/></g>`,
+// 束口袋
+pouch: (c, cd, cdd) => `<path d="M14 26 Q10 56 32 58 Q54 56 50 26 Z" fill="${c}"/>
+ <path d="M14 26 Q32 32 50 26" fill="none" stroke="${ROPE}" stroke-width="3"/>
+ <path d="M40 24 l6 -8" stroke="${ROPE}" stroke-width="2.5" stroke-linecap="round"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M20 36 l-2 12 M32 38 l0 12 M44 36 l2 12"/></g>`,
+// 双肩包
+backpack: (c, cd, cdd) => `<rect x="14" y="20" width="36" height="36" rx="8" fill="${c}"/>
+ <rect x="14" y="20" width="36" height="10" rx="5" fill="${cd}"/>
+ <path d="M22 20 q2 -12 10 -12 q8 0 10 12" fill="none" stroke="${WOOD_D}" stroke-width="3.5"/>
+ <circle cx="32" cy="34" r="3" fill="${cdd}"/>
+ <g stroke="${cd}" stroke-width="1.4"><path d="M18 44 h28 M22 50 h20"/></g>`,
+// 翻盖挎包
+flap: (c, cd, cdd) => `<path d="M12 28 L52 28 L48 56 L16 56 Z" fill="${c}"/>
+ <path d="M12 28 L52 28 L50 38 L14 38 Z" fill="${cd}"/>
+ <circle cx="32" cy="44" r="2.5" fill="${cdd}"/>
+ <path d="M22 28 q6 -18 20 -14" fill="none" stroke="${ROPE}" stroke-width="3"/>`,
+// 草捆肩包
+bundle: (c, cd, cdd) => `<rect x="10" y="30" width="34" height="22" rx="8" fill="${c}"/>
+ <path d="M44 32 L58 14" stroke="${WOOD}" stroke-width="4" stroke-linecap="round"/>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M18 30 v22 M28 30 v22 M38 30 v22"/></g>`,
+// 方箱包
+box: (c, cd, cdd) => `<rect x="12" y="24" width="40" height="30" rx="4" fill="${c}"/>
+ <rect x="12" y="24" width="40" height="8" rx="4" fill="${cd}"/>
+ <rect x="27" y="32" width="10" height="7" rx="2" fill="${cdd}"/>
+ <path d="M10 22 q22 -12 44 0 l-4 4 h-36 Z" fill="${cd}"/>
+ <g stroke="${cd}" stroke-width="1.3"><path d="M16 42 h32 M16 49 h32"/></g>`,
+// 网兜包
+net: (c, cd, cdd) => `<path d="M18 22 L46 22 L52 52 L12 52 Z" fill="${c}"/>
+ <path d="M22 22 q10 -16 20 0" fill="none" stroke="${WOOD_D}" stroke-width="3.5"/>
+ <g stroke="${cdd}" stroke-width="1.3" fill="none"><path d="M20 30 h24 M17 40 h30 M14 50 h34 M24 22 l-4 30 M32 22 l0 30 M40 22 l4 30"/></g>`,
+// 圆筒卷包
+roll: (c, cd, cdd) => `<rect x="14" y="22" width="36" height="22" rx="11" fill="${c}"/>
+ <ellipse cx="50" cy="33" rx="5" ry="11" fill="${cd}"/>
+ <g stroke="${cdd}" stroke-width="1.4"><path d="M24 22 v22 M34 22 v22"/></g>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M20 22 v22 M42 22 v22"/></g>`,
+};
+
+// ===== 每个物品 18 种方案 =====
+const ITEMS = {};
+
+ITEMS['铁锭'] = [
+`<polygon points="14,42 50,42 44,24 20,24" fill="${IRON}"/>
+ <polygon points="20,24 44,24 42,20 22,20" fill="#c7d0d7"/>
+ <polygon points="50,42 44,24 42,20 46,26 51,43" fill="${IRON_D}"/>
+ <rect x="24" y="30" width="14" height="3" rx="1.5" fill="#e7edf1" opacity=".8"/>`,
+`<polygon points="10,48 40,48 35,33 15,33" fill="${IRON_D}"/>
+ <polygon points="24,38 54,38 49,23 29,23" fill="${IRON}"/>
+ <polygon points="29,23 49,23 47.5,19.5 30.5,19.5" fill="#c7d0d7"/>
+ <rect x="33" y="29" width="12" height="3" rx="1.5" fill="#e7edf1" opacity=".8"/>`,
+`<polygon points="6,44 24,44 21,32 9,32" fill="${IRON}"/>
+ <polygon points="23,44 41,44 38,32 26,32" fill="${IRON_D}"/>
+ <polygon points="40,44 58,44 55,32 43,32" fill="${IRON}"/>
+ <polygon points="9,32 21,32 20,29 10,29" fill="#c7d0d7"/>
+ <polygon points="43,32 55,32 54,29 44,29" fill="#c7d0d7"/>`,
+`<polygon points="14,40 50,40 44,22 20,22" fill="#e8762e"/>
+ <polygon points="20,22 44,22 42,18 22,18" fill="#f5a24c"/>
+ <polygon points="14,40 50,40 44,44 20,44" fill="#b34e1c"/>
+ <circle cx="20" cy="16" r="2" fill="#f5c86a"/><circle cx="46" cy="15" r="1.6" fill="#f5c86a"/>
+ <circle cx="33" cy="12" r="1.8" fill="#f5934c"/>`,
+`<polygon points="12,44 52,44 46,24 18,24" fill="${IRON_DD}"/>
+ <polygon points="18,24 46,24 44,20 20,20" fill="#8f9aa3"/>
+ <path d="M22 30 L40 30" stroke="#d5dde3" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+ <circle cx="52" cy="20" r="4" fill="none" stroke="#e6b84c" stroke-width="1.5" opacity=".9"/>`,
+`<rect x="12" y="46" width="40" height="6" rx="2" fill="${WOOD}"/>
+ <rect x="12" y="46" width="40" height="2" fill="${WOOD_D}"/>
+ <polygon points="17,46 47,46 42,28 22,28" fill="${IRON}"/>
+ <polygon points="22,28 42,28 40.5,24.5 23.5,24.5" fill="#c7d0d7"/>`,
+// 7 金铁双色
+`<polygon points="12,44 36,44 31,26 17,26" fill="${GOLD}"/>
+ <polygon points="17,26 31,26 29.5,22.5 18.5,22.5" fill="#f2d27a"/>
+ <polygon points="34,44 54,44 49,30 39,30" fill="${IRON}"/>
+ <polygon points="39,30 49,30 48,27 40,27" fill="#c7d0d7"/>`,
+// 8 铁砧上的锭
+`<path d="M8 50 h48 v6 h-48 Z" fill="${IRON_DD}"/>
+ <path d="M14 50 l-6 -8 h10 l4 8 Z M56 42 l-8 0 l-4 8 h12 Z" fill="${IRON_DD}" opacity=".8"/>
+ <polygon points="20,36 46,36 41,20 25,20" fill="#e8762e"/>
+ <polygon points="25,20 41,20 39.5,16.5 26.5,16.5" fill="#f5a24c"/>`,
+// 9 蓝钢锭
+`<polygon points="14,42 50,42 44,24 20,24" fill="#6f8faf"/>
+ <polygon points="20,24 44,24 42,20 22,20" fill="#93b2d4"/>
+ <path d="M24 32 L40 32" stroke="#c9dcf0" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+ <path d="M20 24 L44 24 L44 27 L20 27 Z" fill="#54719a" opacity=".5"/>`,
+// 10 九宫格小锭
+[0,1,2].map(r => [0,1,2].map(c =>
+ `<polygon points="${10+c*16},${16+r*16} ${22+c*16},${16+r*16} ${20+c*16},${8+r*16} ${12+c*16},${8+r*16}" fill="${(r+c)%2?IRON_D:IRON}"/>
+  <polygon points="${12+c*16},${8+r*16} ${20+c*16},${8+r*16} ${19.4+c*16},${6.4+r*16} ${12.6+c*16},${6.4+r*16}" fill="#c7d0d7"/>`).join('')).join(''),
+// 11 金字塔三排
+`<polygon points="22,20 42,20 39,12 25,12" fill="${IRON}"/>
+ <polygon points="14,32 50,32 46,22 18,22" fill="${IRON_D}"/>
+ <polygon points="6,46 58,46 52,34 12,34" fill="${IRON}"/>
+ <polygon points="25,12 39,12 38.4,10.4 25.6,10.4" fill="#c7d0d7"/>`,
+// 12 青铜锭
+`<polygon points="14,42 50,42 44,24 20,24" fill="#c9964a"/>
+ <polygon points="20,24 44,24 42,20 22,20" fill="#e0b86e"/>
+ <polygon points="50,42 44,24 42,20 46,26 51,43" fill="#a5763a"/>
+ <rect x="24" y="30" width="14" height="3" rx="1.5" fill="#f0d6a0" opacity=".8"/>`,
+// 13 生铁粗锭
+`<path d="M14 42 L50 42 L44 22 L20 22 Z" fill="${IRON_DD}"/>
+ <path d="M20 22 L44 22 L42 18 L22 18 Z" fill="#7d8790"/>
+ <path d="M26 26 l6 6 M36 24 l4 10 M30 36 l5 3" stroke="#454c53" stroke-width="1.6"/>`,
+// 14 锭+星光泽
+`<polygon points="16,42 48,42 43,26 21,26" fill="${IRON}"/>
+ <polygon points="21,26 43,26 41.6,23 22.4,23" fill="#c7d0d7"/>
+ <path d="M14 12 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z" fill="#f2d27a"/>
+ <path d="M50 12 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4 Z" fill="#f2d27a" opacity=".7"/>`,
+// 15 圆角亮锭
+`<rect x="14" y="24" width="36" height="20" rx="5" fill="${IRON}"/>
+ <rect x="18" y="20" width="28" height="7" rx="3.5" fill="#c7d0d7"/>
+ <rect x="20" y="30" width="16" height="3" rx="1.5" fill="#e7edf1" opacity=".8"/>`,
+// 16 锻锤+锭
+`<polygon points="10,52 38,52 33,36 15,36" fill="${IRON_D}"/>
+ <rect x="42" y="14" width="5" height="24" rx="2.5" fill="${WOOD_D}"/>
+ <rect x="36" y="6" width="18" height="12" rx="3" fill="${IRON_DD}"/>
+ <circle cx="20" cy="14" r="2" fill="#f5c86a"/><circle cx="28" cy="10" r="1.5" fill="#f5934c"/>`,
+// 17 熔炉出炉锭
+`<path d="M6 46 h24 v14 h-24 Z" fill="${STONE_D}"/>
+ <path d="M10 46 q8 -18 16 0" fill="#e8762e"/>
+ <rect x="26" y="40" width="6" height="3" fill="#5a4a3a"/>
+ <polygon points="30,40 56,40 51,24 35,24" fill="#e8762e"/>
+ <polygon points="35,24 51,24 49.6,20.6 36.4,20.6" fill="#f5a24c"/>`,
+// 18 双层亮银大锭
+`<polygon points="8,50 38,50 32,32 14,32" fill="${IRON}"/>
+ <polygon points="14,32 32,32 31,29 15,29" fill="#dbe3e9"/>
+ <polygon points="26,36 56,36 50,18 32,18" fill="#c7d0d7"/>
+ <polygon points="32,18 50,18 48.8,15 33.2,15" fill="#e7edf1"/>
+ <rect x="36" y="25" width="10" height="3" rx="1.5" fill="#ffffff" opacity=".7"/>`,
+];
+
+ITEMS['蚯蚓'] = [
+`<path d="M16 44 C16 26 48 26 48 42" fill="none" stroke="${PINK}" stroke-width="8" stroke-linecap="round"/>
+ <path d="M16 44 C16 26 48 26 48 42" fill="none" stroke="${PINK_D}" stroke-width="2" stroke-dasharray="1.5 6" stroke-linecap="round"/>
+ <circle cx="17" cy="42" r="1.4" fill="#5a3a3e"/>`,
+`<path d="M10 22 C30 12 34 30 54 22 M10 44 C30 52 34 34 54 44" fill="none" stroke="${PINK}" stroke-width="7.5" stroke-linecap="round"/>
+ <g fill="${PINK_D}"><circle cx="18" cy="18" r="1.3"/><circle cx="32" cy="20" r="1.3"/><circle cx="46" cy="22" r="1.3"/>
+ <circle cx="18" cy="47" r="1.3"/><circle cx="32" cy="45" r="1.3"/><circle cx="46" cy="43" r="1.3"/></g>`,
+`<path d="M8 52 L20 38 L34 46 L46 36 L56 52 Z" fill="${SOIL}"/>
+ <path d="M8 52 L56 52" stroke="${SOIL_D}" stroke-width="2"/>
+ <path d="M28 40 C28 30 40 30 40 38" fill="none" stroke="${PINK}" stroke-width="6.5" stroke-linecap="round"/>
+ <circle cx="39" cy="33" r="1.2" fill="#5a3a3e"/>`,
+`<path d="M14 46 C10 24 54 20 50 44" fill="none" stroke="${PINK}" stroke-width="9" stroke-linecap="round"/>
+ <circle cx="44" cy="30" r="1.6" fill="#3a2a2c"/>
+ <path d="M40 36 q4 3 8 0" stroke="#3a2a2c" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+ <circle cx="20" cy="18" r="1.5" fill="${PINK_D}" opacity=".6"/>`,
+`<circle cx="32" cy="36" r="14" fill="none" stroke="${PINK}" stroke-width="8"/>
+ <path d="M46 36 q8 -2 8 -8" fill="none" stroke="${PINK}" stroke-width="6" stroke-linecap="round"/>
+ <path d="M24 24 C40 22 42 46 26 46" fill="none" stroke="${PINK_D}" stroke-width="1.6" stroke-dasharray="1.5 6"/>`,
+`<path d="M50 8 L50 30 q0 12 -10 12 q-8 0 -8 -8" fill="none" stroke="${IRON}" stroke-width="2.5" stroke-linecap="round"/>
+ <path d="M34 36 q-12 -2 -10 -12" fill="none" stroke="${PINK}" stroke-width="6" stroke-linecap="round"/>
+ <circle cx="24" cy="24" r="1.3" fill="#5a3a3e"/>`,
+// 7 双蚯蚓
+`<path d="M8 22 C24 12 40 30 56 20" fill="none" stroke="${PINK}" stroke-width="6.5" stroke-linecap="round"/>
+ <path d="M8 44 C24 36 40 52 56 42" fill="none" stroke="#dba2b8" stroke-width="6.5" stroke-linecap="round"/>
+ <circle cx="54" cy="20" r="1.2" fill="#5a3a3e"/><circle cx="54" cy="42" r="1.2" fill="#5a3a3e"/>`,
+// 8 雨后蚯蚓
+`<path d="M14 44 C18 28 46 28 50 42" fill="none" stroke="${PINK}" stroke-width="8" stroke-linecap="round"/>
+ <circle cx="48" cy="40" r="1.4" fill="#5a3a3e"/>
+ <path d="M20 12 q3 5 0 10 M32 8 q3 5 0 10 M44 12 q3 5 0 10" stroke="#8fc6e6" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+// 9 绕叶蚯蚓
+`<ellipse cx="34" cy="34" rx="10" ry="20" fill="#7fae4e" transform="rotate(18 34 34)"/>
+ <path d="M26 14 C40 14 40 26 30 32 C20 38 22 50 34 50" fill="none" stroke="${PINK}" stroke-width="6.5" stroke-linecap="round"/>
+ <path d="M26 14 C40 14 40 26 30 32" fill="none" stroke="${PINK_D}" stroke-width="1.6" stroke-dasharray="1.5 6"/>`,
+// 10 问号形Q版
+`<path d="M20 44 C20 20 44 18 44 34 C44 42 34 42 32 48" fill="none" stroke="${PINK}" stroke-width="8.5" stroke-linecap="round"/>
+ <circle cx="32" cy="54" r="3.4" fill="${PINK}"/>
+ <circle cx="38" cy="28" r="1.6" fill="#3a2a2c"/>`,
+// 11 粗壮深粉蚯蚓
+`<path d="M10 36 C10 14 54 14 54 34 C54 44 40 46 36 40" fill="none" stroke="#d98a95" stroke-width="10" stroke-linecap="round"/>
+ <path d="M10 36 C10 14 54 14 54 34" fill="none" stroke="#b06b76" stroke-width="2" stroke-dasharray="2 7"/>
+ <circle cx="13" cy="33" r="1.6" fill="#4a3033"/>`,
+// 12 土球里的蚯蚓窝
+`<circle cx="32" cy="36" r="18" fill="${SOIL}"/>
+ <circle cx="32" cy="36" r="18" fill="none" stroke="${SOIL_D}" stroke-width="2"/>
+ <path d="M22 40 q10 -14 20 0 q-10 6 -20 0 Z" fill="${SOIL_D}"/>
+ <path d="M24 36 C26 26 38 26 40 34" fill="none" stroke="${PINK}" stroke-width="5.5" stroke-linecap="round"/>`,
+// 13 蚯蚓+叶片
+`<ellipse cx="24" cy="20" rx="10" ry="6" fill="#7fae4e" transform="rotate(-24 24 20)"/>
+ <path d="M14 46 C14 28 46 28 46 46" fill="none" stroke="${PINK}" stroke-width="8" stroke-linecap="round"/>
+ <circle cx="16" cy="44" r="1.4" fill="#5a3a3e"/>`,
+// 14 眨眼微笑蚯蚓
+`<path d="M12 48 C12 22 52 22 52 46" fill="none" stroke="${PINK}" stroke-width="9.5" stroke-linecap="round"/>
+ <path d="M40 30 q3 -3 6 0" stroke="#3a2a2c" stroke-width="2" fill="none" stroke-linecap="round"/>
+ <path d="M40 38 q5 4 10 -1" stroke="#3a2a2c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+ <circle cx="42" cy="26" r="1.4" fill="#e8788c" opacity=".5"/>`,
+// 15 环节分明蚯蚓
+`<path d="M10 34 C24 16 40 48 54 30" fill="none" stroke="${PINK}" stroke-width="8.5" stroke-linecap="round"/>
+ <g stroke="${PINK_D}" stroke-width="1.8"><path d="M16 28 l1 10 M24 24 l-1 12 M32 30 l0 12 M40 36 l1 -11 M48 30 l1 -9"/></g>
+ <circle cx="12" cy="33" r="1.4" fill="#5a3a3e"/>`,
+// 16 俯视钻洞
+`<ellipse cx="32" cy="32" rx="22" ry="14" fill="${SOIL}"/>
+ <ellipse cx="32" cy="32" rx="22" ry="14" fill="none" stroke="${SOIL_D}" stroke-width="2"/>
+ <circle cx="32" cy="32" r="7" fill="#4a3520"/>
+ <path d="M32 32 C32 18 48 16 52 10" fill="none" stroke="${PINK}" stroke-width="6" stroke-linecap="round"/>
+ <circle cx="52" cy="12" r="1.2" fill="#5a3a3e"/>`,
+// 17 小蚯蚓三连
+`<path d="M8 18 q8 -8 16 0" fill="none" stroke="${PINK}" stroke-width="5.5" stroke-linecap="round"/>
+ <path d="M26 38 q8 -8 16 0" fill="none" stroke="#dba2b8" stroke-width="5.5" stroke-linecap="round"/>
+ <path d="M12 54 q8 -8 16 0" fill="none" stroke="${PINK}" stroke-width="5.5" stroke-linecap="round"/>`,
+// 18 蚯蚓+铲尖
+`<path d="M32 22 q12 4 12 14 q0 8 -12 8 q-12 0 -12 -8 q0 -10 12 -14 Z" fill="${IRON}"/>
+ <rect x="30" y="4" width="4" height="16" fill="${WOOD_D}"/>
+ <path d="M32 46 q-2 10 2 12" fill="none" stroke="${PINK}" stroke-width="5.5" stroke-linecap="round"/>`,
+];
+
+ITEMS['冒险家的经验书'] = [
+`<rect x="14" y="14" width="36" height="40" rx="3" fill="${RED}"/>
+ <rect x="14" y="14" width="6" height="40" fill="${RED_D}"/>
+ <rect x="26" y="22" width="18" height="2.5" fill="${GOLD}"/>
+ <rect x="26" y="28" width="12" height="2.5" fill="${GOLD}" opacity=".7"/>
+ <polygon points="42,44 48,40 48,48" fill="${GOLD}"/>`,
+`<path d="M8 20 Q20 16 32 22 Q44 16 56 20 L56 46 Q44 42 32 48 Q20 42 8 46 Z" fill="${PAPER}"/>
+ <path d="M32 22 L32 48" stroke="#d8cdb2" stroke-width="2"/>
+ <g stroke="#b9ad90" stroke-width="2" stroke-linecap="round">
+  <path d="M14 26 q8 -2 14 1"/><path d="M14 32 q8 -2 14 1"/><path d="M36 27 q8 -3 14 -1"/><path d="M36 33 q8 -3 14 -1"/>
+ </g>
+ <path d="M8 20 Q20 16 32 22 Q44 16 56 20" fill="none" stroke="${RED_D}" stroke-width="2.5"/>`,
+`<rect x="16" y="12" width="34" height="42" rx="3" fill="#3f6f5a"/>
+ <rect x="16" y="12" width="5" height="42" fill="#2e5544"/>
+ <path d="M33 22 l3.2 6.6 7.3 1 -5.3 5.1 1.3 7.2 -6.5 -3.4 -6.5 3.4 1.3 -7.2 -5.3 -5.1 7.3 -1 Z" fill="${GOLD}"/>`,
+`<rect x="12" y="18" width="34" height="38" rx="3" fill="#4a6f9c"/>
+ <rect x="12" y="18" width="5" height="38" fill="#38567c"/>
+ <path d="M50 10 q10 2 8 14 l-6 26 -6 -2 Z" fill="${PAPER}"/>
+ <path d="M50 10 q10 2 8 14" fill="none" stroke="#c9bfa5" stroke-width="1.5"/>
+ <path d="M52 14 L44 46" stroke="#b9ad90" stroke-width="1.5"/>`,
+`<rect x="10" y="42" width="44" height="10" rx="2" fill="${RED}"/>
+ <rect x="14" y="32" width="36" height="10" rx="2" fill="#3f6f5a"/>
+ <rect x="18" y="22" width="28" height="10" rx="2" fill="${GOLD}"/>
+ <rect x="10" y="42" width="44" height="3" fill="${RED_D}"/>
+ <rect x="14" y="32" width="36" height="3" fill="#2e5544"/>`,
+`<rect x="15" y="13" width="35" height="41" rx="3" fill="#9c6b3f"/>
+ <rect x="19" y="17" width="27" height="33" fill="${PAPER}"/>
+ <path d="M23 44 q6 -10 10 -4 q4 6 9 -8" fill="none" stroke="${RED_D}" stroke-width="2" stroke-dasharray="3 2.5"/>
+ <circle cx="23" cy="44" r="2.2" fill="none" stroke="#3f6f5a" stroke-width="1.6"/>
+ <path d="M43 20 l2.4 5 5.4.7 -4 3.8 1 5.3 -4.8 -2.6 -4.8 2.6 1 -5.3 -4 -3.8 5.4 -.7 Z" fill="${GOLD}"/>`,
+// 7 紫书金扣
+`<rect x="14" y="14" width="36" height="40" rx="3" fill="#7a5f9e"/>
+ <rect x="14" y="14" width="6" height="40" fill="#5f4880"/>
+ <rect x="27" y="30" width="10" height="8" rx="1.5" fill="${GOLD}"/>
+ <path d="M27 34 a5 4 0 0 1 10 0" fill="${GOLD}"/>`,
+// 8 竖放书脊
+`<rect x="22" y="8" width="20" height="48" rx="2" fill="#3f6f5a"/>
+ <rect x="24" y="8" width="4" height="48" fill="#2e5544"/>
+ <path d="M32 16 l2.4 4.8 5.4.7 -4 3.8 1 5.3 -4.8 -2.5 -4.8 2.5 1 -5.3 -4 -3.8 5.4 -.7 Z" fill="${GOLD}"/>
+ <g stroke="${GOLD}" stroke-width="1.6"><path d="M27 40 h10 M27 45 h10"/></g>`,
+// 9 打开的书+光
+`<path d="M8 22 Q20 18 32 24 Q44 18 56 22 L56 48 Q44 44 32 50 Q20 44 8 48 Z" fill="${PAPER}"/>
+ <path d="M32 24 L32 50" stroke="#d8cdb2" stroke-width="2"/>
+ <g stroke="#b9ad90" stroke-width="2" stroke-linecap="round"><path d="M14 28 q8 -2 14 1 M14 34 q8 -2 14 1 M36 29 q8 -3 14 -1 M36 35 q8 -3 14 -1"/></g>
+ <path d="M20 8 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z M46 6 l1.3 3.2 3.2 1.3 -3.2 1.3 -1.3 3.2 -1.3 -3.2 -3.2 -1.3 3.2 -1.3 Z" fill="#f2d27a"/>`,
+// 10 地图+放大镜
+`<rect x="10" y="14" width="44" height="40" rx="3" fill="#9c6b3f"/>
+ <rect x="14" y="18" width="36" height="32" fill="${PAPER}"/>
+ <path d="M18 44 q8 -14 14 -6 q6 8 14 -10" fill="none" stroke="#3f6f5a" stroke-width="2" stroke-dasharray="3 2.5"/>
+ <circle cx="42" cy="42" r="8" fill="none" stroke="${WOOD_D}" stroke-width="3"/>
+ <path d="M48 48 l6 6" stroke="${WOOD_D}" stroke-width="3.5" stroke-linecap="round"/>`,
+// 11 盾徽红书
+`<rect x="15" y="12" width="34" height="42" rx="3" fill="${RED}"/>
+ <rect x="15" y="12" width="5" height="42" fill="${RED_D}"/>
+ <path d="M32 20 q10 3 10 10 q0 9 -10 13 q-10 -4 -10 -13 q0 -7 10 -10 Z" fill="${GOLD}"/>
+ <path d="M32 24 v12 M28 28 h8" stroke="${RED_D}" stroke-width="2.4"/>`,
+// 12 绳绑古卷
+`<rect x="14" y="16" width="36" height="34" rx="3" fill="#a5825a"/>
+ <g stroke="#8a6a45" stroke-width="1.6"><path d="M18 24 h28 M18 32 h28 M18 40 h28"/></g>
+ <path d="M20 16 q-4 16 4 34 M44 16 q4 16 -4 34" stroke="${ROPE}" stroke-width="3" fill="none"/>
+ <path d="M24 12 q8 8 0 12" stroke="${ROPE}" stroke-width="2.5" fill="none"/>`,
+// 13 圆徽章书
+`<circle cx="32" cy="32" r="22" fill="#4a6f9c"/>
+ <circle cx="32" cy="32" r="18" fill="#38567c"/>
+ <path d="M24 38 q0 -12 8 -12 q8 0 8 12 l-3 4 h-10 Z" fill="${PAPER}"/>
+ <path d="M28 42 h8 l-1 6 h-6 Z" fill="${GOLD}"/>`,
+// 14 黑皮书银纹
+`<rect x="15" y="13" width="34" height="41" rx="3" fill="#3a3a45"/>
+ <rect x="15" y="13" width="5" height="41" fill="#282830"/>
+ <path d="M32 22 q8 3 8 10 q0 8 -8 11 q-8 -3 -8 -11 q0 -7 8 -10 Z" fill="none" stroke="#c7d0d7" stroke-width="2"/>
+ <path d="M32 27 v9 M28 31 h8" stroke="#c7d0d7" stroke-width="2"/>`,
+// 15 翻页飞书
+`<rect x="16" y="20" width="32" height="36" rx="2" fill="#3f6f5a"/>
+ <path d="M16 20 Q32 12 48 20" fill="none" stroke="#2e5544" stroke-width="3"/>
+ <path d="M20 16 Q34 10 46 15" fill="${PAPER}" opacity=".9"/>
+ <path d="M24 11 Q34 7 43 10" fill="${PAPER}" opacity=".6"/>
+ <path d="M33 30 l2.4 4.8 5.4.7 -4 3.8 1 5.3 -4.8 -2.5 -4.8 2.5 1 -5.3 -4 -3.8 5.4 -.7 Z" fill="${GOLD}"/>`,
+// 16 罗盘封面书
+`<rect x="14" y="14" width="36" height="40" rx="3" fill="#8a5a32"/>
+ <rect x="14" y="14" width="5" height="40" fill="#6b4425"/>
+ <circle cx="32" cy="34" r="12" fill="${PAPER}"/>
+ <path d="M32 24 v4 M32 40 v4 M22 34 h4 M38 34 h4" stroke="#8a8272" stroke-width="1.6"/>
+ <polygon points="32,26 35,34 32,42 29,34" fill="#c0504a"/>
+ <circle cx="32" cy="34" r="1.6" fill="#3a3a45"/>`,
+// 17 三层书塔+星
+`<rect x="10" y="44" width="44" height="9" rx="2" fill="#4a6f9c"/>
+ <rect x="14" y="35" width="36" height="9" rx="2" fill="${GOLD}"/>
+ <rect x="18" y="26" width="28" height="9" rx="2" fill="${RED}"/>
+ <path d="M32 8 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2 Z" fill="#f2d27a"/>`,
+// 18 火漆封信书
+`<rect x="13" y="16" width="38" height="38" rx="3" fill="#7a5f3f"/>
+ <path d="M13 20 L32 36 L51 20" stroke="#5f4830" stroke-width="2" fill="none"/>
+ <circle cx="32" cy="38" r="6" fill="#a5382f"/>
+ <path d="M32 34 l1.8 3.4 3.8.5 -2.8 2.6 .7 3.7 -3.5 -1.9 -3.5 1.9 .7 -3.7 -2.8 -2.6 3.8 -.5 Z" fill="#7d2921"/>`,
+];
+
+// 工具类:6 个原方案 + 12 个生成方案(造型×材质×角度)
+ITEMS['斧头'] = [
+// 1 竖柄铁斧:斧眼+月牙刃+斧背
+`<rect x="30" y="12" width="5" height="48" rx="2.5" fill="${WOOD}"/>
+ <path d="M32 8 L58 13 L53 27 L32 22 Z" fill="${IRON}"/>
+ <path d="M32 8 L20 8 Q10 20 20 34 L32 22 Z" fill="${IRON}"/>
+ <path d="M20 8 Q10 20 20 34" fill="none" stroke="${IRON_D}" stroke-width="2"/>
+ <rect x="29" y="8" width="8" height="16" fill="${IRON_DD}" opacity=".3"/>
+ <path d="M13 18 Q12 25 18 31" fill="none" stroke="#e7edf1" stroke-width="1.6" opacity=".7"/>`,
+// 2 斜柄伐木斧
+`<path d="M16 58 L44 14" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/>
+ <g transform="rotate(0)">
+ <path d="M42 6 L58 12 L53 26 L40 20 Z" fill="${IRON}"/>
+ <path d="M42 6 L32 4 Q24 14 32 26 L40 20 Z" fill="${IRON}"/>
+ <path d="M32 4 Q24 14 32 26" fill="none" stroke="${IRON_D}" stroke-width="2"/></g>`,
+// 3 石斧:石刃绑绳
+`<rect x="29" y="14" width="5" height="44" rx="2.5" fill="${WOOD}"/>
+ <path d="M32 10 L18 8 Q8 20 20 34 L32 24 Z" fill="${STONE}"/>
+ <path d="M18 8 Q8 20 20 34" fill="none" stroke="#b7bdc2" stroke-width="2"/>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M28 16 l8 6 M27 21 l8 6"/></g>`,
+// 4 双刃斧:左右两个月牙刃
+`<rect x="30" y="10" width="5" height="48" rx="2.5" fill="${WOOD_D}"/>
+ <path d="M32 8 L46 8 Q56 20 46 34 L32 22 Z" fill="${IRON}"/>
+ <path d="M32 8 L18 8 Q8 20 18 34 L32 22 Z" fill="${IRON}"/>
+ <path d="M46 8 Q56 20 46 34 M18 8 Q8 20 18 34" fill="none" stroke="${IRON_D}" stroke-width="2"/>
+ <rect x="29" y="8" width="8" height="16" fill="${IRON_DD}" opacity=".3"/>`,
+// 5 斧劈木桩
+`<rect x="10" y="40" width="36" height="16" rx="3" fill="${WOOD}"/>
+ <ellipse cx="46" cy="48" rx="4" ry="8" fill="${WOOD_D}"/>
+ <path d="M20 26 L34 30 L32 40 L18 36 Z" fill="${IRON}"/>
+ <path d="M18 36 L16 44 Q22 46 24 38 Z" fill="${IRON}"/>
+ <path d="M16 44 Q22 46 24 38" fill="none" stroke="${IRON_D}" stroke-width="1.8"/>
+ <rect x="28" y="4" width="5" height="24" rx="2.5" fill="${WOOD_D}" transform="rotate(12 30 16)"/>`,
+// 6 宽刃维京斧
+`<rect x="30" y="10" width="5" height="48" rx="2.5" fill="${WOOD}"/>
+ <path d="M32 8 L58 14 L54 26 L32 22 Z" fill="${IRON}"/>
+ <path d="M32 8 L16 6 Q4 22 22 38 L32 22 Z" fill="${IRON}"/>
+ <path d="M16 6 Q4 22 22 38" fill="none" stroke="${IRON_D}" stroke-width="2.2"/>
+ <path d="M12 16 Q8 24 12 32" fill="none" stroke="#e7edf1" stroke-width="1.6" opacity=".7"/>`,
+].concat([
+ ['iron','wood',0],['bronze','wood',-18],['stone','dark',14],['gold','pale',0],
+ ['iron','dark',22],['bronze','pale',-10],['dark','bamboo',0],['iron','bamboo',-24],
+ ['stone','wood',10],['gold','dark',18],['bronze','dark',0],['dark','wood',-14],
+].map(([m,w,a]) => rot(a, axeBody(m, w))));
+
+ITEMS['镐子'] = [
+// 1 竖柄铁镐:月牙双尖镐头垂直于柄
+`<rect x="30" y="14" width="5" height="46" rx="2.5" fill="${WOOD}"/>
+ <path d="M6 22 Q32 0 58 22 L54 27 Q32 8 10 27 Z" fill="${IRON}"/>
+ <rect x="28" y="12" width="9" height="7" fill="${IRON_DD}" opacity=".35"/>
+ <path d="M14 24 Q30 10 50 24" fill="none" stroke="#e7edf1" stroke-width="1.4" opacity=".6"/>`,
+// 2 斜柄镐
+`<path d="M18 58 L46 12" stroke="${WOOD_D}" stroke-width="5" stroke-linecap="round"/>
+ <g transform="rotate(24 40 20)">
+ <path d="M14 24 Q40 2 62 22 L58 27 Q40 10 18 29 Z" fill="${IRON}"/></g>
+ <circle cx="45" cy="18" r="2" fill="${IRON_DD}"/>`,
+// 3 石镐:石月牙+绑绳
+`<rect x="30" y="16" width="5" height="42" rx="2.5" fill="${WOOD}"/>
+ <path d="M8 24 Q32 4 56 24 L52 29 Q32 12 12 29 Z" fill="${STONE}"/>
+ <path d="M8 24 Q32 4 56 24" fill="none" stroke="#b7bdc2" stroke-width="1.8"/>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M27 20 l11 0 M27 24 l11 0"/></g>`,
+// 4 矿镐凿岩
+`<path d="M14 48 l8 -10 10 6 10 -8 10 4 2 14 Z" fill="${STONE_D}"/>
+ <path d="M20 54 L48 12" stroke="${WOOD}" stroke-width="5" stroke-linecap="round"/>
+ <g transform="rotate(30 44 18)"><path d="M22 26 Q48 4 70 24 L66 29 Q48 12 26 31 Z" fill="${IRON}"/></g>
+ <g stroke="${GOLD}" stroke-width="2" stroke-linecap="round"><path d="M12 30 l-3 -4 M10 40 l-5 -1"/></g>`,
+// 5 尖头矿工镐(一尖一平)
+`<rect x="30" y="14" width="5" height="46" rx="2.5" fill="${WOOD}"/>
+ <path d="M8 20 Q30 0 52 18 L48 24 Q30 8 12 26 Z" fill="${IRON}"/>
+ <path d="M52 18 L60 14 L58 26 Z" fill="${IRON_D}"/>
+ <rect x="28" y="12" width="9" height="7" fill="${IRON_DD}" opacity=".35"/>`,
+// 6 镐+铁矿石
+`<rect x="30" y="10" width="5" height="40" rx="2.5" fill="${WOOD}"/>
+ <path d="M8 20 Q32 0 56 20 L52 25 Q32 8 12 25 Z" fill="${IRON}"/>
+ <polygon points="18,48 30,40 46,44 48,56 16,56" fill="${STONE_D}"/>
+ <circle cx="31" cy="50" r="2.2" fill="#cfd8dd"/><circle cx="39" cy="52" r="1.7" fill="#cfd8dd"/>`,
+].concat([
+ ['iron','wood',0],['bronze','wood',-16],['stone','dark',12],['gold','pale',0],
+ ['iron','dark',20],['bronze','pale',-8],['dark','bamboo',0],['iron','bamboo',-22],
+ ['stone','wood',8],['gold','dark',16],['bronze','dark',0],['dark','wood',-12],
+].map(([m,w,a]) => rot(a, pickBody(m, w))));
+
+ITEMS['铲子'] = [
+// 1 竖铲:柄+套管+梯形圆弧铲刃
+`<rect x="30" y="6" width="5" height="30" rx="2.5" fill="${WOOD}"/>
+ <rect x="27" y="32" width="11" height="7" rx="1" fill="${IRON_DD}"/>
+ <path d="M24 39 L40 39 L45 48 Q45 58 32 60 Q19 58 19 48 Z" fill="${IRON}"/>
+ <path d="M24 44.5 L40 44.5" stroke="${IRON_D}" stroke-width="1.5" opacity=".5"/>
+ <path d="M23 50 Q27 55 32 55" fill="none" stroke="#e7edf1" stroke-width="1.6" opacity=".7"/>`,
+// 2 斜柄铲
+`<g transform="rotate(24 32 32)">
+ <rect x="30" y="6" width="5" height="30" rx="2.5" fill="${WOOD_D}"/>
+ <rect x="27" y="32" width="11" height="7" rx="1" fill="${IRON_DD}"/>
+ <path d="M24 39 L40 39 L45 48 Q45 58 32 60 Q19 58 19 48 Z" fill="${IRON}"/></g>`,
+// 3 T 柄园艺铲
+`<rect x="14" y="8" width="20" height="6" rx="3" fill="${WOOD_D}"/>
+ <rect x="21.5" y="12" width="5" height="24" fill="${WOOD}"/>
+ <rect x="27" y="32" width="11" height="7" rx="1" fill="${IRON_DD}"/>
+ <path d="M24 39 L40 39 L45 48 Q45 58 32 60 Q19 58 19 48 Z" fill="${IRON}"/>
+ <path d="M24 44.5 L40 44.5" stroke="${IRON_D}" stroke-width="1.5" opacity=".5"/>`,
+// 4 圆头尖铲
+`<rect x="30" y="8" width="5" height="28" rx="2.5" fill="${WOOD}"/>
+ <rect x="27" y="34" width="11" height="6" rx="1" fill="${IRON_DD}"/>
+ <path d="M25 40 L39 40 Q46 48 44 52 Q40 60 32 60 Q24 60 20 52 Q18 48 25 40 Z" fill="${IRON}"/>`,
+// 5 铲土中
+`<path d="M4 58 q14 -8 30 -4 q14 4 26 -4 l0 8 Z" fill="${SOIL}"/>
+ <circle cx="46" cy="44" r="3" fill="${SOIL_D}"/><circle cx="53" cy="40" r="2.2" fill="${SOIL_D}"/>
+ <g transform="rotate(18 32 26)">
+ <rect x="30" y="4" width="5" height="28" rx="2.5" fill="${WOOD}"/>
+ <rect x="27" y="30" width="11" height="7" rx="1" fill="${IRON_DD}"/>
+ <path d="M24 37 L40 37 L45 46 Q45 56 32 58 Q19 56 19 46 Z" fill="${IRON}"/></g>`,
+// 6 D 型柄工程铲
+`<path d="M24 10 h16 v5 h-16 Z" fill="none" stroke="${IRON}" stroke-width="3"/>
+ <rect x="29.5" y="14" width="5" height="22" fill="${WOOD}"/>
+ <rect x="27" y="34" width="10" height="7" rx="1" fill="${IRON_DD}"/>
+ <path d="M24 41 L40 41 L45 50 Q45 59 32 60 Q19 59 19 50 Z" fill="${IRON}"/>
+ <path d="M24 46 L40 46" stroke="${IRON_D}" stroke-width="1.5" opacity=".5"/>`,
+].concat([
+ ['iron','wood',0],['bronze','wood',-18],['stone','dark',14],['gold','pale',0],
+ ['iron','dark',22],['bronze','pale',-10],['dark','bamboo',0],['iron','bamboo',-24],
+ ['stone','wood',10],['gold','dark',18],['bronze','dark',0],['dark','wood',-14],
+].map(([m,w,a]) => rot(a, shovelBody(m, w))));
+
+ITEMS['锄头'] = [
+// 1 竖柄锄:底部装垂直伸出的锄板,刃在板外缘
+`<rect x="30" y="6" width="5" height="44" rx="2.5" fill="${WOOD}"/>
+ <path d="M33 44 L16 37 Q5 37 8 51 L21 52 L33 52 Z" fill="${IRON}"/>
+ <path d="M16 37 Q5 37 8 51" fill="none" stroke="${IRON_D}" stroke-width="2"/>
+ <rect x="29" y="42" width="8" height="11" fill="${IRON_DD}" opacity=".3"/>`,
+// 2 斜柄锄
+`<g transform="rotate(20 32 30)">
+ <rect x="30" y="6" width="5" height="44" rx="2.5" fill="${WOOD_D}"/>
+ <path d="M33 44 L16 37 Q5 37 8 51 L21 52 L33 52 Z" fill="${IRON}"/>
+ <path d="M16 37 Q5 37 8 51" fill="none" stroke="${IRON_D}" stroke-width="2"/></g>`,
+// 3 锄地姿态:锄板入土
+`<path d="M4 58 q14 -8 28 -4 q16 4 28 -4 l0 8 Z" fill="${SOIL}"/>
+ <g transform="rotate(-14 34 26)">
+ <rect x="32" y="4" width="5" height="40" rx="2.5" fill="${WOOD}"/>
+ <path d="M35 42 L18 35 Q7 35 10 49 L23 50 L35 50 Z" fill="${IRON}"/></g>
+ <path d="M18 52 q4 -4 8 0 M32 54 q4 -4 8 0" stroke="${SOIL_D}" stroke-width="2" fill="none"/>`,
+// 4 木板锄:木板+绑绳
+`<rect x="30" y="6" width="5" height="44" rx="2.5" fill="${WOOD}"/>
+ <path d="M33 44 L14 36 Q3 36 6 52 L21 53 L33 52 Z" fill="${WOOD_D}"/>
+ <path d="M14 36 Q3 36 6 52" fill="none" stroke="#6b4425" stroke-width="2"/>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M28 44 l8 3 M28 49 l8 3"/></g>`,
+// 5 宽板开荒锄
+`<rect x="30" y="6" width="6" height="44" rx="3" fill="${WOOD_D}"/>
+ <path d="M34 42 L18 34 Q2 34 6 54 L24 55 L34 52 Z" fill="${IRON}"/>
+ <path d="M18 34 Q2 34 6 54" fill="none" stroke="${IRON_D}" stroke-width="2.2"/>
+ <path d="M14 42 Q8 46 10 52" fill="none" stroke="#e7edf1" stroke-width="1.6" opacity=".6"/>`,
+// 6 鹤嘴锄耙:板+三齿
+`<rect x="30" y="6" width="5" height="42" rx="2.5" fill="${WOOD}"/>
+ <path d="M33 42 L16 35 Q5 35 8 49 L21 50 L33 50 Z" fill="${IRON}"/>
+ <g stroke="${IRON_D}" stroke-width="3.5" stroke-linecap="round"><path d="M36 46 l0 11 M44 44 l3 10 M52 42 l6 9"/></g>`,
+].concat([
+ ['iron','wood',0],['bronze','wood',-14],['stone','dark',10],['gold','pale',0],
+ ['iron','dark',18],['bronze','pale',-8],['dark','bamboo',0],['iron','bamboo',-20],
+ ['stone','wood',8],['gold','dark',14],['bronze','dark',0],['dark','wood',-12],
+].map(([m,w,a]) => rot(a, hoeBody(m, w))));
+
+ITEMS['鱼竿'] = [
+rodBody('wood'),
+`<path d="M10 56 Q18 24 50 14" fill="none" stroke="${WOOD_D}" stroke-width="4.5" stroke-linecap="round"/>
+ <path d="M50 14 Q56 30 48 40" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M42 42 q8 -6 12 0 l-3 6 q-5 6 -11 0 Z" fill="#6fa8c9"/>
+ <circle cx="45" cy="44" r="1.2" fill="#22333c"/>
+ <path d="M8 50 q10 -6 20 -2" stroke="#8fc6e6" stroke-width="2" fill="none"/>`,
+`<rect x="30" y="8" width="5" height="44" rx="2.5" fill="${WOOD}"/>
+ <path d="M32 12 q1 18 4 26" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>
+ <circle cx="26" cy="26" r="6" fill="none" stroke="${IRON}" stroke-width="3"/>
+ <circle cx="26" cy="26" r="1.5" fill="${IRON_DD}"/>
+ <rect x="28" y="32" width="4" height="8" rx="2" fill="${IRON}"/>`,
+`<path d="M12 20 L54 12" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M54 12 q-4 16 -10 24 q-6 8 -16 10" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M4 50 q28 -8 56 0" fill="none" stroke="#8fc6e6" stroke-width="2"/>
+ <ellipse cx="28" cy="44" rx="4" ry="6" fill="${RED}"/>
+ <rect x="26.5" y="36" width="3" height="5" fill="${PAPER}"/>`,
+`<path d="M14 56 L44 18" stroke="${WOOD}" stroke-width="5" stroke-linecap="round"/>
+ <path d="M44 18 L54 24 M44 18 L50 10" stroke="${WOOD}" stroke-width="3" stroke-linecap="round"/>
+ <g stroke="${ROPE}" stroke-width="1.8"><path d="M40 22 l6 3 M38 25 l6 3"/></g>
+ <path d="M52 24 q-8 12 -14 18" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>
+ <path d="M38 42 q-2 6 3 7" fill="none" stroke="${IRON}" stroke-width="2" stroke-linecap="round"/>`,
+`<path d="M12 52 L48 12" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M48 12 q0 10 -3 16" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>
+ <path d="M16 40 h24 v14 h-24 Z" fill="${WOOD}"/>
+ <path d="M16 45 h24 M16 50 h24" stroke="${WOOD_D}" stroke-width="1.5"/>
+ <ellipse cx="28" cy="40" rx="12" ry="3" fill="#c99a68"/>
+ <path d="M32 36 q6 -2 8 2 q-4 2 -8 -2" fill="#6fa8c9"/>`,
+].concat([
+ rodBody('dark'), rodBody('pale', '#f0e6c8'), rodBody('bamboo'),
+ `<path d="M14 56 L52 10" stroke="#6b4425" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M52 10 q-2 14 -6 22" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+  <path d="M34 50 q-3 6 2 8 q5 2 5 -4" fill="none" stroke="${GOLD}" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="24" cy="22" r="2" fill="#8fc6e6"/><circle cx="40" cy="16" r="1.5" fill="#8fc6e6"/>`,
+ `<path d="M12 50 L50 14" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M50 14 q4 14 0 26" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+  <ellipse cx="40" cy="44" rx="4.5" ry="6" fill="#4a8ac2"/>
+  <rect x="38" y="34" width="4" height="6" fill="${PAPER}"/>
+  <path d="M6 58 q28 -8 52 0" fill="none" stroke="#8fc6e6" stroke-width="2"/>`,
+ `<path d="M16 54 L50 16" stroke="${WOOD}" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="34" cy="36" r="5" fill="none" stroke="${GOLD}" stroke-width="3"/>
+  <circle cx="34" cy="36" r="1.3" fill="${GOLD}"/>
+  <path d="M50 16 q-1 12 -4 18" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>`,
+ `<path d="M18 52 L50 12" stroke="#8a5a32" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M50 12 q0 12 -4 20" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+  <path d="M38 38 q8 4 6 12 q-6 4 -10 -2 q4 -4 4 -10" fill="#c9786a"/>
+  <circle cx="42" cy="44" r="1.2" fill="#3a2a2c"/>`,
+ `<path d="M10 54 L48 12" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+  <g stroke="${ROPE}" stroke-width="1.8"><path d="M22 42 l8 2 M20 46 l8 2"/></g>
+  <path d="M48 12 q-2 12 -5 18" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>
+  <path d="M24 30 l6 6" stroke="#7fae4e" stroke-width="3" stroke-linecap="round"/>`,
+ `<path d="M12 52 L52 10" stroke="#6b4425" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M52 10 q-1 14 -5 22" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+  <path d="M34 46 q-3 6 2 8 q5 2 5 -4" fill="none" stroke="${IRON}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M30 28 q4 2 8 0 M24 34 q4 2 8 0" stroke="#8fc6e6" stroke-width="1.6" fill="none"/>`,
+ `<path d="M14 50 L50 14" stroke="${WOOD}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M50 14 q2 10 -2 18" fill="none" stroke="#e8e2d0" stroke-width="1.4"/>
+  <path d="M40 36 l10 0 l0 8 l-4 -3 l-4 3 Z" fill="#c0504a"/>`,
+ rodBody('pale'), rodBody('dark', '#f0e6c8'), rodBody('wood', '#f0e6c8'),
+]);
+
+ITEMS['弓'] = [
+`<path d="M16 8 Q52 32 16 56" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M16 8 L16 56" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M8 32 L52 32" stroke="${WOOD}" stroke-width="3" stroke-linecap="round"/>
+ <polygon points="52,32 44,28 44,36" fill="${IRON}"/>
+ <polygon points="12,32 20,27 20,29.5 16,32 20,34.5 20,37" fill="#e2e0d2"/>`,
+`<path d="M18 6 Q58 32 18 58" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M18 6 Q2 32 18 58" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M4 32 L52 32" stroke="${WOOD}" stroke-width="3" stroke-linecap="round"/>
+ <polygon points="54,32 46,28 46,36" fill="${IRON}"/>`,
+`<path d="M26 6 Q46 32 26 58" fill="none" stroke="${WOOD}" stroke-width="4.5" stroke-linecap="round"/>
+ <path d="M26 6 L26 58" stroke="#e8e2d0" stroke-width="1.5"/>
+ <g stroke="${ROPE}" stroke-width="1.8"><path d="M25 14 l4 2 M25 48 l4 -2"/></g>
+ <rect x="42" y="20" width="3" height="24" fill="${WOOD_D}"/>`,
+`<path d="M20 10 Q44 20 44 32 Q44 44 20 54" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M20 10 L20 54" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M20 10 l-6 4 M20 54 l-6 -4" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <circle cx="30" cy="32" r="1.6" fill="${GOLD}"/>`,
+`<path d="M14 10 Q40 32 14 54" fill="none" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M14 10 L14 54" stroke="#e8e2d0" stroke-width="1.5"/>
+ <path d="M38 22 L52 46" stroke="${LEAF_D || '#5e8c39'}" stroke-width="12" stroke-linecap="round"/>
+ <g stroke="${WOOD}" stroke-width="2.5" stroke-linecap="round"><path d="M40 20 l-3 -7 M46 22 l-2 -7 M51 26 l-1 -7"/></g>
+ <g fill="${RED}"><polygon points="37,13 34,10 38,10"/><polygon points="43,15 40,12 44,13"/><polygon points="48,19 45,16 49,17"/></g>`,
+`<path d="M6 58 L46 18" stroke="${WOOD}" stroke-width="3.5" stroke-linecap="round"/>
+ <polygon points="58,6 44,12 50,20 Z" fill="${IRON}"/>
+ <g stroke="#e2e0d2" stroke-width="3" stroke-linecap="round"><path d="M9 50 l-5 -2 M14 45 l-5 -2"/></g>
+ <path d="M9 52 l-4 6 M15 46 l-4 6" stroke="${RED}" stroke-width="2" stroke-linecap="round"/>`,
+].concat([
+ bowBody('iron','wood'), bowBody('bronze','dark'), bowBody('stone','pale'),
+ `<path d="M16 8 Q52 32 16 56" fill="none" stroke="#8a5a32" stroke-width="4" stroke-linecap="round"/>
+  <path d="M16 8 L16 56" stroke="#e8e2d0" stroke-width="1.5"/>
+  <path d="M8 32 L46 32" stroke="#b07b4a" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="53,32 45,28 45,36" fill="${GOLD}"/>
+  <polygon points="13,32 21,27 21,37" fill="${RED}"/>`,
+ bowBody('gold','dark'), bowBody('dark','bamboo'),
+ `<path d="M18 6 Q54 32 18 58" fill="none" stroke="#6b4425" stroke-width="4" stroke-linecap="round"/>
+  <path d="M18 6 Q4 32 18 58" fill="none" stroke="#e8e2d0" stroke-width="1.5"/>
+  <path d="M6 32 L48 32" stroke="#8a5a32" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="55,32 47,28 47,36" fill="#c9964a"/>
+  <g stroke="${RED}" stroke-width="2" stroke-linecap="round"><path d="M12 26 l-4 -4 M12 38 l-4 4"/></g>`,
+ bowBody('bronze','pale','#f0e6c8'), bowBody('stone','wood'), bowBody('iron','bamboo'),
+ bowBody('gold','pale'), bowBody('dark','dark'),
+]);
+
+ITEMS['剑'] = [
+swordBody('iron','gold'),
+`<polygon points="32,4 38,14 36,42 28,42 26,14" fill="${STONE}"/>
+ <path d="M32 8 L32 40" stroke="#cfd8dd" stroke-width="1.5"/>
+ <rect x="22" y="42" width="20" height="5" rx="2" fill="${WOOD_D}"/>
+ <g stroke="${ROPE}" stroke-width="2"><path d="M26 43 l12 0 M26 46.5 l12 0"/></g>
+ <rect x="29" y="47" width="6" height="12" rx="3" fill="${WOOD}"/>`,
+`<path d="M10 48 l8 -10 14 6 12 -6 10 10 l2 8 Z" fill="${STONE_D}"/>
+ <rect x="29" y="6" width="6" height="30" fill="${IRON}"/>
+ <polygon points="32,2 28,8 36,8" fill="#e7edf1"/>
+ <rect x="20" y="36" width="24" height="5" rx="2" fill="${GOLD}"/>
+ <circle cx="32" cy="41" r="2" fill="${RED}"/>`,
+`<path d="M32 4 Q40 20 36 44 L28 44 Q24 20 32 4 Z" fill="#c9964a"/>
+ <path d="M32 8 L32 42" stroke="#e6c07c" stroke-width="1.5"/>
+ <rect x="20" y="44" width="24" height="5" rx="2" fill="#a5763a"/>
+ <rect x="29" y="49" width="6" height="11" rx="3" fill="#8a5a32"/>`,
+`<rect x="30.5" y="4" width="3" height="42" fill="${IRON}"/>
+ <polygon points="32,1 29.5,7 34.5,7" fill="#e7edf1"/>
+ <path d="M22 46 h20" stroke="${IRON_DD}" stroke-width="4" stroke-linecap="round"/>
+ <path d="M32 48 v10" stroke="${WOOD_D}" stroke-width="4" stroke-linecap="round"/>
+ <circle cx="32" cy="60" r="2.2" fill="${IRON_DD}"/>`,
+`<rect x="29" y="8" width="6" height="36" fill="${IRON}"/>
+ <polygon points="32,3 28,10 36,10" fill="#e7edf1"/>
+ <rect x="17" y="44" width="30" height="5" rx="2" fill="${IRON_D}"/>
+ <rect x="28" y="49" width="8" height="9" rx="2" fill="${WOOD_D}"/>
+ <path d="M32 52 l2.4 3 -2.4 3 -2.4 -3 Z" fill="#5ab0d6"/>`,
+].concat([
+ swordBody('bronze','red'), swordBody('dark','gold'), swordBody('gold','red'),
+ swordBody('iron','red'), swordBody('stone','gold'), swordBody('bronze','gold'),
+ rot(20, swordBody('iron','gold')), rot(-20, swordBody('dark','red')),
+ rot(45, swordBody('bronze','gold')), rot(-45, swordBody('gold','red')),
+ rot(30, swordBody('dark','gold')), rot(-30, swordBody('iron','red')),
+]);
+
+// 草系列:18 = 形状×配色组合
+const grassItem = (shapes, order) => order.map(([shape, pal]) => {
+  const [c, cd, cdd] = GRASS_PALETTES[pal];
+  return shapes[shape](c, cd, cdd);
+});
+ITEMS['草衣'] = grassItem(G, [
+ ['shirt','草黄'],['vest','嫩绿'],['poncho','苔绿'],['tied','草黄'],['leafy','苔绿'],['sleeved','草黄'],
+ ['wrap','嫩绿'],['hooded','海沫青'],['shirt','天蓝'],['vest','暖橙'],['poncho','砖红'],['tied','紫藤'],
+ ['leafy','灰白'],['sleeved','玫粉'],['wrap','棕褐'],['hooded','墨蓝'],['tied','海沫青'],['shirt','苔绿'],
+]);
+ITEMS['草裤'] = grassItem(P, [
+ ['pants','草黄'],['shorts','嫩绿'],['overall','草黄'],['bloomer','暖橙'],['leafPants','苔绿'],['sidePants','草黄'],
+ ['cuffed','天蓝'],['tiePants','砖红'],['patch','嫩绿'],['pants','紫藤'],['shorts','海沫青'],['overall','墨蓝'],
+ ['bloomer','灰白'],['leafPants','草黄'],['sidePants','暖橙'],['cuffed','玫粉'],['tiePants','苔绿'],['patch','棕褐'],
+]);
+ITEMS['草帽'] = grassItem(H, [
+ ['wide','草黄'],['cone','草黄'],['ribbon','草黄'],['sailor','草黄'],['top','草黄'],['strap','草黄'],
+ ['baker','嫩绿'],['soft','暖橙'],['wide','海沫青'],['cone','砖红'],['ribbon','天蓝'],['sailor','紫藤'],
+ ['top','灰白'],['strap','玫粉'],['baker','墨蓝'],['soft','苔绿'],['wide','嫩绿'],['cone','暖橙'],
+]);
+ITEMS['草包'] = grassItem(B, [
+ ['basket','草黄'],['pouch','草黄'],['backpack','草黄'],['flap','草黄'],['bundle','草黄'],['box','草黄'],
+ ['net','嫩绿'],['roll','暖橙'],['basket','海沫青'],['pouch','砖红'],['backpack','天蓝'],['flap','紫藤'],
+ ['box','灰白'],['bundle','玫粉'],['net','墨蓝'],['roll','苔绿'],['basket','砖红'],['pouch','墨蓝'],
+]);
+
+// ===== 渲染 =====
+const app = document.getElementById('app');
+const summary = document.getElementById('summary');
+const chosen = {};
+const PALETTE_LABEL = Object.keys(GRASS_PALETTES);
+
+for (const [name, svgs] of Object.entries(ITEMS)) {
+  const sec = document.createElement('div');
+  sec.className = 'item';
+  const h = document.createElement('h2');
+  h.textContent = name;
+  sec.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  const isGrass = ['草衣','草裤','草帽','草包'].includes(name);
+  const grassOrder = { '草衣': [['shirt','草黄'],['vest','嫩绿'],['poncho','苔绿'],['tied','草黄'],['leafy','苔绿'],['sleeved','草黄'],['wrap','嫩绿'],['hooded','海沫青'],['shirt','天蓝'],['vest','暖橙'],['poncho','砖红'],['tied','紫藤'],['leafy','灰白'],['sleeved','玫粉'],['wrap','棕褐'],['hooded','墨蓝'],['tied','海沫青'],['shirt','苔绿']],
+   '草裤': null, '草帽': null, '草包': null };
+  svgs.forEach((body, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    let sub = `方案 ${i + 1}`;
+    if (isGrass && grassOrder[name]) sub += ` · ${grassOrder[name][i][1]}`;
+    card.innerHTML = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${body}</svg><div class="label">${sub}</div>`;
+    card.onclick = () => {
+      if (chosen[name] === card) { delete chosen[name]; card.classList.remove('selected'); }
+      else {
+        if (chosen[name]) chosen[name].classList.remove('selected');
+        chosen[name] = card; card.classList.add('selected');
+      }
+      renderSummary();
+    };
+    grid.appendChild(card);
+  });
+  sec.appendChild(grid);
+  app.appendChild(sec);
+}
+
+function renderSummary() {
+  const entries = Object.entries(chosen);
+  if (!entries.length) { summary.innerHTML = '<div class="empty"></div>'; return; }
+  const names = Object.keys(ITEMS);
+  summary.innerHTML = '已选:<br>' + entries.map(([n, c]) => {
+    const idx = [...c.parentElement.children].indexOf(c) + 1;
+    return `<b>${n}</b> = <code>${idx}号</code>`;
+  }).join('　') + '<br>未选:' + names.filter(n => !chosen[n]).join('、');
+}
+</script>
+</body>
+</html>
