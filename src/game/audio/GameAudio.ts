@@ -1,3 +1,4 @@
+import type { Season } from '../systems/SeasonSystem';
 import { Ambience } from './Ambience';
 import { Music } from './Music';
 import { Sfx, type SfxName } from './Sfx';
@@ -87,6 +88,18 @@ export class GameAudio {
   /** 昼夜切换驱动配乐情绪 */
   setNight(night: boolean): void {
     this.music?.setNight(night);
+  }
+
+  setMusicContext(season: Season, fishing: boolean): void {
+    this.music?.setContext(season, fishing);
+  }
+
+  selectMusic(id: string | null): void {
+    this.music?.select(id);
+  }
+
+  get musicStatus() {
+    return this.music?.status ?? null;
   }
 
   /** 雨声强度 0~1 */

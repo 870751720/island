@@ -19,7 +19,7 @@ import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
-import { advanceSeasonForDay, rollInitialSeason, setSeason } from './systems/SeasonSystem';
+import { advanceSeasonForDay, getSeason, rollInitialSeason, setSeason } from './systems/SeasonSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
 import { TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
@@ -899,6 +899,7 @@ export class Game {
         this.weather.update(simDelta);
         updateSeasonVisuals(simDelta);
         this.audio.setNight(this.dayNight.isNight);
+        this.audio.setMusicContext(GmSystem.season === 'auto' ? getSeason() : GmSystem.season, this.fishing.isWorking);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.audio.setWindIntensity(this.weather.windIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
@@ -2202,6 +2203,15 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('claimTreasure', []);
 
     return actor.fishing.claimTreasure();
+  }
+
+  /** 音乐为本机表现;房主与客人均可独立试听。 */
+  gmSelectMusic(id: string | null): void {
+    this.audio.selectMusic(id);
+  }
+
+  getMusicStatus() {
+    return this.audio.musicStatus;
   }
 
   /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */

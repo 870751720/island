@@ -12,6 +12,7 @@ import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
 import { ItemsTab } from './ItemsTab';
 import { AnimalsTab } from './AnimalsTab';
+import { MusicTab } from './MusicTab';
 import { EventsTab } from './EventsTab';
 
 /** GM 面板可对 Game 实例执行的动作,由 GameplayUI 通过回调注入 */
@@ -31,6 +32,7 @@ export type GmActions = {
 const TABS = [
   { id: 'player', label: '玩家' },
   { id: 'world', label: '世界' },
+  { id: 'music', label: '音乐' },
   { id: 'fishing', label: '钓鱼' },
   { id: 'items', label: '物品' },
   { id: 'animals', label: '动物' },
@@ -65,6 +67,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
         {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
         {tab === 'world' && <WorldTab getGame={actions.getGame} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
+        {tab === 'music' && <MusicTab getGame={actions.getGame} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
         {tab === 'events' && (
