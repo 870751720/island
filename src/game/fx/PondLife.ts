@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { IslandTerrain, WaterArea } from '../world/IslandTerrain';
+import { PondBubbles } from './PondBubbles';
+import type { WaterFx } from './WaterFx';
 
 interface Fish {
   group: THREE.Group;
@@ -24,6 +26,7 @@ function toWorld(pond: WaterArea, lx: number, lz: number): [number, number] {
 /** 水洼环境生物:水面下游动的小鱼影子;
  *  位置都按水洼真实边界(椭圆 + 角向起伏)取点,贴合不规则形状 */
 export class PondLife {
+  private readonly bubbles: PondBubbles;
   private fishes: Fish[] = [];
   private readonly fishMaterial = new THREE.MeshBasicMaterial({
     color: '#1e3440',
@@ -34,8 +37,10 @@ export class PondLife {
 
   constructor(
     private scene: THREE.Scene,
-    private terrain: IslandTerrain
+    private terrain: IslandTerrain,
+    waterFx: WaterFx
   ) {
+    this.bubbles = new PondBubbles(scene, terrain, waterFx);
     // 每个水洼养 1~2 条鱼:贴着水面下游动,呈深色影子
     for (const pond of terrain.waterAreas) {
       const count = 1 + Math.floor(Math.random() * 2);
@@ -69,6 +74,7 @@ export class PondLife {
   }
 
   update(delta: number, elapsed: number): void {
+    this.bubbles.update(delta);
     this.updateFishes(delta, elapsed);
   }
 
@@ -91,6 +97,7 @@ export class PondLife {
   }
 
   dispose(): void {
+    this.bubbles.dispose();
     for (const f of this.fishes) this.scene.remove(f.group);
     this.fishMaterial.dispose();
   }

@@ -420,7 +420,7 @@ export class Game {
     this.scene.add(terrain.waterGroup);
     this.scene.add(terrain.iceGroup);
     this.footprints = new Footprints(this.scene, terrain);
-    this.pondLife = new PondLife(this.scene, terrain);
+    this.pondLife = new PondLife(this.scene, terrain, this.waterFx);
     // 海中巨影:泡在海里太久先恐慌、再察觉水下有东西、然后遇袭;
     // 每端各自本地表现,咬击伤害只在权威端(单机/房主)结算
     this.seaThreat = new SeaThreatSystem(

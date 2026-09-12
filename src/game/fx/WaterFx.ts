@@ -4,6 +4,7 @@ import { createRippleMaterial } from './RippleMaterial';
 interface Ripple {
   mesh: THREE.Mesh;
   life: number;
+  size: number;
 }
 
 const RIPPLE_LIFETIME = 1.2;
@@ -22,7 +23,7 @@ export class WaterFx {
   ) {}
 
   /** 在水面位置泛起两道断续细波 */
-  ripple(x: number, y: number, z: number): void {
+  ripple(x: number, y: number, z: number, size = 1): void {
     if (this.ripples.length >= MAX_RIPPLES) return;
     const mesh = new THREE.Mesh(
       RIPPLE_GEOMETRY,
@@ -30,12 +31,12 @@ export class WaterFx {
     );
     mesh.rotation.x = -Math.PI / 2;
     mesh.rotation.z = Math.random() * Math.PI * 2;
-    mesh.scale.set(0.25, 0.22, 1);
+    mesh.scale.set(0.25 * size, 0.22 * size, 1);
     mesh.position.set(x, y + 0.03, z);
     // 涟漪必须画在海面之后:透明物体按距离排序,顺序会随镜头方向翻转导致涟漪被海面盖住
     mesh.renderOrder = 1;
     this.scene.add(mesh);
-    this.ripples.push({ mesh, life: RIPPLE_LIFETIME });
+    this.ripples.push({ mesh, life: RIPPLE_LIFETIME, size });
   }
 
   /** 入水/出水时的水花 */
@@ -64,7 +65,7 @@ export class WaterFx {
         continue;
       }
       const t = 1 - r.life / RIPPLE_LIFETIME;
-      const s = 0.25 + (1 - (1 - t) * (1 - t)) * RIPPLE_MAX_SCALE;
+      const s = (0.25 + (1 - (1 - t) * (1 - t)) * RIPPLE_MAX_SCALE) * r.size;
       r.mesh.scale.set(s, s * 0.88, 1);
       (r.mesh.material as THREE.MeshBasicMaterial).opacity =
         0.38 * THREE.MathUtils.smoothstep(t, 0, 0.12) * (1 - t) * (1 - t);

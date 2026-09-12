@@ -25,6 +25,7 @@ export class PlayerAnimator {
   private readonly wrist = new THREE.Vector3();
   private readonly rotation = new THREE.Quaternion();
   private gripWeight = 0;
+  private swimPhase = 0;
   private gait = 0;
   private weight = 0;
   private height = 0;
@@ -37,6 +38,7 @@ export class PlayerAnimator {
   }
 
   reset(): void {
+    this.swimPhase = 0;
     this.gait = this.weight = this.height = this.gripWeight = 0;
     for (const hand of this.model.hands) hand.scale.setScalar(1);
     this.model.root.position.set(0, 0, 0);
@@ -86,15 +88,15 @@ export class PlayerAnimator {
     const twoHanded = !swimming && (action === 'chop' || action === 'mine')
       && (tool === 'axe' || tool === 'pickaxe' || tool === 'shovel' || tool === 'hoe');
     if (swimming) {
-      const swim = elapsed * (speed > 0.1 ? 4.5 : 2);
+      this.swimPhase += delta * (speed > 0.1 ? 3.6 : 2.2);
+      const swim = this.swimPhase;
       this.height = 0;
       body.set(0, Math.sin(swim) * 0.07, 0);
       head.x = -0.2;
-      // 双臂在身前交替划水:前伸入水后向后扒,同侧肘部随划水节奏屈伸
-      left.set(-1.7 + Math.sin(swim) * 0.6, 0, 0.12);
-      right.set(-1.7 + Math.sin(swim + Math.PI) * 0.6, 0, -0.12);
-      elbowL.x = -0.25 - Math.max(0, Math.cos(swim)) * 0.5;
-      elbowR.x = -0.25 - Math.max(0, -Math.cos(swim)) * 0.5;
+      // 手臂在 apply 后由掌心轨迹求解,双手同步从胸前向外划开。
+      left.set(-1.2, 0, 0);
+      right.set(-1.2, 0, 0);
+      elbowL.x = elbowR.x = -0.5;
       legL.x = Math.sin(swim * 2) * 0.3;
       legR.x = -legL.x;
       kneeL.x = 0.2 + Math.max(0, legL.x);
@@ -200,6 +202,17 @@ export class PlayerAnimator {
       }
     }
     this.apply(delta);
+    if (swimming) {
+      // 镜像椭圆:胸前合手 → 前伸 → 向两侧划开 → 收回。
+      // y 补偿玩家整体前倾 0.55,让手掌主要沿水面运动。
+      const x = 0.29 - Math.cos(this.swimPhase) * 0.20;
+      const z = 0.22 + Math.sin(this.swimPhase) * 0.10;
+      const y = 0.34 + Math.tan(0.55) * (z - 0.22);
+      this.wrist.set(x, y, z);
+      this.reachLeft.solve(this.wrist, 1);
+      this.wrist.x = -x;
+      this.reachRight.solve(this.wrist, 1);
+    }
     this.gripWeight += ((twoHanded || fishing ? 1 : 0) - this.gripWeight) * (1 - Math.exp(-28 * delta));
     if (twoHanded || fishing) {
       const swing = stroke(time, action === 'mine' ? 0.7 : 0.95);

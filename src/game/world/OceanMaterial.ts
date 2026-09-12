@@ -3,7 +3,7 @@ import type { OceanDepth } from './OceanDepth';
 
 /**
  * 海水材质:在 MeshStandardMaterial 基础上按世界坐标采样深度,
- * 浅水透底、深水遮蔽海底边缘;程序波纹、浅滩光纹与沿岸碎浪共用一个绘制批次。
+ * 浅水透底、深水遮蔽海底边缘;程序波纹与沿岸碎浪共用一个绘制批次。
  * 法线在世界空间构造后转换到视图空间,保持镜头移动时的光照一致。
  */
 export class OceanMaterial {
@@ -67,14 +67,6 @@ export class OceanMaterial {
              float ripple = sin(dot(p, vec2(-0.57, 0.83)) - uTime * 0.85
                + swell * 0.65);
              sea *= 1.0 + swell * 0.035 + ripple * 0.025;
-
-             // 宽而柔和的交错光纹只出现在浅滩,缩远时自然淡出。
-             float detail = 1.0 - smoothstep(0.35, 1.2, length(fwidth(p)));
-             float lattice = sin(p.x * 2.1 + ripple * 0.6 + uTime * 0.38)
-               * sin(p.y * 1.8 + swell * 0.7 - uTime * 0.32);
-             float caustic = smoothstep(0.58, 0.94, lattice) * detail
-               * smoothstep(0.015, 0.07, d) * (1.0 - smoothstep(0.13, 0.38, d));
-             sea += vec3(0.10, 0.15, 0.10) * caustic;
 
              // 等深线上的浪峰向岸推进,沿岸相位与强度变化打散整齐的白环。
              float breakup = sin(p.x * 0.73 + sin(p.y * 0.51))
