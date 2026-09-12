@@ -185,15 +185,22 @@ export class FenceSystem implements ObstacleSolver {
     );
   }
 
-  /** 围栏柱在四个方向上的连接(仅相邻柱;门带自带门框,围栏不朝门伸杆),virtualFences 为幽灵预览柱占的格点键 */
+  /** 该格点是否有连接柱:真实围栏、门带两端的门框立柱(门扇中间不算)或幽灵预览柱 */
+  private hasPostAt(x: number, z: number, virtualFences: ReadonlySet<string>): boolean {
+    if (this.fences.has(FenceSystem.vertexKey(x, z)) || virtualFences.has(FenceSystem.vertexKey(x, z))) return true;
+    for (const gate of this.gates.values()) {
+      if ((x === gate.gx && z === gate.gz) || (x === gate.endX && z === gate.endZ)) return true;
+    }
+    return false;
+  }
+
+  /** 围栏柱在四个方向上的连接(相邻柱或门带两端的门框立柱),virtualFences 为幽灵预览柱占的格点键 */
   private connsWith(gx: number, gz: number, virtualFences: ReadonlySet<string> = NO_VIRTUAL): FenceConnections {
-    const hasFence = (x: number, z: number) =>
-      this.fences.has(FenceSystem.vertexKey(x, z)) || virtualFences.has(FenceSystem.vertexKey(x, z));
     return {
-      px: hasFence(gx + 1, gz),
-      nx: hasFence(gx - 1, gz),
-      pz: hasFence(gx, gz + 1),
-      nz: hasFence(gx, gz - 1),
+      px: this.hasPostAt(gx + 1, gz, virtualFences),
+      nx: this.hasPostAt(gx - 1, gz, virtualFences),
+      pz: this.hasPostAt(gx, gz + 1, virtualFences),
+      nz: this.hasPostAt(gx, gz - 1, virtualFences),
     };
   }
 
@@ -451,6 +458,18 @@ export class FenceSystem implements ObstacleSolver {
       return;
     }
     this.applyPreviewLinks(new Set([FenceSystem.vertexKey(gx, gz)]));
+  }
+
+  /** 围栏门幽灵预览的连接加亮:门带两端门框立柱视作占位柱,相邻已有柱补出朝向它们的横杆 */
+  applyGateGhostLinks(actor: PlayerSession): void {
+    const t = this.gateTarget(actor);
+    if (!t) {
+      this.clearPreviewLinks();
+      return;
+    }
+    const ex = t.gx + (t.dir === 'x' ? 2 : 0);
+    const ez = t.gz + (t.dir === 'z' ? 2 : 0);
+    this.applyPreviewLinks(new Set([FenceSystem.vertexKey(t.gx, t.gz), FenceSystem.vertexKey(ex, ez)]));
   }
 
   /** 收起幽灵预览:移除相邻柱上的幽灵补杆 */
