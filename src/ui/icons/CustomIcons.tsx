@@ -325,6 +325,113 @@ const StrawBackpackIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
+/** 皮衣:长袖皮衣,奶油袖口与铜扣 */
+const FurShirtIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M24 14 L40 14 L50 22 L58 40 L50 44 L45 32 L45 54 L19 54 L19 32 L14 44 L6 40 L14 22 Z" fill="#b77d55" />
+    <path d="M27 16 q5 4 10 0" stroke="#674d43" strokeWidth={2} fill="none" />
+    <rect x={6} y={38} width={10} height={5} rx={1} fill="#f6e7c5" />
+    <rect x={48} y={38} width={10} height={5} rx={1} fill="#f6e7c5" />
+    <circle cx={32} cy={30} r={2} fill="#dfb96c" />
+    <circle cx={32} cy={40} r={2} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 皮裤:深棕短裤,皮带铜扣与奶油卷边 */
+const FurPantsIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 14 L46 14 L44 48 L34 48 L32 30 L30 48 L20 48 Z" fill="#8a5a32" />
+    <rect x={18} y={14} width={28} height={6} fill="#77503d" />
+    <rect x={18} y={44} width={13} height={6} fill="#f6e7c5" />
+    <rect x={33} y={44} width={13} height={6} fill="#f6e7c5" />
+    <rect x={27} y={18} width={10} height={6} rx={1} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 皮帽:皮质报童帽,短鸭舌与铜扣 */
+const FurHatIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <ellipse cx={32} cy={42} rx={22} ry={6} fill="#8a5a32" />
+    <path d="M14 40 Q32 8 50 40 Z" fill="#b77d55" />
+    <ellipse cx={32} cy={42} rx={18} ry={5} fill="#b77d55" />
+    <path d="M12 44 L52 44 L48 48 L16 48 Z" fill="#674d43" />
+    <rect x={18} y={36} width={8} height={5} rx={1} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 皮包:棕皮手提包,提手与铜扣 */
+const FurBackpackIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 24 L46 24 L50 52 L14 52 Z" fill="#b77d55" />
+    <path d="M24 24 q8 -16 16 0" fill="none" stroke="#77503d" strokeWidth={3.4} />
+    <rect x={16} y={22} width={32} height={6} fill="#8a5a32" />
+    <rect x={28} y={34} width={8} height={8} rx={1} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 铁甲:长袖海沫水手衫,奶油领口与袖口 */
+const IronShirtIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M24 14 L40 14 L50 22 L58 40 L50 44 L45 32 L45 54 L19 54 L19 32 L14 44 L6 40 L14 22 Z" fill="#6dada6" />
+    <path d="M27 16 q5 4 10 0" stroke="#f6e7c5" strokeWidth={2.4} fill="none" />
+    <rect x={6} y={38} width={10} height={5} rx={1} fill="#f6e7c5" />
+    <rect x={48} y={38} width={10} height={5} rx={1} fill="#f6e7c5" />
+    <circle cx={32} cy={34} r={2.2} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 铁裤:海沫短裤,深色腰带与奶油卷边 */
+const IronPantsIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 14 L46 14 L44 44 L34 44 L32 28 L30 44 L20 44 Z" fill="#6dada6" />
+    <rect x={18} y={14} width={28} height={6} fill="#3f6f6b" />
+    <rect x={18} y={40} width={13} height={6} fill="#f6e7c5" />
+    <rect x={33} y={40} width={13} height={6} fill="#f6e7c5" />
+  </Svg>
+);
+
+/** 铁帽:奶油宽檐水手帽,海沫帽带与铜徽 */
+const IronHatIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <ellipse cx={32} cy={42} rx={26} ry={7} fill="#dcc9a0" />
+    <path d="M14 42 Q32 14 50 42 Z" fill="#f6e7c5" />
+    <path d="M16 38 q16 -6 32 0" fill="none" stroke="#6dada6" strokeWidth={3} />
+    <rect x={18} y={34} width={7} height={5} rx={1} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 铁包:沙滩帆布手提包,海沫顶盖与铜扣 */
+const IronBackpackIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <path d="M18 24 L46 24 L50 52 L14 52 Z" fill="#d7c196" />
+    <path d="M24 24 q8 -16 16 0" fill="none" stroke="#77503d" strokeWidth={3.4} />
+    <rect x={16} y={22} width={32} height={6} fill="#6dada6" />
+    <circle cx={32} cy={38} r={4} fill="#dfb96c" />
+  </Svg>
+);
+
+/** 沙丁鱼:细长银身 + 浅腹 */
+const SardineIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <polygon points="18,27 28,22 34,27" fill="#b8cdd9" />
+    <ellipse cx={26} cy={32} rx={20} ry={6} fill="#b8cdd9" />
+    <ellipse cx={26} cy={33.5} rx={14.4} ry={2.7} fill="#d5e4ec" />
+    <polygon points="44,32 58,27.2 58,36.8" fill="#b8cdd9" />
+    <circle cx={15} cy={30.7} r={2.4} fill="#20303a" />
+  </Svg>
+);
+
+/** 鲈鱼:草绿棘背 + 金腹 */
+const PerchIcon: FC<IconProps> = ({ size }) => (
+  <Svg size={size}>
+    <polygon points="21.2,21 29.7,11 34.8,21" fill="#8aad5a" />
+    <ellipse cx={28} cy={32} rx={17} ry={12} fill="#8aad5a" />
+    <ellipse cx={28} cy={36} rx={12} ry={5} fill="#d4c56a" />
+    <polygon points="43,32 57,22.4 57,41.6" fill="#8aad5a" />
+    <circle cx={18.7} cy={29.4} r={2.4} fill="#20303a" />
+  </Svg>
+);
+
 /** 铁矿石:灰岩角砾嵌金属与锈斑 */
 const IronOreIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
@@ -620,6 +727,16 @@ export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   sword: SwordIcon,
   strawHat: StrawHatIcon,
   strawBackpack: StrawBackpackIcon,
+  furShirt: FurShirtIcon,
+  furPants: FurPantsIcon,
+  furHat: FurHatIcon,
+  furBackpack: FurBackpackIcon,
+  ironShirt: IronShirtIcon,
+  ironPants: IronPantsIcon,
+  ironHat: IronHatIcon,
+  ironBackpack: IronBackpackIcon,
+  sardine: SardineIcon,
+  perch: PerchIcon,
   fiber: FiberIcon,
   oakSeed: OakSeedIcon,
   pineFruit: PineFruitIcon,
