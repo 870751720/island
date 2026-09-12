@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 const FLAKE_COUNT = 620;
+const FLAKE_SIZE_PX = 5; // 正交相机的点尺寸是屏幕像素,不是世界单位
 const AREA = 44; // 覆盖玩家周围的方形区域边长
 const TOP = 22;
 const FALL_SPEED_MIN = 1.2; // 雪花下落速度范围,慢速飘落
@@ -16,7 +17,8 @@ function makeFlakeTexture(): THREE.Texture {
   const ctx = canvas.getContext('2d')!;
   const grad = ctx.createRadialGradient(size / 2, size / 2, 1, size / 2, size / 2, size / 2);
   grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.6, 'rgba(255,255,255,0.85)');
+  grad.addColorStop(0.45, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.7, 'rgba(155,177,199,0.8)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
@@ -47,12 +49,14 @@ export class Snow {
       this.phases[i] = Math.random() * Math.PI * 2;
     }
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
     this.texture = makeFlakeTexture();
     this.material = new THREE.PointsMaterial({
-      color: '#e6effa',
+      color: '#ffffff',
       map: this.texture,
-      size: 0.5,
+      size: FLAKE_SIZE_PX,
+      sizeAttenuation: false,
+      toneMapped: false,
       transparent: true,
       opacity: 0,
       depthWrite: false,
