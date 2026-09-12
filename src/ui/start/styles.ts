@@ -1,11 +1,11 @@
-import { menuBackdrop } from './palette';
+import { menuBackdrop, menuActionColors } from './palette';
 
 export const startScreenCss = `
-.start-screen{position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:#103e43;color:#fff2d4;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
+.start-screen{${menuActionColors}position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:#103e43;color:#fff2d4;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
 .start-screen *{box-sizing:border-box}
 .start-screen button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .2s,background .2s,box-shadow .2s}
 .start-screen button:active{transform:scale(.97)}
-.start-screen button:focus-visible{outline:3px solid #ffdc90;outline-offset:4px}
+.start-screen button:focus-visible{outline:3px solid #afd8ed;outline-offset:4px}
  .start-atmosphere{position:absolute;inset:0;min-height:100%;z-index:-2;overflow:hidden;background:${menuBackdrop}}
 .start-atmosphere:before{content:"";position:absolute;width:76vmax;height:76vmax;left:42%;top:12%;border:1px solid #c4ead015;border-radius:50%;box-shadow:0 0 0 45px #c4ead006,0 0 0 90px #c4ead008,0 0 0 150px #c4ead005;transform:rotateX(55deg);animation:menu-tide 14s ease-in-out infinite}
 .start-atmosphere:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 52% 45%,transparent 25%,#092d344d);pointer-events:none}
@@ -38,11 +38,11 @@ export const startScreenCss = `
 .menu-actions{position:relative;padding-top:19px;animation:menu-enter .9s .2s both}
 .menu-save-label{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:0 3px 10px;font-size:10px;letter-spacing:.07em;color:#d0d9c6}
 .menu-save-label>span:last-child{font-size:9px;color:#aec8be}
-.start-button{width:100%;min-height:70px;border:1px solid #ffe0a8;border-radius:16px;background:linear-gradient(115deg,#ffdb9d,#efae68);box-shadow:0 5px 0 #aa7045,0 12px 30px #051e2b40,inset 0 1px 0 #fff1c8;display:flex;align-items:center;justify-content:space-between;padding:12px 21px;color:#493c2e;text-align:left}
+.start-button{width:100%;min-height:70px;border:1px solid var(--action-border);border-radius:16px;background:var(--action-bg);box-shadow:0 5px 0 var(--action-shadow),0 12px 30px #051e2b40,inset 0 1px 0 #a9c7d4;display:flex;align-items:center;justify-content:space-between;padding:12px 21px;color:var(--action-text);text-align:left}
 .start-button strong{display:block;font-size:21px;letter-spacing:.12em}
 .start-button small{display:block;font-size:10px;font-weight:400;margin-top:5px;letter-spacing:.09em;color:#6f5739}
 .start-button>svg{width:28px;height:28px;transition:transform .3s}
-.start-button:active{box-shadow:0 2px 0 #aa7045}
+.start-button:active{box-shadow:0 2px 0 var(--action-shadow)}
 .start-mp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:19px}
 .mp-button{display:flex;align-items:center;justify-content:center;gap:11px;min-height:66px;border:1px solid #e2edcc36;border-radius:13px;background:#204e50a6;color:#f6edd4;text-align:left}
 .mp-button>svg{color:#dfcf9f;width:21px;height:21px}
@@ -63,10 +63,10 @@ export const startScreenCss = `
 .abandon-actions{display:flex;gap:10px}
 .abandon-actions button{flex:1;min-height:48px;border-radius:12px;font-size:14px;font-weight:700}
 .abandon-cancel{border:1px solid #55726040;background:#e9e9d8;color:#41614d}
-.abandon-confirm{border:1px solid #d29a5a;background:#f3c081;color:#513d2a}
+.abandon-confirm{border:1px solid var(--action-border);background:var(--action-bg);color:var(--action-text)}
 @keyframes menu-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes menu-birds{50%{transform:translate(36px,-8px)}}
-@media(hover:hover){.mp-button:hover,.menu-sound:hover{background:#467273b3}.start-button:hover>svg{transform:translateX(4px)}.menu-utilities button:hover{color:#fff4cc}}
+@media(hover:hover){.start-button:hover{background:var(--action-hover)}.mp-button:hover,.menu-sound:hover{background:#467273b3}.start-button:hover>svg{transform:translateX(4px)}.menu-utilities button:hover{color:#fff4cc}}
 @media(min-width:760px) and (min-height:600px){.start-layout{padding:26px 50px 20px}.menu-content{max-width:none;grid-template-columns:390px 1fr;grid-template-rows:auto auto;column-gap:30px;align-content:center}.menu-heading{grid-column:1;grid-row:1;text-align:left;padding-top:0}.start-title{font-size:82px}.start-subtitle{font-size:14px}.menu-diorama{grid-column:2;grid-row:1 / 3;min-height:420px}.island-scene{inset:-30px -50px}.island-caption{bottom:45px}.menu-actions{grid-column:1;grid-row:2;padding-top:36px}.menu-eyebrow{font-size:10px}.menu-brand{font-size:12px}.menu-footer{font-size:10px}.menu-footer>span:last-child{font-size:9px}}
 @media(max-height:720px) and (orientation:portrait){.start-layout{padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:calc(8px + env(safe-area-inset-bottom))}.menu-heading{padding-top:12px}.start-title{font-size:54px}.start-subtitle{margin-top:11px;font-size:11px}.menu-eyebrow{margin-bottom:8px;font-size:8px}.menu-diorama{min-height:150px}.menu-content{grid-template-rows:auto minmax(150px,1fr) auto}.menu-actions{padding-top:10px}.start-button{min-height:62px}.mp-button{min-height:58px}.menu-footer{padding-top:2px}}
 @media(orientation:landscape) and (max-height:599px){.start-layout{padding:calc(8px + env(safe-area-inset-top)) calc(22px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(22px + env(safe-area-inset-left));min-height:360px}.menu-topbar{min-height:44px}.menu-content{max-width:850px;grid-template-columns:1fr 310px;grid-template-rows:auto minmax(100px,1fr);column-gap:30px}.menu-heading{grid-column:1;grid-row:1;padding-top:6px}.start-title{font-size:46px}.menu-eyebrow{font-size:7px;margin-bottom:6px}.start-subtitle{font-size:10px;margin-top:8px}.start-subtitle br{display:none}.menu-diorama{grid-column:1;grid-row:2;min-height:100px}.island-scene{inset:-35px 0 -15px}.island-caption{display:none}.menu-actions{grid-column:2;grid-row:1 / 3;align-self:center;padding-top:8px}.start-button{min-height:60px}.mp-button{min-height:56px}.menu-footer{padding-top:2px}.menu-utilities{margin-top:5px}.start-mp{margin-top:14px}}
