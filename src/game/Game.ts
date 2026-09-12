@@ -529,6 +529,7 @@ export class Game {
       this.burrows.generateFor(this.wildlife.rabbitHomes());
       this.wildlife.setBurrowSource(this.burrows);
     }
+    this.wildlife.onPlayerThreat = (player) => this.sessionOf(player).markCombat();
     // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用)
     this.wildlife.setPlayerIdResolver((p) => this.sessionOf(p).id);
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
@@ -900,7 +901,7 @@ export class Game {
         updateSeasonVisuals(simDelta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setMusicContext(GmSystem.season === 'auto' ? getSeason() : GmSystem.season, this.fishing.isWorking,
-          { rain: this.weather.rainIntensity, snow: this.weather.snowIntensity, wind: this.weather.windStrength });
+          { rain: this.weather.rainIntensity, snow: this.weather.snowIntensity, wind: this.weather.windStrength }, this.local.inCombat);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.audio.setWindIntensity(this.weather.windIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
@@ -931,6 +932,7 @@ export class Game {
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
+          s.combatSeconds = s.survival.state.dead ? 0 : Math.max(0, s.combatSeconds - simDelta);
           this.activeNetActor = s;
           // 客人放箭的动作快照:客人射箭在客人端判定,房主按 arrowShot 动作补放箭动画窗口
           if (s !== this.local) {
@@ -1379,6 +1381,7 @@ export class Game {
           else s.fishing.netStop();
           this.audio.silent = false;
       }
+      s.combatSeconds = p.combat ? 6 : 0;
       s.player.setAction(p.action);
       // 客人本地按权威快照对齐酒意计时(舒爽/晕晕的加速减速要在本地预测移动里生效)
       if (s === this.local) s.player.netSyncWine(p.refresh ?? 0, p.tipsy ?? 0);
@@ -1659,6 +1662,7 @@ export class Game {
     // 局外养成「剑术」2 级:受到的伤害降低 10%
     if (this.metaLevel('swordplay') >= 2 && session === this.local) final *= 0.9;
     final = Math.max(1, Math.round(final));
+    session.markCombat();
     session.survival.damage(final);
     // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来;
     // 局外养成「剑术」3 级:20% 几率闪身躲开熊扑的减速
@@ -3179,6 +3183,8 @@ export class Game {
         (s.player.tipsySeconds > 0 ? 1.3 : 1) *
         (this.metaLevel('swordplay') >= 1 && Math.random() < 0.1 ? 2 : 1)
     );
+    s.archery.onCombat = () => s.markCombat();
+    s.sword.onCombat = () => s.markCombat();
     s.lasso = new LassoSystem(
       this.scene,
       s.player,

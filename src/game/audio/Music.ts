@@ -20,6 +20,7 @@ export class Music {
   private cursors = new Map<string, { pieceIndex: number; barCounter: number }>();
   private season: Season = 'spring';
   private fishing = false;
+  private combat = false;
   private weather: WeatherType = 'sunny';
   private output: GainNode;
   private night = false;
@@ -51,13 +52,16 @@ export class Music {
     return { id: this.piece.name, title: this.piece.title, selection: this.selection };
   }
 
-  setContext(season: Season, fishing: boolean, weather: { rain: number; snow: number; wind: number }): void {
+  setContext(season: Season, fishing: boolean, weather: { rain: number; snow: number; wind: number }, combat: boolean): void {
+    const combatChanged = this.combat !== combat;
+    this.combat = combat;
     this.season = season;
     this.fishing = fishing;
     // 使用同步后的连续强度及回差,避免天气过渡期间反复切曲。
     const active = (kind: 'rain' | 'snow' | 'wind') => weather[kind] > (this.weather === kind ? 0.35 : 0.55);
     this.weather = active('snow') ? 'snow' : active('rain') ? 'rain' : active('wind') ? 'wind' : 'sunny';
     this.refreshPlaylist();
+    if (combatChanged && this.selection === null) this.switchImmediately();
   }
 
   select(id: string | null): void {
@@ -65,6 +69,10 @@ export class Music {
     this.selection = id;
     this.refreshPlaylist();
     if (id !== null) this.barCounter = 0;
+    this.switchImmediately();
+  }
+
+  private switchImmediately(): void {
     // 断开旧曲全部音符输出,包括尚未发声的排程。
     this.output.disconnect();
     this.output = this.createOutput();
@@ -73,7 +81,7 @@ export class Music {
   }
 
   private refreshPlaylist(): void {
-    const key = this.selection ? `track:${this.selection}` : (this.fishing ? 'fishing' : this.weather !== 'sunny' ? this.weather : this.season);
+    const key = this.selection ? `track:${this.selection}` : (this.combat ? 'combat' : this.fishing ? 'fishing' : this.weather !== 'sunny' ? this.weather : this.season);
     if (key === this.context) return;
     this.cursors.set(this.context, { pieceIndex: this.pieceIndex, barCounter: this.barCounter });
     this.context = key;

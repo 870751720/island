@@ -1,6 +1,6 @@
 import type { Season } from '../systems/SeasonSystem';
 
-export type MusicGroup = Season | 'fishing' | 'classic' | 'wind' | 'rain' | 'snow';
+export type MusicGroup = Season | 'fishing' | 'classic' | 'wind' | 'rain' | 'snow' | 'combat';
 
 /** 单个旋律音:在小节内的拍偏移、MIDI 音高、时长(拍) */
 export type Note = { beat: number; midi: number; dur: number };

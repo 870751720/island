@@ -356,6 +356,8 @@ export class Wildlife implements Updatable {
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
   private nextId = 1;
+  /** 权威 AI 每帧通知真正被敌对动物追击的玩家。 */
+  onPlayerThreat?: (player: Player) => void;
   private creatureFx = new CreatureFx();
   private population = new HabitatPopulation<AnimalSpecies>();
   private safeSpawn: THREE.Vector3;
@@ -654,6 +656,7 @@ export class Wildlife implements Updatable {
         animal.alerted = true;
       }
       const rushed = animal.alerted && vulnerable;
+      if (rushed && hostile && target) this.onPlayerThreat?.(target);
 
       animal.walkTime += delta;
       animal.attackLeft = Math.max(0, animal.attackLeft - delta);

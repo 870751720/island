@@ -16,10 +16,10 @@ export function MusicTab({ getGame }: { getGame: () => Game | null }) {
   return (
     <div style={{ color: '#4a3b2a', fontSize: 14 }}>
       <p aria-live="polite">当前曲目：{status?.title ?? '等待音频启动'}</p>
-      <p style={{ fontSize: 12, lineHeight: 1.6 }}>选曲后立即从头播放并循环，仅自己听到。自动模式优先播放钓鱼曲，其余时间优先跟随风雨雪天气，再跟随季节。</p>
+      <p style={{ fontSize: 12, lineHeight: 1.6 }}>选曲后立即从头播放并循环，仅自己听到。自动模式优先战斗，其次钓鱼，其余时间优先跟随风雨雪天气，再跟随季节。</p>
       <button onClick={() => select(null)} aria-pressed={!status?.selection}
         style={{ ...buttonStyle, background: !status?.selection ? '#a8823f' : '#8a6f4b' }}>
-        自动 · 钓鱼 / 天气 / 季节
+        自动 · 战斗 / 钓鱼 / 天气 / 季节
       </button>
       {(Object.keys(MUSIC_GROUP_LABELS) as MusicGroup[]).map((group) => (
         <div key={group}>

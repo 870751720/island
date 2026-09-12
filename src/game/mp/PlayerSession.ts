@@ -47,6 +47,16 @@ export class PlayerSession implements Actor {
   water!: WaterSystem;
   /** 上次记录的血量(检测血量下降触发受击表现) */
   lastHealth = 100;
+  /** 权威端维护的脱战缓冲;仅用于音乐,不入存档。 */
+  combatSeconds = 0;
+
+  get inCombat(): boolean {
+    return !this.survival.state.dead && this.combatSeconds > 0;
+  }
+
+  markCombat(): void {
+    if (!this.survival.state.dead) this.combatSeconds = 6;
+  }
   /** 受击音效间隔节流(持续掉血不成串响) */
   hurtSoundTimer = 0;
   /** 上次记录的死亡状态(检测死亡沿触发倒地与清档) */

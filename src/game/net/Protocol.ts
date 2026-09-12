@@ -37,6 +37,8 @@ export type PlayerState = {
   refresh?: number;
   /** 「晕晕的」状态剩余秒数(舒爽时再喝,缺省 0) */
   tipsy?: number;
+  /** 房主权威战斗状态,缺省 false;仅驱动本人配乐。 */
+  combat?: boolean;
 };
 
 /** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里;leash 表示羊被牵着(by)或拴在桩上(stake),null 表示未被拴(恒定携带以便差分清空) */

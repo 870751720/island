@@ -80,6 +80,8 @@ type Arrow = {
  * 站定不瞄、没有目标不开弓,误射风险由玩家持弓自行承担。
  */
 export class BowSystem {
+  /** 有效命中后由权威端更新该玩家的战斗表现状态。 */
+  onCombat?: () => void;
   /** 拉弓剩余时间(0 表示已拉满) */
   private drawLeft = DRAW_TIME;
   /** 已获得瞄准方向(移动瞄准过) */
@@ -301,14 +303,17 @@ export class BowSystem {
     const damage = ARROW_DAMAGE[Math.min(ARROW_DAMAGE.length, Math.max(1, this.tools.bow)) - 1] * GmSystem.attackMultiplier * this.damageMultiplier();
     if (hit.kind === 'wildlife') {
       const beast = this.wildlife.damage(hit.animalId, damage);
+      if (beast) this.onCombat?.();
       // 野生动物可中数箭:受伤未死不掉肉
       if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species), x, z);
       return;
     }
     const point = this.tmpV.set(x, 0, z);
     if (hit.kind === 'crab' && this.crabs.damageNearby(point, HIT_RANGE, damage)) {
+      this.onCombat?.();
       this.onLoot([{ kind: 'crabMeat', count: 1 }], x, z);
     } else if (hit.kind === 'bird' && this.birds.damageNearby(point, HIT_RANGE, damage)) {
+      this.onCombat?.();
       this.onLoot([{ kind: 'birdMeat', count: 1 }], x, z);
     }
   }

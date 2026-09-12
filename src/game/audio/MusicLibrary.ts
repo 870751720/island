@@ -31,7 +31,7 @@ function score(name: string, title: string, group: MusicGroup, bpm: number,
 }
 
 export const MUSIC_GROUP_LABELS: Record<MusicGroup, string> = {
-  spring: '春日', summer: '盛夏', autumn: '金秋', winter: '冬雪', fishing: '钓鱼', classic: '原有曲目', wind: '刮风', rain: '下雨', snow: '下雪',
+  spring: '春日', summer: '盛夏', autumn: '金秋', winter: '冬雪', fishing: '钓鱼', classic: '原有曲目', wind: '刮风', rain: '下雨', snow: '下雪', combat: '战斗',
 };
 
 export const MUSIC_PIECES: Piece[] = [
@@ -69,5 +69,11 @@ export const MUSIC_PIECES: Piece[] = [
     '78|79 78|78 74|76|79|78 74|76 73|74|81|83 79|78|76 74|79 76|78|73|74', true),
   score('snow-home', '围炉等雪', 'snow', 50, 4, false, 60, [0, 9, 5, 7, 2, 5, 7, 0],
     '72 76|76|77 72|74|74 77|77|71 74|72|79 76|76 72|77|74 71|77 74|72|71|72', true),
+  score('combat-woods', '林间警讯', 'combat', 76, 4, false, 60, [9, 2, 5, 7, 9, 5, 2, 9],
+    '76 72 69|74 77 76|77 81 79|74 71|76 79 81|77 76 72|74 77 81|76 72|81 79 76|77 74 72|81 77 76|79 74 71|76 72 69|77 81 79|77 74 72|69'),
+  score('combat-tide', '逆潮而行', 'combat', 80, 4, false, 62, [9, 5, 2, 7, 9, 0, 5, 9],
+    '78 81 85|83 79|78 76 74|81 76|78 81 83|81 78 74|79 83 81|78 73|85 81 78|83 81 79|78 74 76|81 76 73|78 81 85|81 78|79 76 74|73'),
+  score('combat-guard', '守护微光', 'combat', 72, 4, false, 65, [9, 5, 0, 7, 2, 9, 5, 0],
+    '81 77 74|82 81 77|81 84 81|79 76|81 77 79|81 84 86|82 81 79|77|84 81 77|86 82 81|84 81 79|79 76|81 86 84|81 77|82 79 76|77'),
   ...LEGACY_PIECES,
 ];

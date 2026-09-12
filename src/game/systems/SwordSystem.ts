@@ -22,6 +22,8 @@ const SWING_TIME = 0.35;
  * 由房主权威结算伤害与掉落;房主自己的命中直接结算。
  */
 export class SwordSystem {
+  /** 有效命中后由权威端更新该玩家的战斗表现状态。 */
+  onCombat?: () => void;
   /** 挥砍动作剩余时长(0 表示空闲) */
   private swingLeft = 0;
   /** 距下次可挥砍的剩余时间 */
@@ -95,6 +97,7 @@ export class SwordSystem {
       animalId,
       DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier * this.damageMultiplier()
     );
+    if (beast) this.onCombat?.();
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)
     if (!beast || beast === 'hit') return;
     const p = this.player.group.position;

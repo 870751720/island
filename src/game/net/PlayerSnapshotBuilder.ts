@@ -48,6 +48,7 @@ export function buildPlayersState(
         equipped: session.equipment.snapshot(),
         gender: session.player.currentGender,
         dead: survival.dead,
+        combat: session.inCombat,
         action: session.player.currentAction,
         refresh: Math.round(session.player.refreshSeconds),
         tipsy: Math.round(session.player.tipsySeconds),
