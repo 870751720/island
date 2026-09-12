@@ -78,7 +78,7 @@ export class OceanMaterial {
                * smoothstep(-0.65, 0.5, breakup) * 0.75;
              diffuseColor.rgb = mix(sea, vec3(0.82, 0.91, 0.85), foam);
              // 边缘水深约 0.67(1.75/2.6),过渡在其之前完成,遮住方形海底终止线
-             diffuseColor.a = mix(0.42, 1.0, smoothstep(0.015, 0.55, d));
+             diffuseColor.a = mix(0.42, 0.95, smoothstep(0.015, 0.55, d));
              diffuseColor.a = mix(diffuseColor.a, 0.96, foam);
            }`
         )
