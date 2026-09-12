@@ -8,6 +8,11 @@ export type FenceKind = 'branch' | 'stone';
 /** 四个方向的连接标记(相邻格点有围栏或门时伸横杆) */
 export type FenceConnections = { px: boolean; nx: boolean; pz: boolean; nz: boolean };
 
+/** 两组连接是否一致 */
+export function sameConns(a: FenceConnections, b: FenceConnections): boolean {
+  return a.px === b.px && a.nx === b.nx && a.pz === b.pz && a.nz === b.nz;
+}
+
 
 /** 木围栏柱:粗糙圆木柱 */
 function woodPost(mat: THREE.MeshStandardMaterial): THREE.Mesh {
@@ -106,6 +111,7 @@ function disposeMesh(root: THREE.Object3D): void {
 export class Fence {
   readonly group: THREE.Group;
   private mesh: THREE.Group;
+  private conns: FenceConnections;
 
   constructor(
     scene: THREE.Scene,
@@ -116,15 +122,23 @@ export class Fence {
   ) {
     this.group = new THREE.Group();
     this.group.position.set(gx, groundY - 0.03, gz);
-    this.mesh = buildFenceMesh(kind, { px: false, nx: false, pz: false, nz: false });
+    this.conns = { px: false, nx: false, pz: false, nz: false };
+    this.mesh = buildFenceMesh(kind, this.conns);
     this.group.add(this.mesh);
     scene.add(this.group);
   }
 
-  /** 连接变化时重建网格(换横杆) */
+  /** 当前已生效的连接(幽灵预览临时补杆也会改写这里,用于跳过无变化重建) */
+  get currentConns(): FenceConnections {
+    return this.conns;
+  }
+
+  /** 连接变化时重建网格(换横杆);无变化时不重建 */
   rebuild(conns: FenceConnections): void {
+    if (sameConns(conns, this.conns)) return;
     this.group.remove(this.mesh);
     disposeMesh(this.mesh);
+    this.conns = conns;
     this.mesh = buildFenceMesh(this.kind, conns);
     this.group.add(this.mesh);
   }

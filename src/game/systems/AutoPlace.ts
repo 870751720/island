@@ -173,6 +173,7 @@ export class AutoPlaceSystem {
     const st = this.states.get(actor);
     if (!st) return;
     if (st.preview) this.scene.remove(st.preview);
+    if (st.previewKind) this.defs.get(st.previewKind)?.onPreviewHide?.();
     this.states.delete(actor);
   }
 
@@ -252,8 +253,10 @@ export class AutoPlaceSystem {
     const def = kind ? this.defs.get(kind) : undefined;
     if (!kind || !def || actor.player.isSwimming || (!def.free && actor.inventory.count(kind as ResourceKind) <= 0)) {
       if (st.preview) st.preview.visible = false;
+      if (st.previewKind) this.defs.get(st.previewKind)?.onPreviewHide?.();
       return;
     }
+    if (st.previewKind && st.previewKind !== kind) this.defs.get(st.previewKind)?.onPreviewHide?.();
     if (!st.preview || st.previewKind !== kind) {
       if (st.preview) this.scene.remove(st.preview);
       const model = def.buildPreview();

@@ -2606,6 +2606,7 @@ export class Game {
           preview.rotation.y = 0;
           this.fences.applyGhost(preview, x, z);
         },
+        onPreviewHide: () => this.fences.clearPreviewLinks(),
         place: (a) => this.fences.useFence(a, fenceKind),
         failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
       });
@@ -2623,7 +2624,9 @@ export class Game {
       handModel: () => makeFenceGateHandModel(),
       onPreview: (preview, a) => {
         preview.rotation.y = this.fences.gateGhostRotY(a);
+        this.fences.applyGateGhostLinks(a);
       },
+      onPreviewHide: () => this.fences.clearPreviewLinks(),
       place: (a) => this.fences.useGate(a),
       failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
     });

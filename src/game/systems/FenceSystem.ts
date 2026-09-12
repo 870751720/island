@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
-import { Fence, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { Fence, sameConns, type FenceConnections, type FenceKind } from '../entities/Fence';
 import { FenceGate } from '../entities/FenceGate';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -24,6 +24,9 @@ const GATE_AUTO_RANGE = 1.6;
 const DIG_RANGE = 1.5;
 /** 铲子挖围栏的命中次数(二级铲 1 次) */
 const SWING_TIME = 0.6;
+
+/** 幽灵预览连接判定的空虚拟集(无预览虚拟物时) */
+const NO_VIRTUAL: ReadonlySet<string> = new Set();
 
 /** 阻挡线段:XZ 平面上的有向线段(闭合围栏连接与关着的门) */
 type Segment = { ax: number; az: number; bx: number; bz: number };
@@ -171,24 +174,39 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 连接与阻挡 ----
 
-  /** 某条单位边是否被门占据(门跨两格,可能从这条边或前一条边起) */
-  private gateAt(gx: number, gz: number, dir: 'x' | 'z'): boolean {
+  /** 某条单位边是否被门占据(门跨两格,可能从这条边或前一条边起);可叠加预览虚拟门占的边 */
+  private gateAtWith(gx: number, gz: number, dir: 'x' | 'z', virtualGates: ReadonlySet<string>): boolean {
     const backX = dir === 'x' ? gx - 1 : gx;
     const backZ = dir === 'z' ? gz - 1 : gz;
     return (
       this.gates.has(FenceSystem.edgeKey(gx, gz, dir)) ||
-      this.gates.has(FenceSystem.edgeKey(backX, backZ, dir))
+      this.gates.has(FenceSystem.edgeKey(backX, backZ, dir)) ||
+      virtualGates.has(FenceSystem.edgeKey(gx, gz, dir)) ||
+      virtualGates.has(FenceSystem.edgeKey(backX, backZ, dir))
     );
   }
 
-  /** 围栏柱在四个方向上的连接(相邻柱或门) */
-  private connectionsOf(gx: number, gz: number): FenceConnections {
+  private gateAt(gx: number, gz: number, dir: 'x' | 'z'): boolean {
+    return this.gateAtWith(gx, gz, dir, NO_VIRTUAL);
+  }
+
+  /**
+   * 围栏柱在四个方向上的连接(相邻柱或门),可叠加幽灵预览的虚拟物:
+   * virtualFences 为预览柱占的格点键、virtualGates 为预览门占的边键,与真实判定同一套规则。
+   */
+  private connsWith(gx: number, gz: number, virtualFences: ReadonlySet<string>, virtualGates: ReadonlySet<string>): FenceConnections {
+    const hasFence = (x: number, z: number) =>
+      this.fences.has(FenceSystem.vertexKey(x, z)) || virtualFences.has(FenceSystem.vertexKey(x, z));
     return {
-      px: this.fences.has(FenceSystem.vertexKey(gx + 1, gz)) || this.gateAt(gx, gz, 'x'),
-      nx: this.fences.has(FenceSystem.vertexKey(gx - 1, gz)) || this.gateAt(gx - 1, gz, 'x'),
-      pz: this.fences.has(FenceSystem.vertexKey(gx, gz + 1)) || this.gateAt(gx, gz, 'z'),
-      nz: this.fences.has(FenceSystem.vertexKey(gx, gz - 1)) || this.gateAt(gx, gz - 1, 'z'),
+      px: hasFence(gx + 1, gz) || this.gateAtWith(gx, gz, 'x', virtualGates),
+      nx: hasFence(gx - 1, gz) || this.gateAtWith(gx - 1, gz, 'x', virtualGates),
+      pz: hasFence(gx, gz + 1) || this.gateAtWith(gx, gz, 'z', virtualGates),
+      nz: hasFence(gx, gz - 1) || this.gateAtWith(gx, gz - 1, 'z', virtualGates),
     };
+  }
+
+  private connectionsOf(gx: number, gz: number): FenceConnections {
+    return this.connsWith(gx, gz, NO_VIRTUAL, NO_VIRTUAL);
   }
 
   /** 重算某柱及其可能受影响的四邻的连接网格 */
@@ -412,12 +430,70 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 统一安放的委托助手 ----
 
-  /** 围栏幽灵预览的落位刷新:横杆按目标格点的实际邻居显隐 */
+  /** 被幽灵预览临时补过横杆的柱(落点变化或收起预览后按真实连接还原) */
+  private previewLinked: Fence[] = [];
+
+  /** 围栏幽灵预览的落位刷新:横杆按目标格点的实际邻居显隐,并给相邻已有柱补出朝向预览柱的横杆 */
   applyGhost(preview: THREE.Object3D, gx: number, gz: number): void {
     const conns = this.connectionsOf(gx, gz);
     for (const rail of ghostRailsOf(preview)) {
       rail.visible = conns[rail.name.slice('rail-'.length) as keyof FenceConnections];
     }
+    if (!this.vertexValid(gx, gz)) {
+      this.clearPreviewLinks();
+      return;
+    }
+    this.applyPreviewLinks(new Set([FenceSystem.vertexKey(gx, gz)]), NO_VIRTUAL);
+  }
+
+  /** 围栏门幽灵预览的连接加亮:门带相邻的已有柱补出朝向门框的横杆 */
+  applyGateGhostLinks(actor: PlayerSession): void {
+    const t = this.gateTarget(actor);
+    if (!t) {
+      this.clearPreviewLinks();
+      return;
+    }
+    this.applyPreviewLinks(NO_VIRTUAL, new Set([FenceSystem.edgeKey(t.gx, t.gz, t.dir)]));
+  }
+
+  /** 收起幽灵预览:被临时补杆的柱按真实连接还原 */
+  clearPreviewLinks(): void {
+    for (const fence of this.previewLinked) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+    this.previewLinked = [];
+  }
+
+  /**
+   * 把预览虚拟物(柱/门)当作已放置,给相邻已有柱补出朝向它的横杆;
+   * 落点变化后不再是邻居的柱按真实连接还原,连接未变化的柱跳过重建。
+   */
+  private applyPreviewLinks(virtualFences: ReadonlySet<string>, virtualGates: ReadonlySet<string>): void {
+    const candidates = new Set<Fence>();
+    const addAt = (x: number, z: number) => {
+      const fence = this.fences.get(FenceSystem.vertexKey(x, z));
+      if (fence) candidates.add(fence);
+    };
+    for (const key of virtualFences) {
+      const [x, z] = key.split(':').map(Number);
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) addAt(x + dx, z + dz);
+    }
+    for (const key of virtualGates) {
+      // 门带覆盖的三个顶点上的柱都可能朝门框伸杆
+      const [dir, sx, sz] = key.split(':');
+      const ux = dir === 'x' ? 1 : 0;
+      const uz = dir === 'z' ? 1 : 0;
+      for (const step of [0, 1, 2]) addAt(Number(sx) + ux * step, Number(sz) + uz * step);
+    }
+    const touched: Fence[] = [];
+    for (const fence of candidates) {
+      const real = this.connectionsOf(fence.gx, fence.gz);
+      const virtual = this.connsWith(fence.gx, fence.gz, virtualFences, virtualGates);
+      fence.rebuild(virtual);
+      if (!sameConns(real, virtual)) touched.push(fence);
+    }
+    for (const fence of this.previewLinked) {
+      if (!candidates.has(fence)) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+    }
+    this.previewLinked = touched;
   }
 
   /** 围栏门幽灵预览的朝向:与目标门带方向一致 */

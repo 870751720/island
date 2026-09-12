@@ -29,6 +29,8 @@ export interface FacilityDef {
   handModel?: () => THREE.Object3D;
   /** 预览落位后的自定义刷新(围栏按邻居显隐横杆、门按方向转向) */
   onPreview?: (preview: THREE.Object3D, actor: PlayerSession, x: number, z: number) => void;
+  /** 预览收起/切换道具时还原 onPreview 对世界做过的临时表现(如相邻围栏的预览补杆) */
+  onPreviewHide?: () => void;
   /** 权威放置(落格已由统一入口校验,只做入包扣除与实体生成) */
   place: (actor: PlayerSession, at: THREE.Vector3) => boolean;
   /** 零消耗设施(工具驱动,如锄头开土壤):不检查/不扣除背包,持有对应工具即可放 */
