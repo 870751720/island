@@ -36,12 +36,20 @@ function stonePost(): THREE.Group {
   return g;
 }
 
+/** 只释放几何体(材质可能为共享的幽灵材质,不释放) */
+export function disposeGeometries(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+  });
+}
+
 /**
  * 按连接方向拼横杆:每个方向两根(各覆盖半格,相邻柱合起来无缝),
  * 横杆命名 rail-px/nx/pz/nz(幽灵预览按邻居显隐用)。
  * 提供 overrideMat 时不投阴影,用于在真实围栏上叠加幽灵补杆。
  */
-function buildRails(kind: FenceKind, conns: FenceConnections, overrideMat?: THREE.MeshStandardMaterial): THREE.Group {
+export function buildRails(kind: FenceKind, conns: FenceConnections, overrideMat?: THREE.MeshStandardMaterial): THREE.Group {
   const g = new THREE.Group();
   const branch = kind === 'branch';
   const railMat = overrideMat ?? clayMaterial(branch ? '#b08a5a' : '#8f8f8f');
@@ -150,7 +158,7 @@ export class Fence {
   clearPreviewRails(): void {
     if (!this.previewRails) return;
     this.group.remove(this.previewRails);
-    disposeMesh(this.previewRails);
+    disposeGeometries(this.previewRails);
     this.previewRails = null;
   }
 

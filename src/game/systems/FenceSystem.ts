@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
-import { Fence, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { Fence, disposeGeometries, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { FenceGate, buildGateRails, type GateConns } from '../entities/FenceGate';
 import { PREVIEW_OK, previewGhostMaterial } from './Facilities';
-import { FenceGate } from '../entities/FenceGate';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -28,6 +28,20 @@ const SWING_TIME = 0.6;
 
 /** 幽灵预览连接判定的空虚拟集(无预览虚拟物时) */
 const NO_VIRTUAL: ReadonlySet<string> = new Set();
+/** 门幽灵预览端柱横杆的组名(挂在预览组上,随门带方向重建) */
+const GHOST_RAILS = 'gate-ghost-rails';
+/** 四方向全开的连接(门幽灵预览建模用,显隐交给落位刷新) */
+const ALL_CONNS: FenceConnections = { px: true, nx: true, pz: true, nz: true };
+
+/** b 相比 a 新增的连接方向 */
+function extraConns(a: FenceConnections, b: FenceConnections): FenceConnections {
+  return {
+    px: b.px && !a.px,
+    nx: b.nx && !a.nx,
+    pz: b.pz && !a.pz,
+    nz: b.nz && !a.nz,
+  };
+}
 
 /** 阻挡线段:XZ 平面上的有向线段(闭合围栏连接与关着的门) */
 type Segment = { ax: number; az: number; bx: number; bz: number };
@@ -208,17 +222,24 @@ export class FenceSystem implements ObstacleSolver {
     return this.connsWith(gx, gz);
   }
 
-  /** 重算某柱及其可能受影响的四邻的连接网格 */
+  /** 门带两端门框柱的对外连接 */
+  private gateConns(gate: FenceGate): GateConns {
+    return { start: this.connectionsOf(gate.gx, gate.gz), end: this.connectionsOf(gate.endX, gate.endZ) };
+  }
+
+  /** 重算某柱及其可能受影响的四邻的连接网格(围栏柱与门端柱) */
   private refreshAround(gx: number, gz: number): void {
-    for (const [dx, dz] of [
-      [0, 0],
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const fence = this.fences.get(FenceSystem.vertexKey(gx + dx, gz + dz));
+    const near = new Set(
+      [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dz]) => FenceSystem.vertexKey(gx + dx, gz + dz))
+    );
+    for (const key of near) {
+      const fence = this.fences.get(key);
       if (fence) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+    }
+    for (const gate of this.gates.values()) {
+      if (near.has(FenceSystem.vertexKey(gate.gx, gate.gz)) || near.has(FenceSystem.vertexKey(gate.endX, gate.endZ))) {
+        gate.rebuildRails(this.gateConns(gate));
+      }
     }
   }
 
@@ -381,18 +402,20 @@ export class FenceSystem implements ObstacleSolver {
     return true;
   }
 
-  /** 某条两格门带是否允许放门(不与现有门/中间柱重叠,两端是可站立的干地) */
+  /** 某条两格门带是否允许放门(不与现有门重叠、三个顶点上都没有围栏柱,两端是可站立的干地) */
   private edgeValid(gx: number, gz: number, dir: 'x' | 'z'): boolean {
     // 门带覆盖的两条单位边都不能已被别的门占据
     if (this.gateAt(gx, gz, dir) || this.gateAt(dir === 'x' ? gx + 1 : gx, dir === 'z' ? gz + 1 : gz, dir)) {
       return false;
     }
-    // 中间格点不能有围栏柱(会立在门框里)
-    const mx = dir === 'x' ? gx + 1 : gx;
-    const mz = dir === 'z' ? gz + 1 : gz;
-    if (this.fences.has(FenceSystem.vertexKey(mx, mz))) return false;
+    // 门带三个顶点都不能有围栏柱(两端会与门框立柱重叠,中间会立在门框里)
     const ex = dir === 'x' ? gx + 2 : gx;
     const ez = dir === 'z' ? gz + 2 : gz;
+    const mx = dir === 'x' ? gx + 1 : gx;
+    const mz = dir === 'z' ? gz + 1 : gz;
+    for (const [cx, cz] of [[gx, gz], [mx, mz], [ex, ez]]) {
+      if (this.fences.has(FenceSystem.vertexKey(cx, cz))) return false;
+    }
     for (const [cx, cz] of [
       [gx, gz],
       [ex, ez],
@@ -442,8 +465,8 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 统一安放的委托助手 ----
 
-  /** 被幽灵预览临时补过横杆的柱(落点变化或收起预览后移除补杆) */
-  private previewLinked: Fence[] = [];
+  /** 被幽灵预览临时补过横杆的柱/门(落点变化或收起预览后移除补杆) */
+  private previewLinked: (Fence | FenceGate)[] = [];
   /** 预览补杆的幽灵材质(与安放系统的可用色同款观感) */
   private previewRailMat = previewGhostMaterial(PREVIEW_OK);
 
@@ -460,48 +483,67 @@ export class FenceSystem implements ObstacleSolver {
     this.applyPreviewLinks(new Set([FenceSystem.vertexKey(gx, gz)]));
   }
 
-  /** 围栏门幽灵预览的连接加亮:门带两端门框立柱视作占位柱,相邻已有柱补出朝向它们的横杆 */
-  applyGateGhostLinks(actor: PlayerSession): void {
+  /** 围栏门幽灵预览的落位刷新:朝向、自身端柱横杆按实际邻居显隐,并给相邻已有柱/门端柱补杆 */
+  applyGateGhost(preview: THREE.Object3D, actor: PlayerSession): void {
     const t = this.gateTarget(actor);
+    let rails = preview.getObjectByName(GHOST_RAILS);
     if (!t) {
+      if (rails) {
+        preview.remove(rails);
+        disposeGeometries(rails);
+      }
       this.clearPreviewLinks();
       return;
     }
+    preview.rotation.y = t.dir === 'x' ? 0 : Math.PI / 2;
+    // 自身端柱横杆随门带方向重建(方向决定局部映射),再按实际邻居显隐
+    if (!rails || preview.userData.gateDir !== t.dir) {
+      if (rails) {
+        preview.remove(rails);
+        disposeGeometries(rails);
+      }
+      rails = buildGateRails(t.dir, { start: ALL_CONNS, end: ALL_CONNS }, this.previewRailMat);
+      rails.name = GHOST_RAILS;
+      preview.userData.gateDir = t.dir;
+      preview.add(rails);
+    }
     const ex = t.gx + (t.dir === 'x' ? 2 : 0);
     const ez = t.gz + (t.dir === 'z' ? 2 : 0);
+    const conns: GateConns = { start: this.connectionsOf(t.gx, t.gz), end: this.connectionsOf(ex, ez) };
+    for (const rail of ghostRailsOf(rails)) {
+      const tag = rail.name.slice('rail-'.length);
+      rail.visible = conns[tag[0] === 's' ? 'start' : 'end'][tag.slice(2) as keyof FenceConnections];
+    }
     this.applyPreviewLinks(new Set([FenceSystem.vertexKey(t.gx, t.gz), FenceSystem.vertexKey(ex, ez)]));
   }
 
-  /** 收起幽灵预览:移除相邻柱上的幽灵补杆 */
+  /** 收起幽灵预览:移除相邻柱/门上的幽灵补杆 */
   clearPreviewLinks(): void {
-    for (const fence of this.previewLinked) fence.clearPreviewRails();
+    for (const linked of this.previewLinked) linked.clearPreviewRails();
     this.previewLinked = [];
   }
 
   /**
-   * 把预览柱当作已放置,给相邻已有柱以幽灵材质叠加朝向它的补杆横杆;
+   * 把预览柱/门端柱当作已放置,给相邻已有围栏柱与门端柱以幽灵材质叠加朝向它的补杆横杆;
    * 真实网格不动,落点变化后不再是邻居或收起预览时移除补杆。
    */
   private applyPreviewLinks(virtualFences: ReadonlySet<string>): void {
-    const candidates = new Set<Fence>();
+    const fenceCandidates = new Set<Fence>();
+    const gateCandidates = new Set<FenceGate>();
     const addAt = (x: number, z: number) => {
       const fence = this.fences.get(FenceSystem.vertexKey(x, z));
-      if (fence) candidates.add(fence);
+      if (fence) fenceCandidates.add(fence);
+      for (const gate of this.gates.values()) {
+        if ((x === gate.gx && z === gate.gz) || (x === gate.endX && z === gate.endZ)) gateCandidates.add(gate);
+      }
     };
     for (const key of virtualFences) {
       const [x, z] = key.split(':').map(Number);
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) addAt(x + dx, z + dz);
     }
-    const showing: Fence[] = [];
-    for (const fence of candidates) {
-      const real = this.connectionsOf(fence.gx, fence.gz);
-      const virtual = this.connsWith(fence.gx, fence.gz, virtualFences);
-      const extra: FenceConnections = {
-        px: virtual.px && !real.px,
-        nx: virtual.nx && !real.nx,
-        pz: virtual.pz && !real.pz,
-        nz: virtual.nz && !real.nz,
-      };
+    const showing: (Fence | FenceGate)[] = [];
+    for (const fence of fenceCandidates) {
+      const extra = extraConns(this.connectionsOf(fence.gx, fence.gz), this.connsWith(fence.gx, fence.gz, virtualFences));
       if (extra.px || extra.nx || extra.pz || extra.nz) {
         fence.showPreviewRails(extra, this.previewRailMat);
         showing.push(fence);
@@ -509,16 +551,23 @@ export class FenceSystem implements ObstacleSolver {
         fence.clearPreviewRails();
       }
     }
-    for (const fence of this.previewLinked) {
-      if (!candidates.has(fence)) fence.clearPreviewRails();
+    for (const gate of gateCandidates) {
+      const extra: GateConns = {
+        start: extraConns(this.connectionsOf(gate.gx, gate.gz), this.connsWith(gate.gx, gate.gz, virtualFences)),
+        end: extraConns(this.connectionsOf(gate.endX, gate.endZ), this.connsWith(gate.endX, gate.endZ, virtualFences)),
+      };
+      const any = (c: FenceConnections) => c.px || c.nx || c.pz || c.nz;
+      if (any(extra.start) || any(extra.end)) {
+        gate.showPreviewRails(extra, this.previewRailMat);
+        showing.push(gate);
+      } else {
+        gate.clearPreviewRails();
+      }
+    }
+    for (const linked of this.previewLinked) {
+      if (!fenceCandidates.has(linked as Fence) && !gateCandidates.has(linked as FenceGate)) linked.clearPreviewRails();
     }
     this.previewLinked = showing;
-  }
-
-  /** 围栏门幽灵预览的朝向:与目标门带方向一致 */
-  gateGhostRotY(actor: PlayerSession): number {
-    const t = this.gateTarget(actor);
-    return t ? (t.dir === 'x' ? 0 : Math.PI / 2) : 0;
   }
 
   // ---- 挖除 ----
@@ -698,6 +747,7 @@ export class FenceSystem implements ObstacleSolver {
     for (const fence of this.fences.values()) {
       fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
     }
+    for (const gate of this.gates.values()) gate.rebuildRails(this.gateConns(gate));
     this.rebuildSegments();
   }
 
@@ -733,6 +783,7 @@ export class FenceSystem implements ObstacleSolver {
       this.gates.set(FenceSystem.edgeKey(value.x, value.z, value.dir), gate);
     }
     for (const fence of this.fences.values()) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+    for (const gate of this.gates.values()) gate.rebuildRails(this.gateConns(gate));
     this.rebuildSegments();
   }
 }

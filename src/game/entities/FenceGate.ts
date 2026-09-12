@@ -1,10 +1,46 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
-
+import { buildRails, disposeGeometries, type FenceConnections } from './Fence';
 
 /** 门扇打开的目标角度 */
 const OPEN_ANGLE = 1.35;
+
+/** 门带两端门框柱各自的对外连接 */
+export type GateConns = { start: FenceConnections; end: FenceConnections };
+
+/** 方向键重映射:门组绕 Y 转 90 度(dir='z')时,世界方向到门局部方向的对应 */
+const WORLD_TO_LOCAL: Record<'x' | 'z', Record<keyof FenceConnections, keyof FenceConnections>> = {
+  x: { px: 'px', nx: 'nx', pz: 'pz', nz: 'nz' },
+  z: { px: 'pz', nx: 'nz', pz: 'nx', nz: 'px' },
+};
+
+/**
+ * 门带两端门框柱的对外横杆(与围栏同规格,木色):
+ * 按各端四方向的世界连接拼装,坐标在门组局部空间,横杆命名 rail-s-<dir>/rail-e-<dir>(世界方向,幽灵预览显隐用)。
+ * 提供 overrideMat 时不投阴影,用于在真实门上叠加幽灵补杆。
+ */
+export function buildGateRails(dir: 'x' | 'z', conns: GateConns, overrideMat?: THREE.MeshStandardMaterial): THREE.Group {
+  const g = new THREE.Group();
+  const map = WORLD_TO_LOCAL[dir];
+  const localToWorld = {} as Record<keyof FenceConnections, keyof FenceConnections>;
+  for (const world of ['px', 'nx', 'pz', 'nz'] as const) localToWorld[map[world]] = world;
+  const startLocalX = dir === 'x' ? -1 : 1;
+  for (const [end, localX] of [['start', startLocalX], ['end', -startLocalX]] as const) {
+    const localConns = {} as FenceConnections;
+    for (const world of ['px', 'nx', 'pz', 'nz'] as const) {
+      localConns[map[world]] = conns[end][world];
+    }
+    const post = buildRails('branch', localConns, overrideMat);
+    post.position.x = localX;
+    post.traverse((o) => {
+      const local = o.name.slice('rail-'.length) as keyof FenceConnections | undefined;
+      if (o.name.startsWith('rail-') && local) o.name = `rail-${end}-${localToWorld[local]}`;
+    });
+    g.add(post);
+  }
+  return g;
+}
 
 /**
  * 场景中的围栏门:占两格宽的一条格点带(两端立柱、中间无柱,门扇对开),
@@ -15,6 +51,8 @@ export class FenceGate {
   readonly group: THREE.Group;
   private leafL: THREE.Object3D;
   private leafR: THREE.Object3D;
+  private rails: THREE.Group | null = null;
+  private previewRails: THREE.Group | null = null;
   private openTarget = false;
   private open = 0;
   /** 门扇摆向(门局部 +z 或 -z):由靠近的玩家站在门的哪一侧决定,总是背离玩家打开 */
@@ -92,6 +130,33 @@ export class FenceGate {
     return this.gz + (this.dir === 'z' ? 2 : 0);
   }
 
+  /** 两端门框柱的对外连接横杆(相邻柱/门端柱变化时重建) */
+  rebuildRails(conns: GateConns): void {
+    if (this.rails) {
+      this.group.remove(this.rails);
+      disposeGeometries(this.rails);
+    }
+    this.rails = buildGateRails(this.dir, conns);
+    this.group.add(this.rails);
+  }
+
+  /** 幽灵预览补杆:extra 为两端因预览物新增的连接方向,以幽灵材质叠加在真实横杆之上 */
+  showPreviewRails(extra: GateConns, mat: THREE.MeshStandardMaterial): void {
+    this.clearPreviewRails();
+    const any = (c: FenceConnections) => c.px || c.nx || c.pz || c.nz;
+    if (!any(extra.start) && !any(extra.end)) return;
+    this.previewRails = buildGateRails(this.dir, extra, mat);
+    this.group.add(this.previewRails);
+  }
+
+  /** 移除幽灵预览补杆 */
+  clearPreviewRails(): void {
+    if (!this.previewRails) return;
+    this.group.remove(this.previewRails);
+    disposeGeometries(this.previewRails);
+    this.previewRails = null;
+  }
+
   /** 玩家是否在门边(自动开门范围);side 为玩家相对门局部 +z/-z 侧,门向另一侧打开。
    *  开向只在门完全合上时判定一次:玩家穿门而过会让侧别翻转,若中途改摆向,开着的门会瞬移甚至扫过玩家。 */
   setPlayerNear(near: boolean, side: 1 | -1 = 1): void {
@@ -112,6 +177,8 @@ export class FenceGate {
   }
 
   remove(scene: THREE.Scene): void {
+    // 幽灵补杆用共享幽灵材质,先单独按几何体释放,避免误释放共享材质
+    this.clearPreviewRails();
     scene.remove(this.group);
     this.group.traverse((o) => {
       const mesh = o as THREE.Mesh;

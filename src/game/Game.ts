@@ -2622,10 +2622,7 @@ export class Game {
       },
       buildPreview: makeGateGhost,
       handModel: () => makeFenceGateHandModel(),
-      onPreview: (preview, a) => {
-        preview.rotation.y = this.fences.gateGhostRotY(a);
-        this.fences.applyGateGhostLinks(a);
-      },
+      onPreview: (preview, a) => this.fences.applyGateGhost(preview, a),
       onPreviewHide: () => this.fences.clearPreviewLinks(),
       place: (a) => this.fences.useGate(a),
       failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
