@@ -40,7 +40,7 @@ export const startScreenCss = `
 .menu-save-label>span:last-child{font-size:9px;color:#aec8be}
 .start-button{width:100%;min-height:70px;border:1px solid var(--action-border);border-radius:16px;background:var(--action-bg);box-shadow:0 5px 0 var(--action-shadow),0 12px 30px #051e2b40,inset 0 1px 0 #a9c7d4;display:flex;align-items:center;justify-content:space-between;padding:12px 21px;color:var(--action-text);text-align:left}
 .start-button strong{display:block;font-size:21px;letter-spacing:.12em}
-.start-button small{display:block;font-size:10px;font-weight:400;margin-top:5px;letter-spacing:.09em;color:#6f5739}
+.start-button small{display:block;font-size:10px;font-weight:400;margin-top:5px;letter-spacing:.09em;color:#e0edf4}
 .start-button>svg{width:28px;height:28px;transition:transform .3s}
 .start-button:active{box-shadow:0 2px 0 var(--action-shadow)}
 .start-mp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:19px}

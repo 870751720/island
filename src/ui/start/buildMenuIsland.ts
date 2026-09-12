@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { makeMatureParts } from '../../game/world/TreeModel';
-import { makeTentMesh } from '../../game/entities/TentModel';
 import { mergeClayMeshes } from '../../game/core/mergeClayMeshes';
 import type { TreeSpecies } from '../../game/world/TreeSpecies';
 
@@ -48,9 +47,9 @@ export function buildMenuIsland(world: THREE.Group): (time: number) => void {
 
   const trees: THREE.Group[] = [];
   const planting: [TreeSpecies, number, number, number][] = [
-    ['pine', -1.2, -1.1, 1.25], ['oak', -2, -0.25, 0.94],
-    ['pine', -0.15, -1.55, 1.15], ['oak', 1.05, -1.15, 1.02],
-    ['fruit', 1.95, -0.35, 0.9], ['pine', -2.1, -1, 0.72],
+    ['pine', -1.2, -1.1, 1.3], ['oak', -1.8, -0.15, 1.05],
+    ['pine', -0.15, -1.55, 1.15], ['oak', 0.7, -1.25, 0.82],
+    ['fruit', -0.6, -0.25, 0.78], ['pine', -2.1, -1, 0.72],
   ];
   planting.forEach(([species, x, z, scale]) => {
     const tree = new THREE.Group();
@@ -61,11 +60,20 @@ export function buildMenuIsland(world: THREE.Group): (time: number) => void {
     world.add(tree);
     trees.push(tree);
   });
-  const tent = makeTentMesh(1, true);
-  tent.scale.setScalar(0.5);
-  tent.position.set(0.2, height(0.2, 0.2), 0.2);
-  tent.rotation.y = -0.35;
-  world.add(tent);
+  // 岛心留出草地，右后方以层叠岩体平衡左侧树林。
+  for (let i = 0; i < 4; i++) {
+    const x = 1.1 + i * 0.28, z = -0.55 + (i % 2) * 0.24;
+    const rock = add(new THREE.DodecahedronGeometry(0.38 + (3 - i) * 0.09), '#92988a', x, height(x, z) + 0.14, z);
+    rock.scale.set(0.8, 1.15 - i * 0.14, 0.85);
+    rock.rotation.set(0.1, i * 0.7, 0.15);
+  }
+  for (let i = 0; i < 12; i++) {
+    const angle = i * 2.4;
+    const x = Math.cos(angle) * (0.65 + (i % 3) * 0.42);
+    const z = Math.sin(angle) * 0.75;
+    const tuft = add(new THREE.ConeGeometry(0.07, 0.2, 4), '#729f50', x, height(x, z) + 0.08, z);
+    tuft.rotation.z = Math.sin(i) * 0.25;
+  }
   for (let i = 0; i < 9; i++) {
     const x = -2.25 + (i % 3) * 0.28 + (i > 5 ? 4.2 : 0);
     const z = 0.55 + Math.floor(i / 3) * 0.25;
