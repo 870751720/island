@@ -51,12 +51,6 @@ export class PondMaterial {
               smoothstep(0.04, 0.75, d));
             water = mix(water, vec3(0.025, 0.21, 0.25), smoothstep(0.65, 1.6, d));
             water *= 1.0 + wave * 0.025 + crossWave * 0.018;
-            float detail = 1.0 - smoothstep(0.25, 0.85, length(fwidth(p)));
-            float lattice = sin(p.x * 2.8 + crossWave * 0.6 + uPondTime * 0.3)
-              * sin(p.y * 2.5 + wave * 0.6 - uPondTime * 0.24);
-            float light = smoothstep(0.65, 0.95, lattice) * detail
-              * smoothstep(0.04, 0.18, d) * (1.0 - smoothstep(0.65, 1.3, d));
-            water += vec3(0.10, 0.15, 0.10) * light;
             diffuseColor.rgb = water;
             diffuseColor.a *= smoothstep(0.0, 0.12, d)
               * mix(0.32, 0.82, smoothstep(0.06, 1.2, d));

@@ -3330,6 +3330,8 @@ export class Game {
     this.seaThreat.dispose();
     this.ocean.dispose();
     this.terrain.disposeWater();
+    this.pondLife.dispose();
+    this.waterFx.dispose();
     this.oceanDepth.dispose();
     this.pickupPresentation.dispose();
     this.audio.dispose();

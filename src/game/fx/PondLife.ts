@@ -1,12 +1,6 @@
 import * as THREE from 'three';
 import type { IslandTerrain, WaterArea } from '../world/IslandTerrain';
 
-interface Bubble {
-  mesh: THREE.Mesh;
-  pond: WaterArea;
-  speed: number;
-}
-
 interface Fish {
   group: THREE.Group;
   body: THREE.Mesh;
@@ -18,7 +12,6 @@ interface Fish {
   bobPhase: number;
 }
 
-const BUBBLE_GEOMETRY = new THREE.IcosahedronGeometry(0.05, 0);
 const FISH_GEOMETRY = new THREE.CircleGeometry(0.22, 8);
 
 /** 局部坐标(洼心为原点、已按洼朝向旋转)转世界坐标 */
@@ -28,20 +21,10 @@ function toWorld(pond: WaterArea, lx: number, lz: number): [number, number] {
   return [pond.x + lx * ca - lz * sa, pond.z + lx * sa + lz * ca];
 }
 
-/** 水洼环境生物:水面下的小鱼影子与偶尔升起的水底泡泡;
+/** 水洼环境生物:水面下游动的小鱼影子;
  *  位置都按水洼真实边界(椭圆 + 角向起伏)取点,贴合不规则形状 */
 export class PondLife {
-  private bubbles: Bubble[] = [];
   private fishes: Fish[] = [];
-  private ponds: WaterArea[] = [];
-  /** 每个水洼独立的冒泡计时器 */
-  private bubbleTimers: number[] = [];
-  private readonly bubbleMaterial = new THREE.MeshBasicMaterial({
-    color: '#eaf7ff',
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-  });
   private readonly fishMaterial = new THREE.MeshBasicMaterial({
     color: '#1e3440',
     transparent: true,
@@ -59,8 +42,6 @@ export class PondLife {
       for (let i = 0; i < count; i++) {
         this.fishes.push(this.createFish(pond, i));
       }
-      this.ponds.push(pond);
-      this.bubbleTimers.push(Math.random() * 6);
     }
   }
 
@@ -88,42 +69,7 @@ export class PondLife {
   }
 
   update(delta: number, elapsed: number): void {
-    this.updateBubbles(delta);
     this.updateFishes(delta, elapsed);
-  }
-
-  /** 每个水洼各自每 2~6 秒在底部冒一小串泡泡,浮到水面即消散 */
-  private updateBubbles(delta: number): void {
-    for (let p = 0; p < this.ponds.length; p++) {
-      this.bubbleTimers[p] -= delta;
-      if (this.bubbleTimers[p] > 0) continue;
-      this.bubbleTimers[p] = 2 + Math.random() * 4;
-      const pond = this.ponds[p];
-      for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
-        const mesh = new THREE.Mesh(BUBBLE_GEOMETRY, this.bubbleMaterial.clone());
-        const a = Math.random() * Math.PI * 2;
-        const r = Math.random() * 0.6 * this.terrain.pondEdgeRadius(pond, a);
-        const [x, z] = toWorld(pond, Math.cos(a) * r, Math.sin(a) * r);
-        mesh.position.set(x, pond.waterY - 0.8 - Math.random() * 0.4, z);
-        mesh.scale.setScalar(0.5 + Math.random() * 0.7);
-        this.scene.add(mesh);
-        this.bubbles.push({ mesh, pond, speed: 0.25 + Math.random() * 0.15 });
-      }
-    }
-
-    for (let i = this.bubbles.length - 1; i >= 0; i--) {
-      const b = this.bubbles[i];
-      b.mesh.position.y += b.speed * delta;
-      // 轻微左右漂移,模拟水下扰动
-      b.mesh.position.x += Math.sin(b.mesh.position.y * 12) * 0.1 * delta;
-      const t = THREE.MathUtils.clamp((b.mesh.position.y - (b.pond.waterY - 1)) / 1, 0, 1);
-      (b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.5 * Math.min(1, t * 3) * (1 - Math.max(0, t - 0.85) / 0.15);
-      if (b.mesh.position.y >= b.pond.waterY - 0.05) {
-        this.scene.remove(b.mesh);
-        (b.mesh.material as THREE.Material).dispose();
-        this.bubbles.splice(i, 1);
-      }
-    }
   }
 
   private updateFishes(delta: number, elapsed: number): void {
@@ -145,12 +91,7 @@ export class PondLife {
   }
 
   dispose(): void {
-    for (const b of this.bubbles) {
-      this.scene.remove(b.mesh);
-      (b.mesh.material as THREE.Material).dispose();
-    }
     for (const f of this.fishes) this.scene.remove(f.group);
-    this.bubbleMaterial.dispose();
     this.fishMaterial.dispose();
   }
 }

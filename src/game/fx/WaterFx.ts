@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createRippleMaterial } from './RippleMaterial';
 
 interface Ripple {
   mesh: THREE.Mesh;
@@ -7,9 +8,10 @@ interface Ripple {
 
 const RIPPLE_LIFETIME = 1.2;
 const RIPPLE_MAX_SCALE = 1.6;
-const RIPPLE_GEOMETRY = new THREE.RingGeometry(0.86, 1, 20);
+const RIPPLE_GEOMETRY = new THREE.PlaneGeometry(2, 2);
+const MAX_RIPPLES = 64;
 
-/** 水面交互特效:入水水花与游泳时扩散的涟漪圈 */
+/** 水面交互特效:入水水花与扩散消散的细弧波纹 */
 export class WaterFx {
   private ripples: Ripple[] = [];
   private rippleTimer = 0;
@@ -19,18 +21,16 @@ export class WaterFx {
     private particles: { burst: (position: THREE.Vector3, color: string, count?: number) => void }
   ) {}
 
-  /** 在水面位置泛一圈涟漪 */
+  /** 在水面位置泛起两道断续细波 */
   ripple(x: number, y: number, z: number): void {
+    if (this.ripples.length >= MAX_RIPPLES) return;
     const mesh = new THREE.Mesh(
       RIPPLE_GEOMETRY,
-      new THREE.MeshBasicMaterial({
-        color: '#eaf7ff',
-        transparent: true,
-        opacity: 0.55,
-        depthWrite: false,
-      })
+      createRippleMaterial()
     );
     mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = Math.random() * Math.PI * 2;
+    mesh.scale.set(0.25, 0.22, 1);
     mesh.position.set(x, y + 0.03, z);
     // 涟漪必须画在海面之后:透明物体按距离排序,顺序会随镜头方向翻转导致涟漪被海面盖住
     mesh.renderOrder = 1;
@@ -64,9 +64,18 @@ export class WaterFx {
         continue;
       }
       const t = 1 - r.life / RIPPLE_LIFETIME;
-      const s = 0.25 + t * RIPPLE_MAX_SCALE;
-      r.mesh.scale.setScalar(s);
-      (r.mesh.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - t);
+      const s = 0.25 + (1 - (1 - t) * (1 - t)) * RIPPLE_MAX_SCALE;
+      r.mesh.scale.set(s, s * 0.88, 1);
+      (r.mesh.material as THREE.MeshBasicMaterial).opacity =
+        0.38 * THREE.MathUtils.smoothstep(t, 0, 0.12) * (1 - t) * (1 - t);
     }
+  }
+
+  dispose(): void {
+    for (const ripple of this.ripples) {
+      this.scene.remove(ripple.mesh);
+      (ripple.mesh.material as THREE.Material).dispose();
+    }
+    this.ripples.length = 0;
   }
 }
