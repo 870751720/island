@@ -4,23 +4,8 @@ import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
-import { HoeIcon } from './icons/CustomIcons';
+import { ItemIcon, ToolIcon } from './ItemIcon';
 import { useRef } from 'react';
-
-export const TOOL_ICONS: Record<HandTool, string> = {
-  hand: '✋',
-  axe: '🪓',
-  pickaxe: '⛏️',
-  shovel: '🥄',
-  hoe: '🌱',
-  fishingrod: '🎣',
-  bow: '🏹',
-  sword: '🗡️',
-  lasso: '🪢',
-  fence: '🚧',
-  fenceGate: '🪵',
-  place: '📦',
-};
 
 /** 普通工具的显示名(手持选择面板用;手持道具类名称走 ITEMS) */
 export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
@@ -276,14 +261,10 @@ export function ToolButton({
                     ? '📍'
                     : untie
                       ? '🔓'
-                      // 土壤是工具驱动的零消耗设施:持锄头时图标跟工具走,不落入道具/📦 分支
-                      : tool === 'hoe'
-                        ? <HoeIcon size={30} />
-                        : placeKind
-                          ? placeKind in ITEMS
-                            ? ITEMS[placeKind as ResourceKind].icon
-                            : '📦'
-                          : TOOL_ICONS[tool]}
+                      // 土壤是工具驱动的零消耗设施:持锄头时图标跟工具走,不落入道具分支
+                      : placeKind && placeKind in ITEMS
+                        ? <ItemIcon kind={placeKind as ResourceKind} size={30} />
+                        : <ToolIcon tool={tool} size={30} />}
       {!workbench &&
         !campfire &&
         !crate &&

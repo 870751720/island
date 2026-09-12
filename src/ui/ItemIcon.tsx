@@ -1,10 +1,27 @@
 'use client';
 
+import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { CUSTOM_ICONS } from './icons/CustomIcons';
+
+/** 非道具型手持项的回退 emoji(有对应道具的工具一律走 ItemIcon,与背包图标保持一致) */
+const TOOL_FALLBACK_ICONS: Partial<Record<HandTool, string>> = {
+  hand: '✋',
+  fence: '🚧',
+  place: '📦',
+};
+
+/** 手持工具图标:有对应道具的走 ItemIcon(自绘/emoji 与背包一致),其余用回退 emoji */
+export function ToolIcon({ tool, size = 24 }: { tool: HandTool; size?: number }) {
+  return tool in ITEMS ? (
+    <ItemIcon kind={tool as ResourceKind} size={size} />
+  ) : (
+    <span style={{ fontSize: Math.round(size * 0.92), lineHeight: 1 }}>{TOOL_FALLBACK_ICONS[tool] ?? '📦'}</span>
+  );
+}
 
 /**
  * 道具图标的统一渲染入口:

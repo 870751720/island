@@ -337,13 +337,13 @@ const IronOreIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 铁锭:梯形亮锭 + 金属光泽星 */
+/** 铁锭:经典梯形锭,顶面亮、侧面暗 */
 const IronIngotIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <polygon points="16,42 48,42 43,26 21,26" fill="#aab4bc" />
-    <polygon points="21,26 43,26 41.6,23 22.4,23" fill="#c7d0d7" />
-    <path d="M14 12 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z" fill="#f2d27a" />
-    <path d="M50 12 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4 Z" fill="#f2d27a" opacity={0.7} />
+    <polygon points="14,42 50,42 44,24 20,24" fill="#aab4bc" />
+    <polygon points="20,24 44,24 42,20 22,20" fill="#c7d0d7" />
+    <polygon points="50,42 44,24 42,20 46,26 51,43" fill="#7d8790" />
+    <rect x={24} y={30} width={14} height={3} rx={1.5} fill="#e7edf1" opacity={0.8} />
   </Svg>
 );
 
@@ -356,18 +356,14 @@ const WormIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 冒险家的经验书:摊开的书页 + 知识星光 */
+/** 冒险家的经验书:蓝皮书 + 斜插的羽毛笔 */
 const AdventureBookIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
-    <path d="M8 22 Q20 18 32 24 Q44 18 56 22 L56 48 Q44 44 32 50 Q20 44 8 48 Z" fill="#f5ecd8" />
-    <path d="M32 24 L32 50" stroke="#d8cdb2" strokeWidth={2} />
-    <g stroke="#b9ad90" strokeWidth={2} strokeLinecap="round">
-      <path d="M14 28 q8 -2 14 1 M14 34 q8 -2 14 1 M36 29 q8 -3 14 -1 M36 35 q8 -3 14 -1" />
-    </g>
-    <path
-      d="M20 8 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z M46 6 l1.3 3.2 3.2 1.3 -3.2 1.3 -1.3 3.2 -1.3 -3.2 -3.2 -1.3 3.2 -1.3 Z"
-      fill="#f2d27a"
-    />
+    <rect x={12} y={18} width={34} height={38} rx={3} fill="#4a6f9c" />
+    <rect x={12} y={18} width={5} height={38} fill="#38567c" />
+    <path d="M50 10 q10 2 8 14 l-6 26 -6 -2 Z" fill="#f5ecd8" />
+    <path d="M50 10 q10 2 8 14" fill="none" stroke="#c9bfa5" strokeWidth={1.5} />
+    <path d="M52 14 L44 46" stroke="#b9ad90" strokeWidth={1.5} />
   </Svg>
 );
 

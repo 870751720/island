@@ -1,12 +1,12 @@
 'use client';
 
-import { HoeIcon } from './icons/CustomIcons';
+import type { ReactNode } from 'react';
 
 /** 手持项选择面板:长按工具按钮弹出,平铺展示所有可切换的手持项(普通工具 + 可放置道具,图标+名称+数量角标),
  * 当前手持高亮;点选直接切入,点面板外任意处关闭 */
 export interface PickerItem {
   key: string;
-  icon: string;
+  icon: ReactNode;
   name: string;
   /** 可放置道具的剩余个数(普通工具无) */
   count?: number;
@@ -76,7 +76,7 @@ export function PlacePicker<T extends PickerItem>({
               userSelect: 'none',
             }}
           >
-            {item.key === 'hoe' ? <HoeIcon size={26} /> : item.icon}
+            {item.icon}
             <span
               style={{
                 display: 'block',
