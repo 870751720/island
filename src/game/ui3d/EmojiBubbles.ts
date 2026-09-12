@@ -31,8 +31,12 @@ function emojiTexture(glyph: string): THREE.Texture {
   ctx.shadowColor = 'transparent';
   ctx.font = '76px sans-serif';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(glyph, 80, 72);
+  ctx.textBaseline = 'alphabetic';
+  // 各平台 emoji 字体度量不一,按字形实际墨迹包围盒精确居中到药丸中心 (80, 64)
+  const m = ctx.measureText(glyph);
+  const inkX = 80 - ((m.actualBoundingBoxRight ?? 0) - (m.actualBoundingBoxLeft ?? 0)) / 2;
+  const inkY = 64 + ((m.actualBoundingBoxAscent ?? 0) - (m.actualBoundingBoxDescent ?? 0)) / 2;
+  ctx.fillText(glyph, inkX, inkY);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   textures.set(glyph, texture);
