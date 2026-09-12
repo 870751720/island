@@ -39,6 +39,7 @@ import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
 import { useFacilityPanels } from './useFacilityPanels';
 import { createPlacePickerItems } from './placePickerItems';
+import { EMOJIS } from '@/game/social/Emojis';
 import { getPromptVisibility } from './promptVisibility';
 import { useGameLifecycle } from './useGameLifecycle';
 import { useMapSnapshot } from './useMapSnapshot';
@@ -447,6 +448,11 @@ export function GameplayUI({
           {placePickerOpen && (
             <PlacePicker
               items={createPlacePickerItems(hud)}
+              emojis={EMOJIS}
+              onPickEmoji={(glyph) => {
+                gameRef.current?.playEmoji(glyph);
+                setPlacePickerOpen(false);
+              }}
               onPick={(entry) => {
                 if (entry.tool) gameRef.current?.selectTool(entry.tool);
                 else if (entry.kind) gameRef.current?.pickPlaceItem(entry.kind);

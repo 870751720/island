@@ -135,6 +135,11 @@ const ACTIONS: NetActionRegistry = {
     g.gmApplyNetConfig(config);
     return true;
   },
+  // 客人发表情:房主在该客人头顶补播气泡并转发给其他玩家(无状态,纯表现广播)
+  playEmoji: (g, a, [glyph]) => {
+    g.netPlayEmoji(a, glyph);
+    return true;
+  },
 };
 
 /** 参数已通过 ActionProtocol 校验后，在这一处完成不可信数组到类型化元组的转换。 */

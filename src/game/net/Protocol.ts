@@ -9,7 +9,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 25;
+export const NET_PROTOCOL_VERSION = 26;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -111,7 +111,9 @@ export type NetEvent =
   | { kind: 'bottle'; target: string; text: string }
   | { kind: 'notice'; target: string; text: string }
   /** 全局系统提示(加入/离开/死亡),广播给所有玩家 */
-  | { kind: 'sysNotice'; text: string };
+  | { kind: 'sysNotice'; text: string }
+  /** 玩家发表情的视觉广播:他人端在该玩家头顶冒出表情气泡 3 秒(本人已本地播放) */
+  | { kind: 'emoji'; actor: string; glyph: string };
 
 /** 联机消息(客人→房主:hello/input/action;房主→客人:welcome/start/players/animals/world/hud) */
 export type NetMsg =

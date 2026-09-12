@@ -84,6 +84,8 @@ import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
+import { EmojiBubbles } from './ui3d/EmojiBubbles';
+import { EMOJI_GLYPHS } from './social/Emojis';
 import { DEFAULT_CAPACITY, Inventory, type ResourceKind } from './systems/Inventory';
 import { EQUIPMENT, Equipment, SLOT_ORDER, type EquipKind, type EquipSlot } from './systems/Equipment';
 import { SaveSystem, SAVE_VERSION, type SaveData, type SessionSave } from './systems/SaveSystem';
@@ -265,6 +267,7 @@ export class Game {
   private dog: Pomeranian;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
+  private readonly emojiBubbles: EmojiBubbles;
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number, color?: string) => void;
@@ -569,6 +572,7 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z)
     );
     this.indicator = new PlayerIndicator(this.camera, this.scene);
+    this.emojiBubbles = new EmojiBubbles(this.scene);
 
     // Q 键作为桌面端补充的工具切换
     window.addEventListener('keydown', this.onKeyDown);
@@ -1114,6 +1118,7 @@ export class Game {
           meteorActive: this.meteor.active,
         });
         this.updateIndicator(simDelta);
+        this.emojiBubbles.update(simDelta);
         this.updateLeashLines();
         this.updateCamera(delta);
         this.ocean.update(this.camera, elapsed);
@@ -1525,6 +1530,13 @@ export class Game {
       this.sessions.find((s) => s.id === event.actor)?.lasso.netPlayCatch();
       return;
     }
+    // 他人发表情:头顶气泡补播 3 秒(本人那份发出时已本地播放)
+    if (event.kind === 'emoji') {
+      if (event.actor === this.local.id) return;
+      const s = this.sessions.find((x) => x.id === event.actor);
+      if (s) this.emojiBubbles.show(s.player.group, event.glyph);
+      return;
+    }
     // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
     if (event.kind === 'reviveFx') {
       const s = this.sessions.find((x) => x.id === event.target);
@@ -1606,6 +1618,12 @@ export class Game {
     actor.shotAnimLeft = 0.35;
     actor.lasso.netPlayThrow(dx, dz);
     this.hostRef?.broadcastEvent({ kind: 'lassoThrown', actor: actor.id, dx, dz });
+  }
+
+  /** 房主收到客人发表情:在该客人头顶补播气泡并转发给其他玩家(无状态,纯表现广播) */
+  netPlayEmoji(actor: PlayerSession, glyph: string): void {
+    this.emojiBubbles.show(actor.player.group, glyph);
+    this.hostRef?.broadcastEvent({ kind: 'emoji', actor: actor.id, glyph });
   }
 
   /** 牵着羊点工具按钮:在脚下打一根木桩,把羊拴在桩上(客人端上行动作由房主结算) */
@@ -2010,6 +2028,14 @@ export class Game {
   selectTool(tool: HandTool, placeKind?: ResourceKind): void {
     this.setToolFor(this.local, tool, placeKind);
     this.guestNet?.action('tool', [tool, placeKind ?? null]);
+  }
+
+  /** 发一个快捷表情:头顶气泡 3 秒;客人本地立即播放并上行,单机/房主本地播放并广播给其他玩家 */
+  playEmoji(glyph: string): void {
+    if (!EMOJI_GLYPHS.has(glyph)) return;
+    this.emojiBubbles.show(this.local.player.group, glyph);
+    if (this.guestNet) this.guestNet.action('playEmoji', [glyph]);
+    else this.hostRef?.broadcastEvent({ kind: 'emoji', actor: this.local.id, glyph });
   }
 
   /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走;

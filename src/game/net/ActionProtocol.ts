@@ -7,6 +7,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { ResourceKind } from '../systems/Inventory';
 import { isCraftId } from '../systems/Crafting';
 import { isResourceKind } from '../systems/Items';
+import { EMOJI_GLYPHS } from '../social/Emojis';
 
 /** 客人上行的动作名与参数元组；保持现有线格式，仅为发送端和注册表提供静态约束。 */
 export interface NetActionArgs {
@@ -67,6 +68,7 @@ export interface NetActionArgs {
   gmSetDay: [day: number];
   gmSetWeather: [weather: 'sunny' | 'wind' | 'rain' | 'snow'];
   gmConfig: [config: GmConfig];
+  playEmoji: [glyph: string];
 }
 
 export type NetActionName = keyof NetActionArgs;
@@ -130,6 +132,7 @@ const NET_ACTION_ARG_COUNTS = {
   gmSetDay: [1],
   gmSetWeather: [1],
   gmConfig: [1],
+  playEmoji: [1],
 } as const satisfies Record<NetActionName, readonly number[]>;
 
 const HAND_TOOLS: ReadonlySet<string> = new Set([
@@ -235,5 +238,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return first === 'sunny' || first === 'wind' || first === 'rain' || first === 'snow';
     case 'gmConfig':
       return typeof first === 'object' && first !== null && !Array.isArray(first);
+    case 'playEmoji':
+      return isString(first) && EMOJI_GLYPHS.has(first);
   }
 }
