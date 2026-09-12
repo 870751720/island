@@ -79,6 +79,7 @@ import { Rain } from './fx/Rain';
 import { RainImpact } from './fx/RainImpact';
 import { Snow } from './fx/Snow';
 import { Wind } from './fx/Wind';
+import { particleScale } from './fx/ParticleScale';
 import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
@@ -896,6 +897,8 @@ export class Game {
     this.rainImpact = new RainImpact(terrain, this.waterFx, this.fx);
     this.windFx = new Wind();
     this.scene.add(this.windFx.mesh);
+    // 首次 resize 早于天气效果创建,这里按当前屏幕补一次粒子密度
+    this.applyParticleScale();
 
     this.loop.add({
       update: (delta, elapsed) => {
@@ -1965,6 +1968,16 @@ export class Game {
       this.camera.bottom = -VIEW_SIZE;
       this.camera.updateProjectionMatrix();
     }
+    this.applyParticleScale();
+  }
+
+  /** 天气粒子密度随屏幕宽高比缩放:竖屏维持基准,宽屏加密到与竖屏一致的屏幕密度 */
+  private applyParticleScale(): void {
+    const scale = particleScale((this.container.clientWidth || 1) / (this.container.clientHeight || 1));
+    this.rain?.setViewportScale(scale);
+    this.rainImpact?.setViewportScale(scale);
+    this.snow?.setViewportScale(scale);
+    this.windFx?.setViewportScale(scale);
   }
 
   /** 地上生物的不可走判定:围栏与所有会挡玩家的物件(成树/树桩/大石) */
