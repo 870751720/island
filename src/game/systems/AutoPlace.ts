@@ -4,15 +4,12 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { ResourceKind } from './Inventory';
 import { ActionHold } from './ActionHold';
 import { cardinalRotY } from '../core/Facing';
-import type { FacilityDef, FacilityKind, FacilityTool } from './Facilities';
+import { PREVIEW_OK, PREVIEW_BAD, previewGhostMaterial, type FacilityDef, type FacilityKind, type FacilityTool } from './Facilities';
 
 /** 安放网格与围栏共用同一整数格网(FENCE_GRID=1),落点取玩家面前一格吸附后的格中心 */
 const PLACE_AHEAD = 0.9;
 /** 手持设施站定自动放置的时长(秒,围栏门等可按定义覆盖) */
 const AUTO_PLACE_TIME = 2;
-/** 预览可用/不可用提示色 */
-const PREVIEW_OK = '#7fd67f';
-const PREVIEW_BAD = '#e06666';
 
 /** 玩家面前目标点吸附到最近整数格中心 */
 export function snapAheadCell(actor: PlayerSession): { x: number; z: number } {
@@ -59,8 +56,8 @@ type SessionState = {
 export class AutoPlaceSystem {
   private defs = new Map<FacilityKind, FacilityDef>();
   private states = new Map<PlayerSession, SessionState>();
-  private okMat = ghostMaterial(PREVIEW_OK);
-  private badMat = ghostMaterial(PREVIEW_BAD);
+  private okMat = previewGhostMaterial(PREVIEW_OK);
+  private badMat = previewGhostMaterial(PREVIEW_BAD);
 
   constructor(
     private scene: THREE.Scene,
@@ -297,18 +294,4 @@ export function miniHeldModel(obj: THREE.Object3D): THREE.Object3D {
   const center = box.getCenter(new THREE.Vector3()).multiplyScalar(scale);
   obj.position.set(-center.x, -center.y, -center.z);
   return obj;
-}
-
-/** 半透明黏土幽灵材质(可用/不可用两种,改色即整体变色) */
-function ghostMaterial(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: 0.55,
-    transparent: true,
-    opacity: 0.7,
-    flatShading: true,
-    roughness: 1,
-    depthWrite: false,
-  });
 }

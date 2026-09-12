@@ -37,18 +37,16 @@ function stonePost(): THREE.Group {
 }
 
 /**
- * 按连接方向拼装围栏网格:每个方向伸出两根横杆(各覆盖半格,相邻柱合起来无缝),
- * 连接变化时整体重建。
- * nameRails 为真时不合并网格,并把横杆命名 rail-px/nx/pz/nz(幽灵预览按邻居显隐用)。
+ * 按连接方向拼横杆:每个方向两根(各覆盖半格,相邻柱合起来无缝),
+ * 横杆命名 rail-px/nx/pz/nz(幽灵预览按邻居显隐用)。
+ * 提供 overrideMat 时不投阴影,用于在真实围栏上叠加幽灵补杆。
  */
-function buildFenceMesh(kind: FenceKind, conns: FenceConnections, nameRails = false): THREE.Group {
+function buildRails(kind: FenceKind, conns: FenceConnections, overrideMat?: THREE.MeshStandardMaterial): THREE.Group {
   const g = new THREE.Group();
   const branch = kind === 'branch';
-  g.add(branch ? woodPost(clayMaterial('#a97b48')) : stonePost());
-
-  const railMat = clayMaterial(branch ? '#b08a5a' : '#8f8f8f');
+  const railMat = overrideMat ?? clayMaterial(branch ? '#b08a5a' : '#8f8f8f');
   const railLen = 0.46;
-  const makeRail = (alongX: boolean, y: number): THREE.Mesh => {
+  const makeRail = (alongX: boolean, y: number, name: string): THREE.Mesh => {
     const rail = new THREE.Mesh(
       new THREE.BoxGeometry(
         alongX ? railLen : branch ? 0.05 : 0.1,
@@ -58,42 +56,43 @@ function buildFenceMesh(kind: FenceKind, conns: FenceConnections, nameRails = fa
       railMat
     );
     rail.position.y = y;
-    rail.castShadow = true;
+    rail.castShadow = !overrideMat;
+    rail.name = name;
     return rail;
   };
+  const railDirs: [keyof FenceConnections, boolean, number][] = [
+    ['px', true, 0.27],
+    ['nx', true, -0.27],
+    ['pz', false, 0.27],
+    ['nz', false, -0.27],
+  ];
   for (const y of branch ? [0.3, 0.6] : [0.24, 0.56]) {
-    if (conns.px) {
-      const r = makeRail(true, y);
-      r.position.x = 0.27;
-      if (nameRails) r.name = 'rail-px';
-      g.add(r);
-    }
-    if (conns.nx) {
-      const r = makeRail(true, y);
-      r.position.x = -0.27;
-      if (nameRails) r.name = 'rail-nx';
-      g.add(r);
-    }
-    if (conns.pz) {
-      const r = makeRail(false, y);
-      r.position.z = 0.27;
-      if (nameRails) r.name = 'rail-pz';
-      g.add(r);
-    }
-    if (conns.nz) {
-      const r = makeRail(false, y);
-      r.position.z = -0.27;
-      if (nameRails) r.name = 'rail-nz';
-      g.add(r);
+    for (const [dir, alongX, offset] of railDirs) {
+      if (!conns[dir]) continue;
+      const rail = makeRail(alongX, y, `rail-${dir}`);
+      if (alongX) rail.position.x = offset;
+      else rail.position.z = offset;
+      g.add(rail);
     }
   }
-  if (!nameRails) mergeClayMeshes(g);
+  return g;
+}
+
+/** 按连接方向拼装围栏网格(柱 + 横杆),连接变化时整体重建 */
+function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
+  const g = new THREE.Group();
+  g.add(kind === 'branch' ? woodPost(clayMaterial('#a97b48')) : stonePost());
+  g.add(buildRails(kind, conns));
+  mergeClayMeshes(g);
   return g;
 }
 
 /** 围栏幽灵预览建模:与实物同款几何(区分木/石),四方向横杆全显并命名 rail-<dir>,由安放系统按邻居显隐 */
 export function makeFencePreview(kind: FenceKind): THREE.Group {
-  return buildFenceMesh(kind, { px: true, nx: true, pz: true, nz: true }, true);
+  const g = new THREE.Group();
+  g.add(kind === 'branch' ? woodPost(clayMaterial('#a97b48')) : stonePost());
+  g.add(buildRails(kind, { px: true, nx: true, pz: true, nz: true }));
+  return g;
 }
 
 /** 释放网格资源(重建与挖除时调用) */
@@ -112,6 +111,7 @@ export class Fence {
   readonly group: THREE.Group;
   private mesh: THREE.Group;
   private conns: FenceConnections;
+  private previewRails: THREE.Group | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -128,11 +128,6 @@ export class Fence {
     scene.add(this.group);
   }
 
-  /** 当前已生效的连接(幽灵预览临时补杆也会改写这里,用于跳过无变化重建) */
-  get currentConns(): FenceConnections {
-    return this.conns;
-  }
-
   /** 连接变化时重建网格(换横杆);无变化时不重建 */
   rebuild(conns: FenceConnections): void {
     if (sameConns(conns, this.conns)) return;
@@ -143,8 +138,25 @@ export class Fence {
     this.group.add(this.mesh);
   }
 
+  /** 幽灵预览补杆:extra 为因预览物新增的连接方向,以幽灵材质叠加在真实横杆之上 */
+  showPreviewRails(extra: FenceConnections, mat: THREE.MeshStandardMaterial): void {
+    this.clearPreviewRails();
+    if (!extra.px && !extra.nx && !extra.pz && !extra.nz) return;
+    this.previewRails = buildRails(this.kind, extra, mat);
+    this.group.add(this.previewRails);
+  }
+
+  /** 移除幽灵预览补杆 */
+  clearPreviewRails(): void {
+    if (!this.previewRails) return;
+    this.group.remove(this.previewRails);
+    disposeMesh(this.previewRails);
+    this.previewRails = null;
+  }
+
   /** 从场景移除并释放资源 */
   remove(scene: THREE.Scene): void {
+    this.clearPreviewRails();
     scene.remove(this.group);
     disposeMesh(this.mesh);
   }

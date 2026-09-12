@@ -9,6 +9,24 @@ import type { ResourceKind } from './Inventory';
 /** 设施手持时对应的工具位(工具循环/按钮分组);hoe 为工具驱动:手持锄头即触发,不占背包道具 */
 export type FacilityTool = 'place' | 'fence' | 'fenceGate' | 'hoe';
 
+/** 落点预览可用/不可用提示色(安放系统幽灵模型与围栏预览补杆共用同一观感) */
+export const PREVIEW_OK = '#7fd67f';
+export const PREVIEW_BAD = '#e06666';
+
+/** 半透明黏土幽灵材质(可用/不可用两种,改色即整体变色) */
+export function previewGhostMaterial(color: string): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0.55,
+    transparent: true,
+    opacity: 0.7,
+    flatShading: true,
+    roughness: 1,
+    depthWrite: false,
+  });
+}
+
 /** 设施注册键:背包道具种类,或工具驱动的零消耗设施(如土壤) */
 export type FacilityKind = ResourceKind | 'soil';
 

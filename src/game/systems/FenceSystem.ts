@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
-import { Fence, sameConns, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { Fence, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { PREVIEW_OK, previewGhostMaterial } from './Facilities';
 import { FenceGate } from '../entities/FenceGate';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -430,8 +431,10 @@ export class FenceSystem implements ObstacleSolver {
 
   // ---- 统一安放的委托助手 ----
 
-  /** 被幽灵预览临时补过横杆的柱(落点变化或收起预览后按真实连接还原) */
+  /** 被幽灵预览临时补过横杆的柱(落点变化或收起预览后移除补杆) */
   private previewLinked: Fence[] = [];
+  /** 预览补杆的幽灵材质(与安放系统的可用色同款观感) */
+  private previewRailMat = previewGhostMaterial(PREVIEW_OK);
 
   /** 围栏幽灵预览的落位刷新:横杆按目标格点的实际邻居显隐,并给相邻已有柱补出朝向预览柱的横杆 */
   applyGhost(preview: THREE.Object3D, gx: number, gz: number): void {
@@ -456,15 +459,15 @@ export class FenceSystem implements ObstacleSolver {
     this.applyPreviewLinks(NO_VIRTUAL, new Set([FenceSystem.edgeKey(t.gx, t.gz, t.dir)]));
   }
 
-  /** 收起幽灵预览:被临时补杆的柱按真实连接还原 */
+  /** 收起幽灵预览:移除相邻柱上的幽灵补杆 */
   clearPreviewLinks(): void {
-    for (const fence of this.previewLinked) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+    for (const fence of this.previewLinked) fence.clearPreviewRails();
     this.previewLinked = [];
   }
 
   /**
-   * 把预览虚拟物(柱/门)当作已放置,给相邻已有柱补出朝向它的横杆;
-   * 落点变化后不再是邻居的柱按真实连接还原,连接未变化的柱跳过重建。
+   * 把预览虚拟物(柱/门)当作已放置,给相邻已有柱以幽灵材质叠加朝向它的补杆横杆;
+   * 真实网格不动,落点变化后不再是邻居或收起预览时移除补杆。
    */
   private applyPreviewLinks(virtualFences: ReadonlySet<string>, virtualGates: ReadonlySet<string>): void {
     const candidates = new Set<Fence>();
@@ -483,17 +486,27 @@ export class FenceSystem implements ObstacleSolver {
       const uz = dir === 'z' ? 1 : 0;
       for (const step of [0, 1, 2]) addAt(Number(sx) + ux * step, Number(sz) + uz * step);
     }
-    const touched: Fence[] = [];
+    const showing: Fence[] = [];
     for (const fence of candidates) {
       const real = this.connectionsOf(fence.gx, fence.gz);
       const virtual = this.connsWith(fence.gx, fence.gz, virtualFences, virtualGates);
-      fence.rebuild(virtual);
-      if (!sameConns(real, virtual)) touched.push(fence);
+      const extra: FenceConnections = {
+        px: virtual.px && !real.px,
+        nx: virtual.nx && !real.nx,
+        pz: virtual.pz && !real.pz,
+        nz: virtual.nz && !real.nz,
+      };
+      if (extra.px || extra.nx || extra.pz || extra.nz) {
+        fence.showPreviewRails(extra, this.previewRailMat);
+        showing.push(fence);
+      } else {
+        fence.clearPreviewRails();
+      }
     }
     for (const fence of this.previewLinked) {
-      if (!candidates.has(fence)) fence.rebuild(this.connectionsOf(fence.gx, fence.gz));
+      if (!candidates.has(fence)) fence.clearPreviewRails();
     }
-    this.previewLinked = touched;
+    this.previewLinked = showing;
   }
 
   /** 围栏门幽灵预览的朝向:与目标门带方向一致 */
