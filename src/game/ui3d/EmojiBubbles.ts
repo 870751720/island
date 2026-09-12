@@ -3,9 +3,10 @@ import * as THREE from 'three';
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
-/** 气泡底边贴联机名牌顶边:名牌中心 2.65 + 半高 0.35 + 气泡半高 0.275 */
-const HEAD_Y = 3.28;
-const SIZE = 0.55;
+/** 气泡底边贴联机名牌顶边:名牌中心 2.65 + 半高 0.35 + 气泡半高 0.44 */
+const HEAD_Y = 3.44;
+/** 气泡整体高度:首版裸表情(1.1)的 0.8 倍 */
+const SIZE = 0.88;
 /** 画布宽高比(药丸底横向留边),Sprite 宽按此比例放大 */
 const ASPECT = 1.25;
 
