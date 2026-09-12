@@ -1,13 +1,14 @@
 import * as THREE from 'three';
+import { WindStreaks } from './WindStreaks';
 import type { WindParams } from '../systems/WeatherSystem';
 
-const LEAF_COUNT = 24;
-const AREA = 36; // 玩家周围飘叶活动区域边长
+const LEAF_COUNT = 72;
+const AREA = 28; // 玩家周围飘叶活动区域边长
 const RADIUS = AREA / 2;
 const HEIGHT_MIN = 0.6;
 const HEIGHT_MAX = 5;
-const SPEED_MIN = 2.5; // 顺风飘行速度范围
-const SPEED_MAX = 4.5;
+const SPEED_MIN = 5; // 顺风飘行速度范围
+const SPEED_MAX = 9;
 
 type Leaf = {
   x: number;
@@ -25,6 +26,8 @@ type Leaf = {
 export class Wind {
   readonly mesh: THREE.InstancedMesh;
   private leaves: Leaf[] = [];
+  private streaks = new WindStreaks();
+  private initialized = false;
   private material: THREE.MeshStandardMaterial;
   private matrix = new THREE.Matrix4();
   private quat = new THREE.Quaternion();
@@ -33,9 +36,9 @@ export class Wind {
   private pos = new THREE.Vector3();
 
   constructor() {
-    const geo = new THREE.PlaneGeometry(0.14, 0.08);
+    const geo = new THREE.PlaneGeometry(0.3, 0.16);
     this.material = new THREE.MeshStandardMaterial({
-      color: '#cfe0a8',
+      color: '#d8c583',
       flatShading: true,
       roughness: 1,
       side: THREE.DoubleSide,
@@ -45,6 +48,8 @@ export class Wind {
     });
     this.mesh = new THREE.InstancedMesh(geo, this.material, LEAF_COUNT);
     this.mesh.visible = false;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.add(this.streaks.mesh);
     this.mesh.frustumCulled = false;
     for (let i = 0; i < LEAF_COUNT; i++) {
       this.leaves.push({
@@ -62,6 +67,11 @@ export class Wind {
     this.mesh.visible = wind.intensity > 0.02;
     if (!this.mesh.visible) return;
     this.material.opacity = 0.9 * wind.intensity;
+    this.streaks.update(delta, center, wind);
+    if (!this.initialized) {
+      for (const leaf of this.leaves) { leaf.x += center.x; leaf.z += center.z; }
+      this.initialized = true;
+    }
     for (let i = 0; i < LEAF_COUNT; i++) {
       const leaf = this.leaves[i];
       leaf.bobPhase += delta * 3;
@@ -75,7 +85,7 @@ export class Wind {
       const dz = leaf.z - center.z;
       const cross =
         dx * wind.dirX + dz * wind.dirZ + Math.hypot(dx, dz) * 0.3;
-      if (cross > RADIUS || leaf.y < 0.2) {
+      if (cross > RADIUS || Math.abs(dx) > AREA || Math.abs(dz) > AREA || leaf.y < 0.2 || leaf.y > HEIGHT_MAX + 1) {
         leaf.x = center.x - wind.dirX * RADIUS + (Math.random() - 0.5) * AREA * 0.6;
         leaf.z = center.z - wind.dirZ * RADIUS + (Math.random() - 0.5) * AREA * 0.6;
         leaf.y = HEIGHT_MIN + Math.random() * (HEIGHT_MAX - HEIGHT_MIN);
@@ -90,6 +100,7 @@ export class Wind {
   }
 
   dispose(): void {
+    this.streaks.dispose();
     this.mesh.geometry.dispose();
     this.material.dispose();
   }

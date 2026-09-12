@@ -22,10 +22,10 @@ const SHAKE_TIME = 0.4;
 
 /** 各类植被的风摇参数:幅度、频率(草最敏感,树最沉稳) */
 const SWAY_CONFIG: Partial<Record<PropKind, { amp: number; freq: number }>> = {
-  tree: { amp: 0.05, freq: 1.6 },
-  grass: { amp: 0.14, freq: 3.5 },
-  shrub: { amp: 0.04, freq: 2.2 },
-  berry: { amp: 0.03, freq: 2.2 },
+  tree: { amp: 0.10, freq: 1.6 },
+  grass: { amp: 0.25, freq: 3.5 },
+  shrub: { amp: 0.09, freq: 2.2 },
+  berry: { amp: 0.07, freq: 2.2 },
 };
 
 /** 有阻挡的物件的碰撞半径(树按树干算,大石按岩体算);未列出的种类可穿过 */
@@ -1087,7 +1087,8 @@ export class Props implements Updatable {
         continue;
       }
       const phase = (prop.position.x * dirX + prop.position.z * dirZ) * 0.8;
-      const tilt = cfg.amp * intensity * Math.sin(this.swayTime * cfg.freq + phase);
+      const tilt = cfg.amp * intensity * (0.65 + 0.35 * Math.sin(this.swayTime * cfg.freq + phase)
+        + 0.12 * Math.sin(this.swayTime * cfg.freq * 2.3 + phase));
       prop.group.rotation.x = tilt * dirZ;
       prop.group.rotation.z = -tilt * dirX;
     }

@@ -8,6 +8,7 @@ export class Ambience {
   private wavesGain: GainNode;
   private wavesLfo: OscillatorNode;
   private rain: ReturnType<typeof noiseLoop>;
+  private wind: ReturnType<typeof noiseLoop>;
   private rainTarget = 0;
   private disposed = false;
 
@@ -25,6 +26,7 @@ export class Ambience {
 
     // 雨:更亮的带通噪声,由天气强度驱动
     this.rain = noiseLoop(ctx, dest, 'bandpass', 3200);
+    this.wind = noiseLoop(ctx, dest, 'bandpass', 850);
   }
 
   /** 雨声强度 0~1,平滑过渡 */
@@ -34,9 +36,18 @@ export class Ambience {
     this.rain.gain.gain.setTargetAtTime(this.rainTarget, this.ctx.currentTime, 1.5);
   }
 
+  /** 阵风同步驱动音量与音色,中频呼啸在手机扬声器上也可辨认。 */
+  setWindIntensity(intensity: number): void {
+    if (this.disposed) return;
+    const amount = Math.min(Math.max(intensity, 0), 1);
+    this.wind.gain.gain.setTargetAtTime(amount * 0.18, this.ctx.currentTime, 0.25);
+    this.wind.filter.frequency.setTargetAtTime(650 + amount * 850, this.ctx.currentTime, 0.3);
+  }
+
   dispose(): void {
     this.disposed = true;
     this.wavesLfo.stop();
     this.rain.stop();
+    this.wind.stop();
   }
 }

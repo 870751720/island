@@ -121,7 +121,12 @@ export class WeatherSystem {
   /** 阵风包络后的风强度(0~1),供植被与飘叶消费 */
   get windIntensity(): number {
     const gust = Math.sin(this.windPhase * 0.9) * Math.sin(this.windPhase * 0.37 + 1.3);
-    return this.windAmount * (0.6 + 0.4 * gust);
+    return this.windAmount * (0.78 + 0.22 * gust);
+  }
+
+  /** 未包络风量用于网络同步和玩法判定,避免客人重复衰减。 */
+  get windStrength(): number {
+    return this.windAmount;
   }
 
   /** 当前风状态(强度 + 单位方向向量) */
@@ -188,7 +193,7 @@ export class WeatherSystem {
   /** 切换天气类型;刮风天换一个随机风向 */
   private applyType(type: WeatherType): void {
     this.type = type;
-    if (type === 'wind') this.windDir = Math.random() * Math.PI * 2;
+    if (type === 'wind' && !this.net) this.windDir = Math.random() * Math.PI * 2;
     this.state.type = type;
     this.state.label = type === 'rain' ? '🌧️ 雨' : type === 'snow' ? '🌨️ 雪' : type === 'wind' ? '🌬️ 风' : '☀️ 晴';
   }

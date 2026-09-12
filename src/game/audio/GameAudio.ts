@@ -94,6 +94,10 @@ export class GameAudio {
     this.ambience?.setRainIntensity(intensity);
   }
 
+  setWindIntensity(intensity: number): void {
+    this.ambience?.setWindIntensity(intensity);
+  }
+
   /** 设置面板热更新音量(音乐走基准音量之上的比例) */
   setVolumes(music: number, sfx: number): void {
     if (!this.ctx) return;

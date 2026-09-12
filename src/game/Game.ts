@@ -900,6 +900,7 @@ export class Game {
         updateSeasonVisuals(simDelta);
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setRainIntensity(this.weather.rainIntensity);
+        this.audio.setWindIntensity(this.weather.windIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);

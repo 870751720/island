@@ -25,7 +25,7 @@ export function buildPlayersState(
       : 'sunny' as const,
     rain: weather.rainIntensity,
     snow: weather.snowIntensity,
-    windAmount: weather.windIntensity,
+    windAmount: weather.windStrength,
     windDirX: wind.dirX,
     windDirZ: wind.dirZ,
     list: sessions.map((session): PlayerState => {
