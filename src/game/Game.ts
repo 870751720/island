@@ -574,9 +574,6 @@ export class Game {
     this.indicator = new PlayerIndicator(this.camera, this.scene);
     this.emojiBubbles = new EmojiBubbles(this.scene);
 
-    // Q 键作为桌面端补充的工具切换
-    window.addEventListener('keydown', this.onKeyDown);
-
     this.workbench = new WorkbenchSystem(
       this.scene,
       this.terrain,
@@ -2010,10 +2007,6 @@ export class Game {
     this.cameraController.update(delta, this.sun, this.dayNight.sunOffset);
   }
 
-  private onKeyDown = (e: KeyboardEvent) => {
-    if (e.key.toLowerCase() === 'q') this.cycleTool();
-  };
-
   /** 本地玩家手上是否还持有该工具 */
   private hasTool(tool: Exclude<HandTool, 'hand'>): boolean {
     return this.hasToolFor(this.local, tool);
@@ -3321,7 +3314,6 @@ export class Game {
     // 退出前再存一次,保证最近进度不丢;已死亡则存档已清(客人不写本地档)
     if (!this.guestMode && this.sessions.some((s) => !s.survival.state.dead)) SaveSystem.save(this.collectSave());
     this.resizeObserver.disconnect();
-    window.removeEventListener('keydown', this.onKeyDown);
     for (const s of this.sessions) {
       s.nameTag.dispose();
       s.player.dispose();

@@ -43,6 +43,7 @@ import { EMOJIS } from '@/game/social/Emojis';
 import { getPromptVisibility } from './promptVisibility';
 import { useGameLifecycle } from './useGameLifecycle';
 import { useMapSnapshot } from './useMapSnapshot';
+import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -100,6 +101,25 @@ export function GameplayUI({
     if (hud.dead && photoMode) exitPhotoMode();
   }, [hud.dead]);
   const { mapOpen, mapSnapshot, openMap, closeMap } = useMapSnapshot(gameRef);
+  useKeyboardShortcuts({
+    gameRef,
+    hud,
+    photoMode,
+    settingsOpen,
+    gmOpen,
+    backpackOpen,
+    placePickerOpen,
+    mapOpen,
+    facilityPanels,
+    setBackpackOpen,
+    setSettingsOpen,
+    setPlacePickerOpen,
+    openMap,
+    closeMap,
+    closeGm: () => setGmOpen(false),
+    closePanel,
+    exitPhotoMode,
+  });
   // 海神的信:拆开后弹出的信纸,关闭后清空
   const [letterMsg, setLetterMsg] = useState<string | null>(null);
   // 连续 5 次点击红心(2 秒内)打开 GM 面板
