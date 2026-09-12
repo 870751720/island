@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { GmSystem } from '../systems/GmSystem';
 import { getSeason } from '../systems/SeasonSystem';
+import { seasonalPaletteShader } from './SeasonPalette';
 
 /**
  * 季节视觉表现:通过共享 shader uniform 驱动全场材质随季节变色。
- * 三个连续系数:夏干(uDry,植被偏黄绿)、秋色(uAutumn,植被转橙红)、积雪(uSnow)。
- * 同一时刻最多两个系数非零,shader 内按 绿→干绿→秋色→积雪 的固定顺序混合。
+ * 三个连续系数:盛夏(uDry,植被浓绿)、秋色(uAutumn,植被金黄橙红)、积雪(uSnow)。
+ * shader 内按 原色→夏绿→秋色→积雪 的固定顺序混合。
  * 不改任何模型与材质实例,移动端零额外 drawcall。
  */
 
@@ -16,10 +17,6 @@ const snowAmount = { value: 0 };
 
 /** 雪色:略偏蓝的白,避免与纯白 UI 混淆 */
 const SNOW_COLOR = 'vec3(0.93, 0.95, 0.98)';
-/** 夏干色:晒足阳光的黄绿,草地/阔叶的夏季目标色 */
-const DRY_COLOR = 'vec3(0.60, 0.60, 0.28)';
-/** 秋色:暖橙红,阔叶的秋季目标色(与冬季灰褐区分) */
-const AUTUMN_COLOR = 'vec3(0.69, 0.36, 0.16)';
 /** 枯叶色:偏灰的黄褐,落叶树冠入冬的目标色 */
 const WITHER_COLOR = 'vec3(0.60, 0.52, 0.30)';
 
@@ -31,11 +28,10 @@ export type SeasonKind = 'plain' | 'foliage' | 'terrain';
 
 /**
  * 给材质注入季节变色(flatShading 兼容):
- * 夏干/秋色整体混色(仅植被与地表,地表减半),积雪按表面朝向(
+ * 夏绿/秋色按原色分层混色(仅绿色植被与草地),积雪按表面朝向(
  * normal.y)只覆朝上的面。foliage 在入冬时先整体转枯黄再叠雪。
  */
 export function patchSeasonMaterial(mat: THREE.MeshStandardMaterial, kind: SeasonKind = 'plain'): void {
-  const seasonalTint = kind === 'foliage' ? 1 : kind === 'terrain' ? 0.5 : 0;
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uDry = dryAmount;
     shader.uniforms.uAutumn = autumnAmount;
@@ -49,8 +45,7 @@ export function patchSeasonMaterial(mat: THREE.MeshStandardMaterial, kind: Seaso
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
         {
-          ${seasonalTint > 0 ? `diffuseColor.rgb = mix(diffuseColor.rgb, ${DRY_COLOR}, uDry * ${seasonalTint.toFixed(2)});` : ''}
-          ${seasonalTint > 0 ? `diffuseColor.rgb = mix(diffuseColor.rgb, ${AUTUMN_COLOR}, uAutumn * ${seasonalTint.toFixed(2)});` : ''}
+          ${seasonalPaletteShader(kind)}
           ${kind === 'foliage' ? `diffuseColor.rgb = mix(diffuseColor.rgb, ${WITHER_COLOR}, uSnowAmount * 0.85);` : ''}
           float cover = uSnowAmount * smoothstep(-0.15, 0.6, normal.y);
           diffuseColor.rgb = mix(diffuseColor.rgb, ${SNOW_COLOR}, cover);
