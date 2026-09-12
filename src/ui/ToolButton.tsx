@@ -240,31 +240,30 @@ export function ToolButton({
       }}
     >
       {workbench
-        ? '🛠️'
+        ? <ItemIcon kind="workbench1" level={null} size={30} />
         : campfire
-          ? '🔥'
+          ? <ItemIcon kind="campfire" size={30} />
           : crate
-            ? '📦'
+            ? <ItemIcon kind="crate" size={30} />
             : baitBarrel
-              ? '🪣'
+              ? <ItemIcon kind="baitBarrel" size={30} />
               : brewBarrel
-                ? '🍺'
+                ? <ItemIcon kind="brewBarrel" size={30} />
                 : smelter
-                ? '🏭'
-                : cookingStation
-                  ? '🍳'
-                  : loom
-                    ? '🪡'
-                    : bed
-                  ? '🛏️'
-                  : stake
-                    ? '📍'
-                    : untie
-                      ? '🔓'
-                      // 土壤是工具驱动的零消耗设施:持锄头时图标跟工具走,不落入道具分支
-                      : placeKind && placeKind in ITEMS
-                        ? <ItemIcon kind={placeKind as ResourceKind} size={30} />
-                        : <ToolIcon tool={tool} size={30} />}
+                  ? <ItemIcon kind="smelter" size={30} />
+                  : cookingStation
+                    ? <ItemIcon kind="cookingStation" size={30} />
+                    : loom
+                      ? <ItemIcon kind="loom" size={30} />
+                      : bed
+                        ? <ItemIcon kind="bed1" level={null} size={30} />
+                        : stake || untie
+                          // 打桩/解绳都是套索动作,没有独立道具,统一用套索图标
+                          ? <ItemIcon kind="lasso" size={30} />
+                          // 土壤是工具驱动的零消耗设施:持锄头时图标跟工具走,不落入道具分支
+                          : placeKind && placeKind in ITEMS
+                            ? <ItemIcon kind={placeKind as ResourceKind} size={30} />
+                            : <ToolIcon tool={tool} size={30} />}
       {!workbench &&
         !campfire &&
         !crate &&

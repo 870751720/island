@@ -109,7 +109,7 @@ export class InteractionIndicatorBuilder {
       progress = systems.campfire.getProgress(session);
     } else if (session.eating.isWorking) {
       const food = session.eating.currentFood!;
-      label = `${food.icon} ${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
+      label = `${ITEMS[food.kind].icon} ${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
       progress = session.eating.getProgress();
     } else if (session.fishing.isWorking) {
       const state = session.fishing.currentState!;

@@ -3,7 +3,7 @@
 import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
 import { ITEMS } from '@/game/systems/Items';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
 /**
@@ -133,7 +133,7 @@ export function ConvertRow({
 }: {
   kind: ResourceKind;
   to?: ResourceKind;
-  hint?: string;
+  hint?: ReactNode;
   max: number;
   value: number;
   /** 数量变化:收到 ±步进(长按连发时随按住时长增大),父级用函数式 setState 应用 */

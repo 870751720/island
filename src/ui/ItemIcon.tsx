@@ -34,12 +34,12 @@ export function ItemIcon({
   size = 24,
 }: {
   kind: ResourceKind;
-  /** 覆盖级别角标(不传则按床/工作台的道具等级推导) */
-  level?: number;
+  /** 覆盖级别角标;null 表示显式不显示(不传则按床/工作台的道具等级推导) */
+  level?: number | null;
   size?: number;
 }) {
   const Custom = CUSTOM_ICONS[kind];
-  const badgeLevel = level ?? workbenchItemLevel(kind) ?? bedItemLevel(kind);
+  const badgeLevel = level !== undefined ? level : workbenchItemLevel(kind) ?? bedItemLevel(kind);
   return (
     <span
       style={{

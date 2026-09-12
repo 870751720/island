@@ -60,7 +60,7 @@ export function CampfirePanel({
       }}
     >
       <div style={panelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🔥 火堆</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="campfire" size={20} /> 火堆</div>
         <div style={{ fontSize: 13, color: lit ? '#e0862e' : '#999', marginBottom: 12 }}>
           {lit
             ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,添柴或烤点吃的吧`

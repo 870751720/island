@@ -54,7 +54,9 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
       }}
     >
       <div style={convertPanelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🪣 饵料桶</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ItemIcon kind="baitBarrel" size={20} /> 饵料桶
+        </div>
         <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
           每 {BAIT_CONVERT_INTERVAL} 秒发酵 1 个食物,按角标兑换鱼饵
         </div>
@@ -92,7 +94,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                           fontWeight: 700,
                         }}
                       >
-                        🪱{BAIT_YIELD[food.kind]}
+                        <ItemIcon kind="bait" size={13} />{BAIT_YIELD[food.kind]}
                       </span>
                     </div>
                   ))}
@@ -112,7 +114,15 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
               <div style={{ fontSize: 13, color: '#999' }}>桶是空的,丢点吃的进来吧</div>
             )}
           </div>
-          <span style={{ fontSize: 14 }}>🪱×{info.bait}{info.seeds > 0 ? ` 🌱×${info.seeds}` : ''}</span>
+          <span style={{ fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 2, flex: 'none' }}>
+            <ItemIcon kind="bait" size={16} />×{info.bait}
+            {info.seeds > 0 && (
+              <>
+                <span style={{ width: 4 }} />
+                <ItemIcon kind="pumpkinSeed" size={16} />×{info.seeds}
+              </>
+            )}
+          </span>
           <button
             onPointerDown={(e) => {
               e.preventDefault();
@@ -149,7 +159,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                 key={kind}
                 kind={kind}
                 to="bait"
-                hint={`→ 🪱 ${ITEMS.bait.name} ×${BAIT_YIELD[kind]}/个`}
+                hint={<span>→ <ItemIcon kind="bait" size={13} /> {ITEMS.bait.name} ×{BAIT_YIELD[kind]}/个</span>}
                 max={max}
                 value={n}
                 onDelta={(d) =>

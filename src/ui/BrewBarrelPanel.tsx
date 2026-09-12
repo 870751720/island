@@ -54,7 +54,7 @@ export function BrewBarrelPanel({ hud, onFeed, onCollect, onTakeRaw, onClose }: 
       }}
     >
       <div style={convertPanelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🍺 酿酒桶</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="brewBarrel" size={20} /> 酿酒桶</div>
         <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
           每 {BREW_INTERVAL} 秒用 {BREW_COST} 个原料酿 1 瓶酒,一次只酿一种
         </div>

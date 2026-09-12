@@ -86,7 +86,7 @@ export function WorkbenchPanel({
       <div style={panelStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ fontWeight: 700, fontSize: 17, flex: 1 }}>
-            🛠️ 工作台 Lv.{hud.workbenchLevel}
+            <ItemIcon kind="workbench1" level={null} size={20} /> 工作台 Lv.{hud.workbenchLevel}
           </span>
           <button
             style={bookButtonStyle}

@@ -22,7 +22,7 @@
 - **emoji 调整**(`ITEMS`):树枝 🌿→🪾、植物纤维 🌿→🌾、灌木丛 🌿→🌳、围栏门 🪵→🚪、橡果 🥜→🌰;`FOODS` 的橡果同步。
 - **配方图标去冗余**:`Crafting.ts` 删除 `Recipe.icon` 字段,新增 `recipeIconKind`/`recipeIconLevel` 按产物推导,精致工具配方自动带 2 级角标。
 - **拾取提示**:头飘 toast 的数据从 `{icon,count}` 改为 `{kind,count}`(按道具合并),由 GameplayUI 用 `ItemIcon` 渲染。
-- 纯文本场合(进食/烹饪进度条等 `Food.icon`)保留 emoji 回退;小地图 canvas 标记(工作台/火堆/床)为场景概念,维持独立 emoji。
+- 纯文本场合(3D 头顶进度提示)保留 emoji 回退,统一取自 `ITEMS[kind].icon`(Food/Wine 不再有独立 icon 字段);小地图 canvas 标记(工作台/火堆/床)为场景概念,维持独立 emoji。
 
 ### 作物种子自绘图标(2026-09-10)
 
@@ -49,3 +49,11 @@
   - 鱼竿:弯竿钓起小鱼 + 水波;弓:弯弓搭箭带羽尾;剑:十字护手金柄剑。
   - 草装为绿色系配色:草衣圆领上衣(苔绿)、草裤缀叶(苔绿)、草帽宽檐(嫩绿)、草包网兜提包(嫩绿)。
 - 同步更新了已有自绘的锄头、草衣、草裤、铁锭组件造型。emoji 仍作纯文本回退。
+
+### 2026-09-12 图标来源全量统一到道具配置
+
+- 删除 `Food.ts`(FOODS)与 `Wine.ts`(WINES)的平行 `icon` 字段,进食 3D 头顶提示改取 `ITEMS[kind].icon`,消除「UI 自绘 / 提示 emoji」两套表现。
+- `ItemIcon` 的 `level` 参数支持传 `null` 显式关闭级别角标(设施类按钮/标题用)。
+- 设施入口图标全部走 `ItemIcon`:`ToolButton` 靠近设施时的按钮图标(工作台/火堆/木箱/饵料桶/酿酒桶/冶炼炉/烹饪台/纺织机/床;打桩/解绳无独立道具,统一用套索图标),以及各设施面板标题(含 CratePanel 铁箱/木箱区分)。
+- `BaitBarrelPanel` 文案中的 🪱/🌱 硬编码改为 `ItemIcon`(鱼饵 `bait` / 南瓜种子 `pumpkinSeed`,与桶的实际产出一致);`ConvertRow` 的 `hint` 改为 ReactNode 以支持内嵌图标。
+- `BottleMessage` 的 `icon`(emoji 字符串)改为 `kind`(ResourceKind),内部走 `ItemIcon`,漂流瓶/海神的信与道具配置一致。

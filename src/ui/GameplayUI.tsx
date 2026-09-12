@@ -573,7 +573,7 @@ export function GameplayUI({
       )}
       {bottleMsg && <BottleMessage text={bottleMsg} onClose={() => setBottleMsg(null)} />}
       {letterMsg && (
-        <BottleMessage text={letterMsg} onClose={() => setLetterMsg(null)} icon="📜" title="海神的信" closeLabel="收好信纸" />
+        <BottleMessage text={letterMsg} onClose={() => setLetterMsg(null)} kind="letter" title="海神的信" closeLabel="收好信纸" />
       )}
       {hud.dead && (
         <DeathScreen

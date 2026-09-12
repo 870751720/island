@@ -46,7 +46,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
       }}
     >
       <div style={convertPanelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🧵 纺织机</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="loom" size={20} /> 纺织机</div>
         <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
           每 {LOOM_INTERVAL} 秒用 {LOOM_ROPE_PER_CLOTH} 根{ITEMS.rope.name}织 1 匹{ITEMS.cloth.name}
         </div>

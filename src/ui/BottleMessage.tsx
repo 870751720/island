@@ -1,17 +1,20 @@
 'use client';
 
+import { ItemIcon } from './ItemIcon';
+import type { ResourceKind } from '@/game/systems/Inventory';
+
 /** 信纸弹窗:拆开漂流瓶/海神的信后展示一句留言,点击任意处关闭并消失 */
 export function BottleMessage({
   text,
   onClose,
-  icon = '🍾',
+  kind = 'bottle',
   title = null,
   closeLabel = '收好纸条',
 }: {
   text: string;
   onClose: () => void;
-  /** 顶部展示的图标(漂流瓶 🍾 / 海神的信 📜) */
-  icon?: string;
+  /** 顶部展示的道具(漂流瓶 bottle / 海神的信 letter),图标走道具配置 */
+  kind?: ResourceKind;
   /** 可选的小标题(如「海神的信」) */
   title?: string | null;
   closeLabel?: string;
@@ -46,7 +49,9 @@ export function BottleMessage({
           gap: 14,
         }}
       >
-        <div style={{ textAlign: 'center', fontSize: 34 }}>{icon}</div>
+        <div style={{ textAlign: 'center', fontSize: 34, display: 'flex', justifyContent: 'center' }}>
+          <ItemIcon kind={kind} size={34} />
+        </div>
         {title && (
           <div
             style={{

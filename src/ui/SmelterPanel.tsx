@@ -68,7 +68,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
       }}
     >
       <div style={convertPanelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🏭 冶炼炉</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="smelter" size={20} /> 冶炼炉</div>
         <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>
           每 {SMELT_INTERVAL} 秒用 {SMELT_ORE_PER_INGOT} 块{ITEMS.ironOre.name}炼 1 块
           {ITEMS.ironIngot.name}

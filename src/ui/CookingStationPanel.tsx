@@ -77,7 +77,7 @@ export function CookingStationPanel({
       }}
     >
       <div style={panelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>🍳 烹饪台</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="cookingStation" size={20} /> 烹饪台</div>
         <div style={{ fontSize: 13, color: lit ? '#c4763a' : '#999', marginBottom: 12 }}>
           {lit
             ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,可以烤制或煮汤`
