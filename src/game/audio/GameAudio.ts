@@ -90,8 +90,8 @@ export class GameAudio {
     this.music?.setNight(night);
   }
 
-  setMusicContext(season: Season, fishing: boolean): void {
-    this.music?.setContext(season, fishing);
+  setMusicContext(season: Season, fishing: boolean, weather: { rain: number; snow: number; wind: number }): void {
+    this.music?.setContext(season, fishing, weather);
   }
 
   selectMusic(id: string | null): void {

@@ -899,7 +899,8 @@ export class Game {
         this.weather.update(simDelta);
         updateSeasonVisuals(simDelta);
         this.audio.setNight(this.dayNight.isNight);
-        this.audio.setMusicContext(GmSystem.season === 'auto' ? getSeason() : GmSystem.season, this.fishing.isWorking);
+        this.audio.setMusicContext(GmSystem.season === 'auto' ? getSeason() : GmSystem.season, this.fishing.isWorking,
+          { rain: this.weather.rainIntensity, snow: this.weather.snowIntensity, wind: this.weather.windStrength });
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.audio.setWindIntensity(this.weather.windIntensity);
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);

@@ -1,6 +1,6 @@
 import type { Season } from '../systems/SeasonSystem';
 
-export type MusicGroup = Season | 'fishing' | 'classic';
+export type MusicGroup = Season | 'fishing' | 'classic' | 'wind' | 'rain' | 'snow';
 
 /** 单个旋律音:在小节内的拍偏移、MIDI 音高、时长(拍) */
 export type Note = { beat: number; midi: number; dur: number };
@@ -21,6 +21,7 @@ export type Piece = {
   beatsPerBar: number;
   /** 圆舞曲等「低音-和弦」织体用;false 时为波浪形分解和弦 */
   waltz: boolean;
+  sparse?: boolean;
   bars: Bar[];
 };
 
@@ -28,7 +29,8 @@ export const LEGACY_PIECES: Piece[] = [
   {
     // 夏日之风:C 大调,如歌的级进旋律
     name: 'summer', title: '夏日之风', group: 'classic',
-    bpm: 72,
+    bpm: 54,
+    sparse: true,
     beatsPerBar: 4,
     waltz: false,
     bars: [

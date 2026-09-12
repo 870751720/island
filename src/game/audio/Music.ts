@@ -1,5 +1,6 @@
 import { midiToFreq, pianoTone, tone } from './synth';
 import { MUSIC_PIECES, type Bar, type Piece } from './MusicLibrary';
+import type { WeatherType } from '../systems/WeatherSystem';
 import type { Season } from '../systems/SeasonSystem';
 
 /** 每首曲子连续播放的遍数,听熟一点再换 */
@@ -19,10 +20,20 @@ export class Music {
   private cursors = new Map<string, { pieceIndex: number; barCounter: number }>();
   private season: Season = 'spring';
   private fishing = false;
+  private weather: WeatherType = 'sunny';
+  private output: GainNode;
   private night = false;
   private disposed = false;
 
-  constructor(private ctx: AudioContext, private dest: AudioNode) {}
+  constructor(private ctx: AudioContext, private dest: AudioNode) {
+    this.output = this.createOutput();
+  }
+
+  private createOutput(): GainNode {
+    const output = this.ctx.createGain();
+    output.connect(this.dest);
+    return output;
+  }
 
   start(): void {
     if (this.timer) return;
@@ -40,9 +51,12 @@ export class Music {
     return { id: this.piece.name, title: this.piece.title, selection: this.selection };
   }
 
-  setContext(season: Season, fishing: boolean): void {
+  setContext(season: Season, fishing: boolean, weather: { rain: number; snow: number; wind: number }): void {
     this.season = season;
     this.fishing = fishing;
+    // 使用同步后的连续强度及回差,避免天气过渡期间反复切曲。
+    const active = (kind: 'rain' | 'snow' | 'wind') => weather[kind] > (this.weather === kind ? 0.35 : 0.55);
+    this.weather = active('snow') ? 'snow' : active('rain') ? 'rain' : active('wind') ? 'wind' : 'sunny';
     this.refreshPlaylist();
   }
 
@@ -50,10 +64,16 @@ export class Music {
     if (id !== null && !MUSIC_PIECES.some((p) => p.name === id)) return;
     this.selection = id;
     this.refreshPlaylist();
+    if (id !== null) this.barCounter = 0;
+    // 断开旧曲全部音符输出,包括尚未发声的排程。
+    this.output.disconnect();
+    this.output = this.createOutput();
+    this.nextBarTime = this.ctx.currentTime + 0.01;
+    this.schedule();
   }
 
   private refreshPlaylist(): void {
-    const key = this.selection ? `track:${this.selection}` : (this.fishing ? 'fishing' : this.season);
+    const key = this.selection ? `track:${this.selection}` : (this.fishing ? 'fishing' : this.weather !== 'sunny' ? this.weather : this.season);
     if (key === this.context) return;
     this.cursors.set(this.context, { pieceIndex: this.pieceIndex, barCounter: this.barCounter });
     this.context = key;
@@ -97,16 +117,16 @@ export class Music {
     // 伴奏
     if (piece.waltz) {
       // 圆舞曲织体:第 1 拍低音,其余拍和弦
-      pianoTone(this.ctx, this.dest, midiToFreq(bar.root), barTime, 1.2, 0.08);
+      pianoTone(this.ctx, this.output, midiToFreq(bar.root), barTime, 1.2, 0.08);
       for (let b = 1; b < piece.beatsPerBar; b++) {
-        bar.chord.forEach((n) => pianoTone(this.ctx, this.dest, midiToFreq(n), barTime + b * beat, 0.8, 0.035));
+        bar.chord.forEach((n) => pianoTone(this.ctx, this.output, midiToFreq(n), barTime + b * beat, 0.8, 0.035));
       }
     } else {
       // 波浪形分解和弦
-      const arp = this.night ? [0, 2, 1] : [0, 1, 2, 1, 0, 2, 1, 2];
+      const arp = this.night || piece.sparse ? [0, 2, 1] : [0, 1, 2, 1, 0, 2, 1, 2];
       arp.forEach((idx, i) => {
         const t = barTime + (i * barDur) / arp.length;
-        pianoTone(this.ctx, this.dest, midiToFreq(bar.chord[idx]), t, 1.6, 0.05);
+        pianoTone(this.ctx, this.output, midiToFreq(bar.chord[idx]), t, 1.6, 0.05);
       });
     }
 
@@ -115,7 +135,7 @@ export class Music {
     padNotes.forEach((n) => {
       tone(
         this.ctx,
-        this.dest,
+        this.output,
         midiToFreq(n - 12),
         barTime,
         { attack: barDur * 0.4, decay: barDur * 0.8, peak: 0.016 },
@@ -128,12 +148,13 @@ export class Music {
     for (const { beat: b, midi, dur } of bar.melody) {
       if (Math.random() < restChance) continue;
       const t = barTime + b * beat;
-      pianoTone(this.ctx, this.dest, midiToFreq(midi + melodyOctave), t, dur * beat + 0.8, 0.1);
+      pianoTone(this.ctx, this.output, midiToFreq(midi + melodyOctave), t, dur * beat + 0.8, 0.1);
     }
   }
 
   dispose(): void {
     this.disposed = true;
+    this.output.disconnect();
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
