@@ -301,9 +301,22 @@ export class FenceSystem implements ObstacleSolver {
     return true;
   }
 
-  /** 某格点是否允许立围栏柱(空、干地、不被资源点占住) */
+  /** 该格点是否落在某条门带内(门框立柱与门扇占的三个顶点,不能立围栏柱) */
+  private gateCovers(gx: number, gz: number): boolean {
+    for (const gate of this.gates.values()) {
+      const minX = Math.min(gate.gx, gate.endX);
+      const maxX = Math.max(gate.gx, gate.endX);
+      const minZ = Math.min(gate.gz, gate.endZ);
+      const maxZ = Math.max(gate.gz, gate.endZ);
+      if (gx >= minX && gx <= maxX && gz >= minZ && gz <= maxZ) return true;
+    }
+    return false;
+  }
+
+  /** 某格点是否允许立围栏柱(空、不在门带内、干地、不被资源点占住) */
   private vertexValid(gx: number, gz: number): boolean {
     if (this.fences.has(FenceSystem.vertexKey(gx, gz))) return false;
+    if (this.gateCovers(gx, gz)) return false;
     const p = new THREE.Vector3(gx, 0, gz);
     if (this.terrain.isNearWater(p, 1)) return false;
     if (this.terrain.getHeight(gx, gz) <= 0) return false;
