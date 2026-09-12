@@ -3392,9 +3392,10 @@ export class Game {
     // 咬钩连点时头顶进度环与文字抬高,避开屏幕中央的全屏连点提示
     const bite = this.local.fishing.currentState === 'bite';
     this.indicator.group.position.copy(p);
-    this.indicator.setProgress(progress, bite);
-    this.indicator.setStamina(
-      this.player.isSwimming ? this.survival.state.stamina / 100 : null
+    // 游泳时头顶进度环复用为体力显示(从满递减);游泳期间一切作业被禁用,与作业进度互斥
+    this.indicator.setProgress(
+      this.player.isSwimming ? this.survival.state.stamina / 100 : progress,
+      bite
     );
 
     // 头顶文字投影为屏幕坐标(预告彩字时带颜色)
