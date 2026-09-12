@@ -6,12 +6,10 @@ export interface EmojiDef {
 }
 
 export const EMOJIS: readonly EmojiDef[] = [
-  { glyph: '❤️', name: '爱' },
   { glyph: '😍', name: '喜爱' },
   { glyph: '😭', name: '大哭' },
   { glyph: '😡', name: '生气' },
   { glyph: '😱', name: '惊吓' },
-  { glyph: '😴', name: '困了' },
 ];
 
 export const EMOJI_GLYPHS: ReadonlySet<string> = new Set(EMOJIS.map((e) => e.glyph));

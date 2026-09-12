@@ -3,9 +3,11 @@ import * as THREE from 'three';
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
-/** 头顶高度:介于名牌 2.65 与自言自语气泡 4.3 之间 */
-const HEAD_Y = 3.5;
-const SIZE = 1.1;
+/** 气泡底边贴联机名牌顶边:名牌中心 2.65 + 半高 0.35 + 气泡半高 0.275 */
+const HEAD_Y = 3.28;
+const SIZE = 0.55;
+/** 画布宽高比(药丸底横向留边),Sprite 宽按此比例放大 */
+const ASPECT = 1.25;
 
 /** 每个表情一张共享纹理(懒绘制缓存);材质每气泡独立,便于单独淡出后 dispose */
 const textures = new Map<string, THREE.Texture>();
@@ -14,13 +16,22 @@ function emojiTexture(glyph: string): THREE.Texture {
   const cached = textures.get(glyph);
   if (cached) return cached;
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
+  canvas.width = 160;
   canvas.height = 128;
   const ctx = canvas.getContext('2d')!;
-  ctx.font = '96px sans-serif';
+  // 白色药丸底 + 轻投影,仿小狗表情气泡
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.beginPath();
+  ctx.roundRect(6, 8, 148, 112, 56);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.font = '76px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(glyph, 64, 70);
+  ctx.fillText(glyph, 80, 72);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   textures.set(glyph, texture);
@@ -33,7 +44,7 @@ interface Bubble {
   elapsed: number;
 }
 
-/** 表情气泡层:玩家头顶冒出表情 Sprite,跟随玩家、弹入、满 3 秒淡出移除;
+/** 表情气泡层:玩家头顶冒出白色药丸表情 Sprite,跟随玩家、弹入、满 3 秒淡出移除;
  * 同一玩家重复发撤旧换新(天然限频);挂在场景层而非玩家组内,不受游泳前倾影响。 */
 export class EmojiBubbles {
   private readonly active = new Map<THREE.Object3D, Bubble>();
@@ -52,7 +63,7 @@ export class EmojiBubbles {
     });
     const sprite = new THREE.Sprite(material);
     sprite.renderOrder = 999;
-    sprite.scale.setScalar(0);
+    sprite.scale.set(0, 0, 1);
     this.scene.add(sprite);
     this.active.set(target, { sprite, target, elapsed: 0 });
   }
@@ -69,7 +80,7 @@ export class EmojiBubbles {
       const pop = Math.min(1, bubble.elapsed / POP_SECONDS);
       // back-out 缓动:弹入带轻微过冲
       const backOut = 1 + 2.7 * Math.pow(pop - 1, 3) + 1.7 * Math.pow(pop - 1, 2);
-      bubble.sprite.scale.setScalar(SIZE * backOut);
+      bubble.sprite.scale.set(SIZE * ASPECT * backOut, SIZE * backOut, 1);
       bubble.sprite.material.opacity = Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS);
     }
   }
