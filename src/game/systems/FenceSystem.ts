@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
-import { Fence, disposeGeometries, type FenceConnections, type FenceKind } from '../entities/Fence';
+import { Fence, disposeGeometries, sameConns, type FenceConnections, type FenceKind } from '../entities/Fence';
 import { FenceGate, buildGateRails, type GateConns } from '../entities/FenceGate';
 import { PREVIEW_OK, previewGhostMaterial } from './Facilities';
 import type { ResourceKind } from './Inventory';
@@ -28,10 +28,8 @@ const SWING_TIME = 0.6;
 
 /** 幽灵预览连接判定的空虚拟集(无预览虚拟物时) */
 const NO_VIRTUAL: ReadonlySet<string> = new Set();
-/** 门幽灵预览端柱横杆的组名(挂在预览组上,随门带方向重建) */
+/** 门幽灵预览端柱横杆的组名(挂在预览组上,随门带方向与连接重建) */
 const GHOST_RAILS = 'gate-ghost-rails';
-/** 四方向全开的连接(门幽灵预览建模用,显隐交给落位刷新) */
-const ALL_CONNS: FenceConnections = { px: true, nx: true, pz: true, nz: true };
 
 /** b 相比 a 新增的连接方向 */
 function extraConns(a: FenceConnections, b: FenceConnections): FenceConnections {
@@ -260,6 +258,14 @@ export class FenceSystem implements ObstacleSolver {
         // 两格宽的门带:整条从起点柱到终点柱都是阻挡
         list.push({ ax: gate.gx, az: gate.gz, bx: gate.endX, bz: gate.endZ });
       }
+      // 门端柱的连接横杆也阻挡(横杆不随门扇开合,门开着也挡)
+      for (const [vx, vz] of [[gate.gx, gate.gz], [gate.endX, gate.endZ]] as const) {
+        const conns = this.connectionsOf(vx, vz);
+        if (conns.px) list.push({ ax: vx, az: vz, bx: vx + 1, bz: vz });
+        if (conns.nx) list.push({ ax: vx - 1, az: vz, bx: vx, bz: vz });
+        if (conns.pz) list.push({ ax: vx, az: vz, bx: vx, bz: vz + 1 });
+        if (conns.nz) list.push({ ax: vx, az: vz - 1, bx: vx, bz: vz });
+      }
     }
     this.segments = list;
   }
@@ -413,6 +419,12 @@ export class FenceSystem implements ObstacleSolver {
     const ez = dir === 'z' ? gz + 2 : gz;
     const mx = dir === 'x' ? gx + 1 : gx;
     const mz = dir === 'z' ? gz + 1 : gz;
+    // 也不能有其他门的门框柱(门门不能共柱挨着放)
+    for (const gate of this.gates.values()) {
+      for (const [cx, cz] of [[gx, gz], [mx, mz], [ex, ez]]) {
+        if ((cx === gate.gx && cz === gate.gz) || (cx === gate.endX && cz === gate.endZ)) return false;
+      }
+    }
     for (const [cx, cz] of [[gx, gz], [mx, mz], [ex, ez]]) {
       if (this.fences.has(FenceSystem.vertexKey(cx, cz))) return false;
     }
@@ -483,10 +495,10 @@ export class FenceSystem implements ObstacleSolver {
     this.applyPreviewLinks(new Set([FenceSystem.vertexKey(gx, gz)]));
   }
 
-  /** 围栏门幽灵预览的落位刷新:朝向、自身端柱横杆按实际邻居显隐,并给相邻已有柱/门端柱补杆 */
+  /** 围栏门幽灵预览的落位刷新:朝向、自身端柱只按会产生的连接建横杆,并给相邻已有柱/门端柱补杆 */
   applyGateGhost(preview: THREE.Object3D, actor: PlayerSession): void {
     const t = this.gateTarget(actor);
-    let rails = preview.getObjectByName(GHOST_RAILS);
+    const rails = preview.getObjectByName(GHOST_RAILS);
     if (!t) {
       if (rails) {
         preview.remove(rails);
@@ -496,23 +508,27 @@ export class FenceSystem implements ObstacleSolver {
       return;
     }
     preview.rotation.y = t.dir === 'x' ? 0 : Math.PI / 2;
-    // 自身端柱横杆随门带方向重建(方向决定局部映射),再按实际邻居显隐
-    if (!rails || preview.userData.gateDir !== t.dir) {
+    const ex = t.gx + (t.dir === 'x' ? 2 : 0);
+    const ez = t.gz + (t.dir === 'z' ? 2 : 0);
+    const conns: GateConns = { start: this.connectionsOf(t.gx, t.gz), end: this.connectionsOf(ex, ez) };
+    // 端柱横杆只建会产生的连接,连接或门带方向变化时重建
+    const prev = preview.userData.gateConns as GateConns | undefined;
+    const unchanged =
+      rails &&
+      preview.userData.gateDir === t.dir &&
+      prev &&
+      sameConns(prev.start, conns.start) &&
+      sameConns(prev.end, conns.end);
+    if (!unchanged) {
       if (rails) {
         preview.remove(rails);
         disposeGeometries(rails);
       }
-      rails = buildGateRails(t.dir, { start: ALL_CONNS, end: ALL_CONNS }, this.previewRailMat);
-      rails.name = GHOST_RAILS;
+      const built = buildGateRails(t.dir, conns, this.previewRailMat);
+      built.name = GHOST_RAILS;
       preview.userData.gateDir = t.dir;
-      preview.add(rails);
-    }
-    const ex = t.gx + (t.dir === 'x' ? 2 : 0);
-    const ez = t.gz + (t.dir === 'z' ? 2 : 0);
-    const conns: GateConns = { start: this.connectionsOf(t.gx, t.gz), end: this.connectionsOf(ex, ez) };
-    for (const rail of ghostRailsOf(rails)) {
-      const tag = rail.name.slice('rail-'.length);
-      rail.visible = conns[tag[0] === 's' ? 'start' : 'end'][tag.slice(2) as keyof FenceConnections];
+      preview.userData.gateConns = conns;
+      preview.add(built);
     }
     this.applyPreviewLinks(new Set([FenceSystem.vertexKey(t.gx, t.gz), FenceSystem.vertexKey(ex, ez)]));
   }
