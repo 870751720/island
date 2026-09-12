@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PondMaterial } from './PondMaterial';
 import { getSnowAmount, patchSeasonMaterial } from './SeasonVisuals';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
@@ -80,6 +81,7 @@ export class IslandTerrain {
   readonly length: number;
   readonly halfWidth: number;
   readonly halfLength: number;
+  private readonly pondMaterials: PondMaterial[] = [];
   private heightAt: (x: number, z: number) => number;
 
   constructor(width = 200, length = 1000, seed = Math.random() * 1000) {
@@ -154,14 +156,6 @@ export class IslandTerrain {
       const n = Math.sin(seed * 13.7 + i * 391.3) * 43758.5453;
       return n - Math.floor(n);
     };
-    const waterMat = () =>
-      new THREE.MeshStandardMaterial({
-        color: '#4aa3c7',
-        roughness: 0.35,
-        metalness: 0.1,
-        transparent: true,
-        opacity: 0.65,
-      });
     // 冰面材质全场共享,透明度随雪量在 updateWater 中驱动
     const iceMat = new THREE.MeshStandardMaterial({
       color: '#cfe4ee',
@@ -191,12 +185,6 @@ export class IslandTerrain {
     };
     const addWater = (area: WaterArea) => {
       this.waterAreas.push(area);
-      const disc = new THREE.Mesh(new THREE.ShapeGeometry(pondShape(area, 0.96)), waterMat());
-      disc.rotation.x = -Math.PI / 2;
-      disc.position.set(area.x, area.waterY, area.z);
-      disc.userData.baseY = area.waterY;
-      disc.userData.freezable = area.freezable;
-      this.waterGroup.add(disc);
       if (area.freezable) {
         // 冰盘比水盘略大(盖满洼坑边缘)且抬高,避免与浮动水面共面闪烁
         const ice = new THREE.Mesh(new THREE.ShapeGeometry(pondShape(area, 0.985)), iceMat);
@@ -332,6 +320,23 @@ export class IslandTerrain {
       })()
     );
     this.mesh.receiveShadow = true;
+    for (const area of this.waterAreas) {
+      const surface = new PondMaterial(area, this.heightAt);
+      this.pondMaterials.push(surface);
+      const disc = new THREE.Mesh(new THREE.ShapeGeometry(pondShape(area, 0.96)), surface.material);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(area.x, area.waterY, area.z);
+      this.waterGroup.add(disc);
+    }
+  }
+
+  disposeWater(): void {
+    for (const surface of this.pondMaterials) surface.dispose();
+    for (const child of [...this.waterGroup.children, ...this.iceGroup.children]) {
+      (child as THREE.Mesh).geometry.dispose();
+    }
+    const ice = this.iceGroup.children[0] as THREE.Mesh | undefined;
+    if (ice) (ice.material as THREE.Material).dispose();
   }
 
   /** 水洼在局部角度方向的水面边界半径(米):供水生表现等贴合不规则形状 */
@@ -375,22 +380,13 @@ export class IslandTerrain {
   /** 雪量达到该值后可冻水洼完全结冰(冰面在此前已随雪量逐渐显形) */
   static readonly FREEZE_SNOW = 0.7;
 
-  /** 水洼的轻微浮动与呼吸,elapsed 为游戏累计时间(秒);同时驱动冰面随雪量显隐 */
+  /** 固定水岸,用材质波纹表现水动;冰面随雪量显隐。 */
   updateWater(elapsed: number): void {
     const ice = THREE.MathUtils.clamp((getSnowAmount() - 0.4) / 0.3, 0, 1);
-    this.waterGroup.children.forEach((child, i) => {
-      const disc = child as THREE.Mesh;
-      // 可冻水洼随冰面渐显把水面淡出并停掉浮动,避免冰水两盘交叠闪烁
-      const waterMat = disc.material as THREE.MeshStandardMaterial;
-      const frozen = disc.userData.freezable ? ice : 0;
-      if (frozen > 0) {
-        waterMat.opacity = 0.65 * (1 - frozen);
-        disc.visible = frozen < 0.98;
-        if (!disc.visible) return;
-      }
-      disc.position.y = disc.userData.baseY + Math.sin(elapsed * 1.1 + i * 1.7) * 0.02;
-      const s = 1 + Math.sin(elapsed * 0.8 + i * 2.3) * 0.012;
-      disc.scale.setScalar(s);
+    this.pondMaterials.forEach((surface, i) => {
+      const frozen = this.waterAreas[i].freezable ? ice : 0;
+      surface.update(elapsed, frozen);
+      this.waterGroup.children[i].visible = frozen < 0.98;
     });
     this.iceGroup.visible = ice > 0;
     if (this.iceGroup.visible) {
