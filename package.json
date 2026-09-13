@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:h5": "H5_EXPORT=1 next build",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build",
     "start": "next start"
