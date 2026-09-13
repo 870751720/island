@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { IslandScene } from './start/IslandScene';
 import { MenuIcon } from './start/MenuIcon';
 import { useMenuAudio } from './start/useMenuAudio';
 import { startScreenCss } from './start/styles';
@@ -96,15 +95,11 @@ export function StartScreen({
         </header>
         <main className="menu-content">
           <section className="menu-heading" aria-label="去你的岛">
+            <div className="menu-emblem" aria-hidden="true"><MenuIcon name="compass" /></div>
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
             <h1 className="start-title">去你的<span>岛<svg viewBox="0 0 100 12" aria-hidden="true"><path d="M3 8Q48 0 96 6" /></svg></span><i>。</i></h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
           </section>
-          <div className="menu-diorama">
-            <div className="island-halo" />
-            <IslandScene />
-            <span className="island-caption"><span /> 无人海域 · 等你靠岸</span>
-          </div>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}
             {ready ? <>
