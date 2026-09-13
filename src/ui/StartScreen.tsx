@@ -82,7 +82,7 @@ export function StartScreen({
     <div className="start-screen" onPointerDownCapture={(event) => {
       if (!(event.target as Element).closest('.menu-sound')) audio.unlock();
     }} onClickCapture={(event) => {
-      if ((event.target as HTMLElement).closest('button:not(.menu-sound)')) audio.feedback();
+      if ((event.target as HTMLElement).closest('button:not(.menu-sound):not(.meta-panel button)')) audio.feedback();
     }}>
       <style>{startScreenCss}</style>
       <div className="start-atmosphere" aria-hidden="true">
@@ -146,7 +146,7 @@ export function StartScreen({
           </div>
         </div>
       )}
-      {showMeta && <MetaPanel onClose={() => setShowMeta(false)} />}
+      {showMeta && <MetaPanel onClose={() => setShowMeta(false)} onLearn={() => audio.feedback('learn')} />}
       {showSetup && (
         <ProfileSetup
           firstTime={!profile}

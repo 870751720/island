@@ -63,23 +63,25 @@ export function useMenuAudio() {
       void ctx.resume().then(() => { if (context.current === ctx) setStarted(ctx.state === 'running'); }).catch(() => {});
     } catch { setStarted(false); }
   };
-  const feedback = () => {
+  const feedback = (kind: 'click' | 'learn' = 'click') => {
     unlock();
     const ctx = context.current;
     if (!enabledRef.current || !ctx || !bus.current) return;
     const level = loadAudioSettings().sfx;
-    [523.25, 783.99].forEach((frequency, i) => {
+    const learning = kind === 'learn';
+    const frequencies = learning ? [392, 493.88, 587.33] : [523.25, 783.99];
+    frequencies.forEach((frequency, i) => {
       const note = ctx.createOscillator();
       const gain = ctx.createGain();
-      const time = ctx.currentTime + i * 0.075;
+      const time = ctx.currentTime + i * (learning ? 0.055 : 0.075);
       note.type = 'sine';
       note.frequency.value = frequency;
       gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.085 * level, time + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.45);
+      gain.gain.linearRampToValueAtTime((learning ? 0.045 : 0.085) * level, time + (learning ? 0.018 : 0.008));
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + (learning ? 0.22 : 0.45));
       note.connect(gain).connect(bus.current!);
       note.start(time);
-      note.stop(time + 0.5);
+      note.stop(time + (learning ? 0.25 : 0.5));
       note.onended = () => { note.disconnect(); gain.disconnect(); };
     });
   };
