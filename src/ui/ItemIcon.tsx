@@ -8,20 +8,10 @@ import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { CUSTOM_ICONS } from './icons/CustomIcons';
 import { HandIcon } from './icons/ClayIcons';
 
-/** 非道具型手持项的回退 emoji(有对应道具的工具一律走 ItemIcon,与背包图标保持一致) */
-const TOOL_FALLBACK_ICONS: Partial<Record<HandTool, string>> = {
-  fence: '🚧',
-  place: '📦',
-};
-
-/** 手持工具图标:空手自绘,道具走 ItemIcon,其余用回退 emoji */
+/** 手持模式与背包共用自绘图标。 */
 export function ToolIcon({ tool, size = 24 }: { tool: HandTool; size?: number }) {
   if (tool === 'hand') return <HandIcon size={size} />;
-  return tool in ITEMS ? (
-    <ItemIcon kind={tool as ResourceKind} size={size} />
-  ) : (
-    <span style={{ fontSize: Math.round(size * 0.92), lineHeight: 1 }}>{TOOL_FALLBACK_ICONS[tool] ?? '📦'}</span>
-  );
+  return <ItemIcon kind={tool in ITEMS ? tool as ResourceKind : tool === 'fence' ? 'fenceWood' : 'crate'} size={size} />;
 }
 
 /**

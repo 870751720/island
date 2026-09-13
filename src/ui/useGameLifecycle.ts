@@ -1,4 +1,5 @@
 'use client';
+import { DOG_EMOJI_SVG } from './icons/DogEmojiIcons';
 
 import { Game } from '@/game/Game';
 import type { HudSnapshot, PickupToast } from '@/game/GameContracts';
@@ -97,7 +98,10 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
             if (!element) return;
             element.style.display = emoji ? 'block' : 'none';
             if (emoji) {
-              element.textContent = emoji;
+              if (element.dataset.glyph !== emoji) {
+                element.innerHTML = DOG_EMOJI_SVG[emoji] ?? DOG_EMOJI_SVG['🐕'];
+                element.dataset.glyph = emoji;
+              }
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
             }
           },

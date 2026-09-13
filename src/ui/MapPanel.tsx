@@ -1,5 +1,6 @@
 'use client';
 
+import { HudIcon } from './hud/HudIcon';
 import { useMemo } from 'react';
 import type { MapSnapshot } from '@/game/GameContracts';
 
@@ -8,16 +9,8 @@ type MapPanelProps = {
   onClose: () => void;
 };
 
-/** 手绘折叠地图图标，避免依赖 emoji 在不同手机上的字体表现。 */
 export function MapIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="3" y="3" width="26" height="26" rx="7" fill="#75b7ca" stroke="#4b6870" strokeWidth="2" />
-      <path d="M7 20c2.5-1.2 3.4-3.7 5.8-4.1 1.8-.3 2.5 1 4.1.4 2.2-.8 2-3.4 4.5-3.6 2.7-.2 3.4 2.8 3.6 5.3.2 2.8-1.6 5.8-5.1 6.6-4.6 1-11.4.2-12.9-4.6Z" fill="#a9c978" stroke="#f3dda1" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M16 7.2a4.2 4.2 0 0 0-4.2 4.2c0 3.2 4.2 7.2 4.2 7.2s4.2-4 4.2-7.2A4.2 4.2 0 0 0 16 7.2Z" fill="#e45b4d" stroke="#fff5df" strokeWidth="1.4" />
-      <circle cx="16" cy="11.4" r="1.5" fill="#fff5df" />
-    </svg>
-  );
+  return <HudIcon name="map" size={size} />;
 }
 
 const MAP_VIEW_METERS = 60;
