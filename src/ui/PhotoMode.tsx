@@ -1,17 +1,19 @@
 'use client';
 
+import { gameTheme, gameButtonStyle } from './gameTheme';
+
 import { useEffect, useRef, useState } from 'react';
 import type { Game } from '@/game/Game';
 import { randomPhotoCaption, renderPhotoCard, sharePhotoCard } from './photoCard';
 
-/** 控制圆钮通用样式:半透明深色底 + 白描边,保证亮场景下可读 */
+/** 控制圆钮通用样式:HUD 同款奶油底与细描边 */
 const ROUND_BTN: React.CSSProperties = {
   width: 48,
   height: 48,
   borderRadius: '50%',
-  border: '1.5px solid rgba(255,255,255,0.7)',
-  background: 'rgba(0,0,0,0.38)',
-  color: '#fff',
+  border: gameTheme.border,
+  background: gameTheme.panel,
+  color: gameTheme.ink,
   fontSize: 22,
   lineHeight: 1,
   cursor: 'pointer',
@@ -188,9 +190,9 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
           style={{
             padding: '6px 14px',
             borderRadius: 999,
-            background: 'rgba(0,0,0,0.38)',
-            border: '1px solid rgba(255,255,255,0.4)',
-            color: '#fff',
+            background: gameTheme.panel,
+            border: gameTheme.border,
+            color: gameTheme.ink,
             fontSize: 14,
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -240,7 +242,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0,0,0,0.82)',
+            background: gameTheme.panel, overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -253,30 +255,30 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
             src={shot.url}
             alt="荒岛照片"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: '68vh', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+            style={{ maxWidth: '100%', maxHeight: '55dvh', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
           />
-          <div style={{ color: '#f2efe4', fontSize: 15, textAlign: 'center' }}>{shot.caption}</div>
-          <div style={{ display: 'flex', gap: 14 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ color: gameTheme.ink, fontSize: 15, textAlign: 'center' }}>{shot.caption}</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => void share()}
-              style={{ padding: '12px 26px', fontSize: 15, fontWeight: 600, color: '#fff', background: '#f59a1f', border: 'none', borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, color: gameTheme.ink, background: gameTheme.action, ...gameButtonStyle, borderRadius: 10, cursor: 'pointer' }}
             >
               分享
             </button>
             <button
               onClick={save}
-              style={{ padding: '12px 26px', fontSize: 15, fontWeight: 600, color: '#fff', background: '#4d9e4f', border: 'none', borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, color: gameTheme.ink, background: gameTheme.action, ...gameButtonStyle, borderRadius: 10, cursor: 'pointer' }}
             >
               保存
             </button>
             <button
               onClick={closeShot}
-              style={{ padding: '12px 26px', fontSize: 15, color: '#f2efe4', background: 'rgba(255,255,255,0.14)', border: 'none', borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, ...gameButtonStyle, color: gameTheme.ink, background: gameTheme.inset, borderRadius: 10, cursor: 'pointer' }}
             >
               重拍
             </button>
           </div>
-          {tip && <span style={{ color: '#ffd9a0', fontSize: 13 }}>{tip}</span>}
+          {tip && <span style={{ color: gameTheme.warning, background: gameTheme.surface, borderRadius: 10, padding: 6, fontSize: 13 }}>{tip}</span>}
         </div>
       )}
 
@@ -288,7 +290,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
             left: 0,
             right: 0,
             textAlign: 'center',
-            color: '#ffd9a0',
+            color: gameTheme.warning, background: gameTheme.surface, borderRadius: 10, padding: 6,
             fontSize: 13,
             pointerEvents: 'none',
           }}

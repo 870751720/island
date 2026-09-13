@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
 import { useEffect, useState } from 'react';
@@ -61,7 +63,7 @@ export function CampfirePanel({
     >
       <div style={panelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="campfire" size={20} /> 火堆</div>
-        <div style={{ fontSize: 13, color: lit ? '#e0862e' : '#999', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: lit ? gameTheme.warning : gameTheme.muted, marginBottom: 12 }}>
           {lit
             ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,添柴或烤点吃的吧`
             : '火已经熄了,添柴可以重新点燃,也可以用铲子挖掉'}
@@ -70,7 +72,7 @@ export function CampfirePanel({
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>添柴</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
           {burnables.length === 0 && (
-            <span style={{ fontSize: 13, color: '#999' }}>背包里没有能烧的东西</span>
+            <span style={{ fontSize: 13, color: gameTheme.muted }}>背包里没有能烧的东西</span>
           )}
           {burnables.map((kind) => (
             <button
@@ -82,7 +84,7 @@ export function CampfirePanel({
               style={chipStyle}
             >
               <ItemIcon kind={kind} size={20} /> {ITEMS[kind].name} ×{count(kind)}
-              <span style={{ fontSize: 11, color: '#999' }}>+{ITEMS[kind].burnTime}秒</span>
+              <span style={{ fontSize: 11, color: gameTheme.muted }}>+{ITEMS[kind].burnTime}秒</span>
             </button>
           ))}
         </div>
@@ -90,7 +92,7 @@ export function CampfirePanel({
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>烹饪</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {cookables.length === 0 && (
-            <span style={{ fontSize: 13, color: '#999' }}>背包里没有能烤的食材</span>
+            <span style={{ fontSize: 13, color: gameTheme.muted }}>背包里没有能烤的食材</span>
           )}
           {cookables.map((food) => {
             const cooked = ITEMS[COOKABLE[food.kind]!];
@@ -102,7 +104,7 @@ export function CampfirePanel({
                   <div style={{ fontSize: 14 }}>
                     <ItemIcon kind={food.kind} size={18} /> {food.name} ×{max}
                   </div>
-                  <div style={{ fontSize: 11, color: '#e0862e' }}>
+                  <div style={{ fontSize: 11, color: gameTheme.warning }}>
                     → <ItemIcon kind={cooked.kind} size={18} /> {cooked.name}
                   </div>
                 </div>
@@ -166,21 +168,21 @@ const overlayStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,0,0,0.35)',
+  background: gameTheme.overlay,
   touchAction: 'none',
   zIndex: 30,
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(320px, calc(100vw - 48px))',
+  width: 'min(360px, calc(100vw - 64px))',
   maxHeight: '80dvh',
   overflowY: 'auto',
   padding: '18px 20px',
   borderRadius: 18,
-  background: 'rgba(255,251,242,0.96)',
-  color: '#333',
-  fontFamily: 'sans-serif',
-  boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+  ...gamePanelStyle,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
+  boxShadow: gameTheme.shadow,
 };
 
 const chipStyle: CSSProperties = {
@@ -188,10 +190,10 @@ const chipStyle: CSSProperties = {
   alignItems: 'center',
   gap: 6,
   padding: '8px 12px',
-  borderRadius: 12,
-  border: '2px solid #e0a066',
-  background: '#fff',
-  color: '#333',
+  borderRadius: 22,
+  border: gameTheme.selectionBorder,
+  background: gameTheme.surface,
+  color: gameTheme.ink,
   fontSize: 14,
   textAlign: 'left',
   touchAction: 'none',
@@ -204,8 +206,8 @@ const rowStyle: CSSProperties = {
   gap: 8,
   padding: '8px 10px',
   borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
-  background: '#fff',
+  border: gameTheme.line,
+  background: gameTheme.surface,
   touchAction: 'none',
   userSelect: 'none',
 };
@@ -214,8 +216,8 @@ const stepButtonStyle: CSSProperties = {
   width: 34,
   height: 34,
   borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0,0,0,0.08)',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
   fontSize: 20,
   lineHeight: 1,
   touchAction: 'none',
@@ -225,9 +227,9 @@ const stepButtonStyle: CSSProperties = {
 const cookButtonStyle: CSSProperties = {
   padding: '8px 14px',
   borderRadius: 10,
-  border: 'none',
-  background: '#e0862e',
-  color: '#fff',
+  ...gameButtonStyle,
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
   fontSize: 14,
   touchAction: 'none',

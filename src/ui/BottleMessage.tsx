@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import type { ResourceKind } from '@/game/systems/Inventory';
 
@@ -28,7 +30,7 @@ export function BottleMessage({
       style={{
         position: 'absolute',
         inset: 0,
-        background: 'rgba(0,0,0,0.5)',
+        background: gameTheme.overlay,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -38,12 +40,12 @@ export function BottleMessage({
       <div
         onPointerDown={(e) => e.stopPropagation()}
         style={{
-          width: 'min(340px, 86vw)',
+          width: 'min(340px, calc(100vw - 72px))',
           padding: '22px 20px 18px',
-          background: '#f4ecd4',
-          borderRadius: 14,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-          fontFamily: 'sans-serif',
+          ...gamePanelStyle,
+          borderRadius: 22,
+          boxShadow: gameTheme.shadow,
+          fontFamily: gameTheme.font,
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
@@ -58,8 +60,8 @@ export function BottleMessage({
               textAlign: 'center',
               fontSize: 13,
               letterSpacing: '0.25em',
-              color: '#1a8f85',
-              fontFamily: 'sans-serif',
+              color: gameTheme.accent,
+              fontFamily: gameTheme.font,
               marginTop: -8,
             }}
           >
@@ -70,7 +72,7 @@ export function BottleMessage({
           style={{
             fontSize: 15,
             lineHeight: 1.8,
-            color: '#5a4a30',
+            color: gameTheme.ink,
             textAlign: 'center',
             fontFamily: 'serif',
           }}
@@ -81,11 +83,11 @@ export function BottleMessage({
           onClick={onClose}
           style={{
             minHeight: 44,
-            border: 'none',
+            ...gameButtonStyle,
             borderRadius: 10,
-            background: '#8a6f4b',
-            color: '#fff',
-            fontFamily: 'sans-serif',
+            background: gameTheme.action,
+            color: gameTheme.ink,
+            fontFamily: gameTheme.font,
             fontSize: 15,
             fontWeight: 600,
             cursor: 'pointer',

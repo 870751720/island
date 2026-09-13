@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gameButtonStyle } from '../gameTheme';
+
 import type { ReactNode } from 'react';
 
 /** 通栏开关行:整行可点,右侧胶囊显示开启/关闭 */
@@ -23,8 +25,8 @@ export function ToggleRow({
           minWidth: 46,
           padding: '4px 10px',
           borderRadius: 999,
-          background: value ? '#3aa76d' : '#b0a89e',
-          color: '#fff',
+          background: value ? gameTheme.selected : gameTheme.inset,
+          color: gameTheme.ink,
           fontWeight: 600,
           fontSize: 13,
         }}
@@ -35,7 +37,7 @@ export function ToggleRow({
   );
 }
 
-/** 通栏动作按钮:绿色为主操作,棕为普通操作 */
+/** 通栏动作按钮:鼠尾草选中底为主操作,浅色凹面为普通操作 */
 export function ActionButton({
   label,
   onClick,
@@ -50,8 +52,8 @@ export function ActionButton({
       onClick={onClick}
       style={{
         ...rowStyle,
-        background: tone === 'primary' ? '#3aa76d' : '#8a6f4b',
-        color: '#fff',
+        background: tone === 'primary' ? gameTheme.selected : gameTheme.inset,
+        color: gameTheme.ink,
         fontWeight: 600,
         justifyContent: 'center',
       }}
@@ -99,22 +101,22 @@ const rowStyle = {
   width: '100%',
   minHeight: 48,
   padding: '10px 14px',
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 10,
-  background: 'rgba(0,0,0,0.06)',
-  fontFamily: 'sans-serif',
+  background: gameTheme.inset,
+  fontFamily: gameTheme.font,
   fontSize: 15,
-  color: '#4a3b2a',
+  color: gameTheme.ink,
   cursor: 'pointer',
 } as const;
 
 const stepButtonStyle = {
   width: 36,
   height: 36,
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 8,
-  background: '#8a6f4b',
-  color: '#fff',
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontSize: 18,
   fontWeight: 700,
   cursor: 'pointer',

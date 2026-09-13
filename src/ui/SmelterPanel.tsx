@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -23,7 +25,7 @@ type Props = {
   onClose: () => void;
 };
 
-const ACTION_COLOR = '#c0392b';
+const ACTION_COLOR = gameTheme.danger;
 
 const chipStyle: CSSProperties = {
   display: 'flex',
@@ -31,9 +33,9 @@ const chipStyle: CSSProperties = {
   gap: 6,
   padding: '8px 10px',
   borderRadius: 10,
-  border: '1px solid #444',
-  background: '#2b2b2b',
-  color: '#eee',
+  border: gameTheme.line,
+  background: gameTheme.surface,
+  color: gameTheme.ink,
   fontSize: 13,
 };
 
@@ -69,7 +71,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
     >
       <div style={convertPanelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="smelter" size={20} /> 冶炼炉</div>
-        <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, color: gameTheme.muted, marginBottom: 8 }}>
           每 {SMELT_INTERVAL} 秒用 {SMELT_ORE_PER_INGOT} 块{ITEMS.ironOre.name}炼 1 块
           {ITEMS.ironIngot.name}
         </div>
@@ -77,7 +79,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>添柴</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
           {burnables.length === 0 && (
-            <span style={{ fontSize: 13, color: '#999' }}>背包里没有能烧的东西</span>
+            <span style={{ fontSize: 13, color: gameTheme.muted }}>背包里没有能烧的东西</span>
           )}
           {burnables.map((kind) => (
             <button
@@ -89,7 +91,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
               style={chipStyle}
             >
               <ItemIcon kind={kind} size={20} /> {ITEMS[kind].name} ×{count(kind)}
-              <span style={{ fontSize: 11, color: '#999' }}>+{ITEMS[kind].burnTime}秒</span>
+              <span style={{ fontSize: 11, color: gameTheme.muted }}>+{ITEMS[kind].burnTime}秒</span>
             </button>
           ))}
         </div>
@@ -98,7 +100,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14 }}>
               <ItemIcon kind="ironOre" size={18} /> 炉内矿石 ×{info.ore}
-              <span style={{ fontSize: 11, color: smelting ? ACTION_COLOR : '#999', marginLeft: 6 }}>
+              <span style={{ fontSize: 11, color: smelting ? ACTION_COLOR : gameTheme.muted, marginLeft: 6 }}>
                 {smelting
                   ? `燃烧中 · 冶炼中,燃料剩约 ${Math.ceil(info.fuel)} 秒`
                   : !lit
@@ -155,7 +157,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
             onAction={() => onFeed(n)}
           />
         ) : (
-          <div style={{ fontSize: 13, color: '#999' }}>
+          <div style={{ fontSize: 13, color: gameTheme.muted }}>
             背包里没有{ITEMS.ironOre.name},去北岛的铁矿或陨石里挖些回来吧
           </div>
         )}
@@ -165,7 +167,7 @@ export function SmelterPanel({ hud, onFeed, onAddFuel, onCollect, onTakeOre, onC
             e.preventDefault();
             onClose();
           }}
-          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
+          style={{ ...convertActionButtonStyle, marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

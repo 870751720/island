@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import type { ReactNode } from 'react';
 import type { EmojiDef } from '../game/social/Emojis';
 
@@ -41,7 +43,7 @@ export function PlacePicker<T extends PickerItem>({
         position: 'absolute',
         inset: 0,
         zIndex: 40,
-        background: 'rgba(0,0,0,0.25)',
+        background: gameTheme.overlay,
       }}
     >
       <div
@@ -50,14 +52,14 @@ export function PlacePicker<T extends PickerItem>({
           position: 'absolute',
           right: 'max(16px, env(safe-area-inset-right))',
           top: '50%',
-          transform: 'translateY(-70%)',
+          transform: 'translateY(-50%)',
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
           padding: 10,
           borderRadius: 14,
-          background: 'rgba(50, 56, 66, 0.95)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          ...gamePanelStyle,
+          boxShadow: gameTheme.shadow,
           maxHeight: '60vh',
           overflowY: 'auto',
         }}
@@ -76,9 +78,9 @@ export function PlacePicker<T extends PickerItem>({
                   style={{
                     width: 60,
                     height: 60,
-                    border: 'none',
+                    ...gameButtonStyle,
                     borderRadius: 10,
-                    background: 'rgba(90, 110, 140, 0.8)',
+                    background: gameTheme.surface,
                     fontSize: 32,
                     lineHeight: '60px',
                     touchAction: 'none',
@@ -89,7 +91,7 @@ export function PlacePicker<T extends PickerItem>({
                 </button>
               ))}
             </div>
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.15)' }} />
+            <div style={{ height: 1, background: gameTheme.inset }} />
           </>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 60px)', gap: 8 }}>
@@ -104,11 +106,11 @@ export function PlacePicker<T extends PickerItem>({
                 position: 'relative',
                 width: 60,
                 height: 60,
-                border: item.active ? '2px solid #7ec97e' : 'none',
+                border: item.active ? gameTheme.selectionBorder : gameTheme.line,
                 borderRadius: 10,
                 background: item.active
-                  ? 'rgba(90, 140, 90, 0.9)'
-                  : 'rgba(90, 110, 140, 0.8)',
+                  ? gameTheme.selected
+                  : gameTheme.surface,
                 fontSize: 26,
                 lineHeight: '34px',
                 touchAction: 'none',
@@ -121,7 +123,7 @@ export function PlacePicker<T extends PickerItem>({
                   display: 'block',
                   fontSize: 10,
                   lineHeight: '14px',
-                  color: 'rgba(255,255,255,0.85)',
+                  color: gameTheme.ink,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                 }}
@@ -137,8 +139,8 @@ export function PlacePicker<T extends PickerItem>({
                     minWidth: 18,
                     padding: '0 4px',
                     borderRadius: 9,
-                    background: 'rgba(40,40,40,0.75)',
-                    color: '#fff',
+                    background: gameTheme.selected,
+                    color: gameTheme.ink,
                     fontSize: 11,
                     lineHeight: '16px',
                   }}

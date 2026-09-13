@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { useRef, useState } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
@@ -100,8 +102,8 @@ function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
     width: SLOT_SIZE,
     height: SLOT_SIZE,
     borderRadius: 10,
-    border: selected ? '2px solid #4caf50' : '2px solid rgba(0,0,0,0.12)',
-    background: filled ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.05)',
+    border: selected ? gameTheme.selectionBorder : gameTheme.line,
+    background: filled ? gameTheme.surface : gameTheme.inset,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -122,8 +124,8 @@ function countBadge(count: number): React.ReactNode {
         bottom: 1,
         fontSize: 11,
         fontWeight: 700,
-        color: '#555',
-        fontFamily: 'sans-serif',
+        color: gameTheme.ink,
+        fontFamily: gameTheme.font,
       }}
     >
       ×{count}
@@ -143,9 +145,9 @@ function actionButton(disabled: boolean, label: string, color: string, onPress: 
         flex: 1,
         padding: '10px 0',
         borderRadius: 10,
-        border: 'none',
-        background: disabled ? '#bbb' : color,
-        color: '#fff',
+        ...gameButtonStyle,
+        background: disabled ? gameTheme.disabled : color === gameTheme.warning ? gameTheme.dangerSurface : gameTheme.action,
+        color: gameTheme.ink,
         fontSize: 15,
         fontWeight: 700,
         touchAction: 'none',
@@ -189,13 +191,13 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
           bottom: showAbove ? window.innerHeight - tip.y + 14 : undefined,
           width: WIDTH,
           padding: '10px 12px',
-          background: 'rgba(255,255,255,0.98)',
-          borderRadius: 12,
-          border: '1px solid rgba(0,0,0,0.1)',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-          fontFamily: 'sans-serif',
+          ...gamePanelStyle,
+          borderRadius: 22,
+          border: gameTheme.line,
+          boxShadow: gameTheme.shadow,
+          fontFamily: gameTheme.font,
           fontSize: 13,
-          color: '#333',
+          color: gameTheme.ink,
           lineHeight: 1.5,
           zIndex: 61,
         }}
@@ -289,7 +291,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'center',
-            background: 'rgba(0,0,0,0.35)',
+            background: gameTheme.overlay,
           }}
           onPointerDown={(e) => {
             e.preventDefault();
@@ -301,18 +303,18 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             ref={panelRef}
             className="hud-panel-enter"
             style={{
-              // 顶边对齐旧版居中面板的位置(按旧面板约 520px 高折算),内容增多时向下生长
+              // 面板上方预留空间，内容增多时在面板内滚动。
               marginTop: 'max(12px, calc(50vh - 260px))',
               width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
               maxHeight: '80vh',
               overflowY: 'auto',
               padding: '12px',
-              background: 'rgba(255,255,255,0.95)',
-              borderRadius: 14,
-              fontFamily: 'sans-serif',
+              ...gamePanelStyle,
+              borderRadius: 22,
+              fontFamily: gameTheme.font,
               fontSize: 15,
-              color: '#333',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+              color: gameTheme.ink,
+              boxShadow: gameTheme.shadow,
             }}
           >
             {/* 固定在面板顶部的 tab 栏 */}
@@ -328,9 +330,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     flex: 1,
                     padding: '7px 0',
                     borderRadius: 8,
-                    border: 'none',
-                    background: tab === t ? '#4caf50' : 'rgba(0,0,0,0.08)',
-                    color: tab === t ? '#fff' : '#666',
+                    ...gameButtonStyle,
+                    background: tab === t ? gameTheme.selected : gameTheme.inset,
+                    color: gameTheme.ink,
                     fontSize: 14,
                     fontWeight: 700,
                     touchAction: 'none',
@@ -355,9 +357,9 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     style={{
                       padding: '4px 14px',
                       borderRadius: 8,
-                      border: 'none',
-                      background: 'rgba(0,0,0,0.08)',
-                      color: '#555',
+                      ...gameButtonStyle,
+                      background: gameTheme.inset,
+                      color: gameTheme.ink,
                       fontSize: 13,
                       fontWeight: 700,
                       touchAction: 'none',
@@ -459,19 +461,19 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ItemIcon kind={selectedDef.kind} size={26} />
                         <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
-                        <span style={{ color: '#888' }}>×{selected.count}</span>
+                        <span style={{ color: gameTheme.muted }}>×{selected.count}</span>
                       </div>
-                      <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 13, color: gameTheme.ink, lineHeight: 1.5 }}>
                         {selectedDef.description}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {isUsable(selectedDef.kind) &&
-                          actionButton(false, '使用', '#4caf50', () => {
+                          actionButton(false, '使用', gameTheme.accent, () => {
                             setSelectedIndex(null);
                             onUseItem(selectedDef.kind);
                           })}
                         {isEquipKind(selectedDef.kind) &&
-                          actionButton(false, `装备(评分${EQUIPMENT[selectedDef.kind].score})`, '#4caf50', () => {
+                          actionButton(false, `装备(评分${EQUIPMENT[selectedDef.kind].score})`, gameTheme.accent, () => {
                             onEquip(selectedDef.kind);
                             setSelectedIndex(null);
                           })}
@@ -482,7 +484,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           <StepButton
                             key={step}
                             step={step}
-                            style={{ width: 44, borderRadius: 10, border: 'none', background: 'rgba(0,0,0,0.08)', color: '#555', fontSize: 20, fontWeight: 700 }}
+                            style={{ width: 44, borderRadius: 10, ...gameButtonStyle, background: gameTheme.inset, color: gameTheme.ink, fontSize: 20, fontWeight: 700 }}
                             onChange={(s) =>
                               setDropCount((c) => Math.min(selected.count, Math.max(1, c + s)))
                             }
@@ -494,12 +496,12 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             textAlign: 'center',
                             alignSelf: 'center',
                             fontWeight: 700,
-                            color: '#555',
+                            color: gameTheme.ink,
                           }}
                         >
                           {dropCount}
                         </span>
-                        {actionButton(false, `丢弃${dropCount > 1 ? ` ${dropCount}` : ''}`, '#e67e22', () => {
+                        {actionButton(false, `丢弃${dropCount > 1 ? ` ${dropCount}` : ''}`, gameTheme.warning, () => {
                           onDropItem(selectedDef.kind, dropCount);
                           setSelectedIndex(null);
                         })}
@@ -511,7 +513,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, color: gameTheme.muted, textAlign: 'center' }}>
                       点击选中物品,双击可直接使用或装备;长按拖动可交换位置,拖出面板丢弃
                     </div>
                   )}
@@ -520,7 +522,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             ) : tab === 'craft' ? (
               <div style={CONTENT_STYLE}>
                 {craftables.length === 0 && (
-                  <div style={{ fontSize: 13, color: '#999', textAlign: 'center', padding: '14px 0' }}>
+                  <div style={{ fontSize: 13, color: gameTheme.muted, textAlign: 'center', padding: '14px 0' }}>
                     暂时没有能手搓的东西
                   </div>
                 )}
@@ -529,14 +531,14 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={22} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div>{r.name}</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>
+                      <div style={{ fontSize: 12, color: gameTheme.muted }}>
                         {Object.entries(r.cost)
                           .filter(([, n]) => !!n)
                           .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
                           .join(' + ')}
                       </div>
                     </div>
-                    {actionButton(false, '制作', '#4caf50', () => onCraft(r.id))}
+                    {actionButton(false, '制作', gameTheme.accent, () => onCraft(r.id))}
                   </div>
                 ))}
               </div>
@@ -558,7 +560,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <ItemIcon kind={id} level={tier >= 2 ? Math.min(tier, 3) : undefined} size={20} />
                               <span style={{ fontWeight: 700, flex: 1 }}>{name}</span>
-                              <span style={{ fontSize: 12, color: owned ? '#4caf50' : '#999', fontWeight: 700 }}>
+                              <span style={{ fontSize: 12, color: owned ? gameTheme.accent : gameTheme.muted, fontWeight: 700 }}>
                                 {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
                               </span>
                             </div>
@@ -580,18 +582,18 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       <div style={{ flex: 1, minWidth: 0 }}>{name}</div>
                       {/* 弓/鱼竿行:状态文字左侧显示弹药图标与数量(弹药不进背包) */}
                       {id === 'bow' && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: '#555' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: gameTheme.ink }}>
                           <ItemIcon kind="arrow" size={16} />
                           {hud.arrow}
                         </span>
                       )}
                       {id === 'fishingrod' && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: '#555' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: gameTheme.ink }}>
                           <ItemIcon kind="bait" size={16} />
                           {hud.bait}
                         </span>
                       )}
-                      <span style={{ fontSize: 12, fontWeight: 700, color: owned ? '#4caf50' : '#999' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: owned ? gameTheme.accent : gameTheme.muted }}>
                         {owned ? (tier >= 2 ? '已升级' : '已拥有') : '未拥有'}
                       </span>
                     </div>
@@ -616,12 +618,12 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                   <ItemIcon kind={kind} size={20} />
                                   <span style={{ fontWeight: 700, flex: 1 }}>{def.name}</span>
-                                  <span style={{ fontSize: 12, color: '#888' }}>评分 {EQUIPMENT[kind].score}</span>
+                                  <span style={{ fontSize: 12, color: gameTheme.muted }}>评分 {EQUIPMENT[kind].score}</span>
                                 </div>
-                                <div style={{ marginTop: 4, color: '#666' }}>{def.description}</div>
+                                <div style={{ marginTop: 4, color: gameTheme.ink }}>{def.description}</div>
                               </>
                             ) : (
-                              <div style={{ textAlign: 'center', color: '#999' }}>
+                              <div style={{ textAlign: 'center', color: gameTheme.muted }}>
                                 {SLOT_NAMES[slot]}:未装备
                               </div>
                             )
@@ -639,18 +641,18 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       >
                         {kind ? <ItemIcon kind={kind} size={22} /> : '➖'}
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, color: '#999' }}>{SLOT_NAMES[slot]}</div>
+                          <div style={{ fontSize: 13, color: gameTheme.muted }}>{SLOT_NAMES[slot]}</div>
                           <div style={{ fontWeight: 700 }}>
                             {def ? def.name : '未装备'}
                             {score !== null && (
-                              <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 6 }}>
+                              <span style={{ fontSize: 12, color: gameTheme.muted, fontWeight: 400, marginLeft: 6 }}>
                                 评分 {score}
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
-                      {kind && actionButton(false, '卸下', '#e67e22', () => onUnequip(slot))}
+                      {kind && actionButton(false, '卸下', gameTheme.warning, () => onUnequip(slot))}
                     </div>
                   );
                 })}
@@ -673,8 +675,8 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
             justifyContent: 'center',
             fontSize: 24,
             borderRadius: 10,
-            background: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            ...gamePanelStyle,
+            boxShadow: gameTheme.shadow,
             pointerEvents: 'none',
             zIndex: 70,
           }}

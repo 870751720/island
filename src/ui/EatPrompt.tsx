@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
@@ -41,7 +43,7 @@ export function EatPrompt({
         <ItemIcon kind={entry.food.kind} size={28} />
         <span>
           {isWineKind(entry.food.kind) ? '喝' : '吃'}{entry.food.name}
-          <span style={{ color: '#4caf50' }}>(+{entry.food.hunger})</span>
+          <span style={{ color: gameTheme.accent }}>(+{entry.food.hunger})</span>
         </span>
       </button>
       {entry.count > 1 && (
@@ -65,6 +67,6 @@ const fullButtonStyle: CSSProperties = {
   minHeight: 44,
   padding: '6px 10px',
   fontSize: 14,
-  background: '#4caf50',
-  color: '#fff',
+  background: gameTheme.action,
+  color: gameTheme.ink,
 };

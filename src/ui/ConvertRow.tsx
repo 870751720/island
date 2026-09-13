@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
 import { ITEMS } from '@/game/systems/Items';
@@ -17,21 +19,21 @@ export const convertOverlayStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,0,0,0.35)',
+  background: gameTheme.overlay,
   touchAction: 'none',
   zIndex: 30,
 };
 
 export const convertPanelStyle: CSSProperties = {
-  width: 'min(320px, calc(100vw - 48px))',
+  width: 'min(360px, calc(100vw - 64px))',
   maxHeight: '80dvh',
   overflowY: 'auto',
   padding: '18px 20px',
   borderRadius: 18,
-  background: 'rgba(255,251,242,0.96)',
-  color: '#333',
-  fontFamily: 'sans-serif',
-  boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+  ...gamePanelStyle,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
+  boxShadow: gameTheme.shadow,
 };
 
 export const convertRowStyle: CSSProperties = {
@@ -39,9 +41,9 @@ export const convertRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   padding: '8px 10px',
-  borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
-  background: '#fff',
+  borderRadius: 22,
+  border: gameTheme.line,
+  background: gameTheme.surface,
   // 允许竖向滚动穿透,行内按钮自身仍禁用默认手势
   touchAction: 'pan-y',
   userSelect: 'none',
@@ -51,32 +53,32 @@ export const convertStepButtonStyle: CSSProperties = {
   width: 34,
   height: 34,
   borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0,0,0,0.08)',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
   fontSize: 20,
   lineHeight: 1,
   touchAction: 'none',
   userSelect: 'none',
 };
 
-export const convertActionButtonStyle = (color: string): CSSProperties => ({
+export const convertActionButtonStyle: CSSProperties = {
   padding: '8px 14px',
   borderRadius: 10,
-  border: 'none',
-  background: color,
-  color: '#fff',
+  ...gameButtonStyle,
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
   fontSize: 14,
   touchAction: 'none',
   userSelect: 'none',
-});
+};
 
 export const convertCollectButtonStyle: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 10,
-  border: 'none',
-  background: '#4caf50',
-  color: '#fff',
+  ...gameButtonStyle,
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
   fontSize: 13,
   whiteSpace: 'nowrap',
@@ -87,9 +89,9 @@ export const convertCollectButtonStyle: CSSProperties = {
 export const convertTakeButtonStyle: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 10,
-  border: 'none',
-  background: '#8d9aa5',
-  color: '#fff',
+  ...gameButtonStyle,
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
   fontSize: 13,
   whiteSpace: 'nowrap',
@@ -101,7 +103,7 @@ export const convertBarStyle: CSSProperties = {
   height: 8,
   marginTop: 6,
   borderRadius: 4,
-  background: 'rgba(0,0,0,0.08)',
+  background: gameTheme.inset,
   overflow: 'hidden',
 };
 
@@ -180,7 +182,7 @@ export function ConvertRow({
           e.preventDefault();
           onAction();
         }}
-        style={{ ...convertActionButtonStyle(actionColor), opacity: disabled ? 0.45 : 1 }}
+        style={{ ...convertActionButtonStyle, opacity: disabled ? 0.45 : 1 }}
       >
         {actionLabel}
       </button>

@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
@@ -55,7 +57,7 @@ export function BrewBarrelPanel({ hud, onFeed, onCollect, onTakeRaw, onClose }: 
     >
       <div style={convertPanelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="brewBarrel" size={20} /> 酿酒桶</div>
-        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: gameTheme.muted, marginBottom: 12 }}>
           每 {BREW_INTERVAL} 秒用 {BREW_COST} 个原料酿 1 瓶酒,一次只酿一种
         </div>
 
@@ -78,7 +80,7 @@ export function BrewBarrelPanel({ hud, onFeed, onCollect, onTakeRaw, onClose }: 
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 13, color: '#999' }}>桶是空的,丢点原料进来吧</div>
+              <div style={{ fontSize: 13, color: gameTheme.muted }}>桶是空的,丢点原料进来吧</div>
             )}
           </div>
           {info.kind !== null && (
@@ -110,7 +112,7 @@ export function BrewBarrelPanel({ hud, onFeed, onCollect, onTakeRaw, onClose }: 
         </div>
 
         {feedable.length === 0 && (
-          <div style={{ fontSize: 13, color: '#999' }}>
+          <div style={{ fontSize: 13, color: gameTheme.muted }}>
             背包里没有可酿酒的原料({ITEMS.brewBarrel.name}只收浆果/苹果/羊奶/黄金鱼)
           </div>
         )}
@@ -147,7 +149,7 @@ export function BrewBarrelPanel({ hud, onFeed, onCollect, onTakeRaw, onClose }: 
             e.preventDefault();
             onClose();
           }}
-          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
+          style={{ ...convertActionButtonStyle, marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

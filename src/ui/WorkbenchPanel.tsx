@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -100,7 +102,7 @@ export function WorkbenchPanel({
         </div>
         <div style={listStyle}>
           {recipes.length === 0 && (
-            <div style={{ fontSize: 13, color: '#999', padding: '6px 0' }}>
+            <div style={{ fontSize: 13, color: gameTheme.muted, padding: '6px 0' }}>
               材料还不够,先去收集吧
             </div>
           )}
@@ -113,7 +115,7 @@ export function WorkbenchPanel({
                 <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div>{r.name}</div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: gameTheme.muted }}>
                         {recipeCostLabel(r)}
                         {r.output && count > 1 ? ` ×${count}` : ''}
                   </div>
@@ -162,11 +164,11 @@ export function WorkbenchPanel({
           })}
         </div>
         {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
-          <div style={{ ...rowStyle, marginTop: 10, background: 'rgba(76,175,80,0.08)' }}>
+          <div style={{ ...rowStyle, marginTop: 10, background: gameTheme.selected }}>
             <span style={{ fontSize: 26 }}>⬆️</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
-              <div style={{ fontSize: 12, color: upgradeHint ? '#c62828' : '#888' }}>
+              <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
                 {upgradeHint ?? costLabel(upgradeCost)}
               </div>
             </div>
@@ -224,18 +226,18 @@ const overlayStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,0,0,0.35)',
+  background: gameTheme.overlay,
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(92vw, 400px)',
+  width: 'min(calc(100vw - 56px), 400px)',
   padding: '16px 14px',
-  background: 'rgba(255,255,255,0.95)',
-  borderRadius: 14,
-  fontFamily: 'sans-serif',
+  ...gamePanelStyle,
+  borderRadius: 22,
+  fontFamily: gameTheme.font,
   fontSize: 15,
-  color: '#333',
-  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+  color: gameTheme.ink,
+  boxShadow: gameTheme.shadow,
   maxHeight: '90vh',
   overflowY: 'auto',
 };
@@ -257,16 +259,16 @@ const rowStyle: CSSProperties = {
   gap: 10,
   padding: '8px 10px',
   borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
-  background: 'rgba(255,255,255,0.8)',
+  border: gameTheme.line,
+  background: gameTheme.surface,
 };
 
 const stepButtonStyle: CSSProperties = {
   width: 34,
   height: 34,
   borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0,0,0,0.08)',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
   fontSize: 20,
   lineHeight: 1,
   touchAction: 'none',
@@ -276,9 +278,9 @@ const stepButtonStyle: CSSProperties = {
 const craftButtonStyle = (enabled: boolean): CSSProperties => ({
   padding: '8px 14px',
   borderRadius: 10,
-  border: 'none',
-  background: enabled ? '#4caf50' : '#bbb',
-  color: '#fff',
+  ...gameButtonStyle,
+  background: enabled ? gameTheme.action : gameTheme.disabled,
+  color: gameTheme.ink,
   fontWeight: 700,
   fontSize: 14,
   touchAction: 'none',
@@ -290,8 +292,8 @@ const closeButtonStyle: CSSProperties = {
   marginTop: 12,
   padding: '10px 0',
   borderRadius: 10,
-  border: 'none',
-  background: 'rgba(0,0,0,0.1)',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
   fontSize: 15,
   touchAction: 'none',
   userSelect: 'none',
@@ -300,9 +302,9 @@ const closeButtonStyle: CSSProperties = {
 const bookButtonStyle: CSSProperties = {
   padding: '6px 12px',
   borderRadius: 8,
-  border: 'none',
-  background: 'rgba(0,0,0,0.08)',
-  color: '#666',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
+  color: gameTheme.ink,
   fontSize: 13,
   fontWeight: 700,
   touchAction: 'none',

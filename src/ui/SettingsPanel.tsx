@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { useEffect, useState } from 'react';
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSettings';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
@@ -16,7 +18,7 @@ function SliderRow({
 }) {
   return (
     <label
-      style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 15, color: '#4a3b2a' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 15, color: gameTheme.ink }}
     >
       <span style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>{label}</span>
@@ -29,7 +31,7 @@ function SliderRow({
         step={0.05}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: '#5b8a4a', height: 28 }}
+        style={{ width: '100%', accentColor: gameTheme.accent, height: 44 }}
       />
     </label>
   );
@@ -87,29 +89,29 @@ export function SettingsPanel({
       style={{
         position: 'absolute',
         inset: 0,
-        background: 'rgba(0,0,0,0.45)',
+        background: gameTheme.overlay,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 200,
-        fontFamily: 'sans-serif',
+        fontFamily: gameTheme.font,
       }}
     >
       <div
         className="hud-panel-enter"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 'min(84vw, 340px)',
+          width: 'min(calc(100vw - 72px), 340px)',
           padding: 20,
-          background: '#fdf8ee',
-          borderRadius: 16,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+          ...gamePanelStyle,
+          borderRadius: 22,
+          boxShadow: gameTheme.shadow,
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#4a3b2a' }}>设置</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: gameTheme.ink }}>设置</div>
         <SliderRow
           label="🎵 音乐"
           value={settings.music}
@@ -126,9 +128,9 @@ export function SettingsPanel({
             padding: '12px 0',
             fontSize: 15,
             fontWeight: 600,
-            color: '#fff',
-            background: '#5b8a4a',
-            border: 'none',
+            color: gameTheme.ink,
+            background: gameTheme.action,
+            ...gameButtonStyle,
             borderRadius: 10,
             cursor: 'pointer',
           }}
@@ -144,12 +146,12 @@ export function SettingsPanel({
                 alignItems: 'center',
                 gap: 6,
                 padding: '12px 0',
-                borderTop: '1px solid rgba(0,0,0,0.08)',
-                borderBottom: '1px solid rgba(0,0,0,0.08)',
+                borderTop: gameTheme.line,
+                borderBottom: gameTheme.line,
               }}
             >
-              <span style={{ fontSize: 13, color: '#53664a' }}>多人游戏 · 房间码</span>
-              <strong style={{ fontSize: 28, letterSpacing: '.18em', fontFamily: 'monospace', color: '#2c5f2d' }}>
+              <span style={{ fontSize: 13, color: gameTheme.ink }}>多人游戏 · 房间码</span>
+              <strong style={{ fontSize: 28, letterSpacing: '.18em', fontFamily: 'monospace', color: gameTheme.accent }}>
                 {multiplayer.roomCode}
               </strong>
               {qr && (
@@ -165,9 +167,9 @@ export function SettingsPanel({
                   padding: '10px 22px',
                   fontSize: 14,
                   fontWeight: 600,
-                  color: '#fff',
-                  background: '#f59a1f',
-                  border: 'none',
+                  color: gameTheme.ink,
+                  background: gameTheme.action,
+                  ...gameButtonStyle,
                   borderRadius: 10,
                   cursor: 'pointer',
                 }}
@@ -183,11 +185,11 @@ export function SettingsPanel({
                 flexDirection: 'column',
                 gap: 6,
                 padding: '12px 0',
-                borderTop: '1px solid rgba(0,0,0,0.08)',
-                borderBottom: '1px solid rgba(0,0,0,0.08)',
+                borderTop: gameTheme.line,
+                borderBottom: gameTheme.line,
               }}
             >
-              <span style={{ fontSize: 13, color: '#53664a' }}>多人游戏:让朋友中途加入当前这座岛</span>
+              <span style={{ fontSize: 13, color: gameTheme.ink }}>多人游戏:让朋友中途加入当前这座岛</span>
               <button
                 disabled={multiplayer.busy}
                 onClick={multiplayer.onEnable}
@@ -195,16 +197,16 @@ export function SettingsPanel({
                   padding: '12px 0',
                   fontSize: 15,
                   fontWeight: 600,
-                  color: '#fff',
-                  background: multiplayer.busy ? '#a89f8d' : '#4d9e4f',
-                  border: 'none',
+                  color: gameTheme.ink,
+                  background: multiplayer.busy ? gameTheme.disabled : gameTheme.action,
+                  ...gameButtonStyle,
                   borderRadius: 10,
                   cursor: 'pointer',
                 }}
               >
                 {multiplayer.busy ? '正在创建房间…' : '开启多人模式'}
               </button>
-              {multiplayer.error && <span style={{ fontSize: 12, color: '#c0392b' }}>{multiplayer.error}</span>}
+              {multiplayer.error && <span style={{ fontSize: 12, color: gameTheme.danger }}>{multiplayer.error}</span>}
             </div>
           ))}
         <button
@@ -213,9 +215,9 @@ export function SettingsPanel({
             padding: '12px 0',
             fontSize: 15,
             fontWeight: 600,
-            color: '#fff',
-            background: '#c0392b',
-            border: 'none',
+            color: gameTheme.danger,
+            background: gameTheme.dangerSurface,
+            ...gameButtonStyle,
             borderRadius: 10,
             cursor: 'pointer',
           }}
@@ -227,9 +229,9 @@ export function SettingsPanel({
           style={{
             padding: '10px 0',
             fontSize: 15,
-            color: '#4a3b2a',
-            background: 'rgba(0,0,0,0.06)',
-            border: 'none',
+            color: gameTheme.ink,
+            background: gameTheme.inset,
+            ...gameButtonStyle,
             borderRadius: 10,
             cursor: 'pointer',
           }}

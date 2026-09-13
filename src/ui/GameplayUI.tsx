@@ -8,6 +8,7 @@ import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
 import { HudIcon } from './hud/HudIcon';
 import { hudStyles } from './hud/styles';
+import { gameThemeCss, gameTheme } from './gameTheme';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { PerformanceOverlay } from './gm/PerformanceOverlay';
@@ -173,9 +174,10 @@ export function GameplayUI({
   return (
     <div
       ref={containerRef}
+      className="gameplay-ui"
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
-      <style>{hudStyles}</style>
+      <style>{hudStyles + gameThemeCss}</style>
       <div
         style={{
           position: 'absolute',
@@ -624,8 +626,8 @@ export function GameplayUI({
           top: 0,
           display: 'none',
           padding: '4px 14px',
-          background: 'rgba(0,0,0,0.55)',
-          color: '#fff',
+          background: gameTheme.panel,
+          color: gameTheme.ink,
           borderRadius: 20,
           fontFamily: 'sans-serif',
           fontSize: 14,
@@ -645,8 +647,8 @@ export function GameplayUI({
           display: 'none',
           maxWidth: '60vw',
           padding: '6px 14px',
-          background: 'rgba(255,255,255,0.94)',
-          color: '#4a3b2a',
+          background: gameTheme.panel,
+          color: gameTheme.ink,
           borderRadius: 14,
           fontFamily: 'sans-serif',
           fontSize: 14,
@@ -669,7 +671,7 @@ export function GameplayUI({
           top: 0,
           display: 'none',
           padding: '2px 7px',
-          background: 'rgba(255,255,255,0.94)',
+          background: gameTheme.panel,
           borderRadius: 999,
           fontFamily: 'sans-serif',
           fontSize: 14,

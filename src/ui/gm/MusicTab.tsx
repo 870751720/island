@@ -1,3 +1,4 @@
+import { gameTheme, gameButtonStyle } from '../gameTheme';
 import { useEffect, useState } from 'react';
 import type { Game } from '@/game/Game';
 import { MUSIC_GROUP_LABELS, MUSIC_PIECES } from '@/game/audio/MusicLibrary';
@@ -14,11 +15,11 @@ export function MusicTab({ getGame }: { getGame: () => Game | null }) {
     setStatus(getGame()?.getMusicStatus());
   };
   return (
-    <div style={{ color: '#4a3b2a', fontSize: 14 }}>
+    <div style={{ color: gameTheme.ink, fontSize: 14 }}>
       <p aria-live="polite">当前曲目：{status?.title ?? '等待音频启动'}</p>
       <p style={{ fontSize: 12, lineHeight: 1.6 }}>选曲后立即从头播放并循环，仅自己听到。自动模式优先战斗，其次钓鱼，其余时间优先跟随风雨雪天气，再跟随季节。</p>
       <button onClick={() => select(null)} aria-pressed={!status?.selection}
-        style={{ ...buttonStyle, background: !status?.selection ? '#a8823f' : '#8a6f4b' }}>
+        style={{ ...buttonStyle, background: !status?.selection ? gameTheme.selected : gameTheme.inset }}>
         自动 · 战斗 / 钓鱼 / 天气 / 季节
       </button>
       {(Object.keys(MUSIC_GROUP_LABELS) as MusicGroup[]).map((group) => (
@@ -28,7 +29,7 @@ export function MusicTab({ getGame }: { getGame: () => Game | null }) {
             {MUSIC_PIECES.filter((p) => p.group === group).map((piece) => (
               <button key={piece.name} onClick={() => select(piece.name)}
                 aria-pressed={status?.selection === piece.name}
-                style={{ ...buttonStyle, background: status?.selection === piece.name ? '#a8823f' : '#8a6f4b' }}>
+                style={{ ...buttonStyle, background: status?.selection === piece.name ? gameTheme.selected : gameTheme.inset }}>
                 {piece.title}
               </button>
             ))}
@@ -40,6 +41,6 @@ export function MusicTab({ getGame }: { getGame: () => Game | null }) {
 }
 
 const buttonStyle = {
-  width: '100%', minHeight: 44, padding: '8px 6px', border: 'none', borderRadius: 10,
-  color: '#fff', fontSize: 14, cursor: 'pointer',
+  width: '100%', minHeight: 44, padding: '8px 6px', ...gameButtonStyle, borderRadius: 10,
+  color: gameTheme.ink, fontSize: 14, cursor: 'pointer',
 } as const;

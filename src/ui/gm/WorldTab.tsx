@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gameButtonStyle } from '../gameTheme';
+
 import { useState } from 'react';
 import type { Game } from '@/game/Game';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
@@ -72,7 +74,7 @@ export function WorldTab({
                 onSetConfig({ season: s });
                 setSeason(s);
               }}
-              style={{ ...presetStyle, background: season === s ? '#a8823f' : '#8a6f4b' }}
+              style={{ ...presetStyle, background: season === s ? gameTheme.selected : gameTheme.inset }}
             >
               {SEASON_LABELS[s]}
             </button>
@@ -90,7 +92,7 @@ export function WorldTab({
                 onSetConfig({ lockTime: next });
                 setLockTime(next);
               }}
-              style={{ ...presetStyle, background: lockTime === p.t ? '#a8823f' : '#8a6f4b' }}
+              style={{ ...presetStyle, background: lockTime === p.t ? gameTheme.selected : gameTheme.inset }}
             >
               {p.label}
             </button>
@@ -132,11 +134,11 @@ export function WorldTab({
 const presetStyle = {
   flex: 1,
   minHeight: 44,
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 10,
-  background: '#8a6f4b',
-  color: '#fff',
-  fontFamily: 'sans-serif',
+  background: gameTheme.action,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
@@ -146,10 +148,10 @@ const dayInputStyle = {
   flex: 1,
   minHeight: 44,
   padding: '0 10px',
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 10,
-  background: 'rgba(0,0,0,0.08)',
-  color: '#4a3b2a',
-  fontFamily: 'sans-serif',
+  background: gameTheme.inset,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
   fontSize: 14,
 } as const;

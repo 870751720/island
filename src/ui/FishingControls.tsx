@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 
@@ -77,37 +79,37 @@ const buttonStyle: CSSProperties = {
   width: 84,
   height: 84,
   borderRadius: '50%',
-  border: '3px solid #4caf50',
-  background: 'rgba(255,255,255,0.92)',
+  border: gameTheme.selectionBorder,
+  background: gameTheme.panel,
   fontSize: 32,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#333',
+  color: gameTheme.ink,
   touchAction: 'none',
   userSelect: 'none',
-  boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+  boxShadow: gameTheme.shadow,
   zIndex: 20,
 };
 
 const biteHintStyle: CSSProperties = {
   padding: '14px 26px',
   borderRadius: 18,
-  background: 'rgba(211,84,0,0.9)',
-  color: '#fff',
+  background: gameTheme.selected,
+  color: gameTheme.ink,
   fontSize: 20,
   fontWeight: 700,
-  fontFamily: 'sans-serif',
-  whiteSpace: 'nowrap',
+  fontFamily: gameTheme.font,
+  textAlign: 'center', maxWidth: 'calc(100vw - 72px)',
 };
 
 const clickCountStyle: CSSProperties = {
   padding: '8px 24px',
   borderRadius: 16,
-  background: 'rgba(0,0,0,0.55)',
-  color: '#f7d774',
+  background: gameTheme.panel,
+  color: gameTheme.warning,
   fontSize: 26,
   fontWeight: 800,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
 };

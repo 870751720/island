@@ -1,3 +1,4 @@
+import { gameTheme } from './gameTheme';
 import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { HudBuff } from '@/game/systems/BuffSystem';
@@ -55,13 +56,13 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
               top: tip.y + 8,
               width: 230,
               padding: '10px 12px',
-              background: 'rgba(255,255,255,0.98)',
+              background: gameTheme.panel,
               borderRadius: 12,
-              border: '1px solid rgba(0,0,0,0.1)',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+              border: gameTheme.border,
+              boxShadow: gameTheme.shadow,
               fontFamily: 'sans-serif',
               fontSize: 13,
-              color: '#333',
+              color: gameTheme.ink,
               lineHeight: 1.5,
               zIndex: 61,
             }}
@@ -73,7 +74,7 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
-                  color: tip.buff.good ? '#4caf50' : '#c0392d',
+                  color: tip.buff.good ? gameTheme.accent : gameTheme.danger,
                 }}
               >
                 {tip.buff.good ? '增益' : '减益'}

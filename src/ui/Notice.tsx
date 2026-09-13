@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { useEffect, useState } from 'react';
 
 /** 通用临时提示:屏幕上方居中的短消息,出现后自动消失(按 id 重置计时) */
@@ -27,9 +29,9 @@ export function Notice({ notice }: { notice: { id: number; text: string } | null
         maxWidth: '80vw',
         padding: '10px 18px',
         borderRadius: 12,
-        background: 'rgba(0,0,0,0.7)',
-        color: '#fff',
-        fontFamily: 'sans-serif',
+        background: gameTheme.panel, border: gameTheme.border, boxShadow: gameTheme.controlShadow,
+        color: gameTheme.ink,
+        fontFamily: gameTheme.font,
         fontSize: 14,
         textAlign: 'center',
         pointerEvents: 'none',

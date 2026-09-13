@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { TREASURE_LOOT } from '@/game/systems/FishTable';
@@ -218,25 +220,25 @@ const overlayStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: 18,
-  background: 'radial-gradient(circle, rgba(60,42,0,0.55), rgba(20,12,0,0.82))',
+  background: gameTheme.panel,
   touchAction: 'none',
   userSelect: 'none',
   zIndex: 60,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
   animation: 'treasure-fade 0.25s ease-out both',
 };
 
 const titleStyle: CSSProperties = {
   fontSize: 22,
   fontWeight: 800,
-  color: '#f7d774',
+  color: gameTheme.warning,
   animation: 'treasure-glow 1.8s ease-in-out infinite',
 };
 
 const hintStyle: CSSProperties = {
   fontSize: 13,
-  color: 'rgba(255,236,180,0.85)',
-  textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+  color: gameTheme.muted,
+  textShadow: 'none',
 };
 
 /** 底部操作区:固定最小高度占位,内容随阶段切换但布局不跳动 */
@@ -308,7 +310,7 @@ const slotNameStyle = (rowH: number): CSSProperties => ({
   fontWeight: 700,
   color: '#fff3cf',
   whiteSpace: 'nowrap',
-  textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+  textShadow: 'none',
 });
 
 /** 中心高亮带:金边透明带 + 上下格线,标出定格格位 */
@@ -348,7 +350,7 @@ const actionStyle: CSSProperties = {
   color: '#5b3f0e',
   fontSize: 19,
   fontWeight: 800,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
   touchAction: 'none',
   userSelect: 'none',
   boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
@@ -361,6 +363,6 @@ const resultBoxStyle: CSSProperties = {
   gap: 14,
   padding: '18px 30px',
   borderRadius: 20,
-  background: 'rgba(255,246,214,0.96)',
-  boxShadow: '0 6px 22px rgba(0,0,0,0.4)',
+  background: gameTheme.surface,
+  boxShadow: gameTheme.shadow,
 };

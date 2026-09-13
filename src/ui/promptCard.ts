@@ -1,3 +1,4 @@
+import { gameTheme } from './gameTheme';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { fadeStyle } from './fade';
@@ -15,15 +16,15 @@ export const promptCardStyle: CSSProperties = {
   minHeight: 56,
   padding: '8px 16px',
   borderRadius: 14,
-  border: '2px solid #4caf50',
-  background: 'rgba(255,255,255,0.92)',
-  color: '#333',
-  fontFamily: 'sans-serif',
+  border: gameTheme.selectionBorder,
+  background: gameTheme.panel,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
   fontSize: 15,
   textAlign: 'left',
   touchAction: 'none',
   userSelect: 'none',
-  boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+  boxShadow: gameTheme.shadow,
 };
 
 /** 卡片外层定位样式(叠加闲置淡出):挂在右下角工具按钮下方一点 */

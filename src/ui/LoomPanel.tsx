@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
@@ -47,7 +49,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
     >
       <div style={convertPanelStyle}>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="loom" size={20} /> 纺织机</div>
-        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: gameTheme.muted, marginBottom: 12 }}>
           每 {LOOM_INTERVAL} 秒用 {LOOM_ROPE_PER_CLOTH} 根{ITEMS.rope.name}织 1 匹{ITEMS.cloth.name}
         </div>
 
@@ -55,7 +57,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14 }}>
               <ItemIcon kind="rope" size={18} /> 机内绳线 ×{info.rope}
-              <span style={{ fontSize: 11, color: weaving ? ACTION_COLOR : '#999', marginLeft: 6 }}>
+              <span style={{ fontSize: 11, color: weaving ? ACTION_COLOR : gameTheme.muted, marginLeft: 6 }}>
                 {weaving ? '纺织中' : info.rope > 0 ? `还差 ${LOOM_ROPE_PER_CLOTH - info.rope} 根开机` : ''}
               </span>
             </div>
@@ -106,7 +108,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
             onAction={() => onFeed(n)}
           />
         ) : (
-          <div style={{ fontSize: 13, color: '#999' }}>
+          <div style={{ fontSize: 13, color: gameTheme.muted }}>
             背包里没有{ITEMS.rope.name},用工作台把植物纤维搓成绳线再回来吧
           </div>
         )}
@@ -116,7 +118,7 @@ export function LoomPanel({ hud, onFeed, onCollect, onTakeRope, onClose }: Props
             e.preventDefault();
             onClose();
           }}
-          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
+          style={{ ...convertActionButtonStyle, marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

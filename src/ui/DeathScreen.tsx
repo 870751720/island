@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gameButtonStyle } from './gameTheme';
+
 import { useState } from 'react';
 import type { DeathReport } from '@/game/systems/RunStats';
 import { deathReportText, renderDeathCard, shareDeathCard } from './shareCard';
@@ -18,18 +20,21 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         alignItems: 'center',
         justifyContent: 'center',
         gap: 14,
-        background: 'rgba(6, 10, 8, 0.88)',
-        fontFamily: 'sans-serif',
+        background: gameTheme.panel,
+        fontFamily: gameTheme.font,
+        overflowY: 'auto',
+        padding: '16px',
+        boxSizing: 'border-box',
         animation: 'death-fade 0.3s ease',
       }}
       onClick={onClose}
     >
-      <div style={{ color: '#dce8df', fontSize: 15 }}>长按或右键保存图片,分享你的战绩</div>
+      <div style={{ color: gameTheme.ink, fontSize: 15 }}>长按或右键保存图片,分享你的战绩</div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
         alt="荒岛生涯战绩卡"
-        style={{ width: 'min(78vw, 340px)', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+        style={{ width: 'min(78vw, 340px)', maxHeight: '65dvh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
       />
       <button
         onClick={async (e) => {
@@ -44,20 +49,20 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         style={{
           minHeight: 44,
           padding: '0 22px',
-          border: 'none',
+          ...gameButtonStyle,
           borderRadius: 12,
-          background: 'linear-gradient(#8aa88f, #5f7d64)',
-          color: '#fff',
+          background: gameTheme.action,
+          color: gameTheme.ink,
           fontSize: 15,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          boxShadow: '0 4px 0 #43604a',
+          boxShadow: gameTheme.controlShadow,
           cursor: 'pointer',
         }}
       >
         复制战绩文案
       </button>
-      {hint && <div style={{ color: '#cfe0d2', fontSize: 13 }}>{hint}</div>}
+      {hint && <div style={{ color: gameTheme.muted, fontSize: 13 }}>{hint}</div>}
     </div>
   );
 }
@@ -103,11 +108,14 @@ export function DeathScreen({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 'clamp(16px, 4.5vh, 30px)',
+        gap: 'clamp(10px, 2.5vh, 24px)',
         background: poseidon
-          ? 'linear-gradient(rgba(8, 34, 46, 0.86), rgba(10, 60, 72, 0.9))'
-          : 'rgba(10, 14, 12, 0.72)',
-        fontFamily: 'sans-serif',
+          ? 'linear-gradient(145deg,#f4f5dcf5,#c8e5ddf2)'
+          : gameTheme.panel,
+        fontFamily: gameTheme.font,
+        overflowY: 'auto',
+        padding: '16px',
+        boxSizing: 'border-box',
         animation: 'death-fade 0.6s ease',
       }}
     >
@@ -132,7 +140,7 @@ export function DeathScreen({
       )}
       <div
         style={{
-          color: poseidon ? '#9fe8df' : '#fff',
+          color: poseidon ? '#367b73' : gameTheme.ink,
           fontSize: 'clamp(22px, 6.5vw, 32px)',
           letterSpacing: '0.1em',
           animation: poseidon ? 'poseidon-rise 0.8s ease' : undefined,
@@ -143,7 +151,7 @@ export function DeathScreen({
       {poseidon && (
         <div
           style={{
-            color: '#d6f3ee',
+            color: gameTheme.ink,
             fontSize: 'clamp(15px, 4vw, 18px)',
             lineHeight: 1.7,
             textAlign: 'center',
@@ -178,8 +186,8 @@ export function DeathScreen({
               style={{
                 padding: '6px 14px',
                 borderRadius: 999,
-                background: 'rgba(255,255,255,0.12)',
-                color: '#dce8df',
+                background: gameTheme.surface,
+                color: gameTheme.ink,
                 fontSize: 'clamp(13px, 3.5vw, 15px)',
                 letterSpacing: '0.05em',
               }}
@@ -196,7 +204,7 @@ export function DeathScreen({
             borderRadius: 12,
             background: 'linear-gradient(135deg, rgba(247,215,116,0.22), rgba(247,215,116,0.1))',
             border: '1px solid rgba(247,215,116,0.45)',
-            color: '#f7d774',
+            color: gameTheme.warning,
             fontSize: 'clamp(14px, 3.8vw, 16px)',
             fontWeight: 700,
             letterSpacing: '0.05em',
@@ -206,7 +214,7 @@ export function DeathScreen({
         </div>
       )}
       {report && !autoRespawn && report.legacyPoints === 0 && (
-        <p style={{ margin: 0, color: 'rgba(220,232,223,0.5)', fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
+        <p style={{ margin: 0, color: gameTheme.muted, fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
           生存不足 2 天,没有沉淀下求生心得
         </p>
       )}
@@ -214,7 +222,7 @@ export function DeathScreen({
         <div
           key={seconds}
           style={{
-            color: poseidon ? '#9fe8df' : '#dce8df',
+            color: poseidon ? '#367b73' : gameTheme.ink,
             fontSize: 'clamp(15px, 4vw, 18px)',
             animation: 'death-count 1s ease',
           }}
@@ -229,15 +237,15 @@ export function DeathScreen({
               disabled={sharing}
               style={{
                 minWidth: 'min(60vw, 220px)',
+                ...gameButtonStyle,
                 minHeight: 56,
-                border: 'none',
                 borderRadius: 16,
-                background: 'linear-gradient(#8aa88f, #5f7d64)',
-                color: '#fff',
+                background: gameTheme.action,
+                color: gameTheme.ink,
                 fontSize: 'clamp(16px, 4.5vw, 20px)',
                 fontWeight: 700,
                 letterSpacing: '0.2em',
-                boxShadow: '0 5px 0 #43604a',
+                boxShadow: gameTheme.controlShadow,
                 cursor: sharing ? 'default' : 'pointer',
                 opacity: sharing ? 0.6 : 1,
               }}
@@ -249,15 +257,15 @@ export function DeathScreen({
             onClick={onConfirm}
             style={{
               minWidth: 'min(60vw, 220px)',
+              ...gameButtonStyle,
               minHeight: 56,
-              border: 'none',
               borderRadius: 16,
-              background: report ? 'rgba(255,255,255,0.1)' : 'linear-gradient(#8aa88f, #5f7d64)',
-              color: report ? '#dce8df' : '#fff',
+              background: report ? gameTheme.inset : gameTheme.action,
+              color: gameTheme.ink,
               fontSize: 'clamp(16px, 4.5vw, 20px)',
               fontWeight: 700,
               letterSpacing: '0.2em',
-              boxShadow: report ? 'none' : '0 5px 0 #43604a',
+              boxShadow: report ? 'none' : gameTheme.controlShadow,
               cursor: 'pointer',
             }}
           >

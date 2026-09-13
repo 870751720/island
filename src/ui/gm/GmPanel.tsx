@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from '../gameTheme';
+
 import type { PlayerGender } from '@/game/entities/PlayerModel';
 import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -56,8 +58,8 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
               onClick={() => setTab(t.id)}
               style={{
                 ...tabStyle,
-                background: tab === t.id ? '#4a3b2a' : 'rgba(0,0,0,0.08)',
-                color: tab === t.id ? '#fff' : '#4a3b2a',
+                background: tab === t.id ? gameTheme.selected : gameTheme.inset,
+                color: gameTheme.ink,
               }}
             >
               {t.label}
@@ -84,7 +86,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
 const overlayStyle = {
   position: 'absolute',
   inset: 0,
-  background: 'rgba(0,0,0,0.45)',
+  background: gameTheme.overlay,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -96,10 +98,10 @@ const cardStyle = {
   maxHeight: '85dvh',
   overflowY: 'auto',
   padding: 20,
-  background: '#faf6ef',
-  borderRadius: 16,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
-  fontFamily: 'sans-serif',
+  ...gamePanelStyle,
+  borderRadius: 22,
+  boxShadow: gameTheme.shadow,
+  fontFamily: gameTheme.font,
 } as const;
 
 const titleStyle = {
@@ -107,16 +109,16 @@ const titleStyle = {
   textAlign: 'center',
   fontSize: 17,
   fontWeight: 700,
-  color: '#4a3b2a',
+  color: gameTheme.ink,
 } as const;
 
 const tabStyle = {
   flex: 1,
   minHeight: 44,
   minWidth: 60,
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 10,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
@@ -126,11 +128,11 @@ const closeStyle = {
   marginTop: 16,
   width: '100%',
   minHeight: 44,
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 10,
-  background: '#8a6f4b',
-  color: '#fff',
-  fontFamily: 'sans-serif',
+  background: gameTheme.action,
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
   fontSize: 15,
   fontWeight: 600,
   cursor: 'pointer',

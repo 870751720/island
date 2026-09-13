@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { useRef } from 'react';
 import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/GameContracts';
@@ -25,8 +27,8 @@ function slotStyle(filled: boolean): React.CSSProperties {
     width: SLOT_SIZE,
     height: SLOT_SIZE,
     borderRadius: 10,
-    border: '2px solid rgba(0,0,0,0.12)',
-    background: filled ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.05)',
+    border: gameTheme.line,
+    background: filled ? gameTheme.surface : gameTheme.inset,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -47,8 +49,8 @@ function countBadge(count: number): React.ReactNode {
         bottom: 1,
         fontSize: 11,
         fontWeight: 700,
-        color: '#555',
-        fontFamily: 'sans-serif',
+        color: gameTheme.ink,
+        fontFamily: gameTheme.font,
       }}
     >
       ×{count}
@@ -117,7 +119,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
+        background: gameTheme.overlay,
       }}
       onPointerDown={(e) => {
         e.preventDefault();
@@ -129,12 +131,12 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
           marginTop: 'max(12px, calc(50vh - 220px))',
           width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
           padding: '12px',
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 14,
-          fontFamily: 'sans-serif',
+          ...gamePanelStyle,
+          borderRadius: 22,
+          fontFamily: gameTheme.font,
           fontSize: 15,
-          color: '#333',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+          color: gameTheme.ink,
+          boxShadow: gameTheme.shadow,
         }}
       >
         <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>
@@ -157,9 +159,9 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
             marginTop: 12,
             padding: '10px 0',
             borderRadius: 10,
-            border: 'none',
-            background: '#4caf50',
-            color: '#fff',
+            ...gameButtonStyle,
+            background: gameTheme.action,
+            color: gameTheme.ink,
             fontSize: 15,
             fontWeight: 700,
             touchAction: 'none',

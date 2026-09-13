@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gameButtonStyle } from '../gameTheme';
+
 import { ItemIcon } from '../ItemIcon';
 import { useMemo, useState } from 'react';
 import { ITEMS, ITEM_CATEGORIES, itemCategory, type ItemCategory } from '@/game/systems/Items';
@@ -46,12 +48,12 @@ export function ItemsTab({
           width: '100%',
           minHeight: 40,
           padding: '6px 12px',
-          border: 'none',
+          ...gameButtonStyle,
           borderRadius: 10,
-          background: 'rgba(0,0,0,0.06)',
-          fontFamily: 'sans-serif',
+          background: gameTheme.inset,
+          fontFamily: gameTheme.font,
           fontSize: 14,
-          color: '#4a3b2a',
+          color: gameTheme.ink,
           outline: 'none',
           boxSizing: 'border-box',
         }}
@@ -112,19 +114,19 @@ const rowStyle = {
   gap: 8,
   padding: '6px 12px',
   borderRadius: 10,
-  background: 'rgba(0,0,0,0.06)',
+  background: gameTheme.inset,
   fontSize: 14,
-  color: '#4a3b2a',
-  fontFamily: 'sans-serif',
+  color: gameTheme.ink,
+  fontFamily: gameTheme.font,
 } as const;
 
 const giveStyle = {
   minWidth: 44,
   height: 36,
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 8,
-  background: '#8a6f4b',
-  color: '#fff',
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontSize: 13,
   fontWeight: 700,
   cursor: 'pointer',
@@ -133,19 +135,19 @@ const giveStyle = {
 const catTabStyle = {
   minHeight: 28,
   padding: '2px 0',
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 14,
-  background: 'rgba(0,0,0,0.06)',
-  color: '#4a3b2a',
+  background: gameTheme.inset,
+  color: gameTheme.ink,
   fontSize: 12,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
   whiteSpace: 'nowrap',
   cursor: 'pointer',
 } as const;
 
 const catTabActiveStyle = {
   ...catTabStyle,
-  background: '#8a6f4b',
-  color: '#fff',
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
 } as const;

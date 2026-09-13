@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
@@ -57,7 +59,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
           <ItemIcon kind="baitBarrel" size={20} /> 饵料桶
         </div>
-        <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: gameTheme.muted, marginBottom: 12 }}>
           每 {BAIT_CONVERT_INTERVAL} 秒发酵 1 个食物,按角标兑换鱼饵
         </div>
 
@@ -79,7 +81,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                           bottom: -2,
                           fontSize: 11,
                           fontWeight: 700,
-                          color: '#555',
+                          color: gameTheme.ink,
                         }}
                       >
                         ×{food.count}
@@ -111,7 +113,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 13, color: '#999' }}>桶是空的,丢点吃的进来吧</div>
+              <div style={{ fontSize: 13, color: gameTheme.muted }}>桶是空的,丢点吃的进来吧</div>
             )}
           </div>
           <span style={{ fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 2, flex: 'none' }}>
@@ -146,7 +148,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
         </div>
 
         {feedable.length === 0 && (
-          <div style={{ fontSize: 13, color: '#999' }}>
+          <div style={{ fontSize: 13, color: gameTheme.muted }}>
             背包里没有可投喂的食物({ITEMS.baitBarrel.name}不挑食,水果/鱼/肉/熟食都行)
           </div>
         )}
@@ -181,7 +183,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
             e.preventDefault();
             onClose();
           }}
-          style={{ ...convertActionButtonStyle('#4caf50'), marginTop: 16, width: '100%' }}
+          style={{ ...convertActionButtonStyle, marginTop: 16, width: '100%' }}
         >
           关闭
         </button>

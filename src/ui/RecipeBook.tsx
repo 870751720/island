@@ -1,5 +1,7 @@
 'use client';
 
+import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+
 import { ItemIcon } from './ItemIcon';
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -123,11 +125,11 @@ export function RecipeBook({
                       {r.minBenchLevel && r.minBenchLevel > 1 ? `·Lv${r.minBenchLevel}` : ''}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: gameTheme.muted }}>
                     {recipeCostLabel(r, ' + ')}
                   </div>
                   {effectText(r) && (
-                    <div style={{ fontSize: 12, color: '#999' }}>{effectText(r)}</div>
+                    <div style={{ fontSize: 12, color: gameTheme.muted }}>{effectText(r)}</div>
                   )}
                 </div>
               </div>
@@ -148,20 +150,20 @@ const overlayStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,0,0,0.35)',
+  background: gameTheme.overlay,
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(92vw, 400px)',
+  width: 'min(calc(100vw - 56px), 400px)',
   maxHeight: '80vh',
   overflowY: 'auto',
   padding: '16px 14px',
-  background: 'rgba(255,255,255,0.95)',
-  borderRadius: 14,
-  fontFamily: 'sans-serif',
+  ...gamePanelStyle,
+  borderRadius: 22,
+  fontFamily: gameTheme.font,
   fontSize: 15,
-  color: '#333',
-  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+  color: gameTheme.ink,
+  boxShadow: gameTheme.shadow,
 };
 
 const rowStyle: CSSProperties = {
@@ -170,14 +172,14 @@ const rowStyle: CSSProperties = {
   gap: 10,
   padding: '8px 10px',
   borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
-  background: 'rgba(255,255,255,0.8)',
+  border: gameTheme.line,
+  background: gameTheme.surface,
 };
 
 const tagStyle: CSSProperties = {
   padding: '1px 8px',
   borderRadius: 6,
-  background: 'rgba(0,0,0,0.08)',
+  background: gameTheme.inset,
   color: '#777',
   fontSize: 11,
 };
@@ -185,28 +187,28 @@ const tagStyle: CSSProperties = {
 const craftedTagStyle: CSSProperties = {
   padding: '1px 8px',
   borderRadius: 6,
-  background: 'rgba(76,175,80,0.15)',
-  color: '#2e7d32',
+  background: gameTheme.selected,
+  color: gameTheme.accent,
   fontSize: 11,
 };
 
 const tabStyle = {
   minHeight: 28,
   padding: '2px 0',
-  border: 'none',
+  ...gameButtonStyle,
   borderRadius: 14,
-  background: 'rgba(0,0,0,0.06)',
-  color: '#4a3b2a',
+  background: gameTheme.inset,
+  color: gameTheme.ink,
   fontSize: 12,
-  fontFamily: 'sans-serif',
+  fontFamily: gameTheme.font,
   whiteSpace: 'nowrap',
   cursor: 'pointer',
 } as const;
 
 const tabActiveStyle = {
   ...tabStyle,
-  background: '#8a6f4b',
-  color: '#fff',
+  background: gameTheme.action,
+  color: gameTheme.ink,
   fontWeight: 700,
 } as const;
 
@@ -215,8 +217,8 @@ const closeButtonStyle: CSSProperties = {
   marginTop: 12,
   padding: '10px 0',
   borderRadius: 10,
-  border: 'none',
-  background: 'rgba(0,0,0,0.1)',
+  ...gameButtonStyle,
+  background: gameTheme.inset,
   fontSize: 15,
   touchAction: 'none',
   userSelect: 'none',
