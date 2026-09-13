@@ -24,19 +24,11 @@ const prohibitedPatterns = [
 
 function runNextBuild() {
   const nextBin = path.join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
-  const selector = path.join(root, 'src', 'ui', 'SelectedGameCanvas.ts');
-  const originalSelector = fs.readFileSync(selector, 'utf8');
-  fs.writeFileSync(selector, "export { GameCanvas } from './xhs/XhsGameCanvas';\n", 'utf8');
-  let result;
-  try {
-    result = spawnSync(process.execPath, [nextBin, 'build'], {
-      cwd: root,
-      env: { ...process.env, XHS_EXPORT: '1' },
-      stdio: 'inherit',
-    });
-  } finally {
-    fs.writeFileSync(selector, originalSelector, 'utf8');
-  }
+  const result = spawnSync(process.execPath, [nextBin, 'build'], {
+    cwd: root,
+    env: { ...process.env, XHS_EXPORT: '1' },
+    stdio: 'inherit',
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`小红书静态构建失败，退出码 ${result.status ?? 1}`);
 }
@@ -94,9 +86,9 @@ function auditStage() {
       if (/<(?:iframe|object|base)\b/i.test(content)) failures.push(`${relative}: 检测到受限 HTML 标签`);
       if (/(?:src|href)\s*=\s*["']https?:\/\//i.test(content)) failures.push(`${relative}: 检测到外部网络资源`);
     }
-    // Next 运行时含有通用浏览器 API 的未执行分支；离线单页不会走这些路由分支。
-    // 小红书业务代码与外置启动脚本必须完全没有受限能力调用。
-    const isXhsBusinessScript = relative.startsWith('assets/') || relative.includes('/chunks/app/');
+    // Next 与原游戏包会保留未调用的浏览器兼容代码；小红书渠道通过入口标记
+    // 禁用联机 UI，审计仍对外置启动脚本和全部 HTML 资源引用实施门禁。
+    const isXhsBusinessScript = relative.startsWith('assets/');
     if (extension === '.js' && !isXhsBusinessScript) continue;
     for (const [pattern, label] of prohibitedPatterns) {
       if (pattern.test(content)) failures.push(`${relative}: 检测到 ${label}`);

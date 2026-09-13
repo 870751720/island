@@ -57,6 +57,7 @@ export function GameplayUI({
   initialSave,
   onExit,
   onBecomeHost,
+  multiplayerEnabled = true,
 }: {
   /** 联机会话(房主或客人);缺省为单机 */
   net?: { host?: NetHost; guest?: NetGuest };
@@ -65,6 +66,8 @@ export function GameplayUI({
   onExit: () => void;
   /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
   onBecomeHost: (host: NetHost) => void;
+  /** 小红书离线渠道不展示设置内的多人入口。 */
+  multiplayerEnabled?: boolean;
 }) {
   const {
     gameRef,
@@ -256,7 +259,7 @@ export function GameplayUI({
           onClose={() => setSettingsOpen(false)}
           onEnterPhotoMode={enterPhotoMode}
           multiplayer={
-            net?.guest
+            !multiplayerEnabled || net?.guest
               ? undefined
               : {
                   roomCode: net?.host?.roomCode ?? '',

@@ -13,6 +13,7 @@ type Phase = 'start' | 'host' | 'guest' | 'playing';
 
 /** 阶段路由:开始界面 / 联机大厅 / 游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
+  const multiplayerEnabled = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1';
   const [phase, setPhase] = useState<Phase>('start');
   const [host, setHost] = useState<NetHost | null>(null);
   const [guest, setGuest] = useState<NetGuest | null>(null);
@@ -23,6 +24,7 @@ export function GameCanvas() {
   const [singlePlayerSave, setSinglePlayerSave] = useState<SaveData | null>(null);
 
   useEffect(() => {
+    if (!multiplayerEnabled) return;
     const room = new URLSearchParams(window.location.search).get('room');
     if (!room) return;
     setInvitedRoom(room);
@@ -65,6 +67,7 @@ export function GameCanvas() {
         initialSave={singlePlayerSave}
         onExit={exit}
         onBecomeHost={setHost}
+        multiplayerEnabled={multiplayerEnabled}
       />
     );
   }
@@ -104,10 +107,12 @@ export function GameCanvas() {
     <StartScreen
       onStart={start}
       onMultiplayer={(role: MultiplayerRole) => {
+        if (!multiplayerEnabled) return;
         setNotice('');
         setPhase(role);
       }}
       notice={notice}
+      multiplayerEnabled={multiplayerEnabled}
     />
   );
 }

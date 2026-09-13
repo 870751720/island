@@ -26,10 +26,13 @@ export function StartScreen({
   onStart,
   onMultiplayer,
   notice,
+  multiplayerEnabled = true,
 }: {
   onStart: (mode: StartMode) => void;
   onMultiplayer: (role: MultiplayerRole) => void;
   notice?: string;
+  /** 小红书离线渠道关闭创建/加入房间入口，保留其余开始界面与单机流程。 */
+  multiplayerEnabled?: boolean;
 }) {
   const [savedGame] = useState(() => SaveSystem.load());
   const hasSave = !!savedGame;
@@ -107,10 +110,12 @@ export function StartScreen({
               <button className="start-button" onClick={() => requestStart(hasSave ? 'continue' : 'new')}>
                 <span><strong>{hasSave ? '继续游戏' : '开始游戏'}</strong><small>{hasSave ? '回到熟悉的海风里' : '向着属于你的岛，出发'}</small></span><MenuIcon name="arrow" />
               </button>
-              <div className="start-mp">
-                <button className="mp-button" onClick={() => onMultiplayer('host')}><MenuIcon name="flag" /><span>创建房间<small>邀朋友一起生存</small></span></button>
-                <button className="mp-button" onClick={() => onMultiplayer('guest')}><MenuIcon name="people" /><span>加入房间<small>赴一场海岛之约</small></span></button>
-              </div>
+              {multiplayerEnabled && (
+                <div className="start-mp">
+                  <button className="mp-button" onClick={() => onMultiplayer('host')}><MenuIcon name="flag" /><span>创建房间<small>邀朋友一起生存</small></span></button>
+                  <button className="mp-button" onClick={() => onMultiplayer('guest')}><MenuIcon name="people" /><span>加入房间<small>赴一场海岛之约</small></span></button>
+                </div>
+              )}
               <div className="menu-utilities">
                 <button className="profile-chip" onClick={() => { setPendingStart(null); setShowSetup(true); }}><MenuIcon name="user" />设置形象</button>
                 {hasSave && <button className="new-game-button" onClick={startNew}>开新档</button>}
