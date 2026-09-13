@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
+import { createTestBuffs } from './gm/testBuffs';
 import { HudIcon } from './hud/HudIcon';
 import { hudStyles } from './hud/styles';
 import { gameThemeCss, gameTheme } from './gameTheme';
@@ -87,6 +88,7 @@ export function GameplayUI({
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
   const [gmOpen, setGmOpen] = useState(false);
+  const [testBuffs, setTestBuffs] = useState(() => createTestBuffs(0));
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 相机模式:隐藏全部玩法 UI 自由取景拍照,由设置面板进入
@@ -207,7 +209,8 @@ export function GameplayUI({
               <Hud
                 hud={hud}
                 onHeartTap={handleHeartTap}
-                rightReserve={mapOpen ? 210 : 120}
+                rightReserve={mapOpen ? 190 : 100}
+                testBuffs={testBuffs}
               />
         </>
       )}
@@ -276,6 +279,7 @@ export function GameplayUI({
           onClose={() => setGmOpen(false)}
           actions={{
             getGame: () => gameRef.current,
+            setTestBuffCount: (count) => setTestBuffs(createTestBuffs(count)),
             restoreStatus: () => gameRef.current?.gmRestoreStatus(),
             setGender: (gender) => gameRef.current?.gmSetGender(gender),
             setDay: (day) => gameRef.current?.gmSetDay(day),

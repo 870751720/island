@@ -1,7 +1,7 @@
 import { gameTheme } from './gameTheme';
 import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
-import type { HudBuff } from '@/game/systems/BuffSystem';
+import type { DisplayBuff } from './gm/testBuffs';
 import { VitalBottles } from './hud/VitalBottles';
 
 const SEASONS = {
@@ -12,12 +12,14 @@ const SEASONS = {
 } as const;
 
 /** 本地玩家状态瓶与增益区；为展开的小地图预留宽度。 */
-export function Hud({ hud, onHeartTap, rightReserve }: {
+export function Hud({ hud, onHeartTap, rightReserve, testBuffs }: {
   hud: HudSnapshot;
   onHeartTap: () => void;
   rightReserve: number;
+  testBuffs: DisplayBuff[];
 }) {
-  const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
+  const [tip, setTip] = useState<{ buff: DisplayBuff; x: number; y: number } | null>(null);
+  const buffs: DisplayBuff[] = [...hud.buffs, ...testBuffs];
   const season = SEASONS[hud.season];
   return (
     <div className="hud-status" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
@@ -25,9 +27,9 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
       <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
       </div>
-      {hud.buffs.length > 0 && (
+      {buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">
-          {hud.buffs.map((buff) => (
+          {buffs.map((buff) => (
             <button key={buff.id} className={`hud-buff${buff.good ? '' : ' is-bad'}`} aria-label={`${buff.name}，${buff.good ? '增益' : '减益'}`} aria-expanded={tip?.buff.id === buff.id}
               onClick={(event) => {
                 const rect = event.currentTarget.getBoundingClientRect();
