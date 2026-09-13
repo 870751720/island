@@ -2,6 +2,7 @@
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
+import { questRecipeStyle } from './questRecipe';
 import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
 import { useEffect, useState } from 'react';
@@ -27,6 +28,7 @@ export function CampfirePanel({
   const count = (kind: ResourceKind) => itemCount(hud.slots, kind);
   const [cookCounts, setCookCounts] = useState<Record<string, number>>({});
   const info = hud.campfireInfo;
+  const guide = hud.quests?.enabled && !hud.quests.finished && hud.quests.guide?.type === 'campfire' ? hud.quests.guide : null;
 
   // 背包里可投入火堆的可燃物
   const burnables = (Object.keys(ITEMS) as ResourceKind[]).filter(
@@ -34,6 +36,9 @@ export function CampfirePanel({
   );
   // 背包里可烤的生食
   const cookables = FOODS.filter((f) => COOKABLE[f.kind] && count(f.kind) > 0);
+
+  if (guide?.action === 'cook') cookables.sort((a, b) => Number(b.kind === 'gameMeat') - Number(a.kind === 'gameMeat'));
+  if (guide?.action === 'fuel') burnables.sort((a, b) => Number(b === 'wood' || b === 'branch') - Number(a === 'wood' || a === 'branch'));
 
   // 食材数量变化后把选份数收回上限,且默认选满
   const stockKey = cookables.map((f) => count(f.kind)).join(',');
@@ -81,7 +86,7 @@ export function CampfirePanel({
                 e.preventDefault();
                 onAddFuel(kind);
               }}
-              style={chipStyle}
+              style={{ ...chipStyle, minHeight: 44, ...(guide?.action === 'fuel' && (kind === 'wood' || kind === 'branch') ? questRecipeStyle : {}) }}
             >
               <ItemIcon kind={kind} size={20} /> {ITEMS[kind].name} ×{count(kind)}
               <span style={{ fontSize: 11, color: gameTheme.muted }}>+{ITEMS[kind].burnTime}秒</span>
@@ -99,7 +104,7 @@ export function CampfirePanel({
             const max = count(food.kind);
             const n = Math.min(cookCounts[food.kind] ?? 1, max);
             return (
-              <div key={food.kind} style={rowStyle}>
+              <div key={food.kind} style={{ ...rowStyle, ...(guide?.action === 'cook' && food.kind === 'gameMeat' ? questRecipeStyle : {}) }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14 }}>
                     <ItemIcon kind={food.kind} size={18} /> {food.name} ×{max}
@@ -139,7 +144,7 @@ export function CampfirePanel({
                     e.preventDefault();
                     onCook(food.kind, n);
                   }}
-                  style={{ ...cookButtonStyle, opacity: lit ? 1 : 0.45 }}
+                  style={{ ...cookButtonStyle, minHeight: 44, opacity: lit ? 1 : 0.45 }}
                 >
                   烤
                 </button>

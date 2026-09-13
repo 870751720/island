@@ -1137,7 +1137,7 @@ export class Game {
           const benchLevel = Math.max(0, ...this.workbench.snapshot().map(b => b.level));
           const furDropped = this.drops.snapshot().some(drop => drop.kind === 'fur');
           for (const session of this.sessions) {
-            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped);
+            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped, this.campfire.count, this.campfire.isCooking(session), this.campfire.snapshot().some(f => f.fuel > 0));
           }
           this.questTimer = 0;
         }
@@ -1242,7 +1242,7 @@ export class Game {
 
     this.applySave(save);
     this.local.quests.enabled = loadQuestGuide();
-    this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops);
+    this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire);
     // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
     const profile = loadProfile();
     if (profile) this.local.player.setGender(profile.gender);

@@ -1,4 +1,5 @@
 'use client';
+import { QUESTS } from '@/game/quests/QuestDefinitions';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { MenuIcon } from './icons/MenuIcons';
 
@@ -103,10 +104,10 @@ export function WorkbenchPanel({
           </button>
         </div>
         {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
-          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(hud.quests?.enabled && hud.quests.active === 9 ? questRecipeStyle : {}) }}>
+          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(hud.quests?.enabled && QUESTS[hud.quests.active]?.id === 'upgrade' ? questRecipeStyle : {}) }}>
             <MenuIcon name="upgrade" size={26} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div>升级到 Lv.{hud.workbenchLevel + 1} {hud.quests?.enabled && hud.quests.active === 9 && <small>当前任务</small>}</div>
+              <div>升级到 Lv.{hud.workbenchLevel + 1} {hud.quests?.enabled && QUESTS[hud.quests.active]?.id === 'upgrade' && <small>当前任务</small>}</div>
               <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
                 {upgradeHint ?? costLabel(upgradeCost)}
               </div>

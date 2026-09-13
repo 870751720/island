@@ -5,7 +5,7 @@ import { ITEMS } from '../systems/Items';
 import { QUESTS, type QuestView, type QuestRequirement, type QuestGuide } from './QuestDefinitions';
 
 /** 将当前任务拆成可执行的下一步；先补原料/前置配方，再前往制作站。 */
-export function resolveQuestObjective(s: PlayerSession, active: number, rows: QuestView['rows'], furDropped: boolean): Pick<QuestView, 'recipes' | 'guide' | 'hint'> {
+export function resolveQuestObjective(s: PlayerSession, active: number, rows: QuestView['rows'], furDropped: boolean, campfires: number, fireLit: boolean): Pick<QuestView, 'recipes' | 'guide' | 'hint'> {
   const quest = QUESTS[active];
   const counts = countsWithEquipped(countsFromSlots(s.inventory.snapshot()), s.equipment.snapshot());
   const recipes: CraftId[] = [];
@@ -39,6 +39,17 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
       const affordable = crafting.find(req => { const r = RECIPES.find(r => r.id === req.id)!; return Object.entries(r.cost).every(([k, n]) => (counts[k as ResourceKind] ?? 0) >= n); });
       resolveRecipe((affordable ?? req).id);
       for (const item of crafting) if (!recipes.includes(item.id)) recipes.push(item.id);
+    } else if (req?.type === 'camp') {
+      if (!campfires) {
+        if (counts.campfire || counts.deadCampfire) hint = '在背包中使用火堆，找空地站定放下。';
+        else resolveRecipe('campfire');
+      } else {
+        const action = req.action === 'cook' && fireLit ? 'cook' : 'fuel';
+        const fuel = Object.entries(counts).some(([k, n]) => n > 0 && ITEMS[k as ResourceKind].burnTime);
+        if (action === 'fuel' && !fuel) { guide = { type: 'resource', kinds: ['wood', 'branch'] }; hint = '先收集木头或树枝，给火堆添柴。'; }
+        else if (action === 'cook' && !counts.gameMeat) { guide = { type: 'resource', kinds: ['gameMeat'] }; hint = '腾出空间领取奖励兽肉；若已经吃掉，寻找羊获取兽肉。'; }
+        else { guide = { type: 'campfire', action, ready: true }; hint = action === 'fuel' ? '靠近高亮火堆，打开面板，点击木头或树枝添柴。' : quest.hint; }
+      }
     } else if (req?.type === 'bench') {
       if (req.level === 1) {
         if ((counts.workbench1 ?? 0) > 0) hint = '在背包中使用工作台，找空地站定放下。';
@@ -51,13 +62,10 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
       }
     }
   }
-  if (guide?.type === 'resource' && guide.kinds.includes('fur') && !furDropped) {
-    if (!s.tools.bow) {
-      resolveRecipe('bow');
-      hint = `先准备树枝弓。${hint}`;
-    } else if (s.ammo.count('arrow') === 0 && s.inventory.count('endlessQuiver') === 0) {
-      resolveRecipe('arrow');
-      hint = `箭用完了，先补充箭。${hint}`;
+  if (guide?.type === 'resource' && (guide.kinds.includes('fur') || guide.kinds.includes('gameMeat')) && !furDropped) {
+    if (!s.tools.sword) {
+      resolveRecipe('sword');
+      hint = `先准备木剑。${hint}`;
     }
   }
   if (guide?.type === 'resource' && guide.kinds.includes('wood') && !s.tools.axe) {

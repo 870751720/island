@@ -174,6 +174,7 @@ export class CampfireSystem {
     const fxPos = firePos.clone();
     fxPos.y += 0.8;
     this.fx.burst(fxPos, FX_COLOR, 10);
+    actor.quests.campAction('place');
     return true;
   }
 
@@ -217,6 +218,7 @@ export class CampfireSystem {
     const p = fire.group.position.clone();
     p.y += 0.5;
     this.fx.burst(p, '#ff9a3d', 6);
+    actor.quests.campAction('fuel');
     return burnTime;
   }
 
@@ -278,6 +280,7 @@ export class CampfireSystem {
     }
     if (st.cookTimer >= COOK_TIME) {
       this.give(COOKABLE[kind]!, 1, actor);
+      if (kind === 'gameMeat') actor.quests.campAction('cook');
       st.cookTimer = 0;
       st.cookTickTimer = 0;
       st.cookQueue -= 1;

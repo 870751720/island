@@ -6,6 +6,7 @@ import type { Wildlife } from '../entities/Wildlife';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import type { DropSystem } from '../systems/DropSystem';
 import type { ResourceKind } from '../systems/Inventory';
+import type { CampfireSystem } from '../systems/CampfireSystem';
 import { QuestRoute } from './QuestRoute';
 import { loadQuestGuide } from './QuestSettings';
 
@@ -26,7 +27,7 @@ export class QuestGuidance {
   private key = '';
   private activity = -1;
   private reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props, private wildlife: Wildlife, private bench: WorkbenchSystem, private drops: DropSystem) {
+  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props, private wildlife: Wildlife, private bench: WorkbenchSystem, private drops: DropSystem, private campfire: CampfireSystem) {
     this.route = new QuestRoute(terrain);
     this.ring.rotation.x = -Math.PI / 2;
     this.dots.frustumCulled = false;
@@ -52,6 +53,7 @@ export class QuestGuidance {
       this.scan = 1;
       let targets: { x: number; z: number }[] = [];
       if (guide.type === 'bench') targets = this.bench.snapshot().filter(b => b.level >= guide.level);
+      else if (guide.type === 'campfire') targets = this.campfire.snapshot().filter(f => guide.action === 'fuel' || f.fuel > 0);
       else {
         const kinds = guide.kinds;
         // 已掉落的皮毛优先；没有可到达的皮毛再找羊。
@@ -65,11 +67,12 @@ export class QuestGuidance {
       }
       const origin = session.player.group.position;
       let path = this.route.find({ x: origin.x, z: origin.z }, targets, 1);
-      if (!path && guide.type === 'resource' && guide.kinds.includes('fur')) path = this.route.find({ x: origin.x, z: origin.z }, this.wildlife.guideSheep(), 0);
+      if (!path && guide.type === 'resource' && (guide.kinds.includes('fur') || guide.kinds.includes('gameMeat'))) path = this.route.find({ x: origin.x, z: origin.z }, this.wildlife.guideSheep(), 0);
       this.target = path?.[path.length - 1] ?? null;
       this.hint = path ? null : guide.type === 'bench'
         ? '暂未找到可到达的工作台，请先放下对应等级的工作台。'
-        : guide.kinds.includes('fur') ? '暂未找到可到达的羊或皮毛，继续探索岛屿。' : '暂未找到可到达的物资，继续探索岛屿。';
+        : guide.type === 'campfire' ? '请先放下火堆，并添柴点燃。'
+        : (guide.kinds.includes('fur') || guide.kinds.includes('gameMeat')) ? '暂未找到可到达的羊或皮毛，继续探索岛屿。' : '暂未找到可到达的物资，继续探索岛屿。';
       this.points = path?.map(p => new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z) + 0.16, p.z)) ?? [];
       this.group.visible = this.points.length > 0;
       if (this.points.length) {
@@ -91,7 +94,7 @@ export class QuestGuidance {
       positions.needsUpdate = true;
     }
     this.ring.scale.setScalar(this.reduced ? 1 : 1 + Math.sin(this.elapsed * 3) * 0.06);
-    const showLine = this.idle >= (guide.type === 'bench' ? 20 : 10) && !q.busy;
+    const showLine = this.idle >= (guide.type === 'resource' ? 10 : 20) && !q.busy;
     this.line.visible = showLine;
     this.dots.visible = showLine && !this.reduced;
     if (this.dots.visible && this.points.length > 1) {

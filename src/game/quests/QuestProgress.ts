@@ -9,15 +9,19 @@ import { GATHER_KINDS, QUESTS, type QuestSave, type QuestView, type QuestRequire
 /** 每位玩家独立持有；只有单机/房主推进与发奖，客人读取 HUD 镜像。 */
 export class QuestProgress {
   enabled = true;
-  private state: QuestSave = { gathered: {}, crafted: {}, done: [], paid: [], benchLevel: 0, pending: {} };
+  private state: QuestSave = { completed: false, gathered: {}, crafted: {}, done: [], paid: [], benchLevel: 0, pending: {} };
   private legacy = false;
   private celebrate = 0;
   view: QuestView | null = null;
 
   restore(save?: QuestSave): void {
     this.legacy = !save;
-    if (save) this.state = structuredClone(save);
+    if (save) { this.state = structuredClone(save); this.state.completed ??= save.done.includes('graduate') && save.paid.includes('graduate'); }
     this.celebrate = 0;
+  }
+  campAction(action: 'place' | 'fuel' | 'cook'): void {
+    this.state.camp ??= {};
+    this.state.camp[action] = (this.state.camp[action] ?? 0) + 1;
   }
   snapshot(): QuestSave { return structuredClone(this.state); }
   collected(kind: ResourceKind, count: number): void {
@@ -41,14 +45,16 @@ export class QuestProgress {
     return count;
   }
   private row(s: PlayerSession, req: QuestRequirement) {
+    if (req.type === 'camp') return { label: { place: '放置火堆', fuel: '添加燃料', cook: '烤熟兽肉' }[req.action], have: Math.min(1, this.state.camp?.[req.action] ?? 0), need: 1 };
     if (req.type === 'bench') return { label: `${req.level}级工作台`, have: Math.min(req.level, this.state.benchLevel), need: req.level };
     if (req.type === 'gather') return { label: ITEMS[req.kind].name, have: Math.min(req.count, this.state.gathered[req.kind] ?? 0), need: req.count };
     return { label: RECIPES.find(r => r.id === req.id)?.name ?? req.id, have: Math.min(req.count, this.craftCount(s, req.id)), need: req.count };
   }
 
-  update(s: PlayerSession, benchLevel: number, delta: number, upgrading = false, furDropped = false): void {
+  update(s: PlayerSession, benchLevel: number, delta: number, upgrading = false, furDropped = false, campfires = 0, cooking = false, fireLit = false): void {
     this.celebrate = Math.max(0, this.celebrate - delta);
     this.state.gathered.fur = Math.max(this.state.gathered.fur ?? 0, s.inventory.count('fur'));
+    if (campfires > 0) { this.state.camp ??= {}; this.state.camp.place = Math.max(1, this.state.camp.place ?? 0); }
     this.state.benchLevel = Math.max(this.state.benchLevel, benchLevel);
     if (this.legacy) {
       for (const slot of s.inventory.snapshot()) if (slot) this.state.gathered[slot.kind] = Math.max(this.state.gathered[slot.kind] ?? 0, slot.count);
@@ -61,7 +67,8 @@ export class QuestProgress {
       if (!this.state.done.includes(quest.id) && quest.requirements.every(req => { const row = this.row(s, req); return row.have >= row.need; })) this.state.done.push(quest.id);
     }
     // 核心目标已达成即毕业，不要求成熟玩家补做早期采集作业。
-    if (this.state.done.includes('graduate')) {
+    if (this.state.done.includes('graduate') && (this.state.completed || ['campfire', 'fuel', 'cook', 'stone-sword'].every(id => this.state.done.includes(id)))) {
+      this.state.completed = true;
       for (const quest of QUESTS) if (!this.state.done.includes(quest.id)) {
         this.state.done.push(quest.id);
         this.state.paid.push(quest.id);
@@ -91,11 +98,11 @@ export class QuestProgress {
     }
     const quest = QUESTS[active];
     const rows = quest?.requirements.map(req => this.row(s, req)) ?? [];
-    const { recipes, guide, hint } = resolveQuestObjective(s, active, rows, furDropped);
+    const { recipes, guide, hint } = resolveQuestObjective(s, active, rows, furDropped, campfires, fireLit);
     const activity = guide?.type === 'resource'
       ? guide.kinds.reduce((sum, kind) => sum + (this.state.gathered[kind] ?? 0), 0)
       : recipes.reduce((sum, id) => sum + (this.state.crafted[id] ?? 0), 0);
-    const busy = upgrading || !!(s.crafting.currentRecipe && recipes.includes(s.crafting.currentRecipe.id));
+    const busy = cooking || upgrading || !!(s.crafting.currentRecipe && recipes.includes(s.crafting.currentRecipe.id));
     this.view = { enabled: this.enabled, active, finished: active === -1, celebration: this.celebrate > 0, rows, done: [...this.state.done], recipes, guide, hint, activity, busy, pending: Object.keys(this.state.pending).length > 0 };
   }
 }
