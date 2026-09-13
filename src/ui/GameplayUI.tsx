@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
+import { HudIcon } from './hud/HudIcon';
+import { hudStyles } from './hud/styles';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
 import { PerformanceOverlay } from './gm/PerformanceOverlay';
@@ -173,6 +175,7 @@ export function GameplayUI({
       ref={containerRef}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
+      <style>{hudStyles}</style>
       <div
         style={{
           position: 'absolute',
@@ -219,38 +222,22 @@ export function GameplayUI({
           <button
             onClick={() => setSettingsOpen(true)}
             aria-label="设置"
-            style={{
-              width: 44,
-              height: 44,
-              fontSize: 17,
-              lineHeight: 1,
-              border: 'none',
-              borderRadius: 10,
-              background: 'rgba(255,255,255,0.75)',
-              cursor: 'pointer',
-              ...fadeStyle(hud.busy),
-            }}
+            className="hud-control hud-utility hud-settings"
+            disabled={hud.busy}
+            aria-expanded={settingsOpen}
+            style={fadeStyle(hud.busy)}
           >
-            ⚙️
+            <HudIcon name="settings" size={23} />
           </button>
           {!mapOpen && (
             <button
               onClick={openMap}
               aria-label="打开小地图"
-              style={{
-                width: 44,
-                height: 44,
-                padding: 8,
-                lineHeight: 1,
-                border: 'none',
-                borderRadius: 10,
-                background: 'rgba(255,255,255,0.82)',
-                cursor: 'pointer',
-                touchAction: 'manipulation',
-                ...fadeStyle(hud.busy),
-              }}
+              className="hud-control hud-utility"
+              disabled={hud.busy}
+              style={fadeStyle(hud.busy)}
             >
-              <MapIcon size={28} />
+              <MapIcon size={26} />
             </button>
           )}
           {mapOpen && mapSnapshot && (

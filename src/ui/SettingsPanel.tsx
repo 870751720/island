@@ -96,6 +96,7 @@ export function SettingsPanel({
       }}
     >
       <div
+        className="hud-panel-enter"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(84vw, 340px)',

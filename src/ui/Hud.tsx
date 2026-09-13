@@ -1,149 +1,42 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { HudBuff } from '@/game/systems/BuffSystem';
+import { VitalMeter } from './hud/VitalMeter';
 
-/** 季节标签:天数行尾缀展示 */
-const SEASON_LABELS = { spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
+const SEASONS = {
+  spring: { label: '春日', color: '#b5d8a0' },
+  summer: { label: '盛夏', color: '#f5cf7c' },
+  autumn: { label: '金秋', color: '#eaaa78' },
+  winter: { label: '寒冬', color: '#a7d8ec' },
+} as const;
 
-function StatRow({ icon, value, color }: { icon: string; value: number; color: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
-      <span style={{ fontSize: '1.15em', lineHeight: 1 }}>{icon}</span>
-      <span style={{ color, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-        {Math.round(value)}
-      </span>
-    </div>
-  );
-}
-
-/** 状态栏右侧的一个 buff 图标:增益绿框/减益红框,限时 buff 带剩余秒数角标 */
-function BuffIcon({ buff, onTap }: { buff: HudBuff; onTap: (e: React.PointerEvent) => void }) {
-  return (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onTap(e);
-      }}
-      aria-label={buff.name}
-      style={{
-        position: 'relative',
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        border: `2px solid ${buff.good ? '#4caf50' : '#c0392d'}`,
-        background: 'rgba(255,255,255,0.75)',
-        fontSize: 17,
-        lineHeight: 1,
-        padding: 0,
-        cursor: 'pointer',
-        touchAction: 'none',
-        userSelect: 'none',
-      }}
-    >
-      {buff.icon}
-      {buff.remain !== null && (
-        <span
-          style={{
-            position: 'absolute',
-            right: 1,
-            bottom: -1,
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#555',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {buff.remain}
-        </span>
-      )}
-    </button>
-  );
-}
-
-/**
- * 左上角状态区:生命/饥饿/口渴 + 天数在状态栏下方,buff 图标排在状态栏下方,
- * 横向排列、放不下换行,右侧为右上角的设置按钮/小地图预留空间;
- * 点 buff 图标弹出效果说明。红心为 GM 面板的隐藏入口。
- */
-export function Hud({
-  hud,
-  onHeartTap,
-  rightReserve,
-}: {
+/** 本地玩家状态条与增益区；为展开的小地图预留宽度。 */
+export function Hud({ hud, onHeartTap, rightReserve }: {
   hud: HudSnapshot;
   onHeartTap: () => void;
-  /** 右上角按钮区(设置/小地图)占用的宽度,buff 换行时避开它 */
   rightReserve: number;
 }) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
+  const season = SEASONS[hud.season];
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 'max(10px, env(safe-area-inset-top))',
-        left: 'max(10px, env(safe-area-inset-left))',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 6,
-        fontFamily: 'sans-serif',
-        fontSize: 'clamp(12px, 3.5vw, 14px)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 3,
-          padding: '8px 12px',
-          background: 'rgba(255,255,255,0.75)',
-          borderRadius: 10,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
-          <span
-            onClick={onHeartTap}
-            style={{ fontSize: '1.15em', lineHeight: 1, cursor: 'pointer' }}
-          >
-            ❤️
-          </span>
-          <span style={{ color: '#c0392b', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-            {Math.round(hud.health)}
-          </span>
-        </div>
-        <StatRow icon="🍗" value={hud.hunger} color="#b9631e" />
-        <StatRow icon="💧" value={hud.thirst} color="#2471a3" />
-        <div
-          style={{
-            color: '#5b4632',
-            fontWeight: 600,
-            fontVariantNumeric: 'tabular-nums',
-            borderTop: '1px solid rgba(91,70,50,0.2)',
-            paddingTop: 3,
-            marginTop: 2,
-          }}
-        >
-          第 {hud.day} 天 · {SEASON_LABELS[hud.season]}
-        </div>
+    <div className="hud-status" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+      <div className="hud-status-card">
+        <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
+        <VitalMeter kind="health" value={hud.health} onIconTap={onHeartTap} />
+        <VitalMeter kind="hunger" value={hud.hunger} />
+        <VitalMeter kind="thirst" value={hud.thirst} />
       </div>
       {hud.buffs.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 6,
-            maxWidth: `calc(100vw - max(10px, env(safe-area-inset-left)) - max(10px, env(safe-area-inset-right)) - ${rightReserve}px)`,
-          }}
-        >
+        <div className="hud-buffs" aria-label="当前状态效果">
           {hud.buffs.map((buff) => (
-            <BuffIcon
-              key={buff.id}
-              buff={buff}
-              onTap={(e) => {
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            <button key={buff.id} className={`hud-buff${buff.good ? '' : ' is-bad'}`} aria-label={`${buff.name}，${buff.good ? '增益' : '减益'}`} aria-expanded={tip?.buff.id === buff.id}
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
                 setTip(tip?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });
-              }}
-            />
+              }}>
+              {buff.icon}
+              {buff.remain !== null && <span className="hud-buff-time">{buff.remain}</span>}
+            </button>
           ))}
         </div>
       )}
@@ -154,11 +47,12 @@ export function Hud({
               e.preventDefault();
               setTip(null);
             }}
-            style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 60, pointerEvents: 'auto' }}
           />
           <div
             style={{
               position: 'fixed',
+              pointerEvents: 'auto',
               left: Math.min(Math.max(tip.x - 115, 10), window.innerWidth - 240),
               top: tip.y + 8,
               width: 230,

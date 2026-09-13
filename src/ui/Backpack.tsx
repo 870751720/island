@@ -12,6 +12,7 @@ import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
 import { fadeStyle } from './fade';
+import { HudIcon } from './hud/HudIcon';
 import { StepButton } from './StepButton';
 
 type Props = {
@@ -268,27 +269,15 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
     <>
       {showBackpackButton && (
       <button
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onToggle();
-        }}
-        style={{
-          position: 'absolute',
-          // 位于右中侧工具按钮正上方(工具按钮 top 50%、高 72px)
-          top: 'calc(50% - 36px - 72px - 12px)',
-          right: 'max(16px, env(safe-area-inset-right))',
-          width: 72,
-          height: 72,
-          borderRadius: '50%',
-          border: 'none',
-          background: 'rgba(255,255,255,0.75)',
-          fontSize: 24,
-          touchAction: 'none',
-          userSelect: 'none',
-          ...fadeStyle(hud.busy),
-        }}
+        className="hud-control hud-backpack"
+        onClick={onToggle}
+        aria-label="背包"
+        aria-expanded={open}
+        disabled={hud.busy || hud.dead}
+        style={fadeStyle(hud.busy || hud.dead)}
       >
-        🎒
+        <HudIcon name="backpack" size={32} />
+        <span className="hud-control-label">背包</span>
       </button>
       )}
       {open && (
@@ -310,6 +299,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
         >
           <div
             ref={panelRef}
+            className="hud-panel-enter"
             style={{
               // 顶边对齐旧版居中面板的位置(按旧面板约 520px 高折算),内容增多时向下生长
               marginTop: 'max(12px, calc(50vh - 260px))',

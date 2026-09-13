@@ -5,7 +5,7 @@ import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { fadeStyle } from './fade';
 import { ItemIcon, ToolIcon } from './ItemIcon';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** 普通工具的显示名(手持选择面板用;手持道具类名称走 ITEMS) */
 export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
@@ -20,9 +20,9 @@ export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
   lasso: '套索',
 };
 
-/** 右中侧工具切换按钮:单击循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时轻缩放提示可切换;
+/** 右中侧工具切换按钮:单击循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时外圈提示可切换;
  * 长按(约 0.35s)打开可放置道具选择面板(传入 onLongPress 时启用);
- * 靠近工作台/火堆等放置物时切换为对应图标并持续缩放提示,点击打开对应面板;
+ * 靠近工作台/火堆等放置物时切换为对应图标并以外圈短暂提示,点击打开对应面板;
  * 牵着羊时变为「打桩」,身旁有被拴的羊时变为「解开套索」;
  * 持弓/鱼竿/围栏/套索时角标显示剩余弹药或个数 */
 export function ToolButton({
@@ -117,9 +117,35 @@ export function ToolButton({
   const LONG_PRESS_MS = 350;
   const LONG_PRESS_SLOP = 12;
   const pressTimer = useRef<number | null>(null);
+  const [holding, setHolding] = useState(false);
+  const contexts: [boolean, string][] = [
+    [workbench, '工作台'], [campfire, '营火'], [crate, '木箱'],
+    [baitBarrel, '饵料桶'], [brewBarrel, '酿酒桶'], [smelter, '冶炼炉'],
+    [cookingStation, '烹饪台'], [loom, '纺织机'], [bed, '睡觉'],
+    [stake, '打桩'], [untie, '解开套索'],
+  ];
+  const contextLabel = contexts.find(([active]) => active)?.[1];
+  const toolLabel = placeKind && placeKind in ITEMS
+    ? ITEMS[placeKind as ResourceKind].name
+    : TOOL_LABELS[tool] ?? '工具';
+  const label = contextLabel ?? toolLabel;
   const longFired = useRef(false);
+  const activePointer = useRef<number | null>(null);
   const pressStart = useRef({ x: 0, y: 0 });
+  useEffect(() => () => {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+  }, []);
+  useEffect(() => {
+    if (dimmed) {
+      if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+      activePointer.current = null;
+      setHolding(false);
+      longFired.current = true;
+    }
+  }, [dimmed]);
   const clearPress = () => {
+    setHolding(false);
     if (pressTimer.current !== null) {
       clearTimeout(pressTimer.current);
       pressTimer.current = null;
@@ -127,7 +153,7 @@ export function ToolButton({
   };
   const tapAction = () => {
     clearPress();
-    if (longFired.current) return;
+    if (dimmed || longFired.current) return;
     workbench
       ? onWorkbench()
       : campfire
@@ -154,21 +180,35 @@ export function ToolButton({
   };
   return (
     <button
+      className={`hud-control hud-tool${contextLabel ? ' is-context' : ''}`}
+      disabled={dimmed}
+      aria-label={`${contextLabel ? label : `切换工具，当前${label}`}${onLongPress ? '；长按选择工具或道具' : ''}`}
+      onClick={(event) => {
+        if (event.detail === 0) {
+          longFired.current = false;
+          tapAction();
+        }
+      }}
+      onContextMenu={(event) => event.preventDefault()}
       onPointerDown={(e) => {
         e.preventDefault();
+        if (e.button !== 0 || dimmed || activePointer.current !== null) return;
+        activePointer.current = e.pointerId;
         longFired.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
         clearPress();
         if (onLongPress && !dimmed) {
+          setHolding(true);
           pressTimer.current = window.setTimeout(() => {
             pressTimer.current = null;
             longFired.current = true;
+            setHolding(false);
             onLongPress();
           }, LONG_PRESS_MS);
         }
       }}
       onPointerMove={(e) => {
-        if (pressTimer.current === null || longFired.current) return;
+        if (activePointer.current !== e.pointerId || pressTimer.current === null || longFired.current) return;
         const dx = e.clientX - pressStart.current.x;
         const dy = e.clientY - pressStart.current.y;
         if (dx * dx + dy * dy > LONG_PRESS_SLOP * LONG_PRESS_SLOP) {
@@ -176,69 +216,28 @@ export function ToolButton({
           longFired.current = true;
         }
       }}
-      onPointerUp={tapAction}
-      onPointerLeave={() => {
+      onPointerUp={(event) => {
+        if (activePointer.current !== event.pointerId) return;
+        activePointer.current = null;
+        tapAction();
+      }}
+      onPointerLeave={(event) => {
+        if (activePointer.current !== event.pointerId) return;
+        activePointer.current = null;
         clearPress();
         longFired.current = true;
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(event) => {
+        if (activePointer.current !== event.pointerId) return;
+        activePointer.current = null;
         clearPress();
         longFired.current = true;
       }}
-      style={{
-        position: 'absolute',
-        right: 'max(16px, env(safe-area-inset-right))',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 72,
-        height: 72,
-        borderRadius: '50%',
-        border: 'none',
-        background: workbench
-          ? 'rgba(202, 138, 62, 0.9)'
-          : campfire
-            ? 'rgba(214, 92, 44, 0.9)'
-            : crate
-              ? 'rgba(154, 118, 62, 0.9)'
-              : baitBarrel
-                ? 'rgba(151, 124, 74, 0.9)'
-                : brewBarrel
-                  ? 'rgba(122, 72, 64, 0.9)'
-                  : smelter
-                  ? 'rgba(125, 130, 136, 0.9)'
-                  : cookingStation
-                    ? 'rgba(196, 118, 74, 0.9)'
-                    : loom
-                      ? 'rgba(181, 166, 66, 0.9)'
-                      : bed
-                  ? 'rgba(106, 110, 160, 0.9)'
-                  : stake
-                    ? 'rgba(120, 96, 56, 0.9)'
-                    : untie
-                      ? 'rgba(96, 116, 96, 0.9)'
-                      : 'rgba(90, 110, 140, 0.8)',
-        fontSize: 30,
-        touchAction: 'none',
-        userSelect: 'none',
-        boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
-        animation:
-          pulse ||
-          workbench ||
-          campfire ||
-          crate ||
-          baitBarrel ||
-          brewBarrel ||
-          smelter ||
-          cookingStation ||
-          loom ||
-          bed ||
-          stake ||
-          untie
-            ? 'tool-pulse 0.9s ease-in-out infinite'
-            : 'none',
-        ...fadeStyle(dimmed),
-      }}
+      style={fadeStyle(dimmed)}
     >
+      {(pulse || contextLabel) && <span key={contextLabel ?? 'equip'} className="hud-tool-cue" aria-hidden="true" />}
+      {holding && <svg className="hud-hold-ring" viewBox="0 0 82 82" aria-hidden="true"><rect x="3" y="3" width="76" height="76" rx="26" pathLength="100" /></svg>}
+      <span className="hud-tool-visual" key={`${tool}-${placeKind}-${contextLabel}`}>
       {workbench
         ? <ItemIcon kind="workbench1" level={null} size={30} />
         : campfire
@@ -264,6 +263,9 @@ export function ToolButton({
                           : placeKind && placeKind in ITEMS
                             ? <ItemIcon kind={placeKind as ResourceKind} size={30} />
                             : <ToolIcon tool={tool} size={30} />}
+      </span>
+      <span className="hud-control-label">{label}</span>
+      {onLongPress && <span className="hud-tool-hint" aria-hidden="true">{holding ? '选择中…' : '长按选择'}</span>}
       {!workbench &&
         !campfire &&
         !crate &&
@@ -281,20 +283,7 @@ export function ToolButton({
           tool === 'fence' ||
           tool === 'fenceGate' ||
           tool === 'place') && (
-        <span
-          style={{
-            position: 'absolute',
-            right: 4,
-            bottom: 4,
-            minWidth: 20,
-            padding: '0 4px',
-            borderRadius: 10,
-            background: 'rgba(40,40,40,0.75)',
-            color: '#fff',
-            fontSize: 12,
-            lineHeight: '18px',
-          }}
-        >
+        <span className="hud-tool-count">
           {tool === 'bow'
             ? arrowCount
             : tool === 'fishingrod'
@@ -306,7 +295,6 @@ export function ToolButton({
                   : fenceCount}
         </span>
       )}
-      <style>{`@keyframes tool-pulse { 0%, 100% { scale: 1 } 50% { scale: 1.12 } }`}</style>
     </button>
   );
 }

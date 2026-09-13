@@ -20,7 +20,7 @@
 - `src/game/Game.ts`:
   - `HudSnapshot` 新增 `slots`(格子快照)与 `capacity`;原有的 wood/gravel/stone/berry 计数改为由格子汇总,继续供手搓/进食卡片判断材料。
   - 新增 `dropItem(kind)`(丢弃一个到地上);`eatFood(kind?)` 支持指定食物种类(背包「使用」按钮),不带参数时仍吃背包最前面的食物。
-- `src/ui/Backpack.tsx`:重写为格子面板。5 列格子网格,点击有道具的格子选中并在下方显示名称、数量、描述与「使用/丢弃」按钮;使用食物后由外层关闭背包。背包按钮位置与样式不变。
+- `src/ui/Backpack.tsx`:重写为格子面板。5 列格子网格,点击有道具的格子选中并在下方显示名称、数量、描述与「使用/丢弃」按钮;使用食物后由外层关闭背包。背包入口采用手绘 SVG 与深海色圆角按钮，触控反馈及横竖屏布局见 `hud-design.md`。
 - 合成消耗(`Crafting`/`WorkbenchSystem`)与进食判定(`EatingSystem`)从读取计数表改为 `inventory.count(kind)`。
 
 ## 迭代记录
