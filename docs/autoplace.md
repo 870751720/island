@@ -18,6 +18,8 @@
 
 ## 设计方案
 
+- **选择面板触屏事件**:点选和关闭在 `click` 结算,防止面板提前卸载产生穿透。打开面板的长按松手可拦截其尾随 click,但下一次 `pointerdown` 必须解除拦截,避免浏览器未生成尾随 click 时吞掉首次点选。卸载时清理全部监听,不影响后续面板或 HUD。
+
 - **设施注册表** `src/game/systems/Facilities.ts` + `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → FacilityDef` 注册表,`FacilityDef = { tool, valid?, target?, buildPreview, handModel?, onPreview?, place(actor, at), holdTime?, failText? }`。所有可放置道具(建筑/神龛/丛/围栏木/石/围栏门)注册一份定义即获得全套行为:工具循环与长按选择面板入口、手持模型、绿/红落点预览、站定自动放置与背包「使用」就近放置。
 - **统一结算**:`Game.settleFacility(kind, actor, cell?)` 为唯一权威结算(失败提示、铲子收起等外围处理集中于此);`Game.useFacilityItem(kind)` 是背包「使用」与联机上行的统一入口。`AutoPlaceSystem` 构造时注入该 settle 回调,站定自动放置走满后带已选格回调。
 - **落点**:`snapAheadCell(actor)` 取面前 0.9 处吸附格中心;默认在面前 3x3 格内取最近可放格;围栏/门提供自定义 `target`(接线优先打分),预览的横杆显隐与门朝向经 `onPreview` 委托 `FenceSystem`。

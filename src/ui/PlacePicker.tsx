@@ -41,20 +41,21 @@ export function PlacePicker<T extends PickerItem>({
   // 长按弹出面板的那次按住还在进行:抬起后浏览器仍会为它派发一次 click,
   // 此时面板刚出现,click 会命中遮罩被当作「点面板外」把面板立刻关掉。
   // 面板挂载后监听第一个抬起:若期间没有新的按下(即属于开面板那次按住),
-  // 在捕获阶段吞掉紧随其后的那一次 click
+  // 在捕获阶段吞掉紧随其后的那一次 click;新按下必须解除拦截,
+  // 因为触屏取消/按钮禁用等情况可能使开面板的手势根本不产生 click。
   useEffect(() => {
     let pressedAfterMount = false;
+    const swallow = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+    };
     const onDown = () => {
       pressedAfterMount = true;
+      window.removeEventListener('click', swallow, true);
     };
     const onUp = () => {
-      window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointerup', onUp, true);
       if (pressedAfterMount) return;
-      const swallow = (e: MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-      };
       window.addEventListener('click', swallow, { capture: true, once: true });
     };
     window.addEventListener('pointerdown', onDown, true);
@@ -62,6 +63,7 @@ export function PlacePicker<T extends PickerItem>({
     return () => {
       window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('click', swallow, true);
     };
   }, []);
   return (

@@ -15,6 +15,8 @@
 
 ## 设计方案
 
+长按手持选择面板在单机、房主与客人端使用相同的本地触屏事件处理:开面板手势的尾随 click 拦截在下一次按下时解除,菜单卸载时清理,确保首次点选不被残留监听吞掉。选中工具/道具仍由客人本地预测并经 `NetGuest.action('tool', ...)` 上行,房主 `Actions.ts` 权威结算、HUD 快照回流;此交互修正不新增协议字段、补播事件或存档字段。
+
 `Game` 的设施与玩家命令已分别由 `FacilityInteractionController` 和 `PlayerCommandController` 协调。客人端继续使用原有 action 名与参数上行，房主仍通过 `Actions.ts` 调用 `Game` 的稳定公开门面完成权威结算，状态由原有 HUD/世界快照回流；本次模块拆分不新增网络消息或持久化字段。
 
 世界离散状态由 `WorldReplicationController` 维护客人镜像和 revision；增量断档时仍使用原有 world resync 请求全量快照。`PlayerSnapshotBuilder` 保持房主姿态载荷字段，`GuestHudSynchronizer` 负责将定向 HUD 回流到客人本地状态并补播纯表现效果。三者都不改变房主权威边界或网络协议。
