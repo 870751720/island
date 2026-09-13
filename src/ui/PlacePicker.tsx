@@ -5,6 +5,7 @@ import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { EmojiDef } from '../game/social/Emojis';
+import { EmojiFaceIcon } from './icons/EmojiFaceIcon';
 
 /** 手持项选择面板:长按工具按钮弹出,顶部为快捷表情区(点选在头顶冒气泡),
  * 下方平铺所有可切换的手持项(普通工具 + 可放置道具,图标+名称+数量角标),
@@ -108,13 +109,14 @@ export function PlacePicker<T extends PickerItem>({
                     ...gameButtonStyle,
                     borderRadius: 10,
                     background: gameTheme.surface,
-                    fontSize: 32,
-                    lineHeight: '60px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     touchAction: 'none',
                     userSelect: 'none',
                   }}
                 >
-                  {emoji.glyph}
+                  <EmojiFaceIcon glyph={emoji.glyph} size={36} />
                 </button>
               ))}
             </div>

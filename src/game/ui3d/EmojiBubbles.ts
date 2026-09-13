@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EMOJI_ICONS, emojiSvgDocument } from '../social/EmojiIcons';
 
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
@@ -13,14 +14,8 @@ const ASPECT = 1.25;
 /** 每个表情一张共享纹理(懒绘制缓存);材质每气泡独立,便于单独淡出后 dispose */
 const textures = new Map<string, THREE.Texture>();
 
-function emojiTexture(glyph: string): THREE.Texture {
-  const cached = textures.get(glyph);
-  if (cached) return cached;
-  const canvas = document.createElement('canvas');
-  canvas.width = 160;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  // 白色药丸底 + 轻投影,仿小狗表情气泡
+/** 白色药丸底 + 轻投影,仿小狗表情气泡 */
+function paintBubble(ctx: CanvasRenderingContext2D): void {
   ctx.shadowColor = 'rgba(0,0,0,0.25)';
   ctx.shadowBlur = 8;
   ctx.shadowOffsetY = 2;
@@ -29,6 +24,37 @@ function emojiTexture(glyph: string): THREE.Texture {
   ctx.roundRect(6, 8, 148, 112, 56);
   ctx.fill();
   ctx.shadowColor = 'transparent';
+}
+
+/** 自绘表情图标纹理:SVG 栅格化后画在药丸中心。
+ * 解码是异步的,完成后替换缓存里的系统 emoji 兜底纹理(在用材质仍持旧纹理,交由 GC) */
+function loadIconTexture(glyph: string): void {
+  const svg = emojiSvgDocument(glyph);
+  if (!svg) return;
+  const image = new Image();
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    paintBubble(ctx);
+    ctx.drawImage(image, 80 - 38, 64 - 38, 76, 76);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    textures.set(glyph, texture);
+  };
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/** 兜底纹理:直接绘制系统 emoji 字形;自绘图标就绪前的过渡表现 */
+function emojiTexture(glyph: string): THREE.Texture {
+  const cached = textures.get(glyph);
+  if (cached) return cached;
+  const canvas = document.createElement('canvas');
+  canvas.width = 160;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  paintBubble(ctx);
   ctx.font = '76px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
@@ -54,7 +80,10 @@ interface Bubble {
 export class EmojiBubbles {
   private readonly active = new Map<THREE.Object3D, Bubble>();
 
-  constructor(private readonly scene: THREE.Scene) {}
+  constructor(private readonly scene: THREE.Scene) {
+    // 预载自绘表情纹理:进入游戏即开始解码,首次发表情时大概率已就绪
+    for (const glyph of Object.keys(EMOJI_ICONS)) loadIconTexture(glyph);
+  }
 
   /** 在 target(玩家根组)头顶显示一个表情 */
   show(target: THREE.Object3D, glyph: string): void {
