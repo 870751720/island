@@ -113,7 +113,7 @@ export function ToolButton({
   onUntie: () => void;
 }) {
   // 长按计时:按住不动约 0.35s 触发 onLongPress 并吞掉本次单击;提前抬起走普通点击,
-  // 按住期间手指移动超过一小段(视为拖动/滑动)也取消长按,保证普通点按始终是循环切换
+  // 按住期间手指移动超过容差则取消本次手势,避免拖动误切换。
   const LONG_PRESS_MS = 350;
   const LONG_PRESS_SLOP = 12;
   const pressTimer = useRef<number | null>(null);
@@ -132,8 +132,24 @@ export function ToolButton({
   const longFired = useRef(false);
   const activePointer = useRef<number | null>(null);
   const pressStart = useRef({ x: 0, y: 0 });
-  useEffect(() => () => {
-    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+  useEffect(() => {
+    const cancel = () => {
+      if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+      activePointer.current = null;
+      longFired.current = true;
+      setHolding(false);
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) cancel();
+    };
+    window.addEventListener('blur', cancel);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+      window.removeEventListener('blur', cancel);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
   useEffect(() => {
     if (dimmed) {
@@ -193,6 +209,8 @@ export function ToolButton({
       onPointerDown={(e) => {
         e.preventDefault();
         if (e.button !== 0 || dimmed || activePointer.current !== null) return;
+        // 捕获到稳定的按钮节点,避免子图标替换、按压缩放或遮罩出现丢失抬起事件。
+        e.currentTarget.setPointerCapture(e.pointerId);
         activePointer.current = e.pointerId;
         longFired.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
@@ -221,7 +239,7 @@ export function ToolButton({
         activePointer.current = null;
         tapAction();
       }}
-      onPointerLeave={(event) => {
+      onLostPointerCapture={(event) => {
         if (activePointer.current !== event.pointerId) return;
         activePointer.current = null;
         clearPress();
