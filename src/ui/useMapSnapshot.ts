@@ -5,9 +5,13 @@ import type { MapSnapshot } from '@/game/GameContracts';
 import { useEffect, useState, type RefObject } from 'react';
 
 /** 管理小地图开关，并仅在打开期间低频读取 Game 的表现快照。 */
-export function useMapSnapshot(gameRef: RefObject<Game | null>) {
-  const [mapOpen, setMapOpen] = useState(false);
+export function useMapSnapshot(gameRef: RefObject<Game | null>, multiplayer = false) {
+  const [mapOpen, setMapOpen] = useState(multiplayer);
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null);
+
+  useEffect(() => {
+    if (multiplayer) setMapOpen(true);
+  }, [multiplayer]);
 
   useEffect(() => {
     if (!mapOpen) return;

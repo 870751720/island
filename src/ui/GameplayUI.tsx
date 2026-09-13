@@ -109,7 +109,7 @@ export function GameplayUI({
   useEffect(() => {
     if (hud.dead && photoMode) exitPhotoMode();
   }, [hud.dead]);
-  const { mapOpen, mapSnapshot, openMap, closeMap } = useMapSnapshot(gameRef);
+  const { mapOpen, mapSnapshot, openMap, closeMap } = useMapSnapshot(gameRef, !!(net?.host || net?.guest));
   const { dismissedRecipes, dismiss } = useCraftPromptHistory(!net?.host && !net?.guest);
   const craftFromPrompt = (id: CraftId) => {
     dismiss(id);
@@ -224,9 +224,9 @@ export function GameplayUI({
       {/* 右上角:设置按钮左、地图入口或小地图右；玩家移动/交互中一起淡出 */}
       {!hud.dead && !photoMode && (
         <div
+          className="hud-top-edge"
           style={{
             position: 'absolute',
-            top: 'max(10px, env(safe-area-inset-top))',
             right: 'max(10px, env(safe-area-inset-right))',
             display: 'flex',
             alignItems: 'flex-start',

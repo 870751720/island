@@ -20,7 +20,7 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
   const season = SEASONS[hud.season];
   return (
-    <div className="hud-status" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+    <div className="hud-status hud-top-edge" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
       <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
       <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
