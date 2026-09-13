@@ -1,4 +1,4 @@
-import { META_COSTS, META_MAX_LEVEL, META_TREE, type MetaNodeId } from './MetaTree';
+import { META_COSTS, META_MAX_LEVEL, META_TREE, metaUnlocked, type MetaNodeId } from './MetaTree';
 
 /** 局外养成的持久化状态:与存档无关,死亡清档不影响它 */
 type MetaState = {
@@ -74,9 +74,10 @@ export const MetaProgress = {
   level(id: MetaNodeId): number {
     return ensure().levels[id] ?? 0;
   },
-  /** 升一级:点数不足或已满级返回 false,成功则扣点并持久化 */
+  /** 升一级:前置未满足、点数不足或已满级返回 false。 */
   upgrade(id: MetaNodeId): boolean {
     const s = ensure();
+    if (!ALL_NODE_IDS.includes(id) || !metaUnlocked(id, (nodeId) => s.levels[nodeId] ?? 0)) return false;
     const lv = s.levels[id] ?? 0;
     if (lv >= META_MAX_LEVEL) return false;
     const cost = META_COSTS[lv];

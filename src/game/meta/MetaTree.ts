@@ -141,6 +141,20 @@ export const META_TREE: MetaBranchDef[] = [
   },
 ];
 
+/** 每条分支按定义顺序成长，前一个节点为直接前置。 */
+export function metaPrerequisite(id: MetaNodeId): MetaNodeDef | undefined {
+  for (const branch of META_TREE) {
+    const index = branch.nodes.findIndex((node) => node.id === id);
+    if (index >= 0) return index > 0 ? branch.nodes[index - 1] : undefined;
+  }
+}
+
+/** 已学节点保留升级资格，兼容自由加点时期的传承。 */
+export function metaUnlocked(id: MetaNodeId, level: (id: MetaNodeId) => number): boolean {
+  const prerequisite = metaPrerequisite(id);
+  return level(id) > 0 || !prerequisite || level(prerequisite.id) >= 1;
+}
+
 /** 全树点满需要的传承点总数 */
 export const META_FULL_COST = META_TREE.reduce(
   (sum, branch) => sum + branch.nodes.length * META_COSTS.reduce((a, b) => a + b, 0),

@@ -88,7 +88,7 @@ export function StartScreen({
       <div className="start-atmosphere" aria-hidden="true">
         <div className="menu-birds"><i /><i /><i /></div>
       </div>
-      <div className="start-layout">
+      <div className="start-layout" inert={showMeta}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
           {ready && <button className="menu-sound" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
