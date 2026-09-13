@@ -46,6 +46,31 @@ export const gameButtonStyle: CSSProperties = {
   WebkitTapHighlightColor: 'transparent',
 };
 
+/** 暗场界面(拍照分享、死亡与复活结算)的深色主题:夜色松绿底 + 奶油文字,与浅色主题同源 */
+export const gameDarkTheme = {
+  ink: '#f2ecdc',
+  muted: '#a9b8ac',
+  accent: '#a7c9b2',
+  warning: '#e6c07c',
+  /** 深松绿夜色底 */
+  panel: 'linear-gradient(165deg,#243530f2,#0d1714f7)',
+  /** 波塞冬庇佑用的深海夜色底 */
+  ocean: 'linear-gradient(165deg,#16343af2,#0a1b21f7)',
+  surface: '#f2ecdc1c',
+  line: '1px solid #f2ecdc33',
+} as const;
+
+export const gameDarkButtonStyle: CSSProperties = {
+  minHeight: 44,
+  border: gameDarkTheme.line,
+  borderRadius: 12,
+  background: gameDarkTheme.surface,
+  color: gameDarkTheme.ink,
+  fontFamily: gameTheme.font,
+  cursor: 'pointer',
+  WebkitTapHighlightColor: 'transparent',
+};
+
 export const gameThemeCss = `
 .gameplay-ui button:focus-visible{outline:2px solid #609e91;outline-offset:3px}
 .gameplay-ui button:disabled{opacity:.48;cursor:default}

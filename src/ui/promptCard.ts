@@ -16,7 +16,7 @@ export const promptCardStyle: CSSProperties = {
   minHeight: 56,
   padding: '8px 16px',
   borderRadius: 14,
-  border: gameTheme.selectionBorder,
+  border: '2px solid #fff',
   background: gameTheme.panel,
   color: gameTheme.ink,
   fontFamily: gameTheme.font,

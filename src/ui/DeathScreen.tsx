@@ -1,6 +1,6 @@
 'use client';
 
-import { gameTheme, gameButtonStyle } from './gameTheme';
+import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
 
 import { useState } from 'react';
 import type { DeathReport } from '@/game/systems/RunStats';
@@ -20,7 +20,7 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         alignItems: 'center',
         justifyContent: 'center',
         gap: 14,
-        background: gameTheme.panel,
+        background: gameDarkTheme.panel,
         fontFamily: gameTheme.font,
         overflowY: 'auto',
         padding: '16px',
@@ -29,7 +29,7 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
       }}
       onClick={onClose}
     >
-      <div style={{ color: gameTheme.ink, fontSize: 15 }}>长按或右键保存图片,分享你的战绩</div>
+      <div style={{ color: gameDarkTheme.ink, fontSize: 15 }}>长按或右键保存图片,分享你的战绩</div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
@@ -49,20 +49,17 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         style={{
           minHeight: 44,
           padding: '0 22px',
-          ...gameButtonStyle,
+          ...gameDarkButtonStyle,
           borderRadius: 12,
-          background: gameTheme.action,
-          color: gameTheme.ink,
           fontSize: 15,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          boxShadow: gameTheme.controlShadow,
           cursor: 'pointer',
         }}
       >
         复制战绩文案
       </button>
-      {hint && <div style={{ color: gameTheme.muted, fontSize: 13 }}>{hint}</div>}
+      {hint && <div style={{ color: gameDarkTheme.muted, fontSize: 13 }}>{hint}</div>}
     </div>
   );
 }
@@ -110,8 +107,8 @@ export function DeathScreen({
         justifyContent: 'center',
         gap: 'clamp(10px, 2.5vh, 24px)',
         background: poseidon
-          ? 'linear-gradient(145deg,#f4f5dcf5,#c8e5ddf2)'
-          : gameTheme.panel,
+          ? gameDarkTheme.ocean
+          : gameDarkTheme.panel,
         fontFamily: gameTheme.font,
         overflowY: 'auto',
         padding: '16px',
@@ -140,7 +137,7 @@ export function DeathScreen({
       )}
       <div
         style={{
-          color: poseidon ? '#367b73' : gameTheme.ink,
+          color: poseidon ? '#8fd8cf' : gameDarkTheme.ink,
           fontSize: 'clamp(22px, 6.5vw, 32px)',
           letterSpacing: '0.1em',
           animation: poseidon ? 'poseidon-rise 0.8s ease' : undefined,
@@ -151,7 +148,7 @@ export function DeathScreen({
       {poseidon && (
         <div
           style={{
-            color: gameTheme.ink,
+            color: gameDarkTheme.ink,
             fontSize: 'clamp(15px, 4vw, 18px)',
             lineHeight: 1.7,
             textAlign: 'center',
@@ -186,8 +183,9 @@ export function DeathScreen({
               style={{
                 padding: '6px 14px',
                 borderRadius: 999,
-                background: gameTheme.surface,
-                color: gameTheme.ink,
+                background: gameDarkTheme.surface,
+                border: gameDarkTheme.line,
+                color: gameDarkTheme.ink,
                 fontSize: 'clamp(13px, 3.5vw, 15px)',
                 letterSpacing: '0.05em',
               }}
@@ -204,7 +202,7 @@ export function DeathScreen({
             borderRadius: 12,
             background: 'linear-gradient(135deg, rgba(247,215,116,0.22), rgba(247,215,116,0.1))',
             border: '1px solid rgba(247,215,116,0.45)',
-            color: gameTheme.warning,
+            color: gameDarkTheme.warning,
             fontSize: 'clamp(14px, 3.8vw, 16px)',
             fontWeight: 700,
             letterSpacing: '0.05em',
@@ -214,7 +212,7 @@ export function DeathScreen({
         </div>
       )}
       {report && !autoRespawn && report.legacyPoints === 0 && (
-        <p style={{ margin: 0, color: gameTheme.muted, fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
+        <p style={{ margin: 0, color: gameDarkTheme.muted, fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
           生存不足 2 天,没有沉淀下求生心得
         </p>
       )}
@@ -222,7 +220,7 @@ export function DeathScreen({
         <div
           key={seconds}
           style={{
-            color: poseidon ? '#367b73' : gameTheme.ink,
+            color: poseidon ? '#8fd8cf' : gameDarkTheme.ink,
             fontSize: 'clamp(15px, 4vw, 18px)',
             animation: 'death-count 1s ease',
           }}
@@ -237,15 +235,15 @@ export function DeathScreen({
               disabled={sharing}
               style={{
                 minWidth: 'min(60vw, 220px)',
-                ...gameButtonStyle,
+                ...gameDarkButtonStyle,
+                background: gameDarkTheme.accent,
+                color: '#1b2a24',
                 minHeight: 56,
                 borderRadius: 16,
-                background: gameTheme.action,
-                color: gameTheme.ink,
                 fontSize: 'clamp(16px, 4.5vw, 20px)',
                 fontWeight: 700,
                 letterSpacing: '0.2em',
-                boxShadow: gameTheme.controlShadow,
+                border: 'none',
                 cursor: sharing ? 'default' : 'pointer',
                 opacity: sharing ? 0.6 : 1,
               }}
@@ -257,15 +255,15 @@ export function DeathScreen({
             onClick={onConfirm}
             style={{
               minWidth: 'min(60vw, 220px)',
-              ...gameButtonStyle,
+              ...gameDarkButtonStyle,
               minHeight: 56,
               borderRadius: 16,
-              background: report ? gameTheme.inset : gameTheme.action,
-              color: gameTheme.ink,
+              background: report ? 'transparent' : gameDarkTheme.accent,
+              color: report ? gameDarkTheme.ink : '#1b2a24',
+              border: report ? gameDarkTheme.line : 'none',
               fontSize: 'clamp(16px, 4.5vw, 20px)',
               fontWeight: 700,
               letterSpacing: '0.2em',
-              boxShadow: report ? 'none' : gameTheme.controlShadow,
               cursor: 'pointer',
             }}
           >

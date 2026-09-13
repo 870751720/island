@@ -35,7 +35,7 @@ export function PlacePicker<T extends PickerItem>({
   const showEmojis = !!emojis?.length && !!onPickEmoji;
   return (
     <div
-      onPointerDown={(e) => {
+      onPointerUp={(e) => {
         e.preventDefault();
         onClose();
       }}
@@ -48,6 +48,7 @@ export function PlacePicker<T extends PickerItem>({
     >
       <div
         onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
           right: 'max(16px, env(safe-area-inset-right))',
@@ -71,7 +72,7 @@ export function PlacePicker<T extends PickerItem>({
                 <button
                   key={emoji.glyph}
                   aria-label={emoji.name}
-                  onPointerDown={(e) => {
+                  onPointerUp={(e) => {
                     e.preventDefault();
                     onPickEmoji!(emoji.glyph);
                   }}
@@ -98,7 +99,7 @@ export function PlacePicker<T extends PickerItem>({
           {items.map((item) => (
             <button
               key={item.key}
-              onPointerDown={(e) => {
+              onPointerUp={(e) => {
                 e.preventDefault();
                 onPick(item);
               }}

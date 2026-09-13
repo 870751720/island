@@ -12,7 +12,7 @@
 
 ## 设计方案
 
-- **共享样式**:卡片按钮样式与外层定位抽到 `src/ui/promptCard.ts`(`promptCardStyle` + `promptWrapStyle`),三张卡片组件统一引用;边框统一为绿色 `#4caf50`,位置 `left: max(12px, safe-area-inset-left); top: 20%`,沿用闲置 5s 淡出(`fade.ts` 的 `fadeStyle(hud.busy)`)。合成卡不展示材料清单,标题用「制作××」并缩小尺寸(去掉 minWidth/更小内边距)。
+- **共享样式**:卡片按钮样式与外层定位抽到 `src/ui/promptCard.ts`(`promptCardStyle` + `promptWrapStyle`),三张卡片组件统一引用;边框统一为白色 2px(奶油底卡片的外围描边),位置沿用右下角工具按钮下方,闲置 5s 淡出(`fade.ts` 的 `fadeStyle(hud.busy)`)。合成卡不展示材料清单,标题用「制作××」并缩小尺寸(去掉 minWidth/更小内边距)。
 - **移动中隐藏**:`HudSnapshot` 新增 `moving: boolean`(取 `PlayerSession.player.isMoving`)。房主在 `pushHud` 里对本地玩家检测移动状态变化并立即推送(不等 0.25s 节流),保证卡片隐藏/恢复跟手;客人端随房主 HUD 快照回流拿到该字段。三张卡片组件在 `hud.moving` 时返回 null。
 - **互斥**:`GameplayUI.tsx` 中按优先级计算 `dropActive` / `eatActive`(各自复现组件的显式条件,含背包未打开、有食物等),向下传 `suppressed` prop:进食卡在捡回卡激活时让位,手搓卡在捡回或进食卡激活时让位;手搓卡内部的配方筛选与「只显示优先级最高一张」逻辑不变。
 - **联机**:`moving` 由房主权威计算并随快照下发,客人端表现与房主一致。
@@ -36,3 +36,4 @@
 
 - 2026-09-09:工作台与火堆卡片改为普通手搓配方卡(「制作工作台」「制作火堆」),删除 `onCraftWorkbench/onCraftCampfire` 特殊按钮;可见性并入 `recipeVisible`(工作台:已放置或背包已有工作台道具则隐藏;火堆:背包已有火堆/熄灭的火堆/烹饪台则隐藏)。
 - 2026-09-09:火堆配方补上世界侧抑制:`HudSnapshot` 新增 `campfirePlaced`(场上火堆数 > 0 或烹饪台数 > 0,燃着与熄灭的火堆都算),`recipeVisible` 的 `world` 参数新增 `campfirePlaced`,弹卡与背包手搓列表都传入;客人的火堆/烹饪台实体随世界快照回流,表现与房主一致。
+- 2026-09-13:卡片外围边框由鼠尾草绿(`gameTheme.selectionBorder`)改为白色 2px;底色与文字维持奶油鼠尾草主题。

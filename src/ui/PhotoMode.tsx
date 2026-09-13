@@ -1,6 +1,6 @@
 'use client';
 
-import { gameTheme, gameButtonStyle } from './gameTheme';
+import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
 
 import { useEffect, useRef, useState } from 'react';
 import type { Game } from '@/game/Game';
@@ -235,14 +235,14 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
         />
       </div>
 
-      {/* 拍照结果预览:分享卡大图 + 分享/保存/重拍 */}
+      {/* 拍照结果预览:深色暗场衬托照片,分享卡大图 + 分享/保存/重拍 */}
       {shot && (
         <div
           onClick={closeShot}
           style={{
             position: 'absolute',
             inset: 0,
-            background: gameTheme.panel, overflowY: 'auto',
+            background: gameDarkTheme.panel, overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -257,28 +257,28 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '100%', maxHeight: '55dvh', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
           />
-          <div style={{ color: gameTheme.ink, fontSize: 15, textAlign: 'center' }}>{shot.caption}</div>
+          <div style={{ color: gameDarkTheme.ink, fontSize: 15, textAlign: 'center' }}>{shot.caption}</div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => void share()}
-              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, color: gameTheme.ink, background: gameTheme.action, ...gameButtonStyle, borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, ...gameDarkButtonStyle, borderRadius: 10, cursor: 'pointer' }}
             >
               分享
             </button>
             <button
               onClick={save}
-              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, color: gameTheme.ink, background: gameTheme.action, ...gameButtonStyle, borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, fontWeight: 600, ...gameDarkButtonStyle, borderRadius: 10, cursor: 'pointer' }}
             >
               保存
             </button>
             <button
               onClick={closeShot}
-              style={{ padding: '12px 20px', fontSize: 15, ...gameButtonStyle, color: gameTheme.ink, background: gameTheme.inset, borderRadius: 10, cursor: 'pointer' }}
+              style={{ padding: '12px 20px', fontSize: 15, ...gameDarkButtonStyle, background: 'transparent', borderRadius: 10, cursor: 'pointer' }}
             >
               重拍
             </button>
           </div>
-          {tip && <span style={{ color: gameTheme.warning, background: gameTheme.surface, borderRadius: 10, padding: 6, fontSize: 13 }}>{tip}</span>}
+          {tip && <span style={{ color: gameDarkTheme.warning, background: gameDarkTheme.surface, borderRadius: 10, padding: 6, fontSize: 13 }}>{tip}</span>}
         </div>
       )}
 
