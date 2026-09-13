@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { HudBuff } from '@/game/systems/BuffSystem';
-import { VitalMeter } from './hud/VitalMeter';
+import { VitalBottles } from './hud/VitalBottles';
 
 const SEASONS = {
   spring: { label: '春日', color: '#b5d8a0' },
@@ -10,7 +10,7 @@ const SEASONS = {
   winter: { label: '寒冬', color: '#a7d8ec' },
 } as const;
 
-/** 本地玩家状态条与增益区；为展开的小地图预留宽度。 */
+/** 本地玩家状态瓶与增益区；为展开的小地图预留宽度。 */
 export function Hud({ hud, onHeartTap, rightReserve }: {
   hud: HudSnapshot;
   onHeartTap: () => void;
@@ -20,12 +20,8 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
   const season = SEASONS[hud.season];
   return (
     <div className="hud-status" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
-      <div className="hud-status-card">
-        <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
-        <VitalMeter kind="health" value={hud.health} onIconTap={onHeartTap} />
-        <VitalMeter kind="hunger" value={hud.hunger} />
-        <VitalMeter kind="thirst" value={hud.thirst} />
-      </div>
+      <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
+      <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">
           {hud.buffs.map((buff) => (
