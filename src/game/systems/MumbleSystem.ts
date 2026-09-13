@@ -12,6 +12,7 @@ export type MumbleContext = {
   health: number;
   phase: DayPhase;
   day: number;
+  raidSkipped: boolean;
   rainIntensity: number;
   /** 大风强度(0~1),上穿阈值视为起风 */
   windIntensity: number;
@@ -54,14 +55,14 @@ const TRIGGER_RULES: TriggerRule[] = [
     id: 'bearNight',
     cooldown: 0,
     oncePerDay: true,
-    test: (c) => isBearEventDay(c.day) && c.phase === 'day',
+    test: (c) => !c.raidSkipped && isBearEventDay(c.day) && c.phase === 'day',
   },
   {
     // 天数事件「狼之夜」的白天铺垫(第 10/20/30 天及之后每 10 天)
     id: 'wolfNight',
     cooldown: 0,
     oncePerDay: true,
-    test: (c) => isWolfEventDay(c.day) && c.phase === 'day',
+    test: (c) => !c.raidSkipped && isWolfEventDay(c.day) && c.phase === 'day',
   },
   {
     id: 'lowThirst',

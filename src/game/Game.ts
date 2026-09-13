@@ -15,7 +15,7 @@ import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
-import { CollectSystem } from './systems/CollectSystem';
+import { CollectSystem, isFruitedTree } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
@@ -101,7 +101,7 @@ import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './
 import { resetSeasonVisuals, updateSeasonVisuals } from './world/SeasonVisuals';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
-import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
+import { FirstDeathBlessing, POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
 import { MetaDaily } from './meta/MetaDaily';
 import { MetaProgress } from './meta/MetaProgress';
 import type { MetaNodeId } from './meta/MetaTree';
@@ -313,6 +313,8 @@ export class Game {
   private onBottleMessage: (text: string) => void;
   /** 波塞冬的庇佑进行中(单机新手宽容期死亡触发,倒计时结束后免清档复活并送上赠礼木箱) */
   private poseidonGrace = false;
+  private guestRaidSkipped = true;
+  private protectedFruitTree: ReturnType<CollectSystem['getNearby']> = null;
   /** 本局波塞冬的庇佑是否已用过(单局仅一次,入档防读档刷新) */
   private poseidonGraceUsed = false;
   /** 局外养成「荒岛传承」的每日一次标记(跨天自动重置) */
@@ -363,6 +365,7 @@ export class Game {
       : options.save !== undefined
         ? options.save
         : SaveSystem.load();
+    FirstDeathBlessing.initialize(!!save || !!SaveSystem.load());
     // 在天气、地形与角色初始化前确定本局季节,避免沿用上一局状态。
     if (save) setSeason(save.season ?? 'spring', save.seasonStartDay ?? 1);
     else if (this.guestMode) setSeason('spring', 1);
@@ -941,8 +944,8 @@ export class Game {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
-          this.wildlife.update(simDelta, elapsed);
           this.dayEvents.update();
+          this.wildlife.update(simDelta, elapsed);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight);
         } else {
           this.crabs.netUpdate(delta, elapsed);
@@ -974,7 +977,7 @@ export class Game {
           this.audio.silent = s !== this.local;
           // 雨神祭坛光环内口渴值冻结(口渴速率归零,饥饿不受影响)
           const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
-          s.survival.drainMultiplier = (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
+          s.survival.drainMultiplier = (this.dayNight.day <= 15 ? 0.6 : 1) * (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier() * (rainAltar ? 0 : 1);
           // 风之加护:天气驱动的移动速度乘数
@@ -1108,6 +1111,7 @@ export class Game {
           health: this.survival.state.health,
           phase: this.dayNight.state.phase,
           day: this.dayNight.day,
+          raidSkipped: this.guestMode ? this.guestRaidSkipped : this.dayEvents.skipped,
           rainIntensity: this.weather.rainIntensity,
           windIntensity: this.weather.windIntensity,
           freeSlots: this.inventory.freeSlots,
@@ -1152,7 +1156,9 @@ export class Game {
               this.drops.dropAt('lasso', 1, led.x, led.z);
             }
             // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
-            if (this.guestMode || !this.tryReviveWithStone(s)) {
+            const firstDeathBlessing = !this.hostRef && !this.guestMode && s === this.local
+              && FirstDeathBlessing.consume();
+            if (firstDeathBlessing || this.guestMode || !this.tryReviveWithStone(s)) {
               s.player.setDead();
               if (this.hostRef) {
                 this.dropDeathLoot(s);
@@ -1166,7 +1172,7 @@ export class Game {
                 // 单机死亡:新手宽容期内可能触发波塞冬的庇佑(倒计时后免清档复活);
                 // 否则先结算战绩供死亡界面分享,再清档。联机玩家由房主在倒计时结束后重生。
                 if (!this.hostRef && !this.guestMode) {
-                  if (!this.poseidonGraceUsed && this.dayNight.day <= POSEIDON_GRACE_DAYS && Math.random() < POSEIDON_GRACE_CHANCE) {
+                  if (firstDeathBlessing || (!this.poseidonGraceUsed && this.dayNight.day <= POSEIDON_GRACE_DAYS && Math.random() < POSEIDON_GRACE_CHANCE)) {
                     this.poseidonGrace = true;
                     this.poseidonGraceUsed = true;
                     s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
@@ -1319,7 +1325,7 @@ export class Game {
 
   /** 房主侧:玩家快照消息(姿态/个人状态/昼夜/天气) */
   netPlayersState() {
-    return buildPlayersState(this.sessions, this.dayNight, this.weather, (session) => this.heldPlaceItem(session));
+    return { ...buildPlayersState(this.sessions, this.dayNight, this.weather, (session) => this.heldPlaceItem(session)), raidSkipped: this.dayEvents.skipped };
   }
 
   /** 房主侧:动物快照消息 */
@@ -1356,6 +1362,7 @@ export class Game {
   /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
   netApplyPlayers(msg: Extract<NetMsg, { t: 'players' }>): void {
     const { time, day } = msg;
+    if (msg.raidSkipped !== undefined) this.guestRaidSkipped = msg.raidSkipped;
     if (time !== undefined) this.dayNight.time = time;
     if (day !== undefined) this.dayNight.day = day;
     // 季节由房主快照回流,客人只做表现(HUD 标签与季节视觉过渡)
@@ -1864,6 +1871,7 @@ export class Game {
   /** 世界部分恢复(昼夜/资源点/摆件/掉落物/狗),客人收到世界快照时复用 */
   private applyWorldSave(save: SaveData): void {
     this.poseidonGraceUsed = save.poseidonGraceUsed;
+    this.dayEvents.restore(save.dayEvent);
     restoreWorld(this.worldSaveSystems, save, this.guestMode);
     this.drawnTreasures = new Set(save.drawnTreasures);
     this.tier4Pity.count = save.tier4Pity;
@@ -1909,6 +1917,7 @@ export class Game {
       terrainSeed: this.terrainSeed,
       ...snapshotWorld(this.worldSaveSystems),
       poseidonGraceUsed: this.poseidonGraceUsed,
+      dayEvent: this.dayEvents.snapshot(),
       drawnTreasures: [...this.drawnTreasures],
       tier4Pity: this.tier4Pity.count,
       stats: { ...this.local.stats },
@@ -2158,10 +2167,12 @@ export class Game {
       return null;
     }
     const nearby = this.collect.getNearby();
+    if (nearby !== this.protectedFruitTree) this.protectedFruitTree = null;
+    if (nearby && isFruitedTree(nearby)) this.protectedFruitTree = nearby;
     if (nearby) {
       if (
         nearby.kind === 'tree' &&
-        !this.collect.isPickingFruit(nearby) &&
+        nearby !== this.protectedFruitTree &&
         this.tools.axe &&
         this.player.currentTool !== 'axe'
       ) {

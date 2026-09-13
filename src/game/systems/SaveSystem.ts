@@ -93,6 +93,7 @@ export type SaveData = {
   seasonStartDay?: number;
   /** 本局波塞冬的庇佑是否已触发过(单局仅一次) */
   poseidonGraceUsed: boolean;
+  dayEvent?: { day: number; skipped: boolean };
   props: PropSave[];
   campfires: (PlacementSave & { fuel: number })[];
   /** 场上所有工作台(落点与等级;可放置多个) */

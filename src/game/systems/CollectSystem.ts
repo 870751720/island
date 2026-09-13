@@ -47,7 +47,7 @@ const DIG_YIELD: Partial<
 type HarvestKind = Prop['kind'] | 'stump' | 'fruitTree';
 
 /** 挂果中的果树(成树、未砍、持斧以外的状态靠近即摘果,持斧则正常砍树) */
-function isFruitedTree(prop: Prop): boolean {
+export function isFruitedTree(prop: Prop): boolean {
   return (
     prop.kind === 'tree' &&
     prop.species === 'fruit' &&

@@ -1326,9 +1326,21 @@ export class Wildlife implements Updatable {
     return this.lootMeta(species, loot);
   }
 
+  /** 天亮解除事件绑定，恢复普通野生动物的感知与脱战。 */
+  releaseRaiders(): void {
+    for (const animal of this.animals) {
+      if (!animal.boundTo) continue;
+      animal.boundTo = null;
+      animal.alerted = false;
+      animal.pounce = null;
+      animal.roared = false;
+      animal.target.copy(animal.pos);
+    }
+  }
+
   /**
    * 天数事件的袭击者生成:在锚点玩家视线外的草地上(约 24-36 米环带)生成一只指定掠食者。
-   * 传入 boundTo 时不死不休追击该玩家(无脱战);不传则为普通野生个体。
+   * 传入 boundTo 时当晚强制追击该玩家(天亮解除);不传则为普通野生个体。
    */
   spawnRaider(species: AnimalSpecies, anchor: Player, boundTo?: Player): boolean {
     const p = anchor.group.position;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DropHighlight } from '../fx/DropHighlight';
 import type { ResourceKind } from './Inventory';
 import type { Actor } from '../mp/Actor';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -64,6 +65,7 @@ type Drop = {
 /** 地面掉落物:掉落的道具以各自专属造型落在玩家附近,旋转悬浮;靠近后出现「捡回」卡片,点击才拾回背包 */
 export class DropSystem {
   private drops: Drop[] = [];
+  private highlight = new DropHighlight();
   private scratch = new THREE.Vector3();
 
   private onChanged?: EntityChangeSink;
@@ -120,6 +122,7 @@ export class DropSystem {
     tier?: number
   ): void {
     const mesh = makeDropModel(kind);
+    this.highlight.apply(mesh);
     const baseY = Math.max(this.terrain.getHeight(x, z), 0) + 0.5;
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
@@ -134,6 +137,7 @@ export class DropSystem {
   }
 
   update(delta: number, elapsed: number): void {
+    this.highlight.update(elapsed);
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
       drop.age += delta;
@@ -254,6 +258,7 @@ export class DropSystem {
     for (const d of list) {
       if (d.count <= 0) continue;
       const mesh = makeDropModel(d.kind);
+      this.highlight.apply(mesh);
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
@@ -275,6 +280,7 @@ export class DropSystem {
         continue;
       }
       const mesh = makeDropModel(value.kind);
+      this.highlight.apply(mesh);
       const baseY = Math.max(this.terrain.getHeight(value.x, value.z), 0) + 0.5;
       mesh.position.set(value.x, baseY, value.z);
       this.scene.add(mesh);

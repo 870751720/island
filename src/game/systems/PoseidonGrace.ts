@@ -38,3 +38,25 @@ export function openLetter(inventory: Inventory): string | null {
   if (!inventory.remove('letter', 1)) return null;
   return LETTER_MESSAGES[Math.floor(Math.random() * LETTER_MESSAGES.length)];
 }
+
+/** 本机首次游玩资格独立于世界存档，重新开局不重置。 */
+const FIRST_DEATH_KEY = 'island.firstDeathBlessing.v1';
+let firstDeathEligible: boolean | undefined;
+export const FirstDeathBlessing = {
+  initialize(hasSave: boolean): void {
+    if (firstDeathEligible !== undefined) return;
+    try {
+      const stored = localStorage.getItem(FIRST_DEATH_KEY);
+      firstDeathEligible = stored === 'pending' || (stored === null && !hasSave && !localStorage.getItem('island.meta.v1'));
+      localStorage.setItem(FIRST_DEATH_KEY, firstDeathEligible ? 'pending' : 'used');
+    } catch {
+      firstDeathEligible = !hasSave;
+    }
+  },
+  consume(): boolean {
+    if (!firstDeathEligible) return false;
+    firstDeathEligible = false;
+    try { localStorage.setItem(FIRST_DEATH_KEY, 'used'); } catch { /* 存储不可用时保留内存标记 */ }
+    return true;
+  },
+};

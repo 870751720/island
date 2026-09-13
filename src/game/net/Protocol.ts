@@ -138,6 +138,7 @@ export type NetMsg =
       t: 'players';
       time?: number;
       day?: number;
+      raidSkipped?: boolean;
       /** 房主权威季节(客人端驱动 HUD 标签与季节视觉过渡) */
       season?: 'spring' | 'summer' | 'autumn' | 'winter';
       weather?: 'sunny' | 'wind' | 'rain' | 'snow';

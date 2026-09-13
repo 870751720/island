@@ -40,12 +40,14 @@ function bearsForDay(day: number): number {
 /**
  * 天数事件系统(仅房主端运行,客人由动物姿态快照同步表现):
  * - 第 10 天白天:各客户端自言自语「好像被什么盯上了」(走 MumbleSystem 的 stalked 触发,不在此结算);
- * - 事件日夜落时,在每名玩家视线外各刷 N 头绑定狼(不死不休追该玩家,无脱战);
+ * - 事件日夜落时,在每名玩家视线外各刷 N 头绑定狼(当晚强制追击该玩家,天亮解除);
  * - 第 30 天之后每过 25 天,再随机刷 1-2 头熊(全房间总量,不按玩家数翻倍,同样绑定随机锚点玩家)。
  * 玩家睡觉跳过事件日的夜晚时,当晚事件自然跳过,不影响后续天数的事件。
  */
 export class DayEventSystem {
   private wasNight = false;
+  private checkedDay = -1;
+  private skippedDay = -1;
 
   constructor(
     private dayNight: DayNightSystem,
@@ -58,13 +60,31 @@ export class DayEventSystem {
     private onBears: (count: number) => void
   ) {}
 
+  get skipped(): boolean { return this.skippedDay === this.dayNight.day; }
+
+  snapshot(): { day: number; skipped: boolean } {
+    return { day: this.checkedDay, skipped: this.skippedDay === this.checkedDay };
+  }
+
+  restore(state?: { day: number; skipped: boolean }): void {
+    this.checkedDay = state?.day ?? -1;
+    this.skippedDay = state?.skipped ? state.day : -1;
+  }
+
   update(): void {
     const night = this.dayNight.isNight;
     const nightfall = night && !this.wasNight;
     this.wasNight = night;
-    if (!nightfall) return;
-
     const day = this.dayNight.day;
+    if (!night) {
+      this.wildlife.releaseRaiders();
+      if (this.checkedDay !== day) {
+        this.checkedDay = day;
+        this.skippedDay = this.sessions().some((s) => s.tools.sword >= 2 || s.tools.bow >= 2) ? -1 : day;
+      }
+    }
+    if (!nightfall || this.skippedDay === day) return;
+    if (this.checkedDay !== day && !this.sessions().some((s) => s.tools.sword >= 2 || s.tools.bow >= 2)) return;
     const wolfCount = wolvesForDay(day);
     if (wolfCount > 0) {
       for (const session of this.sessions()) {
