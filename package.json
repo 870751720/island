@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:h5": "H5_EXPORT=1 next build",
+    "build:h5": "node scripts/build-h5.mjs",
+    "build:xiaohongshu": "node scripts/build-xiaohongshu.mjs",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build",
     "start": "next start"

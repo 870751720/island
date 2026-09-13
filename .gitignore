@@ -1,7 +1,10 @@
 githubtoken.txt
 node_modules/
 .next/
+.next-h5/
+.next-xiaohongshu/
 out/
+dist/
 next-env.d.ts
 *.tsbuildinfo
 .zcode/
