@@ -4,7 +4,8 @@ import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import styles from './SettingsPanel.module.css';
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSettings';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 
@@ -19,12 +20,10 @@ function SliderRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <label
-      style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 15, color: gameTheme.ink }}
-    >
-      <span style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span>{label}</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{Math.round(value * 100)}%</span>
+    <label className={styles.sliderRow}>
+      <span className={styles.sliderHeading}>
+        <span className={styles.sliderLabel}>{label}</span>
+        <span className={styles.value} aria-hidden="true">{Math.round(value * 100)}%</span>
       </span>
       <input
         type="range"
@@ -33,7 +32,9 @@ function SliderRow({
         step={0.05}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: gameTheme.accent, height: 44 }}
+        className={styles.range}
+        aria-valuetext={`${Math.round(value * 100)}%`}
+        style={{ '--volume': `${value * 100}%` } as CSSProperties}
       />
     </label>
   );
@@ -70,7 +71,7 @@ export function SettingsPanel({
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
 }) {
-  const [guide,setGuide] = useState(loadQuestGuide);
+  const [guide, setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
     setSettings(next);
@@ -119,20 +120,38 @@ export function SettingsPanel({
         }}
       >
         <div style={{ fontSize: 18, fontWeight: 700, color: gameTheme.ink }}>设置</div>
-        <SliderRow
-          label={<><MenuIcon name="music" /> 音乐</>}
-          value={settings.music}
-          onChange={(v) => apply({ ...settings, music: v })}
-        />
-        <SliderRow
-          label={<><MenuIcon name="sound" /> 音效</>}
-          value={settings.sfx}
-          onChange={(v) => apply({ ...settings, sfx: v })}
-        />
-        <label style={{display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:44,color:gameTheme.ink,fontSize:15}}>
-          显示任务指引
-          <input type="checkbox" checked={guide} onChange={e=>{setGuide(e.target.checked);onQuestGuide(e.target.checked);}} style={{width:44,height:44,accentColor:gameTheme.accent}} />
-        </label>
+        <section className={styles.section} aria-label="声音设置">
+          <h3 className={styles.sectionTitle}>声音</h3>
+          <SliderRow
+            label={<><MenuIcon name="music" />音乐</>}
+            value={settings.music}
+            onChange={(v) => apply({ ...settings, music: v })}
+          />
+          <SliderRow
+            label={<><MenuIcon name="sound" />音效</>}
+            value={settings.sfx}
+            onChange={(v) => apply({ ...settings, sfx: v })}
+          />
+        </section>
+        <div className={styles.section}>
+          <label className={styles.guideRow}>
+            <span className={styles.guideText}>
+              <span className={styles.guideTitle}>显示任务指引</span>
+              <span className={styles.guideHint} id="settings-guide-hint">关闭后仍会记录任务进度</span>
+            </span>
+            <input
+              type="checkbox"
+              className={styles.checkbox}
+              checked={guide}
+              aria-label="显示任务指引"
+              aria-describedby="settings-guide-hint"
+              onChange={(e) => {
+                setGuide(e.target.checked);
+                onQuestGuide(e.target.checked);
+              }}
+            />
+          </label>
+        </div>
         <button
           onClick={onEnterPhotoMode}
           style={{
