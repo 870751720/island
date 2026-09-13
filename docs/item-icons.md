@@ -32,12 +32,29 @@
 - 21 项全部定稿为第 1 款，原样沿用修正碗内遮挡后的候选图。静态图形集中在 `src/ui/icons/FoodIcons.ts`，通过 `CLAY_ICONS` 接入统一道具入口；替换原有鸟肉、兽肉、烤鸟肉实现，其余本批食物从 emoji 切换到自绘。
 - 游戏中的 SVG 裁剪 ID 由 React `useId` 按渲染实例隔离，确保背包、配方和提示同时显示时互不干扰。无玩法、存档、房主权威结算或客人同步变化，双方按道具 kind 使用同一客户端图标表。
 
+### 剩余食物两款选型
+
+- 本地预览页 `public/remaining-food-icon-selection.html` 对照游戏「食物」分类，排除已定稿的虾、墨鱼及上一批 21 项，覆盖剩余 56 项、112 个原创 SVG 候选。
+- 按果蔬与坚果、鱼类与蟹肉、烤食与主食、饮品与酒分组；包括红薯粥、羊奶及四种酒。每项提供两款，比较完整形状、切面、摆放或容器，配有 32px 浅底和 24px 深底对照。
+- 红薯粥食材按碗口裁剪，并由前侧碗沿遮挡；每个预览 SVG 的裁剪 ID 独立。选型使用原生单选框，页尾展示可复制的选择汇总。
+- 生成源为 `scripts/preview-remaining-food.ts`，在仓库根目录运行 `node --experimental-strip-types scripts/preview-remaining-food.ts` 可重新生成 HTML；没有外部图片、emoji 或运行时依赖。
+- 56 项全部定稿为第 1 款，静态 SVG 原样接入 `RemainingFoodIcons.ts`；与已定稿的 23 项一起，游戏「食物」分类 79 项全部使用自绘图标。预览页保留作样式对照。
+
+### 材料、工具、装备统一刷新
+
+- 用户授权后续图标直接设计并应用，无需继续逐项选型。本次完整覆盖游戏分类表中的材料 13 项、工具 7 项、装备 12 项，共 32 项。
+- 材料通过原木年轮、矿石断面、铁锭明暗面、植物纤维、绳圈、布褶和皮毛边缘表达不同质地；包含石头、小麦、蚯蚓及经验书。
+- 工具分别表现柄、绑绳、套口和刃口，保留斧、镐、铲、锄、鱼竿、弓、剑的可辨识轮廓。装备按草编、皮毛、海沫色金属三套设计，共用衣、裤、帽、包的结构，同时区分编织、软边、护片和扣件。
+- `MaterialIcons.ts`、`ToolIcons.ts`、`EquipmentIcons.ts` 按职责存放静态图形，`SvgPaths.ts` 提供基础笔触。图形只在模块初始化时拼装；运行时沿用 `ItemIcon` / `ToolIcon`，工具等级角标继续叠加。
+- 本地定稿展示 `public/equipment-material-icon-gallery.html` 提供放大图和 32 / 24px 深浅背景对照；无需选型。清理 `CustomIcons.tsx` 与 `ClayIcons.tsx` 内被替换的旧实现。
+- 图标为客户端表现，不修改道具持久化 ID、存档版本、玩法数值或联机协议。房主与客人通过相同 kind 获得相同图标。
+
 ### 游戏图标渲染
 
 - **统一渲染入口** `src/ui/ItemIcon.tsx`:所有道具图标的 React 渲染都走 `<ItemIcon kind size level? />`。
   - 优先查自绘图标表 `src/ui/icons/CustomIcons.tsx`,没有则回退渲染 `ITEMS[kind].icon` 的 emoji;
   - 级别角标:按 `workbenchItemLevel`/`bedItemLevel` 从 kind 推导,`level` 参数可覆盖(如背包工具页的精致工具角标 2),右上角绿色圆形数字。
-- **自绘图标**(`CustomIcons.tsx`,64×64 视口纯色简笔,呼应黏土质感):橡树种子(带嫩芽,与橡果 🌰 区分)、松果、无糖可乐(黑色易拉罐,与可乐 🥤 区分)、泥鳅、石斑鱼、巨鲶(长须)、剑鱼(长吻)、魔鬼鱼、黄金鱼、烤浆果、烤大鱼(烤痕)、箭(与弓 🏹 区分);鱼形共用一个 `FishShape` 基础组件按参数拼装。
+- **自绘图标注册**：`CustomIcons.tsx` 保留种子、箭和部分设施的 SVG，并合并 `CLAY_ICONS`；食物、材料、工具和装备由独立黏土图标模块提供，统一 64×64 视口。
 - **emoji 调整**(`ITEMS`):树枝 🌿→🪾、植物纤维 🌿→🌾、灌木丛 🌿→🌳、围栏门 🪵→🚪、橡果 🥜→🌰;`FOODS` 的橡果同步。
 - **配方图标去冗余**:`Crafting.ts` 删除 `Recipe.icon` 字段,新增 `recipeIconKind`/`recipeIconLevel` 按产物推导,精致工具配方自动带 2 级角标。
 - **拾取提示**:头飘 toast 的数据从 `{icon,count}` 改为 `{kind,count}`(按道具合并),由 GameplayUI 用 `ItemIcon` 渲染。
