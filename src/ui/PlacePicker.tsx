@@ -2,12 +2,16 @@
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { EmojiDef } from '../game/social/Emojis';
 
 /** 手持项选择面板:长按工具按钮弹出,顶部为快捷表情区(点选在头顶冒气泡),
  * 下方平铺所有可切换的手持项(普通工具 + 可放置道具,图标+名称+数量角标),
- * 当前手持高亮;点选直接切入,点面板外任意处关闭 */
+ * 当前手持高亮;点选直接切入,点面板外任意处关闭。
+ * 点选/关闭统一在 click 上结算:click 是一次点按的终结事件,结算后面板卸载
+ * 不会再有后续 click 重定向命中面板下方露出的按钮(如背包);若在 pointerdown/up
+ * 上结算,面板提前卸载后浏览器仍会派发 click 到当时露出的按钮,造成误触 */
 export interface PickerItem {
   key: string;
   icon: ReactNode;
@@ -33,12 +37,35 @@ export function PlacePicker<T extends PickerItem>({
   onPickEmoji?: (glyph: string) => void;
 }) {
   const showEmojis = !!emojis?.length && !!onPickEmoji;
+  // 长按弹出面板的那次按住还在进行:抬起后浏览器仍会为它派发一次 click,
+  // 此时面板刚出现,click 会命中遮罩被当作「点面板外」把面板立刻关掉。
+  // 面板挂载后监听第一个抬起:若期间没有新的按下(即属于开面板那次按住),
+  // 在捕获阶段吞掉紧随其后的那一次 click
+  useEffect(() => {
+    let pressedAfterMount = false;
+    const onDown = () => {
+      pressedAfterMount = true;
+    };
+    const onUp = () => {
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointerup', onUp, true);
+      if (pressedAfterMount) return;
+      const swallow = (e: MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+      };
+      window.addEventListener('click', swallow, { capture: true, once: true });
+    };
+    window.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointerup', onUp, { capture: true, once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointerup', onUp, true);
+    };
+  }, []);
   return (
     <div
-      onPointerUp={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
+      onClick={onClose}
       style={{
         position: 'absolute',
         inset: 0,
@@ -47,8 +74,7 @@ export function PlacePicker<T extends PickerItem>({
       }}
     >
       <div
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
           right: 'max(16px, env(safe-area-inset-right))',
@@ -72,8 +98,8 @@ export function PlacePicker<T extends PickerItem>({
                 <button
                   key={emoji.glyph}
                   aria-label={emoji.name}
-                  onPointerUp={(e) => {
-                    e.preventDefault();
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onPickEmoji!(emoji.glyph);
                   }}
                   style={{
@@ -99,8 +125,8 @@ export function PlacePicker<T extends PickerItem>({
           {items.map((item) => (
             <button
               key={item.key}
-              onPointerUp={(e) => {
-                e.preventDefault();
+              onClick={(e) => {
+                e.stopPropagation();
                 onPick(item);
               }}
               style={{

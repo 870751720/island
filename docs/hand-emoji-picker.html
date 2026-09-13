@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空手与表情图标选型 · 荒岛求生</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f3ead8; color: #3a2f24; padding: 16px; }
+  h1 { font-size: 20px; }
+  p.tip { font-size: 13px; color: #7a6a52; margin: 4px 0 16px; }
+  .item { margin-bottom: 28px; }
+  .item h2 { font-size: 16px; border-left: 4px solid #b07b4a; padding-left: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  .card {
+    background: #fffdf6; border: 2px solid #d8c9a8; border-radius: 10px;
+    padding: 8px 4px 6px; text-align: center; cursor: pointer; user-select: none;
+    transition: transform .08s, border-color .08s, box-shadow .08s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card.selected { border-color: #e0702a; background: #fff3e2; box-shadow: 0 0 0 2px #e0702a55; }
+  .card.now { border-style: dashed; color: #9a8a6e; cursor: default; background: #f6efdd; }
+  .card.now:hover { transform: none; }
+  .card svg { width: 64px; height: 64px; display: block; margin: 0 auto; }
+  .card .glyph { font-size: 44px; line-height: 64px; display: block; margin: 0 auto; width: 64px; }
+  .card .label { font-size: 11px; color: #7a6a52; margin-top: 2px; }
+  .card .mini { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px; }
+  .card .mini svg { width: 28px; height: 28px; margin: 0; }
+  .card .mini span { font-size: 10px; color: #a89877; }
+  #summary { position: sticky; bottom: 0; background: #3a2f24; color: #f3ead8; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 20px; }
+  #summary b { color: #ffb066; }
+  #summary .empty::after { content: "（还没有选择，点击卡片选择）"; color: #b8a888; }
+</style>
+</head>
+<body>
+<h1>空手与表情图标选型（每项 4 个版本）</h1>
+<p class="tip">点击卡片选中，底部汇总「图标 = 版本」。每张卡片下方附 28px 小尺寸预览（接近游戏内按钮实际大小）。版本风格说明：① 经典平涂 ② 黏土动感 ③ 极简粗形 ④ 暖棕描边。</p>
+<div id="app"></div>
+<div id="summary"><div class="empty"></div></div>
+
+<script>
+// ============ 通用形状 ============
+const INK = '#53381f';               // 五官深棕
+const SKIN = '#f2c08e', SKIN_D = '#d89c66';   // 手
+const RED = '#e0524f';               // 爱心/怒纹
+const BLUE = '#7ec3e8', BLUE_D = '#5aa8cf';   // 泪/汗
+const MOUTH = '#7a3327';             // 张开的嘴
+const CUFF = '#9dbb8e', CUFF_L = '#b7d2a6';   // 袖口鼠尾草
+
+const shadow = (rx = 13) => `<ellipse cx="32" cy="59" rx="${rx}" ry="2.5" fill="#4a3221" opacity=".12"/>`;
+
+const heart = (x, y, s, fill = RED, hl = true) =>
+  `<path transform="translate(${x} ${y}) scale(${s})" d="M3 5.7C2.6 5.7 .3 3.9 .3 2.4 .3 1.2 1.1.3 2.1.3c.4 0 .8.2 1 .5.2-.3.5-.5.9-.5 1 0 1.9.9 1.9 2.1 0 1.5-2.3 3.3-2.9 3.3z" fill="${fill}"/>` +
+  (hl ? `<circle cx="${x + 1.1 * s}" cy="${y + 1.4 * s}" r="${.55 * s}" fill="#fff" opacity=".9"/>` : '');
+
+const tear = (x, y, s, fill = BLUE) =>
+  `<path transform="translate(${x} ${y}) scale(${s})" d="M3 0C4.4 2.3 5.8 4 5.8 5.5A2.9 2.9 0 1 1 0 5.5C0 4 1.6 2.3 3 0Z" fill="${fill}"/>` +
+  `<circle cx="${x + 1.9 * s}" cy="${y + 4.6 * s}" r="${.5 * s}" fill="#fff" opacity=".85"/>`;
+
+// 闭眼(∩ 快乐眯眼 / 哭泣闭眼共用)
+const closedEye = (x, y, w = 8, color = INK, sw = 2.4) =>
+  `<path d="M${x} ${y + 2.6}C${x + .6} ${y - .6} ${x + w * .45} ${y - 1.4} ${x + w / 2} ${y - 1.4}S${x + w - .6} ${y - .6} ${x + w} ${y + 2.6}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+
+// > < 眼(叉眼)
+const xEye = (x, y, w = 7, color = INK, sw = 2.4) =>
+  `<path d="M${x} ${y}l${w} ${w}M${x + w} ${y}l${-w} ${w}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+
+// 大白眼(受惊)
+const wideEye = (x, y, pupilDx = 0, pupilDy = 0, r = 5.6) =>
+  `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity=".97"/><circle cx="${x + pupilDx}" cy="${y + pupilDy}" r="1.7" fill="#4a3221"/>`;
+
+const smile = (y = 42, w = 2.6) =>
+  `<path d="M26 ${y}q6 5.6 12 0" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round"/>`;
+
+const openSmile = () =>
+  `<path d="M25.5 40.5q6.5 9 13 0z" fill="${MOUTH}"/><path d="M27.5 41.2h9.2q-4.6 3.2-9.2 0z" fill="#fff" opacity=".95"/>`;
+
+const frown = (y = 44.5, w = 2.6) =>
+  `<path d="M26.5 ${y}q5.5 -4.6 11 0" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round"/>`;
+
+const wavyMouth = (y = 44) =>
+  `<path d="M25 ${y}q1.6 -2.4 3.2 0t3.2 0 3.2 0 3.2 0 3.2 0" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`;
+
+const blush = (v) => v === 2
+  ? `<circle cx="20.5" cy="39" r="4.4" fill="#f28d6e" opacity=".65"/><circle cx="43.5" cy="39" r="4.4" fill="#f28d6e" opacity=".65"/>`
+  : `<circle cx="22" cy="39.5" r="3.4" fill="#f2a68c" opacity=".6"/><circle cx="42" cy="39.5" r="3.4" fill="#f2a68c" opacity=".6"/>`;
+
+// ============ 脸底(按版本风格) ============
+function faceBase(v) {
+  if (v === 1) return `<circle cx="32" cy="33" r="21" fill="#ffd489"/><ellipse cx="24.5" cy="24.5" rx="8" ry="4.6" fill="#ffe9b8" opacity=".8" transform="rotate(-28 24.5 24.5)"/>`;
+  if (v === 2) return `<circle cx="32" cy="33" r="21" fill="#ffcf7d"/><path d="M14.5 38.5a21 21 0 0 0 35 0c-2.6 6.4-9.2 10.8-17.5 10.8S17.1 44.9 14.5 38.5z" fill="#eba04f" opacity=".4"/><ellipse cx="24" cy="24" rx="8.2" ry="4.6" fill="#ffe9b8" opacity=".85" transform="rotate(-28 24 24)"/>`;
+  if (v === 3) return `<circle cx="32" cy="33" r="21" fill="#ffd98f"/>`;
+  return `<circle cx="32" cy="33" r="21" fill="#ffd489" stroke="#8a5a32" stroke-width="2.2"/><ellipse cx="24.5" cy="24.5" rx="7.6" ry="4.2" fill="#ffe9b8" opacity=".75" transform="rotate(-28 24.5 24.5)"/>`;
+}
+
+// ============ 四表情(按版本) ============
+const FEATURES = {
+  love: {
+    1: () => heart(20.4, 28.6, 1.5) + heart(37.4, 28.6, 1.5) + smile(42) + blush(1),
+    2: () => closedEye(19.5, 31, 8.6) + closedEye(36, 31, 8.6) + openSmile() + blush(2)
+        + heart(46, 12, 2.1) + heart(50, 25, 1.1) + heart(41, 6, 0.9),
+    3: () => heart(19, 27.5, 1.9, RED, false) + heart(36, 27.5, 1.9, RED, false)
+        + `<path d="M25 42q7 7 14 0" fill="none" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`
+        + `<circle cx="20.5" cy="40" r="4" fill="#f2a68c" opacity=".6"/><circle cx="43.5" cy="40" r="4" fill="#f2a68c" opacity=".6"/>`,
+    4: () => heart(20.4, 28.6, 1.5) + heart(37.4, 28.6, 1.5) + smile(42) + blush(1),
+  },
+  cry: {
+    1: () => closedEye(19.5, 31.5, 8.4) + closedEye(36, 31.5, 8.4)
+        + `<rect x="20.8" y="36.5" width="4.6" height="13" rx="2.3" fill="${BLUE}" transform="rotate(7 23 43)"/>`
+        + `<rect x="38.6" y="36.5" width="4.6" height="13" rx="2.3" fill="${BLUE}" transform="rotate(-7 41 43)"/>`
+        + wavyMouth(45.5) + `<path d="M17 27.5q4-2.6 8-1" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".7"/><path d="M39 26.5q4-1.6 8 1" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".7"/>`,
+    2: () => xEye(18.5, 29.5, 7.4) + xEye(38, 29.5, 7.4)
+        + `<path d="M19.5 36.5q-8 3.5-10 12.5" fill="none" stroke="${BLUE}" stroke-width="4.6" stroke-linecap="round"/>`
+        + `<path d="M44.5 36.5q8 3.5 10 12.5" fill="none" stroke="${BLUE}" stroke-width="4.6" stroke-linecap="round"/>`
+        + `<ellipse cx="32" cy="45" rx="6.4" ry="5" fill="${MOUTH}"/><ellipse cx="32" cy="47.4" rx="3.4" ry="2" fill="#d97b7b"/>`,
+    3: () => closedEye(19, 31.5, 9, INK, 3) + closedEye(35.5, 31.5, 9, INK, 3)
+        + tear(20.6, 37, 1.25) + tear(38.2, 37, 1.25)
+        + `<path d="M26 46q6-4.8 12 0" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`,
+    4: () => closedEye(19.5, 31.5, 8.4) + closedEye(36, 31.5, 8.4)
+        + `<rect x="20.8" y="36.5" width="4.6" height="12" rx="2.3" fill="${BLUE}" transform="rotate(7 23 42)"/>`
+        + `<rect x="38.6" y="36.5" width="4.6" height="12" rx="2.3" fill="${BLUE}" transform="rotate(-7 41 42)"/>`
+        + wavyMouth(45) + `<ellipse cx="32" cy="50" rx="10" ry="2.8" fill="${BLUE}" opacity=".85"/>`,
+  },
+  angry: {
+    1: () => `<path d="M17.5 27l9 3.2M46.5 27l-9 3.2" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`
+        + `<circle cx="24" cy="34" r="2.3" fill="#4a3221"/><circle cx="40" cy="34" r="2.3" fill="#4a3221"/>`
+        + `<rect x="24.5" y="41.5" width="15" height="6.4" rx="3.2" fill="${MOUTH}"/><path d="M26.5 44.7h11" stroke="#fff" stroke-width="1.7"/>`,
+    2: () => `<g stroke="${RED}" stroke-width="2.3" stroke-linecap="round"><path d="M43 13.5l4.6 4.6M47.6 13.5l-4.6 4.6M47 11.4l-1.6 1.4M41.6 15.4l1.4 1.6M49.6 16.4l-1.4 1.6"/></g>`
+        + `<path d="M17.5 27l9 3.2M46.5 27l-9 3.2" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`
+        + `<circle cx="24" cy="34" r="2.3" fill="#4a3221"/><circle cx="40" cy="34" r="2.3" fill="#4a3221"/>`
+        + blush(2)
+        + `<path d="M25.5 44l3-2.2 3 2.2 3-2.2 3 2.2 3-2.2" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+    3: () => `<path d="M17.5 26.5l10 3.5M46.5 26.5l-10 3.5" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`
+        + `<path d="M20.5 35h7M36.5 35h7" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`
+        + `<path d="M26.5 44.5h11" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`
+        + `<path d="M14.5 33l3.4-1.4M49.5 33l-3.4-1.4" stroke="${RED}" stroke-width="2.6" stroke-linecap="round"/>`,
+    4: () => `<circle cx="32" cy="33" r="21" fill="#f5b48a" stroke="#8a5a32" stroke-width="2.2"/>`
+        + `<path d="M18 26.5l9.5 3.4M46 26.5l-9.5 3.4" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`
+        + `<circle cx="23.5" cy="33.5" r="4" fill="#fff"/><circle cx="40.5" cy="33.5" r="4" fill="#fff"/><circle cx="24.3" cy="34" r="1.5" fill="#4a3221"/><circle cx="39.7" cy="34" r="1.5" fill="#4a3221"/>`
+        + `<path d="M24.5 41.5q7.5 8 15 0z" fill="${MOUTH}"/><path d="M26 41.8l2.4-1 2.2 1.4 2.3-1.2 2.2 1.3 2.3-1.1 2.1 1.3" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>`,
+  },
+  scare: {
+    1: () => wideEye(23.5, 31, -0.6, 0.4) + wideEye(40.5, 31, 0.6, 0.4)
+        + `<ellipse cx="32" cy="44" rx="4" ry="5.2" fill="${MOUTH}"/>` + tear(45.5, 16, 1.15),
+    2: () => wideEye(23.5, 30, -1.6, 0.5) + wideEye(40.5, 30, 1.6, -0.5)
+        + `<ellipse cx="32" cy="44.5" rx="7.4" ry="6" fill="${MOUTH}"/><ellipse cx="32" cy="47.5" rx="4" ry="2.3" fill="#d97b7b"/>`
+        + tear(12, 20, 1.25) + tear(48.5, 16, 1.25)
+        + `<path d="M11 26a10 10 0 0 1 2.5-6.5M53 22a10 10 0 0 0-2.5-6.5" fill="none" stroke="${BLUE_D}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>`,
+    3: () => `<circle cx="32" cy="33" r="21" fill="#f7dfa8"/>`
+        + wideEye(23.5, 30.5, 0, 0, 6.2) + wideEye(40.5, 30.5, 0, 0, 6.2)
+        + `<path d="M25.5 43.5q1.8-2.6 3.6 0t3.6 0 3.6 0 3.6 0" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`
+        + tear(45.5, 15.5, 1.3),
+    4: () => `<path d="M18.5 24.5q5.5-4 11-1M34.5 23.5q5.5-3 11 1" fill="none" stroke="#8a5a32" stroke-width="2.2" stroke-linecap="round"/>`
+        + wideEye(23.5, 32, 0, 0.3) + wideEye(40.5, 32, 0, 0.3)
+        + `<ellipse cx="32" cy="44.5" rx="5" ry="6.2" fill="${MOUTH}"/>` + tear(45.5, 15, 1.15),
+  },
+};
+
+function faceSvg(kind, v) {
+  const extra = kind === 'scare' && v === 3 ? '' : faceBase(v);
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${shadow(11.5)}${extra}${FEATURES[kind][v]()}</svg>`;
+}
+
+// ============ 空手(按版本) ============
+const HAND_PARTS = `
+  <rect x="23" y="17.5" width="6.2" height="17" rx="3.1"/>
+  <rect x="29.9" y="14" width="6.4" height="20.5" rx="3.2"/>
+  <rect x="36.8" y="16" width="6.2" height="18.5" rx="3.1"/>
+  <rect x="42.9" y="20.5" width="5.4" height="14" rx="2.7"/>
+  <rect x="21" y="29.5" width="25" height="22" rx="9.5"/>
+  <rect x="14.5" y="30" width="7" height="15.5" rx="3.5" transform="rotate(-36 18 32)"/>`;
+
+const CUFF_PARTS = `
+  <rect x="25" y="50" width="15.5" height="7.6" rx="3.3" fill="${CUFF}"/>
+  <rect x="25" y="50" width="15.5" height="2.6" rx="1.3" fill="${CUFF_L}"/>`;
+
+function handSvg(v) {
+  if (v === 1) return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${shadow()}
+    <g fill="${SKIN}">${HAND_PARTS}</g>
+    <path d="M21.5 46.5a11.5 11.5 0 0 0 24 0 15 15 0 0 1-24 0z" fill="${SKIN_D}" opacity=".5"/>${CUFF_PARTS}</svg>`;
+  if (v === 2) return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${shadow()}
+    <g transform="rotate(-10 33 38)"><g fill="${SKIN}">${HAND_PARTS}</g>
+    <path d="M21.5 46.5a11.5 11.5 0 0 0 24 0 15 15 0 0 1-24 0z" fill="${SKIN_D}" opacity=".5"/>${CUFF_PARTS}</g>
+    <path d="M52.5 20a13 13 0 0 1 4 10" fill="none" stroke="#f4b95e" stroke-width="3" stroke-linecap="round"/>
+    <path d="M56.5 14.5a19 19 0 0 1 5.5 14" fill="none" stroke="#f4b95e" stroke-width="2.6" stroke-linecap="round" opacity=".7"/></svg>`;
+  if (v === 3) return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${shadow()}
+    <circle cx="19.5" cy="38" r="5.4" fill="${SKIN}"/>
+    <rect x="21" y="14.5" width="23.5" height="33.5" rx="11.8" fill="${SKIN}"/>
+    <path d="M21.5 40a11.8 11.8 0 0 0 23.5 0 15.5 15.5 0 0 1-23.5 0z" fill="${SKIN_D}" opacity=".5"/>
+    <path d="M29 15.5v6.5M35.8 15.5v6.5" stroke="${SKIN_D}" stroke-width="2.2" stroke-linecap="round"/>
+    ${CUFF_PARTS}</svg>`;
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${shadow()}
+    <g fill="${SKIN}" stroke="#8a5a32" stroke-width="1.8" stroke-linejoin="round">${HAND_PARTS}</g>
+    <path d="M21.5 46.5a11.5 11.5 0 0 0 24 0 15 15 0 0 1-24 0z" fill="${SKIN_D}" opacity=".45"/>
+    <g stroke="#8a5a32" stroke-width="1.6">${CUFF_PARTS}</g></svg>`;
+}
+
+// ============ 页面组装 ============
+const ICONS = [
+  { key: 'hand', name: '空手', now: '✋', svg: (v) => handSvg(v) },
+  { key: 'love', name: '喜爱', now: '😍', svg: (v) => faceSvg('love', v) },
+  { key: 'cry', name: '大哭', now: '😭', svg: (v) => faceSvg('cry', v) },
+  { key: 'angry', name: '生气', now: '😡', svg: (v) => faceSvg('angry', v) },
+  { key: 'scare', name: '惊吓', now: '😱', svg: (v) => faceSvg('scare', v) },
+];
+const VERSION_NAMES = { 1: '经典平涂', 2: '黏土动感', 3: '极简粗形', 4: '暖棕描边' };
+const picked = {};
+
+function render() {
+  document.getElementById('app').innerHTML = ICONS.map((icon) => `
+    <div class="item">
+      <h2>${icon.name}</h2>
+      <div class="grid">
+        <div class="card now"><span class="glyph">${icon.now}</span><div class="label">现状（系统表情）</div></div>
+        ${[1, 2, 3, 4].map((v) => `
+          <div class="card${picked[icon.key] === v ? ' selected' : ''}" data-key="${icon.key}" data-v="${v}">
+            ${icon.svg(v)}
+            <div class="label">版本${v} · ${VERSION_NAMES[v]}</div>
+            <div class="mini">${icon.svg(v)}<span>28px</span></div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+  const done = ICONS.filter((i) => picked[i.key]).length;
+  const summaryDiv = document.querySelector('#summary > div');
+  summaryDiv.className = done ? '' : 'empty';
+  summaryDiv.innerHTML = done
+    ? `已选：${ICONS.map((i) => picked[i.key] ? `<b>${i.name} = 版本${picked[i.key]}</b>（${VERSION_NAMES[picked[i.key]]}）` : `${i.name} = <span style="color:#b8a888">未选</span>`).join(' · ')}`
+    : '';
+}
+
+document.getElementById('app').addEventListener('click', (e) => {
+  const card = e.target.closest('.card[data-key]');
+  if (!card) return;
+  const { key, v } = card.dataset;
+  picked[key] = picked[key] === +v ? null : +v;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
