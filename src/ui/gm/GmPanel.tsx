@@ -9,7 +9,6 @@ import type { ToolId } from '@/game/systems/Crafting';
 import type { GmConfig } from '@/game/systems/GmSystem';
 import type { AnimalSpecies } from '@/game/entities/Wildlife';
 import type { Game } from '@/game/Game';
-import { BuffTestControls } from './BuffTestControls';
 import { PlayerTab } from './PlayerTab';
 import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
@@ -21,7 +20,6 @@ import { EventsTab } from './EventsTab';
 /** GM 面板可对 Game 实例执行的动作,由 GameplayUI 通过回调注入 */
 export type GmActions = {
   getGame: () => Game | null;
-  setTestBuffCount: (count: number) => void;
   restoreStatus: () => void;
   setGender: (gender: PlayerGender) => void;
   setDay: (day: number) => void;
@@ -68,7 +66,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
             </button>
           ))}
         </div>
-        {tab === 'player' && <><BuffTestControls onSetCount={actions.setTestBuffCount} /><PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} /></>}
+        {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
         {tab === 'world' && <WorldTab getGame={actions.getGame} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'music' && <MusicTab getGame={actions.getGame} />}
