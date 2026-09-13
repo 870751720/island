@@ -12,14 +12,16 @@ export function CraftPrompt({
   hud,
   onCraft,
   suppressed,
+  dismissedRecipes,
 }: {
   hud: HudSnapshot;
   onCraft: (id: Recipe['id']) => void;
   suppressed: boolean;
+  dismissedRecipes: ReadonlySet<string>;
 }) {
   // 任一合成进行中时不再展示卡片;工作台配方不在手搓卡片中出现
   if (suppressed || hud.moving || hud.craftId !== null) return null;
-  const best = topHandRecipe(hud);
+  const best = topHandRecipe(hud, dismissedRecipes);
   if (!best) return null;
   return (
     <div style={promptWrapStyle(hud)}>

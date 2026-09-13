@@ -33,7 +33,7 @@ export function promptWrapStyle(hud: HudSnapshot): CSSProperties {
   return {
     position: 'absolute',
     right: 'max(16px, env(safe-area-inset-right))',
-    top: 'calc(50% + 46px)',
+    top: 'calc(50% + 61px)',
     ...fadeStyle(hud.busy),
   };
 }

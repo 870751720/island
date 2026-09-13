@@ -1,5 +1,7 @@
 'use client';
 
+import type { CraftId } from '@/game/systems/Crafting';
+
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect, useRef } from 'react';
 import type { Game } from '@/game/Game';
@@ -35,6 +37,8 @@ export function useKeyboardShortcuts({
   closeGm,
   closePanel,
   exitPhotoMode,
+  dismissedRecipes,
+  craftFromPrompt,
 }: {
   gameRef: RefObject<Game | null>;
   hud: HudSnapshot;
@@ -53,6 +57,8 @@ export function useKeyboardShortcuts({
   closeGm: () => void;
   closePanel: (panel: FacilityPanelKey) => void;
   exitPhotoMode: () => void;
+  dismissedRecipes: ReadonlySet<string>;
+  craftFromPrompt: (id: CraftId) => void;
 }) {
   const latest = useRef({
     gameRef,
@@ -72,6 +78,8 @@ export function useKeyboardShortcuts({
     closeGm,
     closePanel,
     exitPhotoMode,
+    dismissedRecipes,
+    craftFromPrompt,
   });
   latest.current = {
     gameRef,
@@ -91,6 +99,8 @@ export function useKeyboardShortcuts({
     closeGm,
     closePanel,
     exitPhotoMode,
+    dismissedRecipes,
+    craftFromPrompt,
   };
 
   // Q 键长按状态:按住起计时,超时弹出选择面板并吞掉短按;提前抬起走切换工具
@@ -167,15 +177,15 @@ export function useKeyboardShortcuts({
           break;
         case 'f': {
           // 触发当前可见的那张提示卡(捡回 > 进食 > 手搓),与卡片点击等价
-          const card = currentPromptCard(s.hud, s.backpackOpen);
+          const card = currentPromptCard(s.hud, s.backpackOpen, s.dismissedRecipes);
           if (!card || !game) return;
           if (card.card === 'drop') game.pickupDrop();
           else if (card.card === 'eat') game.eatFood();
-          else game.craftTool(card.recipe.id);
+          else s.craftFromPrompt(card.recipe.id);
           break;
         }
         case 'g':
-          if (currentPromptCard(s.hud, s.backpackOpen)?.card === 'eat') game?.eatUntilFull();
+          if (currentPromptCard(s.hud, s.backpackOpen, s.dismissedRecipes)?.card === 'eat') game?.eatUntilFull();
           break;
         default: {
           const emojiIndex = EMOJI_KEYS.indexOf(e.key);

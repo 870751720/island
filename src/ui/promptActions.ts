@@ -16,13 +16,14 @@ export type PromptCard =
   | { card: 'craft'; recipe: Recipe };
 
 /** 手搓卡片当前应弹出的最高优先级配方(材料齐 + 未拥有 + 可见;移动/合成进行中由调用方判断) */
-export function topHandRecipe(hud: HudSnapshot): Recipe | null {
+export function topHandRecipe(hud: HudSnapshot, dismissedRecipes?: ReadonlySet<string>): Recipe | null {
   const ownedTools = hud.toolTiers;
   const counts = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const candidates = RECIPES.filter(
     (r) =>
       r.station === 'hand' &&
       !r.hidePrompt &&
+      !dismissedRecipes?.has(r.id) &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, counts) &&
       recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, {
@@ -37,12 +38,12 @@ export function topHandRecipe(hud: HudSnapshot): Recipe | null {
 }
 
 /** 按「捡回 > 进食 > 手搓」的互斥优先级给出当前唯一可见的提示卡;无卡可弹时返回 null */
-export function currentPromptCard(hud: HudSnapshot, backpackOpen: boolean): PromptCard | null {
+export function currentPromptCard(hud: HudSnapshot, backpackOpen: boolean, dismissedRecipes?: ReadonlySet<string>): PromptCard | null {
   if (hud.dead) return null;
   const { dropActive, eatActive } = getPromptVisibility(hud, backpackOpen);
   if (dropActive) return { card: 'drop' };
   if (eatActive) return { card: 'eat' };
   if (hud.moving || hud.craftId !== null) return null;
-  const recipe = topHandRecipe(hud);
+  const recipe = topHandRecipe(hud, dismissedRecipes);
   return recipe ? { card: 'craft', recipe } : null;
 }

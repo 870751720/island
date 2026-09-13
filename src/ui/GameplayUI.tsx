@@ -1,5 +1,7 @@
 'use client';
 
+import type { CraftId } from '@/game/systems/Crafting';
+
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
@@ -47,6 +49,7 @@ import { getPromptVisibility } from './promptVisibility';
 import { useGameLifecycle } from './useGameLifecycle';
 import { useMapSnapshot } from './useMapSnapshot';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useCraftPromptHistory } from './useCraftPromptHistory';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -107,7 +110,14 @@ export function GameplayUI({
     if (hud.dead && photoMode) exitPhotoMode();
   }, [hud.dead]);
   const { mapOpen, mapSnapshot, openMap, closeMap } = useMapSnapshot(gameRef);
+  const { dismissedRecipes, dismiss } = useCraftPromptHistory(!net?.host && !net?.guest);
+  const craftFromPrompt = (id: CraftId) => {
+    dismiss(id);
+    gameRef.current?.craftTool(id);
+  };
   useKeyboardShortcuts({
+    dismissedRecipes,
+    craftFromPrompt,
     gameRef,
     hud,
     photoMode,
@@ -557,7 +567,8 @@ export function GameplayUI({
           )}
           <CraftPrompt
             hud={hud}
-            onCraft={(id) => gameRef.current?.craftTool(id)}
+            onCraft={craftFromPrompt}
+            dismissedRecipes={dismissedRecipes}
             suppressed={promptVisibility.dropActive || promptVisibility.eatActive}
           />
           <EatPrompt
