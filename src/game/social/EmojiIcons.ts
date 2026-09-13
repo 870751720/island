@@ -1,5 +1,5 @@
 /** 自绘表情图标:每个表情一份 SVG 内部标记(viewBox 0 0 64 64)。
- * 选择面板(React)与头顶气泡纹理(离屏 Canvas)共用同一份标记,两端表现一致。
+ * 选择面板(React)与头顶气泡(DOM SVG)共用同一份标记,两端表现一致。
  * 字形(Unicode emoji)仍作为联机线上 ID 与白名单键不变,图标只是表现层映射;
  * 风格与游戏内道具图标一致:平涂黏土、柔和双色、小白高光。 */
 
@@ -70,9 +70,3 @@ export const EMOJI_ICONS: Readonly<Record<string, string>> = {
   '😡': ANGRY,
   '😱': SCARE,
 };
-
-/** 完整 SVG 文档字符串(供离屏 canvas 栅格化为头顶气泡纹理);无自绘图的字形返回 null */
-export function emojiSvgDocument(glyph: string): string | null {
-  const markup = EMOJI_ICONS[glyph];
-  return markup === undefined ? null : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${markup}</svg>`;
-}

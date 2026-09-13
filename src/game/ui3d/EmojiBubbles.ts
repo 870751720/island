@@ -1,127 +1,98 @@
 import * as THREE from 'three';
-import { EMOJI_ICONS, emojiSvgDocument } from '../social/EmojiIcons';
+import { EMOJI_ICONS } from '../social/EmojiIcons';
 
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
-/** 气泡底边贴联机名牌顶边:名牌中心 2.65 + 半高 0.35 + 气泡半高 0.44 */
 const HEAD_Y = 3.44;
-/** 气泡整体高度:首版裸表情(1.1)的 0.8 倍 */
 const SIZE = 0.88;
-/** 画布宽高比(药丸底横向留边),Sprite 宽按此比例放大 */
 const ASPECT = 1.25;
 
-/** 每个表情一张共享纹理(懒绘制缓存);材质每气泡独立,便于单独淡出后 dispose */
-const textures = new Map<string, THREE.Texture>();
-
-/** 白色药丸底 + 轻投影,仿小狗表情气泡 */
-function paintBubble(ctx: CanvasRenderingContext2D): void {
-  ctx.shadowColor = 'rgba(0,0,0,0.25)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 2;
-  ctx.fillStyle = 'rgba(255,255,255,0.94)';
-  ctx.beginPath();
-  ctx.roundRect(6, 8, 148, 112, 56);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-}
-
-/** 自绘表情图标纹理:SVG 栅格化后画在药丸中心。
- * 解码是异步的,完成后替换缓存里的系统 emoji 兜底纹理(在用材质仍持旧纹理,交由 GC) */
-function loadIconTexture(glyph: string): void {
-  const svg = emojiSvgDocument(glyph);
-  if (!svg) return;
-  const image = new Image();
-  image.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d')!;
-    paintBubble(ctx);
-    ctx.drawImage(image, 80 - 38, 64 - 38, 76, 76);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    textures.set(glyph, texture);
-  };
-  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-/** 兜底纹理:直接绘制系统 emoji 字形;自绘图标就绪前的过渡表现 */
-function emojiTexture(glyph: string): THREE.Texture {
-  const cached = textures.get(glyph);
-  if (cached) return cached;
-  const canvas = document.createElement('canvas');
-  canvas.width = 160;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  paintBubble(ctx);
-  ctx.font = '76px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  // 各平台 emoji 字体度量不一,按字形实际墨迹包围盒精确居中到药丸中心 (80, 64)
-  const m = ctx.measureText(glyph);
-  const inkX = 80 - ((m.actualBoundingBoxRight ?? 0) - (m.actualBoundingBoxLeft ?? 0)) / 2;
-  const inkY = 64 + ((m.actualBoundingBoxAscent ?? 0) - (m.actualBoundingBoxDescent ?? 0)) / 2;
-  ctx.fillText(glyph, inkX, inkY);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  textures.set(glyph, texture);
-  return texture;
-}
-
 interface Bubble {
-  sprite: THREE.Sprite;
+  element: HTMLDivElement;
   target: THREE.Object3D;
   elapsed: number;
 }
 
-/** 表情气泡层:玩家头顶冒出白色药丸表情 Sprite,跟随玩家、弹入、满 3 秒淡出移除;
- * 同一玩家重复发撤旧换新(天然限频);挂在场景层而非玩家组内,不受游泳前倾影响。 */
+/** 屏幕矢量气泡：每帧投影头顶坐标，独立于 WebGL 渲染分辨率。 */
 export class EmojiBubbles {
   private readonly active = new Map<THREE.Object3D, Bubble>();
+  private readonly layer = document.createElement('div');
+  private readonly anchor = new THREE.Vector3();
 
-  constructor(private readonly scene: THREE.Scene) {
-    // 预载自绘表情纹理:进入游戏即开始解码,首次发表情时大概率已就绪
-    for (const glyph of Object.keys(EMOJI_ICONS)) loadIconTexture(glyph);
-  }
-
-  /** 在 target(玩家根组)头顶显示一个表情 */
-  show(target: THREE.Object3D, glyph: string): void {
-    const existing = this.active.get(target);
-    if (existing) this.retire(existing);
-    const material = new THREE.SpriteMaterial({
-      map: emojiTexture(glyph),
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
+  constructor(container: HTMLElement, private readonly camera: THREE.OrthographicCamera) {
+    Object.assign(this.layer.style, {
+      position: 'absolute', inset: '0', overflow: 'hidden',
+      pointerEvents: 'none', userSelect: 'none', zIndex: '30',
     });
-    const sprite = new THREE.Sprite(material);
-    sprite.renderOrder = 999;
-    sprite.scale.set(0, 0, 1);
-    this.scene.add(sprite);
-    this.active.set(target, { sprite, target, elapsed: 0 });
+    this.layer.setAttribute('aria-hidden', 'true');
+    container.appendChild(this.layer);
   }
 
+  show(target: THREE.Object3D, glyph: string): void {
+    this.remove(target);
+    const element = document.createElement('div');
+    Object.assign(element.style, {
+      position: 'absolute', left: '0', top: '0', display: 'none',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(255,255,255,0.94)', borderRadius: '999px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      fontFamily: 'sans-serif', lineHeight: '1',
+    });
+    const markup = EMOJI_ICONS[glyph];
+    if (markup !== undefined) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 64 64');
+      svg.style.width = '47.5%';
+      svg.style.height = '59.375%';
+      // 只使用内置图标标记，网络传来的 glyph 不作为 HTML 插入。
+      svg.innerHTML = markup;
+      element.appendChild(svg);
+    } else {
+      element.textContent = glyph;
+    }
+    this.layer.appendChild(element);
+    this.active.set(target, { element, target, elapsed: 0 });
+  }
+
+  /** 在相机更新后调用，保持移动与缩放时的位置和场景一致。 */
   update(delta: number): void {
+    if (!this.active.size) return;
+    const width = this.layer.clientWidth;
+    const height = this.layer.clientHeight;
+    this.camera.updateMatrixWorld();
+    const size = SIZE * height * this.camera.zoom / (this.camera.top - this.camera.bottom);
     for (const bubble of this.active.values()) {
       bubble.elapsed += delta;
-      if (bubble.elapsed >= SHOW_SECONDS) {
-        this.retire(bubble);
+      if (bubble.elapsed >= SHOW_SECONDS || !bubble.target.parent) {
+        this.remove(bubble.target);
         continue;
       }
-      const p = bubble.target.position;
-      bubble.sprite.position.set(p.x, p.y + HEAD_Y, p.z);
+      bubble.target.getWorldPosition(this.anchor);
+      this.anchor.y += HEAD_Y;
+      this.anchor.project(this.camera);
+      const style = bubble.element.style;
+      style.display = this.anchor.z < -1 || this.anchor.z > 1 ? 'none' : 'flex';
       const pop = Math.min(1, bubble.elapsed / POP_SECONDS);
-      // back-out 缓动:弹入带轻微过冲
       const backOut = 1 + 2.7 * Math.pow(pop - 1, 3) + 1.7 * Math.pow(pop - 1, 2);
-      bubble.sprite.scale.set(SIZE * ASPECT * backOut, SIZE * backOut, 1);
-      bubble.sprite.material.opacity = Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS);
+      const bubbleHeight = size * backOut;
+      style.width = `${bubbleHeight * ASPECT}px`;
+      style.height = `${bubbleHeight}px`;
+      style.fontSize = `${bubbleHeight * 0.59375}px`;
+      const x = Math.round((this.anchor.x + 1) * width / 2);
+      const y = Math.round((1 - this.anchor.y) * height / 2);
+      style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+      style.opacity = String(Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS));
     }
   }
 
-  private retire(bubble: Bubble): void {
-    this.active.delete(bubble.target);
-    this.scene.remove(bubble.sprite);
-    bubble.sprite.material.dispose();
+  remove(target: THREE.Object3D): void {
+    this.active.get(target)?.element.remove();
+    this.active.delete(target);
+  }
+
+  dispose(): void {
+    this.active.clear();
+    this.layer.remove();
   }
 }

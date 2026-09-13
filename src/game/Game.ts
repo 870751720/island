@@ -572,7 +572,7 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z)
     );
     this.indicator = new PlayerIndicator(this.camera, this.scene);
-    this.emojiBubbles = new EmojiBubbles(this.scene);
+    this.emojiBubbles = new EmojiBubbles(container, this.camera);
 
     this.workbench = new WorkbenchSystem(
       this.scene,
@@ -1115,9 +1115,9 @@ export class Game {
           meteorActive: this.meteor.active,
         });
         this.updateIndicator(simDelta);
-        this.emojiBubbles.update(simDelta);
         this.updateLeashLines();
         this.updateCamera(delta);
+        this.emojiBubbles.update(simDelta);
         this.ocean.update(this.camera, elapsed);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
@@ -3013,6 +3013,7 @@ export class Game {
     this.shrines.detach(session);
     this.soils.detach(session);
     this.crops.detach(session);
+    this.emojiBubbles.remove(session.player.group);
     this.scene.remove(session.player.group);
     session.nameTag.dispose();
     session.player.dispose();
@@ -3318,6 +3319,7 @@ export class Game {
       s.nameTag.dispose();
       s.player.dispose();
     }
+    this.emojiBubbles.dispose();
     this.drops.dispose();
     this.leashLines.dispose();
     this.props.dispose();

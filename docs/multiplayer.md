@@ -279,7 +279,7 @@
 
 ## 快捷表情
 
-快捷表情为无状态纯表现:玩家在长按工具按钮的选择面板顶部点选表情,本端立即在头顶冒出气泡 Sprite(3 秒弹入淡出,`ui3d/EmojiBubbles.ts`,场景层跟随玩家脚部坐标,不进存档)。联机链路仿放箭:客人本地乐观播放 + `playEmoji[glyph]` 动作上行(房主按 `Emojis.ts` 字形白名单校验),房主收到后在该客人头顶补播并 `broadcastEvent({kind:'emoji', actor, glyph})`,各客人端收到事件跳过本人、按 actor 找会话补播。单机为该链路的房主路径去掉广播。新增 `emoji` 事件 kind,`NET_PROTOCOL_VERSION` 25→26;增删表情需两端一致。详见 [emoji.md](emoji.md)。
+快捷表情为无状态纯表现:玩家在长按工具按钮的选择面板顶部点选表情,本端立即在头顶冒出DOM SVG 气泡(3 秒弹入淡出,`ui3d/EmojiBubbles.ts`,各端在相机更新后将玩家头顶投影到屏幕,不受 WebGL 像素比影响,会话移除时清理,不进存档)。联机链路仿放箭:客人本地乐观播放 + `playEmoji[glyph]` 动作上行(房主按 `Emojis.ts` 字形白名单校验),房主收到后在该客人头顶补播并 `broadcastEvent({kind:'emoji', actor, glyph})`,各客人端收到事件跳过本人、按 actor 找会话补播。单机为该链路的房主路径去掉广播。新增 `emoji` 事件 kind,`NET_PROTOCOL_VERSION` 25→26;增删表情需两端一致。详见 [emoji.md](emoji.md)。
 
 ## GM 本机性能诊断
 性能开关、帧耗时和 renderer.info 统计仅保留在各端 Game 实例，不上传动作、不进入房主权威状态、不下发快照或事件，不写入存档。房主与客人独立开启，报告标记单机/房主/客人；客人报告反映客人设备的本地表现，不能代表房主负载。诊断不改变模拟与结算。
