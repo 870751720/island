@@ -1,4 +1,5 @@
 'use client';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme } from './gameTheme';
 
@@ -134,7 +135,7 @@ export function TreasureWheel({
   return (
     <div style={overlayStyle}>
       <style>{WHEEL_KEYFRAMES}</style>
-      <div style={titleStyle}>🎁 钓到了稀世珍宝!</div>
+      <div style={titleStyle}><MenuIcon name="gift" size={28} /> 钓到了稀世珍宝!</div>
       <div style={{ position: 'relative', width, height }}>
         {/* 金色旋转光芒底座:比滚轮大一圈,缓慢旋转滚动 */}
         <div style={raysStyle(width, height)} />

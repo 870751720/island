@@ -1,4 +1,5 @@
 'use client';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
@@ -97,7 +98,7 @@ export function WorkbenchPanel({
               setBookOpen(true);
             }}
           >
-            📖 合成图鉴
+            <MenuIcon name="book" /> 合成图鉴
           </button>
         </div>
         <div style={listStyle}>
@@ -165,7 +166,7 @@ export function WorkbenchPanel({
         </div>
         {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
           <div style={{ ...rowStyle, marginTop: 10, background: gameTheme.selected }}>
-            <span style={{ fontSize: 26 }}>⬆️</span>
+            <MenuIcon name="upgrade" size={26} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
               <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>

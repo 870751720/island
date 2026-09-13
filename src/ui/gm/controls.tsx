@@ -43,7 +43,7 @@ export function ActionButton({
   onClick,
   tone = 'normal',
 }: {
-  label: string;
+  label: ReactNode;
   onClick: () => void;
   tone?: 'primary' | 'normal';
 }) {

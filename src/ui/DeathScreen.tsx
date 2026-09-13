@@ -1,4 +1,6 @@
 'use client';
+import { ItemIcon } from './ItemIcon';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
 
@@ -130,10 +132,10 @@ export function DeathScreen({
             animation: 'poseidon-glow 2.2s ease-in-out infinite',
           }}
         >
-          🔱
+          <ItemIcon kind="poseidonBlessing" size={64} />
         </div>
       ) : (
-        <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}>💀</div>
+        <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}><MenuIcon name="skull" size="clamp(52px, 16vw, 84px)" /></div>
       )}
       <div
         style={{

@@ -1,4 +1,6 @@
 'use client';
+import { ItemIcon } from './ItemIcon';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme } from './gameTheme';
 
@@ -44,7 +46,8 @@ export function FishingControls({
         }}
       >
         <div style={biteHintStyle}>
-          {multi ? '💥 咬钩了!快连点屏幕!' : '🐟 咬钩了!点一下屏幕!'}
+          {multi ? <MenuIcon name="bite" size={26} /> : <ItemIcon kind="sardine" size={26} />}{' '}
+          {multi ? '咬钩了!快连点屏幕!' : '咬钩了!点一下屏幕!'}
         </div>
         {multi && (
           <div style={clickCountStyle}>
@@ -65,7 +68,7 @@ export function FishingControls({
       }}
       style={buttonStyle}
     >
-      🎣
+      <ItemIcon kind="fishingrod" size={32} />
       <span style={{ fontSize: 14 }}>钓鱼</span>
     </button>
   );

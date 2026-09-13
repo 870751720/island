@@ -1,4 +1,5 @@
 'use client';
+import { EnvironmentIcon } from '../icons/EnvironmentIcons';
 
 import { gameTheme, gameButtonStyle } from '../gameTheme';
 
@@ -9,17 +10,17 @@ import { ActionButton, ToggleRow } from './controls';
 import { usePerformanceReport } from './PerformanceOverlay';
 
 /** 季节五态标签:auto=跟随真实季节(默认),其余为强制覆盖 */
-const SEASON_LABELS = { auto: '🔁 跟随', spring: '🌸 春', summer: '☀️ 夏', autumn: '🍂 秋', winter: '❄️ 冬' } as const;
+const SEASON_LABELS = { auto: '跟随', spring: '春', summer: '夏', autumn: '秋', winter: '冬' } as const;
 
 /** 天气四态标签 */
-const WEATHER_LABELS = { sunny: '☀️ 晴天', wind: '🌬️ 刮风', rain: '🌧️ 雨天', snow: '🌨️ 雪天' } as const;
+const WEATHER_LABELS = { sunny: '晴天', wind: '刮风', rain: '雨天', snow: '雪天' } as const;
 
 /** 昼夜时刻预设:t∈[0,1),按太阳高度取白天正午/黄昏/深夜/清晨 */
-const TIME_PRESETS: { label: string; t: number }[] = [
-  { label: '☀️ 正午', t: 0.25 },
-  { label: '🌇 黄昏', t: 0.48 },
-  { label: '🌙 午夜', t: 0.75 },
-  { label: '🌅 清晨', t: 0.97 },
+const TIME_PRESETS: { label: string; t: number; icon: 'noon' | 'dusk' | 'midnight' | 'dawn' }[] = [
+  { label: '正午', icon: 'noon', t: 0.25 },
+  { label: '黄昏', icon: 'dusk', t: 0.48 },
+  { label: '午夜', icon: 'midnight', t: 0.75 },
+  { label: '清晨', icon: 'dawn', t: 0.97 },
 ];
 
 /** 世界 tab:时刻锁定与强制天气 */
@@ -76,7 +77,7 @@ export function WorldTab({
               }}
               style={{ ...presetStyle, background: season === s ? gameTheme.selected : gameTheme.inset }}
             >
-              {SEASON_LABELS[s]}
+              <EnvironmentIcon name={s} /> {SEASON_LABELS[s]}
             </button>
           ))}
         </div>
@@ -94,7 +95,7 @@ export function WorldTab({
               }}
               style={{ ...presetStyle, background: lockTime === p.t ? gameTheme.selected : gameTheme.inset }}
             >
-              {p.label}
+              <EnvironmentIcon name={p.icon} /> {p.label}
             </button>
           ))}
         </div>
@@ -123,7 +124,7 @@ export function WorldTab({
         <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>强制天气</div>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['sunny', 'wind', 'rain', 'snow'] as const).map((w) => (
-            <ActionButton key={w} label={WEATHER_LABELS[w]} onClick={() => onSetWeather(w)} />
+            <ActionButton key={w} label={<><EnvironmentIcon name={w} /> {WEATHER_LABELS[w]}</>} onClick={() => onSetWeather(w)} />
           ))}
         </div>
       </div>

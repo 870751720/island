@@ -1,4 +1,5 @@
 'use client';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
@@ -12,7 +13,7 @@ function SliderRow({
   value,
   onChange,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: number;
   onChange: (v: number) => void;
 }) {
@@ -113,12 +114,12 @@ export function SettingsPanel({
       >
         <div style={{ fontSize: 18, fontWeight: 700, color: gameTheme.ink }}>设置</div>
         <SliderRow
-          label="🎵 音乐"
+          label={<><MenuIcon name="music" /> 音乐</>}
           value={settings.music}
           onChange={(v) => apply({ ...settings, music: v })}
         />
         <SliderRow
-          label="🔊 音效"
+          label={<><MenuIcon name="sound" /> 音效</>}
           value={settings.sfx}
           onChange={(v) => apply({ ...settings, sfx: v })}
         />
@@ -135,7 +136,7 @@ export function SettingsPanel({
             cursor: 'pointer',
           }}
         >
-          📷 相机模式
+          <MenuIcon name="camera" /> 相机模式
         </button>
         {multiplayer &&
           (multiplayer.roomCode ? (

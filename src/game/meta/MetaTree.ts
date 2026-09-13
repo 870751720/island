@@ -1,5 +1,7 @@
 /** 局外养成「荒岛传承」:三分支九节点的静态定义(效果文案与消耗),存储与 UI 共用 */
 
+import type { ResourceKind } from '../systems/Inventory';
+
 export type MetaBranchId = 'gather' | 'fishing' | 'hunting';
 export type MetaNodeId =
   | 'gleaning'
@@ -26,7 +28,7 @@ export type MetaNodeDef = {
 export type MetaBranchDef = {
   id: MetaBranchId;
   name: string;
-  icon: string;
+  icon: ResourceKind;
   motto: string;
   nodes: MetaNodeDef[];
 };
@@ -35,7 +37,7 @@ export const META_TREE: MetaBranchDef[] = [
   {
     id: 'gather',
     name: '采集 · 巧匠',
-    icon: '🌿',
+    icon: 'fiber',
     motto: '日复一日,双手记得每株草木的脾性。',
     nodes: [
       {
@@ -70,7 +72,7 @@ export const META_TREE: MetaBranchDef[] = [
   {
     id: 'fishing',
     name: '钓鱼 · 渔父',
-    icon: '🎣',
+    icon: 'fishingrod',
     motto: '浮漂起落之间,读懂整片海。',
     nodes: [
       {
@@ -105,7 +107,7 @@ export const META_TREE: MetaBranchDef[] = [
   {
     id: 'hunting',
     name: '捕猎 · 猎手',
-    icon: '🏹',
+    icon: 'bow',
     motto: '山林寂静,因为你在其中。',
     nodes: [
       {

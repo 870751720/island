@@ -91,7 +91,7 @@ export function ToolButton({
   /** 手持围栏/门时背包剩余个数(角标展示) */
   fenceCount?: number;
   placeCount?: number;
-  /** 手持的可安放道具(图标跟随,缺省用 📦;工具驱动的零消耗设施如土壤也走此字段) */
+  /** 手持的可安放道具(图标跟随,缺省用木箱图标;工具驱动的零消耗设施如土壤也走此字段) */
   placeKind?: ResourceKind | 'soil' | null;
   /** 背包剩余套索数(持套索且未牵着羊时角标展示) */
   lassoCount?: number;

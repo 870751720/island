@@ -639,7 +639,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                           userSelect: 'none',
                         }}
                       >
-                        {kind ? <ItemIcon kind={kind} size={22} /> : '➖'}
+                        {kind ? <ItemIcon kind={kind} size={22} /> : '−'}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: gameTheme.muted }}>{SLOT_NAMES[slot]}</div>
                           <div style={{ fontWeight: 700 }}>

@@ -1,4 +1,5 @@
 'use client';
+import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
@@ -95,7 +96,7 @@ export function RecipeBook({
       }}
     >
       <div style={panelStyle}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>📖 合成图鉴</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}><MenuIcon name="book" /> 合成图鉴</div>
         <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
           {grouped.map(({ category: c, recipes }) => (
             <button

@@ -1,4 +1,5 @@
 'use client';
+import { ItemIcon } from './ItemIcon';
 
 import { useState } from 'react';
 import { MetaProgress } from '@/game/meta/MetaProgress';
@@ -50,7 +51,7 @@ export function MetaPanel({ onClose }: { onClose: () => void }) {
         {META_TREE.map((branch) => (
           <section className="meta-branch" key={branch.id}>
             <header className="meta-branch-head">
-              <span className="meta-branch-icon">{branch.icon}</span>
+              <span className="meta-branch-icon"><ItemIcon kind={branch.icon} size={30} /></span>
               <div>
                 <h3 className="meta-branch-name">{branch.name}</h3>
                 <p className="meta-branch-motto">{branch.motto}</p>

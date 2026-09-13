@@ -195,7 +195,7 @@ export class WeatherSystem {
     this.type = type;
     if (type === 'wind' && !this.net) this.windDir = Math.random() * Math.PI * 2;
     this.state.type = type;
-    this.state.label = type === 'rain' ? '🌧️ 雨' : type === 'snow' ? '🌨️ 雪' : type === 'wind' ? '🌬️ 风' : '☀️ 晴';
+    this.state.label = type === 'rain' ? '雨' : type === 'snow' ? '雪' : type === 'wind' ? '风' : '晴';
   }
 
   private pickDuration(): number {
