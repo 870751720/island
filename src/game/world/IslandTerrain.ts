@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PondMaterial } from './PondMaterial';
+import { getEnclosedPondWaterLevel } from './PondPlacement';
 import { getSnowAmount, patchSeasonMaterial } from './SeasonVisuals';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
@@ -211,6 +212,12 @@ export class IslandTerrain {
       const wobA2 = (rng(i + 300) * 2 - 1) * 0.22;
       const wobA3 = (rng(i + 400) * 2 - 1) * 0.22;
       const wobA4 = (rng(i + 900) * 2 - 1) * 0.14;
+      const radius = rx * (1 + Math.abs(wobA2) + Math.abs(wobA3) + Math.abs(wobA4));
+      if (this.waterAreas.some(w => Math.hypot(w.x - x, w.z - z) < w.radius + radius + 2.6)) continue;
+      const waterY = getEnclosedPondWaterLevel(
+        x, z, radius, y - 0.5, Math.max(this.seaLevel + 0.35, y - 1.2), baseHeight,
+      );
+      if (waterY === null) continue;
       addWater({
         x,
         z,
@@ -223,9 +230,9 @@ export class IslandTerrain {
         wobP3: rng(i + 700) * Math.PI * 2,
         wobA4,
         wobP4: rng(i + 800) * Math.PI * 2,
-        radius: rx * (1 + Math.abs(wobA2) + Math.abs(wobA3) + Math.abs(wobA4)),
+        radius,
         depth: 1.6,
-        waterY: y - 0.5,
+        waterY,
         // 约 6 成水洼入雪结冰(同种子下主客一致)
         freezable: rng(i + 950) < 0.6,
       });
@@ -238,12 +245,12 @@ export class IslandTerrain {
         const d = this.pondDist(w, x, z);
         if (d < 1) carve += w.depth * (1 - d * d);
       }
-      let h = baseHeight(x, z) - carve;
       // 草地微起伏:±10cm 高频噪声打破大平面;该函数的采样结果即渲染顶点高度,视觉与玩法天然一致
       const micro = (noise(x * (100 / width) + 801, z * (100 / width) + 409) - 0.5) * 0.2;
-      h += micro;
-      // 洼底不得低于海平面,否则全局海水平面会切进水洼内,露出蓝色积水
-      return carve > 0 ? Math.max(h, this.seaLevel + 0.1) : h;
+      const ground = baseHeight(x, z) + micro;
+      // 挖深只消耗海面以上的土层,不把原本更低的沙滩抬高;carve 归零时连续接回原地形。
+      const availableDepth = Math.max(0, ground - (this.seaLevel + 0.1));
+      return ground - Math.min(carve, availableDepth);
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
