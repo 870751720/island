@@ -1,6 +1,7 @@
 import { gameTheme } from './gameTheme';
 import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
+import { StatusIcon, BUFF_SVG } from './icons/StatusIcons';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 import { VitalBottles } from './hud/VitalBottles';
 
@@ -33,7 +34,7 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
                 const rect = event.currentTarget.getBoundingClientRect();
                 setTip(tip?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });
               }}>
-              {buff.icon}
+              <StatusIcon markup={BUFF_SVG[buff.id]} />
               {buff.remain !== null && <span className="hud-buff-time">{buff.remain}</span>}
             </button>
           ))}
@@ -68,7 +69,7 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{tip.buff.icon}</span>
+              <StatusIcon markup={BUFF_SVG[tip.buff.id]} size={24} />
               <span style={{ fontWeight: 700, flex: 1 }}>{tip.buff.name}</span>
               <span
                 style={{

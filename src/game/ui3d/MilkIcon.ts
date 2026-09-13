@@ -10,10 +10,14 @@ export function makeMilkIcon(): THREE.Sprite {
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d')!;
-    ctx.font = '96px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🥛', 64, 70);
+    ctx.fillStyle = '#d0b18c';
+    ctx.beginPath(); ctx.roundRect(45, 14, 38, 17, 6); ctx.fill();
+    ctx.fillStyle = '#b1d2c7';
+    ctx.beginPath(); ctx.roundRect(35, 29, 58, 82, 14); ctx.fill();
+    ctx.fillStyle = '#fff0d5';
+    ctx.beginPath(); ctx.roundRect(41, 51, 46, 53, 10); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(47, 37); ctx.lineTo(47, 47); ctx.stroke();
     sharedTexture = new THREE.CanvasTexture(canvas);
   }
   const sprite = new THREE.Sprite(

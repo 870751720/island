@@ -47,6 +47,7 @@ export class InteractionIndicatorBuilder {
     let label: string | null = null;
     let progress: number | null = null;
     let color: string | undefined;
+    let itemKind: HudSnapshot['indicator']['itemKind'];
     if (session.survival.state.dead) {
       // 死亡时不显示。
     } else if (session.milk.isWorking) {
@@ -75,8 +76,9 @@ export class InteractionIndicatorBuilder {
       label = '挖烹饪台…'; progress = systems.cookingStations.getDigProgress(session);
     } else if (systems.cookingStations.isRoasting(session)) {
       const { total, current } = systems.cookingStations.roastInfo(session);
-      const food = ITEMS[systems.cookingStations.roastingKind(session)!];
-      label = `烤制中:${food.icon} ${food.name} ${current}/${total}`;
+      itemKind = systems.cookingStations.roastingKind(session)!;
+      const food = ITEMS[itemKind];
+      label = `烤制中:${food.name} ${current}/${total}`;
       progress = systems.cookingStations.getProgress(session);
     } else if (systems.looms.isDigging(session)) {
       label = '挖纺织机…'; progress = systems.looms.getDigProgress(session);
@@ -104,12 +106,14 @@ export class InteractionIndicatorBuilder {
       label = '挖火堆…'; progress = systems.campfire.getDigProgress(session);
     } else if (systems.campfire.isCooking(session)) {
       const { total, current } = systems.campfire.cookInfo(session);
-      const food = ITEMS[systems.campfire.cookingKind(session)!];
-      label = `烹饪中:${food.icon} ${food.name} ${current}/${total}`;
+      itemKind = systems.campfire.cookingKind(session)!;
+      const food = ITEMS[itemKind];
+      label = `烹饪中:${food.name} ${current}/${total}`;
       progress = systems.campfire.getProgress(session);
     } else if (session.eating.isWorking) {
       const food = session.eating.currentFood!;
-      label = `${ITEMS[food.kind].icon} ${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
+      itemKind = food.kind;
+      label = `${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
       progress = session.eating.getProgress();
     } else if (session.fishing.isWorking) {
       const state = session.fishing.currentState!;
@@ -151,6 +155,6 @@ export class InteractionIndicatorBuilder {
               : null;
       if (switching) progress = autoEquipTimer / AUTO_EQUIP_DELAY;
     }
-    return { label, progress, color };
+    return { label, progress, color, itemKind };
   }
 }

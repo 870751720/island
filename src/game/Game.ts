@@ -84,6 +84,7 @@ import { PondLife } from './fx/PondLife';
 import { Decorations } from './world/Decorations';
 import { Footprints } from './fx/Footprints';
 import { PlayerIndicator } from './ui3d/PlayerIndicator';
+import { emojiBubbleHeight } from './ui3d/EmojiBubbleSize';
 import { EmojiBubbles } from './ui3d/EmojiBubbles';
 import { EMOJI_GLYPHS } from './social/Emojis';
 import { DEFAULT_CAPACITY, Inventory, type ResourceKind } from './systems/Inventory';
@@ -270,12 +271,12 @@ export class Game {
   private readonly emojiBubbles: EmojiBubbles;
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
-  private onLabel: (label: string | null, x: number, y: number, color?: string) => void;
+  private onLabel: (label: string | null, x: number, y: number, color?: string, itemKind?: ResourceKind) => void;
   private onMumble: (text: string | null, x: number, y: number) => void;
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private onDamage: (amount: number, x: number, y: number) => void;
-  private onDogEmoji: (emoji: string | null, x: number, y: number) => void;
+  private onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void;
   private terrainSeed: number;
   private autosaveTimer = 0;
   private mumbles: MumbleSystem;
@@ -326,12 +327,12 @@ export class Game {
   constructor(
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
-    onLabel: (label: string | null, x: number, y: number, color?: string) => void,
+    onLabel: (label: string | null, x: number, y: number, color?: string, itemKind?: ResourceKind) => void,
     onMumble: (text: string | null, x: number, y: number) => void,
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void,
-    onDogEmoji: (emoji: string | null, x: number, y: number) => void,
+    onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void,
     onBottleMessage: (text: string) => void,
     options: GameOptions = {}
   ) {
@@ -3410,7 +3411,7 @@ export class Game {
         progress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
       };
     }
-    const { label, progress, color } = indicator;
+    const { label, progress, color, itemKind } = indicator;
     const p = this.player.group.position;
     // 咬钩连点时头顶进度环与文字抬高,避开屏幕中央的全屏连点提示
     const bite = this.local.fishing.currentState === 'bite';
@@ -3429,7 +3430,7 @@ export class Game {
       label,
       Math.round(((head.x + 1) / 2) * w),
       Math.round(((1 - head.y) / 2) * h),
-      color
+      color, itemKind
     );
 
     // 自言自语气泡挂在作业提示上方,4 秒后消失
@@ -3451,7 +3452,8 @@ export class Game {
     this.onDogEmoji(
       this.dog.activeEmoji,
       Math.round(((dogAnchor.x + 1) / 2) * w),
-      Math.round(((1 - dogAnchor.y) / 2) * h)
+      Math.round(((1 - dogAnchor.y) / 2) * h),
+      emojiBubbleHeight(h, this.camera)
     );
 
     // 低数值提醒挂在头顶(作业提示下方),任一数值 ≤20% 时 UI 层显示对应图标+剩余条

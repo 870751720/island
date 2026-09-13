@@ -1,4 +1,7 @@
 'use client';
+import { CLAY_SVG } from './icons/ClayIcons';
+import type { ResourceKind } from '@/game/systems/Inventory';
+import { EMOJI_BUBBLE_ASPECT, EMOJI_CONTENT_RATIO } from '@/game/ui3d/EmojiBubbleSize';
 import { DOG_EMOJI_SVG } from './icons/DogEmojiIcons';
 
 import { Game } from '@/game/Game';
@@ -57,12 +60,24 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
         game = new Game(
           container,
           setHud,
-          (label: string | null, x: number, y: number, color?: string) => {
+          (label: string | null, x: number, y: number, color?: string, itemKind?: ResourceKind) => {
             const element = labelRef.current;
             if (!element) return;
             element.style.display = label ? 'block' : 'none';
             if (label) {
-              element.textContent = label;
+              const key = `${itemKind ?? ''}:${label}`;
+              if (element.dataset.label !== key) {
+                element.replaceChildren();
+                const markup = itemKind ? CLAY_SVG[itemKind] : undefined;
+                if (markup) {
+                  const icon = document.createElement('span');
+                  Object.assign(icon.style, { display: 'inline-block', width: '20px', height: '20px', verticalAlign: 'middle', marginRight: '4px' });
+                  icon.innerHTML = markup;
+                  element.appendChild(icon);
+                }
+                element.appendChild(document.createTextNode(label));
+                element.dataset.label = key;
+              }
               element.style.color = color ?? '#fff';
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
             }
@@ -93,13 +108,15 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
               1000,
             );
           },
-          (emoji, x, y) => {
+          (emoji, x, y, height) => {
             const element = dogEmojiRef.current;
             if (!element) return;
-            element.style.display = emoji ? 'block' : 'none';
+            element.style.display = emoji ? 'flex' : 'none';
             if (emoji) {
+              element.style.width = `${height * EMOJI_BUBBLE_ASPECT}px`;
+              element.style.height = `${height}px`;
               if (element.dataset.glyph !== emoji) {
-                element.innerHTML = DOG_EMOJI_SVG[emoji] ?? DOG_EMOJI_SVG['🐕'];
+                element.innerHTML = `<span style="width:${EMOJI_CONTENT_RATIO / EMOJI_BUBBLE_ASPECT * 100}%;height:${EMOJI_CONTENT_RATIO * 100}%;display:block">${DOG_EMOJI_SVG[emoji] ?? DOG_EMOJI_SVG['🐕']}</span>`;
                 element.dataset.glyph = emoji;
               }
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;

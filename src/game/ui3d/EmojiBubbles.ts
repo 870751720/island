@@ -5,8 +5,7 @@ const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
 const HEAD_Y = 3.44;
-const SIZE = 1.188;
-const ASPECT = 1.25;
+import { emojiBubbleHeight, EMOJI_BUBBLE_ASPECT as ASPECT } from './EmojiBubbleSize';
 
 interface Bubble {
   element: HTMLDivElement;
@@ -61,7 +60,7 @@ export class EmojiBubbles {
     const width = this.layer.clientWidth;
     const height = this.layer.clientHeight;
     this.camera.updateMatrixWorld();
-    const size = SIZE * height * this.camera.zoom / (this.camera.top - this.camera.bottom);
+    const size = emojiBubbleHeight(height, this.camera);
     for (const bubble of this.active.values()) {
       bubble.elapsed += delta;
       if (bubble.elapsed >= SHOW_SECONDS || !bubble.target.parent) {

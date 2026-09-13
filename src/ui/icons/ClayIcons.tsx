@@ -18,7 +18,7 @@ import type { ResourceKind } from '@/game/systems/Inventory';
 
 type IconProps = { size: number };
 
-const CLAY_SVG: Partial<Record<ResourceKind, string>> = {
+export const CLAY_SVG: Partial<Record<ResourceKind, string>> = {
   ...FOOD_SVG,
   ...REMAINING_FOOD_SVG,
   ...MATERIAL_SVG,

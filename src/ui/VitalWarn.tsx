@@ -8,6 +8,8 @@ export type VitalWarnHandle = {
   update: (vitals: VitalLevels | null, x: number, y: number) => void;
 };
 
+import { StatusIcon, VITAL_SVG } from './icons/StatusIcons';
+
 const LOW_THRESHOLD = 20;
 /** 放在角色右侧,避开头顶正中的交互进度环 */
 const OFFSET_X = 32;
@@ -15,9 +17,9 @@ const OFFSET_X = 32;
 const OFFSET_Y = 30;
 
 const ROWS: { key: keyof VitalLevels; icon: string }[] = [
-  { key: 'health', icon: '❤️' },
-  { key: 'hunger', icon: '🍗' },
-  { key: 'thirst', icon: '💧' },
+  { key: 'health', icon: VITAL_SVG.health },
+  { key: 'hunger', icon: VITAL_SVG.hunger },
+  { key: 'thirst', icon: VITAL_SVG.thirst },
 ];
 
 /**
@@ -53,7 +55,7 @@ export const VitalWarn = forwardRef<VitalWarnHandle>(function VitalWarn(_, ref) 
           }}
           style={rowStyle}
         >
-          <span style={{ fontSize: 13, lineHeight: 1 }}>{r.icon}</span>
+          <StatusIcon markup={r.icon} size={16} />
         </div>
       ))}
     </div>

@@ -92,7 +92,7 @@ export type HudSnapshot = {
   season: 'spring' | 'summer' | 'autumn' | 'winter';
   busy: boolean;
   moving: boolean;
-  indicator: { label: string | null; progress: number | null; color?: string };
+  indicator: { label: string | null; progress: number | null; color?: string; itemKind?: ResourceKind };
   buffs: HudBuff[];
 };
 
