@@ -15,7 +15,7 @@ import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
-import { CollectSystem, isFruitedTree } from './systems/CollectSystem';
+import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
 import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
@@ -314,7 +314,6 @@ export class Game {
   /** 波塞冬的庇佑进行中(单机新手宽容期死亡触发,倒计时结束后免清档复活并送上赠礼木箱) */
   private poseidonGrace = false;
   private guestRaidSkipped = true;
-  private protectedFruitTree: ReturnType<CollectSystem['getNearby']> = null;
   /** 本局波塞冬的庇佑是否已用过(单局仅一次,入档防读档刷新) */
   private poseidonGraceUsed = false;
   /** 局外养成「荒岛传承」的每日一次标记(跨天自动重置) */
@@ -2167,12 +2166,11 @@ export class Game {
       return null;
     }
     const nearby = this.collect.getNearby();
-    if (nearby !== this.protectedFruitTree) this.protectedFruitTree = null;
-    if (nearby && isFruitedTree(nearby)) this.protectedFruitTree = nearby;
     if (nearby) {
       if (
         nearby.kind === 'tree' &&
-        nearby !== this.protectedFruitTree &&
+        // 果树只允许手动选择斧头，摘果、目标切换及联机快照均不解除保护。
+        !this.collect.hasNearbyFruitTree() &&
         this.tools.axe &&
         this.player.currentTool !== 'axe'
       ) {

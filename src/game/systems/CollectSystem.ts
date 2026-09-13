@@ -47,7 +47,7 @@ const DIG_YIELD: Partial<
 type HarvestKind = Prop['kind'] | 'stump' | 'fruitTree';
 
 /** 挂果中的果树(成树、未砍、持斧以外的状态靠近即摘果,持斧则正常砍树) */
-export function isFruitedTree(prop: Prop): boolean {
+function isFruitedTree(prop: Prop): boolean {
   return (
     prop.kind === 'tree' &&
     prop.species === 'fruit' &&
@@ -291,6 +291,13 @@ export class CollectSystem {
     if (this.swingTimer < SWING_TIME) return;
     this.swingTimer = 0;
     this.hit(this.nearby!);
+  }
+
+  /** 采摘后扫描可能转向旁边的普通树；范围内有果树时仍禁止自动拿斧头。 */
+  hasNearbyFruitTree(): boolean {
+    const position = this.player.group.position;
+    return this.props.list.some((prop) => prop.kind === 'tree' && prop.species === 'fruit'
+      && prop.position.distanceTo(position) < COLLECT_RANGE);
   }
 
   getNearby(): Prop | null {
