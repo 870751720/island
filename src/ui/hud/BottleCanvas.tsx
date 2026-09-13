@@ -4,7 +4,7 @@ import { bottleFragmentShader, bottleVertexShader } from './bottleShader';
 
 export type BottleLevels = readonly [number, number, number];
 
-/** 132×48 CSS 像素、一个 draw call；后台暂停，减少动态效果时按需绘制。 */
+/** 108×48 CSS 像素、一个 draw call；后台暂停，减少动态效果时按需绘制。 */
 export function BottleCanvas({ levels }: { levels: BottleLevels }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const targetRef = useRef(levels);
@@ -25,7 +25,7 @@ export function BottleCanvas({ levels }: { levels: BottleLevels }) {
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-    renderer.setSize(132, 48, false);
+    renderer.setSize(108, 48, false);
     renderer.setClearColor(0, 0);
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const values = new THREE.Vector3(...targetRef.current);

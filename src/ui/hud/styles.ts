@@ -3,19 +3,20 @@ import { hudControlStyles } from './controlStyles';
 /** 局部 HUD 表现：轻量渐变与 transform/opacity 动效，不使用背景模糊。 */
 export const hudStyles = `
 ${hudControlStyles}
-.hud-status{position:absolute;top:max(7px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:142px;pointer-events:none;box-sizing:border-box;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;color:#49665e}
-.hud-status-card{box-sizing:border-box;width:142px;padding:3px 4px 4px;border:1px solid #fff9e8b3;border-radius:14px;background:linear-gradient(145deg,#fff9e4d9,#e2ecdad1);box-shadow:0 3px 9px #314c3e20,inset 0 1px 0 #ffffff99}
-.hud-bottles{position:relative;display:flex;width:132px;height:59px}
-.hud-bottle-canvas{position:absolute;left:0;top:0;width:132px;height:48px;pointer-events:none;opacity:0}
+.hud-status{position:absolute;top:max(7px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:118px;pointer-events:none;box-sizing:border-box;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;color:#49665e}
+.hud-status-card{box-sizing:border-box;width:118px;padding:3px 4px 4px;border:1px solid #fff9e8b3;border-radius:14px;background:linear-gradient(145deg,#fff9e4d9,#e2ecdad1);box-shadow:0 3px 9px #314c3e20,inset 0 1px 0 #ffffff99}
+.hud-bottles{position:relative;display:flex;width:108px;height:55px}
+.hud-bottle-canvas{position:absolute;left:0;top:0;width:108px;height:48px;pointer-events:none;opacity:0}
 .hud-bottle-canvas.is-ready{opacity:1}
-.hud-bottle{position:relative;width:44px;height:59px;text-align:center}
+.hud-bottle{position:relative;width:36px;flex-shrink:0;height:55px;text-align:center}
 .hud-bottle-meter,.hud-bottle-fallback{width:44px;height:48px;display:block}
+.hud-bottle-meter{margin-left:-4px}
 .hud-bottle-canvas.is-ready~.hud-bottle .hud-bottle-fallback{visibility:hidden}
-.hud-bottle-tap{position:absolute;inset:0 0 auto;width:44px;height:48px;border:0;border-radius:12px;background:transparent;pointer-events:auto;touch-action:manipulation;cursor:pointer}
+.hud-bottle-tap{position:absolute;top:0;left:-4px;width:44px;height:48px;border:0;border-radius:12px;background:transparent;pointer-events:auto;touch-action:manipulation;cursor:pointer}
 .hud-bottle-tap:active{background:#fff8e933}
-.hud-bottle-label{display:block;font-size:8px;font-weight:600;line-height:11px;letter-spacing:.06em;color:#40594f;text-shadow:0 1px 2px #fffbeccc,0 0 3px #fffbeccc}
+.hud-bottle-label{display:block;margin-top:-4px;font-size:8px;font-weight:600;line-height:11px;letter-spacing:.06em;color:#40594f;text-shadow:0 1px 2px #fffbeccc,0 0 3px #fffbeccc}
 .hud-bottle.is-low .hud-bottle-label{color:#a73d2e;animation:hud-low 1.8s ease-in-out infinite}
-.hud-day{display:flex;justify-content:center;align-items:center;gap:10px;width:132px;height:17px;border-radius:9px;background:#fff8e4a6;font-size:9px;white-space:nowrap;color:#496354}
+.hud-day{display:flex;justify-content:center;align-items:center;gap:10px;width:108px;height:17px;font-size:9px;white-space:nowrap;color:#496354}
 .hud-day strong{font-size:10px;font-weight:600;font-variant-numeric:tabular-nums}
 .hud-season{font-size:9px;display:flex;align-items:center;gap:4px}
 .hud-season:before{content:"";width:4px;height:4px;border-radius:50%;background:var(--season-color);box-shadow:0 0 0 1px #5a796733}

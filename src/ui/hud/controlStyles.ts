@@ -2,7 +2,6 @@
 export const hudControlStyles = `
 .hud-control{box-sizing:border-box;color:#49665e;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-tap-highlight-color:transparent}
 .hud-control{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;position:relative;padding:0;border:1px solid #fff8e9bb;background:linear-gradient(145deg,#fff9e4e8,#dce8d6cc);box-shadow:0 3px 9px #314c3e24,inset 0 1px 0 #ffffffcc;cursor:pointer;touch-action:manipulation;user-select:none;transition:opacity .5s ease,transform .18s ease,background .18s ease,box-shadow .18s ease!important}
-.hud-control:after{content:"";position:absolute;inset:3px;border:1px solid #ffffff66;border-radius:inherit;pointer-events:none}
 .hud-control:active:not(:disabled){transform:scale(.92);box-shadow:0 1px 4px #081c3440,inset 0 2px 7px #0003}
 .hud-control:focus-visible,.hud-status button:focus-visible{outline:2px solid #609e91;outline-offset:3px}
 .hud-control:disabled{cursor:default}

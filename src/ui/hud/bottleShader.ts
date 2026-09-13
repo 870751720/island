@@ -21,7 +21,7 @@ float bottle(vec2 p){
 }
 void main(){
   float kind=floor(vUv.x*3.0);
-  vec2 p=vec2(fract(vUv.x*3.0)-0.5,(vUv.y-0.5)*1.10);
+  vec2 p=vec2((fract(vUv.x*3.0)-0.5)*(36.0/44.0),(vUv.y-0.5)*1.10);
   float level=kind<0.5?uLevels.x:(kind<1.5?uLevels.y:uLevels.z);
   vec3 tint=kind<0.5?vec3(0.91,0.25,0.32):(kind<1.5?vec3(0.95,0.63,0.16):vec3(0.16,0.67,0.88));
   float d=bottle(p);
