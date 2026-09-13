@@ -4,7 +4,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { GameAudio } from '../audio/GameAudio';
 import type { Particles } from '../fx/Particles';
 import type { PickupPresentation } from '../presentation/PickupPresentation';
-import { FOODS } from '../systems/Food';
+import { FOODS, foodSound } from '../systems/Food';
 import type { FishTier } from '../systems/FishTable';
 import type { InventorySlot, ResourceKind } from '../systems/Inventory';
 import { SLOT_ORDER } from '../systems/Equipment';
@@ -96,9 +96,9 @@ export class GuestHudSynchronizer {
     if (tick === this.eatTick) return;
     this.eatTick = tick;
     if (tick < 1) return;
-    this.audio.play('munch');
+    this.audio.play(foodSound(food));
     const position = this.local.player.group.position.clone();
     position.y += 2;
-    this.fx.burst(position, food.fxColor, 3);
+    if (food.consumeType === 'eat') this.fx.burst(position, food.fxColor, 3);
   }
 }

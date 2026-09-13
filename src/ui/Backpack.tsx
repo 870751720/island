@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
-import { FOODS } from '@/game/systems/Food';
+import { FOODS, foodVerb } from '@/game/systems/Food';
 import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
@@ -227,6 +227,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const selected: InventorySlot = selectedIndex !== null ? hud.slots[selectedIndex] : null;
   const selectedDef = selected ? ITEMS[selected.kind] : null;
+  const selectedFood = selected ? FOODS.find((food) => food.kind === selected.kind) : undefined;
   const tools = hud.toolTiers;
   // 背包空但已拥有工具时仍显示背包按钮(工具 tab 在里面)
   const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
@@ -468,7 +469,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {isUsable(selectedDef.kind) &&
-                          actionButton(false, '使用', gameTheme.accent, () => {
+                          actionButton(false, selectedFood ? foodVerb(selectedFood) : '使用', gameTheme.accent, () => {
                             setSelectedIndex(null);
                             onUseItem(selectedDef.kind);
                           })}

@@ -17,7 +17,7 @@ import type { CropSystem } from '../systems/CropSystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import { ITEMS } from '../systems/Items';
-import { isWineKind } from '../systems/Wine';
+import { foodVerb } from '../systems/Food';
 
 type IndicatorSystems = {
   workbench: WorkbenchSystem;
@@ -113,7 +113,7 @@ export class InteractionIndicatorBuilder {
     } else if (session.eating.isWorking) {
       const food = session.eating.currentFood!;
       itemKind = food.kind;
-      label = `${isWineKind(food.kind) ? '喝' : '吃'}${food.name}`;
+      label = `${foodVerb(food)}${food.name}`;
       progress = session.eating.getProgress();
     } else if (session.fishing.isWorking) {
       const state = session.fishing.currentState!;

@@ -5,8 +5,7 @@ import { gameTheme } from './gameTheme';
 import { ItemIcon } from './ItemIcon';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
-import { EAT_PROMPT_HUNGER, firstFoodEntryIn } from '@/game/systems/Food';
-import { isWineKind } from '@/game/systems/Wine';
+import { EAT_PROMPT_HUNGER, firstFoodEntryIn, foodVerb } from '@/game/systems/Food';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
 
 /** 饥饿低于阈值且背包有食物时弹出的进食卡片:单吃一个,或点「吃饱」连续吃到满(移动中不显示,捡回卡片出现时让位) */
@@ -42,7 +41,7 @@ export function EatPrompt({
       >
         <ItemIcon kind={entry.food.kind} size={28} />
         <span>
-          {isWineKind(entry.food.kind) ? '喝' : '吃'}{entry.food.name}
+          {foodVerb(entry.food)}{entry.food.name}
           <span style={{ color: gameTheme.accent }}>(+{entry.food.hunger})</span>
         </span>
       </button>
@@ -54,7 +53,7 @@ export function EatPrompt({
           }}
           style={fullButtonStyle}
         >
-          吃饱
+          {entry.food.consumeType === 'drink' ? '连续喝' : '吃饱'}
         </button>
       )}
     </div>

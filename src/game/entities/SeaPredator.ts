@@ -1,15 +1,7 @@
 import * as THREE from 'three';
 import type { WaterFx } from '../fx/WaterFx';
 
-/** 贴水影子共用的圆片几何(半径 1,实例各自缩放成主身/尾巴/侧鳍) */
-const SHADOW_GEO = new THREE.CircleGeometry(1, 12);
-/** 背鳍:从水里露出来的竖直三角面 */
-const FIN_GEO = new THREE.BufferGeometry();
-FIN_GEO.setAttribute(
-  'position',
-  new THREE.Float32BufferAttribute([-0.42, 0, 0, 0.42, 0, 0, 0.12, 0.64, 0], 3)
-);
-FIN_GEO.computeVertexNormals();
+import { createSeaPredatorModel } from './SeaPredatorModel';
 
 /** 出场从深处上浮 / 退场下潜的时长 */
 const RISE_TIME = 0.7;
@@ -26,16 +18,13 @@ function shortestAngle(a: number): number {
 }
 
 /**
- * 海中巨影:贴着海面的大鱼影子(深色椭圆 + 摆动的尾巴),背鳍露出水面一小截,
+ * 海中巨影:低多边形掠食鱼,具有背鳍、摆尾与活动下颌,
  * 绕目标游弋,受召时冲向目标扑咬并在咬点溅起水花。纯表现实体,由 SeaThreatSystem
  * 驱动;update 传 null 目标即下潜离场,潜完 done 置真等待回收。
  */
 export class SeaPredator {
   private group = new THREE.Group();
-  private shadowMat: THREE.MeshBasicMaterial;
-  private finMat: THREE.MeshStandardMaterial;
-  private tailPivot = new THREE.Group();
-  private fin: THREE.Mesh;
+  private model = createSeaPredatorModel();
   private orbitAngle = Math.random() * Math.PI * 2;
   private state: 'rise' | 'circle' | 'lunge' | 'dive' = 'rise';
   private stateTime = 0;
@@ -51,52 +40,9 @@ export class SeaPredator {
     private seaLevel: number,
     private waterFx: WaterFx
   ) {
-    // 影子贴在海面之上一点点,保证深水区(海面不透底)也看得见;涟漪同样画在海面之后
-    this.shadowMat = new THREE.MeshBasicMaterial({
-      color: '#12262f',
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    });
-    this.finMat = new THREE.MeshStandardMaterial({
-      color: '#1c3945',
-      flatShading: true,
-      roughness: 1,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0,
-    });
-
-    const body = this.flatPiece(1.75, 0.7);
-    body.position.set(0, 0.03, 0);
-
-    const tail = this.flatPiece(0.85, 0.5);
-    tail.position.set(-0.5, 0.03, 0);
-    this.tailPivot.position.set(-1.5, 0, 0);
-    this.tailPivot.add(tail);
-
-    const finL = this.flatPiece(0.55, 0.28);
-    finL.position.set(0.35, 0.03, -0.72);
-    finL.rotation.y = 0.5;
-    const finR = this.flatPiece(0.55, 0.28);
-    finR.position.set(0.35, 0.03, 0.72);
-    finR.rotation.y = -0.5;
-
-    this.fin = new THREE.Mesh(FIN_GEO, this.finMat);
-    this.fin.position.set(0.45, 0.02, 0);
-
-    this.group.add(body, this.tailPivot, finL, finR, this.fin);
+    this.group.add(this.model.root);
     this.group.position.y = this.seaLevel - 0.5;
     this.scene.add(this.group);
-  }
-
-  /** 贴水影子片:放平的深色半透明圆,画在海面之后 */
-  private flatPiece(len: number, width: number): THREE.Mesh {
-    const mesh = new THREE.Mesh(SHADOW_GEO, this.shadowMat);
-    mesh.scale.set(len, width, 1);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.renderOrder = 1;
-    return mesh;
   }
 
   get done(): boolean {
@@ -173,9 +119,10 @@ export class SeaPredator {
       const want = Math.atan2(-dz, dx);
       this.group.rotation.y += shortestAngle(want - this.group.rotation.y) * (1 - Math.exp(-9 * delta));
     }
-    // 摆尾与背鳍晃动
-    this.tailPivot.rotation.y = Math.sin(elapsed * 5) * 0.35;
-    this.fin.rotation.z = Math.sin(elapsed * 3.2) * 0.14;
+    const bite = this.state === 'lunge'
+      ? Math.max(0, Math.sin(Math.min(1, this.stateTime / (LUNGE_BITE_AT + 0.16)) * Math.PI))
+      : 0;
+    this.model.animate(elapsed, bite);
   }
 
   /** 绕目标游弋:半径缓慢呼吸,身后间隔泛涟漪 */
@@ -206,13 +153,11 @@ export class SeaPredator {
   }
 
   private setFade(f: number): void {
-    this.shadowMat.opacity = 0.55 * f;
-    this.finMat.opacity = 0.95 * f;
+    this.model.setFade(f);
   }
 
   dispose(): void {
     this.scene.remove(this.group);
-    this.shadowMat.dispose();
-    this.finMat.dispose();
+    this.model.dispose();
   }
 }

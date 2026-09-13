@@ -1,5 +1,5 @@
 import type { Player } from '../entities/Player';
-import type { Food } from './Food';
+import { foodAction, foodSound, type Food } from './Food';
 import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
@@ -47,25 +47,25 @@ export class EatingSystem {
     if (!food) return;
     if (this.player.isMoving || this.player.isSwimming) {
       // 中断进食时切断仍在播的咀嚼声
-      this.audio.stop('munch');
+      this.audio.stop(foodSound(food));
       this.food = null;
       this.untilFull = false;
-      this.player.releaseAction(food.action);
+      this.player.releaseAction(foodAction(food));
       return;
     }
-    this.player.setAction(food.action);
+    this.player.setAction(foodAction(food));
     this.timer += delta;
     this.tickTimer += delta;
     if (this.tickTimer >= EAT_TICK) {
       this.tickTimer -= EAT_TICK;
-      this.audio.play('munch');
+      this.audio.play(foodSound(food));
       // 嘴边掉渣特效
       const p = this.player.group.position.clone();
       p.y += 2;
-      this.fx.burst(p, food.fxColor, 3);
+      if (food.consumeType === 'eat') this.fx.burst(p, food.fxColor, 3);
     }
     if (this.timer >= EAT_TIME) {
-      this.player.releaseAction(food.action);
+      this.player.releaseAction(foodAction(food));
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
         this.onEaten?.(food);
