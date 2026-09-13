@@ -6,6 +6,8 @@ import { createSeaPredatorModel } from './SeaPredatorModel';
 /** 出场从深处上浮 / 退场下潜的时长 */
 const RISE_TIME = 0.7;
 const DIVE_TIME = 0.6;
+/** 超过背鳍最高点,确保整只模型潜入水下后再回收。 */
+const SUBMERGE_DEPTH = 1.5;
 /** 绕目标游弋的基准半径与角速度(半径随时间轻轻呼吸) */
 const ORBIT_RADIUS = 3.1;
 const ORBIT_SPEED = 1.15;
@@ -41,7 +43,7 @@ export class SeaPredator {
     private waterFx: WaterFx
   ) {
     this.group.add(this.model.root);
-    this.group.position.y = this.seaLevel - 0.5;
+    this.group.position.y = this.seaLevel - SUBMERGE_DEPTH;
     this.scene.add(this.group);
   }
 
@@ -67,9 +69,8 @@ export class SeaPredator {
     switch (this.state) {
       case 'rise': {
         const t = Math.min(1, this.stateTime / RISE_TIME);
-        this.setFade(t);
         if (target) this.circle(delta, target);
-        p.y = this.seaLevel - 0.5 * (1 - t);
+        p.y = this.seaLevel - SUBMERGE_DEPTH * (1 - t);
         if (t >= 1) this.state = 'circle';
         break;
       }
@@ -105,8 +106,7 @@ export class SeaPredator {
       }
       case 'dive': {
         const t = Math.min(1, this.stateTime / DIVE_TIME);
-        this.setFade(1 - t);
-        p.y = this.seaLevel - t * 0.7;
+        p.y = this.seaLevel - t * SUBMERGE_DEPTH;
         if (t >= 1) this.doneFlag = true;
         break;
       }
@@ -150,10 +150,6 @@ export class SeaPredator {
   private enterDive(): void {
     this.state = 'dive';
     this.stateTime = 0;
-  }
-
-  private setFade(f: number): void {
-    this.model.setFade(f);
   }
 
   dispose(): void {

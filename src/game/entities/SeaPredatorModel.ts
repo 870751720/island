@@ -69,10 +69,10 @@ export function createSeaPredatorModel() {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const material = object.material as THREE.MeshStandardMaterial;
-    material.transparent = true;
-    material.opacity = 0;
-    material.depthWrite = false;
-    object.renderOrder = 1;
+    // 实体部件必须写入深度,由身体遮挡口腔和牙齿,水面在透明阶段自然覆盖水下部分。
+    material.transparent = false;
+    material.opacity = 1;
+    material.depthWrite = true;
     materials.push(material);
   });
   return {
@@ -81,9 +81,6 @@ export function createSeaPredatorModel() {
       tail.rotation.y = Math.sin(elapsed * (bite > 0 ? 9 : 5)) * 0.3;
       jaw.rotation.z = -bite * 0.55;
       body.rotation.x = Math.sin(elapsed * 2.6) * 0.025;
-    },
-    setFade(fade: number) {
-      for (const material of materials) material.opacity = fade * 0.95;
     },
     dispose() {
       root.traverse((object) => {
