@@ -15,11 +15,8 @@ float box(vec2 p,vec2 size,float radius){
   vec2 q=abs(p)-size+radius;
   return length(max(q,0.0))+min(max(q.x,q.y),0.0)-radius;
 }
-float bottle(vec2 p,float kind){
-  float body;
-  if(kind<0.5) body=length((p-vec2(0.0,-0.07))*vec2(1.0,0.96))-0.31;
-  else if(kind<1.5) body=box(p-vec2(0.0,-0.07),vec2(0.29,0.30),0.12);
-  else body=box(p-vec2(0.0,-0.055),vec2(0.24,0.325),0.16);
+float bottle(vec2 p){
+  float body=box(p-vec2(0.0,-0.055),vec2(0.24,0.325),0.16);
   return min(body,box(p-vec2(0.0,0.24),vec2(0.115,0.14),0.035));
 }
 void main(){
@@ -27,7 +24,7 @@ void main(){
   vec2 p=vec2(fract(vUv.x*3.0)-0.5,(vUv.y-0.5)*1.10);
   float level=kind<0.5?uLevels.x:(kind<1.5?uLevels.y:uLevels.z);
   vec3 tint=kind<0.5?vec3(0.91,0.25,0.32):(kind<1.5?vec3(0.95,0.63,0.16):vec3(0.16,0.67,0.88));
-  float d=bottle(p,kind);
+  float d=bottle(p);
   float glass=1.0-smoothstep(-0.008,0.008,d);
   float inner=1.0-smoothstep(-0.024,-0.012,d);
   vec3 color=mix(vec3(0.36,0.54,0.53),vec3(0.94,0.98,0.89),inner);

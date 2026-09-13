@@ -20,8 +20,10 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
   const season = SEASONS[hud.season];
   return (
     <div className="hud-status" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+      <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
       <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
+      </div>
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">
           {hud.buffs.map((buff) => (

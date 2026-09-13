@@ -1,6 +1,10 @@
+import { hudControlStyles } from './controlStyles';
+
 /** 局部 HUD 表现：轻量渐变与 transform/opacity 动效，不使用背景模糊。 */
 export const hudStyles = `
-.hud-control,.hud-status{position:absolute;top:max(7px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:132px;pointer-events:none}
+${hudControlStyles}
+.hud-status{position:absolute;top:max(7px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:142px;pointer-events:none;box-sizing:border-box;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;color:#49665e}
+.hud-status-card{box-sizing:border-box;width:142px;padding:3px 4px 4px;border:1px solid #fff9e8b3;border-radius:14px;background:linear-gradient(145deg,#fff9e4d9,#e2ecdad1);box-shadow:0 3px 9px #314c3e20,inset 0 1px 0 #ffffff99}
 .hud-bottles{position:relative;display:flex;width:132px;height:59px}
 .hud-bottle-canvas{position:absolute;left:0;top:0;width:132px;height:48px;pointer-events:none;opacity:0}
 .hud-bottle-canvas.is-ready{opacity:1}
