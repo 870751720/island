@@ -4,11 +4,12 @@ import type { SurvivalSystem } from './SurvivalSystem';
 import type { GameAudio } from '../audio/GameAudio';
 
 const DRINK_TIME = 2; // 一轮喝水(秒)
-const THIRST_PER_ROUND = 40;
+const SIP_INTERVAL = 0.5;
 /** 站在水洼浅水中自动喝水恢复口渴；海水不可饮用，游泳或有其他作业时让位。 */
 export class WaterSystem {
   private timer = 0;
   private active = false;
+  private sipTimer = 0;
 
   constructor(
     private player: Player,
@@ -31,14 +32,22 @@ export class WaterSystem {
       this.player.releaseAction('drink');
       if (this.timer > 0) this.audio.stop('drink');
       this.timer = 0;
+      this.sipTimer = 0;
       return;
     }
 
     this.player.setAction('drink');
-    // 每轮开始喝水就播「咕咕」声,让声音落在喝水过程中而非结束时
-    if (this.timer === 0) this.audio.play('drink');
     this.timer += delta;
-    if (this.timer < DRINK_TIME) return;
+    this.sipTimer -= delta;
+    if (this.timer < DRINK_TIME) {
+      if (this.sipTimer <= 0) {
+        this.audio.play('drink');
+        this.sipTimer = SIP_INTERVAL;
+      }
+      return;
+    }
+    this.audio.stop('drink');
+    this.sipTimer = 0;
     this.timer = 0;
     this.survival.drink();
     // 水洼喝水才可能惊动鳄鱼,净化器喝的是清水

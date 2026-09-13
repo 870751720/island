@@ -46,7 +46,7 @@ export class EatingSystem {
     const food = this.food;
     if (!food) return;
     if (this.player.isMoving || this.player.isSwimming) {
-      // 中断进食时切断仍在播的咀嚼声
+      // 中断时切断该食物的使用音效
       this.audio.stop(foodSound(food));
       this.food = null;
       this.untilFull = false;
@@ -56,7 +56,7 @@ export class EatingSystem {
     this.player.setAction(foodAction(food));
     this.timer += delta;
     this.tickTimer += delta;
-    if (this.tickTimer >= EAT_TICK) {
+    if (this.tickTimer >= EAT_TICK && this.timer < EAT_TIME) {
       this.tickTimer -= EAT_TICK;
       this.audio.play(foodSound(food));
       // 嘴边掉渣特效
@@ -65,11 +65,12 @@ export class EatingSystem {
       if (food.consumeType === 'eat') this.fx.burst(p, food.fxColor, 3);
     }
     if (this.timer >= EAT_TIME) {
+      this.audio.stop(foodSound(food));
       this.player.releaseAction(foodAction(food));
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
         this.onEaten?.(food);
-        this.audio.play('eatFinish');
+        if (food.consumeType === 'eat') this.audio.play('eatFinish');
       }
       if (this.untilFull && this.survival.state.hunger < 100 && this.inventory.count(food.kind) > 0) {
         this.timer = 0;

@@ -22,6 +22,8 @@ export class GuestHudSynchronizer {
   private indicatorVelocity = 0;
   private indicatorAt = 0;
   private eatTick = 0;
+  private eatingSound: ReturnType<typeof foodSound> | null = null;
+  private eatingName: string | null = null;
 
   constructor(
     private readonly local: PlayerSession,
@@ -88,15 +90,21 @@ export class GuestHudSynchronizer {
 
   private replayEating(snapshot: HudSnapshot): void {
     const food = snapshot.eatName ? FOODS.find((candidate) => candidate.name === snapshot.eatName) : null;
-    if (!food) {
-      this.eatTick = 0;
-      return;
-    }
     const tick = Math.floor(snapshot.eatProgress * 3);
+    const finished = !food || snapshot.dead || snapshot.eatProgress >= 1;
+    if (finished || this.eatingName !== food?.name || tick < this.eatTick) {
+      if (this.eatingSound) this.audio.stop(this.eatingSound);
+      this.eatingSound = null;
+      this.eatingName = null;
+      this.eatTick = 0;
+    }
+    if (!food || finished) return;
+    this.eatingName = food.name;
     if (tick === this.eatTick) return;
     this.eatTick = tick;
     if (tick < 1) return;
-    this.audio.play(foodSound(food));
+    this.eatingSound = foodSound(food);
+    this.audio.play(this.eatingSound);
     const position = this.local.player.group.position.clone();
     position.y += 2;
     if (food.consumeType === 'eat') this.fx.burst(position, food.fxColor, 3);

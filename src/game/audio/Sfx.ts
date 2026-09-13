@@ -40,7 +40,7 @@ const VOL: Record<SfxName, number> = {
   sizzle: 0.4,
   munch: 0.5,
   eatFinish: 0.42,
-  drink: 0.55,
+  drink: 0.38,
   whoosh: 0.4,
   shoot: 0.45,
   arrowHit: 0.5,
@@ -162,19 +162,10 @@ export class Sfx {
         tone(this.ctx, dest, detune(480), t + 0.012, { attack: 0.01, decay: 0.2, peak: v * 0.5 }, 'sine', detune(270));
         break;
       case 'drink':
-        // 「咕咕」吞咽贯穿整轮喝水:八声水泡音由低滑高,间隔铺满约 2 秒的喝水时长
-        for (let i = 0; i < 8; i++) {
-          tone(
-            this.ctx,
-            dest,
-            detune(220 + i * 22),
-            t + i * 0.23,
-            { attack: 0.008, decay: 0.06, peak: v * (0.95 - i * 0.08) },
-            'sine',
-            detune(220 + i * 22) * 1.9
-          );
-          noiseBurst(this.ctx, dest, t + i * 0.23, { attack: 0.003, decay: 0.04, peak: v * 0.22 }, 'bandpass', 900, 500);
-        }
+        // 单口啜饮:柔和的液体摩擦与短吞咽,约 0.25 秒内收完,由交互节奏触发。
+        noiseBurst(this.ctx, dest, t, { attack: 0.025, decay: 0.13, peak: v * 0.42 }, 'bandpass', detune(1050), 720, 0.7);
+        noiseBurst(this.ctx, dest, t + 0.1, { attack: 0.015, decay: 0.08, peak: v * 0.3 }, 'bandpass', detune(520), 380, 0.9);
+        tone(this.ctx, dest, detune(260), t + 0.11, { attack: 0.012, decay: 0.075, peak: v * 0.12 }, 'sine', 210);
         break;
       case 'whoosh':
         noiseBurst(this.ctx, dest, t, { attack: 0.05, decay: 0.25, peak: v }, 'bandpass', 600, 2400);
