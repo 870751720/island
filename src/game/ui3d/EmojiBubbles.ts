@@ -5,7 +5,7 @@ const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
 const HEAD_Y = 3.44;
-const SIZE = 0.88;
+const SIZE = 1.188;
 const ASPECT = 1.25;
 
 interface Bubble {
