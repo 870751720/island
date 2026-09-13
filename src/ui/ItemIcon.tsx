@@ -6,16 +6,17 @@ import { ITEMS } from '@/game/systems/Items';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { CUSTOM_ICONS } from './icons/CustomIcons';
+import { HandIcon } from './icons/ClayIcons';
 
 /** 非道具型手持项的回退 emoji(有对应道具的工具一律走 ItemIcon,与背包图标保持一致) */
 const TOOL_FALLBACK_ICONS: Partial<Record<HandTool, string>> = {
-  hand: '✋',
   fence: '🚧',
   place: '📦',
 };
 
-/** 手持工具图标:有对应道具的走 ItemIcon(自绘/emoji 与背包一致),其余用回退 emoji */
+/** 手持工具图标:空手自绘,道具走 ItemIcon,其余用回退 emoji */
 export function ToolIcon({ tool, size = 24 }: { tool: HandTool; size?: number }) {
+  if (tool === 'hand') return <HandIcon size={size} />;
   return tool in ITEMS ? (
     <ItemIcon kind={tool as ResourceKind} size={size} />
   ) : (

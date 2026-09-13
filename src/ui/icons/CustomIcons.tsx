@@ -423,16 +423,6 @@ const IronOreIcon: FC<IconProps> = ({ size }) => (
   </Svg>
 );
 
-/** 铁锭:经典梯形锭,顶面亮、侧面暗 */
-const IronIngotIcon: FC<IconProps> = ({ size }) => (
-  <Svg size={size}>
-    <polygon points="14,42 50,42 44,24 20,24" fill="#aab4bc" />
-    <polygon points="20,24 44,24 42,20 22,20" fill="#c7d0d7" />
-    <polygon points="50,42 44,24 42,20 46,26 51,43" fill="#7d8790" />
-    <rect x={24} y={30} width={14} height={3} rx={1.5} fill="#e7edf1" opacity={0.8} />
-  </Svg>
-);
-
 /** 蚯蚓:叶片旁的 C 形粉蚯蚓 */
 const WormIcon: FC<IconProps> = ({ size }) => (
   <Svg size={size}>
@@ -694,7 +684,6 @@ const PumpkinSeedIcon: FC<IconProps> = (p) => <CropSeedIcon {...p} color="#e0862
 export const CUSTOM_ICONS: Partial<Record<ResourceKind, FC<IconProps>>> = {
   branch: BranchIcon,
   flint: FlintIcon,
-  ironIngot: IronIngotIcon,
   worm: WormIcon,
   adventureBook: AdventureBookIcon,
   axe: AxeIcon,
