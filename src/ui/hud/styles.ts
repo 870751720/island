@@ -5,7 +5,11 @@ export const hudStyles = `
 ${hudControlStyles}
 .hud-top-edge{top:max(7px,env(safe-area-inset-top))}
 .hud-status{position:absolute;container:hud-status / inline-size;left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:4px;right:calc(max(10px,env(safe-area-inset-right)) + var(--hud-right-reserve));pointer-events:none;box-sizing:border-box;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;color:#49665e}
+.hud-status-stack{width:118px;flex-shrink:0;display:flex;flex-direction:column;gap:6px}
 .hud-status-card{box-sizing:border-box;width:118px;flex-shrink:0;padding:3px 4px 4px;border:1px solid #fff9e8b3;border-radius:14px;background:linear-gradient(145deg,#fff9e4d9,#e2ecdad1);box-shadow:0 3px 9px #314c3e20,inset 0 1px 0 #ffffff99}
+.quest-card{box-sizing:border-box;width:min(174px,calc(100vw - var(--hud-right-reserve) - 28px));min-height:44px;border:1px solid #fff9e8b3;border-radius:14px;padding:9px 10px;background:linear-gradient(145deg,#fff9e4e8,#e2ecdae0);box-shadow:0 3px 9px #314c3e20;pointer-events:auto;touch-action:manipulation;cursor:pointer;text-align:left;color:#49665e;font-family:inherit;display:flex;flex-direction:column;gap:5px}
+.quest-card:active{background:#edf1db}.quest-card strong{font-size:13px;line-height:1.4}.quest-caption{display:flex;justify-content:space-between;font-size:10px;color:#758572}.quest-progress{display:flex;flex-wrap:wrap;gap:2px 6px;font-size:10px;line-height:1.5}.quest-hint{font-size:11px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.quest-reward{display:flex;align-items:center;gap:6px;font-size:10px;color:#7d805e}.quest-reward>span{display:inline-flex;align-items:center;gap:2px}
+@media(orientation:landscape) and (max-height:500px){.quest-card{padding:6px 8px;gap:2px}.quest-card .quest-hint,.quest-card .quest-reward{display:none}}
 .hud-bottles{position:relative;display:flex;width:108px;height:55px}
 .hud-bottle-canvas{position:absolute;left:0;top:0;width:108px;height:48px;pointer-events:none;opacity:0}
 .hud-bottle-canvas.is-ready{opacity:1}
@@ -33,7 +37,7 @@ ${hudControlStyles}
 @keyframes hud-context-cue{from{opacity:.8;transform:scale(.98)}to{opacity:0;transform:scale(1.14)}}
 @keyframes hud-low{50%{opacity:.5}}
 @media(hover:hover){.hud-control:hover:not(:disabled){background:linear-gradient(145deg,#fffdf0,#eaf1de)}}
-@container hud-status (max-width:148px){.hud-status-card{order:1}.hud-buffs{flex-basis:100%}}
+@container hud-status (max-width:148px){.hud-status-stack{order:1}.hud-buffs{flex-basis:100%}}
 @media(orientation:landscape) and (max-height:500px){.hud-backpack,.hud-tool{top:auto;bottom:max(30px,env(safe-area-inset-bottom))}.hud-backpack{right:calc(max(16px,env(safe-area-inset-right)) + 86px)}}
 @media(prefers-reduced-motion:reduce){.hud-control,.hud-control *,.hud-status *,.hud-panel-enter{animation:none!important;transition:none!important}.hud-hold-ring rect{stroke-dashoffset:0}}
 `;

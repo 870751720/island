@@ -1,3 +1,4 @@
+import { QuestProgress } from '../quests/QuestProgress';
 import { Player } from '../entities/Player';
 import { SurvivalSystem } from '../systems/SurvivalSystem';
 import { Inventory } from '../systems/Inventory';
@@ -26,6 +27,7 @@ export class PlayerSession implements Actor {
   name: string;
   readonly nameTag: PlayerNameTag;
   readonly player: Player;
+  readonly quests = new QuestProgress();
   readonly survival = new SurvivalSystem();
   readonly inventory = new Inventory();
   readonly equipment = new Equipment();

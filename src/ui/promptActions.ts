@@ -1,3 +1,4 @@
+import { questRecipePriority } from './questRecipe';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots } from '@/game/systems/Inventory';
 import {
@@ -32,6 +33,8 @@ export function topHandRecipe(hud: HudSnapshot, dismissedRecipes?: ReadonlySet<s
       })
   );
   if (candidates.length === 0) return null;
+  candidates.sort((a,b)=>questRecipePriority(hud,b.id)-questRecipePriority(hud,a.id));
+  if (questRecipePriority(hud,candidates[0].id)>0) return candidates[0];
   return candidates.reduce((a, b) =>
     (b.promptPriority ?? Number.MAX_SAFE_INTEGER) < (a.promptPriority ?? Number.MAX_SAFE_INTEGER) ? b : a
   );

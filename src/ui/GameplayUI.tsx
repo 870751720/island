@@ -264,6 +264,7 @@ export function GameplayUI({
       )}
       {settingsOpen && (
         <SettingsPanel
+          onQuestGuide={enabled => gameRef.current?.setQuestGuide(enabled)}
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
           onExit={onExit}
           onClose={() => setSettingsOpen(false)}

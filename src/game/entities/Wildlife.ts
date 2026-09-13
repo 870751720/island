@@ -916,6 +916,10 @@ export class Wildlife implements Updatable {
   }
 
   /** 渲染绳子用:当前所有被拴/被牵的羊与锚点信息(房主读权威状态,客人读快照镜像) */
+  guideSheep(): { x: number; z: number }[] {
+    return this.animals.filter(a => a.alive && !a.hidden && !a.leash && !a.netLeash && a.species === 'sheep').map(a => a.pos);
+  }
+
   leashedInfos(): { id: number; x: number; z: number; pose: LeashPose | null }[] {
     return this.animals
       .filter((a) => a.alive && (a.leash || a.netLeash))

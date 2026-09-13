@@ -1,4 +1,5 @@
 'use client';
+import { loadQuestGuide } from '@/game/quests/QuestSettings';
 import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
@@ -52,6 +53,7 @@ export type MultiplayerSection = {
  * 以及「返回主界面」(由外层卸载游戏回到开始界面)。
  */
 export function SettingsPanel({
+  onQuestGuide,
   onApply,
   onExit,
   onClose,
@@ -59,6 +61,7 @@ export function SettingsPanel({
   multiplayer,
 }: {
   /** 音量变化时热应用到 GameAudio 并持久化 */
+  onQuestGuide: (enabled: boolean) => void;
   onApply: (settings: { music: number; sfx: number }) => void;
   onExit: () => void;
   onClose: () => void;
@@ -67,6 +70,7 @@ export function SettingsPanel({
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
 }) {
+  const [guide,setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
     setSettings(next);
@@ -104,6 +108,8 @@ export function SettingsPanel({
         style={{
           width: 'min(calc(100vw - 72px), 340px)',
           padding: 20,
+          maxHeight: '85dvh',
+          overflowY: 'auto',
           ...gamePanelStyle,
           borderRadius: 22,
           boxShadow: gameTheme.shadow,
@@ -123,6 +129,10 @@ export function SettingsPanel({
           value={settings.sfx}
           onChange={(v) => apply({ ...settings, sfx: v })}
         />
+        <label style={{display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:44,color:gameTheme.ink,fontSize:15}}>
+          显示任务指引
+          <input type="checkbox" checked={guide} onChange={e=>{setGuide(e.target.checked);onQuestGuide(e.target.checked);}} style={{width:44,height:44,accentColor:gameTheme.accent}} />
+        </label>
         <button
           onClick={onEnterPhotoMode}
           style={{

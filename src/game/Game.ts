@@ -108,6 +108,8 @@ import type { MetaNodeId } from './meta/MetaTree';
 import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } from './meta/MetaHooks';
 import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
+import { QuestGuidance } from './quests/QuestGuidance';
+import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
 import { buildMapSnapshot, buildMapTerrain } from './systems/MapSnapshotBuilder';
 import {
@@ -161,6 +163,8 @@ export class Game {
   /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
   private leashLines: LeashLines;
   private audio = new GameAudio();
+  private questTimer = 0;
+  private questGuidance!: QuestGuidance;
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
   private worldSaveSystems: WorldSaveSystems;
@@ -805,7 +809,7 @@ export class Game {
       this.audio,
       this.fx,
       () => this.syncToolTiers(this.local),
-      (snapshot) => this.onHud(snapshot),
+      (snapshot) => this.presentHud(snapshot),
       () => ({
         autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
         notice: this.notice,
@@ -1125,6 +1129,16 @@ export class Game {
         this.updateCamera(delta);
         this.emojiBubbles.update(simDelta);
         this.ocean.update(this.camera, elapsed);
+        this.questTimer += simDelta;
+        if (!this.guestMode && this.questTimer >= 0.25) {
+          const benchLevel = Math.max(0, ...this.workbench.snapshot().map(b => b.level));
+          const furDropped = this.drops.snapshot().some(drop => drop.kind === 'fur');
+          for (const session of this.sessions) {
+            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped);
+          }
+          this.questTimer = 0;
+        }
+        this.questGuidance.update(delta, this.local, this.cameraController.photoActive);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
         this.renderer.render(this.scene, this.camera);
@@ -1222,6 +1236,8 @@ export class Game {
     });
 
     this.applySave(save);
+    this.local.quests.enabled = loadQuestGuide();
+    this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops);
     // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
     const profile = loadProfile();
     if (profile) this.local.player.setGender(profile.gender);
@@ -1605,6 +1621,8 @@ export class Game {
 
   /** 客人侧:应用房主为本客人生成的 HUD 快照(同时回填本地背包供近旁判定用) */
   netApplyHud(snap: HudSnapshot): void {
+    this.local.quests.view = snap.quests ?? null;
+    if (snap.quests && snap.quests.enabled !== loadQuestGuide()) this.guestNet?.action('questGuide', [loadQuestGuide()]);
     this.guestHud.apply(snap);
   }
 
@@ -1897,7 +1915,17 @@ export class Game {
     };
   }
 
-  /** 设置面板调整音量后热应用(音乐/音效两条总线)并持久化 */
+  /** 本机显示偏好；远程玩家仅控制自己的任务奖励发放。 */
+  setQuestGuide(enabled: boolean, actor: PlayerSession = this.local): boolean {
+    if (actor === this.local) saveQuestGuide(enabled);
+    if (this.guestNet) return this.guestNet.action('questGuide', [enabled]);
+    actor.quests.enabled = enabled;
+    if (actor.quests.view) actor.quests.view = { ...actor.quests.view, enabled };
+    if (actor === this.local) { this.hudTimer = 1; this.pushHud(0); }
+    return true;
+  }
+
+  /** 设置面板调整音量后热应用并持久化。 */
   setAudioSettings(settings: AudioSettings): void {
     this.audio.setVolumes(settings.music, settings.sfx);
     saveAudioSettings(settings);
@@ -2791,7 +2819,11 @@ export class Game {
     // 工具类掉落物(死亡掉落的斧/镐等)捡回即重新点亮对应等级,不进背包
     return this.drops.pickupNearby(a, (d) => {
       if (d.kind === 'arrow' || d.kind === 'bait') return a.ammo.add(d.kind, d.count);
-      if (!(TOOL_IDS as string[]).includes(d.kind)) return a.inventory.add(d.kind, d.count);
+      if (!(TOOL_IDS as string[]).includes(d.kind)) {
+        const added = a.inventory.add(d.kind, d.count);
+        if (near.source === 'loot') a.quests.collected(d.kind, added);
+        return added;
+      }
       const tool = d.kind as ToolId;
       a.tools[tool] = Math.max(a.tools[tool], d.tier ?? 1);
       this.syncToolTiers(a);
@@ -2988,6 +3020,7 @@ export class Game {
     player.setObstacles(this.props, this.fences);
     this.scene.add(player.group);
     const session = new PlayerSession(player, id, name);
+    session.quests.enabled = false; // 等客人同步本机偏好后再发放待领奖励。
     session.nameTag.sprite.visible = true;
     this.attachSessionSystems(session);
     this.sessions.push(session);
@@ -3119,7 +3152,8 @@ export class Game {
       // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现
       () => this.sessions.map((session) => session.player.group.position),
       // 局外养成「采集·巧匠」
-      this.collectMetaFor()
+      this.collectMetaFor(),
+      (kind, count) => s.quests.collected(kind, count)
     );
     s.milk = new SheepMilkSystem(
       s.player,
@@ -3144,7 +3178,8 @@ export class Game {
       (kind) => {
         if (kind !== 'torch' && kind !== 'campfire' && kind !== 'workbench1') return;
         this.setToolFor(s, this.autoPlace.toolOf(kind) ?? 'place', kind);
-      }
+      },
+      (id) => s.quests.crafted(id)
     );
     s.eating = new EatingSystem(s.player, s.inventory, s.survival, this.fx, this.audio, (food) => {
       // 喝酒附带限时增益:舒爽状态下再喝转为晕晕的
@@ -3324,6 +3359,7 @@ export class Game {
       s.nameTag.dispose();
       s.player.dispose();
     }
+    this.questGuidance.dispose();
     this.emojiBubbles.dispose();
     this.drops.dispose();
     this.leashLines.dispose();
@@ -3348,6 +3384,11 @@ export class Game {
     this.renderer.domElement.remove();
   }
 
+  private presentHud(snapshot: HudSnapshot): void {
+    const quests = snapshot.quests;
+    this.onHud({ ...snapshot, quests: quests ? { ...quests, enabled: loadQuestGuide(), navigationHint: this.questGuidance?.hint } : null });
+  }
+
   private pushHud(delta: number): void {
     this.hudTimer += delta;
     // 钓鱼阶段变化(尤其咬钩)与连点计数立即推送,保证反应窗口反馈及时
@@ -3368,7 +3409,7 @@ export class Game {
     if (this.hudTimer < 0.25 && !fishingChanged && !clicksChanged && !busyChanged && !movingChanged)
       return;
     this.hudTimer = 0;
-    this.onHud({ ...this.snapshotHud(this.local, busy), notice: this.notice });
+    this.presentHud({ ...this.snapshotHud(this.local, busy), notice: this.notice });
   }
 
   /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发;notice 是房主本地提示,不下发) */

@@ -1,3 +1,4 @@
+import type { QuestView } from './quests/QuestDefinitions';
 import type { PlayerGender } from './entities/PlayerModel';
 import type { HandTool } from './entities/Player';
 import type { BaitBarrelInfo } from './systems/BaitBarrelSystem';
@@ -16,6 +17,7 @@ import type { SmelterInfo } from './systems/SmelterSystem';
 
 /** 游戏层与 React、网络层共享的只读 HUD 契约。 */
 export type HudSnapshot = {
+  quests?: QuestView | null;
   hunger: number;
   thirst: number;
   health: number;

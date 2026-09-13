@@ -8,6 +8,7 @@ import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/s
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, foodVerb } from '@/game/systems/Food';
 import { CROP_OF_SEED } from '@/game/entities/Crop';
+import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
@@ -236,7 +237,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
     (r) =>
       r.station === 'hand' &&
       recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots, undefined, true)
-  );
+  ).sort((a,b)=>questRecipePriority(hud,b.id)-questRecipePriority(hud,a.id));
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
   const openTip = (e: React.PointerEvent, content: React.ReactNode) => {
@@ -528,10 +529,10 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                   </div>
                 )}
                 {craftables.map((r) => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px' }}>
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 10, ...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{}) }}>
                     <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={22} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div>{r.name}</div>
+                      <div>{r.name} {questRecipePriority(hud,r.id)>0 && <small style={{color:gameTheme.accent}}>当前任务</small>}</div>
                       <div style={{ fontSize: 12, color: gameTheme.muted }}>
                         {Object.entries(r.cost)
                           .filter(([, n]) => !!n)

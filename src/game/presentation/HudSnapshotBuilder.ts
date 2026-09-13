@@ -57,6 +57,7 @@ export class HudSnapshotBuilder {
     const leading = s.wildlife.leashedBy(session.player) !== null;
     return {
       ...session.survival.state,
+      quests: session.quests.view,
       arrow: session.ammo.count('arrow'),
       bait: session.ammo.count('bait'),
       heldFenceCount: session.player.currentTool === 'fence'

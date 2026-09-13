@@ -1,3 +1,4 @@
+import { QuestPanel } from './QuestPanel';
 import { gameTheme } from './gameTheme';
 import { useState, type CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
@@ -22,9 +23,12 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
   const season = SEASONS[hud.season];
   return (
     <div className="hud-status hud-top-edge" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+      <div className="hud-status-stack">
       <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
       <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
+      </div>
+      {!hud.dead && <QuestPanel quest={hud.quests} />}
       </div>
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">

@@ -1,3 +1,4 @@
+import type { QuestSave } from '../quests/QuestDefinitions';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { CraftId, ToolId } from './Crafting';
@@ -40,6 +41,7 @@ export type PropSave = {
 
 /** 一名玩家的会话进度(位置/生存/背包/工具/穿戴);联机时房主为每个远程玩家各存一份 */
 export type SessionSave = {
+  quests?: QuestSave;
   id: string;
   name: string;
   gender: PlayerGender;
@@ -63,6 +65,7 @@ export type PlacementSave = { id?: string; x: number; y: number; z: number; rotY
 
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {
+  quests?: QuestSave;
   version: number;
   id: string;
   name: string;

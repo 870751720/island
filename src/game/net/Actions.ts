@@ -13,6 +13,7 @@ type NetAction<Name extends NetActionName> = (
 type NetActionRegistry = { [Name in NetActionName]: NetAction<Name> };
 
 const ACTIONS: NetActionRegistry = {
+  questGuide: (g, a, [enabled]) => g.setQuestGuide(enabled, a),
   tool: (g, a, [tool, placeKind]) => {
     // 走 Game 的统一入口:切走套索时先松开正牵着的羊;可放置道具携带具体种类
     g.setToolFor(a, tool, placeKind ?? undefined);

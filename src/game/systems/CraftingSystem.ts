@@ -30,7 +30,8 @@ export class CraftingSystem {
     /** 已制作配方记录(完成时写入,供图鉴标记与存档) */
     private craftedIds: Set<CraftId> = new Set(),
     /** 非工具产物完成时的回调(设施道具自动拿在手上等,由外层决定) */
-    private onOutput?: (kind: ResourceKind) => void
+    private onOutput?: (kind: ResourceKind) => void,
+    private onCrafted?: (id: CraftId) => void
   ) {}
 
   start(recipe: Recipe, count = 1): boolean {
@@ -86,8 +87,14 @@ export class CraftingSystem {
       this.fx.burst(p, FX_COLOR, 5);
     }
     if (this.timer >= CRAFT_TIME) {
+      if (!this.canAfford(recipe, 1) || !this.canMake(recipe)) {
+        this.cancel();
+        this.endWork();
+        return;
+      }
       craft(recipe, this.inventory, this.tools, this.give, this.equipment);
       this.craftedIds.add(recipe.id);
+      this.onCrafted?.(recipe.id);
       // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
       // 铲子/锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖产物或误开出土壤
       if (recipe.tool) {

@@ -1,4 +1,5 @@
 'use client';
+import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
@@ -51,10 +52,10 @@ export function WorkbenchPanel({
     (r) =>
       r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      (visible(r) || !crafted.has(r.id))
+      (visible(r) || !crafted.has(r.id) || questRecipePriority(hud,r.id) > 0)
   ).sort(
     (a, b) =>
-      Number(visible(b)) - Number(visible(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
+      questRecipePriority(hud,b.id) - questRecipePriority(hud,a.id) || Number(visible(b)) - Number(visible(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
   );
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
@@ -101,6 +102,39 @@ export function WorkbenchPanel({
             <MenuIcon name="book" /> 合成图鉴
           </button>
         </div>
+        {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
+          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(hud.quests?.enabled && hud.quests.active === 9 ? questRecipeStyle : {}) }}>
+            <MenuIcon name="upgrade" size={26} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div>升级到 Lv.{hud.workbenchLevel + 1} {hud.quests?.enabled && hud.quests.active === 9 && <small>当前任务</small>}</div>
+              <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
+                {upgradeHint ?? costLabel(upgradeCost)}
+              </div>
+            </div>
+            <button
+              style={craftButtonStyle(upgradeReady)}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                if (upgradeReady) {
+                  if (onUpgrade()) onClose();
+                } else {
+                  setUpgradeHint(
+                    `还缺:${costLabel(
+                      Object.fromEntries(
+                        Object.entries(upgradeCost).map(([kind, n]) => [
+                          kind,
+                          Math.max((n ?? 0) - (upgradeCounts[kind as ResourceKind] ?? 0), 0),
+                        ])
+                      )
+                    )}`
+                  );
+                }
+              }}
+            >
+              {upgradeReady ? '升级' : '材料不足'}
+            </button>
+          </div>
+        )}
         <div style={listStyle}>
           {recipes.length === 0 && (
             <div style={{ fontSize: 13, color: gameTheme.muted, padding: '6px 0' }}>
@@ -112,10 +146,10 @@ export function WorkbenchPanel({
             const count = isSingleCraft(r) ? 1 : Math.min(counts[r.id] ?? 1, max);
             const ownedTools = toolsOf(hud);
             return (
-              <div key={r.id} style={rowStyle}>
+              <div key={r.id} style={{...rowStyle,...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{})}}>
                 <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div>{r.name}</div>
+                  <div>{r.name} {questRecipePriority(hud,r.id)>0 && <small style={{color:gameTheme.accent}}>当前任务</small>}</div>
                   <div style={{ fontSize: 12, color: gameTheme.muted }}>
                         {recipeCostLabel(r)}
                         {r.output && count > 1 ? ` ×${count}` : ''}
@@ -164,39 +198,6 @@ export function WorkbenchPanel({
             );
           })}
         </div>
-        {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
-          <div style={{ ...rowStyle, marginTop: 10, background: gameTheme.selected }}>
-            <MenuIcon name="upgrade" size={26} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div>升级到 Lv.{hud.workbenchLevel + 1}</div>
-              <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
-                {upgradeHint ?? costLabel(upgradeCost)}
-              </div>
-            </div>
-            <button
-              style={craftButtonStyle(upgradeReady)}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (upgradeReady) {
-                  if (onUpgrade()) onClose();
-                } else {
-                  setUpgradeHint(
-                    `还缺:${costLabel(
-                      Object.fromEntries(
-                        Object.entries(upgradeCost).map(([kind, n]) => [
-                          kind,
-                          Math.max((n ?? 0) - (upgradeCounts[kind as ResourceKind] ?? 0), 0),
-                        ])
-                      )
-                    )}`
-                  );
-                }
-              }}
-            >
-              {upgradeReady ? '升级' : '材料不足'}
-            </button>
-          </div>
-        )}
         <button style={closeButtonStyle} onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
           关闭
         </button>

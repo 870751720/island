@@ -10,7 +10,7 @@ import {
 } from '../world/TreeSpecies';
 import type { CollectMeta } from '../meta/MetaHooks';
 import { NO_COLLECT_META } from '../meta/MetaHooks';
-import { Inventory } from './Inventory';
+import { Inventory, countsFromSlots, type ResourceKind } from './Inventory';
 import type { Tools } from './Crafting';
 import { axeHits, shovelHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
 import type { Particles } from '../fx/Particles';
@@ -210,7 +210,8 @@ export class CollectSystem {
     /** 自然补种选点时需要避开的玩家位置(防树苗在玩家面前凭空出现穿帮) */
     private seedAvoidPlayers: () => readonly Vector3[] = () => [],
     /** 局外养成「采集·巧匠」加成(单机生效,联机为空实现) */
-    private meta: CollectMeta = NO_COLLECT_META
+    private meta: CollectMeta = NO_COLLECT_META,
+    private onCollected?: (kind: ResourceKind, count: number) => void
   ) {}
 
   /** 手持铲子靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
@@ -339,6 +340,7 @@ export class CollectSystem {
       this.hitCounts.set(prop, hits);
       return;
     }
+    const before = countsFromSlots(this.inventory.snapshot());
     this.hitCounts.delete(prop);
     this.onYield(prop.position);
     const kind = this.kindOf(prop);
@@ -368,6 +370,11 @@ export class CollectSystem {
       }
     }
     this.applyMetaYield(prop, kind, config);
+    for (const [resource, count] of Object.entries(countsFromSlots(this.inventory.snapshot()))) {
+      const k = resource as ResourceKind;
+      const gained = count - (before[k] ?? 0);
+      if (gained > 0) this.onCollected?.(k, gained);
+    }
     this.fx.burst(prop.position, config.fxColor, 14);
     this.onFx(prop.position, config.fxColor, 14);
     this.nearby = null;
