@@ -65,6 +65,14 @@ export function getSeasonTint(): { dry: number; autumn: number } {
   return { dry: dryAmount.value, autumn: autumnAmount.value };
 }
 
+/** 开局直接对齐本局季节,清除上一局残留的积雪与植被颜色。 */
+export function resetSeasonVisuals(): void {
+  const targets = SEASON_TARGETS[GmSystem.season === 'auto' ? getSeason() : GmSystem.season];
+  dryAmount.value = targets.dry;
+  autumnAmount.value = targets.autumn;
+  snowAmount.value = targets.snow;
+}
+
 /** 每帧驱动:各系数向目标季节(GM 覆盖或真实季节)平滑过渡(需主机与客人各自本地执行) */
 export function updateSeasonVisuals(delta: number): void {
   const targets = SEASON_TARGETS[GmSystem.season === 'auto' ? getSeason() : GmSystem.season];

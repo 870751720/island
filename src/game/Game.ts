@@ -98,7 +98,7 @@ import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { Clouds } from './world/Clouds';
 import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
-import { updateSeasonVisuals } from './world/SeasonVisuals';
+import { resetSeasonVisuals, updateSeasonVisuals } from './world/SeasonVisuals';
 import { SEED_OF } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
@@ -359,6 +359,11 @@ export class Game {
       : options.save !== undefined
         ? options.save
         : SaveSystem.load();
+    // 在天气、地形与角色初始化前确定本局季节,避免沿用上一局状态。
+    if (save) setSeason(save.season ?? 'spring', save.seasonStartDay ?? 1);
+    else if (this.guestMode) setSeason('spring', 1);
+    else rollInitialSeason();
+    resetSeasonVisuals();
     this.terrainSeed = seeds?.terrainSeed ?? save?.terrainSeed ?? Math.random() * 1000;
     this.mumbles = new MumbleSystem((_trigger, text) => {
       this.mumbleText = text;
@@ -1819,11 +1824,7 @@ export class Game {
 
   /** 有存档时恢复全部进度(位置、背包、工具、生存、昼夜、资源点与摆件) */
   private applySave(save: SaveData | null): void {
-    // 新开局掷初始季节:91% 春季第一天,夏/秋/冬各 3%(读档路径在 restoreWorld 恢复)
-    if (!save) {
-      rollInitialSeason();
-      return;
-    }
+    if (!save) return;
     if (this.guestMode) {
       // 客人:按房主会话顺序重放,自己的那份落到本地会话(其余建为遥控玩家)
       const all = [save as SessionSave, ...save.others];
@@ -2965,6 +2966,9 @@ export class Game {
   }
 
   start(): void {
+    // 首帧即发布真实季节和已恢复的玩家状态,客人随后由房主 HUD 接管。
+    this.hudTimer = 1;
+    this.pushHud(0);
     // 音频须在用户手势(点击开始)后启动,这里由 GameplayUI 在手势链路中调用
     this.audio.start();
     // 相机直接落位到玩家出生点,否则会从世界原点收敛,开局出现镜头突变
