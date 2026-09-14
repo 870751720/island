@@ -108,6 +108,7 @@ import type { MetaNodeId } from './meta/MetaTree';
 import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } from './meta/MetaHooks';
 import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
+import { ThirstGuidance } from './systems/ThirstGuidance';
 import { QuestGuidance } from './quests/QuestGuidance';
 import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
@@ -165,6 +166,7 @@ export class Game {
   private audio = new GameAudio();
   private questTimer = 0;
   private questGuidance!: QuestGuidance;
+  private thirstGuidance!: ThirstGuidance;
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
   private worldSaveSystems: WorldSaveSystems;
@@ -1102,7 +1104,9 @@ export class Game {
         this.cookingStations.update(simDelta, elapsed, !this.guestMode, this.weather.rainIntensity);
     this.looms.update(simDelta, elapsed, !this.guestMode);
         this.drops.update(simDelta, elapsed);
+        this.thirstGuidance.update(delta, this.local, this.cameraController.photoActive);
         this.mumbles.update(delta, {
+          nearDrinkPoint: this.thirstGuidance.nearDrinkPoint,
           elapsed,
           dead: this.survival.state.dead,
           hunger: this.survival.state.hunger,
@@ -1141,7 +1145,7 @@ export class Game {
           }
           this.questTimer = 0;
         }
-        this.questGuidance.update(delta, this.local, this.cameraController.photoActive);
+        this.questGuidance.update(delta, this.local, this.cameraController.photoActive, this.thirstGuidance.active);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
         this.renderer.render(this.scene, this.camera);
@@ -1242,6 +1246,7 @@ export class Game {
 
     this.applySave(save);
     this.local.quests.enabled = loadQuestGuide();
+    this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
     this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire);
     // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
     const profile = loadProfile();
@@ -3369,6 +3374,7 @@ export class Game {
       s.player.dispose();
     }
     this.questGuidance.dispose();
+    this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
     this.drops.dispose();
     this.leashLines.dispose();

@@ -9,6 +9,7 @@ export type MumbleContext = {
   dead: boolean;
   hunger: number;
   thirst: number;
+  nearDrinkPoint: boolean;
   health: number;
   phase: DayPhase;
   day: number;
@@ -50,6 +51,7 @@ type TriggerRule = {
 };
 
 const TRIGGER_RULES: TriggerRule[] = [
+  { id: 'drinkCloser', cooldown: 10, test: c => c.thirst <= 0 && c.nearDrinkPoint },
   {
     // 天数事件「熊之夜」的白天铺垫(事件日当天最多说一句;判定与房主端结算共用同一份日程表)
     id: 'bearNight',
@@ -181,7 +183,7 @@ export class MumbleSystem {
     this.globalTimer += delta;
     this.cooldowns.forEach((t, id) => this.cooldowns.set(id, t - delta));
 
-    if (ctx.dead || this.globalTimer < GLOBAL_INTERVAL) {
+    if (ctx.dead || this.globalTimer < (ctx.nearDrinkPoint ? 10 : GLOBAL_INTERVAL)) {
       this.sustainTimers.clear();
       // 冷却期里也要刷新边沿状态,避免短事件(如陨石)被漏检
       for (const rule of TRIGGER_RULES) {
@@ -191,6 +193,7 @@ export class MumbleSystem {
     }
 
     for (const rule of TRIGGER_RULES) {
+      if (rule.id !== 'drinkCloser' && this.globalTimer < GLOBAL_INTERVAL) continue;
       if (rule.once && this.firedOnce.has(rule.id)) continue;
       if (rule.oncePerDay && this.firedDay.get(rule.id) === ctx.day) continue;
       if ((this.cooldowns.get(rule.id) ?? 0) > 0) {

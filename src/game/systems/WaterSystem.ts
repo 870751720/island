@@ -1,3 +1,4 @@
+import { isDrinkablePond } from './WaterAccess';
 import type { Player } from '../entities/Player';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { SurvivalSystem } from './SurvivalSystem';
@@ -22,7 +23,7 @@ export class WaterSystem {
 
   update(delta: number, harvestBusy: boolean, nearPurifier = false): void {
     const p = this.player.group.position;
-    const standingInPond = this.terrain.getWaterKind(p.x, p.z) === 'pond' && !this.player.isSwimming;
+    const standingInPond = isDrinkablePond(this.terrain, p.x, p.z) && !this.player.isSwimming;
     const thirsty = this.survival.state.thirst < 99;
     this.active =
       (standingInPond || nearPurifier) && thirsty && !this.player.isMoving && !harvestBusy;

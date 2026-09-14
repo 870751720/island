@@ -40,14 +40,14 @@ class Frontier {
 export class QuestRoute {
   private dry = new Map<string, boolean>();
   private cacheAge = 0;
-  constructor(private terrain: IslandTerrain) { }
+  constructor(private terrain: IslandTerrain, private passable = (x: number, z: number) => terrain.getWaterKind(x, z) === null) { }
 
   private isDry(x: number, z: number): boolean {
     const key = `${x},${z}`;
     const cached = this.dry.get(key);
     if (cached !== undefined) return cached;
     const ok = Math.abs(x) < this.terrain.halfWidth && Math.abs(z) < this.terrain.halfLength
-      && this.terrain.getWaterKind(x, z) === null;
+      && this.passable(x, z);
     if (this.dry.size >= 50000) this.dry.clear();
     this.dry.set(key, ok);
     return ok;

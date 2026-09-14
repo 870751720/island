@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SWIM_DEPTH } from '../systems/WaterAccess';
 import type { Updatable } from '../core/GameLoop';
 import { MoveInput } from '../core/MoveInput';
 import { IslandTerrain } from '../world/IslandTerrain';
@@ -16,8 +17,6 @@ const MOVE_SPEED = 5;
 /** 每走多远留一枚脚印(约一步) */
 const STEP_DISTANCE = 0.55;
 const SWIM_SPEED = 2.6;
-/** 水深超过该值才进入游泳(更浅处涉水,水可漫过裤腿);裤腿高约 0.55 */
-const SWIM_DEPTH = 0.6;
 const HURT_FLASH_TIME = 0.35;
 /** 玩家碰撞半径(与树、大石等静态阻挡做圆形推挤) */
 const PLAYER_RADIUS = 0.35;
