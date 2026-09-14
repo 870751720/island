@@ -1,8 +1,8 @@
-import { startBackdrop, menuActionColors } from './palette';
+import { menuBackdrop, menuActionColors, menuSurfaceColors } from './palette';
 import { islandSceneCss } from './sceneStyles';
 
 export const startScreenCss = `
-.start-screen{${menuActionColors}position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:${startBackdrop};color:#49665e;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
+.start-screen{${menuActionColors}${menuSurfaceColors}position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:${menuBackdrop};color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
 .start-screen *{box-sizing:border-box}
 .start-screen button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .16s,background .2s,box-shadow .16s}
 .start-screen button:active{transform:translateY(3px) scale(.98)}
@@ -19,7 +19,7 @@ export const startScreenCss = `
 .start-title{font-size:clamp(48px,14.2vw,64px);font-weight:900;line-height:1.1;letter-spacing:-2px;margin:0;color:#fff9e4;text-shadow:0 1px 0 #fffdf0,0 3px 0 #98a57c,0 5px 0 #688367,0 9px 15px #456f5430;white-space:nowrap;transform:rotate(-3deg)}
 .start-title>span{color:#f7d28f}
 .start-subtitle{font-size:11px;line-height:1.8;letter-spacing:.13em;color:#49665e;margin:15px 0 0}
-.menu-actions{position:relative;padding:18px 16px 7px;border:2px solid #fffce7c9;border-radius:24px;background:linear-gradient(145deg,#fff9e4f5,#dce8d6f5);box-shadow:0 5px 0 #a8b89a,0 13px 24px #314c3e20,inset 0 2px 0 #fffdf2;animation:menu-enter .55s .12s both;min-width:0}
+.menu-actions{position:relative;padding:18px 16px 7px;border:2px solid var(--menu-border);border-radius:24px;background:var(--menu-panel);box-shadow:var(--menu-shadow);animation:menu-enter .55s .12s both;min-width:0}
 .menu-save-label{display:flex;justify-content:space-between;gap:5px;align-items:center;margin:0 2px 12px;font-size:10px;color:#657761}
 .menu-save-label>span:first-child:before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:#729268;margin-right:6px}
 .menu-save-label>span:last-child{font-size:9px}
