@@ -1,5 +1,6 @@
 'use client';
 
+import { QuestCraftParticles } from './QuestCraftParticles';
 import type { PickerPress } from './usePickerDrag';
 import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -29,6 +30,7 @@ export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
 export function ToolButton({
   tool,
   pulse,
+  questWorkbench = false,
   workbench,
   campfire = false,
   crate = false,
@@ -63,6 +65,7 @@ export function ToolButton({
 }: {
   tool: HandTool;
   pulse: boolean;
+  questWorkbench?: boolean;
   /** 是否显示为工作台模式(靠近工作台) */
   workbench: boolean;
   /** 是否显示为火堆模式(靠近火堆) */
@@ -256,6 +259,7 @@ export function ToolButton({
       }}
       style={fadeStyle(dimmed)}
     >
+      {questWorkbench && workbench && !dimmed && <QuestCraftParticles radius={26} />}
       {(pulse || contextLabel) && <span key={contextLabel ?? 'equip'} className="hud-tool-cue" aria-hidden="true" />}
       {holding && <svg className="hud-hold-ring" viewBox="0 0 82 82" aria-hidden="true"><rect x="3" y="3" width="76" height="76" rx="26" pathLength="100" /></svg>}
       <span className="hud-tool-visual" key={`${tool}-${placeKind}-${contextLabel}`}>

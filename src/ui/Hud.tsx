@@ -14,9 +14,10 @@ const SEASONS = {
 } as const;
 
 /** 本地玩家状态瓶与增益区；为展开的小地图预留宽度。 */
-export function Hud({ hud, onHeartTap, rightReserve }: {
+export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate }: {
   hud: HudSnapshot;
   onHeartTap: () => void;
+  onQuestNavigate: () => void;
   rightReserve: number;
 }) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
@@ -28,7 +29,7 @@ export function Hud({ hud, onHeartTap, rightReserve }: {
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
       <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
       </div>
-      {!hud.dead && <QuestPanel quest={hud.quests} />}
+      {!hud.dead && <QuestPanel quest={hud.quests} onNavigate={onQuestNavigate} />}
       </div>
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">

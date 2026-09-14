@@ -1,4 +1,5 @@
 'use client';
+import { QuestCraftParticles } from './QuestCraftParticles';
 import { QUESTS } from '@/game/quests/QuestDefinitions';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { MenuIcon } from './icons/MenuIcons';
@@ -62,6 +63,7 @@ export function WorkbenchPanel({
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
   const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
   const upgradeCounts = materials;
+  const questUpgrade = !!hud.quests?.enabled && !hud.quests.finished && QUESTS[hud.quests.active]?.id === 'upgrade' && hud.workbenchLevel === 1;
   const upgradeReady = hasCost(upgradeCost, upgradeCounts);
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
@@ -104,10 +106,10 @@ export function WorkbenchPanel({
           </button>
         </div>
         {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
-          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(hud.quests?.enabled && QUESTS[hud.quests.active]?.id === 'upgrade' ? questRecipeStyle : {}) }}>
+          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(questUpgrade ? questRecipeStyle : {}) }}>
             <MenuIcon name="upgrade" size={26} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div>升级到 Lv.{hud.workbenchLevel + 1} {hud.quests?.enabled && QUESTS[hud.quests.active]?.id === 'upgrade' && <small>当前任务</small>}</div>
+              <div>升级到 Lv.{hud.workbenchLevel + 1} {questUpgrade && <small>当前任务</small>}</div>
               <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
                 {upgradeHint ?? costLabel(upgradeCost)}
               </div>
@@ -132,6 +134,7 @@ export function WorkbenchPanel({
                 }
               }}
             >
+              {questUpgrade && upgradeReady && <QuestCraftParticles radius={12} />}
               {upgradeReady ? '升级' : '材料不足'}
             </button>
           </div>
@@ -187,6 +190,7 @@ export function WorkbenchPanel({
                     if (max > 0) onCraft(r.id, Math.max(1, count));
                   }}
                 >
+                  {max > 0 && questRecipePriority(hud, r.id) > 0 && <QuestCraftParticles radius={12} />}
                   {max === 0
                     ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
                       ? '已拥有'
@@ -279,6 +283,8 @@ const stepButtonStyle: CSSProperties = {
 };
 
 const craftButtonStyle = (enabled: boolean): CSSProperties => ({
+  position: 'relative',
+  minHeight: 44,
   padding: '8px 14px',
   borderRadius: 10,
   ...gameButtonStyle,

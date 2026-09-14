@@ -5,6 +5,7 @@ export type MoveVector = { x: number; z: number };
 /** 合并键盘与虚拟摇杆的移动输入(非本地玩家的实例不挂键盘监听) */
 export class MoveInput {
   private keys = new Set<string>();
+  private automatic: MoveVector = { x: 0, z: 0 };
   private joystick: MoveVector = { x: 0, z: 0 };
 
   constructor(attach = true) {
@@ -22,7 +23,14 @@ export class MoveInput {
     this.joystick.z = z;
   }
 
+  setAutomatic(x: number, z: number): void { this.automatic = { x, z }; }
+
   getVector(out: THREE.Vector2): THREE.Vector2 {
+    this.getManualVector(out);
+    return out.lengthSq() > 0.001 ? out : out.set(this.automatic.x, this.automatic.z);
+  }
+
+  getManualVector(out: THREE.Vector2): THREE.Vector2 {
     let x = this.joystick.x;
     let z = this.joystick.z;
     if (this.keys.has('w') || this.keys.has('arrowup')) z -= 1;

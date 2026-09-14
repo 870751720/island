@@ -191,6 +191,8 @@ export function GameplayUI({
     isNearbyFacilityDiggable(hud);
   const promptVisibility = getPromptVisibility(hud, backpackOpen);
 
+  const questWorkbench = hud.nearWorkbench && hud.craftId === null && !digHijack
+    && !!hud.quests?.enabled && !hud.quests.finished && hud.quests.guide?.type === 'bench' && hud.workbenchLevel >= hud.quests.guide.level;
   return (
     <div
       ref={containerRef}
@@ -208,6 +210,7 @@ export function GameplayUI({
               <Hud
                 hud={hud}
                 onHeartTap={handleHeartTap}
+                onQuestNavigate={() => gameRef.current?.moveToQuest()}
                 rightReserve={mapOpen ? 190 : 100}
               />
         </>
@@ -353,6 +356,7 @@ export function GameplayUI({
             hud.nearLoom ||
             hud.nearBed) && (
             <ToolButton
+              questWorkbench={questWorkbench}
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
               workbench={hud.nearWorkbench && hud.craftId === null && !digHijack}
@@ -443,7 +447,7 @@ export function GameplayUI({
               placeCount={hud.heldPlaceCount}
               placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
-              dimmed={hud.busy}
+              dimmed={hud.busy && !questWorkbench}
               onLongPress={(press) => { setPickerPress(press); setPlacePickerOpen(true); }}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => openPanel('workbench')}

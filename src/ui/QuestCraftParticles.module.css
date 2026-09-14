@@ -11,7 +11,7 @@
   border-radius: 50%;
   background: #fff4be;
   box-shadow: 0 0 5px 2px #d6b56899;
-  offset-path: inset(-3px round 16px);
+  offset-path: inset(-3px round var(--orbit-radius, 16px));
   animation: quest-orbit 4.8s linear infinite;
 }
 @keyframes quest-orbit {

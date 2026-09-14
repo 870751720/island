@@ -16,6 +16,7 @@ export class ThirstGuidance {
   private route: QuestRoute;
   private scan = 0;
   private target: Point | null = null;
+  get navigationTarget(): Point | null { return this.target; }
 
   constructor(scene: THREE.Scene, private terrain: IslandTerrain) {
     this.route = new QuestRoute(terrain, (x, z) => terrain.getWaterKind(x, z) === null || isDrinkablePond(terrain, x, z));

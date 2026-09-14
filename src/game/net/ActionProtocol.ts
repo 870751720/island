@@ -11,6 +11,7 @@ import { EMOJI_GLYPHS } from '../social/Emojis';
 
 /** 客人上行的动作名与参数元组；保持现有线格式，仅为发送端和注册表提供静态约束。 */
 export interface NetActionArgs {
+  questScreen: [matrix: number[] | null];
   questGuide: [enabled: boolean];
   tool: [tool: HandTool, placeKind: ResourceKind | null];
   eatFood: [kind?: ResourceKind | null];
@@ -76,6 +77,7 @@ export type NetActionName = keyof NetActionArgs;
 
 /** 线上动作允许的参数数量；与类型契约并列维护，供不可信消息进入房主前校验。 */
 const NET_ACTION_ARG_COUNTS = {
+  questScreen: [1],
   questGuide: [1],
   tool: [2],
   eatFood: [0, 1],
@@ -185,6 +187,8 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'gmTriggerCrocodile':
     case 'gmRestoreStatus':
       return true;
+    case 'questScreen':
+      return first === null || (Array.isArray(first) && first.length === 16 && first.every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 10000));
     case 'questGuide':
       return typeof first === 'boolean';
     case 'eatFood':

@@ -109,6 +109,8 @@ import { NO_COLLECT_META, NO_FISHING_META, type CollectMeta, type FishingMeta } 
 import { rollLoot } from './systems/FishTable';
 import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import { ThirstGuidance } from './systems/ThirstGuidance';
+import { QuestAutoMove, type QuestMoveTarget } from './quests/QuestAutoMove';
+import { QuestSheepSupport } from './quests/QuestSheepSupport';
 import { QuestGuidance } from './quests/QuestGuidance';
 import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
@@ -164,7 +166,10 @@ export class Game {
   /** 玩家/桩与羊之间的系绳渲染(世界级,两端共用) */
   private leashLines: LeashLines;
   private audio = new GameAudio();
+  private questAutoMove!: QuestAutoMove;
   private questTimer = 0;
+  private questSupportTimer = 0;
+  private questSheepSupport!: QuestSheepSupport;
   private questGuidance!: QuestGuidance;
   private thirstGuidance!: ThirstGuidance;
   private hudSnapshotBuilder: HudSnapshotBuilder;
@@ -922,6 +927,7 @@ export class Game {
         this.loopElapsed = elapsed;
         // 单机拍照模式:时间与全部玩法模拟冻结(玩家无敌),相机取景与渲染照常
         const simDelta = this.cameraController.photoActive && !this.guestMode && !this.hostRef ? 0 : delta;
+        this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
         for (const session of this.sessions) session.player.update(simDelta, elapsed);
         this.dayNight.update(simDelta);
         // 季节推进为房主/单机权威:每帧按天数对账换季,入冬当日强制降雪
@@ -1147,6 +1153,16 @@ export class Game {
           }
           this.questTimer = 0;
         }
+        this.questSupportTimer += delta;
+        if (this.questSupportTimer >= 1) {
+          this.questSupportTimer = 0;
+          const screen = this.cameraController.photoActive ? null : this.questSheepSupport.screens.capture(this.camera);
+          if (this.guestNet) this.guestNet.action('questScreen', [screen]);
+          else {
+            this.questSheepSupport.screens.receive(this.local, screen);
+            this.questSheepSupport.update(this.sessions);
+          }
+        }
         this.questGuidance.update(delta, this.local, this.cameraController.photoActive, this.thirstGuidance.active);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
@@ -1249,6 +1265,11 @@ export class Game {
     this.applySave(save);
     this.local.quests.enabled = loadQuestGuide();
     this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
+    this.questAutoMove = new QuestAutoMove(this.terrain, (x, z) => this.fences.isBlocked(x, z) || this.props.isBlocked(x, z, 0.4), (x, z) => {
+      this.player.input.setAutomatic(x, z);
+      this.guestNet?.sendInput(x, z);
+    }, text => this.notify(text));
+    this.questSheepSupport = new QuestSheepSupport(this.terrain, this.wildlife);
     this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire);
     // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
     const profile = loadProfile();
@@ -1930,6 +1951,29 @@ export class Game {
     };
   }
 
+  /** 自动移动只选择当前本地引导的目标，不改变任务结算。 */
+  private questMoveTarget(): QuestMoveTarget | null {
+    const q = this.local.quests.view;
+    if (!q?.enabled || q.finished || !q.guide || !loadQuestGuide()) return null;
+    const drink = this.thirstGuidance?.active || q.guide.type === 'drink';
+    const target = drink ? this.thirstGuidance?.navigationTarget : this.questGuidance?.navigationTarget;
+    if (!target) return null;
+    return { ...target, key: `${q.active}:${JSON.stringify(q.guide)}:${drink}`, drink,
+      radius: q.guide.type === 'bench' || q.guide.type === 'campfire' ? 1.5 : 1.25 };
+  }
+
+  moveToQuest(): void {
+    if (this.questAutoMove.active) { this.questAutoMove.stop(); return; }
+    if (this.local.survival.state.dead || this.cameraController.photoActive || !loadQuestGuide()) return;
+    const target = this.questMoveTarget();
+    if (target) this.questAutoMove.start(target, this.local);
+    else this.notify(this.local.quests.view?.hint ?? '暂无可前往的任务目标。');
+  }
+
+  setQuestScreen(matrix: number[] | null, actor: PlayerSession): boolean {
+    return this.questSheepSupport?.screens.receive(actor, matrix) ?? false;
+  }
+
   /** 本机显示偏好；远程玩家仅控制自己的任务奖励发放。 */
   setQuestGuide(enabled: boolean, actor: PlayerSession = this.local): boolean {
     if (actor === this.local) saveQuestGuide(enabled);
@@ -2058,6 +2102,7 @@ export class Game {
   }
 
   setJoystick(x: number, z: number): void {
+    this.questAutoMove?.stop();
     this.player.input.setJoystick(x, z);
     this.guestNet?.sendInput(x, z);
   }
@@ -3375,6 +3420,7 @@ export class Game {
       s.nameTag.dispose();
       s.player.dispose();
     }
+    this.questAutoMove.stop();
     this.questGuidance.dispose();
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
@@ -3403,7 +3449,7 @@ export class Game {
 
   private presentHud(snapshot: HudSnapshot): void {
     const quests = snapshot.quests;
-    this.onHud({ ...snapshot, quests: quests ? { ...quests, enabled: loadQuestGuide(), navigationHint: this.questGuidance?.hint } : null });
+    this.onHud({ ...snapshot, quests: quests ? { ...quests, enabled: loadQuestGuide(), navigationHint: this.questGuidance?.hint, navigationActive: this.questAutoMove?.active ?? false } : null });
   }
 
   private pushHud(delta: number): void {

@@ -16,12 +16,12 @@ const gather = (kind: ResourceKind, count: number): QuestRequirement => ({ type:
 const craft = (id: CraftId, count = 1): QuestRequirement => ({ type: 'craft', id, count });
 export const QUESTS: readonly QuestDefinition[] = [
   { id: 'supplies', title: '捡起第一份物资', hint: '靠近灌木丛和碎石堆，停下即可采集。', requirements: [gather('branch', 2), gather('stone', 2)], reward: { berry: 3 } },
-  { id: 'drink', title: '先喝一口水', hint: '走进水洼浅水处，停下自动喝水；喝完一轮即可，海水不能喝。', requirements: [{ type: 'drink' }], reward: { berry: 2 } },
   { id: 'tools', title: '制作采集工具', hint: '材料齐后停下，点击弹出的制作卡片，制作木斧和木镐。', requirements: [craft('axe'), craft('pickaxe')], reward: { fiber: 2 } },
   { id: 'materials', title: '收集营地材料', hint: '拿斧砍普通树获得木头，采集草丛获得纤维。', requirements: [gather('wood', 4), gather('fiber', 6)], reward: { branch: 2, stone: 2 } },
   { id: 'campfire', title: '升起营火', hint: '点击制作卡片做好火堆，在背包中使用，找空地站定放下。', requirements: [{ type: 'camp', action: 'place' }], reward: { wood: 2 } },
   { id: 'fuel', title: '给火堆添柴', hint: '打开火堆面板，添加一次木头或其他燃料。', requirements: [{ type: 'camp', action: 'fuel' }], reward: { gameMeat: 1 } },
   { id: 'cook', title: '烤一份兽肉', hint: '在燃烧的火堆旁选择奖励的兽肉，点击烤并站定等烤熟。', requirements: [{ type: 'camp', action: 'cook' }], reward: { berry: 3 } },
+  { id: 'drink', title: '先喝一口水', hint: '走进水洼浅水处，停下自动喝水；喝完一轮即可，海水不能喝。', requirements: [{ type: 'drink' }], reward: { berry: 2 } },
   { id: 'bench', title: '建立工作台', hint: '点击制作卡片做好工作台后，拿在手上，找空地站定放下。', requirements: [{ type: 'bench', level: 1 }], reward: { fiber: 3 } },
   { id: 'bag', title: '先把背包装大', hint: '制作草包，增加背包容量。', requirements: [craft('strawBackpack')], reward: { fiber: 2 } },
   { id: 'outfit', title: '穿好再出发', hint: '做齐草衣、草裤和草帽，保护自己。', requirements: [craft('grassShirt'), craft('grassPants'), craft('strawHat')], reward: { berry: 3 } },
@@ -43,10 +43,12 @@ export type QuestView = {
   feedback?: { id: number; completed: string[]; rewards: Partial<Record<ResourceKind, number>> };
   pending: boolean;
   navigationHint?: string | null;
+  navigationActive?: boolean;
 };
 export type QuestSave = {
   completed?: boolean;
   drinks?: number;
+  sheepSupport?: string[];
   camp?: Partial<Record<'place' | 'fuel' | 'cook', number>>;
   gathered: Partial<Record<ResourceKind, number>>;
   crafted: Partial<Record<CraftId, number>>;

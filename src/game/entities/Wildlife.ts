@@ -916,6 +916,18 @@ export class Wildlife implements Updatable {
   }
 
   /** 渲染绳子用:当前所有被拴/被牵的羊与锚点信息(房主读权威状态,客人读快照镜像) */
+  /** 任务补羊复用野生羊实体及快照；不占生态刷新槽，也不绕过地形/设施碰撞。 */
+  canSpawnQuestSheep(x: number, z: number): boolean {
+    return this.isGrass(x, z) && !this.nearCamp(x, z)
+      && !this.animals.some(a => a.alive && Math.hypot(x - a.pos.x, z - a.pos.z) < 2);
+  }
+
+  spawnQuestSheep(x: number, z: number): boolean {
+    if (!this.canSpawnQuestSheep(x, z)) return false;
+    this.createAnimal('sheep', new THREE.Vector3(x, this.terrain.getHeight(x, z), z), Math.random() * Math.PI * 2);
+    return true;
+  }
+
   guideSheep(): { x: number; z: number }[] {
     return this.animals.filter(a => a.alive && !a.hidden && !a.leash && !a.netLeash && a.species === 'sheep').map(a => a.pos);
   }

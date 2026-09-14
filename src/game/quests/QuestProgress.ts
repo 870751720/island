@@ -24,6 +24,11 @@ export class QuestProgress {
     this.feedbackTimer = 0;
     this.feedback = undefined;
   }
+  hasSheepSupport(key: string): boolean { return this.state.sheepSupport?.includes(key) ?? false; }
+  markSheepSupport(key: string): void {
+    this.state.sheepSupport ??= [];
+    if (!this.hasSheepSupport(key)) this.state.sheepSupport.push(key);
+  }
   drank(): void { this.state.drinks = (this.state.drinks ?? 0) + 1; }
   campAction(action: 'place' | 'fuel' | 'cook'): void {
     this.state.camp ??= {};

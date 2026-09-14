@@ -14,6 +14,7 @@ import { loadQuestGuide } from './QuestSettings';
 /** 本地轻量表现：一个目标光圈、一条虚线、固定数量流动光点；不改世界材质。 */
 export class QuestGuidance {
   hint: string | null = null;
+  navigationTarget: { x: number; z: number } | null = null;
   private effect: GuidanceEffect;
   private route: QuestRoute;
   private idle = 0;
@@ -28,6 +29,7 @@ export class QuestGuidance {
     const q = session.quests.view, guide = q?.guide;
     if (suppressed || !q?.enabled || !loadQuestGuide() || q.finished || !guide || guide.type === 'drink' || photo || session.survival.state.dead || session.player.isSwimming) {
       this.hint = null;
+      this.navigationTarget = null;
       this.effect.hide(); this.idle = 0; this.scan = 0; return;
     }
     const key = `${q.active}:${JSON.stringify(guide)}`;
@@ -60,6 +62,7 @@ export class QuestGuidance {
         ? '暂未找到可到达的工作台，请先放下对应等级的工作台。'
         : guide.type === 'campfire' ? '请先放下火堆，并添柴点燃。'
         : (guide.kinds.includes('fur') || guide.kinds.includes('gameMeat')) ? '暂未找到可到达的羊或皮毛，继续探索岛屿。' : '暂未找到可到达的物资，继续探索岛屿。';
+      this.navigationTarget = path?.[path.length - 1] ?? null;
       this.effect.setPath(path);
     }
     this.effect.update(delta, session.player.group.position, this.idle >= (guide.type === 'resource' ? 10 : 20) && !q.busy);
