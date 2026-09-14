@@ -312,15 +312,15 @@ export function makeBerryBush(): { group: THREE.Group; berries: THREE.Mesh[] } {
 }
 
 export function makeGrassTuft(): THREE.Group {
-  // 草丛:几片交叉的细长叶片,产出植物纤维
+  // 宽叶向外展开,体量接近灌木与浆果丛,便于手机小屏辨认。
   const g = new THREE.Group();
   for (let i = 0; i < 6; i++) {
     const blade = new THREE.Mesh(
-      new THREE.ConeGeometry(0.05, 0.45, 3),
+      new THREE.ConeGeometry(0.09, 0.68, 3),
       leafMaterial(i % 2 === 0 ? '#7fae55' : '#a4c46a')
     );
     const a = (i / 6) * Math.PI * 2 + 0.4;
-    blade.position.set(Math.cos(a) * 0.12, 0.22, Math.sin(a) * 0.12);
+    blade.position.set(Math.cos(a) * 0.22, 0.34, Math.sin(a) * 0.22);
     blade.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
     blade.castShadow = true;
     g.add(blade);
@@ -723,8 +723,8 @@ export class Props implements Updatable {
         for (const berry of this.berries.get(prop) ?? []) berry.visible = prop.ready;
         break;
       case 'grass':
-        // 草丛被采后缩成一小茬,表示草还在
-        prop.group.scale.setScalar(prop.ready ? 1 : 0.3);
+        // 留下宽而矮的草茬,保持占地轮廓,以高度区分待再生状态。
+        prop.group.scale.set(prop.ready ? 1 : 0.95, prop.ready ? 1 : 0.5, prop.ready ? 1 : 0.95);
         break;
       case 'shrub':
         // 灌木丛被割后缩成小桩
