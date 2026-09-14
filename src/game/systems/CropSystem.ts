@@ -101,13 +101,13 @@ export class CropSystem {
     return true;
   }
 
-  private spawn(kind: CropKind, at: THREE.Vector3, grown: number): Crop {
+  private spawn(kind: CropKind, at: THREE.Vector3, grown: number, emit = true): Crop {
     const spec = CROP_SPECS[kind];
     const immatureSeconds = this.seedlineLevel() >= 3 ? spec.immatureSeconds - SEEDLINE_MATURE_CUT : spec.immatureSeconds;
     const crop = new Crop(this.scene, spec, at.clone(), grown, immatureSeconds);
     this.crops.push(crop);
     const p = crop.group.position;
-    this.onChanged?.({
+    if (emit) this.onChanged?.({
       op: 'add',
       id: this.ids.get(crop),
       value: { id: this.ids.get(crop), kind, x: p.x, y: p.y, z: p.z, grown },
@@ -228,7 +228,7 @@ export class CropSystem {
   /** 从存档恢复全部作物 */
   restore(list: CropSave[]): void {
     for (const c of list) {
-      const crop = this.spawn(c.kind, new THREE.Vector3(c.x, c.y, c.z), c.grown ?? 0);
+      const crop = this.spawn(c.kind, new THREE.Vector3(c.x, c.y, c.z), c.grown ?? 0, false);
       this.ids.set(crop, c.id);
     }
   }
@@ -250,7 +250,7 @@ export class CropSystem {
     const current = new Map(this.crops.map((crop) => [this.ids.get(crop), crop]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      this.spawn(value.kind, new THREE.Vector3(value.x, value.y, value.z), value.grown ?? 0);
+      this.spawn(value.kind, new THREE.Vector3(value.x, value.y, value.z), value.grown ?? 0, false);
       if (value.id) this.ids.set(this.crops[this.crops.length - 1], value.id);
     }
   }

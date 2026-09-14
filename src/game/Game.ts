@@ -137,6 +137,9 @@ import { WorldReplicationController } from './net/WorldReplicationController';
 import { GuestHudSynchronizer } from './net/GuestHudSynchronizer';
 import { buildPlayersState } from './net/PlayerSnapshotBuilder';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
+import { LandmarkSystem } from './world/landmarks/LandmarkSystem';
+import { LANDMARKS, isLandmarkChoice, type LandmarkChoice } from './world/landmarks/LandmarkDefinitions';
+import { diffWorld } from './net/WorldDelta';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
 
@@ -179,6 +182,7 @@ export class Game {
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
   private worldSaveSystems: WorldSaveSystems;
+  private landmarks: LandmarkSystem;
 
   /** UI 表现层直接播放音效(珍宝转盘的滚轮与中奖项),仅本地听感、无噪音语义 */
   playUiSfx(name: SfxName): void {
@@ -1298,6 +1302,8 @@ export class Game {
     });
 
     this.applySave(save);
+    this.landmarks = new LandmarkSystem(this.terrain, this.worldSaveSystems);
+    if (!save && !this.guestMode) this.landmarks.generate(GmSystem.landmarkChances);
     this.local.quests.enabled = loadQuestGuide();
     this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
     this.questAutoMove = new QuestAutoMove(this.terrain, (x, z) => this.fences.isBlocked(x, z) || this.props.isBlocked(x, z, 0.4), (x, z) => {
@@ -2576,7 +2582,19 @@ export class Game {
     this.weather.force(type);
   }
 
-  /** GM 在玩家附近的草地上生成一只指定动物;客人端上行车主权威结算 */
+  /** GM 地点由房主成组生成，使用发起者的位置并一次同步全部新增设施。 */
+  gmSpawnLandmark(choice: LandmarkChoice = 'random', actor: PlayerSession = this.local): void {
+    if (!isLandmarkChoice(choice)) return;
+    if (this.guestNet) { this.guestNet.action('gmSpawnLandmark', [choice]); return; }
+    const before = this.hostRef ? this.worldReplication.snapshot() : null;
+    const kind = this.landmarks.spawn(choice, actor.player.group.position, this.sessions.map(s => s.player.group.position));
+    if (kind && before) {
+      this.hostRef?.broadcastWorldChanges(diffWorld(before, this.worldReplication.snapshot()));
+    }
+    this.notify(kind ? `已在附近生成${LANDMARKS.find(d => d.kind === kind)?.name}` : '附近没有足够的干燥空地，请移到开阔处再试', actor);
+  }
+
+  /** GM 在玩家附近的草地上生成一只指定动物;客人端上行房主权威结算 */
   gmSpawnAnimal(species: AnimalSpecies): void {
     if (this.guestNet) {
       this.guestNet.action('gmSpawnAnimal', [species]);

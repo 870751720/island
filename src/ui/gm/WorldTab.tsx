@@ -8,6 +8,7 @@ import type { Game } from '@/game/Game';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 import { usePerformanceReport } from './PerformanceOverlay';
+import { LandmarkControls } from './LandmarkControls';
 
 /** 季节五态标签:auto=跟随真实季节(默认),其余为强制覆盖 */
 const SEASON_LABELS = { auto: '跟随', spring: '春', summer: '夏', autumn: '秋', winter: '冬' } as const;
@@ -44,6 +45,7 @@ export function WorldTab({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <LandmarkControls getGame={getGame} onSetConfig={onSetConfig} />
       <ToggleRow
         label="显示帧率"
         value={showFps}

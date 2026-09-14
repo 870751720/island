@@ -1,4 +1,5 @@
 import { DOG_GM_COMMANDS, type DogGmCommand } from '../systems/DogGrowth';
+import { isLandmarkChoice, type LandmarkChoice } from '../world/landmarks/LandmarkDefinitions';
 import type { HandTool } from '../entities/Player';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { AnimalSpecies } from '../entities/Wildlife';
@@ -64,6 +65,7 @@ export interface NetActionArgs {
   milkSheep: [sheepId: number, x: number, z: number];
   gmDog: [command: DogGmCommand, value: number];
   gmSpawnAnimal: [species: AnimalSpecies];
+  gmSpawnLandmark: [choice: LandmarkChoice];
   gmTriggerCrocodile: [];
   gmGiveItem: [kind: ResourceKind, count: number];
   gmGiveTool: [tool: ToolId, tier: 1 | 2 | 3];
@@ -131,6 +133,7 @@ const NET_ACTION_ARG_COUNTS = {
   milkSheep: [3],
   gmDog: [2],
   gmSpawnAnimal: [1],
+  gmSpawnLandmark: [1],
   gmTriggerCrocodile: [0],
   gmGiveItem: [2],
   gmGiveTool: [2],
@@ -239,6 +242,8 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isSafeInteger(first) && isFiniteNumber(second) && isFiniteNumber(third);
     case 'gmSpawnAnimal':
       return isString(first) && ANIMAL_SPECIES.has(first);
+    case 'gmSpawnLandmark':
+      return isLandmarkChoice(first);
     case 'gmGiveTool':
       return isString(first) && TOOL_IDS.has(first) && (second === 1 || second === 2 || second === 3);
     case 'gmSetGender':

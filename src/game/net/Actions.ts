@@ -104,6 +104,7 @@ const ACTIONS: NetActionRegistry = {
     g.gmSpawnAnimalFor(species, a);
     return true;
   },
+  gmSpawnLandmark: (g, a, [choice]) => { g.gmSpawnLandmark(choice, a); return true; },
   gmTriggerCrocodile: (g, a) => {
     g.gmTriggerCrocodileFor(a);
     return true;

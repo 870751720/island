@@ -1,5 +1,9 @@
-/** GM 调试开关:运行时内存态,不入存档,新对局重置为默认值 */
+import { loadLandmarkChances, saveLandmarkChances } from '../world/landmarks/LandmarkSettings';
+import { validLandmarkChances } from '../world/landmarks/LandmarkDefinitions';
+
+/** GM 调试开关；地点开局概率单独保存在本机，其余为运行时内存态。 */
 export const GmSystem = {
+  landmarkChances: loadLandmarkChances(),
   /** 是否允许死亡;关闭后生命耗尽也不会死 */
   allowDeath: true,
   /** 无敌模式:饥饿/口渴不掉、生命与体力回满 */
@@ -30,6 +34,7 @@ export type GmConfig = typeof GmSystem;
 /** 读取当前 GM 配置快照 */
 export function gmSnapshot(): GmConfig {
   return {
+    landmarkChances: [...GmSystem.landmarkChances],
     allowDeath: GmSystem.allowDeath,
     godMode: GmSystem.godMode,
     lockTime: GmSystem.lockTime,
@@ -46,6 +51,10 @@ export function gmSnapshot(): GmConfig {
 
 /** 按 snapshot 覆盖 GM 配置(字段级校验,非法值忽略) */
 export function gmApply(config: Partial<GmConfig>): void {
+  if (validLandmarkChances(config.landmarkChances)) {
+    GmSystem.landmarkChances = [...config.landmarkChances];
+    saveLandmarkChances(GmSystem.landmarkChances);
+  }
   if (typeof config.allowDeath === 'boolean') GmSystem.allowDeath = config.allowDeath;
   if (typeof config.godMode === 'boolean') GmSystem.godMode = config.godMode;
   if (config.lockTime === null || (typeof config.lockTime === 'number'

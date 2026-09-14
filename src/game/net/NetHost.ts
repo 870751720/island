@@ -6,7 +6,7 @@ import { HostSignal } from './Signaling';
 import { dispatchNetAction, isNetActionName } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
 import type { EntityChange } from '../systems/WorldEntityId';
-import type { WorldSection } from './WorldDelta';
+import type { WorldSection, WorldDeltaOp } from './WorldDelta';
 import { diffEntities, diffObject, quantize } from './SnapshotDelta';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
@@ -236,9 +236,15 @@ export class NetHost {
       : change.op === 'remove'
         ? { section, key: change.id, op: 'remove' as const }
         : { section, key: change.id, op: 'set' as const, fields: change.fields };
+    this.broadcastWorldChanges([op]);
+  }
+
+  /** 成组创建地点只推进一次版本，客人一次应用整批设施。 */
+  broadcastWorldChanges(ops: WorldDeltaOp[]): void {
+    if (!ops.length) return;
     const revision = ++this.worldRevision;
     for (const guest of this.guests) {
-      if (guest.net.connected && guest.session) guest.net.send({ t: 'worldDelta', revision, ops: [op] });
+      if (guest.net.connected && guest.session) guest.net.send({ t: 'worldDelta', revision, ops });
     }
   }
 
