@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { MenuIcon } from './start/MenuIcon';
 import { useMenuAudio } from './start/useMenuAudio';
 import { startScreenCss } from './start/styles';
+import { IslandScene } from './start/IslandScene';
 import { SaveSystem, type SaveData } from '@/game/systems/SaveSystem';
 import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
 import { META_TREE } from '@/game/meta/MetaTree';
@@ -85,9 +86,6 @@ export function StartScreen({
       if ((event.target as HTMLElement).closest('button:not(.menu-sound):not(.meta-panel button)')) audio.feedback();
     }}>
       <style>{startScreenCss}</style>
-      <div className="start-atmosphere" aria-hidden="true">
-        <div className="menu-birds"><i /><i /><i /></div>
-      </div>
       <div className="start-layout" inert={showMeta}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
@@ -98,10 +96,10 @@ export function StartScreen({
         </header>
         <main className="menu-content">
           <section className="menu-heading" aria-label="去你的岛">
-            <div className="menu-emblem" aria-hidden="true"><MenuIcon name="compass" /></div>
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
-            <h1 className="start-title">去你的<span>岛<svg viewBox="0 0 100 12" aria-hidden="true"><path d="M3 8Q48 0 96 6" /></svg></span><i>。</i></h1>
+            <h1 className="start-title">去你的<span>岛</span>。</h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
+            <IslandScene paused={showMeta || showSetup || !!abandoning} />
           </section>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}
