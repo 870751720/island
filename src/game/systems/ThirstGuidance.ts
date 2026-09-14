@@ -3,6 +3,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import { GuidanceEffect } from '../quests/GuidanceEffect';
 import { QuestRoute } from '../quests/QuestRoute';
+import { loadQuestGuide } from '../quests/QuestSettings';
 import { isDrinkablePond } from './WaterAccess';
 
 type Point = { x: number; z: number };
@@ -22,7 +23,9 @@ export class ThirstGuidance {
   }
 
   update(delta: number, session: PlayerSession, photo: boolean): void {
-    this.active = session.survival.state.thirst <= 0 && !session.survival.state.dead;
+    const quest = session.quests.view;
+    const learning = !!quest?.enabled && loadQuestGuide() && !quest.finished && quest.guide?.type === 'drink';
+    this.active = (session.survival.state.thirst <= 0 || learning) && !session.survival.state.dead;
     this.nearDrinkPoint = false;
     const origin = session.player.group.position;
     if (!this.active || photo || session.player.isSwimming || session.water.isActive

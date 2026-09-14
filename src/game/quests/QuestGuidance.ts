@@ -26,7 +26,7 @@ export class QuestGuidance {
   }
   update(delta: number, session: PlayerSession, photo: boolean, suppressed = false): void {
     const q = session.quests.view, guide = q?.guide;
-    if (suppressed || !q?.enabled || !loadQuestGuide() || q.finished || !guide || photo || session.survival.state.dead || session.player.isSwimming) {
+    if (suppressed || !q?.enabled || !loadQuestGuide() || q.finished || !guide || guide.type === 'drink' || photo || session.survival.state.dead || session.player.isSwimming) {
       this.hint = null;
       this.effect.hide(); this.idle = 0; this.scan = 0; return;
     }
@@ -49,7 +49,7 @@ export class QuestGuidance {
         targets = dropped;
         for (const p of this.props.list) {
           if (!p.ready) continue;
-          const yields: ResourceKind[] = p.kind === 'shrub' ? ['branch'] : p.kind === 'grass' ? ['fiber'] : p.kind === 'gravel' ? ['stone', 'flint'] : p.kind === 'rock' && session.tools.pickaxe ? ['stone', 'flint'] : p.kind === 'tree' && session.tools.axe && (!p.growth || p.growth === 'mature') ? ['wood', 'branch'] : [];
+          const yields: ResourceKind[] = p.kind === 'shrub' ? ['branch'] : p.kind === 'grass' ? ['fiber'] : p.kind === 'gravel' ? ['stone', 'flint'] : p.kind === 'rock' && session.tools.pickaxe ? ['stone', 'flint'] : p.kind === 'tree' && p.species !== 'fruit' && session.tools.axe && (!p.growth || p.growth === 'mature') ? ['wood', 'branch'] : [];
           if (yields.some(k => kinds.includes(k))) targets.push(p.position);
         }
       }

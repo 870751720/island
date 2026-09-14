@@ -3329,7 +3329,7 @@ export class Game {
         this.hostRef?.broadcastEvent({ kind: 'lassoCaught', actor: s.id });
       }
     );
-    s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s));
+    s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s), () => s.quests.drank());
   }
 
   /** 某玩家喝完一轮水:按 GM 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */

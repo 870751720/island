@@ -5,6 +5,8 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import type { Recipe } from '@/game/systems/Crafting';
 import { recipeIconKind, recipeIconLevel } from '@/game/systems/Crafting';
 import { promptCardStyle, promptWrapStyle } from './promptCard';
+import { QuestCraftParticles } from './QuestCraftParticles';
+import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { topHandRecipe } from './promptActions';
 
 /** 材料齐且尚未拥有时弹出的合成卡片;同一时刻只显示优先级最高的一张(移动中不显示,捡回/进食卡片出现时让位;不列材料,卡片更小) */
@@ -23,15 +25,17 @@ export function CraftPrompt({
   if (suppressed || hud.moving || hud.craftId !== null) return null;
   const best = topHandRecipe(hud, dismissedRecipes);
   if (!best) return null;
+  const taskNeeded = questRecipePriority(hud, best.id) > 0;
   return (
-    <div style={promptWrapStyle(hud)}>
+    <div style={{ ...promptWrapStyle(hud), ...(taskNeeded ? { opacity: 1, pointerEvents: 'auto' as const } : {}) }}>
       <button
         onPointerDown={(e) => {
           e.preventDefault();
           onCraft(best.id);
         }}
-        style={{ ...promptCardStyle, minWidth: 0, minHeight: 44, padding: '6px 14px' }}
+        style={{ ...promptCardStyle, ...(taskNeeded ? questRecipeStyle : {}), position: 'relative', minWidth: 0, minHeight: 44, padding: '6px 14px' }}
       >
+        {taskNeeded && <QuestCraftParticles />}
         <ItemIcon kind={recipeIconKind(best)} level={recipeIconLevel(best)} size={26} />
         <span>制作{best.name}</span>
       </button>

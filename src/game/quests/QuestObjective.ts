@@ -27,12 +27,13 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
     } else if (r.station === 'workbench') {
       guide = { type: 'bench', level: r.minBenchLevel ?? 1, ready: true };
       hint = `材料已齐，前往${r.minBenchLevel ?? 1}级或以上工作台制作${r.name}。`;
-    } else hint = `材料已齐，打开背包制作${r.name}。`;
+    } else hint = `材料已齐，停下后点击弹出的“制作${r.name}”卡片。`;
   };
   if (quest) {
     const unmet = quest.requirements.filter((_, i) => rows[i].have < rows[i].need);
     const req = unmet[0];
-    if (req?.type === 'gather') guide = { type: 'resource', kinds: unmet.filter((r): r is Extract<QuestRequirement, { type: 'gather' }> => r.type === 'gather').map(r => r.kind) };
+    if (req?.type === 'drink') { guide = { type: 'drink' }; }
+    else if (req?.type === 'gather') guide = { type: 'resource', kinds: unmet.filter((r): r is Extract<QuestRequirement, { type: 'gather' }> => r.type === 'gather').map(r => r.kind) };
     else if (req?.type === 'craft') {
       // 多件任务优先引导已可制作的配方，避免已有材料却被固定顺序卡住。
       const crafting = unmet.filter((r): r is Extract<QuestRequirement, { type: 'craft' }> => r.type === 'craft');

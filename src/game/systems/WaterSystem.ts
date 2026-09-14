@@ -18,7 +18,8 @@ export class WaterSystem {
     private survival: SurvivalSystem,
     private audio: GameAudio,
     /** 每喝完一轮水后通知(喝水触发的特殊事件挂在房主侧,如水洼出鳄鱼) */
-    private onDrinkRound: () => void = () => {}
+    private onDrinkRound: () => void = () => {},
+    private onDrinkComplete: () => void = () => {}
   ) {}
 
   update(delta: number, harvestBusy: boolean, nearPurifier = false): void {
@@ -51,6 +52,7 @@ export class WaterSystem {
     this.sipTimer = 0;
     this.timer = 0;
     this.survival.drink();
+    this.onDrinkComplete();
     // 水洼喝水才可能惊动鳄鱼,净化器喝的是清水
     if (standingInPond) this.onDrinkRound();
   }

@@ -24,7 +24,7 @@ export function topHandRecipe(hud: HudSnapshot, dismissedRecipes?: ReadonlySet<s
     (r) =>
       r.station === 'hand' &&
       !r.hidePrompt &&
-      !dismissedRecipes?.has(r.id) &&
+      (!dismissedRecipes?.has(r.id) || questRecipePriority(hud, r.id) > 0) &&
       (!r.tool || !ownedTools[r.tool]) &&
       hasCost(r.cost, counts) &&
       recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, {
