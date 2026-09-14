@@ -18,6 +18,8 @@ import { GmSystem } from '../systems/GmSystem';
 import { createWorldEntityId, type EntityChangeSink } from '../systems/WorldEntityId';
 import { generatePropSpots, type PropSpot } from './PropSpawner';
 import { isPassage, landCells } from './SpawnLayout';
+import type { PlayerSession } from '../mp/PlayerSession';
+import { VegetationContact } from './VegetationContact';
 
 const SHAKE_TIME = 0.4;
 
@@ -389,6 +391,8 @@ export class Props implements Updatable {
   private treeLooks = new WeakMap<Prop, string>();
   private growthTimer = 0;
   private swayTime = 0;
+  private vegetationContact = new VegetationContact();
+  private contactNearby = (x: number, z: number): Prop[] => this.nearby(x, z);
   private onChanged?: EntityChangeSink;
 
   // —— 空间哈希网格:资源数量随岛面积增长后,碰撞/占位查询不再全表扫描 ——
@@ -931,7 +935,8 @@ export class Props implements Updatable {
     this.shakes.set(prop, SHAKE_TIME);
   }
 
-  update(delta: number, _elapsed?: number, wind?: WindParams, authoritative = true): void {
+  update(delta: number, _elapsed?: number, wind?: WindParams, authoritative = true, sessions: readonly PlayerSession[] = []): void {
+    this.vegetationContact.update(delta, sessions, this.contactNearby);
     if (authoritative) this.updateFruitRegrow(delta);
     for (const prop of authoritative ? this.list : []) {
       if (prop.ready || prop.regrowLeft <= 0) continue;
@@ -965,6 +970,7 @@ export class Props implements Updatable {
       prop.group.rotation.z = Math.cos(t * 34) * amp * 0.7;
     }
     this.updateSway(delta, wind);
+    for (const prop of this.list) this.vegetationContact.apply(prop);
   }
 
   /** 时间快进(睡觉跳到第二天):推进资源点再生与种下的树生长,不做击打/摇摆等表现 */

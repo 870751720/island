@@ -954,7 +954,7 @@ export class Game {
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
         }
-        this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode);
+        this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode, this.sessions);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
         this.pickupPresentation.update(simDelta);
