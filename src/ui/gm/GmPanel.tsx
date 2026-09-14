@@ -39,7 +39,7 @@ const TABS = [
   { id: 'fishing', label: '钓鱼' },
   { id: 'items', label: '物品' },
   { id: 'animals', label: '动物' },
-  { id: 'dog', label: '博美' },
+  { id: 'dog', label: '薯条' },
   { id: 'events', label: '特殊事件' },
 ] as const;
 

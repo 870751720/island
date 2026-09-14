@@ -22,6 +22,7 @@ import { StepButton } from './StepButton';
 
 type Props = {
   open: boolean;
+  showCompanion: boolean;
   onToggle: () => void;
   hud: HudSnapshot;
   /** 使用(吃)该食物道具,由外层触发进食并关闭背包 */
@@ -214,7 +215,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
+export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -471,8 +472,8 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         {selectedDef.description}
                         {selectedFood && <div style={{ marginTop: 6, fontSize: 12 }}>
                           {DOG_FOOD_EXCLUSIONS[selectedFood.kind]
-                            ? `博美不吃：${DOG_FOOD_EXCLUSIONS[selectedFood.kind]}`
-                            : `放到地上喂博美 · 成长经验 +${selectedFood.hunger}`}
+                            ? `薯条不吃：${DOG_FOOD_EXCLUSIONS[selectedFood.kind]}`
+                            : `放到地上喂薯条 · 成长经验 +${selectedFood.hunger}`}
                         </div>}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -665,7 +666,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </div>
                   );
                 })}
-                <DogCompanionCard dog={hud.dog} />
+                {showCompanion && <DogCompanionCard dog={hud.dog} />}
               </div>
             )}
           </div>

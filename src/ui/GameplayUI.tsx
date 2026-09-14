@@ -302,6 +302,7 @@ export function GameplayUI({
       )}
       {!photoMode && (
         <Backpack
+        showCompanion={!net?.guest}
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}
         hud={hud}

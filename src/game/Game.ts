@@ -2626,11 +2626,11 @@ export class Game {
         actor.survival.state.health = 30;
         actor.player.setHealth(30);
       }
-      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : '已生成 5 血狼，博美将按当前阶段扑咬护主', actor);
+      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : '已生成 5 血狼，薯条将按当前阶段扑咬护主', actor);
       return;
     }
     const state = this.dog.debugState;
-    this.notify(`博美 ${state.stage} 阶段 · ${state.xp} 经验 · 攻击力 ${state.stage}`, actor);
+    this.notify(`薯条 ${state.stage} 阶段 · ${state.xp} 经验 · 攻击力 ${state.stage}`, actor);
   }
 
   /** GM 特殊事件:立即在该玩家所在水洼触发一次鳄鱼袭击(不走概率);客人端上行房主结算 */

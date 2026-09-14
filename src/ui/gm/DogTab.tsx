@@ -43,7 +43,7 @@ export function DogTab({ getGame }: { getGame: () => Game | null }) {
       <div style={{ fontSize: 12 }}>3 份烤兽肉 + 辣椒、酒、生肉；落地 4 秒后应只少 1 份烤肉，经验 +30。</div>
       <label style={{ fontSize: 13 }}>
         食物逐项测试（可喂 {DOG_FOODS.length} 种）
-        <select aria-label="博美测试食物" value={kind} onChange={e => setKind(e.target.value)}
+        <select aria-label="薯条测试食物" value={kind} onChange={e => setKind(e.target.value)}
           style={{ width: '100%', minHeight: 44, marginTop: 5, color: gameTheme.ink, background: gameTheme.inset, borderRadius: 8 }}>
           {FOODS.map(f => <option key={f.kind} value={f.kind}>{f.name} · {DOG_FOOD_EXCLUSIONS[f.kind] ? '拒食' : `+${f.hunger}经验`}</option>)}
         </select>
