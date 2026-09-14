@@ -17,8 +17,8 @@ export class ThirstGuidance {
   private target: Point | null = null;
 
   constructor(scene: THREE.Scene, private terrain: IslandTerrain) {
-    this.effect = new GuidanceEffect(scene, terrain);
     this.route = new QuestRoute(terrain, (x, z) => terrain.getWaterKind(x, z) === null || isDrinkablePond(terrain, x, z));
+    this.effect = new GuidanceEffect(scene, terrain, this.route);
   }
 
   update(delta: number, session: PlayerSession, photo: boolean): void {

@@ -72,6 +72,10 @@ export class QuestRoute {
       corners.push(path[next]);
       index = next;
     }
+    return this.sample(corners);
+  }
+
+  private sample(corners: Point[]): { points: Point[]; length: number } {
     const points = [corners[0]];
     let length = 0;
     for (let i = 1; i < corners.length; i++) {
@@ -85,6 +89,23 @@ export class QuestRoute {
       }
     }
     return { points, length };
+  }
+
+  /** 从最新位置重新检查可直达的最远拐点，保留必要绕水段并重新贴地采样。 */
+  refresh(origin: Point, path: Point[]): Point[] | null {
+    if (!path.length) return null;
+    const corners: Point[] = [];
+    for (let i = 1; i < path.length - 1; i++) {
+      const a = path[i - 1], b = path[i], c = path[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const nx = c.x - b.x, nz = c.z - b.z;
+      if (Math.abs(dx * nz - dz * nx) > 0.00001 || dx * nx + dz * nz < 0) corners.push(b);
+    }
+    corners.push(path[path.length - 1]);
+    for (let i = corners.length - 1; i >= 0; i--) {
+      if (this.segmentDry(origin, corners[i])) return this.sample([{ x: origin.x, z: origin.z }, ...corners.slice(i)]).points;
+    }
+    return null;
   }
 
   private anchor(point: Point): Point | null {

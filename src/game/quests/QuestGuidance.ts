@@ -22,7 +22,7 @@ export class QuestGuidance {
   private activity = -1;
   constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props, private wildlife: Wildlife, private bench: WorkbenchSystem, private drops: DropSystem, private campfire: CampfireSystem) {
     this.route = new QuestRoute(terrain);
-    this.effect = new GuidanceEffect(scene, terrain);
+    this.effect = new GuidanceEffect(scene, terrain, this.route);
   }
   update(delta: number, session: PlayerSession, photo: boolean, suppressed = false): void {
     const q = session.quests.view, guide = q?.guide;

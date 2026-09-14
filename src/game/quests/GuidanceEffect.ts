@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import type { QuestRoute } from './QuestRoute';
 import type { IslandTerrain } from '../world/IslandTerrain';
 
 const DOT_SPACING = 2.2;
 const DOT_SPEED = 0.65;
+const ROUTE_INTERVAL = 1 / 3;
 
 /** 任务与求生共用的轻量引导效果。 */
 export class GuidanceEffect {
@@ -17,9 +19,11 @@ export class GuidanceEffect {
   private target: { x: number; z: number } | null = null;
   private elapsed = 0;
   private phase = 0;
-  private startIndex = 0;
+  private routeTimer = ROUTE_INTERVAL;
+  private sourcePath: { x: number; z: number }[] = [];
+  private lastOrigin = new THREE.Vector3(Infinity, Infinity, Infinity);
   private reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  constructor(private scene: THREE.Scene, private terrain: IslandTerrain) {
+  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private route: QuestRoute) {
     this.ring.renderOrder = 10;
     this.dots.renderOrder = 11;
     this.ring.frustumCulled = false;
@@ -30,54 +34,60 @@ export class GuidanceEffect {
     scene.add(this.group);
   }
   setPath(path: { x: number; z: number }[] | null): void {
-    this.startIndex = 0;
+    this.sourcePath = path?.map(p => ({ x: p.x, z: p.z })) ?? [];
+    this.routeTimer = ROUTE_INTERVAL;
+    if (path?.length) this.lastOrigin.set(path[0].x, this.terrain.getHeight(path[0].x, path[0].z), path[0].z);
+    else this.lastOrigin.set(Infinity, Infinity, Infinity);
     this.target = path?.[path.length - 1] ?? null;
+    this.writePath(path);
+  }
+  private writePath(path: { x: number; z: number }[] | null): void {
     this.points = path?.map(p => new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z) + 0.16, p.z)) ?? [];
     this.group.visible = this.points.length > 0;
-    if (this.points.length) {
-      this.updateRing();
-      this.line.geometry.dispose();
-      this.line.geometry = new THREE.BufferGeometry().setFromPoints(this.points);
-      this.line.computeLineDistances();
+    if (!this.points.length) return;
+    this.updateRing();
+    const geometry = this.line.geometry;
+    let positions = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+    let distances = geometry.getAttribute('lineDistance') as THREE.BufferAttribute | undefined;
+    if (!positions || positions.count < this.points.length || !distances) {
+      geometry.dispose();
+      const capacity = Math.max(64, this.points.length * 2);
+      positions = new THREE.BufferAttribute(new Float32Array(capacity * 3), 3);
+      distances = new THREE.BufferAttribute(new Float32Array(capacity), 1);
+      geometry.setAttribute('position', positions);
+      geometry.setAttribute('lineDistance', distances);
     }
+    this.distances.length = this.points.length;
+    let length = 0;
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      positions.setXYZ(i, p.x, p.y, p.z);
+      if (i > 0) length += p.distanceTo(this.points[i - 1]);
+      distances.setX(i, length);
+      this.distances[i] = length;
+    }
+    positions.needsUpdate = true;
+    distances.needsUpdate = true;
+    geometry.setDrawRange(0, this.points.length);
   }
-  hide(): void { this.group.visible = false; }
+  hide(): void { this.group.visible = false; this.sourcePath = []; }
   update(delta: number, origin: THREE.Vector3, showLine: boolean): void {
     this.elapsed += delta;
     this.phase = (this.phase + Math.min(delta, 0.1) * (this.reduced ? 0.25 : DOT_SPEED)) % DOT_SPACING;
-    if (!this.group.visible) return;
-    if (this.target && this.points.length > 1) {
-      // 丢弃已经走过的路段，避免起点连回身后的旧采样点形成重叠折返。
-      let nearest = Infinity;
-      for (let i = this.startIndex; i < this.points.length - 1; i++) {
-        const a = this.points[i], b = this.points[i + 1];
-        const dx = b.x - a.x, dz = b.z - a.z;
-        const squared = dx * dx + dz * dz;
-        const t = squared > 0 ? THREE.MathUtils.clamp(((origin.x - a.x) * dx + (origin.z - a.z) * dz) / squared, 0, 1) : 0;
-        const distance = (origin.x - a.x - dx * t) ** 2 + (origin.z - a.z - dz * t) ** 2;
-        if (distance <= nearest) { nearest = distance; this.startIndex = i; }
-      }
-      this.points[this.startIndex].set(origin.x, origin.y + 0.16, origin.z);
-      const end = this.points[this.points.length - 1];
-      end.set(this.target.x, this.terrain.getHeight(this.target.x, this.target.z) + 0.16, this.target.z);
-      const positions = this.line.geometry.getAttribute('position') as THREE.BufferAttribute;
-      positions.setXYZ(this.startIndex, origin.x, origin.y + 0.16, origin.z);
-      this.line.geometry.setDrawRange(this.startIndex, this.points.length - this.startIndex);
-      positions.setXYZ(this.points.length - 1, end.x, end.y, end.z);
-      positions.needsUpdate = true;
-      this.line.computeLineDistances();
+    this.routeTimer = Math.max(0, this.routeTimer - delta);
+    if (this.sourcePath.length && this.routeTimer === 0
+      && Math.hypot(origin.x - this.lastOrigin.x, origin.z - this.lastOrigin.z) > 0.02) {
+      this.routeTimer = ROUTE_INTERVAL;
+      this.lastOrigin.copy(origin);
+      this.writePath(this.route.refresh(origin, this.sourcePath));
     }
+    if (!this.group.visible) return;
     const breath = Math.sin(this.elapsed * (this.reduced ? 1 : 1.6));
     this.ring.material.opacity = 0.72 + breath * (this.reduced ? 0.12 : 0.24);
     this.updateRing(1 + breath * (this.reduced ? 0.035 : 0.1));
     this.line.visible = showLine;
     this.dots.visible = showLine && this.points.length > 1;
     if (this.dots.visible && this.points.length > 1) {
-      this.distances.length = this.points.length;
-      this.distances[this.startIndex] = 0;
-      for (let i = this.startIndex + 1; i < this.points.length; i++) {
-        this.distances[i] = this.distances[i - 1] + this.points[i].distanceTo(this.points[i - 1]);
-      }
       const length = this.distances[this.distances.length - 1];
       // 相位只按固定间距循环；从目标向后排点，路线缩短不会重排整串光点。
       const offset = DOT_SPACING - this.phase;
@@ -85,7 +95,7 @@ export class GuidanceEffect {
       for (let i = 0; i < this.dots.count; i++) {
         const remaining = offset + i * DOT_SPACING;
         const distance = length - remaining;
-        let index = this.startIndex;
+        let index = 0;
         while (index < this.points.length - 2 && this.distances[index + 1] <= distance) index++;
         const a = this.points[index], b = this.points[index + 1];
         const span = this.distances[index + 1] - this.distances[index];
