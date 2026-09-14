@@ -354,7 +354,7 @@ type Animal = {
  */
 export class Wildlife implements Updatable {
   /** 权威伤害结算后的数字反馈，包含致命一击。 */
-  onDamage: (amount: number, position: THREE.Vector3) => void = () => {};
+  onDamage: (amount: number, position: THREE.Vector3, id: number) => void = () => {};
 
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
@@ -1302,7 +1302,7 @@ export class Wildlife implements Updatable {
   private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
     if (!Number.isFinite(damage) || damage <= 0) return null;
     animal.hp -= damage;
-    this.onDamage(damage, animal.pos.clone().add(new THREE.Vector3(0, 1.2, 0)));
+    this.onDamage(damage, animal.pos, animal.id);
     if (animal.species === 'sheep' || animal.species === 'bison') {
       this.playSound(animal.species === 'sheep' ? 'sheepHurt' : 'bisonHurt', animal.pos.x, animal.pos.z);
     }
@@ -1530,6 +1530,10 @@ export class Wildlife implements Updatable {
       animal.hasMilk = !!p.milk;
       animal.model.group.visible = !animal.hidden;
     }
+  }
+
+  damageAnchor(id: number): THREE.Group | undefined {
+    return this.animals.find((animal) => animal.id === id)?.model.group;
   }
 
   /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */

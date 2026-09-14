@@ -72,6 +72,7 @@ import { LeashLines } from './fx/LeashLines';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { SeaThreatSystem } from './systems/SeaThreatSystem';
 import { Particles } from './fx/Particles';
+import { AnimalDamageNumbers } from './fx/AnimalDamageNumbers';
 import { GameAudio } from './audio/GameAudio';
 import type { SfxName } from './audio/Sfx';
 import { WaterFx } from './fx/WaterFx';
@@ -140,6 +141,7 @@ export type { GameOptions } from './GameTypes';
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
+  private animalDamageNumbers = new AnimalDamageNumbers(this.scene);
   private camera: THREE.OrthographicCamera;
   private cameraController: GameCameraController;
   private loop = new GameLoop();
@@ -288,7 +290,7 @@ export class Game {
   private onMumble: (text: string | null, x: number, y: number, headY: number) => void;
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
-  private onDamage: (amount: number, x: number, y: number, animal?: boolean) => void;
+  private onDamage: (amount: number, x: number, y: number) => void;
   private onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void;
   private terrainSeed: number;
   private autosaveTimer = 0;
@@ -345,7 +347,7 @@ export class Game {
     onMumble: (text: string | null, x: number, y: number, headY: number) => void,
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
-    onDamage: (amount: number, x: number, y: number, animal?: boolean) => void,
+    onDamage: (amount: number, x: number, y: number) => void,
     onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void,
     onBottleMessage: (text: string) => void,
     options: GameOptions = {}
@@ -548,10 +550,10 @@ export class Game {
       // 局外养成「捕猎·猎手」剥取:击杀战利品在掉落前按等级加成改写
       (species, loot) => this.applyHuntLootMeta(species, loot)
     );
-    for (const creatures of [this.crabs, this.birds, this.wildlife]) {
-      creatures.onDamage = (damage, position) => {
-        this.showDamagePop(damage, position, true);
-        this.hostRef?.broadcastEvent({ kind: 'animalDamage', damage, x: position.x, y: position.y, z: position.z });
+    for (const [target, creatures] of [['crab', this.crabs], ['bird', this.birds], ['wildlife', this.wildlife]] as const) {
+      creatures.onDamage = (damage, position, id) => {
+        this.animalDamageNumbers.show(damage, creatures.damageAnchor(id), position);
+        this.hostRef?.broadcastEvent({ kind: 'animalDamage', target, id, damage, x: position.x, y: position.y, z: position.z });
       };
     }
     // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,铲子挖开可压死藏在内的兔子。
@@ -977,6 +979,7 @@ export class Game {
         this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode, this.sessions);
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
+        this.animalDamageNumbers.update(delta);
         this.pickupPresentation.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
@@ -1552,7 +1555,8 @@ export class Game {
       return;
     }
     if (event.kind === 'animalDamage') {
-      this.showDamagePop(event.damage, new THREE.Vector3(event.x, event.y, event.z), true);
+      const creatures = event.target === 'crab' ? this.crabs : event.target === 'bird' ? this.birds : this.wildlife;
+      this.animalDamageNumbers.show(event.damage, creatures.damageAnchor(event.id), new THREE.Vector3(event.x, event.y, event.z));
       return;
     }
     // 客人被野生动物击中的补播:粒子/击中音/伤害数字/扑击减速(血量本身由快照回流)
@@ -1885,14 +1889,13 @@ export class Game {
     this.showDamagePop(final, new THREE.Vector3(p.x, p.y + 2.5, p.z));
   }
 
-  private showDamagePop(amount: number, position: THREE.Vector3, animal = false): void {
+  private showDamagePop(amount: number, position: THREE.Vector3): void {
     const head = position.clone().project(this.camera);
     if (Math.abs(head.x) > 1 || Math.abs(head.y) > 1 || Math.abs(head.z) > 1) return;
     this.onDamage(
       Math.max(1, Math.round(amount)),
       Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),
-      Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight),
-      animal
+      Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
     );
   }
 
@@ -3448,6 +3451,7 @@ export class Game {
     this.questGuidance.dispose();
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
+    this.animalDamageNumbers.dispose();
     this.drops.dispose();
     this.leashLines.dispose();
     this.props.dispose();

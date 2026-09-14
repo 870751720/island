@@ -123,7 +123,7 @@ type Crab = {
 /** 沙滩上的小螃蟹:沿海岸带横行游荡,被玩家靠近会逃,始终不进海也不进草地 */
 export class Crabs implements Updatable {
   /** 权威伤害结算后的数字反馈，包含致命一击。 */
-  onDamage: (amount: number, position: THREE.Vector3) => void = () => {};
+  onDamage: (amount: number, position: THREE.Vector3, id: number) => void = () => {};
 
   readonly group = new THREE.Group();
   private crabs: Crab[] = [];
@@ -315,6 +315,10 @@ export class Crabs implements Updatable {
     }
   }
 
+  damageAnchor(id: number): THREE.Group | undefined {
+    return this.crabs.find((animal) => animal.id === id)?.model.group;
+  }
+
   /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */
   netFlash(id: number): void {
     const crab = this.crabs.find((c) => c.id === id);
@@ -436,7 +440,7 @@ export class Crabs implements Updatable {
     }
     if (!best || !Number.isFinite(damage) || damage <= 0) return false;
     best.hp -= damage;
-    this.onDamage(damage, best.pos.clone().add(new THREE.Vector3(0, 0.6, 0)));
+    this.onDamage(damage, best.pos, best.id);
     if (best.hp > 0) {
       this.fx.flash(best.model.group);
       this.onHit(best.id);

@@ -141,7 +141,7 @@ type Bird = {
 /** 海鸥般的小鸟:多数时间在玩家周围盘旋巡航,偶尔落到浆果丛旁、水洼边或空地上踱步啄食;落地时被玩家靠近会惊飞,飞行中不怕人 */
 export class Birds implements Updatable {
   /** 权威伤害结算后的数字反馈，包含致命一击。 */
-  onDamage: (amount: number, position: THREE.Vector3) => void = () => {};
+  onDamage: (amount: number, position: THREE.Vector3, id: number) => void = () => {};
 
   readonly group = new THREE.Group();
   private birds: Bird[] = [];
@@ -410,6 +410,10 @@ export class Birds implements Updatable {
     }
   }
 
+  damageAnchor(id: number): THREE.Group | undefined {
+    return this.birds.find((animal) => animal.id === id)?.model.group;
+  }
+
   /** 客人侧:可靠事件补播受击闪红(闪红是短时表现,不进姿态快照) */
   netFlash(id: number): void {
     const bird = this.birds.find((b) => b.id === id);
@@ -532,7 +536,7 @@ export class Birds implements Updatable {
     }
     if (!best || !Number.isFinite(damage) || damage <= 0) return false;
     best.hp -= damage;
-    this.onDamage(damage, best.pos.clone().add(new THREE.Vector3(0, 0.5, 0)));
+    this.onDamage(damage, best.pos, best.id);
     if (best.hp > 0) {
       this.fx.flash(best.model.group);
       this.onHit(best.id);

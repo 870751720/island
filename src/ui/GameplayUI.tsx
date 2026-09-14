@@ -631,7 +631,7 @@ export function GameplayUI({
         </div>
       ))}
       {!photoMode && damagePops.map((d) => (
-        <div key={d.id} className={`damage-pop${d.animal ? " damage-pop-animal" : ""}`} style={{ left: d.x, top: d.y }}>
+        <div key={d.id} className="damage-pop" style={{ left: d.x, top: d.y }}>
           -{d.amount}
         </div>
       ))}

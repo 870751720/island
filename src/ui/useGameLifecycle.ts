@@ -18,7 +18,6 @@ export interface PickupPop extends PickupToast {
 }
 
 export interface DamagePop {
-  animal: boolean;
   id: number;
   amount: number;
   x: number;
@@ -110,9 +109,9 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
               1400,
             );
           },
-          (amount, x, y, animal = false) => {
+          (amount, x, y) => {
             const id = ++damageIdRef.current;
-            setDamagePops((list) => [...list, { id, amount, x, y, animal }]);
+            setDamagePops((list) => [...list, { id, amount, x, y }]);
             window.setTimeout(
               () => setDamagePops((list) => list.filter((item) => item.id !== id)),
               1000,
