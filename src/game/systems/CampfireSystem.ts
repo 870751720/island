@@ -119,6 +119,10 @@ export class CampfireSystem {
     return this.fires.length;
   }
 
+  get hasLitFire(): boolean {
+    return this.fires.some((fire) => fire.isLit);
+  }
+
   /** 场上所有火堆落点(小地图标记用) */
   get positions(): { x: number; z: number }[] {
     return this.fires.map((f) => ({ x: f.group.position.x, z: f.group.position.z }));

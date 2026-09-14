@@ -277,25 +277,38 @@ export class NetHost {
       // 握手由 PeerNet 的 30 秒计时器负责；通道打开后才检查心跳。
       if (guest.net.connected && now - guest.lastSeen > INPUT_TIMEOUT) {
         this.dropGuest(guest);
-        continue;
       }
-      if (!guest.net.connected || !guest.session) continue;
-      const state = game.netPlayersState();
-      const qPlayers = state.list.map((p) => ({ ...p, x: quantize(p.x, .02), y: quantize(p.y, .02), z: quantize(p.z, .02), rotY: quantize(p.rotY, .01), hunger: quantize(p.hunger, .1), thirst: quantize(p.thirst, .1), health: quantize(p.health, .1), stamina: quantize(p.stamina, .1) }));
+    }
+    const recipients = this.guests.filter((guest) => guest.net.connected && guest.session);
+    if (!recipients.length) return;
+    const state = game.netPlayersState();
+    const qPlayers = state.list.map((p) => ({ ...p, x: quantize(p.x, .02), y: quantize(p.y, .02), z: quantize(p.z, .02), rotY: quantize(p.rotY, .01), hunger: quantize(p.hunger, .1), thirst: quantize(p.thirst, .1), health: quantize(p.health, .1), stamina: quantize(p.stamina, .1) }));
+    const climate = { time: quantize(state.time, .01), day: state.day, raidSkipped: state.raidSkipped, season: state.season, weather: state.weather, rain: quantize(state.rain, .02), windAmount: quantize(state.windAmount, .02), windDirX: quantize(state.windDirX, .02), windDirZ: quantize(state.windDirZ, .02) };
+    const climateKey = JSON.stringify(climate);
+    const quantizeAnimals = (list: AnimalPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
+    const qCombat = quantizeAnimals(game.netCombatAnimalsState());
+    const needsPassive = normalFrame || recoveryFrame || recipients.some((guest) => guest.hud === null);
+    const qPassive = needsPassive ? quantizeAnimals(game.netPassiveAnimalsState()) : [];
+    const ambient = normalFrame || recoveryFrame ? game.netAmbientState() : null;
+    const qAmbient = (list: AmbientPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .05), y: quantize(p.y, .05), z: quantize(p.z, .05), h: quantize(p.h, .03) }));
+    const ambientFrame = ambient ? {
+      crabs: qAmbient(ambient.crabs), birds: qAmbient(ambient.birds),
+      butterflies: qAmbient(ambient.butterflies), dog: qAmbient([ambient.dog])[0],
+    } : null;
+    // 同一拍只采集/量化一次；每个客人的差分基线和输入确认仍独立维护。
+    for (const guest of recipients) {
+      if (!guest.session) continue;
       const players = diffEntities(qPlayers, guest.players, recoveryFrame);
-      const climate = { time: quantize(state.time, .01), day: state.day, raidSkipped: state.raidSkipped, season: state.season, weather: state.weather, rain: quantize(state.rain, .02), windAmount: quantize(state.windAmount, .02), windDirX: quantize(state.windDirX, .02), windDirZ: quantize(state.windDirZ, .02) };
-      const climateKey = JSON.stringify(climate);
       if (players || climateKey !== guest.climate) {
         const climateChanged = climateKey !== guest.climate;
         guest.climate = climateKey;
         guest.net.send({ t: 'players', ...(climateChanged ? climate : {}), ackInputSeq: guest.lastInputSeq, players: players ?? {} });
       }
 
-      const quantizeAnimals = (list: AnimalPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .04), z: quantize(p.z, .04), h: quantize(p.h, .02) }));
       const fullAnimals = recoveryFrame || guest.hud === null;
-      const combatAnimals = diffEntities(quantizeAnimals(game.netCombatAnimalsState()), guest.combatAnimals, fullAnimals);
+      const combatAnimals = diffEntities(qCombat, guest.combatAnimals, fullAnimals);
       const passiveAnimals = normalFrame || fullAnimals
-        ? diffEntities(quantizeAnimals(game.netPassiveAnimalsState()), guest.passiveAnimals, fullAnimals)
+        ? diffEntities(qPassive, guest.passiveAnimals, fullAnimals)
         : null;
       if (fullAnimals) {
         guest.net.send({ t: 'animals', animals: { full: [...(combatAnimals?.full ?? []), ...(passiveAnimals?.full ?? [])] } });
@@ -310,16 +323,14 @@ export class NetHost {
         if (set.length || remove.length) guest.net.send({ t: 'animals', animals: { set, remove } });
       }
 
-      if (normalFrame || recoveryFrame) {
-      const ambient = game.netAmbientState();
-      const qAmbient = (list: AmbientPose[]) => list.map((p) => ({ ...p, x: quantize(p.x, .05), y: quantize(p.y, .05), z: quantize(p.z, .05), h: quantize(p.h, .03) }));
-      const crabs = diffEntities(qAmbient(ambient.crabs), guest.crabs, recoveryFrame);
-      const birds = diffEntities(qAmbient(ambient.birds), guest.birds, recoveryFrame);
-      const butterflies = diffEntities(qAmbient(ambient.butterflies), guest.butterflies, recoveryFrame);
-      const dogNow = qAmbient([ambient.dog])[0];
-      const dog = recoveryFrame ? dogNow : diffObject(dogNow, guest.dog);
-      guest.dog = dogNow;
-      if (crabs || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
+      if (ambientFrame) {
+        const crabs = diffEntities(ambientFrame.crabs, guest.crabs, recoveryFrame);
+        const birds = diffEntities(ambientFrame.birds, guest.birds, recoveryFrame);
+        const butterflies = diffEntities(ambientFrame.butterflies, guest.butterflies, recoveryFrame);
+        const dogNow = ambientFrame.dog;
+        const dog = recoveryFrame ? dogNow : diffObject(dogNow, guest.dog);
+        guest.dog = dogNow;
+        if (crabs || birds || butterflies || dog) guest.net.send({ t: 'ambient', crabs: crabs ?? undefined, birds: birds ?? undefined, butterflies: butterflies ?? undefined, dog: dog ?? undefined });
       }
 
       if (hudFrame) {

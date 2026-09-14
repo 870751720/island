@@ -1175,10 +1175,11 @@ export class Game {
         this.ocean.update(this.camera, elapsed);
         this.questTimer += simDelta;
         if (!this.guestMode && this.questTimer >= 0.25) {
-          const benchLevel = Math.max(0, ...this.workbench.snapshot().map(b => b.level));
-          const furDropped = this.drops.snapshot().some(drop => drop.kind === 'fur');
+          const benchLevel = this.workbench.maxLevel;
+          const furDropped = this.drops.hasKind('fur');
+          const hasLitFire = this.campfire.hasLitFire;
           for (const session of this.sessions) {
-            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped, this.campfire.count, this.campfire.isCooking(session), this.campfire.snapshot().some(f => f.fuel > 0));
+            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped, this.campfire.count, this.campfire.isCooking(session), hasLitFire);
           }
           this.questTimer = 0;
         }

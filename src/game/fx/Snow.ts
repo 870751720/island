@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MAX_SCALE } from './ParticleScale';
+import { updateActiveBuffer } from './updateActiveBuffer';
 
 const FLAKE_COUNT = 620; // 竖屏基准雪花数,实际数量随屏幕宽高比缩放
 const MAX_FLAKES = FLAKE_COUNT * MAX_SCALE; // 缓冲按缩放上限一次性分配
@@ -103,7 +104,7 @@ export class Snow {
       this.positions[j] = THREE.MathUtils.euclideanModulo(x + this.area / 2, this.area) - this.area / 2;
       this.positions[j + 2] = THREE.MathUtils.euclideanModulo(z + this.area / 2, this.area) - this.area / 2;
     }
-    this.points.geometry.attributes.position.needsUpdate = true;
+    updateActiveBuffer(this.points.geometry.attributes.position, this.count * 3);
   }
 
   private scatter(): void {

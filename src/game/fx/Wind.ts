@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WindStreaks } from './WindStreaks';
 import { MAX_SCALE } from './ParticleScale';
+import { updateActiveBuffer } from './updateActiveBuffer';
 import type { WindParams } from '../systems/WeatherSystem';
 
 const LEAF_COUNT = 72; // 竖屏基准飘叶数,实际数量随屏幕宽高比缩放
@@ -106,7 +107,7 @@ export class Wind {
       this.matrix.compose(this.pos, this.quat, this.scale);
       this.mesh.setMatrixAt(i, this.matrix);
     }
-    this.mesh.instanceMatrix.needsUpdate = true;
+    updateActiveBuffer(this.mesh.instanceMatrix, this.count * 16);
   }
 
   private scatter(): void {

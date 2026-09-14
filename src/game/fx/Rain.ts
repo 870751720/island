@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MAX_SCALE } from './ParticleScale';
+import { updateActiveBuffer } from './updateActiveBuffer';
 
 const DROP_COUNT = 550; // 竖屏基准雨丝数,实际数量随屏幕宽高比缩放
 const MAX_DROPS = DROP_COUNT * MAX_SCALE; // 缓冲按缩放上限一次性分配
@@ -24,7 +25,7 @@ export class Rain {
     this.lengths = new Float32Array(MAX_DROPS);
     this.scatter();
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
     this.material = new THREE.LineBasicMaterial({
       color: '#bcd2e8',
       transparent: true,
@@ -63,7 +64,7 @@ export class Rain {
       this.positions[bottom] = y;
       this.positions[top] = y + this.lengths[i];
     }
-    this.lines.geometry.attributes.position.needsUpdate = true;
+    updateActiveBuffer(this.lines.geometry.attributes.position, this.count * 6);
   }
 
   private scatter(): void {

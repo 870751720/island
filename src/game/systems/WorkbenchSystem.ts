@@ -68,6 +68,12 @@ export class WorkbenchSystem {
     return this.benches.length;
   }
 
+  get maxLevel(): number {
+    let level = 0;
+    for (const bench of this.benches) level = Math.max(level, bench.level);
+    return level;
+  }
+
   constructor(
     private scene: THREE.Scene,
     private terrain: IslandTerrain,

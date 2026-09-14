@@ -607,6 +607,7 @@ export class Props implements Updatable {
   }
 
   private addProp(prop: Prop): void {
+    this.nearbyCache.clear();
     this.list.push(prop);
     const key = this.gridKey(prop.position.x, prop.position.z);
     const cell = this.grid.get(key);
@@ -615,6 +616,7 @@ export class Props implements Updatable {
   }
 
   private dropProp(prop: Prop): void {
+    this.nearbyCache.clear();
     const index = this.list.indexOf(prop);
     if (index >= 0) this.list.splice(index, 1);
     const cell = this.grid.get(this.gridKey(prop.position.x, prop.position.z));
@@ -624,11 +626,16 @@ export class Props implements Updatable {
     if (cell.length === 0) this.grid.delete(this.gridKey(prop.position.x, prop.position.z));
   }
 
-  /** 查询点所在格子及周边一圈格子内的资源(格子 8 米,足够覆盖最大阻挡半径) */
+  private readonly nearbyCache = new Map<number, Prop[]>();
+
+  /** 缓存格子邻域成员；资源属性仍读取原对象，增删时立即失效。 */
   private nearby(x: number, z: number): Prop[] {
     const cell = Props.GRID_CELL;
     const cx = Math.floor(x / cell);
     const cz = Math.floor(z / cell);
+    const key = this.gridKey(x, z);
+    const cached = this.nearbyCache.get(key);
+    if (cached) return cached;
     const out: Prop[] = [];
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
@@ -636,6 +643,9 @@ export class Props implements Updatable {
         if (propsInCell) out.push(...propsInCell);
       }
     }
+    // 限制探索整张地图后的缓存占用。
+    if (this.nearbyCache.size >= 128) this.nearbyCache.clear();
+    this.nearbyCache.set(key, out);
     return out;
   }
 
@@ -887,6 +897,7 @@ export class Props implements Updatable {
     }
     this.treeLooks = new WeakMap();
     this.grid.clear();
+    this.nearbyCache.clear();
     this.berries.clear();
     this.nestWorms.clear();
     this.shakes.clear();

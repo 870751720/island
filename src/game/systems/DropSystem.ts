@@ -60,6 +60,10 @@ export class DropSystem {
   private highlight = new DropHighlight();
   private scratch = new THREE.Vector3();
 
+  hasKind(kind: ResourceKind): boolean {
+    return this.drops.some((drop) => drop.kind === kind);
+  }
+
   private onChanged?: EntityChangeSink;
 
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
