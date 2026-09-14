@@ -8,6 +8,7 @@ import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
+import { QuestRewardFlight } from './QuestRewardFlight';
 import { QuestFeedback } from './QuestFeedback';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
@@ -690,6 +691,7 @@ export function GameplayUI({
         }}
       />
       )}
+      <QuestRewardFlight quest={hud.quests} visible={!photoMode && !hud.dead} containerRef={containerRef} />
       {!photoMode && !hud.dead && <QuestFeedback ref={questFeedbackRef} quest={hud.quests} />}
       {!photoMode && <VitalWarn ref={vitalWarnRef} />}
     </div>

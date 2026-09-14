@@ -5,7 +5,7 @@ import { QUESTS } from '@/game/quests/QuestDefinitions';
 
 export function QuestPanel({ quest }: { quest?: QuestView | null }) {
   const [collapsed, setCollapsed] = useState(false);
-  if (!quest?.enabled || (quest.finished && !quest.pending)) return null;
+  if (!quest?.enabled || (quest.finished && !quest.pending && !quest.feedback)) return null;
   const current = QUESTS[quest.active];
   const completed = quest.rows.filter(row => row.have >= row.need).length;
   const status = quest.finished ? '已完成' : quest.busy ? '制作中' : '进行中';
