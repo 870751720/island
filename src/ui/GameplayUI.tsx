@@ -52,6 +52,7 @@ import { useGameLifecycle } from './useGameLifecycle';
 import { useMapSnapshot } from './useMapSnapshot';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useCraftPromptHistory } from './useCraftPromptHistory';
+import { IslandArrival } from './start/IslandArrival';
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -194,23 +195,7 @@ export function GameplayUI({
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       <style>{hudStyles + gameThemeCss}</style>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 100,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          // 背景取场景天空色,淡出时与首帧画面自然衔接
-          background: '#a8d8ea',
-          opacity: worldReady ? 0 : 1,
-          pointerEvents: worldReady ? 'none' : 'auto',
-          transition: 'opacity 0.5s ease-out',
-        }}
-      >
-        <span style={{ color: '#3f6f8f', fontSize: 18, letterSpacing: 4 }}>正在登上小岛…</span>
-      </div>
+      <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
       {!hud.dead && !photoMode && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
       {!photoMode && (
         <>
