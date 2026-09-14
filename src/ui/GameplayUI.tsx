@@ -1,4 +1,5 @@
 'use client';
+import { gameButtonClickAudio, gameButtonPointerAudio } from './gameButtonAudio';
 
 import type { PickerPress } from './usePickerDrag';
 
@@ -201,6 +202,8 @@ export function GameplayUI({
     <div
       ref={containerRef}
       className="gameplay-ui"
+      onPointerDownCapture={gameButtonPointerAudio}
+      onClickCapture={gameButtonClickAudio}
       style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
     >
       <style>{hudStyles + gameThemeCss}</style>

@@ -23,9 +23,10 @@ export function menuSoundEnabled(): boolean {
   try { return localStorage.getItem(MENU_SOUND_KEY) !== 'off'; } catch { return true; }
 }
 
-export function playUiSound(kind: UiSound = 'click'): void {
+export function playUiSound(kind: UiSound = 'click', scope: 'menu' | 'game' = 'menu'): void {
   const level = loadAudioSettings().sfx;
-  if (!menuSoundEnabled() || level <= 0) return;
+  const enabled = () => scope === 'game' || menuSoundEnabled();
+  if (!enabled() || level <= 0) return;
   try {
     const ctx = context ??= new AudioContext();
     pending++;
@@ -37,7 +38,7 @@ export function playUiSound(kind: UiSound = 'click'): void {
       }
     };
     void ctx.resume().then(() => {
-      if (document.hidden || !menuSoundEnabled()) { release(); return; }
+      if (document.hidden || !enabled()) { release(); return; }
       const notes = kind === 'confirm' ? CONFIRM : CLICK;
       let remaining = notes.length;
       const start = ctx.currentTime + 0.015;
