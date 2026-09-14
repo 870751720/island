@@ -4,7 +4,6 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 
 const DOT_SPACING = 2.2;
 const DOT_SPEED = 0.65;
-const ROUTE_INTERVAL = 1 / 3;
 
 /** 任务与求生共用的轻量引导效果。 */
 export class GuidanceEffect {
@@ -19,7 +18,8 @@ export class GuidanceEffect {
   private target: { x: number; z: number } | null = null;
   private elapsed = 0;
   private phase = 0;
-  private routeTimer = ROUTE_INTERVAL;
+  private directMode = false;
+  private startIndex = 0;
   private sourcePath: { x: number; z: number }[] = [];
   private lastOrigin = new THREE.Vector3(Infinity, Infinity, Infinity);
   private reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,13 +35,14 @@ export class GuidanceEffect {
   }
   setPath(path: { x: number; z: number }[] | null): void {
     this.sourcePath = path?.map(p => ({ x: p.x, z: p.z })) ?? [];
-    this.routeTimer = ROUTE_INTERVAL;
+    this.directMode = false;
     if (path?.length) this.lastOrigin.set(path[0].x, this.terrain.getHeight(path[0].x, path[0].z), path[0].z);
     else this.lastOrigin.set(Infinity, Infinity, Infinity);
     this.target = path?.[path.length - 1] ?? null;
     this.writePath(path);
   }
   private writePath(path: { x: number; z: number }[] | null): void {
+    this.startIndex = 0;
     this.points = path?.map(p => new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z) + 0.16, p.z)) ?? [];
     this.group.visible = this.points.length > 0;
     if (!this.points.length) return;
@@ -74,12 +75,19 @@ export class GuidanceEffect {
   update(delta: number, origin: THREE.Vector3, showLine: boolean): void {
     this.elapsed += delta;
     this.phase = (this.phase + Math.min(delta, 0.1) * (this.reduced ? 0.25 : DOT_SPEED)) % DOT_SPACING;
-    this.routeTimer = Math.max(0, this.routeTimer - delta);
-    if (this.sourcePath.length && this.routeTimer === 0
-      && Math.hypot(origin.x - this.lastOrigin.x, origin.z - this.lastOrigin.z) > 0.02) {
-      this.routeTimer = ROUTE_INTERVAL;
+    if (this.target && this.sourcePath.length
+      && Math.hypot(origin.x - this.lastOrigin.x, origin.z - this.lastOrigin.z) > 0.0001) {
       this.lastOrigin.copy(origin);
-      this.writePath(this.route.refresh(origin, this.sourcePath));
+      const direct = this.route.direct(origin, this.target);
+      if (direct) {
+        this.writePath(direct);
+        this.directMode = true;
+      } else {
+        // 离开直达范围时恢复最近一次完整寻路，随后只让旧路线起点跟随。
+        if (this.directMode) this.writePath(this.sourcePath);
+        this.directMode = false;
+        this.followOrigin(origin);
+      }
     }
     if (!this.group.visible) return;
     const breath = Math.sin(this.elapsed * (this.reduced ? 1 : 1.6));
@@ -95,7 +103,7 @@ export class GuidanceEffect {
       for (let i = 0; i < this.dots.count; i++) {
         const remaining = offset + i * DOT_SPACING;
         const distance = length - remaining;
-        let index = 0;
+        let index = this.startIndex;
         while (index < this.points.length - 2 && this.distances[index + 1] <= distance) index++;
         const a = this.points[index], b = this.points[index + 1];
         const span = this.distances[index + 1] - this.distances[index];
@@ -108,6 +116,33 @@ export class GuidanceEffect {
       this.dots.instanceMatrix.needsUpdate = true;
     }
   }
+  private followOrigin(origin: THREE.Vector3): void {
+    if (this.points.length < 2) return;
+    let nearest = Infinity;
+    for (let i = this.startIndex; i < this.points.length - 1; i++) {
+      const a = this.points[i], b = this.points[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const squared = dx * dx + dz * dz;
+      const t = squared > 0 ? THREE.MathUtils.clamp(((origin.x - a.x) * dx + (origin.z - a.z) * dz) / squared, 0, 1) : 0;
+      const distance = (origin.x - a.x - dx * t) ** 2 + (origin.z - a.z - dz * t) ** 2;
+      if (distance <= nearest) { nearest = distance; this.startIndex = i; }
+    }
+    this.points[this.startIndex].set(origin.x, origin.y + 0.16, origin.z);
+    const geometry = this.line.geometry;
+    const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const distances = geometry.getAttribute('lineDistance') as THREE.BufferAttribute;
+    positions.setXYZ(this.startIndex, origin.x, origin.y + 0.16, origin.z);
+    let length = 0;
+    for (let i = this.startIndex; i < this.points.length; i++) {
+      if (i > this.startIndex) length += this.points[i].distanceTo(this.points[i - 1]);
+      this.distances[i] = length;
+      distances.setX(i, length);
+    }
+    positions.needsUpdate = true;
+    distances.needsUpdate = true;
+    geometry.setDrawRange(this.startIndex, this.points.length - this.startIndex);
+  }
+
   private updateRing(scale = 1): void {
     if (!this.target) return;
     const positions = this.ring.geometry.getAttribute('position') as THREE.BufferAttribute;
