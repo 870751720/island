@@ -1,0 +1,32 @@
+.place-picker-overlay { animation: picker-appear 140ms ease-out; }
+.place-picker-panel { overscroll-behavior: contain; }
+.place-picker-hint {
+  position: sticky;
+  top: -10px;
+  z-index: 2;
+  padding: 8px 2px;
+  min-height: 32px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #f4f2e8;
+  color: #445c49;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+.place-picker-item {
+  transition: transform 110ms ease-out, box-shadow 110ms ease-out, background-color 110ms ease-out;
+  -webkit-touch-callout: none;
+}
+.place-picker-item[data-hovered="true"] {
+  transform: translateY(-2px) scale(1.06);
+  background: #dcecc9 !important;
+  box-shadow: 0 0 0 2px #628346, 0 5px 10px #34492b30;
+  z-index: 1;
+}
+@keyframes picker-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .place-picker-overlay { animation: none; }
+  .place-picker-item { transition: none; }
+  .place-picker-item[data-hovered="true"] { transform: none; }
+}

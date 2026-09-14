@@ -1,5 +1,7 @@
 'use client';
 
+import type { PickerPress } from './usePickerDrag';
+
 import type { CraftId } from '@/game/systems/Crafting';
 
 import { ItemIcon } from './ItemIcon';
@@ -87,6 +89,7 @@ export function GameplayUI({
     setBottleMsg,
   } = useGameLifecycle({ net, initialSave });
   const [backpackOpen, setBackpackOpen] = useState(false);
+  const [pickerPress, setPickerPress] = useState<PickerPress | null>(null);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
   const [gmOpen, setGmOpen] = useState(false);
@@ -453,7 +456,7 @@ export function GameplayUI({
               placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
               dimmed={hud.busy}
-              onLongPress={() => setPlacePickerOpen(true)}
+              onLongPress={(press) => { setPickerPress(press); setPlacePickerOpen(true); }}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => openPanel('workbench')}
               onCampfire={() => openPanel('campfire')}
@@ -470,6 +473,7 @@ export function GameplayUI({
           )}
           {placePickerOpen && (
             <PlacePicker
+              press={pickerPress}
               items={createPlacePickerItems(hud)}
               emojis={EMOJIS}
               onPickEmoji={(glyph) => {

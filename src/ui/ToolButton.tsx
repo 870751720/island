@@ -1,5 +1,6 @@
 'use client';
 
+import type { PickerPress } from './usePickerDrag';
 import type { HandTool } from '@/game/entities/Player';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
@@ -98,7 +99,7 @@ export function ToolButton({
   /** 玩家移动/交互中:按钮淡出且不可点 */
   dimmed?: boolean;
   /** 长按打开可放置道具选择面板(不传则不响应长按) */
-  onLongPress?: () => void;
+  onLongPress?: (press: PickerPress) => void;
   onCycle: () => void;
   onWorkbench: () => void;
   onCampfire: () => void;
@@ -215,13 +216,15 @@ export function ToolButton({
         longFired.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
         clearPress();
+        const source = e.currentTarget;
+        const pointerId = e.pointerId;
         if (onLongPress && !dimmed) {
           setHolding(true);
           pressTimer.current = window.setTimeout(() => {
             pressTimer.current = null;
             longFired.current = true;
             setHolding(false);
-            onLongPress();
+            onLongPress({ pointerId, source });
           }, LONG_PRESS_MS);
         }
       }}
