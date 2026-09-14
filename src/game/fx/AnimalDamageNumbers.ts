@@ -22,11 +22,11 @@ export class AnimalDamageNumbers {
     canvas.height = 64;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.font = '600 40px sans-serif';
+    ctx.font = '700 40px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'rgba(35, 35, 35, 0.85)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(25, 25, 25, 0.95)';
+    ctx.lineWidth = 4;
     ctx.fillStyle = '#b8b8b8';
     const text = `-${Math.max(1, Math.round(amount))}`;
     ctx.strokeText(text, 128, 32, 248);
@@ -36,7 +36,7 @@ export class AnimalDamageNumbers {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: texture, transparent: true, depthWrite: false,
     }));
-    sprite.scale.set(1.28, 0.32, 1);
+    sprite.scale.set(2.56, 0.64, 1);
     const offset = new THREE.Vector3(0, 0.5, 0);
     sprite.position.copy(fallback).add(offset);
     if (anchor) {

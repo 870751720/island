@@ -438,4 +438,4 @@ QuestSheepSupport 每秒按个人权威任务和库存判断皮毛/探险装阶�
 
 ## 动物伤害跳字
 
-动物、鸟和螃蟹在房主权威伤害入口结算后广播 `animalDamage`（target、id、damage、x、y、z），包含致命伤害。各端通过类型和 ID 找到本地动物模型，用场景 Sprite 显示小号灰色数字，每帧跟随模型移动并上浮淡出；模型不存在时以事件坐标为起点。客人攻击仍经现有动作上行，不预测跳字；血量、死亡快照和 `creatureHit` 闪红事件保持原有职责。详见 `animal-damage-numbers.md`。
+动物、鸟和螃蟹在房主权威伤害入口结算后广播 `animalDamage`（target、id、damage、x、y、z），包含致命伤害。各端通过类型和 ID 找到本地动物模型，用场景 Sprite 显示加粗灰色数字，每帧跟随模型移动并上浮淡出；模型不存在时以事件坐标为起点。客人攻击仍经现有动作上行，不预测跳字；血量、死亡快照和 `creatureHit` 闪红事件保持原有职责。详见 `animal-damage-numbers.md`。
