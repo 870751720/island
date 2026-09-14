@@ -99,6 +99,7 @@ const ACTIONS: NetActionRegistry = {
   lassoUntie: (g, a) => g.untieLasso(a),
   // 客人空手挤奶:房主权威取走羊奶入客人背包(羊奶状态随姿态快照回流)
   milkSheep: (g, a, [sheepId, x, z]) => g.milkSheep(a, sheepId, x, z),
+  gmDog: (g, a, [command, value]) => { g.gmDog(command, value, a); return true; },
   gmSpawnAnimal: (g, a, [species]) => {
     g.gmSpawnAnimalFor(species, a);
     return true;

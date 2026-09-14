@@ -12,6 +12,8 @@ import { CreatureFx } from '../fx/CreatureFx';
 import { makeMilkIcon } from '../ui3d/MilkIcon';
 import type { SfxName } from '../audio/Sfx';
 
+export type DogThreat = { id: number; pos: THREE.Vector3; player: Player };
+
 export type AnimalSpecies = 'rabbit' | 'sheep' | 'bison' | 'wolf' | 'bear' | 'crocodile';
 
 /** 物种中文名(GM 面板等展示用) */
@@ -356,6 +358,10 @@ export class Wildlife implements Updatable {
   /** 权威伤害结算后的数字反馈，包含致命一击。 */
   onDamage: (amount: number, position: THREE.Vector3, id: number) => void = () => {};
 
+  /** 当前帧正在追击或攻击玩家的威胁；不包含被动逃跑动物。 */
+  readonly dogThreats: DogThreat[] = [];
+  onDogKill: (species: AnimalSpecies, position: THREE.Vector3, player: Player) => void = () => {};
+
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
   private nextId = 1;
@@ -613,6 +619,7 @@ export class Wildlife implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    this.dogThreats.length = 0;
     this.creatureFx.update(delta);
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
@@ -659,7 +666,10 @@ export class Wildlife implements Updatable {
         animal.alerted = true;
       }
       const rushed = animal.alerted && vulnerable;
-      if (rushed && hostile && target) this.onPlayerThreat?.(target);
+      if (rushed && hostile && target) {
+        this.onPlayerThreat?.(target);
+        this.dogThreats.push({ id: animal.id, pos: animal.pos, player: target });
+      }
 
       animal.walkTime += delta;
       animal.attackLeft = Math.max(0, animal.attackLeft - delta);
@@ -1297,6 +1307,56 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || animal.hidden || animal.leash) return null;
     return this.applyDamage(animal, damage);
+  }
+
+  /** 博美只伤害本帧威胁，沿命中路径检查遮挡；伤害不受玩家 GM 倍率影响。 */
+  dogBite(id: number, origin: THREE.Vector3, damage: number, knockback: number): boolean {
+    const threat = this.dogThreats.find(t => t.id === id);
+    const animal = this.animals.find(a => a.id === id && a.alive);
+    if (!threat || !animal || !this.isPlayerVulnerable(threat.player)) return false;
+    const dx = animal.pos.x - origin.x, dz = animal.pos.z - origin.z;
+    if (Math.hypot(dx, dz) > 1.15) return false;
+    for (let i = 0; i <= 6; i++) {
+      if (this.isBlocked(origin.x + dx * i / 6, origin.z + dz * i / 6)) return false;
+    }
+    const result = this.applyDamage(animal, damage);
+    if (!result) return false;
+    if (result !== 'hit') {
+      this.onDogKill(result.species, animal.pos.clone(), threat.player);
+    } else if (knockback > 0) {
+      const scale = animal.species === 'bear' || animal.species === 'bison' || animal.species === 'crocodile' ? 0.45 : 1;
+      const awayX = Math.hypot(dx, dz) > 0.01 ? dx : animal.pos.x - threat.player.group.position.x;
+      const awayZ = Math.hypot(dx, dz) > 0.01 ? dz : animal.pos.z - threat.player.group.position.z;
+      const angle = Math.hypot(awayX, awayZ) > 0.01 ? Math.atan2(awayZ, awayX) : animal.heading + Math.PI;
+      for (let i = 0; i < 8; i++) {
+        const x = animal.pos.x + Math.cos(angle) * knockback * scale / 8;
+        const z = animal.pos.z + Math.sin(angle) * knockback * scale / 8;
+        if (!this.canStand(animal, x, z)) break;
+        animal.pos.set(x, this.terrain.getHeight(x, z), z);
+      }
+      animal.pounce = null;
+      animal.entrance = null;
+      animal.attackLeft = Math.max(animal.attackLeft, 0.7);
+    }
+    return true;
+  }
+
+  /** GM 护主场景：在可通行干地生成低血量狼，仍走正式 AI 与伤害链。 */
+  gmDogThreat(player: Player, health = 5): boolean {
+    const p = player.group.position;
+    for (let i = 0; i < 32; i++) {
+      const angle = i * Math.PI / 8;
+      const radius = 2 + Math.floor(i / 16);
+      const x = p.x + Math.cos(angle) * radius, z = p.z + Math.sin(angle) * radius;
+      if (!this.isGrass(x, z)) continue;
+      const animal = this.createAnimal('wolf', new THREE.Vector3(x, this.terrain.getHeight(x, z), z), angle + Math.PI);
+      animal.hp = health;
+      animal.attackLeft = 2;
+      animal.alerted = true;
+      animal.boundTo = player;
+      return true;
+    }
+    return false;
   }
 
   private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {

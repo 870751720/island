@@ -71,7 +71,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
     for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
   }
   s.drops.restore(save.drops);
-  s.dog.restore(save.dog.x, save.dog.z);
+  s.dog.restore(save.dog.x, save.dog.z, save.dog);
 }
 
 export function snapshotWorld(s: WorldSaveSystems) {

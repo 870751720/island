@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { dogFood } from './DogFood';
+import type { Food } from './Food';
 import { DropHighlight } from '../fx/DropHighlight';
 import type { ResourceKind } from './Inventory';
 import type { Actor } from '../mp/Actor';
@@ -10,19 +12,9 @@ import { createWorldEntityId, type EntityChangeSink } from './WorldEntityId';
 
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
-const MEAT_EAT_DELAY = 4; // 狗狗只吃落地超过这么久的肉,给玩家捡回的机会
+const DOG_EAT_DELAY = 4; // 狗狗只吃落地超过这么久的食物,给玩家捡回的机会
 const BOB_HEIGHT = 0.15; // 悬浮上下浮动幅度
 const SPIN_SPEED = 1.6; // 旋转速度(弧度/秒)
-
-/** 狗狗认得的肉块:生肉与烤肉都会被闻着味儿跑来吃掉 */
-export const MEAT_KINDS: readonly ResourceKind[] = [
-  'crabMeat',
-  'birdMeat',
-  'gameMeat',
-  'cookedCrabMeat',
-  'cookedBirdMeat',
-  'cookedGameMeat',
-];
 
 /** 掉落物来源:玩家主动丢弃 / 击杀动物掉落 / 背包放不下溢出 */
 export type DropSource = 'discarded' | 'loot' | 'overflow';
@@ -187,13 +179,13 @@ export class DropSystem {
     return false;
   }
 
-  /** 范围内最近的一块肉(狗狗寻肉用,只比较水平距离——肉块悬浮在空中),没有则 null。
-   * 只认玩家主动丢弃的肉:狩猎战利品和背包溢出的不抢 */
-  nearestMeat(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
+  /** 范围内最近的一份可喂食物(狗狗寻食用,只比较水平距离——掉落物悬浮在空中),没有则 null。
+   * 只认玩家主动丢弃的食物:狩猎战利品和背包溢出的不抢 */
+  nearestDogFood(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Drop | null = null;
     let bestDist = range * range;
     for (const drop of this.drops) {
-      if (!MEAT_KINDS.includes(drop.kind) || drop.source !== 'discarded' || drop.age < MEAT_EAT_DELAY) continue;
+      if (!dogFood(drop.kind) || drop.source !== 'discarded' || drop.age < DOG_EAT_DELAY) continue;
       const dx = drop.mesh.position.x - origin.x;
       const dz = drop.mesh.position.z - origin.z;
       const d = dx * dx + dz * dz;
@@ -205,13 +197,13 @@ export class DropSystem {
     return best ? best.mesh.position.clone() : null;
   }
 
-  /** 吃掉范围内最近的一块肉(狗狗进食,不进背包),返回是否吃到 */
-  consumeMeatNear(origin: THREE.Vector3, range: number): boolean {
+  /** 吃掉范围内最近的一份可喂食物，返回食物定义用于成长结算 */
+  consumeDogFoodNear(origin: THREE.Vector3, range: number): Food | null {
     let best = -1;
     let bestDist = range * range;
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
-      if (!MEAT_KINDS.includes(drop.kind) || drop.age < MEAT_EAT_DELAY) continue;
+      if (!dogFood(drop.kind) || drop.source !== 'discarded' || drop.age < DOG_EAT_DELAY) continue;
       const dx = drop.mesh.position.x - origin.x;
       const dz = drop.mesh.position.z - origin.z;
       const d = dx * dx + dz * dz;
@@ -220,11 +212,14 @@ export class DropSystem {
         bestDist = d;
       }
     }
-    if (best < 0) return false;
+    if (best < 0) return null;
     const drop = this.drops[best];
     this.fx.burst(drop.mesh.position, '#e8b88a', 6);
-    this.remove(best);
-    return true;
+    // 每次只吃一份，余下堆叠继续留在地上并同步数量。
+    drop.count -= 1;
+    if (drop.count <= 0) this.remove(best);
+    else this.onChanged?.({ op: 'set', id: drop.id, fields: { count: drop.count } });
+    return dogFood(drop.kind) ?? null;
   }
 
   private remove(index: number): void {

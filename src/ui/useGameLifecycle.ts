@@ -1,8 +1,7 @@
 'use client';
 import { CLAY_SVG } from './icons/ClayIcons';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import { EMOJI_BUBBLE_ASPECT, EMOJI_CONTENT_RATIO } from '@/game/ui3d/EmojiBubbleSize';
-import { DOG_EMOJI_SVG } from './icons/DogEmojiIcons';
+import { presentDogBubble } from './DogBubblePresentation';
 
 import { Game } from '@/game/Game';
 import type { HudSnapshot, PickupToast } from '@/game/GameContracts';
@@ -117,19 +116,9 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
               1000,
             );
           },
-          (emoji, x, y, height) => {
+          (emoji, x, y, height, notice) => {
             const element = dogEmojiRef.current;
-            if (!element) return;
-            element.style.display = emoji ? 'flex' : 'none';
-            if (emoji) {
-              element.style.width = `${height * EMOJI_BUBBLE_ASPECT}px`;
-              element.style.height = `${height}px`;
-              if (element.dataset.glyph !== emoji) {
-                element.innerHTML = `<span style="width:${EMOJI_CONTENT_RATIO / EMOJI_BUBBLE_ASPECT * 100}%;height:${EMOJI_CONTENT_RATIO * 100}%;display:block">${DOG_EMOJI_SVG[emoji] ?? DOG_EMOJI_SVG['🐕']}</span>`;
-                element.dataset.glyph = emoji;
-              }
-              element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-            }
+            if (element) presentDogBubble(element, emoji, x, y, height, notice);
           },
           setBottleMsg,
           {

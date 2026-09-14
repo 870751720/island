@@ -1,3 +1,5 @@
+import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
+import type { DogStageNotice } from './entities/Pomeranian';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
 import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
@@ -291,7 +293,7 @@ export class Game {
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private onDamage: (amount: number, x: number, y: number) => void;
-  private onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void;
+  private onDogEmoji: (emoji: string | null, x: number, y: number, height: number, notice: DogStageNotice | null) => void;
   private terrainSeed: number;
   private autosaveTimer = 0;
   private mumbles: MumbleSystem;
@@ -348,7 +350,7 @@ export class Game {
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void,
-    onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void,
+    onDogEmoji: (emoji: string | null, x: number, y: number, height: number, notice: DogStageNotice | null) => void,
     onBottleMessage: (text: string) => void,
     options: GameOptions = {}
   ) {
@@ -595,7 +597,7 @@ export class Game {
         this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, actor: actor.id, x: p.x, y: p.y + 1, z: p.z });
       }
     };
-    // 黑色博美伴侣:出生在玩家身旁,闻到肉块会跑去吃,平时跟着玩家或在身边自己玩
+    // 黑色博美伴侣:出生在玩家身旁,闻到可喂食物会跑去吃,平时跟着玩家或在身边自己玩
     this.dog = new Pomeranian(
       this.scene,
       terrain,
@@ -604,6 +606,16 @@ export class Game {
       this.waterFx,
       (x, z) => this.isGroundBlocked(x, z)
     );
+    this.dog.connectCombat(this.wildlife);
+    this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
+    this.dog.onPounce = (serial) => this.hostRef?.broadcastEvent({ kind: 'dogPounce', serial });
+    this.wildlife.onDogKill = (species, position, player) => {
+      this.sessionOf(player).stats.kills += 1;
+      this.wildlife.lootOf(species).forEach((item, i) => {
+        const angle = i * 2.4;
+        this.drops.dropAt(item.kind, item.count, position.x + Math.cos(angle) * 0.4, position.z + Math.sin(angle) * 0.4);
+      });
+    };
     this.indicator = new PlayerIndicator(this.camera, this.scene);
     this.emojiBubbles = new EmojiBubbles(container, this.camera);
 
@@ -969,7 +981,8 @@ export class Game {
           this.birds.update(simDelta, elapsed);
           this.dayEvents.update();
           this.wildlife.update(simDelta, elapsed);
-          this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight);
+          this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
+            this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
         } else {
           this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
@@ -1510,6 +1523,8 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'dogStage') { this.dog.showStage(event); return; }
+    if (event.kind === 'dogPounce') { this.dog.netPlayPounce(event.serial); return; }
     if (event.kind === 'bottle') {
       if (event.target === this.local.id) this.onBottleMessage(event.text);
       return;
@@ -2573,6 +2588,46 @@ export class Game {
     );
   }
 
+  getDogDebugState() { return this.dog.debugState; }
+
+  /** 博美 GM 与正式玩法共用权威入口；客人只发送动作，不在本地修改经验。 */
+  gmDog(command: DogGmCommand, value = 0, actor: PlayerSession = this.local): void {
+    if (!DOG_GM_COMMANDS.includes(command) || !Number.isFinite(value)) return;
+    if (this.guestNet) { this.guestNet.action('gmDog', [command, value]); return; }
+    if (command === 'stage') this.dog.growth.setStage(value);
+    else if (command === 'xp') this.dog.growth.add(Math.min(1500, Math.max(0, value)));
+    else if (command === 'cooldowns') this.dog.clearCooldowns();
+    else if (command === 'recall') this.dog.recall(actor.player);
+    else if (command === 'companion') this.dog.growth.update(60, true);
+    else if (command === 'protect') this.dog.growth.protectedPlayer();
+    else if (command === 'foods') {
+      this.dog.recall(actor.player);
+      this.dog.clearCooldowns();
+      this.drops.drop('cookedGameMeat', 3, actor);
+      for (const kind of ['pepper', 'wineBerry', 'crabMeat'] as const) this.drops.drop(kind, 1, actor);
+      this.notify('已放下 3 份烤兽肉及拒食对照，4 秒后只吃 1 份烤肉（+30 经验）', actor);
+      return;
+    } else if (command === 'threat' || command === 'rescue') {
+      if (actor.survival.state.dead || actor.player.isSwimming || actor.player.isSleeping) {
+        this.notify('请在存活、清醒且上岸时测试护主', actor); return;
+      }
+      if (!this.wildlife.gmDogThreat(actor.player, command === 'rescue' ? 15 : 5)) {
+        this.notify('附近没有可生成狼的草地，挪到草地再试', actor); return;
+      }
+      this.dog.recall(actor.player);
+      this.dog.clearCooldowns();
+      if (command === 'rescue') {
+        this.dog.growth.setStage(5);
+        actor.survival.state.health = 30;
+        actor.player.setHealth(30);
+      }
+      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : '已生成 5 血狼，博美将按当前阶段扑咬护主', actor);
+      return;
+    }
+    const state = this.dog.debugState;
+    this.notify(`博美 ${state.stage} 阶段 · ${state.xp} 经验 · 攻击力 ${state.stage}`, actor);
+  }
+
   /** GM 特殊事件:立即在该玩家所在水洼触发一次鳄鱼袭击(不走概率);客人端上行房主结算 */
   gmTriggerCrocodile(): void {
     if (this.guestNet) {
@@ -3591,7 +3646,8 @@ export class Game {
       this.dog.activeEmoji,
       Math.round(((dogAnchor.x + 1) / 2) * w),
       Math.round(((1 - dogAnchor.y) / 2) * h),
-      emojiBubbleHeight(h, this.camera)
+      emojiBubbleHeight(h, this.camera),
+      dogAnchor.z >= -1 && dogAnchor.z <= 1 ? this.dog.stageNotice : null
     );
 
     // 低数值提醒挂在头顶(作业提示下方),任一数值 ≤20% 时 UI 层显示对应图标+剩余条

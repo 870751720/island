@@ -9,7 +9,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 30;
+export const NET_PROTOCOL_VERSION = 31;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -54,6 +54,16 @@ export type AmbientPose = {
   state?: string;
   /** 外观变体(鸟的羽色序号),客人端补建新个体时使用 */
   variant?: number;
+  dogXp?: number;
+  dogEatCooldown?: number;
+  dogProtectCooldown?: number;
+  dogCompanionSeconds?: number;
+  dogPhase?: 'idle' | 'windup' | 'leap' | 'recover';
+  dogProgress?: number;
+  dogPounceSerial?: number;
+  dogNoticeStage?: number;
+  dogNoticeSerial?: number;
+  dogNoticeLeft?: number;
 };
 
 export type AmbientState = {
@@ -90,6 +100,8 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'dogStage'; stage: number; serial: number }
+  | { kind: 'dogPounce'; serial: number }
   | { kind: 'animalDamage'; target: 'wildlife' | 'crab' | 'bird'; id: number; damage: number; x: number; y: number; z: number }
   | { kind: 'feedback'; sfx: SfxName; actor: string; x: number; y: number; z: number }
   | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }

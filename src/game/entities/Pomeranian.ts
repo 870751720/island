@@ -5,14 +5,19 @@ import type { DropSystem } from '../systems/DropSystem';
 import type { Particles } from '../fx/Particles';
 import type { WaterFx } from '../fx/WaterFx';
 import type { AmbientPose } from '../net/Protocol';
+import type { Wildlife } from './Wildlife';
+import { DogGrowth, DOG_STAGES, type DogSave } from '../systems/DogGrowth';
+import { DogCombat, type DogCompanion, type DogCombatView } from '../systems/DogCombat';
 
-/** 闻到肉块的半径:在这个距离内的地面肉块会把狗狗吸引过去 */
+export type DogStageNotice = { stage: number; serial: number };
+
+/** 闻到食物的半径:在这个距离内的地面食物会把狗狗吸引过去 */
 const SMELL_RANGE = 9;
-/** 吃到肉块的距离:走到这么近就开吃 */
+/** 吃到食物的距离:走到这么近就开吃 */
 const EAT_RANGE = 0.7;
 /** 玩家远于该距离时狗狗跟上来,近于该距离时停下自己玩 */
 const FOLLOW_RANGE = 3.2;
-/** 平时小跑与追肉/追人时的奔跑速度 */
+/** 平时小跑与追食/追人时的奔跑速度 */
 const TROT_SPEED = 2.4;
 const RUN_SPEED = 4.6;
 /** 干地余量:地面高出当地水面(海/水洼)这么多才算可站立的干沙 */
@@ -34,9 +39,9 @@ const PLAY_EMOJI_TIME = 2;
 const DIG_SLEEP_COOLDOWN = 120;
 const SPIN_COOLDOWN = 60;
 
-/** 吃完一块肉的进食动作时长(低头咀嚼) */
+/** 吃完一份食物的进食动作时长(低头咀嚼) */
 const EAT_DURATION = 1.4;
-/** 两次进食之间的间隔:吃完一块肉后要馋这么久才肯再吃 */
+/** 两次进食之间的间隔:吃完一份食物后要馋这么久才肯再吃 */
 const EAT_COOLDOWN = 60;
 /** 吃饱后的开心转圈时长 */
 const HAPPY_DURATION = 2.2;
@@ -143,11 +148,22 @@ const PLAY_EMOJIS = ['🐕', '❤️', '✨', '🐾', '🎾', '😊', '🥰'];
 const FOLLOW_EMOJIS = ['🏃', '💨', '❤️'];
 
 /**
- * 黑色博美伴侣:出生在玩家身旁,被附近地面上的肉块吸引,吃完回来继续跟随玩家;
+ * 黑色博美伴侣:出生在玩家身旁,被附近地面上的食物吸引,吃完回来继续跟随玩家;
  * 距离玩家够近时不跟了,围着玩家转圈或原地打转自己玩,时不时头顶冒个小表情。
  */
 export class Pomeranian {
   readonly group = new THREE.Group();
+  readonly growth = new DogGrowth();
+  private combat: DogCombat | null = null;
+  private combatView: DogCombatView = { phase: 'idle', progress: 0 };
+  private fighting = false;
+  private notice: DogStageNotice | null = null;
+  private noticeLeft = 0;
+  private noticeSerial = 0;
+  private netPounceTime = -1;
+  private pounceSerial = 0;
+  onStage: (notice: DogStageNotice) => void = () => {};
+  onPounce: (serial: number) => void = () => {};
   private model: DogModel;
   private pos = new THREE.Vector3();
   private heading = 0;
@@ -157,7 +173,7 @@ export class Pomeranian {
   private eatLeft = 0;
   /** 吃饱后的开心转圈剩余时间 */
   private happyLeft = 0;
-  /** 进食冷却剩余时间:归零前不再追肉 */
+  /** 进食冷却剩余时间:归零前不再追食 */
   private eatCd = 0;
   /** 当前头顶表情与剩余显示时间(由 Game 投影到屏幕,交给 React 气泡渲染) */
   private emoji: string | null = null;
@@ -203,10 +219,56 @@ export class Pomeranian {
     /** 围栏等静态阻挡:点在阻挡内时不可走 */
     private isBlocked: (x: number, z: number) => boolean = () => false
   ) {
+    this.growth.onStage = (stage) => {
+      const notice = { stage, serial: this.noticeSerial + 1 };
+      this.showStage(notice);
+      this.onStage(notice);
+    };
     this.model = makePomeranianModel();
     this.group.add(this.model.group);
     this.placeNear(player.group.position, 1.5);
     scene.add(this.group);
+  }
+
+  connectCombat(wildlife: Wildlife): void {
+    this.combat = new DogCombat(wildlife, this.growth, this.pos,
+      (target, speed, delta) => this.stepTo(target, speed, delta, true),
+      target => { this.heading = Math.atan2(target.z - this.pos.z, target.x - this.pos.x); },
+      (x, z) => this.waterDepth(x, z) <= SWIM_DEPTH);
+    this.combat.onPounce = () => this.onPounce(++this.pounceSerial);
+  }
+
+  get stageNotice(): DogStageNotice | null { return this.noticeLeft > 0 ? this.notice : null; }
+
+  showStage(notice: DogStageNotice): void {
+    if (notice.serial <= this.noticeSerial || !DOG_STAGES.some(s => s.stage === notice.stage)) return;
+    this.noticeSerial = notice.serial;
+    this.notice = notice;
+    this.noticeLeft = 4;
+  }
+
+  netPlayPounce(serial: number): void {
+    if (serial <= this.pounceSerial) return;
+    this.pounceSerial = serial;
+    this.netPounceTime = 0;
+  }
+
+  get debugState() {
+    return { stage: this.growth.config.stage, xp: this.growth.xp, eatCooldown: this.eatCd,
+      protectCooldown: this.growth.protectCooldown, companionSeconds: this.growth.companionSeconds,
+      combat: this.combat?.status };
+  }
+
+  clearCooldowns(): void {
+    this.eatCd = this.eatLeft = this.happyLeft = 0;
+    this.growth.protectCooldown = 0;
+    this.combat?.reset();
+  }
+
+  recall(player: Player): void {
+    this.player = player;
+    this.placeNear(player.group.position, 1.5);
+    this.combat?.reset();
   }
 
   /** 当前正在展示的表情(无则 null),以及头顶气泡锚点的世界坐标 */
@@ -215,7 +277,7 @@ export class Pomeranian {
   }
 
   fillEmojiAnchor(out: THREE.Vector3): void {
-    out.set(this.pos.x, this.pos.y + 0.95, this.pos.z);
+    out.set(this.pos.x, this.pos.y + 0.95 + (this.combatView.phase === 'leap' ? Math.sin(this.combatView.progress * Math.PI) * 0.4 : 0), this.pos.z);
   }
 
   /** 头顶冒一个表情,持续 time 秒 */
@@ -257,20 +319,39 @@ export class Pomeranian {
   }
 
   /** 存档恢复:瞬移到存档位置 */
-  restore(x: number, z: number): void {
+  restore(x: number, z: number, save: Partial<DogSave> = {}): void {
+    this.growth.restore(save);
+    this.combat?.restore(save);
+    this.eatCd = Number.isFinite(save.eatCooldown) ? Math.min(60, Math.max(0, save.eatCooldown!)) : 0;
     if (this.walkable(x, z)) this.pos.set(x, this.terrain.getHeight(x, z), z);
     else this.placeNear(this.player.group.position, 1.5);
   }
 
-  snapshot(): { x: number; z: number } {
-    return { x: this.pos.x, z: this.pos.z };
+  snapshot(): DogSave {
+    return { x: this.pos.x, z: this.pos.z, ...this.growth.snapshot(), ...this.combat?.snapshot(), eatCooldown: this.eatCd };
   }
 
   netPose(): AmbientPose {
-    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.play };
+    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.play,
+      dogXp: this.growth.xp, dogEatCooldown: Math.ceil(this.eatCd),
+      dogProtectCooldown: Math.ceil(this.growth.protectCooldown), dogCompanionSeconds: Math.floor(this.growth.companionSeconds),
+      dogPhase: this.combatView.phase, dogProgress: Math.round(this.combatView.progress * 20) / 20,
+      dogPounceSerial: this.pounceSerial,
+      dogNoticeStage: this.notice?.stage ?? 0, dogNoticeSerial: this.noticeSerial, dogNoticeLeft: Math.ceil(this.noticeLeft) };
   }
 
   netApply(pose: AmbientPose, _elapsed: number): void {
+    this.growth.restore({ xp: pose.dogXp, protectCooldown: pose.dogProtectCooldown, companionSeconds: pose.dogCompanionSeconds });
+    this.eatCd = pose.dogEatCooldown ?? 0;
+    this.eatLeft = pose.state === 'eat' ? 0.5 : 0;
+    this.fighting = pose.state === 'guard';
+    if (this.fighting) this.play = 'circle';
+    if ((pose.dogNoticeLeft ?? 0) > 0) this.showStage({ stage: pose.dogNoticeStage ?? 0, serial: pose.dogNoticeSerial ?? 0 });
+    const phase = pose.dogPhase ?? 'idle';
+    const progress = pose.dogProgress ?? 0;
+    this.pounceSerial = Math.max(this.pounceSerial, pose.dogPounceSerial ?? 0);
+    this.netPounceTime = phase === 'windup' ? progress * 0.18 : phase === 'leap' ? 0.18 + progress * 0.32
+      : phase === 'recover' ? 0.5 + progress * 0.3 : -1;
     this.netPos.set(pose.x, pose.y, pose.z);
     this.netHeading = pose.h;
     if (this.pos.distanceToSquared(this.netPos) > 64) {
@@ -285,6 +366,16 @@ export class Pomeranian {
 
   /** 客人端逐帧平滑权威快照并播放纯视觉动作。 */
   netUpdate(delta: number, elapsed: number): void {
+    this.noticeLeft = Math.max(0, this.noticeLeft - delta);
+    if (this.netPounceTime >= 0) {
+      this.netPounceTime += delta;
+      const t = this.netPounceTime;
+      this.combatView = t < 0.18 ? { phase: 'windup', progress: t / 0.18 }
+        : t < 0.5 ? { phase: 'leap', progress: (t - 0.18) / 0.32 }
+        : t < 0.8 ? { phase: 'recover', progress: (t - 0.5) / 0.3 }
+        : { phase: 'idle', progress: 0 };
+      if (t >= 0.8) this.netPounceTime = -1;
+    } else this.combatView = { phase: 'idle', progress: 0 };
     if (!this.group.visible) return;
     const k = 1 - Math.exp(-14 * delta);
     const moving = this.pos.distanceToSquared(this.netPos) > 0.0004;
@@ -295,22 +386,31 @@ export class Pomeranian {
   }
 
   /** 朝目标走一步,返回是否仍在途中;直路被挡时优先沿用上次的绕行方向,再试切线方向 */
-  private stepTo(target: THREE.Vector3, speed: number, delta: number): boolean {
+  private stepTo(target: THREE.Vector3, speed: number, delta: number, shallowOnly = false): boolean {
     const dirX = target.x - this.pos.x;
     const dirZ = target.z - this.pos.z;
     const dist = Math.hypot(dirX, dirZ);
     if (dist < 0.15) return false;
     const angle = Math.atan2(dirZ, dirX);
+    const step = Math.min(speed * delta, dist);
     const detours = [Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
     const order = this.lastDetour === 0
       ? detours
       : [this.lastDetour, ...detours.filter((d) => d !== this.lastDetour)];
     const options = [angle, ...order.map((d) => angle + d)];
     for (const a of options) {
-      const nx = this.pos.x + Math.cos(a) * speed * delta;
-      const nz = this.pos.z + Math.sin(a) * speed * delta;
-      // 深水里围栏挡不住(与玩家游泳一致);干地上仍要避开静态阻挡
-      if (this.isBlocked(nx, nz) && this.waterDepth(nx, nz) <= SWIM_DEPTH) continue;
+      const nx = this.pos.x + Math.cos(a) * step;
+      const nz = this.pos.z + Math.sin(a) * step;
+      if (shallowOnly && this.waterDepth(nx, nz) > SWIM_DEPTH) continue;
+      let pathBlocked = false;
+      const samples = Math.max(1, Math.ceil(step / 0.12));
+      for (let i = 1; i <= samples; i++) {
+        const x = this.pos.x + (nx - this.pos.x) * i / samples;
+        const z = this.pos.z + (nz - this.pos.z) * i / samples;
+        if ((shallowOnly && this.waterDepth(x, z) > SWIM_DEPTH)
+          || (this.isBlocked(x, z) && this.waterDepth(x, z) <= SWIM_DEPTH)) { pathBlocked = true; break; }
+      }
+      if (pathBlocked) continue;
       this.heading = a;
       this.lastDetour = a === angle ? 0 : a - angle;
       this.pos.set(nx, this.stepY(nx, nz), nz);
@@ -346,7 +446,7 @@ export class Pomeranian {
     if (this.play === 'spin') this.spinCd = SPIN_COOLDOWN;
   }
 
-  /** 天黑后趴在玩家身边睡长觉,直到被肉香或玩家的脚步叫醒 */
+  /** 天黑后趴在玩家身边睡长觉,直到被食物香气或玩家的脚步叫醒 */
   private startNightSleep(): void {
     if (this.play === 'sleep') return;
     this.play = 'sleep';
@@ -355,7 +455,7 @@ export class Pomeranian {
     this.sleepCd = DIG_SLEEP_COOLDOWN;
   }
 
-  /** 从睡觉中醒来(有肉吃或要跟人时) */
+  /** 从睡觉中醒来(有食物吃或要跟人时) */
   private wake(): void {
     if (this.play !== 'sleep') return;
     this.play = 'circle';
@@ -389,13 +489,30 @@ export class Pomeranian {
     return true;
   }
 
-  update(delta: number, elapsed: number, drops: DropSystem, isNight = false): void {
+  update(delta: number, elapsed: number, drops: DropSystem, isNight = false, companions: readonly DogCompanion[] = []): void {
+    if (delta <= 0) return;
+    this.noticeLeft = Math.max(0, this.noticeLeft - delta);
+    const nearby = companions.filter(c => !c.dead && c.health > 0
+      && Math.hypot(c.player.group.position.x - this.pos.x, c.player.group.position.z - this.pos.z) <= 10);
+    this.growth.update(delta, nearby.some(c => c.player.isMoving && !c.player.isSleeping));
+    // 当前跟随对象离线或死亡后，改跟仍在场的队员。
+    if (!companions.some(c => c.player === this.player && !c.dead)) {
+      const next = nearby[0] ?? companions.find(c => !c.dead);
+      if (next) this.player = next.player;
+    }
+    this.fighting = this.combat?.update(delta, companions, this.player) ?? false;
+    this.combatView = this.combat?.view ?? { phase: 'idle', progress: 0 };
     const p = this.player.group.position;
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     let moving = false;
     let excited = false;
 
-    if (this.eatLeft > 0) {
+    if (this.fighting) {
+      this.play = 'circle';
+      this.eatLeft = this.happyLeft = 0;
+      moving = this.combat?.moving ?? false;
+      excited = true;
+    } else if (this.eatLeft > 0) {
       // 进食中:原地低头咀嚼
       this.eatLeft -= delta;
     } else if (this.happyLeft > 0) {
@@ -404,19 +521,21 @@ export class Pomeranian {
       this.heading += delta * 10;
       excited = true;
     } else {
-      // 1) 附近有肉块:优先跑去吃
-      const meat = this.eatCd <= 0 ? drops.nearestMeat(this.pos, SMELL_RANGE) : null;
-      if (meat) {
+      // 1) 附近有食物:优先跑去吃
+      const foodPosition = this.eatCd <= 0 ? drops.nearestDogFood(this.pos, SMELL_RANGE) : null;
+      if (foodPosition) {
         this.wake();
-        if (Math.hypot(meat.x - this.pos.x, meat.z - this.pos.z) <= EAT_RANGE) {
-          if (drops.consumeMeatNear(this.pos, EAT_RANGE)) {
+        if (Math.hypot(foodPosition.x - this.pos.x, foodPosition.z - this.pos.z) <= EAT_RANGE) {
+          const food = drops.consumeDogFoodNear(this.pos, EAT_RANGE);
+          if (food) {
+            this.growth.add(food.hunger);
             this.eatLeft = EAT_DURATION;
             this.happyLeft = HAPPY_DURATION;
             this.eatCd = EAT_COOLDOWN;
             this.showEmoji(Math.random() < 0.5 ? '😋' : '🦴');
           }
         } else {
-          moving = this.stepTo(meat, RUN_SPEED, delta);
+          moving = this.stepTo(foodPosition, RUN_SPEED, delta);
           excited = true;
         }
         this.waitingForReturn = false;
@@ -525,6 +644,14 @@ export class Pomeranian {
     g.position.set(this.pos.x, this.pos.y + bob, this.pos.z);
     // 狗刨时身体随浪左右轻晃,上岸恢复水平
     g.rotation.z = this.swimming ? Math.sin(elapsed * 1.7) * 0.09 : 0;
+    const pounce = this.combatView;
+    g.rotation.x = 0;
+    if (!this.swimming && pounce.phase === 'windup') {
+      g.position.y -= Math.sin(pounce.progress * Math.PI / 2) * 0.09;
+    } else if (!this.swimming && pounce.phase === 'leap') {
+      g.position.y += Math.sin(pounce.progress * Math.PI) * 0.4;
+      g.rotation.x = -0.22 + pounce.progress * 0.44;
+    }
     // 朝向沿最短弧平滑过渡:绕障换向/坐下转向时不再瞬间甩转
     const diff = Math.atan2(
       Math.sin(this.heading - this.viewHeading),
@@ -549,6 +676,7 @@ export class Pomeranian {
         leg.rotation.x = swing;
         return;
       }
+      if (pounce.phase === 'leap') { leg.rotation.x = i < 2 ? -0.9 : 0.7; return; }
       swing = moving ? Math.sin(elapsed * speed + i * Math.PI * 0.5) * 0.7 : 0;
       if (digging && i < 2) {
         // 刨坑:两条前腿飞快交替扒土

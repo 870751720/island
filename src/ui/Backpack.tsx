@@ -7,6 +7,7 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, foodVerb } from '@/game/systems/Food';
+import { DOG_FOOD_EXCLUSIONS } from '@/game/systems/DogFood';
 import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
@@ -467,6 +468,11 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                       </div>
                       <div style={{ fontSize: 13, color: gameTheme.ink, lineHeight: 1.5 }}>
                         {selectedDef.description}
+                        {selectedFood && <div style={{ marginTop: 6, fontSize: 12 }}>
+                          {DOG_FOOD_EXCLUSIONS[selectedFood.kind]
+                            ? `博美不吃：${DOG_FOOD_EXCLUSIONS[selectedFood.kind]}`
+                            : `可丢弃喂博美 · 每份 +${selectedFood.hunger} 成长经验`}
+                        </div>}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {isUsable(selectedDef.kind) &&

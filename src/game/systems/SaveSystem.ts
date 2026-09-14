@@ -1,3 +1,4 @@
+import type { DogSave } from './DogGrowth';
 import type { QuestSave } from '../quests/QuestDefinitions';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { InventorySlot, ResourceKind } from './Inventory';
@@ -131,8 +132,8 @@ export type SaveData = {
   /** 场上所有拴羊桩(落点;读档时在桩位生成一只已拴住的羊) */
   stakes: StakeSave[];
   drops: DropEntry[];
-  /** 黑色博美伴侣的落点 */
-  dog: { x: number; z: number };
+  /** 黑色博美伴侣的落点、成长与技能冷却（新字段缺省恢复） */
+  dog: DogSave;
   /** 本局已抽中过的珍宝(保底权重用,集齐后清空) */
   drawnTreasures: ResourceKind[];
   /** 有饵连续未出四档的次数(四档保底用,出四档清零) */

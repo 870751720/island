@@ -1,3 +1,4 @@
+import { DOG_GM_COMMANDS, type DogGmCommand } from '../systems/DogGrowth';
 import type { HandTool } from '../entities/Player';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { AnimalSpecies } from '../entities/Wildlife';
@@ -61,6 +62,7 @@ export interface NetActionArgs {
   lassoStake: [];
   lassoUntie: [];
   milkSheep: [sheepId: number, x: number, z: number];
+  gmDog: [command: DogGmCommand, value: number];
   gmSpawnAnimal: [species: AnimalSpecies];
   gmTriggerCrocodile: [];
   gmGiveItem: [kind: ResourceKind, count: number];
@@ -127,6 +129,7 @@ const NET_ACTION_ARG_COUNTS = {
   lassoStake: [0],
   lassoUntie: [0],
   milkSheep: [3],
+  gmDog: [2],
   gmSpawnAnimal: [1],
   gmTriggerCrocodile: [0],
   gmGiveItem: [2],
@@ -244,6 +247,10 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isSafeInteger(first);
     case 'gmSetWeather':
       return first === 'sunny' || first === 'wind' || first === 'rain' || first === 'snow';
+    case 'gmDog':
+      return typeof first === 'string' && DOG_GM_COMMANDS.includes(first as DogGmCommand)
+        && isFiniteNumber(second) && second >= 0 && second <= 1500
+        && (first !== 'stage' || (Number.isInteger(second) && second >= 1 && second <= 5));
     case 'gmConfig':
       return typeof first === 'object' && first !== null && !Array.isArray(first);
     case 'playEmoji':
