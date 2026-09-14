@@ -3,7 +3,7 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 type Point = { x: number; z: number };
 type Node = Point & { key: string; cost: number; estimate: number; parent: Node | null };
 const STEP = 2;
-const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
 /** 小根堆避免远距离引导反复排序整个开放集合。 */
 class Frontier {
@@ -36,7 +36,7 @@ class Frontier {
   }
 }
 
-/** 按距离尝试目标，用按需缓存的陆地网格寻路；不让特效线直接横穿海和水洼。 */
+/** 比较可达路线长度，用按需缓存的陆地网格寻路并拉直多余折角。 */
 export class QuestRoute {
   private dry = new Map<string, boolean>();
   private cacheAge = 0;
@@ -48,16 +48,43 @@ export class QuestRoute {
     if (cached !== undefined) return cached;
     const ok = Math.abs(x) < this.terrain.halfWidth && Math.abs(z) < this.terrain.halfLength
       && this.terrain.getWaterKind(x, z) === null;
+    if (this.dry.size >= 50000) this.dry.clear();
     this.dry.set(key, ok);
     return ok;
   }
 
   private segmentDry(a: Point, b: Point): boolean {
-    for (let i = 0; i <= 4; i++) {
-      const t = i / 4;
+    const samples = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5));
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
       if (!this.isDry(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false;
     }
     return true;
+  }
+
+  /** 拉直可通行的折线，再按距离采样贴地，避免长线穿入起伏地形。 */
+  private simplify(path: Point[]): { points: Point[]; length: number } {
+    const corners = [path[0]];
+    let index = 0;
+    while (index < path.length - 1) {
+      let next = path.length - 1;
+      while (next > index + 1 && !this.segmentDry(path[index], path[next])) next--;
+      corners.push(path[next]);
+      index = next;
+    }
+    const points = [corners[0]];
+    let length = 0;
+    for (let i = 1; i < corners.length; i++) {
+      const a = corners[i - 1], b = corners[i];
+      const distance = Math.hypot(b.x - a.x, b.z - a.z);
+      length += distance;
+      const count = Math.ceil(distance / 0.5);
+      for (let j = 1; j <= count; j++) {
+        const t = j / count;
+        points.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+      }
+    }
+    return { points, length };
   }
 
   private anchor(point: Point): Point | null {
@@ -75,17 +102,23 @@ export class QuestRoute {
       this.cacheAge = 0;
     }
     if (!targets.length || !this.isDry(origin.x, origin.z)) return null;
-    const start = this.anchor(origin);
-    if (!start) return null;
     const distance = (p: Point) => (p.x - origin.x) ** 2 + (p.z - origin.z) ** 2;
     const candidates = targets.filter(p => this.isDry(p.x, p.z)).sort((a, b) => distance(a) - distance(b));
     // 每次搜索预算有上限，避免孤立物资导致手机长帧；下一次重选仍从最近目标开始。
     let budget = 12000;
+    let shortest: { points: Point[]; length: number } | null = null;
+    const start = this.anchor(origin);
     for (const target of candidates) {
+      if (shortest && distance(target) >= shortest.length ** 2) break;
+      if (this.segmentDry(origin, target)) {
+        shortest = this.simplify([origin, target]);
+        break;
+      }
       if (budget <= 0) break;
+      if (!start) continue;
       const end = this.anchor(target);
       if (!end) continue;
-      const heuristic = (x: number, z: number) => Math.abs(end.x - x) + Math.abs(end.z - z);
+      const heuristic = (x: number, z: number) => Math.hypot(end.x - x, end.z - z);
       const frontier = new Frontier();
       const best = new Map<string, number>();
       const startKey = `${start.x},${start.z}`;
@@ -105,18 +138,20 @@ export class QuestRoute {
             cursor = cursor.parent;
           }
           path.push(origin);
-          return path.reverse();
+          const route = this.simplify(path.reverse());
+          if (!shortest || route.length < shortest.length) shortest = route;
+          break;
         }
         for (const [dx, dz] of DIRECTIONS) {
           const next = { x: node.x + dx * STEP, z: node.z + dz * STEP };
           const key = `${next.x},${next.z}`;
-          const cost = node.cost + STEP;
+          const cost = node.cost + Math.hypot(dx, dz) * STEP;
           if (cost >= (best.get(key) ?? Infinity) || !this.segmentDry(node, next)) continue;
           best.set(key, cost);
           frontier.push({ ...next, key, cost, estimate: cost + heuristic(next.x, next.z), parent: node });
         }
       }
     }
-    return null;
+    return shortest?.points ?? null;
   }
 }
