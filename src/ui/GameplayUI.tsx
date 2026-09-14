@@ -692,7 +692,7 @@ export function GameplayUI({
       />
       )}
       <QuestRewardFlight quest={hud.quests} visible={!photoMode && !hud.dead} containerRef={containerRef} />
-      {!photoMode && !hud.dead && <QuestFeedback ref={questFeedbackRef} quest={hud.quests} />}
+      <QuestFeedback ref={questFeedbackRef} quest={hud.quests} visible={!photoMode && !hud.dead} />
       {!photoMode && <VitalWarn ref={vitalWarnRef} />}
     </div>
   );

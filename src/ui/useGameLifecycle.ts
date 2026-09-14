@@ -83,12 +83,12 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
             }
           },
-          (text, x, y) => {
+          (text, x, y, headY) => {
             const feedback = questFeedbackRef.current;
             if (feedback) {
               const halfWidth = feedback.offsetWidth / 2;
               const anchorX = Math.max(halfWidth + 8, Math.min(container.clientWidth - halfWidth - 8, x));
-              const anchorY = Math.max(feedback.offsetHeight + 8, y - 8);
+              const anchorY = Math.max(feedback.offsetHeight + 18, headY - 16);
               feedback.style.transform = `translate(-50%, -100%) translate(${anchorX}px, ${anchorY}px)`;
               feedback.style.visibility = 'visible';
             }

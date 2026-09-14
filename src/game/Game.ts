@@ -280,7 +280,7 @@ export class Game {
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
   private onLabel: (label: string | null, x: number, y: number, color?: string, itemKind?: ResourceKind) => void;
-  private onMumble: (text: string | null, x: number, y: number) => void;
+  private onMumble: (text: string | null, x: number, y: number, headY: number) => void;
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
   private onDamage: (amount: number, x: number, y: number) => void;
@@ -337,7 +337,7 @@ export class Game {
     container: HTMLElement,
     onHud: (snap: HudSnapshot) => void,
     onLabel: (label: string | null, x: number, y: number, color?: string, itemKind?: ResourceKind) => void,
-    onMumble: (text: string | null, x: number, y: number) => void,
+    onMumble: (text: string | null, x: number, y: number, headY: number) => void,
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
     onDamage: (amount: number, x: number, y: number) => void,
@@ -3501,10 +3501,12 @@ export class Game {
       if (this.mumbleTimer <= 0) this.mumbleText = null;
     }
     const bubble = new THREE.Vector3(p.x, p.y + 4.3, p.z).project(this.camera);
+    const questHead = new THREE.Vector3(p.x, p.y + 1.85, p.z).project(this.camera);
     this.onMumble(
       this.mumbleText,
       Math.round(((bubble.x + 1) / 2) * w),
-      Math.round(((1 - bubble.y) / 2) * h)
+      Math.round(((1 - bubble.y) / 2) * h),
+      Math.round(((1 - questHead.y) / 2) * h)
     );
 
     // 博美的头顶表情同样投影为屏幕坐标,交给 React 气泡渲染
