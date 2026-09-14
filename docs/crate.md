@@ -14,6 +14,10 @@
 
 ## 设计方案
 
+### 容量恢复
+
+箱种决定固定容量：木箱 10 格、铁箱 20 格。`Inventory.load` 接收到显式容量时补齐物资数组缺少的空格，空物资数组恢复为空容器；非法容量不应用。`CrateSystem.restore/netApply` 均取 `crateCapacity(crate.kind)`，不使用当前物资格数推断容量。遗迹预置两三种物资只占对应格子，其余为可存放物品的空格；不添加旧箱专用迁移或兼容分支。
+
 - `src/game/systems/Inventory.ts`:`ResourceKind` 新增 `crate`;木箱复用 `Inventory`(默认 10 格)作为箱内仓储。
 - `src/game/systems/Items.ts`:新增木箱道具定义(📦)。
 - `src/game/systems/Crafting.ts`:新增工作台配方 `crate`(4 树枝,产物 `crate`)。

@@ -32,7 +32,7 @@ export function findLandmarkSite(
     } else {
       x = (rng() - 0.5) * terrain.width; z = (rng() - 0.5) * terrain.length;
     }
-    // 围栏依赖两米顶点网格，整个模板只作四向旋转。
+    // 围栏依赖整数顶点网格；中心保持偶数坐标，模板只作四向旋转。
     const site = { x: Math.round(x / 2) * 2, z: Math.round(z / 2) * 2, rotation: Math.floor(rng() * 4) * Math.PI / 2, radius };
     if (!near && Math.hypot(site.x - spawn.x, site.z - spawn.z) < radius + 55) continue;
     if (reserved.some(s => Math.hypot(s.x - site.x, s.z - site.z) < s.radius + radius + 15)) continue;
@@ -47,6 +47,10 @@ export function findLandmarkSite(
     for (const part of blueprint.parts) {
       const at = landmarkPoint(site, part.x, part.z);
       if (partOccupied(at.x, at.z)) { valid = false; break; }
+      if (part.type === 'gate') {
+        const end = landmarkPoint(site, part.x + 2, part.z);
+        if (partOccupied(end.x, end.z)) { valid = false; break; }
+      }
       const h = terrain.getHeight(at.x, at.z);
       for (const [dx, dz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
         if (Math.abs(terrain.getHeight(at.x + dx, at.z + dz) - h) > 0.65) valid = false;

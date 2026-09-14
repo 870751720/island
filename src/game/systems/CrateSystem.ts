@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
-import { Crate, type CrateKind } from '../entities/Crate';
+import { Crate, crateCapacity, type CrateKind } from '../entities/Crate';
 import type { InventorySlot, ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -265,7 +265,7 @@ export class CrateSystem {
   restore(list: CrateSave[]): void {
     for (const c of list) {
       const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.kind, c.rotY);
-      crate.storage.load(c.slots, crate.storage.capacity);
+      crate.storage.load(c.slots, crateCapacity(crate.kind));
       crate.updateIcon();
       this.ids.set(crate, c.id);
       this.crates.push(crate);
@@ -297,7 +297,7 @@ export class CrateSystem {
         this.ids.set(crate, value.id);
         this.crates.push(crate);
       }
-      crate.storage.load(value.slots, crate.storage.capacity);
+      crate.storage.load(value.slots, crateCapacity(crate.kind));
       crate.updateIcon();
     }
   }

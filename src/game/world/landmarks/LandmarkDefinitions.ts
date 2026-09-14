@@ -37,18 +37,30 @@ export function rollLandmarkCount(chances: readonly number[], rng = Math.random)
   return 0;
 }
 
-type PartKind = 'bed' | 'fire' | 'crate' | 'bench' | 'bait' | 'brew' | 'smelter' | 'loom' | 'fence' | 'torch' | 'shrine' | 'crop';
+type PartKind = 'bed' | 'fire' | 'crate' | 'bench' | 'bait' | 'brew' | 'smelter' | 'loom' | 'fence' | 'gate' | 'torch' | 'shrine' | 'crop';
 export type LandmarkPart = {
   type: PartKind; x: number; z: number; rotation?: number;
   level?: number; stone?: boolean; shrine?: ShrineKind; crop?: CropKind; loot?: InventorySlot[];
 };
 export type LandmarkBlueprint = { kind: LandmarkKind; radius: number; parts: LandmarkPart[] };
 
-/** 固定生活布局搭配随机作物、物资和残缺围栏；留出中央通道与帐篷入口。 */
+/** 固定生活布局搭配随机作物和物资；一米围栏闭合成院，正面留两米门带。 */
 export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): LandmarkBlueprint {
   const parts: LandmarkPart[] = [];
   const add = (type: PartKind, x: number, z: number, extra: Partial<LandmarkPart> = {}) => parts.push({ type, x, z, ...extra });
   const loot = (...items: [ResourceKind, number][]): InventorySlot[] => items.map(([kind, count]) => ({ kind, count }));
+  const enclosure = (x: number, z: number, stone = false) => {
+    for (let offset = -6; offset <= 6; offset++) {
+      add('fence', x + offset, z - 6, { stone });
+      // 门自带两个端柱，中间不放围栏，防止横杆封住入口。
+      if (Math.abs(offset) > 1) add('fence', x + offset, z + 6, { stone });
+      if (offset > -6 && offset < 6) {
+        add('fence', x - 6, z + offset, { stone });
+        add('fence', x + 6, z + offset, { stone });
+      }
+    }
+    add('gate', x - 1, z + 6);
+  };
   const garden = (x: number, z: number) => {
     const crops: CropKind[] = ['carrot', 'wheat', 'potato', 'corn'];
     const crop = crops[Math.floor(rng() * crops.length)];
@@ -77,9 +89,7 @@ export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): Landma
       contents = loot(['fruitFruit', 3], ['berry', 3], ['wineBerry', 1]);
     }
     add('crate', x - 3, z + 2, { loot: contents });
-    for (let dx = -6; dx <= 6; dx += 2) {
-      if (rng() > 0.2) add('fence', x + dx, z - 6);
-    }
+    enclosure(x, z);
     add('torch', x + 5, z + 4);
   };
   if (kind === 'village') {
@@ -96,13 +106,7 @@ export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): Landma
   const shrine = shrineKinds[kind];
   if (shrine) {
     add('shrine', 0, -2, { shrine });
-    for (let offset = -6; offset <= 6; offset += 2) {
-      if (rng() > 0.15) add('fence', offset, -6, { stone: true });
-      if (offset > -6 && offset < 6) {
-        if (rng() > 0.2) add('fence', -6, offset, { stone: true });
-        if (rng() > 0.2) add('fence', 6, offset, { stone: true });
-      }
-    }
+    enclosure(0, 0, true);
     add('torch', -3, 3); add('torch', 3, 3);
     add('crate', 4, -3, { loot: loot(['stone', 3], ['flint', 2]) });
     if (kind === 'harvestRuin') garden(-4, -3);

@@ -234,6 +234,7 @@ export class Inventory {
   /** 从存档恢复格子内容(连同容量),非法数据忽略 */
   load(slots: unknown, capacity?: number): void {
     if (!Array.isArray(slots)) return;
+    if (capacity !== undefined && (!Number.isSafeInteger(capacity) || capacity < 1)) return;
     const restored: InventorySlot[] = slots
       .slice(0, Math.max(capacity ?? slots.length, 1))
       .map((slot) => {
@@ -245,6 +246,10 @@ export class Inventory {
           ? { kind: s.kind as ResourceKind, count: s.count }
           : null;
       });
+    // 指定容量时，短物资表也必须补齐空格；空数组表示一个空容器。
+    if (capacity !== undefined) {
+      while (restored.length < capacity) restored.push(null);
+    }
     if (restored.length > 0) this.slots = restored;
   }
 

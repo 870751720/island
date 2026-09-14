@@ -7,7 +7,7 @@ import { createWorldEntityId } from '../../systems/WorldEntityId';
 import { landmarkBlueprint, rollLandmark, rollLandmarkCount, type LandmarkChoice } from './LandmarkDefinitions';
 import { findLandmarkSite, landmarkPoint, type LandmarkSite } from './LandmarkPlacement';
 
-type SiteContents = Pick<SaveData, 'beds' | 'campfires' | 'crates' | 'workbenches' | 'baitBarrels' | 'brewBarrels' | 'smelters' | 'looms' | 'fences' | 'shrines' | 'soils' | 'crops'>;
+type SiteContents = Pick<SaveData, 'beds' | 'campfires' | 'crates' | 'workbenches' | 'baitBarrels' | 'brewBarrels' | 'smelters' | 'looms' | 'fences' | 'fenceGates' | 'shrines' | 'soils' | 'crops'>;
 
 /** 地点只负责组合；生成后的设施完全归已有系统管理，挖走、消耗、读档均不会再生。 */
 export class LandmarkSystem {
@@ -45,7 +45,7 @@ export class LandmarkSystem {
     // 新岛生成的天然资源可以让出场地；GM 不删除任何现有资源或玩家种植物。
     if (!near) s.props.applySave(s.props.snapshot().filter(p => Math.hypot(p.x - site.x, p.z - site.z) > site.radius + 2));
     const data: SiteContents = { beds: [], campfires: [], crates: [], workbenches: [], baitBarrels: [],
-      brewBarrels: [], smelters: [], looms: [], fences: [], shrines: [], soils: [], crops: [] };
+      brewBarrels: [], smelters: [], looms: [], fences: [], fenceGates: [], shrines: [], soils: [], crops: [] };
     for (const part of blueprint.parts) {
       const at = landmarkPoint(site, part.x, part.z);
       const placement = { ...at, y: this.terrain.getHeight(at.x, at.z),
@@ -60,6 +60,13 @@ export class LandmarkSystem {
         case 'smelter': data.smelters.push({ ...placement, fuel: 0, ore: 0, ingot: 0, tickLeft: 15 }); break;
         case 'loom': data.looms.push({ ...placement, rope: 0, cloth: 0, tickLeft: 6 }); break;
         case 'fence': data.fences.push({ ...placement, kind: part.stone ? 'stone' : 'branch' }); break;
+        case 'gate': {
+          // 门保存的是朝 +X/+Z 延伸的起点；旋转后需要归一化两端，不能直接沿用旋转前起点。
+          const end = landmarkPoint(site, part.x + 2, part.z);
+          data.fenceGates.push({ id: placement.id, x: Math.min(at.x, end.x), z: Math.min(at.z, end.z),
+            dir: at.x === end.x ? 'z' : 'x' });
+          break;
+        }
         case 'torch': data.shrines.push({ ...placement, kind: 'torch' }); break;
         case 'shrine': if (part.shrine) data.shrines.push({ ...placement, kind: part.shrine }); break;
         case 'crop': if (part.crop) {
@@ -73,7 +80,7 @@ export class LandmarkSystem {
     s.beds.restore(data.beds); s.campfire.restore(data.campfires); s.crates.restore(data.crates);
     s.workbench.restore(data.workbenches); s.baitBarrels.restore(data.baitBarrels);
     s.brewBarrels.restore(data.brewBarrels); s.smelters.restore(data.smelters); s.looms.restore(data.looms);
-    s.fences.restore(data.fences, []); s.shrines.restore(data.shrines);
+    s.fences.restore(data.fences, data.fenceGates); s.shrines.restore(data.shrines);
     s.soils.restore(data.soils); s.crops.restore(data.crops);
     this.reserved.push(site);
     return kind;
