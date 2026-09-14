@@ -64,7 +64,7 @@ const HARVEST_CONFIG: Record<
     action: ActionType;
     hits: number;
     fxColor: string;
-    yield: (inventory: Inventory, prop: Prop) => void;
+    yield: (inventory: Pick<Inventory, 'add'>, prop: Prop) => void;
   }
 > = {
   fruitTree: {
@@ -195,6 +195,7 @@ export class CollectSystem {
     private props: Props,
     private inventory: Inventory,
     private tools: Tools,
+    private give: (kind: ResourceKind, count: number) => number,
     private fx: Particles,
     private audio: GameAudio,
     /** 其他占用双手的行为(如合成中),为真时采集让位 */
@@ -354,22 +355,22 @@ export class CollectSystem {
     if (this.isPickingFruit(prop)) {
       // 空手摘果:只摘走果子,树保留并进入挂果再生
       this.props.pickFruit(prop);
-      config.yield(this.inventory, prop);
+      config.yield({ add: this.give }, prop);
     } else if (this.isDigging(prop)) {
       // 铲子把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
-      this.inventory.add(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
+      this.give(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
     } else {
       const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';
       this.props.harvest(prop);
-      config.yield(this.inventory, prop);
+      config.yield({ add: this.give }, prop);
       if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
-        this.inventory.add('berry', 1);
+        this.give('berry', 1);
       }
       // 风之加护:碎石堆/草丛/浆果丛按概率多掉 1 份主产出
       const windBonus = WIND_BONUS_YIELD[prop.kind as keyof typeof WIND_BONUS_YIELD];
       if (windBonus && this.windBlessed() && Math.random() < WIND_BONUS_CHANCE) {
-        this.inventory.add(windBonus, 1);
+        this.give(windBonus, 1);
       }
       // 砍倒成树第一阶段时,房主端在岛上别处自然补种一棵同树种(客人端由增量同步复现)
       if (treeFelled && prop.growth === 'mature') {
@@ -396,28 +397,28 @@ export class CollectSystem {
     const { gleaning, rockWealth, seedline } = this.meta.levels;
     // 拾穗:草丛/灌木小概率额外 1 份本产出,摘果小概率多 1 个果实
     if (gleaning >= 1 && (kind === 'grass' || kind === 'shrub') && Math.random() < 0.1) {
-      this.inventory.add(kind === 'grass' ? 'fiber' : 'branch', 1);
+      this.give(kind === 'grass' ? 'fiber' : 'branch', 1);
     }
     if (gleaning >= 2 && kind === 'fruitTree' && Math.random() < 0.1) {
-      this.inventory.add(FRUIT_OF.fruit, 1);
+      this.give(FRUIT_OF.fruit, 1);
     }
     // 碎石成金:岩石小概率多 1 块石头,铁矿必多 1 块铁,陨石小概率挖出珍宝
     if (rockWealth >= 1 && (kind === 'rock' || kind === 'gravel') && Math.random() < 0.1) {
-      this.inventory.add('stone', 1);
+      this.give('stone', 1);
     }
     if (rockWealth >= 2 && kind === 'iron') {
-      this.inventory.add('ironOre', 1);
+      this.give('ironOre', 1);
     }
     if (rockWealth >= 3 && kind === 'meteor' && Math.random() < 0.01) {
       this.meta.meteorTreasure();
     }
     // 良种:伐倒成树必多 1 根木头;2/3 级效果属于种植系统,见 CropSystem
     if (seedline >= 1 && kind === 'tree') {
-      this.inventory.add('wood', 1);
+      this.give('wood', 1);
     }
     // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次 yield)
     if (gleaning >= 3 && !this.isDigging(prop) && this.meta.takeFirstCollect()) {
-      config.yield(this.inventory, prop);
+      config.yield({ add: this.give }, prop);
     }
   }
 }

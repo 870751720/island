@@ -1,3 +1,4 @@
+import type { ResourceKind } from './Inventory';
 import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -47,6 +48,7 @@ export class SoilSystem {
     private props: Props,
     private fx: Particles,
     private audio: GameAudio,
+    private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
     private occupancy: PlaceOccupancy,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
@@ -160,7 +162,7 @@ export class SoilSystem {
       this.audio.play('drop');
       // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
       if (Math.random() < 0.005) {
-        actor.inventory.add('sweetPotatoSeed', 1);
+        this.give('sweetPotatoSeed', 1, actor);
         this.fx.burst(target.group.position.clone().setY(target.group.position.y + 0.3), '#c96a3a', 6);
       }
     } finally {

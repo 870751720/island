@@ -87,6 +87,7 @@ export class FishingSystem {
     private fx: Particles,
     private audio: GameAudio,
     private tools: Tools,
+    private give: (kind: ResourceKind, count: number) => number,
     /** 中鱼瞬间回调(浮漂落点):通知外层把入包飞行起点定在浮漂处 */
     private onCatch: (position: THREE.Vector3) => void,
     /** 钓鱼杂物概率的降低量(百分点,波塞冬神像放置期间为 1) */
@@ -261,16 +262,9 @@ export class FishingSystem {
     this.state = 'reeling';
     this.timer = 0;
     this.onCatch(this.bobberTarget);
-    const added = this.inventory.add(this.loot!.kind, 1);
-    // 局外养成「满载」1 级:10% 渔获翻倍(背包放不下时同鱼获一起落空)
-    if (added > 0 && this.meta.levels.fullLoad >= 1 && Math.random() < 0.1) {
-      this.inventory.add(this.loot!.kind, 1);
-    }
-    if (added === 0) {
-      // 背包已满:鱼获落空,浮漂处散一撮灰渣
-      this.audio.play('drop');
-      this.fx.burst(this.bobberTarget, '#b5b0a8', 8);
-    }
+    // 翻倍与背包容量无关；普通鱼获、杂物和珍宝统一入包或落地。
+    const count = this.meta.levels.fullLoad >= 1 && Math.random() < 0.1 ? 2 : 1;
+    this.give(this.loot!.kind, count);
   }
 
   /** 移动或其他占用双手的行为会中断钓鱼 */

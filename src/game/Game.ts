@@ -768,6 +768,7 @@ export class Game {
       this.props,
       this.fx,
       this.audio,
+      (kind, count, actor) => this.giveItem(kind, count, actor),
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
       this.placeOccupancy,
       // 其他占用双手的行为进行中时挖掘让位
@@ -781,6 +782,7 @@ export class Game {
       this.scene,
       this.fx,
       this.audio,
+      (kind, count, actor) => this.giveItem(kind, count, actor),
       // 播种校验:该格必须有土壤
       (x, z) => this.soils.soilAt(x, z),
       // 其他占用双手的行为进行中时采收让位
@@ -3186,6 +3188,7 @@ export class Game {
       this.props,
       s.inventory,
       s.tools,
+      (kind, count) => this.giveItem(kind, count, s),
       this.fx,
       this.audio,
       // 合成/进食/钓鱼/播种占用双手,期间采集让位
@@ -3257,6 +3260,7 @@ export class Game {
       this.fx,
       this.audio,
       s.tools,
+      (kind, count) => this.giveItem(kind, count, s),
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => this.pickupPresentation.markOrigin(position, s),
       // 波塞冬神像放置期间杂物概率降低

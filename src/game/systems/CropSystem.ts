@@ -40,6 +40,7 @@ export class CropSystem {
     private scene: THREE.Scene,
     private fx: Particles,
     private audio: GameAudio,
+    private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 该格中心是否有土壤(播种校验用) */
     private soilAt: (x: number, z: number) => boolean,
     /** 其他占用双手的行为(如采集中),为真时采收让位 */
@@ -163,10 +164,10 @@ export class CropSystem {
     const spec = crop.spec;
     const p = crop.group.position;
     this.destroy(crop);
-    actor.inventory.add(spec.product, spec.yieldCount);
+    this.give(spec.product, spec.yieldCount, actor);
     // 采收必掉 1 个对应种子,小概率额外多掉 1 个(良种 2 级把概率再 +10%;随机只在权威结算端发生,背包随快照回流)
     const seedChance = SEED_BONUS_CHANCE + (this.seedlineLevel() >= 2 ? SEED_BONUS_CHANCE : 0);
-    actor.inventory.add(spec.seed, Math.random() < seedChance ? 2 : 1);
+    this.give(spec.seed, Math.random() < seedChance ? 2 : 1, actor);
     this.audio.play('pick');
     const fxPos = p.clone();
     fxPos.y += 0.3;
