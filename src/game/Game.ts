@@ -288,7 +288,7 @@ export class Game {
   private onMumble: (text: string | null, x: number, y: number, headY: number) => void;
   private onVitals: (vitals: VitalLevels | null, x: number, y: number) => void;
   private onPickup: (toast: PickupToast) => void;
-  private onDamage: (amount: number, x: number, y: number) => void;
+  private onDamage: (amount: number, x: number, y: number, animal?: boolean) => void;
   private onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void;
   private terrainSeed: number;
   private autosaveTimer = 0;
@@ -345,7 +345,7 @@ export class Game {
     onMumble: (text: string | null, x: number, y: number, headY: number) => void,
     onVitals: (vitals: VitalLevels | null, x: number, y: number) => void,
     onPickup: (toast: PickupToast) => void,
-    onDamage: (amount: number, x: number, y: number) => void,
+    onDamage: (amount: number, x: number, y: number, animal?: boolean) => void,
     onDogEmoji: (emoji: string | null, x: number, y: number, height: number) => void,
     onBottleMessage: (text: string) => void,
     options: GameOptions = {}
@@ -548,6 +548,12 @@ export class Game {
       // 局外养成「捕猎·猎手」剥取:击杀战利品在掉落前按等级加成改写
       (species, loot) => this.applyHuntLootMeta(species, loot)
     );
+    for (const creatures of [this.crabs, this.birds, this.wildlife]) {
+      creatures.onDamage = (damage, position) => {
+        this.showDamagePop(damage, position, true);
+        this.hostRef?.broadcastEvent({ kind: 'animalDamage', damage, x: position.x, y: position.y, z: position.z });
+      };
+    }
     // 兔子洞:每个兔子栖息地 1~2 个,受惊的兔子钻进去躲藏,铲子挖开可压死藏在内的兔子。
     // 客人端不本地生成,由房主的世界快照(欢迎包/世界增量)补建
     this.burrows = new RabbitBurrowSystem(
@@ -1545,6 +1551,10 @@ export class Game {
       gmApply(event.config);
       return;
     }
+    if (event.kind === 'animalDamage') {
+      this.showDamagePop(event.damage, new THREE.Vector3(event.x, event.y, event.z), true);
+      return;
+    }
     // 客人被野生动物击中的补播:粒子/击中音/伤害数字/扑击减速(血量本身由快照回流)
     if (event.kind === 'wildlifeHit') {
       const s = this.sessions.find((x) => x.id === event.target);
@@ -1872,11 +1882,17 @@ export class Game {
     this.audio.play('chop');
     this.activeNetActor = previousActor;
     if (session !== this.local) return; // 伤害数字只飘在本地玩家头顶
-    const head = new THREE.Vector3(p.x, p.y + 2.5, p.z).project(this.camera);
+    this.showDamagePop(final, new THREE.Vector3(p.x, p.y + 2.5, p.z));
+  }
+
+  private showDamagePop(amount: number, position: THREE.Vector3, animal = false): void {
+    const head = position.clone().project(this.camera);
+    if (Math.abs(head.x) > 1 || Math.abs(head.y) > 1 || Math.abs(head.z) > 1) return;
     this.onDamage(
-      final,
+      Math.max(1, Math.round(amount)),
       Math.round(((head.x + 1) / 2) * this.renderer.domElement.clientWidth),
-      Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight)
+      Math.round(((1 - head.y) / 2) * this.renderer.domElement.clientHeight),
+      animal
     );
   }
 

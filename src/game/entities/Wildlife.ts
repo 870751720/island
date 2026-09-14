@@ -353,6 +353,9 @@ type Animal = {
  * 都可用弓箭猎捕,倒下后掉落兽肉,隔段时间在岛上别处重新刷新。
  */
 export class Wildlife implements Updatable {
+  /** 权威伤害结算后的数字反馈，包含致命一击。 */
+  onDamage: (amount: number, position: THREE.Vector3) => void = () => {};
+
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
   private nextId = 1;
@@ -1299,6 +1302,7 @@ export class Wildlife implements Updatable {
   private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
     if (!Number.isFinite(damage) || damage <= 0) return null;
     animal.hp -= damage;
+    this.onDamage(damage, animal.pos.clone().add(new THREE.Vector3(0, 1.2, 0)));
     if (animal.species === 'sheep' || animal.species === 'bison') {
       this.playSound(animal.species === 'sheep' ? 'sheepHurt' : 'bisonHurt', animal.pos.x, animal.pos.z);
     }

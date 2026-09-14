@@ -62,6 +62,10 @@ body {
   animation: damage-pop-float 1s ease-out forwards;
 }
 
+.damage-pop-animal {
+  color: #b8b8b8;
+}
+
 /* 低数值提醒:饥饿/口渴/健康过低时头顶图标,呼吸闪烁引起注意 */
 .vital-warn {
   flex-direction: column;

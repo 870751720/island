@@ -90,6 +90,7 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'animalDamage'; damage: number; x: number; y: number; z: number }
   | { kind: 'feedback'; sfx: SfxName; actor: string; x: number; y: number; z: number }
   | { kind: 'sfxAt'; sfx: SfxName; x: number; y: number; z: number }
   | { kind: 'wildlifeHit'; target: string; damage: number; pounce: boolean }

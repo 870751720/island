@@ -433,3 +433,7 @@ QuestSheepSupport 每秒按个人权威任务和库存判断皮毛/探险装阶�
 
 ## 羊与野牛受击音效
 房主在 Wildlife.applyDamage 确认有效伤害时触发 sheepHurt / bisonHurt，致命命中同样发出 sfxAt。各端仅播放自身 20 米内音效，客人不预测、不从闪红或死亡快照重复触发。房主结算远程攻击时本地叫声不受交互静音影响。
+
+## 动物伤害跳字
+
+动物、鸟和螃蟹在房主权威伤害入口结算后广播 `animalDamage`（damage、x、y、z），包含致命伤害。房主与客人各自投影世界位置，复用玩家跳字动画显示灰色数字，屏幕外不显示。客人攻击仍经现有动作上行，不预测跳字；血量、死亡快照和 `creatureHit` 闪红事件保持原有职责。详见 `animal-damage-numbers.md`。
