@@ -184,7 +184,9 @@ export class Game {
       this.mapTerrain,
       this.local.id,
       this.sessions,
-      this.workbench.positions
+      this.workbench.positions,
+      this.campfire.positions,
+      this.cookingStations.positions,
     );
   }
   private waterFx: WaterFx;

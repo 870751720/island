@@ -122,6 +122,11 @@ export class CookingStationSystem {
     this.states.delete(actor);
   }
 
+  /** 场上所有烹饪台落点，供本地地图读取已同步的设施状态。 */
+  get positions(): { x: number; z: number }[] {
+    return this.stations.map((station) => ({ x: station.group.position.x, z: station.group.position.z }));
+  }
+
   /** 场上烹饪台总数(手搓火堆卡片的弹出条件之一) */
   get count(): number {
     return this.stations.length;

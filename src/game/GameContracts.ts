@@ -112,4 +112,6 @@ export type MapSnapshot = {
   localPlayerId: string;
   players: { id: string; name: string; x: number; z: number; dead: boolean }[];
   workbenches: { x: number; z: number }[];
+  campfires: { x: number; z: number }[];
+  cookingStations: { x: number; z: number }[];
 };

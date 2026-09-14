@@ -28,6 +28,8 @@ export function buildMapSnapshot(
   localPlayerId: string,
   sessions: readonly PlayerSession[],
   workbenches: MapSnapshot['workbenches'],
+  campfires: MapSnapshot['campfires'],
+  cookingStations: MapSnapshot['cookingStations'],
 ): MapSnapshot {
   return {
     island: { width: terrain.width, length: terrain.length },
@@ -41,5 +43,7 @@ export function buildMapSnapshot(
       dead: session.survival.state.dead,
     })),
     workbenches,
+    campfires,
+    cookingStations,
   };
 }

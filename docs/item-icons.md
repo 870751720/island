@@ -82,7 +82,7 @@
 - **emoji 调整**(`ITEMS`):树枝 🌿→🪾、植物纤维 🌿→🌾、灌木丛 🌿→🌳、围栏门 🪵→🚪、橡果 🥜→🌰;`FOODS` 的橡果同步。
 - **配方图标去冗余**:`Crafting.ts` 删除 `Recipe.icon` 字段,新增 `recipeIconKind`/`recipeIconLevel` 按产物推导,精致工具配方自动带 2 级角标。
 - **拾取提示**:头飘 toast 的数据从 `{icon,count}` 改为 `{kind,count}`(按道具合并),由 GameplayUI 用 `ItemIcon` 渲染。
-- 纯文本场合(3D 头顶进度提示)保留 emoji 回退,统一取自 `ITEMS[kind].icon`(Food/Wine 不再有独立 icon 字段);小地图 canvas 标记(工作台/火堆/床)为场景概念,维持独立 emoji。
+- 纯文本场合(3D 头顶进度提示)保留 emoji 回退,统一取自 `ITEMS[kind].icon`(Food/Wine 不再有独立 icon 字段);小地图的工作台、火堆与烹饪台标记复用 FACILITY_SVG 中对应道具的原有 SVG。
 
 ### 作物种子自绘图标(2026-09-10)
 

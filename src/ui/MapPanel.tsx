@@ -1,5 +1,6 @@
 'use client';
 
+import { FACILITY_SVG } from './icons/FacilityIcons';
 import { HudIcon } from './hud/HudIcon';
 import { useMemo } from 'react';
 import type { MapSnapshot } from '@/game/GameContracts';
@@ -14,6 +15,18 @@ export function MapIcon({ size = 24 }: { size?: number }) {
 }
 
 const MAP_VIEW_METERS = 60;
+const FACILITY_MARKER_SIZE = 18;
+
+// 复用背包道具的静态 SVG，数据地址仅在模块加载时生成。
+const FACILITY_MARKERS = [
+  { source: 'workbenches', kind: 'workbench1', label: '工作台' },
+  { source: 'campfires', kind: 'campfire', label: '火堆' },
+  { source: 'cookingStations', kind: 'cookingStation', label: '烹饪台' },
+] as const;
+const FACILITY_IMAGES = FACILITY_MARKERS.map((marker) => ({
+  ...marker,
+  href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(FACILITY_SVG[marker.kind]!.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`,
+}));
 
 const TERRAIN_COLORS = ['#6caec5', '#ead394', '#9dbb6c', '#628c4e', '#4f9dbb'] as const;
 
@@ -60,7 +73,7 @@ function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
   const mapY = py(-snapshot.island.length / 2);
 
   // 超出可视范围的标记沿相对玩家的方位角吸附到地图边缘，保留方向信息。
-  const edge = width / 2 - markerSize - 2;
+  const edge = width / 2 - FACILITY_MARKER_SIZE / 2 - 2;
   const anchored = (x: number, z: number) => {
     const dx = (x - local.x) * scale;
     const dz = (z - local.z) * scale;
@@ -97,16 +110,15 @@ function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
         />
       )}
 
-      {snapshot.workbenches.map((point, index) => {
+      {FACILITY_IMAGES.flatMap(({ source, label, href }) => snapshot[source].map((point, index) => {
         const anchor = anchored(point.x, point.z);
         return (
-          <g key={`workbench-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside ? .55 : 1}>
-            <rect x={-markerSize} y={-markerSize * .55} width={markerSize * 2} height={markerSize * 1.1} rx="2" fill="#8b5a35" stroke="#fff2cf" strokeWidth="1.5" />
-            <path d={`M${-markerSize * .65} ${markerSize * .55}v${markerSize * .55}M${markerSize * .65} ${markerSize * .55}v${markerSize * .55}`} stroke="#5d3b24" strokeWidth="2" />
+          <g key={`${source}-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside ? .55 : 1}>
+            <title>{label}</title>
+            <image href={href} x={-FACILITY_MARKER_SIZE / 2} y={-FACILITY_MARKER_SIZE / 2} width={FACILITY_MARKER_SIZE} height={FACILITY_MARKER_SIZE} />
           </g>
         );
-      })}
-
+      }))}
 
       {snapshot.players.filter((player) => !player.dead).map((player) => {
         const isLocal = player.id === snapshot.localPlayerId;
