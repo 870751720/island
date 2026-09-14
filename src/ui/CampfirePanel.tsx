@@ -2,6 +2,7 @@
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
+import { QuestCraftParticles } from './QuestCraftParticles';
 import { questRecipeStyle } from './questRecipe';
 import { ItemIcon } from './ItemIcon';
 import { StepButton } from './StepButton';
@@ -28,7 +29,7 @@ export function CampfirePanel({
   const count = (kind: ResourceKind) => itemCount(hud.slots, kind);
   const [cookCounts, setCookCounts] = useState<Record<string, number>>({});
   const info = hud.campfireInfo;
-  const guide = hud.quests?.enabled && !hud.quests.finished && hud.quests.guide?.type === 'campfire' ? hud.quests.guide : null;
+  const guide = hud.quests?.enabled && !hud.quests.finished && !hud.quests.busy && hud.quests.guide?.type === 'campfire' ? hud.quests.guide : null;
 
   // 背包里可投入火堆的可燃物
   const burnables = (Object.keys(ITEMS) as ResourceKind[]).filter(
@@ -39,6 +40,8 @@ export function CampfirePanel({
 
   if (guide?.action === 'cook') cookables.sort((a, b) => Number(b.kind === 'gameMeat') - Number(a.kind === 'gameMeat'));
   if (guide?.action === 'fuel') burnables.sort((a, b) => Number(b === 'wood' || b === 'branch') - Number(a === 'wood' || a === 'branch'));
+
+  const taskFuel = guide?.action === 'fuel' ? burnables[0] : undefined;
 
   // 食材数量变化后把选份数收回上限,且默认选满
   const stockKey = cookables.map((f) => count(f.kind)).join(',');
@@ -86,8 +89,9 @@ export function CampfirePanel({
                 e.preventDefault();
                 onAddFuel(kind);
               }}
-              style={{ ...chipStyle, minHeight: 44, ...(guide?.action === 'fuel' && (kind === 'wood' || kind === 'branch') ? questRecipeStyle : {}) }}
+              style={{ ...chipStyle, position: 'relative', minHeight: 44, ...(kind === taskFuel ? questRecipeStyle : {}) }}
             >
+              {kind === taskFuel && <QuestCraftParticles radius={24} />}
               <ItemIcon kind={kind} size={20} /> {ITEMS[kind].name} ×{count(kind)}
               <span style={{ fontSize: 11, color: gameTheme.muted }}>+{ITEMS[kind].burnTime}秒</span>
             </button>
@@ -144,8 +148,9 @@ export function CampfirePanel({
                     e.preventDefault();
                     onCook(food.kind, n);
                   }}
-                  style={{ ...cookButtonStyle, minHeight: 44, opacity: lit ? 1 : 0.45 }}
+                  style={{ ...cookButtonStyle, position: 'relative', minHeight: 44, opacity: lit ? 1 : 0.45 }}
                 >
+                  {lit && guide?.action === 'cook' && food.kind === 'gameMeat' && <QuestCraftParticles radius={12} />}
                   烤
                 </button>
               </div>

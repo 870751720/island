@@ -193,6 +193,10 @@ export function GameplayUI({
 
   const questWorkbench = hud.nearWorkbench && hud.craftId === null && !digHijack
     && !!hud.quests?.enabled && !hud.quests.finished && hud.quests.guide?.type === 'bench' && hud.workbenchLevel >= hud.quests.guide.level;
+  const campfireGuide = hud.quests?.enabled && !hud.quests.finished && !hud.quests.busy
+    && hud.quests.guide?.type === 'campfire' ? hud.quests.guide : null;
+  const questCampfire = hud.nearCampfire && hud.craftId === null && !digHijack
+    && !!campfireGuide?.ready && (campfireGuide.action === 'fuel' || !!hud.campfireInfo?.lit);
   return (
     <div
       ref={containerRef}
@@ -356,11 +360,11 @@ export function GameplayUI({
             hud.nearLoom ||
             hud.nearBed) && (
             <ToolButton
-              questWorkbench={questWorkbench}
+              questHighlight={questWorkbench || questCampfire}
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}
-              workbench={hud.nearWorkbench && hud.craftId === null && !digHijack}
-              campfire={hud.nearCampfire && !hud.nearWorkbench && hud.craftId === null && !digHijack}
+              workbench={hud.nearWorkbench && !questCampfire && hud.craftId === null && !digHijack}
+              campfire={hud.nearCampfire && (!hud.nearWorkbench || questCampfire) && hud.craftId === null && !digHijack}
               crate={hud.nearCrate && !hud.nearWorkbench && !hud.nearCampfire && hud.craftId === null && !digHijack}
               baitBarrel={
                 hud.nearBaitBarrel &&
@@ -447,7 +451,7 @@ export function GameplayUI({
               placeCount={hud.heldPlaceCount}
               placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
-              dimmed={hud.busy && !questWorkbench}
+              dimmed={hud.busy && !questWorkbench && !questCampfire}
               onLongPress={(press) => { setPickerPress(press); setPlacePickerOpen(true); }}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => openPanel('workbench')}
