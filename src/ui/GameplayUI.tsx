@@ -8,6 +8,7 @@ import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
+import { QuestFeedback } from './QuestFeedback';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
 import { HudIcon } from './hud/HudIcon';
@@ -80,6 +81,7 @@ export function GameplayUI({
     containerRef,
     labelRef,
     mumbleRef,
+    questFeedbackRef,
     dogEmojiRef,
     vitalWarnRef,
     hud,
@@ -688,6 +690,7 @@ export function GameplayUI({
         }}
       />
       )}
+      {!photoMode && !hud.dead && <QuestFeedback ref={questFeedbackRef} quest={hud.quests} />}
       {!photoMode && <VitalWarn ref={vitalWarnRef} />}
     </div>
   );

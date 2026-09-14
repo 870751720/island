@@ -36,6 +36,7 @@ interface GameLifecycleOptions {
 export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
+  const questFeedbackRef = useRef<HTMLDivElement>(null);
   const mumbleRef = useRef<HTMLDivElement>(null);
   const dogEmojiRef = useRef<HTMLDivElement>(null);
   const vitalWarnRef = useRef<VitalWarnHandle>(null);
@@ -83,9 +84,17 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
             }
           },
           (text, x, y) => {
+            const feedback = questFeedbackRef.current;
+            if (feedback) {
+              const halfWidth = feedback.offsetWidth / 2;
+              const anchorX = Math.max(halfWidth + 8, Math.min(container.clientWidth - halfWidth - 8, x));
+              const anchorY = Math.max(feedback.offsetHeight + 8, y - 8);
+              feedback.style.transform = `translate(-50%, -100%) translate(${anchorX}px, ${anchorY}px)`;
+              feedback.style.visibility = 'visible';
+            }
             const element = mumbleRef.current;
             if (!element) return;
-            element.style.display = text ? 'block' : 'none';
+            element.style.display = text && !feedback?.childElementCount ? 'block' : 'none';
             if (text) {
               element.textContent = text;
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
@@ -155,6 +164,7 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
     containerRef,
     labelRef,
     mumbleRef,
+    questFeedbackRef,
     dogEmojiRef,
     vitalWarnRef,
     hud,
