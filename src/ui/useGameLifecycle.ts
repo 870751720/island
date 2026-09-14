@@ -95,7 +95,7 @@ export function useGameLifecycle({ net, initialSave }: GameLifecycleOptions) {
             if (!element) return;
             element.style.display = text && !feedback?.childElementCount ? 'block' : 'none';
             if (text) {
-              element.textContent = text;
+              if (element.textContent !== text) element.textContent = text;
               element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
             }
           },

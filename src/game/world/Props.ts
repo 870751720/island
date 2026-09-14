@@ -1,5 +1,6 @@
 import { makeMatureParts } from './TreeModel';
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
@@ -381,9 +382,16 @@ export function makeWormNest(): { group: THREE.Group; worm: THREE.Group } {
   return { group, worm };
 }
 
+/** 根节点之外没有独立显隐/动画的资源模型，共享原始几何和材质。 */
+const RESOURCE_MODELS: Partial<Record<PropKind, () => THREE.Group>> = {
+  rock: makeRock, iron: makeIron, gravel: makeGravel, meteor: makeMeteor,
+  grass: makeGrassTuft, shrub: makeShrub,
+};
+
 /** 岛上散布的资源点,管理采集后的外观变化、再生与树的生长 */
 export class Props implements Updatable {
   readonly list: Prop[] = [];
+  private readonly instances: ModelInstances;
   private berries = new Map<Prop, THREE.Mesh[]>();
   /** 各蚯蚓窝洞口的那只蚯蚓模型(有蚯蚓状态才可见) */
   private nestWorms = new Map<Prop, THREE.Object3D>();
@@ -407,6 +415,7 @@ export class Props implements Updatable {
     generate = true,
     rng: () => number = Math.random
   ) {
+    this.instances = new ModelInstances(scene);
     if (!generate) return;
     for (const spot of generatePropSpots(terrain, rng)) this.createWildProp(spot, rng);
   }
@@ -418,21 +427,15 @@ export class Props implements Updatable {
     let berries: THREE.Mesh[] | null = null;
     let nestWorm: THREE.Object3D | null = null;
     let group: THREE.Group;
-    if (kind === 'tree') group = new THREE.Group();
-    else if (kind === 'rock') group = makeRock();
-    else if (kind === 'iron') group = makeIron();
-    else if (kind === 'gravel') group = makeGravel();
-    else if (kind === 'shrub') group = makeShrub();
-    else if (kind === 'grass') group = makeGrassTuft();
-    else if (kind === 'wormNest') {
+    if (kind === 'wormNest') {
       const made = makeWormNest();
       group = made.group;
       nestWorm = made.worm;
-    } else {
+    } else if (kind === 'berry') {
       const made = makeBerryBush();
       group = made.group;
       berries = made.berries;
-    }
+    } else group = new THREE.Group();
     group.position.set(x, y - 0.05, z);
     group.rotation.y = rng() * Math.PI * 2;
     this.scene.add(group);
@@ -518,7 +521,7 @@ export class Props implements Updatable {
   /** 落下一颗陨石:在落点生成可采集的陨石资源点(产出同岩石) */
   placeMeteor(x: number, z: number): Prop {
     const y = this.terrain.getHeight(x, z);
-    const group = makeMeteor();
+    const group = new THREE.Group();
     group.position.set(x, y - 0.05, z);
     this.scene.add(group);
     const prop: Prop = {
@@ -543,10 +546,8 @@ export class Props implements Updatable {
       const made = makeBerryBush();
       group = made.group;
       berries = made.berries;
-    } else if (kind === 'grass') {
-      group = makeGrassTuft();
     } else {
-      group = makeShrub();
+      group = new THREE.Group();
     }
     group.position.set(x, y - 0.05, z);
     group.rotation.y = Math.random() * Math.PI * 2;
@@ -590,6 +591,7 @@ export class Props implements Updatable {
   }
 
   removeProp(prop: Prop): void {
+    this.instances.delete(prop.group);
     this.dropProp(prop);
     this.scene.remove(prop.group);
     disposeOwnedMeshes(prop.group);
@@ -607,6 +609,8 @@ export class Props implements Updatable {
   }
 
   private addProp(prop: Prop): void {
+    const create = RESOURCE_MODELS[prop.kind];
+    if (create) this.instances.set(prop.group, prop.kind, create);
     this.nearbyCache.clear();
     this.list.push(prop);
     const key = this.gridKey(prop.position.x, prop.position.z);
@@ -668,29 +672,30 @@ export class Props implements Updatable {
     return best;
   }
 
-  /** 按生长阶段/砍伐阶段重建树的外观(整体替换子网格) */
+  /** 切换共享的树外观模板，根节点继续保存原有风摇、受击和玩法状态。 */
   private applyTreeLook(prop: Prop): void {
     const fruited = prop.species === 'fruit' && prop.fruited !== false;
     const look = prop.stage === 'stump'
       ? 'stump'
       : `${prop.growth ?? 'mature'}:${prop.species ?? 'oak'}:${prop.growth === 'mature' ? (fruited ? 1 : 0) : '-'}`;
     if (this.treeLooks.get(prop) === look) return;
-    disposeOwnedMeshes(prop.group);
-    prop.group.clear();
-    const parts =
-      prop.stage === 'stump'
+    prop.group.scale.setScalar(TREE_MODEL_SCALE);
+    this.instances.set(prop.group, `tree:${look}`, () => {
+      const model = new THREE.Group();
+      const parts = prop.stage === 'stump'
         ? makeStumpParts()
         : prop.growth === 'sprout'
           ? makeSproutParts()
           : prop.growth === 'sapling'
             ? makeSaplingParts(prop.species ?? 'oak')
             : makeMatureParts(prop.species ?? 'oak', fruited);
-    for (const part of parts) {
-      part.castShadow = true;
-      prop.group.add(part);
-    }
-    mergeClayMeshes(prop.group);
-    prop.group.scale.setScalar(TREE_MODEL_SCALE);
+      for (const part of parts) {
+        part.castShadow = true;
+        model.add(part);
+      }
+      mergeClayMeshes(model);
+      return model;
+    });
     this.treeLooks.set(prop, look);
   }
 
@@ -845,7 +850,7 @@ export class Props implements Updatable {
         continue;
       }
       const y = this.terrain.getHeight(state.x, state.z);
-      const group = state.kind === 'rock' ? makeRock() : state.kind === 'iron' ? makeIron() : makeGravel();
+      const group = new THREE.Group();
       group.position.set(state.x, y - 0.05, state.z);
       group.rotation.y = state.rotationY;
       this.scene.add(group);
@@ -890,7 +895,10 @@ export class Props implements Updatable {
     return true;
   }
 
+  flushInstances(): void { this.instances.flush(); }
+
   dispose(): void {
+    this.instances.dispose();
     for (const prop of this.list.splice(0)) {
       this.scene.remove(prop.group);
       disposeOwnedMeshes(prop.group);

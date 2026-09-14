@@ -304,6 +304,8 @@ export class Game {
   private notice: { id: number; text: string } | null = null;
   /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
   private netDrift = new THREE.Vector2();
+  private readonly indicatorAnchor = new THREE.Vector3();
+  private readonly questAnchor = new THREE.Vector3();
   /** 每个已发送输入对应的本地预测位置，用于按房主 ack 重放尚未确认的位移。 */
   private netInputHistory: { seq: number; x: number; z: number }[] = [];
   private netAckInputSeq = 0;
@@ -1196,6 +1198,9 @@ export class Game {
         this.questGuidance.update(delta, this.local, this.cameraController.photoActive, this.thirstGuidance.active);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
+        this.props.flushInstances();
+        this.fences.flushInstances();
+        this.soils.flushInstances();
         this.renderer.render(this.scene, this.camera);
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
@@ -3516,6 +3521,8 @@ export class Game {
     this.drops.dispose();
     this.leashLines.dispose();
     this.props.dispose();
+    this.fences.dispose();
+    this.soils.dispose();
     this.decorations.dispose();
     this.rain.dispose();
     this.snow.dispose();
@@ -3621,7 +3628,7 @@ export class Game {
     );
 
     // 头顶文字投影为屏幕坐标(预告彩字时带颜色)
-    const head = new THREE.Vector3(p.x, p.y + (bite ? 3.85 : 2.75), p.z).project(this.camera);
+    const head = this.indicatorAnchor.set(p.x, p.y + (bite ? 3.85 : 2.75), p.z).project(this.camera);
     const w = this.renderer.domElement.clientWidth;
     const h = this.renderer.domElement.clientHeight;
     this.onLabel(
@@ -3636,8 +3643,8 @@ export class Game {
       this.mumbleTimer -= delta;
       if (this.mumbleTimer <= 0) this.mumbleText = null;
     }
-    const bubble = new THREE.Vector3(p.x, p.y + 4.3, p.z).project(this.camera);
-    const questHead = new THREE.Vector3(p.x, p.y + 1.85, p.z).project(this.camera);
+    const bubble = this.indicatorAnchor.set(p.x, p.y + 4.3, p.z).project(this.camera);
+    const questHead = this.questAnchor.set(p.x, p.y + 1.85, p.z).project(this.camera);
     this.onMumble(
       this.mumbleText,
       Math.round(((bubble.x + 1) / 2) * w),
@@ -3646,7 +3653,7 @@ export class Game {
     );
 
     // 博美的头顶表情同样投影为屏幕坐标,交给 React 气泡渲染
-    const dogAnchor = new THREE.Vector3();
+    const dogAnchor = this.indicatorAnchor;
     this.dog.fillEmojiAnchor(dogAnchor);
     dogAnchor.project(this.camera);
     this.onDogEmoji(
@@ -3659,7 +3666,7 @@ export class Game {
 
     // 低数值提醒挂在头顶(作业提示下方),任一数值 ≤20% 时 UI 层显示对应图标+剩余条
     const s = this.survival.state;
-    const warnAnchor = new THREE.Vector3(p.x, p.y + 1.9, p.z).project(this.camera);
+    const warnAnchor = this.indicatorAnchor.set(p.x, p.y + 1.9, p.z).project(this.camera);
     this.onVitals(
       s.dead ? null : { hunger: s.hunger, thirst: s.thirst, health: s.health },
       Math.round(((warnAnchor.x + 1) / 2) * w),

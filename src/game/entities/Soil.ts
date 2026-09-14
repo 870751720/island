@@ -1,4 +1,6 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { ModelInstances } from '../core/ModelInstances';
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -11,7 +13,7 @@ function cellRandom(x: number, z: number, i: number): number {
   return v - Math.floor(v);
 }
 
-function makeSoilMesh(x: number, z: number): THREE.Group {
+function makeSoilBase(): THREE.Group {
   const g = new THREE.Group();
   // 土床:整格扁方块,微微沉进地面,边缘与相邻土壤严丝合缝
   const bed = new THREE.Mesh(new THREE.BoxGeometry(1, 0.07, 1), clayMaterial('#5e4530'));
@@ -26,28 +28,47 @@ function makeSoilMesh(x: number, z: number): THREE.Group {
     row.receiveShadow = true;
     g.add(row);
   }
-  // 小土坷垃:散落的深色小团,翻土的手工质感;散布按落点伪随机,各格不同
-  const clod = clayMaterial('#4e3a28');
-  for (let i = 0; i < 4; i++) {
-    const s = 0.05 + cellRandom(x, z, i) * 0.025;
-    const lump = new THREE.Mesh(new THREE.SphereGeometry(s, 5, 4), clod);
-    lump.position.set(cellRandom(x, z, i + 10) - 0.5, 0.07, cellRandom(x, z, i + 20) - 0.5);
-    lump.scale.y = 0.7;
-    g.add(lump);
-  }
   mergeClayMeshes(g);
+  return g;
+}
+
+function makeClod(): THREE.Group {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 5, 4), clayMaterial('#4e3a28')));
   return g;
 }
 
 /** 场景中的一格土壤:手持锄头站定自动开出,铲子可以挖掉还原(无掉落),后续种植系统在上面播种 */
 export class Soil {
   readonly group: THREE.Group;
+  private readonly clods: THREE.Group[] = [];
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, private readonly instances?: ModelInstances) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
     scene.add(this.group);
-    this.group.add(makeSoilMesh(position.x, position.z));
+    if (instances) instances.set(this.group, 'soil:base', makeSoilBase, false);
+    else this.group.add(makeSoilBase());
+    // 保留每格原有的确定性位置和尺寸，仅共享基础球体；预览仍使用独占网格。
+    const { x, z } = position;
+    for (let i = 0; i < 4; i++) {
+      const clod = instances ? new THREE.Group() : makeClod();
+      const s = 0.05 + cellRandom(x, z, i) * 0.025;
+      clod.position.set(cellRandom(x, z, i + 10) - 0.5, 0.07, cellRandom(x, z, i + 20) - 0.5);
+      clod.scale.set(s, s * 0.7, s);
+      this.group.add(clod);
+      this.clods.push(clod);
+      instances?.set(clod, 'soil:clod', makeClod, false);
+      if (instances) clod.matrixAutoUpdate = false;
+    }
+    if (instances) this.group.matrixAutoUpdate = false;
+  }
+
+  remove(scene: THREE.Scene): void {
+    this.instances?.delete(this.group);
+    for (const clod of this.clods) this.instances?.delete(clod);
+    scene.remove(this.group);
+    disposeOwnedMeshes(this.group);
   }
 }
 

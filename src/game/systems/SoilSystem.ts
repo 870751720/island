@@ -1,5 +1,5 @@
 import type { ResourceKind } from './Inventory';
-import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
+import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -34,6 +34,7 @@ type PlayerSessionState = {
  */
 export class SoilSystem {
   private soils: Soil[] = [];
+  private readonly instances: ModelInstances;
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
   private ids = new WorldEntityIds<Soil>('soil');
@@ -57,7 +58,7 @@ export class SoilSystem {
     private hasCropAt: (x: number, z: number) => boolean = () => false,
     /** 铲掉该位置的作物(铲子优先铲作物,无掉落),返回是否铲掉了 */
     private removeCropAt: (x: number, z: number) => boolean = () => false
-  ) {}
+  ) { this.instances = new ModelInstances(scene); }
 
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
@@ -97,7 +98,7 @@ export class SoilSystem {
   /** 在吸附格中心开出一格土壤(手持锄头自动安放的 place 委托,落格已校验,零消耗) */
   place(actor: PlayerSession, at: THREE.Vector3): boolean {
     if (this.canPlaceAt(actor, at.x, at.z) !== null) return false;
-    const soil = new Soil(this.scene, at);
+    const soil = new Soil(this.scene, at, this.instances);
     this.soils.push(soil);
     const sp = soil.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(soil), value: { id: this.ids.get(soil), x: sp.x, y: sp.y, z: sp.z } });
@@ -157,8 +158,7 @@ export class SoilSystem {
       }
       this.soils.splice(this.soils.indexOf(target), 1);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.scene.remove(target.group);
-      disposeOwnedMeshes(target.group);
+      target.remove(this.scene);
       this.audio.play('drop');
       // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
       if (Math.random() < 0.005) {
@@ -200,8 +200,7 @@ export class SoilSystem {
   /** 清空场上全部土壤(客人侧重放世界快照前调用) */
   clear(): void {
     for (const soil of this.soils) {
-      this.scene.remove(soil.group);
-      disposeOwnedMeshes(soil.group);
+      soil.remove(this.scene);
     }
     this.soils = [];
   }
@@ -209,24 +208,30 @@ export class SoilSystem {
   /** 从存档恢复全部土壤 */
   restore(list: SoilSave[]): void {
     for (const s of list) {
-      const soil = new Soil(this.scene, new THREE.Vector3(s.x, s.y, s.z));
+      const soil = new Soil(this.scene, new THREE.Vector3(s.x, s.y, s.z), this.instances);
       this.ids.set(soil, s.id);
       this.soils.push(soil);
     }
+  }
+
+  flushInstances(): void { this.instances.flush(); }
+
+  dispose(): void {
+    this.clear();
+    this.instances.dispose();
   }
 
   netApply(list: SoilSave[]): void {
     const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
     for (let i = this.soils.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.soils[i]))) continue;
-      this.scene.remove(this.soils[i].group);
-      disposeOwnedMeshes(this.soils[i].group);
+      this.soils[i].remove(this.scene);
       this.soils.splice(i, 1);
     }
     const current = new Map(this.soils.map((s) => [this.ids.get(s), s]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      const soil = new Soil(this.scene, new THREE.Vector3(value.x, value.y, value.z));
+      const soil = new Soil(this.scene, new THREE.Vector3(value.x, value.y, value.z), this.instances);
       this.ids.set(soil, value.id);
       this.soils.push(soil);
     }

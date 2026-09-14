@@ -1,3 +1,4 @@
+import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
@@ -124,6 +125,7 @@ export function makeGateGhost(): THREE.Group {
  * 手持放置的落点选择/预览/站定自动放置统一走 AutoPlaceSystem,经 FacilityDef 委托到本系统。
  */
 export class FenceSystem implements ObstacleSolver {
+  private readonly instances: ModelInstances;
   private fences = new Map<string, Fence>();
   private gates = new Map<string, FenceGate>();
   private segments: Segment[] = [];
@@ -148,7 +150,7 @@ export class FenceSystem implements ObstacleSolver {
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
     private isBusy: (actor: PlayerSession) => boolean = () => false
-  ) {}
+  ) { this.instances = new ModelInstances(scene); }
 
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
@@ -324,7 +326,7 @@ export class FenceSystem implements ObstacleSolver {
     const { gx, gz } = target;
     actor.inventory.remove(item, 1);
     const y = this.terrain.getHeight(gx, gz);
-    const fence = new Fence(this.scene, gx, gz, kind, y);
+    const fence = new Fence(this.scene, gx, gz, kind, y, this.instances);
     this.fences.set(FenceSystem.vertexKey(gx, gz), fence);
     this.onFenceChanged?.({ op: 'add', id: this.fenceIds.get(fence), value: { id: this.fenceIds.get(fence), x: gx, z: gz, kind } });
     this.refreshAround(gx, gz);
@@ -731,6 +733,13 @@ export class FenceSystem implements ObstacleSolver {
     return [...this.gates.values()].map((g) => ({ id: this.gateIds.get(g), x: g.gx, z: g.gz, dir: g.dir }));
   }
 
+  flushInstances(): void { this.instances.flush(); }
+
+  dispose(): void {
+    this.clear();
+    this.instances.dispose();
+  }
+
   /** 清空场上全部围栏与门,阻挡线段一并重置(客人侧重放世界快照前调用) */
   clear(): void {
     for (const fence of this.fences.values()) fence.remove(this.scene);
@@ -747,7 +756,7 @@ export class FenceSystem implements ObstacleSolver {
   ): void {
     for (const f of fences) {
       if (this.fences.has(FenceSystem.vertexKey(f.x, f.z))) continue;
-      const fence = new Fence(this.scene, f.x, f.z, f.kind, this.terrain.getHeight(f.x, f.z));
+      const fence = new Fence(this.scene, f.x, f.z, f.kind, this.terrain.getHeight(f.x, f.z), this.instances);
       this.fenceIds.set(fence, f.id);
       this.fences.set(FenceSystem.vertexKey(f.x, f.z), fence);
     }
@@ -781,7 +790,7 @@ export class FenceSystem implements ObstacleSolver {
     const currentFences = new Map([...this.fences.values()].map((x) => [this.fenceIds.get(x), x]));
     for (const value of fences) {
       if (value.id && currentFences.has(value.id)) continue;
-      const fence = new Fence(this.scene, value.x, value.z, value.kind, this.terrain.getHeight(value.x, value.z));
+      const fence = new Fence(this.scene, value.x, value.z, value.kind, this.terrain.getHeight(value.x, value.z), this.instances);
       this.fenceIds.set(fence, value.id);
       this.fences.set(FenceSystem.vertexKey(value.x, value.z), fence);
     }

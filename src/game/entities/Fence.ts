@@ -1,4 +1,5 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
+import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 
@@ -103,21 +104,9 @@ export function makeFencePreview(kind: FenceKind): THREE.Group {
   return g;
 }
 
-/** 释放网格资源(重建与挖除时调用) */
-function disposeMesh(root: THREE.Object3D): void {
-  root.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
-    const mat = mesh.material;
-    if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-    else if (mat) (mat as THREE.Material).dispose();
-  });
-}
-
 /** 场景中的围栏柱:落在网格顶点上,按相邻围栏/门自动伸出横杆连成整片 */
 export class Fence {
   readonly group: THREE.Group;
-  private mesh: THREE.Group;
   private conns: FenceConnections;
   private previewRails: THREE.Group | null = null;
 
@@ -126,24 +115,28 @@ export class Fence {
     public readonly gx: number,
     public readonly gz: number,
     public readonly kind: FenceKind,
-    groundY: number
+    groundY: number,
+    private readonly instances: ModelInstances
   ) {
     this.group = new THREE.Group();
     this.group.position.set(gx, groundY - 0.03, gz);
     this.conns = { px: false, nx: false, pz: false, nz: false };
-    this.mesh = buildFenceMesh(kind, this.conns);
-    this.group.add(this.mesh);
     scene.add(this.group);
+    this.updateModel();
+    this.group.matrixAutoUpdate = false;
   }
 
-  /** 连接变化时重建网格(换横杆);无变化时不重建 */
+  /** 连接变化时切换横杆模板；无变化时保留原实例。 */
   rebuild(conns: FenceConnections): void {
     if (sameConns(conns, this.conns)) return;
-    this.group.remove(this.mesh);
-    disposeMesh(this.mesh);
     this.conns = conns;
-    this.mesh = buildFenceMesh(this.kind, conns);
-    this.group.add(this.mesh);
+    this.updateModel();
+  }
+
+  private updateModel(): void {
+    const c = this.conns;
+    const mask = Number(c.px) | Number(c.nx) << 1 | Number(c.pz) << 2 | Number(c.nz) << 3;
+    this.instances.set(this.group, `fence:${this.kind}:${mask}`, () => buildFenceMesh(this.kind, c), false);
   }
 
   /** 幽灵预览补杆:extra 为因预览物新增的连接方向,以幽灵材质叠加在真实横杆之上 */
@@ -166,6 +159,6 @@ export class Fence {
   remove(scene: THREE.Scene): void {
     this.clearPreviewRails();
     scene.remove(this.group);
-    disposeMesh(this.mesh);
+    this.instances.delete(this.group);
   }
 }
