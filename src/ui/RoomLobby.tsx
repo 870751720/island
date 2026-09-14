@@ -9,6 +9,8 @@ import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/
 import { menuFormsCss } from './start/formStyles';
 import { MenuIcon } from './start/MenuIcon';
 import { ProfileSetup } from './ProfileSetup';
+import { buttonAudio } from './start/buttonAudio';
+import { playUiSound } from '@/game/audio/UiAudio';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
 /** 自动信令大厅：房主分享五位数字码或二维码，客人输入昵称即可直接连接。 */
@@ -77,6 +79,7 @@ export function RoomLobby({
 
   const createRoom = async () => {
     if (!host || busy) return;
+    playUiSound('confirm');
     setBusy(true);
     setStatus('正在创建房间…');
     try {
@@ -91,7 +94,8 @@ export function RoomLobby({
   };
 
   const joinRoom = async () => {
-    if (!guest || busy) return;
+    if (!guest || busy || roomCode.length !== 5 || !profile?.name) return;
+    playUiSound('confirm');
     setBusy(true);
     setStatus('正在连接房间…');
     try {
@@ -108,7 +112,7 @@ export function RoomLobby({
   };
 
   return (
-    <div className="room-lobby">
+    <div className="room-lobby" onClickCapture={buttonAudio}>
       <style>{menuFormsCss}</style>
       <div className="room-layout">
       <aside className="room-intro">
@@ -135,7 +139,7 @@ export function RoomLobby({
                   <span>继续上次保存的岛和队友进度</span>
                 </label>
               )}
-              <button className="room-button" disabled={busy} onClick={createRoom}>
+              <button className="room-button" data-ui-sound="manual" disabled={busy} onClick={createRoom}>
                 {busy ? '正在创建…' : '创建免费房间'}
               </button>
             </>
@@ -156,8 +160,9 @@ export function RoomLobby({
               </div>
               <button
                 className="room-button room-start"
+                data-ui-sound="manual"
                 disabled={busy || players.length === 0}
-                onClick={() => host && onBegin(host)}
+                onClick={() => { if (host) { playUiSound('confirm'); onBegin(host); } }}
               >
                 {players.length ? `开始游戏 · ${players.length + 1} 人` : '等待至少 1 位朋友'}
               </button>
@@ -187,6 +192,7 @@ export function RoomLobby({
             <button
               className="room-button"
               disabled={busy || roomCode.length !== 5 || !profile?.name}
+              data-ui-sound="manual"
               onClick={joinRoom}
             >
               {busy ? '正在加入…' : '加入房间'}

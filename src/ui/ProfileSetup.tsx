@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { playUiSound } from '@/game/audio/UiAudio';
 import { menuFormsCss } from './start/formStyles';
 import { MenuIcon } from './start/MenuIcon';
 import type { PlayerProfile } from '@/game/playerProfile';
@@ -28,6 +29,7 @@ export function ProfileSetup({
 
   const confirm = () => {
     if (!valid) return;
+    playUiSound('confirm');
     onConfirm({ name: name.trim(), gender });
   };
 
@@ -76,7 +78,7 @@ export function ProfileSetup({
           </button>
         </div>
 
-        <button className="profile-confirm" disabled={!valid} onClick={confirm}>
+        <button className="profile-confirm" data-ui-sound="manual" disabled={!valid} onClick={confirm}>
           {confirmText}
         </button>
         {!firstTime && onCancel && (

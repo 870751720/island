@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadAudioSettings } from '@/game/audio/AudioSettings';
 
-const KEY = 'island-menu-sound';
+import { MENU_SOUND_KEY, menuSoundEnabled, playUiSound } from '@/game/audio/UiAudio';
 
-/** Menu-only soundscape; disposal also stops all scheduled notes and noise. */
+/** 开始界面海浪随页面销毁；按钮短音使用独立生命周期。 */
 export function useMenuAudio() {
   const [enabled, setEnabled] = useState(false);
   const [started, setStarted] = useState(false);
   const context = useRef<AudioContext | null>(null);
-  const bus = useRef<GainNode | null>(null);
   const enabledRef = useRef(false);
   useEffect(() => {
-    try { enabledRef.current = localStorage.getItem(KEY) !== 'off'; } catch { enabledRef.current = true; }
+    enabledRef.current = menuSoundEnabled();
     setEnabled(enabledRef.current);
     const visibility = () => {
       const ctx = context.current;
@@ -24,7 +23,6 @@ export function useMenuAudio() {
       document.removeEventListener('visibilitychange', visibility);
       void context.current?.close().catch(() => {});
       context.current = null;
-      bus.current = null;
     };
   }, []);
 
@@ -37,7 +35,6 @@ export function useMenuAudio() {
         const master = ctx.createGain();
         master.gain.value = 0.65;
         master.connect(ctx.destination);
-        bus.current = master;
         const buffer = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -63,27 +60,9 @@ export function useMenuAudio() {
       void ctx.resume().then(() => { if (context.current === ctx) setStarted(ctx.state === 'running'); }).catch(() => {});
     } catch { setStarted(false); }
   };
-  const feedback = (kind: 'click' | 'learn' = 'click') => {
+  const feedback = () => {
     unlock();
-    const ctx = context.current;
-    if (!enabledRef.current || !ctx || !bus.current) return;
-    const level = loadAudioSettings().sfx;
-    const learning = kind === 'learn';
-    const frequencies = learning ? [392, 493.88, 587.33] : [523.25, 783.99];
-    frequencies.forEach((frequency, i) => {
-      const note = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const time = ctx.currentTime + i * (learning ? 0.055 : 0.075);
-      note.type = 'sine';
-      note.frequency.value = frequency;
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime((learning ? 0.045 : 0.085) * level, time + (learning ? 0.018 : 0.008));
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + (learning ? 0.22 : 0.45));
-      note.connect(gain).connect(bus.current!);
-      note.start(time);
-      note.stop(time + (learning ? 0.25 : 0.5));
-      note.onended = () => { note.disconnect(); gain.disconnect(); };
-    });
+    playUiSound();
   };
   const toggle = () => {
     if (enabledRef.current && !started) {
@@ -92,12 +71,12 @@ export function useMenuAudio() {
     }
     enabledRef.current = !enabledRef.current;
     setEnabled(enabledRef.current);
-    try { localStorage.setItem(KEY, enabledRef.current ? 'on' : 'off'); } catch { /* Optional preference. */ }
+    try { localStorage.setItem(MENU_SOUND_KEY, enabledRef.current ? 'on' : 'off'); } catch { /* Optional preference. */ }
     if (enabledRef.current) feedback();
     else {
       setStarted(false);
       void context.current?.suspend().catch(() => {});
     }
   };
-  return { enabled, started, unlock, feedback, toggle };
+  return { enabled, started, unlock, toggle };
 }

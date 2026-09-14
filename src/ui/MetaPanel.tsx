@@ -78,7 +78,7 @@ export function MetaPanel({ onClose, onLearn }: { onClose: () => void; onLearn: 
           <div className="meta-level-tabs" aria-label="预览天赋等级">{node.levels.map((_, index) => <button key={index} aria-pressed={previewLevel === index} onClick={() => setPreview(index)}>{index + 1} 级 · {index < level ? '已学' : index === level ? '下一级' : '预览'}</button>)}</div>
           <p className="meta-effect">{node.levels[previewLevel]}</p>
           <p className="meta-requirement">{!unlocked ? `先领悟「${prerequisite!.name}」1 级` : maxed ? '这份经验，已成为你的本能。' : `领悟下一等级消耗 ${cost} 心得${points < cost ? `，还差 ${cost - points}` : ''}`}</p>
-          <button className="meta-buy" disabled={maxed || !unlocked || points < cost} onClick={upgrade}>{maxed ? '已圆满' : !unlocked ? '前置天赋未解锁' : points < cost ? '心得不足' : `领悟 · ${cost} 心得`}</button>
+          <button className="meta-buy" data-ui-sound="manual" disabled={maxed || !unlocked || points < cost} onClick={upgrade}>{maxed ? '已圆满' : !unlocked ? '前置天赋未解锁' : points < cost ? '心得不足' : `领悟 · ${cost} 心得`}</button>
           <p className="meta-notice" role="status">{notice}</p>
         </section>
       </div>

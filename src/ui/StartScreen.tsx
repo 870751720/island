@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { MenuIcon } from './start/MenuIcon';
 import { useMenuAudio } from './start/useMenuAudio';
+import { buttonAudio } from './start/buttonAudio';
+import { playUiSound } from '@/game/audio/UiAudio';
 import { startScreenCss } from './start/styles';
 import { IslandScene } from './start/IslandScene';
 import { SaveSystem, type SaveData } from '@/game/systems/SaveSystem';
@@ -63,6 +65,7 @@ export function StartScreen({
   };
 
   const startNew = () => {
+    playUiSound('confirm');
     const save = SaveSystem.load();
     const points = legacyPointsForDay(save?.day ?? 1);
     // 旧档生存超过 2 天:重开前先确认,结算进荒岛传承
@@ -74,6 +77,7 @@ export function StartScreen({
   };
 
   const confirmAbandon = () => {
+    playUiSound('confirm');
     MetaProgress.grant(abandoning!.points);
     setAbandoning(null);
     requestStart('new');
@@ -82,14 +86,12 @@ export function StartScreen({
   return (
     <div className="start-screen" onPointerDownCapture={(event) => {
       if (!(event.target as Element).closest('.menu-sound')) audio.unlock();
-    }} onClickCapture={(event) => {
-      if ((event.target as HTMLElement).closest('button:not(.menu-sound):not(.meta-panel button)')) audio.feedback();
-    }}>
+    }} onClickCapture={buttonAudio}>
       <style>{startScreenCss}</style>
       <div className="start-layout" inert={showMeta}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
-          {ready && <button className="menu-sound" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
+          {ready && <button className="menu-sound" data-ui-sound="manual" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
             <MenuIcon name={audio.enabled ? 'sound' : 'muted'} />
             <span>{audio.enabled ? (audio.started ? '海风已响起' : '轻触听海') : '声音已关闭'}</span>
           </button>}
@@ -105,7 +107,7 @@ export function StartScreen({
             {notice && <p className="start-notice" role="status">{notice}</p>}
             {ready ? <>
               <div className="menu-save-label"><span>{hasSave ? '你的岛，还在等你' : '下一站，自由'}</span><span>{hasSave ? `已生存 ${savedGame.day ?? 1} 天` : '采集 / 建造 / 生存'}</span></div>
-              <button className="start-button" onClick={() => requestStart(hasSave ? 'continue' : 'new')}>
+              <button className="start-button" data-ui-sound="manual" onClick={() => { playUiSound('confirm'); requestStart(hasSave ? 'continue' : 'new'); }}>
                 <span><strong>{hasSave ? '继续游戏' : '开始游戏'}</strong><small>{hasSave ? '回到熟悉的海风里' : '向着属于你的岛，出发'}</small></span><MenuIcon name="arrow" />
               </button>
               {multiplayerEnabled && (
@@ -116,7 +118,7 @@ export function StartScreen({
               )}
               <div className="menu-utilities">
                 <button className="profile-chip" onClick={() => { setPendingStart(null); setShowSetup(true); }}><MenuIcon name="user" />设置形象</button>
-                {hasSave && <button className="new-game-button" onClick={startNew}>开新档</button>}
+                {hasSave && <button className="new-game-button" data-ui-sound="manual" onClick={startNew}>开新档</button>}
                 {legacy && <button className="legacy-button" onClick={() => setShowMeta(true)}>荒岛传承</button>}
               </div>
             </> : <p className="start-loading" role="status">正在寻找你的岛…</p>}
@@ -137,14 +139,14 @@ export function StartScreen({
               <button className="abandon-cancel" onClick={() => setAbandoning(null)}>
                 再想想
               </button>
-              <button className="abandon-confirm" onClick={confirmAbandon}>
+              <button className="abandon-confirm" data-ui-sound="manual" onClick={confirmAbandon}>
                 重新开始
               </button>
             </div>
           </div>
         </div>
       )}
-      {showMeta && <MetaPanel onClose={() => setShowMeta(false)} onLearn={() => audio.feedback('learn')} />}
+      {showMeta && <MetaPanel onClose={() => setShowMeta(false)} onLearn={() => playUiSound('confirm')} />}
       {showSetup && (
         <ProfileSetup
           firstTime={!profile}
