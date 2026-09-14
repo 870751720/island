@@ -38,6 +38,7 @@ export type QuestView = {
   enabled: boolean; active: number; finished: boolean; celebration: boolean;
   rows: { label: string; have: number; need: number }[];
   done: string[]; recipes: CraftId[]; guide: QuestGuide; hint: string; activity: number; busy: boolean;
+  feedback?: { id: number; completed: string[]; rewards: Partial<Record<ResourceKind, number>> };
   pending: boolean;
   navigationHint?: string | null;
 };

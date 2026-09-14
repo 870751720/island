@@ -12,12 +12,17 @@ export class QuestProgress {
   private state: QuestSave = { completed: false, gathered: {}, crafted: {}, done: [], paid: [], benchLevel: 0, pending: {} };
   private legacy = false;
   private celebrate = 0;
+  private feedbackTimer = 0;
+  private feedbackId = 0;
+  private feedback: QuestView['feedback'];
   view: QuestView | null = null;
 
   restore(save?: QuestSave): void {
     this.legacy = !save;
     if (save) { this.state = structuredClone(save); this.state.completed ??= save.done.includes('graduate') && save.paid.includes('graduate'); }
     this.celebrate = 0;
+    this.feedbackTimer = 0;
+    this.feedback = undefined;
   }
   campAction(action: 'place' | 'fuel' | 'cook'): void {
     this.state.camp ??= {};
@@ -53,6 +58,8 @@ export class QuestProgress {
 
   update(s: PlayerSession, benchLevel: number, delta: number, upgrading = false, furDropped = false, campfires = 0, cooking = false, fireLit = false): void {
     this.celebrate = Math.max(0, this.celebrate - delta);
+    this.feedbackTimer = Math.max(0, this.feedbackTimer - delta);
+    if (!this.feedbackTimer || !this.enabled) this.feedback = undefined;
     this.state.gathered.fur = Math.max(this.state.gathered.fur ?? 0, s.inventory.count('fur'));
     if (campfires > 0) { this.state.camp ??= {}; this.state.camp.place = Math.max(1, this.state.camp.place ?? 0); }
     this.state.benchLevel = Math.max(this.state.benchLevel, benchLevel);
@@ -76,25 +83,36 @@ export class QuestProgress {
     }
     const active = QUESTS.findIndex(q => !this.state.done.includes(q.id));
     if (this.legacy && active === -1) this.state.done = QUESTS.map(q => q.id);
-    let completedNow = false;
+    const completedNow: string[] = [];
+    const rewards: Partial<Record<ResourceKind, number>> = {};
     for (const quest of QUESTS) {
       if (!this.state.done.includes(quest.id) || this.state.paid.includes(quest.id)) continue;
       this.state.paid.push(quest.id);
       if (this.legacy) continue;
-      completedNow = true;
+      if (this.enabled) completedNow.push(quest.title);
       for (const [kind, n] of Object.entries(quest.reward)) {
         const k = kind as ResourceKind;
         this.state.pending[k] = (this.state.pending[k] ?? 0) + n;
       }
     }
-    if (completedNow && active === -1 && this.enabled) this.celebrate = 4;
+    if (completedNow.length && active === -1 && this.enabled) this.celebrate = 4;
     this.legacy = false;
     // 待发奖励直接入包，满包保留剩余数；不走采集计数、不掉地、不重复领取。
     if (this.enabled) for (const [kind, n] of Object.entries(this.state.pending)) {
       const k = kind as ResourceKind;
       const added = k === 'arrow' || k === 'bait' ? s.ammo.add(k, n) : s.inventory.add(k, n);
+      if (added > 0) rewards[k] = added;
       if (added >= n) delete this.state.pending[k];
       else this.state.pending[k] = n - added;
+    }
+    if (completedNow.length || Object.keys(rewards).length) {
+      const combined = { ...this.feedback?.rewards };
+      for (const [kind, count] of Object.entries(rewards)) {
+        const k = kind as ResourceKind;
+        combined[k] = (combined[k] ?? 0) + count;
+      }
+      this.feedback = { id: ++this.feedbackId, completed: [...(this.feedback?.completed ?? []), ...completedNow], rewards: combined };
+      this.feedbackTimer = 4;
     }
     const quest = QUESTS[active];
     const rows = quest?.requirements.map(req => this.row(s, req)) ?? [];
@@ -103,6 +121,6 @@ export class QuestProgress {
       ? guide.kinds.reduce((sum, kind) => sum + (this.state.gathered[kind] ?? 0), 0)
       : recipes.reduce((sum, id) => sum + (this.state.crafted[id] ?? 0), 0);
     const busy = cooking || upgrading || !!(s.crafting.currentRecipe && recipes.includes(s.crafting.currentRecipe.id));
-    this.view = { enabled: this.enabled, active, finished: active === -1, celebration: this.celebrate > 0, rows, done: [...this.state.done], recipes, guide, hint, activity, busy, pending: Object.keys(this.state.pending).length > 0 };
+    this.view = { enabled: this.enabled, active, finished: active === -1, celebration: this.celebrate > 0, rows, done: [...this.state.done], recipes, guide, hint, activity, busy, feedback: this.feedback, pending: Object.keys(this.state.pending).length > 0 };
   }
 }
