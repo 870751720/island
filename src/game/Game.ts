@@ -532,7 +532,11 @@ export class Game {
       this.fx,
       (name, x, z) => {
         const p = this.player.group.position;
-        if (Math.hypot(p.x - x, p.z - z) <= BEAR_SFX_RANGE) this.audio.play(name);
+        if (Math.hypot(p.x - x, p.z - z) <= BEAR_SFX_RANGE) {
+          // 动物受击是世界音效，房主结算客人动作时也应听到，且不重复转发交互声。
+          if (name === 'sheepHurt' || name === 'bisonHurt') this.audio.playLocal(name);
+          else this.audio.play(name);
+        }
         this.hostRef?.broadcastEvent({ kind: 'sfxAt', sfx: name, x, y: 1, z });
       },
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走

@@ -1297,7 +1297,11 @@ export class Wildlife implements Updatable {
   }
 
   private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
+    if (!Number.isFinite(damage) || damage <= 0) return null;
     animal.hp -= damage;
+    if (animal.species === 'sheep' || animal.species === 'bison') {
+      this.playSound(animal.species === 'sheep' ? 'sheepHurt' : 'bisonHurt', animal.pos.x, animal.pos.z);
+    }
     if (animal.hp > 0) {
       this.creatureFx.flash(animal.model.group);
       this.onHit(animal.id);

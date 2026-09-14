@@ -1,3 +1,4 @@
+import { AnimalHurtAudio } from './AnimalHurtAudio';
 import { midiToFreq, noiseBurst, tone, pianoTone } from './synth';
 
 /** 玩法音效种类:按动作语义命名 */
@@ -22,6 +23,8 @@ export type SfxName =
   | 'pickup' // 获得物品(采集收获/捡回/钓到鱼,统一)
   | 'drop' // 丢弃落地
   | 'success' // 制作完成
+  | 'sheepHurt' // 羊受击咩叫
+  | 'bisonHurt' // 野牛受击闷吼
   | 'hurt' // 受伤闷哼
   | 'roar' // 熊完整咆哮(警戒/中箭暴怒)
   | 'bearGrowl' // 熊扑击前的短促低吼
@@ -52,6 +55,8 @@ const VOL: Record<SfxName, number> = {
   drop: 0.5,
   success: 0.45,
   hurt: 0.5,
+  sheepHurt: 0.5,
+  bisonHurt: 0.5,
   roar: 0.55,
   bearGrowl: 0.48,
   snore: 0.75,
@@ -65,7 +70,11 @@ export class Sfx {
   /** 长音效的专属输出通道,交互中断时立即静音切断 */
   private cuts = new Map<SfxName, GainNode>();
 
-  constructor(private ctx: AudioContext, private dest: AudioNode) {}
+  private animalHurt: AnimalHurtAudio;
+
+  constructor(private ctx: AudioContext, private dest: AudioNode) {
+    this.animalHurt = new AnimalHurtAudio(ctx);
+  }
 
   /** 中途切断仍在播的长音效(喝水、进食等随交互持续的循环声) */
   stop(name: SfxName): void {
@@ -94,6 +103,10 @@ export class Sfx {
     }
 
     switch (name) {
+      case 'sheepHurt':
+      case 'bisonHurt':
+        this.animalHurt.play(name === 'sheepHurt', dest, v);
+        break;
       case 'chop':
         // 斧刃入木:又短又密的低频闷击,两层贴近的低音叠加避免单薄发空
         tone(this.ctx, dest, detune(130), t, { attack: 0.003, decay: 0.1, peak: v }, 'sine', 65);
