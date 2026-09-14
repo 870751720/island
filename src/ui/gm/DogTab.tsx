@@ -50,6 +50,11 @@ export function DogTab({ getGame }: { getGame: () => Game | null }) {
       </label>
       <div style={{ fontSize: 12 }}>{rejection ?? `可喂，每份增加 ${selected.hunger} 经验；从背包丢弃喂食。`}</div>
       <ActionButton label="领取所选食物 ×3" onClick={() => getGame()?.gmGiveItem(selected.kind, 3)} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <ActionButton label="警觉表情" onClick={() => run('emojiAlert')} />
+        <ActionButton label="扑咬表情" onClick={() => run('emojiBite')} />
+        <ActionButton label="护主表情" onClick={() => run('emojiGuard')} />
+      </div>
       <ActionButton label="护主实战：生成 5 血狼" onClick={() => run('threat')} tone="primary" />
       <ActionButton label="五阶段救场：30 血 + 15 血狼" onClick={() => run('rescue')} />
       <div style={{ fontSize: 12, lineHeight: 1.6 }}>在草地测试，关闭面板查看扑咬和头顶升级提示。救场测试先关闭玩家无敌；护主命中后消灭敌人或脱战 6 秒，经验 +12，每 60 秒最多一次。联机操作由房主结算。</div>

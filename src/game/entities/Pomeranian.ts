@@ -1,3 +1,4 @@
+import { DOG_BATTLE_EMOJIS, DOG_BATTLE_EMOJI_SECONDS, DOG_STAGE_NOTICE_SECONDS, type DogBattleEmoji, type DogBattleNotice } from '../systems/DogExpressions';
 import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Player } from './Player';
@@ -160,6 +161,9 @@ export class Pomeranian {
   private notice: DogStageNotice | null = null;
   private noticeLeft = 0;
   private noticeSerial = 0;
+  private battleEmojiCooldown = 0;
+  private battleNotice: DogBattleNotice | null = null;
+  onBattleEmoji: (notice: DogBattleNotice) => void = () => {};
   private netPounceTime = -1;
   private pounceSerial = 0;
   onStage: (notice: DogStageNotice) => void = () => {};
@@ -235,7 +239,10 @@ export class Pomeranian {
       (target, speed, delta) => this.stepTo(target, speed, delta, true),
       target => { this.heading = Math.atan2(target.z - this.pos.z, target.x - this.pos.x); },
       (x, z) => this.waterDepth(x, z) <= SWIM_DEPTH);
-    this.combat.onPounce = () => this.onPounce(++this.pounceSerial);
+    this.combat.onPounce = (rescue) => {
+      this.onPounce(++this.pounceSerial);
+      this.tryBattleEmoji(rescue ? 'dog-guard' : 'dog-bite', rescue);
+    };
   }
 
   get stageNotice(): DogStageNotice | null { return this.noticeLeft > 0 ? this.notice : null; }
@@ -244,7 +251,26 @@ export class Pomeranian {
     if (notice.serial <= this.noticeSerial || !DOG_STAGES.some(s => s.stage === notice.stage)) return;
     this.noticeSerial = notice.serial;
     this.notice = notice;
-    this.noticeLeft = 4;
+    this.noticeLeft = DOG_STAGE_NOTICE_SECONDS;
+  }
+
+  /** 事件和恢复快照共用序号；客人仅播放，不自行随机判定。 */
+  showBattleEmoji(notice: DogBattleNotice, duration = DOG_BATTLE_EMOJI_SECONDS): void {
+    if (notice.serial <= (this.battleNotice?.serial ?? 0) || !DOG_BATTLE_EMOJIS.includes(notice.glyph)) return;
+    this.battleNotice = notice;
+    this.showEmoji(notice.glyph, Math.min(DOG_BATTLE_EMOJI_SECONDS, Math.max(0, duration)));
+  }
+
+  previewBattleEmoji(glyph: DogBattleEmoji): void {
+    this.tryBattleEmoji(glyph, true);
+  }
+
+  private tryBattleEmoji(glyph: DogBattleEmoji, guaranteed = false): void {
+    if (!guaranteed && (this.battleEmojiCooldown > 0 || Math.random() > 0.5)) return;
+    this.battleEmojiCooldown = 8 + Math.random() * 6;
+    const notice = { glyph, serial: (this.battleNotice?.serial ?? 0) + 1 };
+    this.showBattleEmoji(notice);
+    this.onBattleEmoji(notice);
   }
 
   netPlayPounce(serial: number): void {
@@ -333,6 +359,8 @@ export class Pomeranian {
 
   netPose(): AmbientPose {
     return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.play,
+      dogBattleGlyph: this.battleNotice?.glyph ?? null, dogBattleSerial: this.battleNotice?.serial ?? 0,
+      dogBattleLeft: this.emoji === this.battleNotice?.glyph ? Math.ceil(Math.max(0, this.emojiLeft) * 10) / 10 : 0,
       dogXp: this.growth.xp, dogEatCooldown: Math.ceil(this.eatCd),
       dogProtectCooldown: Math.ceil(this.growth.protectCooldown), dogCompanionSeconds: Math.floor(this.growth.companionSeconds),
       dogPhase: this.combatView.phase, dogProgress: Math.round(this.combatView.progress * 20) / 20,
@@ -341,6 +369,9 @@ export class Pomeranian {
   }
 
   netApply(pose: AmbientPose, _elapsed: number): void {
+    if (pose.dogBattleGlyph && (pose.dogBattleLeft ?? 0) > 0) {
+      this.showBattleEmoji({ glyph: pose.dogBattleGlyph, serial: pose.dogBattleSerial ?? 0 }, pose.dogBattleLeft);
+    }
     this.growth.restore({ xp: pose.dogXp, protectCooldown: pose.dogProtectCooldown, companionSeconds: pose.dogCompanionSeconds });
     this.eatCd = pose.dogEatCooldown ?? 0;
     this.eatLeft = pose.state === 'eat' ? 0.5 : 0;
@@ -366,6 +397,7 @@ export class Pomeranian {
 
   /** 客人端逐帧平滑权威快照并播放纯视觉动作。 */
   netUpdate(delta: number, elapsed: number): void {
+    this.emojiLeft = Math.max(0, this.emojiLeft - delta);
     this.noticeLeft = Math.max(0, this.noticeLeft - delta);
     if (this.netPounceTime >= 0) {
       this.netPounceTime += delta;
@@ -500,7 +532,10 @@ export class Pomeranian {
       const next = nearby[0] ?? companions.find(c => !c.dead);
       if (next) this.player = next.player;
     }
+    this.battleEmojiCooldown = Math.max(0, this.battleEmojiCooldown - delta);
+    const wasFighting = this.fighting;
     this.fighting = this.combat?.update(delta, companions, this.player) ?? false;
+    if (this.fighting && !wasFighting) this.tryBattleEmoji('dog-alert');
     this.combatView = this.combat?.view ?? { phase: 'idle', progress: 0 };
     const p = this.player.group.position;
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);

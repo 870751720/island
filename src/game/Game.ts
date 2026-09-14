@@ -607,6 +607,7 @@ export class Game {
       (x, z) => this.isGroundBlocked(x, z)
     );
     this.dog.connectCombat(this.wildlife);
+    this.dog.onBattleEmoji = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogBattleEmoji', ...notice });
     this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
     this.dog.onPounce = (serial) => this.hostRef?.broadcastEvent({ kind: 'dogPounce', serial });
     this.wildlife.onDogKill = (species, position, player) => {
@@ -1523,6 +1524,7 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'dogBattleEmoji') { this.dog.showBattleEmoji(event); return; }
     if (event.kind === 'dogStage') { this.dog.showStage(event); return; }
     if (event.kind === 'dogPounce') { this.dog.netPlayPounce(event.serial); return; }
     if (event.kind === 'bottle') {
@@ -2600,6 +2602,9 @@ export class Game {
     else if (command === 'recall') this.dog.recall(actor.player);
     else if (command === 'companion') this.dog.growth.update(60, true);
     else if (command === 'protect') this.dog.growth.protectedPlayer();
+    else if (command === 'emojiAlert') this.dog.previewBattleEmoji('dog-alert');
+    else if (command === 'emojiBite') this.dog.previewBattleEmoji('dog-bite');
+    else if (command === 'emojiGuard') this.dog.previewBattleEmoji('dog-guard');
     else if (command === 'foods') {
       this.dog.recall(actor.player);
       this.dog.clearCooldowns();
@@ -3570,6 +3575,7 @@ export class Game {
       respawnEnabled: !!this.hostRef || poseidonGrace,
       poseidonGrace,
       collectTreasure: this.collectTreasure,
+      dog: { stage: this.dog.growth.config.stage, xp: this.dog.growth.xp },
     });
   }
 

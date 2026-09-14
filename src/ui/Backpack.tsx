@@ -1,4 +1,5 @@
 'use client';
+import { DogCompanionCard } from './DogCompanionCard';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
@@ -471,7 +472,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                         {selectedFood && <div style={{ marginTop: 6, fontSize: 12 }}>
                           {DOG_FOOD_EXCLUSIONS[selectedFood.kind]
                             ? `博美不吃：${DOG_FOOD_EXCLUSIONS[selectedFood.kind]}`
-                            : `可丢弃喂博美 · 每份 +${selectedFood.hunger} 成长经验`}
+                            : `放到地上喂博美 · 成长经验 +${selectedFood.hunger}`}
                         </div>}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -664,6 +665,7 @@ export function Backpack({ open, onToggle, hud, onUseItem, onDropItem, onCraft, 
                     </div>
                   );
                 })}
+                <DogCompanionCard dog={hud.dog} />
               </div>
             )}
           </div>

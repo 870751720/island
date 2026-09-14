@@ -10,8 +10,8 @@ export const DOG_STAGES = [
 
 export type DogGrowthSave = { xp?: number; companionSeconds?: number; protectCooldown?: number };
 export type DogSave = DogGrowthSave & DogCombatSave & { x: number; z: number; eatCooldown?: number };
-export type DogGmCommand = 'stage' | 'xp' | 'cooldowns' | 'recall' | 'foods' | 'threat' | 'rescue' | 'companion' | 'protect';
-export const DOG_GM_COMMANDS: readonly DogGmCommand[] = ['stage', 'xp', 'cooldowns', 'recall', 'foods', 'threat', 'rescue', 'companion', 'protect'];
+export type DogGmCommand = 'stage' | 'xp' | 'cooldowns' | 'recall' | 'foods' | 'threat' | 'rescue' | 'companion' | 'protect' | 'emojiAlert' | 'emojiBite' | 'emojiGuard';
+export const DOG_GM_COMMANDS: readonly DogGmCommand[] = ['stage', 'xp', 'cooldowns', 'recall', 'foods', 'threat', 'rescue', 'companion', 'protect', 'emojiAlert', 'emojiBite', 'emojiGuard'];
 
 function finite(value: number | undefined, max: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(max, value)) : 0;

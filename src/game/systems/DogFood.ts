@@ -4,12 +4,12 @@ import type { ResourceKind } from './Inventory';
 /** 按食材与现有道具描述筛选；这是游戏喂食规则，熟食默认取无骨、去核的可食部分。 */
 export const DOG_FOOD_EXCLUSIONS: Partial<Record<ResourceKind, string>> = {
   oakFruit: '橡果含单宁，不适合狗狗',
-  pineFruit: '松果坚硬，不作为狗狗食物',
+  pineFruit: '松果太硬，不能喂它',
   cola: '含咖啡因', colaZero: '含咖啡因',
   wineBerry: '含酒精', wineFruit: '含酒精', wineMilk: '含酒精', wineGolden: '含酒精',
   pepper: '辛辣刺激', cookedPepper: '辛辣刺激', boiledPepper: '辛辣刺激',
-  cookedEggplant: '道具描述含蒜，不适合狗狗',
-  milk: '羊奶可能引起乳糖不耐受，保守排除',
+  cookedEggplant: '加了蒜，不适合它吃',
+  milk: '羊奶容易让它闹肚子',
   potato: '生土豆不适合狗狗', sweetPotato: '红薯煮熟后再喂',
   soybean: '大豆煮熟后再喂', pumpkin: '南瓜煮熟后再喂',
   crabMeat: '肉类煮熟后再喂', birdMeat: '肉类煮熟后再喂', gameMeat: '肉类煮熟后再喂',

@@ -1,3 +1,4 @@
+import type { DogBattleEmoji } from '../systems/DogExpressions';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { SaveData } from '../systems/SaveSystem';
 import type { ResourceKind } from '../systems/Inventory';
@@ -9,7 +10,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 31;
+export const NET_PROTOCOL_VERSION = 32;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -54,6 +55,9 @@ export type AmbientPose = {
   state?: string;
   /** 外观变体(鸟的羽色序号),客人端补建新个体时使用 */
   variant?: number;
+  dogBattleGlyph?: DogBattleEmoji | null;
+  dogBattleSerial?: number;
+  dogBattleLeft?: number;
   dogXp?: number;
   dogEatCooldown?: number;
   dogProtectCooldown?: number;
@@ -100,6 +104,7 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'dogBattleEmoji'; glyph: DogBattleEmoji; serial: number }
   | { kind: 'dogStage'; stage: number; serial: number }
   | { kind: 'dogPounce'; serial: number }
   | { kind: 'animalDamage'; target: 'wildlife' | 'crab' | 'bird'; id: number; damage: number; x: number; y: number; z: number }

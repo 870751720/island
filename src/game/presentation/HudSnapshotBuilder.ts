@@ -39,6 +39,7 @@ type HudSystems = {
 };
 
 export type HudRuntime = {
+  dog: NonNullable<HudSnapshot['dog']>;
   autoEquipTimer: number;
   respawnEnabled: boolean;
   poseidonGrace: boolean;
@@ -58,6 +59,7 @@ export class HudSnapshotBuilder {
     return {
       ...session.survival.state,
       quests: session.quests.view,
+      dog: runtime.dog,
       arrow: session.ammo.count('arrow'),
       bait: session.ammo.count('bait'),
       heldFenceCount: session.player.currentTool === 'fence'

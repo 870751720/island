@@ -1,8 +1,10 @@
+import { DOG_COMBAT_SVG } from './DogCombatIcons';
 import { path as p, line as l, ellipse as e, claySvg as svg } from './SvgPaths';
 const heart=p('M32 51L12 31Q2 12 20 13Q28 13 32 21Q41 6 53 16Q64 31 32 51','#d48e91')+l('M16 22Q20 17 24 22','#f7d1c4',3);
 const face=(mood: 'happy'|'love'|'surprise'|'hungry')=>e(32,33,24,23,'#dfb987')+p('M10 24L10 7L25 15M39 15L54 7L54 26','#b68d68')+p('M15 20L15 13L22 17M43 17L50 13L50 21','#e4bbab')+e(32,41,15,12,'#f5e4c3')+(mood==='love'?gHeart(12,22)+gHeart(36,22):mood==='happy'?l('M19 29Q23 24 27 29M38 29Q42 24 46 29','#685447',2.5):e(23,28,2.5,3,'#685447')+e(41,28,2.5,3,'#685447'))+p('M27 35Q32 32 37 35L32 40Z','#685447')+(mood==='surprise'?e(32,45,4,5,'#685447'):l('M25 43Q32 49 39 43','#685447',2))+(mood==='hungry'?p('M33 45H41Q44 54 37 53Z','#cf8e8a'):'');
 function gHeart(x:number,y:number){return `<g transform="translate(${x} ${y}) scale(.25)">${heart}</g>`;}
 export const DOG_EMOJI_SVG: Readonly<Record<string,string>> = {
+ ...DOG_COMBAT_SVG,
  '🐕':svg(face('happy')),'😊':svg(face('happy')),'🥰':svg(face('love')),'😮':svg(face('surprise')),'😋':svg(face('hungry')),
  '❤️':svg(heart),
  '🐾':svg(p('M18 39Q22 29 32 33Q42 29 47 40Q54 55 39 53Q32 49 25 53Q10 55 18 39','#b28c70')+e(13,29,6,8,'#d4b08b')+e(25,19,6,8,'#d4b08b')+e(40,19,6,8,'#d4b08b')+e(51,30,6,8,'#d4b08b')),

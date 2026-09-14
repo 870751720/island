@@ -11,7 +11,7 @@ export type DogCombatSave = { attackCooldown?: number; knockbackCooldown?: numbe
 /** 护主目标与攻击结算独立于模型；狗不注册为野生动物的攻击目标，因此没有受伤入口。 */
 export class DogCombat {
   view: DogCombatView = { phase: 'idle', progress: 0 };
-  onPounce: () => void = () => {};
+  onPounce: (rescue: boolean) => void = () => {};
   moving = false;
   private target: DogThreat | null = null;
   private attackLeft = 0;
@@ -118,7 +118,7 @@ export class DogCombat {
       if (canRescue) this.rescueLeft = 45;
       this.pounceTime = 0;
       this.hit = false;
-      this.onPounce();
+      this.onPounce(this.rescue);
     }
 
     this.pounceTime += delta;
