@@ -9,7 +9,7 @@ import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 import type { DropEntry } from './DropSystem';
 import type { ShrineSave } from './ShrineSystem';
-import type { GravelPathSave } from '../entities/GravelPath';
+import type { RoadSave } from '../entities/RoadModel';
 import type { SoilSave } from '../entities/Soil';
 import type { CropSave } from '../entities/Crop';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
@@ -108,7 +108,8 @@ export type SaveData = {
   shrines: ShrineSave[];
   /** 场上所有土壤(落点;手持锄头开出,可放置多个;旧档缺省视为无) */
   soils: SoilSave[];
-  gravelPaths?: GravelPathSave[];
+  gravelPaths?: RoadSave[];
+  plankPaths?: RoadSave[];
   /** 场上所有作物(种类/落点/累计生长秒数;只在游戏内累计;旧档缺省视为无) */
   crops: CropSave[];
   /** 场上所有木箱(落点与箱内格子) */

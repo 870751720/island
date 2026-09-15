@@ -27,6 +27,7 @@ export type CraftId =
   | 'fenceWood'
   | 'fenceStone'
   | 'gravelPath'
+  | 'plankPath'
   | 'fenceGate'
   | 'bed'
   | 'bed2'
@@ -365,6 +366,15 @@ export const RECIPES: Recipe[] = [
     output: 'fenceWood',
     outputCount: 2,
     minBenchLevel: 2,
+  },
+  {
+    id: 'plankPath',
+    name: '木板路 ×2',
+    cost: { wood: 1 },
+    station: 'workbench',
+    output: 'plankPath',
+    outputCount: 2,
+    minBenchLevel: 3,
   },
   {
     id: 'gravelPath',

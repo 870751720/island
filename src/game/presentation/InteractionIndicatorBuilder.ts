@@ -12,7 +12,7 @@ import type { FenceSystem } from '../systems/FenceSystem';
 import type { LoomSystem } from '../systems/LoomSystem';
 import type { RabbitBurrowSystem } from '../systems/RabbitBurrowSystem';
 import type { ShrineSystem } from '../systems/ShrineSystem';
-import type { GravelPathSystem } from '../systems/GravelPathSystem';
+import type { RoadSystem } from '../systems/RoadSystem';
 import type { SoilSystem } from '../systems/SoilSystem';
 import type { CropSystem } from '../systems/CropSystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
@@ -34,7 +34,8 @@ type IndicatorSystems = {
   beds: BedSystem;
   shrines: ShrineSystem;
   soils: SoilSystem;
-  gravelPaths: GravelPathSystem;
+  gravelPaths: RoadSystem;
+  plankPaths: RoadSystem;
   crops: CropSystem;
   campfire: CampfireSystem;
 };
@@ -99,6 +100,8 @@ export class InteractionIndicatorBuilder {
       label = '挖床…'; progress = systems.beds.getDigProgress(session);
     } else if (systems.shrines.isDigging(session)) {
       label = '拆神像…'; progress = systems.shrines.getDigProgress(session);
+    } else if (systems.plankPaths.isDigging(session)) {
+      label = '拆木板路…'; progress = systems.plankPaths.getDigProgress(session);
     } else if (systems.gravelPaths.isDigging(session)) {
       label = '拆碎石路…'; progress = systems.gravelPaths.getDigProgress(session);
     } else if (systems.soils.isDigging(session)) {

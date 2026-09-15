@@ -3,6 +3,7 @@
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
 export type BuffId =
   | 'gravelPath'
+  | 'plankPath'
   | 'poseidon'
   | 'beehive'
   | 'healCrystal'
@@ -24,6 +25,10 @@ export type BuffDef = {
 };
 
 export const BUFFS: Record<BuffId, BuffDef> = {
+  plankPath: {
+    id: 'plankPath', name: '步履轻快', icon: '🪵',
+    description: '踩着木板小路，脚步也轻快起来。在路上移动速度提升 10%，离开后恢复。', good: true,
+  },
   gravelPath: {
     id: 'gravelPath', name: '步履轻快', icon: '🪨',
     description: '碎石铺成的小路让脚步更轻快。在路上移动速度提升 10%，离开后恢复。', good: true,

@@ -37,6 +37,7 @@ export class WorldReplicationController {
       shrines: s.shrines.snapshot(),
       soils: s.soils.snapshot(),
       gravelPaths: s.gravelPaths.snapshot(),
+      plankPaths: s.plankPaths.snapshot(),
       // 作物快照带 grown:新增时客人能直接建对阶段;之后每 tick 的小幅 set 增量由客人柔和对账
       crops: s.crops.snapshot(),
       stakes: s.stakes.snapshot(),
@@ -70,6 +71,7 @@ export class WorldReplicationController {
     s.shrines.setChangeSink(send('shrines'));
     s.soils.setChangeSink(send('soils'));
     s.gravelPaths.setChangeSink(send('gravelPaths'));
+    s.plankPaths.setChangeSink(send('plankPaths'));
     s.crops.setChangeSink(send('crops'));
     s.stakes.setChangeSink(send('stakes'));
     s.drops.setChangeSink(send('drops'));
@@ -129,6 +131,7 @@ export class WorldReplicationController {
     if (state.shrines) s.shrines.netApply(state.shrines);
     if (state.soils) s.soils.netApply(state.soils);
     if (state.gravelPaths) s.gravelPaths.netApply(state.gravelPaths);
+    if (state.plankPaths) s.plankPaths.netApply(state.plankPaths);
     if (state.crops) s.crops.netApply(state.crops);
     if (state.stakes) s.stakes.netApply(state.stakes);
     if (state.drops) s.drops.netApply(state.drops);

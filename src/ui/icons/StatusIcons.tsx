@@ -12,6 +12,7 @@ export const VITAL_SVG = {
 };
 export const BUFF_SVG: Record<BuffId,string> = {
  gravelPath: FACILITY_SVG.gravelPath,
+ plankPath: FACILITY_SVG.plankPath,
  poseidon: FACILITY_SVG.poseidonBlessing,
  beehive: FACILITY_SVG.beehiveShrine,
  healCrystal: claySvg(heart + line('M32 27V41M25 34H39','#fff2d7',4)),

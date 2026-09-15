@@ -4,9 +4,9 @@ import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import { clayMaterial } from '../world/ClayMaterial';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import { groundPatchGeometry } from '../world/GroundPatch';
-import { GravelSurfaceBatch, gravelCoverage, gravelGroundCoverage, type RoadNeighbors } from './GravelSurface';
-
-export type GravelPathSave = { id?: string; x: number; y: number; z: number };
+import { gravelCoverage, gravelGroundCoverage } from './GravelSurface';
+import type { RoadNeighbors } from './RoadModel';
+import type { StaticMeshBatch } from '../core/StaticMeshBatch';
 
 function random(x: number, z: number, i: number): number {
   const v = Math.sin(x * 127.1 + z * 311.7 + i * 74.7) * 43758.5453;
@@ -28,10 +28,10 @@ export class GravelPath {
   private readonly parts: { node: THREE.Group; tone: number; x: number; z: number; scale: THREE.Vector3; rotation: THREE.Quaternion }[] = [];
   private readonly surface: THREE.Mesh | null;
   private readonly instances?: ModelInstances;
-  private readonly surfaces?: GravelSurfaceBatch;
+  private readonly surfaces?: StaticMeshBatch;
 
   constructor(scene: THREE.Scene, position: THREE.Vector3, rendering?: {
-    instances: ModelInstances; surfaces: GravelSurfaceBatch;
+    instances: ModelInstances; surfaces: StaticMeshBatch;
   }) {
     this.instances = rendering?.instances;
     this.surfaces = rendering?.surfaces;

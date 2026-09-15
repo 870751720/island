@@ -1,6 +1,9 @@
 import * as THREE from 'three';
-import { GravelPath, type GravelPathSave } from '../entities/GravelPath';
-import { GravelSurfaceBatch, type RoadNeighbors } from '../entities/GravelSurface';
+import { GravelPath } from '../entities/GravelPath';
+import { PlankPath, plankMaterial } from '../entities/PlankPath';
+import type { RoadKind, RoadModel, RoadSave, RoadNeighbors } from '../entities/RoadModel';
+import { gravelSurfaceMaterial } from '../entities/GravelSurface';
+import { StaticMeshBatch } from '../core/StaticMeshBatch';
 import { ModelInstances } from '../core/ModelInstances';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -13,23 +16,24 @@ import { ActionHold } from './ActionHold';
 import { shovelHits } from './ToolTiers';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 
-type DigState = { target: GravelPath | null; elapsed: number; hold: ActionHold };
+type DigState = { target: RoadModel | null; elapsed: number; hold: ActionHold };
 
 /** 世界共享路面；放置与回收仅在权威端结算，两端都可按脚下格查询加速。 */
-export class GravelPathSystem {
-  private paths = new Map<string, GravelPath>();
+export class RoadSystem {
+  private paths = new Map<string, RoadModel>();
   private states = new Map<PlayerSession, DigState>();
-  private ids = new WorldEntityIds<GravelPath>('gravelPath');
+  private ids: WorldEntityIds<RoadModel>;
   private instances: ModelInstances;
-  private surfaces: GravelSurfaceBatch;
+  private surfaces: StaticMeshBatch;
   private dirty = new Set<string>();
   private onChanged?: EntityChangeSink;
 
-  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props,
+  constructor(readonly kind: RoadKind, private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props,
     private occupancy: PlaceOccupancy, private fx: Particles, private audio: GameAudio,
     private recover: (actor: PlayerSession) => void, private isBusy: (actor: PlayerSession) => boolean) {
     this.instances = new ModelInstances(scene);
-    this.surfaces = new GravelSurfaceBatch(scene);
+    this.surfaces = new StaticMeshBatch(scene, kind === 'gravelPath' ? gravelSurfaceMaterial() : plankMaterial());
+    this.ids = new WorldEntityIds<RoadModel>(kind);
   }
 
   private key(x: number, z: number): string { return `${Math.round(x)},${Math.round(z)}`; }
@@ -59,22 +63,23 @@ export class GravelPathSystem {
     return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
   place(actor: PlayerSession, at: THREE.Vector3): boolean {
-    if (this.canPlaceAt(actor, at.x, at.z) !== null || !actor.inventory.remove('gravelPath', 1)) return false;
+    if (this.canPlaceAt(actor, at.x, at.z) !== null || !actor.inventory.remove(this.kind, 1)) return false;
     const path = this.add({ x: at.x, y: at.y, z: at.z });
     this.onChanged?.({ op: 'add', id: this.ids.get(path), value: this.save(path) });
     this.audio.play('drop');
     return true;
   }
-  private add(value: GravelPathSave): GravelPath {
-    const path = new GravelPath(this.scene, new THREE.Vector3(value.x, this.terrain.getHeight(value.x, value.z), value.z), {
-      instances: this.instances, surfaces: this.surfaces,
-    });
+  private add(value: RoadSave): RoadModel {
+    const at = new THREE.Vector3(value.x, this.terrain.getHeight(value.x, value.z), value.z);
+    const path = this.kind === 'gravelPath'
+      ? new GravelPath(this.scene, at, { instances: this.instances, surfaces: this.surfaces })
+      : new PlankPath(this.scene, at, this.surfaces);
     this.ids.set(path, value.id);
     this.paths.set(this.key(value.x, value.z), path);
     this.markAround(value.x, value.z);
     return path;
   }
-  private save(path: GravelPath): GravelPathSave {
+  private save(path: RoadModel): RoadSave {
     const { x, y, z } = path.group.position;
     return { id: this.ids.get(path), x, y, z };
   }
@@ -85,7 +90,7 @@ export class GravelPathSystem {
       this.states.set(actor, state);
     }
     try {
-      let target: GravelPath | null = null;
+      let target: RoadModel | null = null;
       const p = actor.player.group.position;
       if (actor.player.currentTool === 'shovel' && !actor.player.isSwimming && !actor.player.isMoving && !this.isBusy(actor)) {
         let distance = 1.6;
@@ -106,7 +111,7 @@ export class GravelPathSystem {
       this.paths.delete(this.key(at.x, at.z));
       this.markAround(at.x, at.z);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.fx.burst(at, '#aca99b', 6);
+      this.fx.burst(at, this.kind === 'gravelPath' ? '#aca99b' : '#a77c51', 6);
       target.remove(this.scene);
       this.recover(actor);
       this.audio.play('drop');
@@ -121,9 +126,9 @@ export class GravelPathSystem {
   }
   detach(actor: PlayerSession): void { this.states.delete(actor); }
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
-  snapshot(): GravelPathSave[] { return [...this.paths.values()].map((path) => this.save(path)); }
-  restore(values: GravelPathSave[]): void { for (const value of values) this.add(value); }
-  netApply(values: GravelPathSave[]): void {
+  snapshot(): RoadSave[] { return [...this.paths.values()].map((path) => this.save(path)); }
+  restore(values: RoadSave[]): void { for (const value of values) this.add(value); }
+  netApply(values: RoadSave[]): void {
     const incoming = new Set(values.map((value) => value.id));
     for (const [key, path] of this.paths) {
       if (incoming.has(this.ids.get(path))) continue;

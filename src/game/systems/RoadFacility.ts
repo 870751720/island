@@ -1,15 +1,19 @@
 import * as THREE from 'three';
 import { GravelPath } from '../entities/GravelPath';
+import { PlankPath } from '../entities/PlankPath';
+import type { RoadModel } from '../entities/RoadModel';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { FacilityDef } from './Facilities';
-import type { GravelPathSystem } from './GravelPathSystem';
+import type { RoadSystem } from './RoadSystem';
 
 /** 路面预览随落格贴地，手持缩略模型仍使用平面造型。 */
-export function gravelPathFacility(system: GravelPathSystem, terrain: IslandTerrain): FacilityDef {
-  const models = new WeakMap<THREE.Object3D, { path: GravelPath; stamp: string }>();
+export function roadFacility(system: RoadSystem, terrain: IslandTerrain): FacilityDef {
+  const models = new WeakMap<THREE.Object3D, { path: RoadModel; stamp: string }>();
   const build = () => {
     const scene = new THREE.Scene();
-    const path = new GravelPath(scene, new THREE.Vector3());
+    const path = system.kind === 'gravelPath'
+      ? new GravelPath(scene, new THREE.Vector3())
+      : new PlankPath(scene, new THREE.Vector3());
     scene.remove(path.group);
     models.set(path.group, { path, stamp: '' });
     return path.group;

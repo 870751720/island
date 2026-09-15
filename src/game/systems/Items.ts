@@ -51,7 +51,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'campfire', 'cookingStation',
-    'fenceWood', 'fenceStone', 'fenceGate', 'gravelPath',
+    'fenceWood', 'fenceStone', 'fenceGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
     'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest', 'carrotSeed', 'wheatSeed', 'potatoSeed', 'sweetPotatoSeed', 'cornSeed', 'soybeanSeed', 'tomatoSeed', 'pepperSeed', 'eggplantSeed', 'strawberrySeed', 'cabbageSeed', 'pumpkinSeed',
@@ -995,6 +995,10 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '木围栏',
     icon: '🚧',
     description: '木栅栏段,相邻的围栏会自动连成整片。',
+  },
+  plankPath: {
+    kind: 'plankPath', name: '木板路', icon: '🪵',
+    description: '旧木板铺成的小路，板缝间还看得见草土。路上移速提升 10%，离开后恢复；可用铲子回收。',
   },
   gravelPath: {
     kind: 'gravelPath', name: '碎石小路', icon: '🪨',
