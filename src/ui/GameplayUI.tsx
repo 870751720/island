@@ -616,7 +616,7 @@ export function GameplayUI({
       {hud.dead && (
         <DeathScreen
           onConfirm={onExit}
-          autoRespawn={!!(net?.host || net?.guest) || hud.poseidonGrace}
+          autoRespawn={hud.respawnLeft !== null}
           respawnLeft={hud.respawnLeft}
           report={gameRef.current?.deathReport ?? null}
           poseidon={hud.poseidonGrace}
