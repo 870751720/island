@@ -15,6 +15,7 @@ import type { HudBuff } from './systems/BuffSystem';
 import type { InventorySlot, ResourceKind } from './systems/Inventory';
 import type { LoomInfo } from './systems/LoomSystem';
 import type { SmelterInfo } from './systems/SmelterSystem';
+import type { DayPhase } from './systems/DayNightSystem';
 
 /** 游戏层与 React、网络层共享的只读 HUD 契约。 */
 export type HudSnapshot = {
@@ -93,6 +94,7 @@ export type HudSnapshot = {
   nearDrop: DropInfo | null;
   notice: { id: number; text: string } | null;
   day: number;
+  phase: DayPhase;
   /** 当前季节(左上角天数行展示) */
   season: 'spring' | 'summer' | 'autumn' | 'winter';
   busy: boolean;

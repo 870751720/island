@@ -129,6 +129,7 @@ export class HudSnapshotBuilder {
       collectTreasure: runtime.collectTreasure,
       nearDrop: s.drops.getNearby(session),
       day: s.dayNight.day,
+      phase: s.dayNight.state.phase,
       season: getSeason(),
       busy,
       moving: session.player.isMoving,

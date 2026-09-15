@@ -5,6 +5,7 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { StatusIcon, BUFF_SVG } from './icons/StatusIcons';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 import { VitalBottles } from './hud/VitalBottles';
+import { DayPhaseIcon } from './icons/DayPhaseIcon';
 
 const SEASONS = {
   spring: { label: '春日', color: '#b5d8a0' },
@@ -27,7 +28,12 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate }: {
       <div className="hud-status-stack">
       <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
-      <div className="hud-day"><span>第 <strong>{hud.day}</strong> 天</span><span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>{season.label}</span></div>
+      <div className="hud-day">
+        <span>第 <strong>{hud.day}</strong> 天</span>
+        <span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>
+          {season.label}<DayPhaseIcon phase={hud.phase} />
+        </span>
+      </div>
       </div>
       {!hud.dead && <QuestPanel quest={hud.quests} onNavigate={onQuestNavigate} />}
       </div>

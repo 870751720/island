@@ -21,7 +21,7 @@ const TIME_PRESETS: { label: string; t: number; icon: 'noon' | 'dusk' | 'midnigh
   { label: '正午', icon: 'noon', t: 0.25 },
   { label: '黄昏', icon: 'dusk', t: 0.48 },
   { label: '午夜', icon: 'midnight', t: 0.75 },
-  { label: '清晨', icon: 'dawn', t: 0.97 },
+  { label: '清晨', icon: 'dawn', t: 0.01 },
 ];
 
 /** 世界 tab:时刻锁定与强制天气 */

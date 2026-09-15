@@ -3,11 +3,17 @@ import type { Updatable } from '../core/GameLoop';
 import { GmSystem } from './GmSystem';
 import { getSeasonTint, getSnowAmount } from '../world/SeasonVisuals';
 
-const DAY_LENGTH = 240; // 一整轮昼夜(秒,按白天流速计)
+const DAY_LENGTH = 240; // 标准时钟一轮秒数，睡觉跳过资源结算沿用此基准
+const DAY_ELEVATION = 0.25;
+const NIGHT_ELEVATION = -0.05;
+const DAY_SPAN = 0.5 - Math.asin(DAY_ELEVATION) / Math.PI;
+const NIGHT_SPAN = 0.5 + Math.asin(NIGHT_ELEVATION) / Math.PI;
+/** 只延长白天 120 秒，晨昏仍按标准流速。 */
+const DAY_CLOCK_RATE = DAY_SPAN * DAY_LENGTH / (DAY_SPAN * DAY_LENGTH + 120);
 /** 读档落在清晨前最后 1 秒时直接贴到清晨,避免加载首帧看起来凭空加一天 */
-const RESUME_MORNING_GUARD = 1 / DAY_LENGTH;
-/** 夜晚时钟加速倍率:自然夜约 116 秒,加速后压到约 40 秒 */
-const NIGHT_CLOCK_RATE = 2.9;
+const RESUME_MORNING_GUARD = DAY_CLOCK_RATE / DAY_LENGTH;
+/** 夜晚按相位跨度折算为 30 秒。 */
+const NIGHT_CLOCK_RATE = NIGHT_SPAN * DAY_LENGTH / 30;
 
 const SKY_DAY = new THREE.Color('#a8d8ea');
 const SKY_DUSK = new THREE.Color('#e8a06a');
@@ -50,7 +56,7 @@ export class DayNightSystem implements Updatable {
   }
 
   get isNight(): boolean {
-    return this.sunElevation() < -0.05;
+    return this.sunElevation() < NIGHT_ELEVATION;
   }
 
   /** 当前昼夜时刻 t∈[0,1),供存档读取 */
@@ -101,7 +107,7 @@ export class DayNightSystem implements Updatable {
   private static readonly MORNING_T = 0.05;
 
   /**
-   * 开始睡觉过渡:记录起始时刻,返回按白天流速折算的跳过秒数,
+   * 开始睡觉过渡:记录起始时刻,返回按标准时钟折算的跳过秒数,
    * 供外层推进资源再生等按时间结算的逻辑;天空随后由
    * setSleepProgress 逐帧推向清晨,最后 endSleep 落定。
    */
@@ -111,7 +117,7 @@ export class DayNightSystem implements Updatable {
     const dt = this.t < DayNightSystem.MORNING_T
       ? DayNightSystem.MORNING_T - this.t
       : 1 - this.t + DayNightSystem.MORNING_T;
-    // 跨过正午起点就算过了一天
+    // 跨过清晨起点就算过了一天
     if (this.t >= DayNightSystem.MORNING_T) this.dayCount += 1;
     return dt * DAY_LENGTH;
   }
@@ -143,8 +149,9 @@ export class DayNightSystem implements Updatable {
       this.apply();
       return;
     }
-    // 夜里时钟加速,让自然夜(约 116 秒)压到约 40 秒;白天与晨昏仍按原速走
-    const rate = this.sunElevation() < -0.05 ? NIGHT_CLOCK_RATE : 1;
+    const elevation = this.sunElevation();
+    const rate = elevation < NIGHT_ELEVATION ? NIGHT_CLOCK_RATE
+      : elevation > DAY_ELEVATION ? DAY_CLOCK_RATE : 1;
     const prev = this.t;
     this.t = (this.t + (delta * rate) / DAY_LENGTH) % 1;
     // 必须先走出清晨区间才算进入了一个真实昼夜轮次。新档从清晨起步，
@@ -170,7 +177,7 @@ export class DayNightSystem implements Updatable {
 
     // 太阳绕 x-y 平面旋转,夜晚用对面方向的月光
     const theta = this.t * Math.PI * 2;
-    if (elev >= -0.05) {
+    if (elev >= NIGHT_ELEVATION) {
       this.sunOffset.set(Math.cos(theta) * 25, Math.max(elev, 0.05) * 35, 15);
     } else {
       this.sunOffset.set(-Math.cos(theta) * 25, Math.max(-elev, 0.05) * 35, -15);
@@ -181,21 +188,21 @@ export class DayNightSystem implements Updatable {
 
     const sky = new THREE.Color();
     const sunColor = new THREE.Color();
-    if (elev > 0.25) {
+    if (elev > DAY_ELEVATION) {
       // 白天
       sky.copy(SKY_DAY);
       sunColor.copy(SUN_DAY);
       this.sun.intensity = 1.6;
       this.hemi.intensity = 0.9;
       this.state.phase = 'day';
-    } else if (elev > -0.05) {
+    } else if (elev >= NIGHT_ELEVATION) {
       // 黄昏/黎明:按高度在天空色与太阳色上做插值
-      const k = THREE.MathUtils.smoothstep(elev, -0.05, 0.25);
+      const k = THREE.MathUtils.smoothstep(elev, NIGHT_ELEVATION, DAY_ELEVATION);
       sky.lerpColors(SKY_DUSK, SKY_DAY, k);
       sunColor.lerpColors(SUN_DUSK, SUN_DAY, k);
       this.sun.intensity = THREE.MathUtils.lerp(0.5, 1.6, k);
       this.hemi.intensity = THREE.MathUtils.lerp(0.4, 0.9, k);
-      this.state.phase = this.t < 0.5 ? 'dusk' : 'dawn';
+      this.state.phase = Math.cos(theta) >= 0 ? 'dawn' : 'dusk';
     } else {
       // 夜晚
       const k = THREE.MathUtils.smoothstep(-elev, 0, 0.15);

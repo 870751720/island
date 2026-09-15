@@ -29,10 +29,11 @@ ${hudControlStyles}
 .hud-bottle-tap:active{background:#fff8e933}
 .hud-bottle-label{display:block;margin-top:-4px;font-size:8px;font-weight:600;line-height:11px;letter-spacing:.06em;color:#40594f;text-shadow:0 1px 2px #fffbeccc,0 0 3px #fffbeccc}
 .hud-bottle.is-low .hud-bottle-label{color:#a73d2e;animation:hud-low 1.8s ease-in-out infinite}
-.hud-day{display:flex;justify-content:center;align-items:center;gap:10px;width:108px;height:17px;font-size:9px;white-space:nowrap;color:#496354}
+.hud-day{display:flex;justify-content:center;align-items:center;gap:5px;width:108px;min-height:17px;flex-wrap:wrap;font-size:9px;white-space:nowrap;color:#496354}
 .hud-day strong{font-size:10px;font-weight:600;font-variant-numeric:tabular-nums}
 .hud-season{font-size:9px;display:flex;align-items:center;gap:4px}
 .hud-season:before{content:"";width:4px;height:4px;border-radius:50%;background:var(--season-color);box-shadow:0 0 0 1px #5a796733}
+.hud-phase{display:inline-flex;align-items:center;flex-shrink:0}
 .hud-buffs{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:26.4px;max-height:40dvh;overflow-y:auto;scrollbar-width:none;pointer-events:none;overscroll-behavior:contain}
 .hud-buff{position:relative;box-sizing:border-box;flex:0 0 26.4px;pointer-events:auto;width:26.4px;height:26.4px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid #9dcca766;border-radius:7.8px;background:#fff5e2dd;color:#526857;cursor:pointer;font-size:11.4px;touch-action:manipulation;box-shadow:0 3px 9px #081c3424}
 .hud-buff.is-bad{border-color:#ed998a99}
