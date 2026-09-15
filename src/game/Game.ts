@@ -1181,11 +1181,10 @@ export class Game {
         this.ocean.update(this.camera, elapsed);
         this.questTimer += simDelta;
         if (!this.guestMode && this.questTimer >= 0.25) {
-          const benchLevel = this.workbench.maxLevel;
           const furDropped = this.drops.hasKind('fur');
           const hasLitFire = this.campfire.hasLitFire;
           for (const session of this.sessions) {
-            if (!session.survival.state.dead) session.quests.update(session, benchLevel, this.questTimer, this.workbench.isUpgrading(session), furDropped, this.campfire.count, this.campfire.isCooking(session), hasLitFire);
+            if (!session.survival.state.dead) session.quests.update(session, this.questTimer, this.workbench.isUpgrading(session), furDropped, this.campfire.count, this.campfire.isCooking(session), hasLitFire);
           }
           this.questTimer = 0;
         }

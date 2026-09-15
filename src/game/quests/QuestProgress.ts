@@ -34,6 +34,9 @@ export class QuestProgress {
     this.state.camp ??= {};
     this.state.camp[action] = (this.state.camp[action] ?? 0) + 1;
   }
+  benchAction(level: number): void {
+    this.state.benchLevel = Math.max(this.state.benchLevel, level);
+  }
   snapshot(): QuestSave { return structuredClone(this.state); }
   collected(kind: ResourceKind, count: number): void {
     if (count <= 0 || !GATHER_KINDS.some(k => k === kind)) return;
@@ -63,13 +66,12 @@ export class QuestProgress {
     return { label: RECIPES.find(r => r.id === req.id)?.name ?? req.id, have: Math.min(req.count, this.craftCount(s, req.id)), need: req.count };
   }
 
-  update(s: PlayerSession, benchLevel: number, delta: number, upgrading = false, furDropped = false, campfires = 0, cooking = false, fireLit = false): void {
+  update(s: PlayerSession, delta: number, upgrading = false, furDropped = false, campfires = 0, cooking = false, fireLit = false): void {
     this.celebrate = Math.max(0, this.celebrate - delta);
     this.feedbackTimer = Math.max(0, this.feedbackTimer - delta);
     if (!this.feedbackTimer || !this.enabled) this.feedback = undefined;
     this.state.gathered.fur = Math.max(this.state.gathered.fur ?? 0, s.inventory.count('fur'));
-    if (campfires > 0) { this.state.camp ??= {}; this.state.camp.place = Math.max(1, this.state.camp.place ?? 0); }
-    this.state.benchLevel = Math.max(this.state.benchLevel, benchLevel);
+    const benchLevel = this.state.benchLevel;
     if (this.legacy) {
       for (const slot of s.inventory.snapshot()) if (slot) this.state.gathered[slot.kind] = Math.max(this.state.gathered[slot.kind] ?? 0, slot.count);
       if (s.tools.axe && s.tools.pickaxe) this.state.done.push('supplies');

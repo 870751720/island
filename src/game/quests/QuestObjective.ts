@@ -41,7 +41,7 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
       resolveRecipe((affordable ?? req).id);
       for (const item of crafting) if (!recipes.includes(item.id)) recipes.push(item.id);
     } else if (req?.type === 'camp') {
-      if (!campfires) {
+      if (req.action === 'place' || !campfires) {
         if (counts.campfire || counts.deadCampfire) hint = '在背包中使用火堆，找空地站定放下。';
         else resolveRecipe('campfire');
       } else {
@@ -53,7 +53,7 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
       }
     } else if (req?.type === 'bench') {
       if (req.level === 1) {
-        if ((counts.workbench1 ?? 0) > 0) hint = '在背包中使用工作台，找空地站定放下。';
+        if (['workbench1', 'workbench2', 'workbench3', 'workbench4'].some(kind => (counts[kind as ResourceKind] ?? 0) > 0)) hint = '在背包中使用工作台，找空地站定放下。';
         else resolveRecipe('workbench');
       } else {
         const cost = workbenchUpgradeCost(1);

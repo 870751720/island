@@ -226,6 +226,7 @@ export class WorkbenchSystem {
         actor.inventory.remove(kind as ResourceKind, n ?? 0);
       }
       st.upgradeTarget!.upgrade();
+      actor.quests.benchAction(st.upgradeTarget!.level);
       this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
       st.upgradeTarget = null;
       this.audio.play('success');
@@ -291,6 +292,7 @@ export class WorkbenchSystem {
     actor.inventory.remove(BENCH_ITEM[level], 1);
     const bench = new Workbench(this.scene, at, level, cardinalRotY(actor.player.group.rotation.y));
     this.benches.push(bench);
+    actor.quests.benchAction(level);
     this.crafted = true;
     const bp = bench.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, rotY: bench.group.rotation.y, level } });
