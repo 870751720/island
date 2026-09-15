@@ -96,7 +96,7 @@ export function StartScreen({
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
             <h1 className="start-title">去你的<IslandTitleEgg />。</h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
-            <IslandScene paused={showMeta || showSetup || !!newGameSave} />
+            <IslandScene interactive paused={showMeta || showSetup || !!newGameSave} />
           </section>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}

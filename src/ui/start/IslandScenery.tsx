@@ -1,12 +1,12 @@
-export function IslandTree({ transform }: { transform: string }) {
+export function IslandTree({ transform, interactive = false }: { transform: string; interactive?: boolean }) {
   return (
-    <g transform={transform} data-egg="tree" role="button" tabIndex={0} aria-label="轻摇树冠">
+    <g transform={transform} data-egg={interactive ? 'tree' : undefined} role={interactive ? 'button' : undefined} tabIndex={interactive ? 0 : undefined} aria-label={interactive ? '轻摇树冠' : undefined}>
       <path d="M-5 0L-3-52 6-52 6 0Z" fill="#937655" />
       <g className="egg-crown"><path d="M-34-36-24-65 0-85 29-65 35-37 7-25Z" fill="#6d995b" />
       <path d="M0-85 29-65 35-37 7-25-3-54Z" fill="#4e7e4e" />
       <path d="M-34-36-24-65 0-85-3-54Z" fill="#91b773" /></g>
-      <g className="egg-leaf" fill="#91b773"><ellipse cx="-18" cy="-45" rx="5" ry="2" /><ellipse cx="12" cy="-35" rx="4" ry="2" /></g>
-      <rect className="egg-hit" x="-34" y="-85" width="69" height="60" />
+      {interactive && <><g className="egg-leaf" opacity="0" fill="#91b773"><ellipse cx="-18" cy="-45" rx="5" ry="2" /><ellipse cx="12" cy="-35" rx="4" ry="2" /></g>
+      <rect className="egg-hit" fill="transparent" x="-34" y="-85" width="69" height="60" /></>}
     </g>
   );
 }

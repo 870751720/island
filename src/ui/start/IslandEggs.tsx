@@ -4,29 +4,29 @@ import { DOG_COMBAT_SVG } from '../icons/DogCombatIcons';
 export function IslandTentEgg() {
   const clip = useId();
   return <g data-egg="tent" role="button" tabIndex={0} aria-label="轻敲帐篷">
-    <defs><clipPath id={clip}><path d="M191 160 207 131 224 161Z" /></clipPath></defs>
-    <g clipPath={`url(#${clip})`}><g className="egg-dog">
+    <defs><clipPath id={clip}><rect x="188" y="125" width="40" height="37" /></clipPath></defs>
+    <g clipPath={`url(#${clip})`}><g className="egg-dog" opacity="0">
       <image href={`data:image/svg+xml,${encodeURIComponent(DOG_COMBAT_SVG['dog-companion'])}`} x="192" y="132" width="31" height="31" />
     </g></g>
-    <rect className="egg-hit" x="186" y="112" width="59" height="54" />
+    <path className="egg-hit" fill="transparent" d="M176 160 205 116 259 135 270 166 242 159Z" />
   </g>;
 }
 
 export function IslandSeaEgg() {
   return <g data-egg="sea" role="button" tabIndex={0} aria-label="轻点海面">
-    <rect className="egg-hit" x="15" y="210" width="285" height="52" />
-    <g className="egg-ripple" fill="none" stroke="#fff9e4" strokeWidth="1.5">
-      <ellipse cx="190" cy="224" rx="24" ry="7" /><ellipse cx="190" cy="224" rx="40" ry="12" />
-    </g>
+    <rect className="egg-hit" fill="transparent" x="0" y="110" width="380" height="135" />
+    <g className="egg-ripple-position" transform="translate(190 224)" pointerEvents="none"><g className="egg-ripple" opacity="0" fill="none" stroke="#fff9e4" strokeWidth="1.5">
+      <ellipse rx="24" ry="7" /><ellipse rx="40" ry="12" />
+    </g></g>
   </g>;
 }
 
-export function IslandFireEgg() {
-  return <g data-egg="fire" role="button" tabIndex={0} aria-label="轻点营火">
+export function IslandFireEgg({ interactive = false }: { interactive?: boolean }) {
+  return <g data-egg={interactive ? 'fire' : undefined} role={interactive ? 'button' : undefined} tabIndex={interactive ? 0 : undefined} aria-label={interactive ? '轻点营火' : undefined}>
     <path className="flame" d="M216 175Q210 166 224 152Q222 162 231 163Q239 176 224 180Z" fill="#eca44e" />
     <path className="flame" d="M220 176Q218 169 225 164Q234 177 224 178Z" fill="#ffe4a0" />
-    <g className="egg-spark" fill="#fff0b4"><circle cx="217" cy="162" r="2" /><circle cx="230" cy="156" r="1.8" /><circle cx="223" cy="147" r="1.4" /></g>
-    <rect className="egg-hit" x="198" y="165" width="55" height="45" />
+    {interactive && <><g className="egg-spark" opacity="0" fill="#fff0b4"><circle cx="217" cy="162" r="2" /><circle cx="230" cy="156" r="1.8" /><circle cx="223" cy="147" r="1.4" /></g>
+    <rect className="egg-hit" fill="transparent" x="198" y="165" width="55" height="45" /></>}
   </g>;
 }
 
