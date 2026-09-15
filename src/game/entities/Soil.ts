@@ -49,7 +49,7 @@ export class Soil {
 
   fit(terrain: IslandTerrain, neighbors: GroundNeighbors): void {
     const origin = this.group.position;
-    const coverage = (x: number, z: number) => groundCoverage(x, z, origin.x, origin.z, neighbors);
+    const coverage = (x: number, z: number) => groundCoverage(x, z, origin.x, origin.z, neighbors, 0.08);
     // 世界坐标的三道浅土垄在格界连续，外沿随混色一起降回地面。
     const height = (x: number, z: number) => coverage(x, z) *
       (0.008 + 0.035 * Math.pow(0.5 + 0.5 * Math.cos(z * Math.PI * 6), 2));
