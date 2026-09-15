@@ -26,7 +26,7 @@ export const FACILITY_SVG = {
  deadCampfire:svg(l('M16 50L47 39M17 39L48 51','#78675b',7)+e(32,50,9,3,'#aca89a')),
  campfire:svg(l('M16 51L48 42M17 42L47 53',dark,7)+flame()),
  cookingStation:svg(r(12,39,8,16,2,dark)+r(45,39,8,16,2,dark)+g('translate(13 27) scale(.55)',flame())+p('M12 24H52Q53 43 32 44Q12 42 12 24',metal)+e(32,24,20,6,cream)+e(32,24,15,3,'#ceac70')+l('M9 27H5M55 27H59',dark,4)+l('M26 16Q20 12 26 7M38 16Q32 12 38 7','#c7c8b6',2)),
- fenceWood:svg(fence(false)),fenceGate:svg(fence(true)),fenceStone:svg([ [8,16,21],[31,16,24],[6,29,15],[23,29,20],[45,29,13],[8,42,22],[32,42,23] ].map(([x,y,w])=>r(x,y,w,12,4,'#a0b1a5')+l(`M${x+4} ${y+3}H${x+w-5}`,'#d9dfc9',2)).join('')),
+ fenceWood:svg(fence(false)),fenceGate:svg(fence(true)),stoneGate:svg(r(8,12,9,43,2,metal)+r(47,12,9,43,2,metal)+r(8,9,48,8,2,'#c4d7c9')+r(18,20,13,31,2,'#a0b1a5')+r(33,20,13,31,2,'#a0b1a5')+l('M19 30H30M34 40H45','#d9dfc9',2)+e(28,36,2,2,dark)+e(36,36,2,2,dark)),fenceStone:svg([ [8,16,21],[31,16,24],[6,29,15],[23,29,20],[45,29,13],[8,42,22],[32,42,23] ].map(([x,y,w])=>r(x,y,w,12,4,'#a0b1a5')+l(`M${x+4} ${y+3}H${x+w-5}`,'#d9dfc9',2)).join('')),
  bed1:svg(bed(1)),bed2:svg(bed(2)),bed3:svg(bed(3)),workbench1:svg(bench(1)),workbench2:svg(bench(2)),workbench3:svg(bench(3)),workbench4:svg(bench(4)),
  torch:svg(g('rotate(18 32 32)',r(28,28,8,28,3,wood)+r(25,25,14,11,3,dark)+g('translate(10 -2) scale(.7)',flame())+l('M28 30H36',cream,2))),
  berryBush:svg(bush(true)),shrubBush:svg(bush(false)),grassTuft:svg(e(32,50,19,6,dark)+p('M19 48L10 20Q25 22 27 42L29 10Q42 18 35 43L53 21Q54 42 43 49Z',green)+l('M31 46L33 24M24 45L19 32','#d1d7a0',2)),

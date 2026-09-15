@@ -154,6 +154,7 @@ export type ResourceKind =
   | 'fenceWood'
   | 'fenceStone'
   | 'fenceGate'
+  | 'stoneGate'
   | 'bed1'
   | 'bed2'
   | 'bed3'

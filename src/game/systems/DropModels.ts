@@ -160,6 +160,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
   fenceGate: '#8a6239',
+  stoneGate: '#929c9a',
   berryBush: '#5d8a3a',
   shrubBush: '#6b8f4e',
   grassTuft: '#a4c46a',
@@ -1521,6 +1522,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   fenceWood: () => makeFenceDrop('branch'),
   fenceStone: () => makeFenceDrop('stone'),
   fenceGate: () => makeGateDrop(),
+  stoneGate: () => makeGateDrop(true),
   lasso: makeLassoDrop,
   berryBush: () => makeBushDrop(DROP_COLORS.berryBush, true),
   shrubBush: () => makeBushDrop(DROP_COLORS.shrubBush, false),
@@ -1589,9 +1591,9 @@ function makeLassoDrop(): THREE.Object3D {
 }
 
 /** 围栏门道具掉落物:小门框 + 微开的门扇 */
-function makeGateDrop(): THREE.Object3D {
+function makeGateDrop(stone = false): THREE.Object3D {
   const g = new THREE.Group();
-  const frame = clay(DROP_COLORS.fenceGate);
+  const frame = clay(stone ? DROP_COLORS.stoneGate : DROP_COLORS.fenceGate);
   for (const x of [-0.14, 0.14]) {
     const post = mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.3, 6), frame);
     post.position.set(x, 0.15, 0);
@@ -1600,7 +1602,7 @@ function makeGateDrop(): THREE.Object3D {
   const leaf = new THREE.Group();
   leaf.position.set(-0.13, 0, 0);
   leaf.rotation.y = -0.5;
-  const door = mesh(new THREE.BoxGeometry(0.24, 0.16, 0.02), clay('#a97b48'));
+  const door = mesh(new THREE.BoxGeometry(0.24, 0.16, 0.02), clay(stone ? '#b0b8b4' : '#a97b48'));
   door.position.set(0.12, 0.14, 0);
   leaf.add(door);
   g.add(leaf);

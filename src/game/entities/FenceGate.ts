@@ -6,6 +6,9 @@ import { buildRails, disposeGeometries, type FenceConnections } from './Fence';
 /** 门扇打开的目标角度 */
 const OPEN_ANGLE = 1.35;
 
+/** 门的持久化道具种类，旧门默认为木门。 */
+export type GateKind = 'fenceGate' | 'stoneGate';
+
 /** 门带两端门框柱各自的对外连接 */
 export type GateConns = { start: FenceConnections; end: FenceConnections };
 
@@ -20,7 +23,7 @@ const WORLD_TO_LOCAL: Record<'x' | 'z', Record<keyof FenceConnections, keyof Fen
  * 按各端四方向的世界连接拼装,坐标在门组局部空间,横杆命名 rail-s-<dir>/rail-e-<dir>(世界方向,幽灵预览显隐用)。
  * 提供 overrideMat 时不投阴影,用于在真实门上叠加幽灵补杆。
  */
-export function buildGateRails(dir: 'x' | 'z', conns: GateConns, overrideMat?: THREE.MeshStandardMaterial): THREE.Group {
+export function buildGateRails(dir: 'x' | 'z', conns: GateConns, overrideMat?: THREE.MeshStandardMaterial, kind: GateKind = 'fenceGate'): THREE.Group {
   const g = new THREE.Group();
   const map = WORLD_TO_LOCAL[dir];
   const localToWorld = {} as Record<keyof FenceConnections, keyof FenceConnections>;
@@ -31,7 +34,7 @@ export function buildGateRails(dir: 'x' | 'z', conns: GateConns, overrideMat?: T
     for (const world of ['px', 'nx', 'pz', 'nz'] as const) {
       localConns[map[world]] = conns[end][world];
     }
-    const post = buildRails('branch', localConns, overrideMat);
+    const post = buildRails(kind === 'stoneGate' ? 'stone' : 'branch', localConns, overrideMat);
     post.position.x = localX;
     post.traverse((o) => {
       const local = o.name.slice('rail-'.length) as keyof FenceConnections | undefined;
@@ -45,7 +48,7 @@ export function buildGateRails(dir: 'x' | 'z', conns: GateConns, overrideMat?: T
 /**
  * 场景中的围栏门:占两格宽的一条格点带(两端立柱、中间无柱,门扇对开),
  * 两端正好落在围栏线的格点上,左右都能与围栏连接。
- * 玩家靠近自动开门、走远自动关门;动物不会开门,关着的门是阻挡线段。
+ * 玩家靠近自动开门、走远自动关门;薯条也可开门,其他动物不会开门,关着的门是阻挡线段。
  */
 export class FenceGate {
   readonly group: THREE.Group;
@@ -69,15 +72,17 @@ export class FenceGate {
     public readonly gz: number,
     /** 门带方向:x 为东西向,z 为南北向 */
     public readonly dir: 'x' | 'z',
-    groundY: number
+    groundY: number,
+    public readonly kind: GateKind = 'fenceGate'
   ) {
     this.group = new THREE.Group();
     this.group.position.set(this.centerX, groundY - 0.02, this.centerZ);
     this.group.rotation.y = dir === 'x' ? 0 : Math.PI / 2;
 
-    const frameMat = clayMaterial('#8a6239');
+    const stone = kind === 'stoneGate';
+    const frameMat = clayMaterial(stone ? '#929c9a' : '#8a6239');
     for (const x of [-0.92, 0.92]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), frameMat);
+      const post = new THREE.Mesh(stone ? new THREE.BoxGeometry(0.16, 0.95, 0.18) : new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), frameMat);
       post.position.set(x, 0.47, 0);
       post.castShadow = true;
       this.group.add(post);
@@ -93,9 +98,9 @@ export class FenceGate {
     const makeLeaf = (sign: 1 | -1): THREE.Object3D => {
       const pivot = new THREE.Group();
       pivot.position.set(0.88 * sign, 0, 0);
-      const doorMat = clayMaterial('#a97b48');
-      for (const y of [0.28, 0.62]) {
-        const plank = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.14, 0.05), doorMat);
+      const doorMat = clayMaterial(stone ? '#b0b8b4' : '#a97b48');
+      for (const y of (stone ? [0.45] : [0.28, 0.62])) {
+        const plank = new THREE.Mesh(new THREE.BoxGeometry(0.82, stone ? 0.66 : 0.14, stone ? 0.12 : 0.05), doorMat);
         plank.position.set(-0.41 * sign, y, 0);
         plank.castShadow = true;
         pivot.add(plank);
@@ -136,7 +141,7 @@ export class FenceGate {
       this.group.remove(this.rails);
       disposeGeometries(this.rails);
     }
-    this.rails = buildGateRails(this.dir, conns);
+    this.rails = buildGateRails(this.dir, conns, undefined, this.kind);
     this.group.add(this.rails);
   }
 

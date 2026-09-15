@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import type { ObstacleSolver } from '../entities/Player';
 import { Fence, disposeGeometries, sameConns, type FenceConnections, type FenceKind } from '../entities/Fence';
-import { FenceGate, buildGateRails, type GateConns } from '../entities/FenceGate';
+import { FenceGate, buildGateRails, type GateConns, type GateKind } from '../entities/FenceGate';
 import { PREVIEW_OK, previewGhostMaterial } from './Facilities';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -78,11 +78,11 @@ export function makeFenceHandModel(kind: FenceKind): THREE.Group {
 }
 
 /** 手持迷你围栏门(真材质,外层再整体缩放到手心大小) */
-export function makeFenceGateHandModel(): THREE.Group {
+export function makeFenceGateHandModel(kind: GateKind = 'fenceGate'): THREE.Group {
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: '#8a6239', flatShading: true, roughness: 1 });
+  const mat = new THREE.MeshStandardMaterial({ color: kind === 'stoneGate' ? '#929c9a' : '#8a6239', flatShading: true, roughness: 1 });
   for (const x of [-0.95, 0.95]) {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 1, 6), mat);
+    const post = new THREE.Mesh(kind === 'stoneGate' ? new THREE.BoxGeometry(0.16, 1, 0.18) : new THREE.CylinderGeometry(0.06, 0.075, 1, 6), mat);
     post.position.set(x, 0.47, 0);
     g.add(post);
   }
@@ -99,11 +99,11 @@ export function makeFenceGateHandModel(): THREE.Group {
 export { makeFencePreview as makeFenceGhost } from '../entities/Fence';
 
 /** 围栏门幽灵预览的建模(朝向由安放系统按目标门带方向设置) */
-export function makeGateGhost(): THREE.Group {
+export function makeGateGhost(kind: GateKind = 'fenceGate'): THREE.Group {
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
   for (const x of [-0.92, 0.92]) {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), mat);
+    const post = new THREE.Mesh(kind === 'stoneGate' ? new THREE.BoxGeometry(0.16, 0.95, 0.18) : new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), mat);
     post.position.set(x, 0.47, 0);
     g.add(post);
   }
@@ -119,7 +119,7 @@ export function makeGateGhost(): THREE.Group {
 /**
  * 围栏系统(世界单实例):围栏世界状态与放置/挖除结算——
  * - 围栏柱吸附在整数格点上,相邻柱/门之间自动伸出横杆,沿边逐个放置即可围出无缝闭合的圈;
- * - 围栏门占一条格点边,玩家靠近自动开、走远自动关,动物不会开门;
+ * - 围栏门占一条格点边,玩家靠近自动开、走远自动关,薯条也可开门,其他动物不会开门;
  * - 围栏连接与关着的门构成阻挡线段:玩家移动被推出,动物(兔/羊/野牛/狼/熊/蟹)绕行判定被挡住;
  * - 手持铲子靠近站定自动把围栏/门挖回道具。
  * 手持放置的落点选择/预览/站定自动放置统一走 AutoPlaceSystem,经 FacilityDef 委托到本系统。
@@ -388,20 +388,21 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /** 背包里点击「使用」围栏门:按「就近连接优先」吸附放下(门跨两格,双扇对开) */
-  useGate(actor: PlayerSession): boolean {
+  useGate(actor: PlayerSession, kind: GateKind = 'fenceGate'): boolean {
     const target = this.gateTarget(actor);
-    if (actor.inventory.count('fenceGate') <= 0 || !target) return false;
+    if (actor.inventory.count(kind) <= 0 || !target) return false;
     const { gx, gz, dir } = target;
-    actor.inventory.remove('fenceGate', 1);
+    actor.inventory.remove(kind, 1);
     const gate = new FenceGate(
       this.scene,
       gx,
       gz,
       dir,
-      (this.terrain.getHeight(gx, gz) + this.terrain.getHeight(gx + (dir === 'x' ? 2 : 0), gz + (dir === 'z' ? 2 : 0))) / 2
+      (this.terrain.getHeight(gx, gz) + this.terrain.getHeight(gx + (dir === 'x' ? 2 : 0), gz + (dir === 'z' ? 2 : 0))) / 2,
+      kind
     );
     this.gates.set(FenceSystem.edgeKey(gx, gz, dir), gate);
-    this.onGateChanged?.({ op: 'add', id: this.gateIds.get(gate), value: { id: this.gateIds.get(gate), x: gx, z: gz, dir } });
+    this.onGateChanged?.({ op: 'add', id: this.gateIds.get(gate), value: { id: this.gateIds.get(gate), x: gx, z: gz, dir, kind } });
     this.refreshAround(gx, gz);
     this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
@@ -608,7 +609,7 @@ export class FenceSystem implements ObstacleSolver {
     return !!this.states.get(actor)?.digTarget;
   }
 
-  /** 世界侧每帧更新:门对最近玩家的靠近自动开合,并向玩家所在一侧的对侧打开;各玩家的放置/挖掘由 updateActor 推进 */
+  /** 世界侧每帧更新:门对玩家或薯条的靠近自动开合,并向玩家所在一侧的对侧打开;各玩家的放置/挖掘由 updateActor 推进 */
   update(delta: number, players = [...this.states.keys()].map((actor) => actor.player.group.position)): void {
     for (const gate of this.gates.values()) {
       // 门局部 +z 轴在世界系中的方向(门朝向只可能是 0 或 90 度,轴向无误差)
@@ -720,7 +721,7 @@ export class FenceSystem implements ObstacleSolver {
       this.gates.delete(key);
       this.onGateChanged?.({ op: 'remove', id: this.gateIds.get(gate) });
       this.refreshAround(ex, ez);
-      this.give('fenceGate', 1, actor);
+      this.give(gate.kind, 1, actor);
     }
     this.refreshAround(gx, gz);
     this.rebuildSegments();
@@ -742,8 +743,8 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /** 所有门的存档快照(边起点格点与方向) */
-  snapshotGates(): { id: string; x: number; z: number; dir: 'x' | 'z' }[] {
-    return [...this.gates.values()].map((g) => ({ id: this.gateIds.get(g), x: g.gx, z: g.gz, dir: g.dir }));
+  snapshotGates(): { id: string; x: number; z: number; dir: 'x' | 'z'; kind?: GateKind }[] {
+    return [...this.gates.values()].map((g) => ({ id: this.gateIds.get(g), x: g.gx, z: g.gz, dir: g.dir, kind: g.kind }));
   }
 
   flushInstances(): void { this.instances.flush(); }
@@ -765,7 +766,7 @@ export class FenceSystem implements ObstacleSolver {
   /** 从存档恢复围栏与门(连接与阻挡统一重建) */
   restore(
     fences: { id?: string; x: number; z: number; kind: FenceKind }[],
-    gates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[]
+    gates: { id?: string; x: number; z: number; dir: 'x' | 'z'; kind?: GateKind }[]
   ): void {
     for (const f of fences) {
       if (this.fences.has(FenceSystem.vertexKey(f.x, f.z))) continue;
@@ -778,7 +779,7 @@ export class FenceSystem implements ObstacleSolver {
       if (this.gates.has(key)) continue;
       const y =
         (this.terrain.getHeight(g.x, g.z) + this.terrain.getHeight(g.x + (g.dir === 'x' ? 2 : 0), g.z + (g.dir === 'z' ? 2 : 0))) / 2;
-      const gate = new FenceGate(this.scene, g.x, g.z, g.dir, y);
+      const gate = new FenceGate(this.scene, g.x, g.z, g.dir, y, g.kind);
       this.gateIds.set(gate, g.id);
       this.gates.set(key, gate);
     }
@@ -792,7 +793,7 @@ export class FenceSystem implements ObstacleSolver {
   /** 客人端按稳定 id 原地增删，保留未变化围栏的模型。 */
   netApply(
     fences: { id?: string; x: number; z: number; kind: FenceKind }[],
-    gates: { id?: string; x: number; z: number; dir: 'x' | 'z' }[]
+    gates: { id?: string; x: number; z: number; dir: 'x' | 'z'; kind?: GateKind }[]
   ): void {
     const fenceIds = new Set(fences.flatMap((x) => x.id ? [x.id] : []));
     for (const [key, fence] of [...this.fences]) {
@@ -816,7 +817,7 @@ export class FenceSystem implements ObstacleSolver {
     const currentGates = new Map([...this.gates.values()].map((x) => [this.gateIds.get(x), x]));
     for (const value of gates) {
       if (value.id && currentGates.has(value.id)) continue;
-      const gate = new FenceGate(this.scene, value.x, value.z, value.dir, this.terrain.getHeight(value.x, value.z));
+      const gate = new FenceGate(this.scene, value.x, value.z, value.dir, (this.terrain.getHeight(value.x, value.z) + this.terrain.getHeight(value.x + (value.dir === 'x' ? 2 : 0), value.z + (value.dir === 'z' ? 2 : 0))) / 2, value.kind);
       this.gateIds.set(gate, value.id);
       this.gates.set(FenceSystem.edgeKey(value.x, value.z, value.dir), gate);
     }

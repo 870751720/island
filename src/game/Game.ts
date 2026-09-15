@@ -1201,7 +1201,7 @@ export class Game {
             break;
           }
         }
-        this.fences.update(simDelta, this.sessions.map((s) => s.player.group.position));
+        this.fences.update(simDelta, [...this.sessions.map((s) => s.player.group.position), this.dog.group.position]);
         this.campfire.update(simDelta, elapsed, this.weather.rainIntensity);
         this.shrines.update(simDelta, elapsed);
         this.crops.update(simDelta, elapsed, this.weather.rainIntensity);
@@ -2977,19 +2977,19 @@ export class Game {
       });
     }
     // 围栏门:占一条两格边,落点优先嵌进围栏线缺口,站定自动放置耗时更长
-    def('fenceGate', {
+    for (const kind of ['fenceGate', 'stoneGate'] as const) def(kind, {
       tool: 'fenceGate',
       holdTime: 5,
       target: (a) => {
         const t = this.fences.gateTarget(a);
-        if (!t) return { ...snapAheadCell(a), reason: '附近没有能放围栏门的位置,挪个位置再试' };
+        if (!t) return { ...snapAheadCell(a), reason: '附近没有能放门的位置,挪个位置再试' };
         return { x: t.gx + (t.dir === 'x' ? 1 : 0), z: t.gz + (t.dir === 'z' ? 1 : 0), reason: null };
       },
-      buildPreview: makeGateGhost,
-      handModel: () => makeFenceGateHandModel(),
+      buildPreview: () => makeGateGhost(kind),
+      handModel: () => makeFenceGateHandModel(kind),
       onPreview: (preview, a) => this.fences.applyGateGhost(preview, a),
       onPreviewHide: () => this.fences.clearPreviewLinks(),
-      place: (a) => this.fences.useGate(a),
+      place: (a) => this.fences.useGate(a, kind),
       failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
     });
   }

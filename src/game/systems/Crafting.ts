@@ -29,6 +29,7 @@ export type CraftId =
   | 'gravelPath'
   | 'plankPath'
   | 'fenceGate'
+  | 'stoneGate'
   | 'bed'
   | 'bed2'
   | 'bed3'
@@ -396,10 +397,18 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'fenceGate',
-    name: '围栏门',
+    name: '木门',
     cost: { wood: 2 },
     station: 'workbench',
     output: 'fenceGate',
+    minBenchLevel: 2,
+  },
+  {
+    id: 'stoneGate',
+    name: '石门',
+    cost: { stone: 2 },
+    station: 'workbench',
+    output: 'stoneGate',
     minBenchLevel: 2,
   },
   {

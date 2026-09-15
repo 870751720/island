@@ -51,7 +51,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'campfire', 'cookingStation',
-    'fenceWood', 'fenceStone', 'fenceGate', 'gravelPath', 'plankPath',
+    'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
     'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest', 'carrotSeed', 'wheatSeed', 'potatoSeed', 'sweetPotatoSeed', 'cornSeed', 'soybeanSeed', 'tomatoSeed', 'pepperSeed', 'eggplantSeed', 'strawberrySeed', 'cabbageSeed', 'pumpkinSeed',
@@ -1012,9 +1012,15 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   },
   fenceGate: {
     kind: 'fenceGate',
-    name: '围栏门',
+    name: '木门',
     icon: '🚪',
-    description: '两格宽的双扇栅栏门,动物可开不了门。',
+    description: '两格宽的双扇木门，玩家和薯条靠近自动开门。',
+  },
+  stoneGate: {
+    kind: 'stoneGate',
+    name: '石门',
+    icon: '🚪',
+    description: '两格宽的双扇石门，玩家和薯条靠近自动开门。',
   },
   bed1: {
     kind: 'bed1',

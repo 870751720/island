@@ -64,7 +64,7 @@ export class HudSnapshotBuilder {
       bait: session.ammo.count('bait'),
       heldFenceCount: session.player.currentTool === 'fence'
         ? session.inventory.count('fenceWood') + session.inventory.count('fenceStone')
-        : session.player.currentTool === 'fenceGate' ? session.inventory.count('fenceGate') : 0,
+        : session.player.currentTool === 'fenceGate' ? s.autoPlace.heldCount(session) : 0,
       heldPlaceCount: s.autoPlace.heldCount(session),
       heldItemKind: s.autoPlace.heldKind(session),
       placeables: this.placeables(session),
