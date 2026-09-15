@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PondMaterial } from './PondMaterial';
+import { findMainlandSpawn } from './SpawnPoint';
 import { getEnclosedPondWaterLevel } from './PondPlacement';
 import { getSnowAmount, patchSeasonMaterial } from './SeasonVisuals';
 
@@ -84,6 +85,7 @@ export class IslandTerrain {
   readonly halfLength: number;
   private readonly pondMaterials: PondMaterial[] = [];
   private heightAt: (x: number, z: number) => number;
+  private spawnPoint: THREE.Vector3 | null = null;
 
   constructor(width = 200, length = 1000, seed = Math.random() * 1000) {
     this.width = width;
@@ -475,18 +477,23 @@ export class IslandTerrain {
     return frozen ? Math.max(h, frozen.waterY) : h;
   }
 
-  /** 出生点固定在岛最南端(+z 为屏幕下方):从南端海岸向岛内扫,找第一处水线上方的干地 */
+  /** 出生在最大连通陆地的南端；使用静态地面，避免结冰改变出生点。 */
   findSpawnPoint(): THREE.Vector3 {
-    for (let z = this.halfLength - 2; z > 0; z -= 1) {
-      for (let x = 0; x < this.halfWidth; x += 1) {
-        for (const sx of x === 0 ? [0] : [x, -x]) {
-          const h = this.heightAt(sx, z);
-          if (h > 0.1 && !this.isInWater(new THREE.Vector3(sx, h, z))) {
-            return new THREE.Vector3(sx, h, z);
-          }
+    if (!this.spawnPoint) {
+      const isDry = (x: number, z: number) =>
+        this.heightAt(x, z) > this.waterLevelAt(x, z) + 0.1;
+      const canSpawn = (x: number, z: number) => {
+        if (this.heightAt(x, z) <= 0.1) return false;
+        // 一米站立余量，避免落在刚露出水面的尖角或狭窄沙脊上。
+        for (let i = 0; i < 8; i++) {
+          const angle = i * Math.PI / 4;
+          if (!isDry(x + Math.cos(angle), z + Math.sin(angle))) return false;
         }
-      }
+        return true;
+      };
+      const { x, z } = findMainlandSpawn(this.halfWidth, this.halfLength, isDry, canSpawn);
+      this.spawnPoint = new THREE.Vector3(x, this.heightAt(x, z), z);
     }
-    return new THREE.Vector3(0, this.heightAt(0, 0), 0);
+    return this.spawnPoint.clone();
   }
 }
