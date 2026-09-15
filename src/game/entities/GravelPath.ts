@@ -4,7 +4,7 @@ import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import { clayMaterial } from '../world/ClayMaterial';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import { groundPatchGeometry } from '../world/GroundPatch';
-import { GravelSurfaceBatch, gravelCoverage, type RoadNeighbors } from './GravelSurface';
+import { GravelSurfaceBatch, gravelCoverage, gravelGroundCoverage, type RoadNeighbors } from './GravelSurface';
 
 export type GravelPathSave = { id?: string; x: number; y: number; z: number };
 
@@ -47,11 +47,11 @@ export class GravelPath {
     }
     const { x, z } = position;
     const points: { x: number; z: number }[] = [];
-    const count = 25 + Math.floor(random(x, z, 901) * 7);
+    const count = 14 + Math.floor(random(x, z, 901) * 5);
     for (let i = 0; i < 160 && points.length < count; i++) {
       const px = (random(x, z, i * 9 + 1) - 0.5) * 0.82;
       const pz = (random(x, z, i * 9 + 2) - 0.5) * 0.82;
-      if (points.some((p) => Math.hypot(p.x - px, p.z - pz) < 0.115)) continue;
+      if (points.some((p) => Math.hypot(p.x - px, p.z - pz) < 0.16)) continue;
       points.push({ x: px, z: pz });
       const tone = Math.floor(random(x, z, i * 9) * COLORS.length);
       const part = instances ? new THREE.Group() : pebble(tone);
@@ -72,7 +72,9 @@ export class GravelPath {
   fit(terrain: IslandTerrain, neighbors: RoadNeighbors): void {
     const origin = this.group.position;
     const coverage = (x: number, z: number) => gravelCoverage(x, z, origin.x, origin.z, neighbors);
-    const geometry = groundPatchGeometry(terrain, origin, coverage, this.surfaces ? 0 : 0.25);
+    const geometry = groundPatchGeometry(terrain, origin, this.surfaces
+      ? (x, z) => coverage(x, z) * gravelGroundCoverage(x, z)
+      : coverage, this.surfaces ? 0 : 0.25);
     if (this.surfaces) this.surfaces.set(this.group, geometry);
     else if (this.surface) {
       this.surface.geometry.dispose();
