@@ -78,6 +78,13 @@
 ```
 
 
+## 发行包流程（必读）
+
+- 用户要求打 H5 和小红书包时，执行 `npm run build:packages`，依次生成 `dist/island-h5.zip` 和 `dist/island-xiaohongshu.zip`；单渠道分别执行 `npm run build:h5`、`npm run build:xiaohongshu`。构建使用 Node 22.18+，支持直接加载 TypeScript 模块。
+- 两个渠道共用 `scripts/zip.mts`，统一使用 Deflate 等级 6 压缩，不使用仅存储 ZIP，也不临时手工打包。
+- H5 ZIP 保留 `island/index.html` 单一目录入口；小红书 ZIP 根目录直接放 `index.html`，保留外置脚本、静态审计和 10 MiB 限制。
+- 构建成功后校验 ZIP 完整性、入口结构和压缩方式，再交付本地 ZIP 链接与实际大小。详见 `docs/h5-packaging.md` 和 `docs/xiaohongshu-packaging.md`。
+
 ## Git 约定
 
 - **存档兼容约定**:存档设计以向后兼容为优先,正常内容迭代不应让旧档失效。新增道具、资源、配方、建筑类型,或新增能提供合理默认值的可选字段时,保持 `SAVE_VERSION` 不变;读取旧档时通过缺省值恢复新字段。已有道具/资源等持久化 ID 应保持稳定,不要仅因显示名称或玩法调整而改 ID。只有发生无法安全解释旧数据的破坏性变化(例如删除/重命名持久化 ID、改变已有字段语义、修改坐标体系或对核心结构做不兼容重构)时,才把 `SAVE_VERSION` +1。版本不一致的旧存档会被丢弃,玩家从新档开始;不编写跨破坏性版本的迁移代码。
