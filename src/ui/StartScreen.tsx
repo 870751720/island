@@ -8,6 +8,7 @@ import { MenuIcon } from './start/MenuIcon';
 import { useMenuAudio } from './start/useMenuAudio';
 import { buttonAudio } from './start/buttonAudio';
 import { playUiSound } from '@/game/audio/UiAudio';
+import { menuBackdrop } from './start/palette';
 import { startScreenCss } from './start/styles';
 import { attachMenuEggs, menuEggCss } from './start/menuEggs';
 import { IslandTitleEgg } from './start/IslandEggs';
@@ -79,11 +80,12 @@ export function StartScreen({
   };
 
   return (
-    <div ref={rootRef} className="start-screen" onPointerDownCapture={(event) => {
+    <div ref={rootRef} className="start-screen" data-ready={ready}
+      style={{ position: 'absolute', inset: 0, background: menuBackdrop }} onPointerDownCapture={(event) => {
       if (!(event.target as Element).closest('.menu-sound')) audio.unlock();
     }} onClickCapture={buttonAudio}>
       <style>{startScreenCss}{menuEggCss}</style>
-      <div className="start-layout" inert={showMeta || showSetup || !!newGameSave}>
+      <div className="start-layout" style={{ visibility: ready ? 'visible' : 'hidden' }} inert={!ready || showMeta || showSetup || !!newGameSave}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
           {ready && <button className="menu-sound" data-ui-sound="manual" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
@@ -96,7 +98,7 @@ export function StartScreen({
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
             <h1 className="start-title">去你的<IslandTitleEgg />。</h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
-            <IslandScene interactive paused={showMeta || showSetup || !!newGameSave} />
+            <IslandScene interactive={ready} paused={!ready || showMeta || showSetup || !!newGameSave} />
           </section>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}

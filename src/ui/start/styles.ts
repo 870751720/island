@@ -15,6 +15,7 @@ export const startScreenCss = `
 .menu-sound{display:flex;gap:6px;align-items:center;justify-content:center;min-height:44px;padding:0 10px;color:#49665e;border:1px solid #8ca58450;border-radius:24px;background:#fff9e433;white-space:nowrap;font-size:10px!important}
 .menu-sound svg{width:18px;height:18px}
 .menu-content{flex:1;display:grid;grid-template-rows:auto auto;gap:8px;align-content:center;width:100%;max-width:440px;margin:0 auto;padding:18px 0 0}
+.start-screen[data-ready=false] .menu-heading,.start-screen[data-ready=false] .menu-actions{animation:none}
 .menu-heading{text-align:center;animation:menu-enter .55s both;min-width:0}
 .menu-eyebrow{font-size:8px;letter-spacing:.25em;color:#60756a;margin:4px 0 10px}
 .start-title{font-size:clamp(48px,14.2vw,64px);font-weight:900;line-height:1.1;letter-spacing:-2px;margin:0;color:#fff9e4;text-shadow:0 1px 0 #fffdf0,0 3px 0 #98a57c,0 5px 0 #688367,0 9px 15px #456f5430;white-space:nowrap;transform:rotate(-3deg)}

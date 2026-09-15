@@ -1,6 +1,6 @@
 /** 帐篷里的薯条：直接使用场景坐标绘制黑色蓬松头部。 */
 export function IslandDogHead() {
-  return <g strokeLinejoin="round">
+  return <g strokeLinejoin="round" transform="translate(207 160) scale(.5) translate(-207 -160)">
     <path d="M195 143 194 131 203 137 212 137 220 131 219 146Z" fill="#292a32" />
     <path d="m197 136 1 7 4-3m11 0 4-4-1 8" fill="#67505b" />
     <path d="m192 145 3-3-1-4 6 1 3-3 4 2 5-2 3 4 5-1-1 5 4 3-3 3 1 4-5 1-2 4-5-1-4 2-4-3-5 1-1-4-4-2Z" fill="#303139" />
