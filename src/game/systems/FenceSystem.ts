@@ -591,6 +591,19 @@ export class FenceSystem implements ObstacleSolver {
   // ---- 挖除 ----
 
   /** 正在挖围栏/门 */
+  getDigTarget(actor: PlayerSession): THREE.Object3D | null {
+    const target = this.states.get(actor)?.digTarget;
+    if (!target) return null;
+    return (target.kind === 'fence' ? this.fences.get(target.key) : this.gates.get(target.key))?.group ?? null;
+  }
+
+  findDigVisual(x: number, z: number): THREE.Object3D | null {
+    for (const item of [...this.fences.values(), ...this.gates.values()]) {
+      if (Math.abs(item.group.position.x - x) < 0.001 && Math.abs(item.group.position.z - z) < 0.001) return item.group;
+    }
+    return null;
+  }
+
   isDigging(actor: PlayerSession): boolean {
     return !!this.states.get(actor)?.digTarget;
   }

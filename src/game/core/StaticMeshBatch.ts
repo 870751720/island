@@ -1,3 +1,4 @@
+import { modelVisualParts } from './ModelVisualParts';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -19,6 +20,7 @@ export class StaticMeshBatch {
     chunk.entries.set(root, geometry);
     chunk.dirty = true;
     this.owners.set(root, chunk);
+    modelVisualParts.set(root, [{ geometry, matrix: new THREE.Matrix4(), worldSpace: true }]);
   }
   delete(root: THREE.Object3D): void {
     const chunk = this.owners.get(root);
@@ -27,6 +29,7 @@ export class StaticMeshBatch {
     chunk.entries.delete(root);
     chunk.dirty = true;
     this.owners.delete(root);
+    modelVisualParts.delete(root);
   }
   flush(): void {
     for (const [key, chunk] of this.chunks) {
@@ -47,6 +50,7 @@ export class StaticMeshBatch {
       for (const geometry of chunk.entries.values()) geometry.dispose();
       if (chunk.mesh) { this.scene.remove(chunk.mesh); chunk.mesh.geometry.dispose(); }
     }
+    for (const root of this.owners.keys()) modelVisualParts.delete(root);
     this.chunks.clear(); this.owners.clear(); this.material.dispose();
   }
 }

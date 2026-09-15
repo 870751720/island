@@ -301,6 +301,10 @@ export class CollectSystem {
       && prop.position.distanceTo(position) < COLLECT_RANGE);
   }
 
+  getDigTarget(): Prop['group'] | null {
+    return this.workingNow && this.nearby && this.isDigging(this.nearby) ? this.nearby.group : null;
+  }
+
   getNearby(): Prop | null {
     return this.nearby;
   }

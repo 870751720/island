@@ -1,3 +1,4 @@
+import type { DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import type { QuestView } from './quests/QuestDefinitions';
 import type { PlayerGender } from './entities/PlayerModel';
 import type { HandTool } from './entities/Player';
@@ -17,6 +18,7 @@ import type { SmelterInfo } from './systems/SmelterSystem';
 
 /** 游戏层与 React、网络层共享的只读 HUD 契约。 */
 export type HudSnapshot = {
+  digTarget?: DigTargetSnapshot | null;
   quests?: QuestView | null;
   dog?: { stage: number; xp: number };
   hunger: number;

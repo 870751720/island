@@ -1,3 +1,4 @@
+import { modelVisualParts } from './ModelVisualParts';
 import * as THREE from 'three';
 import { disposeOwnedMeshes } from './disposeOwnedMeshes';
 
@@ -44,6 +45,7 @@ export class ModelInstances {
     batch.dynamic ||= dynamic;
     batch.dirty = true;
     this.owners.set(root, batch);
+    modelVisualParts.set(root, template.parts.map(part => ({ geometry: part.source.geometry, matrix: part.matrix })));
   }
 
   delete(root: THREE.Object3D): void {
@@ -52,6 +54,7 @@ export class ModelInstances {
     batch.entries.splice(batch.entries.findIndex((entry) => entry.root === root), 1);
     batch.dirty = true;
     this.owners.delete(root);
+    modelVisualParts.delete(root);
   }
 
   private isVisible(root: THREE.Object3D): boolean {
@@ -133,6 +136,7 @@ export class ModelInstances {
     for (const template of this.templates.values()) disposeOwnedMeshes(template.model);
     this.batches.clear();
     this.templates.clear();
+    for (const root of this.owners.keys()) modelVisualParts.delete(root);
     this.owners.clear();
   }
 }

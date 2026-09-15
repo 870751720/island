@@ -119,6 +119,18 @@ export class RoadSystem {
       state.elapsed = 0;
     } finally { state.hold.commit(actor.player); }
   }
+  /** 读取权威挖掘目标，供本地高亮与客人快照使用。 */
+  getDigTarget(actor: PlayerSession): THREE.Object3D | null {
+    return this.states.get(actor)?.target?.group ?? null;
+  }
+
+  findDigVisual(x: number, z: number): THREE.Object3D | null {
+    for (const item of this.paths.values()) {
+      if (Math.abs(item.group.position.x - x) < 0.001 && Math.abs(item.group.position.z - z) < 0.001) return item.group;
+    }
+    return null;
+  }
+
   isDigging(actor: PlayerSession): boolean { return !!this.states.get(actor)?.target; }
   getDigProgress(actor: PlayerSession): number | null {
     const state = this.states.get(actor);

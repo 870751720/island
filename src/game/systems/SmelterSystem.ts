@@ -231,6 +231,18 @@ export class SmelterSystem {
   }
 
   /** 正在挖冶炼炉 */
+  /** 读取权威挖掘目标，供本地高亮与客人快照使用。 */
+  getDigTarget(actor: PlayerSession): THREE.Object3D | null {
+    return this.digStates.get(actor)?.digTarget?.group ?? null;
+  }
+
+  findDigVisual(x: number, z: number): THREE.Object3D | null {
+    for (const item of this.smelters) {
+      if (Math.abs(item.group.position.x - x) < 0.001 && Math.abs(item.group.position.z - z) < 0.001) return item.group;
+    }
+    return null;
+  }
+
   isDigging(actor: PlayerSession): boolean {
     return !!this.digStates.get(actor)?.digTarget;
   }

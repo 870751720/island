@@ -1,3 +1,5 @@
+import { DigHighlight } from './fx/DigHighlight';
+import { DigTargetPresentation, type DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import { ITEMS } from './systems/Items';
 import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
 import type { DogStageNotice } from './entities/Pomeranian';
@@ -182,6 +184,10 @@ export class Game {
   private questSheepSupport!: QuestSheepSupport;
   private questGuidance!: QuestGuidance;
   private thirstGuidance!: ThirstGuidance;
+  private digHighlight: DigHighlight;
+  private digTargets: DigTargetPresentation;
+  private guestDigTarget: DigTargetSnapshot | null = null;
+  private guestDigTargetAt = 0;
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
   private worldSaveSystems: WorldSaveSystems;
@@ -926,6 +932,39 @@ export class Game {
       crops: this.crops,
       campfire: this.campfire,
     });
+    this.digHighlight = new DigHighlight(this.scene);
+    this.digTargets = new DigTargetPresentation({
+      collect: {
+        getDigTarget: actor => actor.collect.getDigTarget(),
+        findDigVisual: (x, z) => this.props.list.find(prop => prop.group.parent && Math.abs(prop.group.position.x - x) < 0.001 && Math.abs(prop.group.position.z - z) < 0.001)?.group ?? null,
+      },
+      crates: this.crates,
+      baitBarrels: this.baitBarrels,
+      brewBarrels: this.brewBarrels,
+      waterPurifiers: this.waterPurifiers,
+      burrows: this.burrows,
+      smelters: this.smelters,
+      cookingStations: this.cookingStations,
+      looms: this.looms,
+      fences: this.fences,
+      beds: this.beds,
+      shrines: this.shrines,
+      soils: {
+        getDigTarget: actor => this.soils.isDiggingCrop(actor) ? null : this.soils.getDigTarget(actor),
+        findDigVisual: (x, z) => this.soils.findDigVisual(x, z),
+      },
+      crop: {
+        getDigTarget: actor => {
+          const soil = this.soils.getDigTarget(actor);
+          return soil && this.soils.isDiggingCrop(actor) ? this.crops.cropAt(soil.position.x, soil.position.z)?.group ?? null : null;
+        },
+        findDigVisual: (x, z) => this.crops.cropAt(x, z)?.group ?? null,
+      },
+      gravelPaths: this.gravelPaths,
+      plankPaths: this.plankPaths,
+      workbench: this.workbench,
+      campfire: this.campfire,
+    });
     this.hudSnapshotBuilder = new HudSnapshotBuilder(
       {
         autoPlace: this.autoPlace,
@@ -1231,6 +1270,13 @@ export class Game {
         this.soils.flushInstances();
         this.gravelPaths.flushInstances();
         this.plankPaths.flushInstances();
+        if (this.guestMode && (this.player.isMoving || this.player.currentTool !== 'shovel')) this.guestDigTarget = null;
+        const digTarget = this.guestMode
+          ? (performance.now() - this.guestDigTargetAt < 1000 ? this.guestDigTarget : null)
+          : this.digTargets.snapshot(this.local);
+        const showDig = this.player.currentTool === 'shovel' && !this.player.isMoving && !this.player.isSwimming
+          && !this.survival.state.dead && !this.cameraController.photoActive;
+        this.digHighlight.update(showDig ? this.digTargets.resolve(digTarget) : null, elapsed);
         this.renderer.render(this.scene, this.camera);
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
@@ -1733,6 +1779,8 @@ export class Game {
     this.local.quests.view = snap.quests ?? null;
     if (snap.quests && snap.quests.enabled !== loadQuestGuide()) this.guestNet?.action('questGuide', [loadQuestGuide()]);
     this.guestHud.apply(snap);
+    this.guestDigTarget = snap.digTarget ?? null;
+    this.guestDigTargetAt = performance.now();
   }
 
   /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗;客人背包有无限箭袋则免扣)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
@@ -3559,6 +3607,7 @@ export class Game {
       s.player.dispose();
     }
     this.questAutoMove.stop();
+    this.digHighlight.dispose();
     this.questGuidance.dispose();
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
@@ -3620,7 +3669,7 @@ export class Game {
 
   /** 计算某会话的 HUD 数据快照(本地走 pushHud,联机时房主为每个客人各算一份下发;notice 是房主本地提示,不下发) */
   hudFor(s: PlayerSession): Omit<HudSnapshot, 'notice'> {
-    return this.snapshotHud(s, !this.isSessionActive(s) && s.hudIdleTime >= IDLE_HIDE_DELAY);
+    return { ...this.snapshotHud(s, !this.isSessionActive(s) && s.hudIdleTime >= IDLE_HIDE_DELAY), digTarget: this.digTargets.snapshot(s) };
   }
 
   private snapshotHud(s: PlayerSession, busy: boolean): Omit<HudSnapshot, 'notice'> {
