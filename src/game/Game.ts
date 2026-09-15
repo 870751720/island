@@ -1,3 +1,4 @@
+import { ITEMS } from './systems/Items';
 import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
 import type { DogStageNotice } from './entities/Pomeranian';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
@@ -100,9 +101,9 @@ import { IslandTerrain } from './world/IslandTerrain';
 import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { Clouds } from './world/Clouds';
-import { Props, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
+import { Props, makeTreeSproutPreview, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
 import { resetSeasonVisuals, updateSeasonVisuals } from './world/SeasonVisuals';
-import { SEED_OF } from './world/TreeSpecies';
+import { SEED_OF, TREE_SPECIES, type TreeSpecies } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { FirstDeathBlessing, POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
 import { MetaDaily } from './meta/MetaDaily';
@@ -2852,6 +2853,17 @@ export class Game {
       holdTime: (a) => hoePlaceTime(a.tools.hoe),
       failText: () => '这里锄不了,找块没东西的干地试试',
     });
+    // 树木种子共用设施网格与干地占位规则,预览为真实发芽模型。
+    for (const species of TREE_SPECIES) {
+      const kind = SEED_OF[species];
+      def(kind, {
+        tool: 'place',
+        valid: (a, x, z) => this.bushCellOk(a, x, z),
+        buildPreview: makeTreeSproutPreview,
+        place: (a, at) => this.placeTree(species, at, a),
+        placingLabel: `播种:${ITEMS[kind].name}…`,
+      });
+    }
     // 作物种子:只能种在没有作物的土壤格上,预览为幼苗造型,站定 2 秒播下
     for (const spec of Object.values(CROP_SPECS)) {
       def(spec.seed, {
@@ -2918,29 +2930,13 @@ export class Game {
     return openLetter(actor.inventory);
   }
 
-  /** 背包里点击「使用」种子:校验与摆放一致(不能在水里/水边,脚下不能被占住),通过后在原地种下 */
-  useSeed(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('useSeed', [kind]);
-
-    const a = actor;
-    if (this.asleepFor(a)) return false;
-    const species = (Object.keys(SEED_OF) as (keyof typeof SEED_OF)[]).find((s) => SEED_OF[s] === kind);
-    if (!species || a.inventory.count(kind) <= 0) return false;
-    const p = a.player.group.position;
-    if (
-      a.player.isSwimming ||
-      this.terrain.isNearWater(p, 1) ||
-      this.terrain.getHeight(p.x, p.z) <= 0 ||
-      this.props.isOccupied(p, 1)
-    ) {
-      this.notify('这里种不了,找个没东西的干地试试', a);
-      return false;
-    }
-    a.inventory.remove(kind, 1);
-    this.props.plant(species, p.x, p.z);
+  /** 在设施格中心种树:权威端重新校验占位,成功后扣种子并发布资源增量。 */
+  private placeTree(species: TreeSpecies, at: THREE.Vector3, actor: PlayerSession): boolean {
+    if (this.bushCellOk(actor, at.x, at.z) !== null) return false;
+    if (!actor.inventory.remove(SEED_OF[species], 1)) return false;
+    this.props.plant(species, at.x, at.z);
     this.audio.play('success');
-    const fxPos = p.clone();
+    const fxPos = at.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#7fae55', 10);
     return true;

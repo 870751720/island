@@ -40,7 +40,6 @@ export interface NetActionArgs {
   loomFeed: [count: number];
   loomCollect: [];
   loomTakeRope: [];
-  useSeed: [kind: ResourceKind];
   useBottle: [];
   pickupDrop: [];
   crateStore: [kind: ResourceKind, count: number | null];
@@ -108,7 +107,6 @@ const NET_ACTION_ARG_COUNTS = {
   loomFeed: [1],
   loomCollect: [0],
   loomTakeRope: [0],
-  useSeed: [1],
   useBottle: [0],
   pickupDrop: [0],
   crateStore: [2],
@@ -204,7 +202,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isString(first) && HAND_TOOLS.has(first) && (second === null || isResourceKind(second));
     case 'cookingAddFuel':
     case 'smelterAddFuel':
-    case 'useSeed':
     case 'campfireAddFuel':
     case 'equipItem':
       return isResourceKind(first);

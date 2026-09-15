@@ -43,7 +43,7 @@ type Props = {
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
 
-/** 可「使用」的道具:食物(进食)、种子(原地种树)、漂流瓶(读瓶中信)、海神的信(读信)、其余可安放道具进入手持安放模式 */
+/** 可「使用」的道具:食物(进食)、漂流瓶(读瓶中信)、海神的信(读信)、其余可安放道具进入手持安放模式 */
 function isUsable(kind: ResourceKind): boolean {
   return (
     FOODS.some((f) => f.kind === kind) ||
@@ -56,7 +56,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind === 'shrubBush' ||
     kind === 'grassTuft' ||
     kind === 'wormNest' ||
-    // 作物种子:背包里直接使用即原地播种
+    // 作物种子:使用后进入手持安放模式
     kind in CROP_OF_SEED ||
     kind === 'crate' ||
     kind === 'ironCrate' ||

@@ -324,11 +324,6 @@ export function GameplayUI({
             setBackpackOpen(false);
             return;
           }
-          if (kind === 'oakSeed' || kind === 'pineSeed' || kind === 'fruitSeed') {
-            gameRef.current?.useSeed(kind);
-            setBackpackOpen(false);
-            return;
-          }
           gameRef.current?.eatFood(kind);
           setBackpackOpen(false);
         }}

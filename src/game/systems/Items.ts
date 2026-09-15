@@ -46,6 +46,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'cookedCarrot', 'boiledCarrot', 'bread',
   ],
   设施: [
+    'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
@@ -56,7 +57,6 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'torch', 'berryBush', 'shrubBush', 'grassTuft', 'wormNest', 'carrotSeed', 'wheatSeed', 'potatoSeed', 'sweetPotatoSeed', 'cornSeed', 'soybeanSeed', 'tomatoSeed', 'pepperSeed', 'eggplantSeed', 'strawberrySeed', 'cabbageSeed', 'pumpkinSeed',
   ],
   道具: [
-    'oakSeed', 'pineSeed', 'fruitSeed',
     'reviveStone', 'lasso', 'letter', 'arrow', 'bait',
     'endlessQuiver', 'endlessBait', 'bottle',
   ],

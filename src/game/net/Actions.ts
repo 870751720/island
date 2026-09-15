@@ -44,7 +44,6 @@ const ACTIONS: NetActionRegistry = {
   loomFeed: (g, a, [count]) => g.loomFeed(count, a),
   loomCollect: (g, a) => g.loomCollect(a),
   loomTakeRope: (g, a) => g.loomTakeRope(a),
-  useSeed: (g, a, [kind]) => g.useSeed(kind, a),
   useBottle: (g, a) => g.useBottle(a) !== null,
   pickupDrop: (g, a) => g.pickupDrop(a),
   crateStore: (g, a, [kind, count]) => g.crateStore(kind, count ?? Infinity, a),

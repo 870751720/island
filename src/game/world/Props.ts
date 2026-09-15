@@ -143,6 +143,14 @@ function makeSproutParts(): THREE.Mesh[] {
   return [stem, leafL, leafR];
 }
 
+/** 设施手持与落点预览复用实际发芽模型和树木缩放。 */
+export function makeTreeSproutPreview(): THREE.Group {
+  const model = new THREE.Group();
+  model.add(...makeSproutParts());
+  model.scale.setScalar(TREE_MODEL_SCALE);
+  return model;
+}
+
 /** 小树:细瘦树干 + 稀疏的少量叶子,一眼能看出还没长成(按树种区分造型) */
 function makeSaplingParts(species: TreeSpecies): THREE.Mesh[] {
   const trunk = new THREE.Mesh(
