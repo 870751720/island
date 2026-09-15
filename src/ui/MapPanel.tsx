@@ -2,6 +2,7 @@
 
 import { FACILITY_SVG } from './icons/FacilityIcons';
 import { useMemo } from 'react';
+import { projectMapMarker } from './mapProjection';
 import type { MapSnapshot } from '@/game/GameContracts';
 
 type MapPanelProps = {
@@ -68,14 +69,15 @@ export function MapSurface({ snapshot, compact = false }: { snapshot: MapSnapsho
   const mapY = py(-snapshot.island.length / 2);
 
   // 超出可视范围的标记沿相对玩家的方位角吸附到地图边缘，保留方向信息。
-  const edge = width / 2 - (compact ? 8 : FACILITY_MARKER_SIZE / 2 + 2);
-  const anchored = (x: number, z: number) => {
-    const dx = (x - local.x) * scale;
-    const dz = (z - local.z) * scale;
-    const reach = Math.max(Math.abs(dx), Math.abs(dz));
-    if (reach <= edge) return { x: width / 2 + dx, z: height / 2 + dz, outside: false };
-    const t = edge / reach;
-    return { x: width / 2 + dx * t, z: height / 2 + dz * t, outside: true };
+  const anchored = (x: number, z: number, inset: number) => {
+    const point = projectMapMarker(
+      (x - local.x) * scale,
+      (z - local.z) * scale,
+      width / 2,
+      compact ? 14 : 0,
+      compact ? inset : FACILITY_MARKER_SIZE / 2 + 2,
+    );
+    return { x: width / 2 + point.x, z: height / 2 + point.y, outside: point.outside };
   };
 
   return (
@@ -106,7 +108,7 @@ export function MapSurface({ snapshot, compact = false }: { snapshot: MapSnapsho
       )}
 
       {FACILITY_IMAGES.flatMap(({ source, label, href }) => snapshot[source].map((point, index) => {
-        const anchor = anchored(point.x, point.z);
+        const anchor = anchored(point.x, point.z, 2.3);
         if (compact) {
           return (
             <circle key={`${source}-${index}`} cx={anchor.x} cy={anchor.z} r={1.5} fill="#765139" stroke="#fff4d6" strokeWidth={.6} opacity={anchor.outside ? .7 : 1}>
@@ -124,7 +126,7 @@ export function MapSurface({ snapshot, compact = false }: { snapshot: MapSnapsho
 
       {snapshot.players.filter((player) => !player.dead).map((player) => {
         const isLocal = player.id === snapshot.localPlayerId;
-        const anchor = anchored(player.x, player.z);
+        const anchor = anchored(player.x, player.z, isLocal ? 3.5 : 3);
         return (
           <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter={compact ? undefined : "url(#map-marker-shadow)"} opacity={anchor.outside && !isLocal ? .8 : 1}>
             <circle r={isLocal ? markerSize + (compact ? .5 : 2) : markerSize} fill={isLocal ? '#ffd54f' : '#5b8def'} stroke="#fff" strokeWidth={compact ? 1 : 2} />
