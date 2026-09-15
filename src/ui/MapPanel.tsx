@@ -1,7 +1,6 @@
 'use client';
 
 import { FACILITY_SVG } from './icons/FacilityIcons';
-import { HudIcon } from './hud/HudIcon';
 import { useMemo } from 'react';
 import type { MapSnapshot } from '@/game/GameContracts';
 
@@ -9,10 +8,6 @@ type MapPanelProps = {
   snapshot: MapSnapshot;
   onClose: () => void;
 };
-
-export function MapIcon({ size = 24 }: { size?: number }) {
-  return <HudIcon name="map" size={size} />;
-}
 
 const MAP_VIEW_METERS = 60;
 const FACILITY_MARKER_SIZE = 18;
@@ -57,23 +52,23 @@ function useTerrainImage(snapshot: MapSnapshot): string {
   }, [snapshot.terrain]);
 }
 
-function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
+export function MapSurface({ snapshot, compact = false }: { snapshot: MapSnapshot; compact?: boolean }) {
   const terrainImage = useTerrainImage(snapshot);
   const local = snapshot.players.find((player) => player.id === snapshot.localPlayerId) ?? snapshot.players[0];
   if (!local) return null;
 
-  const width = 132;
+  const width = compact ? 44 : 132;
   const height = width;
   const scale = width / MAP_VIEW_METERS;
   const px = (x: number) => width / 2 + (x - local.x) * scale;
   const py = (z: number) => height / 2 + (z - local.z) * scale;
-  const markerSize = 6;
+  const markerSize = compact ? 2 : 6;
   const labelSize = 8;
   const mapX = px(-snapshot.island.width / 2);
   const mapY = py(-snapshot.island.length / 2);
 
   // 超出可视范围的标记沿相对玩家的方位角吸附到地图边缘，保留方向信息。
-  const edge = width / 2 - FACILITY_MARKER_SIZE / 2 - 2;
+  const edge = width / 2 - (compact ? 8 : FACILITY_MARKER_SIZE / 2 + 2);
   const anchored = (x: number, z: number) => {
     const dx = (x - local.x) * scale;
     const dz = (z - local.z) * scale;
@@ -92,11 +87,11 @@ function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
       aria-label="以玩家为中心的岛屿地图"
       style={{ display: 'block', background: TERRAIN_COLORS[0] }}
     >
-      <defs>
+      {!compact && <defs>
         <filter id="map-marker-shadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity=".45" />
         </filter>
-      </defs>
+      </defs>}
       <rect width={width} height={height} fill={TERRAIN_COLORS[0]} />
       {terrainImage && (
         <image
@@ -112,6 +107,10 @@ function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
 
       {FACILITY_IMAGES.flatMap(({ source, label, href }) => snapshot[source].map((point, index) => {
         const anchor = anchored(point.x, point.z);
+        if (compact) {
+          if (anchor.outside) return null;
+          return <circle key={`${source}-${index}`} cx={anchor.x} cy={anchor.z} r={1.5} fill="#765139" stroke="#fff4d6" strokeWidth={.6} />;
+        }
         return (
           <g key={`${source}-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside ? .55 : 1}>
             <title>{label}</title>
@@ -124,12 +123,12 @@ function MapSurface({ snapshot }: { snapshot: MapSnapshot }) {
         const isLocal = player.id === snapshot.localPlayerId;
         const anchor = anchored(player.x, player.z);
         return (
-          <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside && !isLocal ? .8 : 1}>
-            <circle r={isLocal ? markerSize + 2 : markerSize} fill={isLocal ? '#ffd54f' : '#5b8def'} stroke="#fff" strokeWidth="2" />
-            <path d={`M0 ${-markerSize - 5} 3 ${-markerSize} -3 ${-markerSize}Z`} fill={isLocal ? '#6d4c41' : '#284a91'} />
-            <text y={markerSize + labelSize + 2} textAnchor="middle" fontFamily="sans-serif" fontSize={labelSize} fontWeight="700" fill="#fff" stroke="rgba(30,40,35,.8)" strokeWidth="2.5" paintOrder="stroke">
+          <g key={player.id} transform={`translate(${anchor.x} ${anchor.z})`} filter={compact ? undefined : "url(#map-marker-shadow)"} opacity={anchor.outside && !isLocal ? .8 : 1}>
+            <circle r={isLocal ? markerSize + (compact ? .5 : 2) : markerSize} fill={isLocal ? '#ffd54f' : '#5b8def'} stroke="#fff" strokeWidth={compact ? 1 : 2} />
+            {!compact && <path d={`M0 ${-markerSize - 5} 3 ${-markerSize} -3 ${-markerSize}Z`} fill={isLocal ? '#6d4c41' : '#284a91'} />}
+            {!compact && <text y={markerSize + labelSize + 2} textAnchor="middle" fontFamily="sans-serif" fontSize={labelSize} fontWeight="700" fill="#fff" stroke="rgba(30,40,35,.8)" strokeWidth="2.5" paintOrder="stroke">
               {player.name}
-            </text>
+            </text>}
           </g>
         );
       })}

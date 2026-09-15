@@ -44,7 +44,7 @@ import { SettingsPanel } from './SettingsPanel';
 import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
-import { MapIcon, MapPanel } from './MapPanel';
+import { MapSurface, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
 import { useFacilityPanels } from './useFacilityPanels';
@@ -255,11 +255,11 @@ export function GameplayUI({
             <button
               onClick={openMap}
               aria-label="打开小地图"
-              className="hud-control hud-utility"
+              className="hud-control hud-utility hud-map-preview"
               disabled={hud.busy}
               style={fadeStyle(hud.busy)}
             >
-              <MapIcon size={26} />
+              {mapSnapshot && <MapSurface snapshot={mapSnapshot} compact />}
             </button>
           )}
           {mapOpen && mapSnapshot && (

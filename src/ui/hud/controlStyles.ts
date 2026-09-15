@@ -7,6 +7,7 @@ export const hudControlStyles = `
 .hud-control:disabled{cursor:default}
 .hud-control-label{font-size:10px;font-weight:600;letter-spacing:.08em;line-height:14px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hud-utility{width:46px;height:46px;border-radius:15px;flex-shrink:0}
+.hud-map-preview{overflow:hidden;background:#6caec5}
 .hud-settings>svg{transition:transform .25s ease}
 .hud-settings:active>svg{transform:rotate(35deg)}
 .hud-backpack,.hud-tool{position:absolute;right:max(16px,env(safe-area-inset-right));width:72px;height:72px;border-radius:23px}
