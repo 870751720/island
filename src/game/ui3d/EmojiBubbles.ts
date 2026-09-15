@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { EMOJI_ICONS } from '../social/EmojiIcons';
+import { DOG_EMOJI_SVG } from '../../ui/icons/DogEmojiIcons';
 
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
@@ -11,6 +12,7 @@ interface Bubble {
   element: HTMLDivElement;
   target: THREE.Object3D;
   elapsed: number;
+  heart?: boolean;
 }
 
 /** 屏幕矢量气泡：每帧投影头顶坐标，独立于 WebGL 渲染分辨率。 */
@@ -54,6 +56,26 @@ export class EmojiBubbles {
     this.active.set(target, { element, target, elapsed: 0 });
   }
 
+  /** 复用薯条爱心 SVG 和头顶屏幕投影；房主状态决定开始/结束，无白底。 */
+  syncHearts(targets: readonly THREE.Object3D[]): void {
+    const wanted = new Set(targets);
+    for (const bubble of this.active.values()) {
+      if (bubble.heart && !wanted.has(bubble.target)) this.remove(bubble.target);
+    }
+    for (const target of targets) {
+      if (this.active.has(target)) continue;
+      this.show(target, '❤️');
+      const bubble = this.active.get(target)!;
+      bubble.heart = true;
+      bubble.element.style.background = 'transparent';
+      bubble.element.style.boxShadow = 'none';
+      bubble.element.innerHTML = DOG_EMOJI_SVG['❤️'];
+      const svg = bubble.element.firstElementChild as SVGElement;
+      svg.style.width = '47.5%';
+      svg.style.height = '59.375%';
+    }
+  }
+
   /** 在相机更新后调用，保持移动与缩放时的位置和场景一致。 */
   update(delta: number): void {
     if (!this.active.size) return;
@@ -63,12 +85,12 @@ export class EmojiBubbles {
     const size = emojiBubbleHeight(height, this.camera);
     for (const bubble of this.active.values()) {
       bubble.elapsed += delta;
-      if (bubble.elapsed >= SHOW_SECONDS || !bubble.target.parent) {
+      if ((!bubble.heart && bubble.elapsed >= SHOW_SECONDS) || !bubble.target.parent) {
         this.remove(bubble.target);
         continue;
       }
       bubble.target.getWorldPosition(this.anchor);
-      this.anchor.y += HEAD_Y;
+      this.anchor.y += bubble.heart ? 1.65 : HEAD_Y;
       this.anchor.project(this.camera);
       const style = bubble.element.style;
       style.display = this.anchor.z < -1 || this.anchor.z > 1 ? 'none' : 'flex';
@@ -81,7 +103,7 @@ export class EmojiBubbles {
       const x = Math.round((this.anchor.x + 1) * width / 2);
       const y = Math.round((1 - this.anchor.y) * height / 2);
       style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-      style.opacity = String(Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS));
+      style.opacity = bubble.heart ? '1' : String(Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS));
     }
   }
 

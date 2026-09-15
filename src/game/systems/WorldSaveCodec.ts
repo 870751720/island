@@ -76,7 +76,8 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.crops.restore(save.crops ?? []);
   s.stakes.restore(save.stakes);
   if (!guestMode) {
-    for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
+    s.wildlife.restoreFamilies(save.wildlife, s.dayNight.calendar);
+    if (!save.wildlife) for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
   }
   s.drops.restore(save.drops);
   s.dog.restore(save.dog.x, save.dog.z, save.dog);
@@ -109,6 +110,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     plankPaths: s.plankPaths.snapshot(),
     crops: s.crops.snapshot(),
     stakes: s.stakes.snapshot(),
+    wildlife: s.wildlife.snapshotFamilies(),
     drops: s.drops.snapshot(),
     burrows: s.burrows.snapshot(),
     dog: s.dog.snapshot(),

@@ -305,7 +305,7 @@ export class BowSystem {
       const beast = this.wildlife.damage(hit.animalId, damage);
       if (beast) this.onCombat?.();
       // 野生动物可中数箭:受伤未死不掉肉
-      if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species), x, z);
+      if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species, beast.juvenile), x, z);
       return;
     }
     const point = this.tmpV.set(x, 0, z);

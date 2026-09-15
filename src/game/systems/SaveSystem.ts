@@ -1,3 +1,4 @@
+import type { WildlifeSave } from '../entities/WildlifeSave';
 import type { DogSave } from './DogGrowth';
 import type { QuestSave } from '../quests/QuestDefinitions';
 import type { PlayerGender } from '../entities/PlayerModel';
@@ -135,6 +136,7 @@ export type SaveData = {
   /** 场上所有围栏门(所占格点边的起点与方向) */
   fenceGates: { id?: string; x: number; z: number; dir: 'x' | 'z'; kind?: 'fenceGate' | 'stoneGate' }[];
   /** 场上所有拴羊桩(落点;读档时在桩位生成一只已拴住的羊) */
+  wildlife?: WildlifeSave;
   stakes: StakeSave[];
   drops: DropEntry[];
   /** 黑色博美伴侣的落点、成长与技能冷却（新字段缺省恢复） */

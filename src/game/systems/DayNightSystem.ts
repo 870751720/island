@@ -76,6 +76,11 @@ export class DayNightSystem implements Updatable {
   }
 
   /** 当前是第几天(从 1 开始计) */
+  /** 从第一个清晨起连续计日，睡觉跳时也计入。 */
+  get calendar(): number {
+    return this.dayCount + ((this.t - DayNightSystem.MORNING_T + 1) % 1);
+  }
+
   get day(): number {
     return this.dayCount;
   }

@@ -632,9 +632,9 @@ export class Game {
     this.dog.onBattleEmoji = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogBattleEmoji', ...notice });
     this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
     this.dog.onPounce = (serial) => this.hostRef?.broadcastEvent({ kind: 'dogPounce', serial });
-    this.wildlife.onDogKill = (species, position, player) => {
+    this.wildlife.onDogKill = (species, position, player, juvenile) => {
       this.sessionOf(player).stats.kills += 1;
-      this.wildlife.lootOf(species).forEach((item, i) => {
+      this.wildlife.lootOf(species, juvenile).forEach((item, i) => {
         const angle = i * 2.4;
         this.drops.dropAt(item.kind, item.count, position.x + Math.cos(angle) * 0.4, position.z + Math.sin(angle) * 0.4);
       });
@@ -1063,7 +1063,7 @@ export class Game {
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
           this.dayEvents.update();
-          this.wildlife.update(simDelta, elapsed);
+          this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
             this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
         } else {
@@ -1256,6 +1256,7 @@ export class Game {
         this.updateIndicator(simDelta);
         this.updateLeashLines();
         this.updateCamera(delta);
+        this.emojiBubbles.syncHearts(this.wildlife.breedingAnchors());
         this.emojiBubbles.update(simDelta);
         this.ocean.update(this.camera, elapsed);
         this.questTimer += simDelta;

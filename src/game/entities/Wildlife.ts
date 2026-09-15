@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
+import type { WildlifeSave } from './WildlifeSave';
 import { HabitatPopulation, type HabitatSlot } from '../world/HabitatPopulation';
 import { landCells, latitude } from '../world/SpawnLayout';
 import type { Updatable } from '../core/GameLoop';
@@ -279,13 +281,14 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   },
 };
 
-type Animal = {
+type Animal = LifeState & {
   habitat?: HabitatSlot<AnimalSpecies>;
   /** 同步用短 id(房主递增分配,状态快照按 id 对应) */
   id: number;
   species: AnimalSpecies;
   config: SpeciesConfig;
   model: ReturnType<(typeof ANIMAL_BUILDERS)[AnimalSpecies]>;
+  adultScale: number;
   pos: THREE.Vector3;
   target: THREE.Vector3;
   heading: number;
@@ -360,7 +363,7 @@ export class Wildlife implements Updatable {
 
   /** 当前帧正在追击或攻击玩家的威胁；不包含被动逃跑动物。 */
   readonly dogThreats: DogThreat[] = [];
-  onDogKill: (species: AnimalSpecies, position: THREE.Vector3, player: Player) => void = () => {};
+  onDogKill: (species: AnimalSpecies, position: THREE.Vector3, player: Player, juvenile: boolean) => void = () => {};
 
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
@@ -368,6 +371,7 @@ export class Wildlife implements Updatable {
   /** 权威 AI 每帧通知真正被敌对动物追击的玩家。 */
   onPlayerThreat?: (player: Player) => void;
   private creatureFx = new CreatureFx();
+  private lifecycle = new WildlifeLifecycle<Animal>();
   private population = new HabitatPopulation<AnimalSpecies>();
   private safeSpawn: THREE.Vector3;
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
@@ -452,9 +456,11 @@ export class Wildlife implements Updatable {
     this.group.add(model.group);
     const animal: Animal = {
       id: this.nextId++,
+      bornAt: null, readyAt: this.lifecycle.now + 1, breeding: false,
       species,
       config: SPECIES[species],
       model,
+      adultScale: model.group.scale.x,
       pos: spawn.clone(),
       target: spawn.clone(),
       heading,
@@ -540,6 +546,7 @@ export class Wildlife implements Updatable {
   }
 
   private spawnResident(slot: HabitatSlot<AnimalSpecies>, rng: () => number, initial = false): boolean {
+    if (!this.lifecycle.canReplenish(this.animals, slot)) return false;
     for (let i = 0; i < 60; i++) {
       const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * slot.radius;
       const x = slot.home.x + Math.cos(a) * d, z = slot.home.z + Math.sin(a) * d;
@@ -549,9 +556,102 @@ export class Wildlife implements Updatable {
       if (this.animals.some(a => a.alive && Math.hypot(x - a.pos.x, z - a.pos.z) < 2)) continue;
       const animal = this.createAnimal(slot.kind, new THREE.Vector3(x, this.terrain.getHeight(x, z), z), rng() * Math.PI * 2, rng);
       animal.habitat = slot;
+      if (isFamilySpecies(slot.kind) && !this.lifecycle.members(this.animals, slot).some(a => a.bornAt !== null) && rng() < 0.1) {
+        animal.bornAt = this.lifecycle.now;
+        animal.hp = animal.config.hp * 0.5;
+        this.applyLifeScale(animal);
+      }
       return true;
     }
     return false;
+  }
+
+  private applyLifeScale(animal: Animal): void {
+    if (!isFamilySpecies(animal.species)) return;
+    const young = animal.bornAt !== null;
+    animal.model.group.scale.setScalar(animal.adultScale * (young ? 0.55 : 1));
+    animal.model.head.scale.setScalar(young ? 1.18 : 1);
+  }
+
+  breedingAnchors(): THREE.Object3D[] {
+    return this.animals.filter(a => a.alive && a.breeding && !a.hidden && !a.leash && !a.netLeash).map(a => a.model.group);
+  }
+
+  private birthNear(parent: Animal): boolean {
+    const habitat = parent.habitat!;
+    const members = this.lifecycle.members(this.animals, habitat);
+    if (members.length >= 4 || members.some(a => a.bornAt !== null)) return false;
+    if (this.players().some(p => p.group.position.distanceToSquared(parent.pos) < parent.config.deaggroRange ** 2)) return false;
+    for (let i = 0; i < 24; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const x = parent.pos.x + Math.cos(angle) * 1.5, z = parent.pos.z + Math.sin(angle) * 1.5;
+      if (!this.isGrass(x, z) || this.isBlocked(x, z) || Math.hypot(x - habitat.home.x, z - habitat.home.z) > habitat.radius) continue;
+      if (this.animals.some(a => a.alive && Math.hypot(x - a.pos.x, z - a.pos.z) < 0.8)) continue;
+      const child = this.createAnimal(parent.species, new THREE.Vector3(x, this.terrain.getHeight(x, z), z), parent.heading);
+      // 优先占用空缺基础名额，第四只使用同一栖息地的额外名额。
+      const free = this.population.slots.find(s => s.kind === habitat.kind && s.home === habitat.home && !s.occupied);
+      child.habitat = free ?? { ...habitat, occupied: false };
+      child.habitat.occupied = true;
+      child.bornAt = this.lifecycle.now;
+      child.hp = child.config.hp * 0.5;
+      this.applyLifeScale(child);
+      return true;
+    }
+    return false;
+  }
+
+  snapshotFamilies(): WildlifeSave {
+    return {
+      animals: this.animals.filter(a => a.alive && isFamilySpecies(a.species)).map(a => {
+        const index = a.habitat ? this.population.slots.indexOf(a.habitat) : -1;
+        const homeIndex = a.habitat ? this.population.slots.findIndex(s => s.kind === a.species && s.home === a.habitat!.home) : undefined;
+        return {
+          species: a.species, x: a.pos.x, z: a.pos.z, heading: a.heading,
+          hp: a.hp, bornAt: a.bornAt, readyAt: a.readyAt,
+          slot: index >= 0 ? index : homeIndex,
+          extra: !!a.habitat && index < 0,
+          provoked: a.provoked,
+          stake: a.leash && 'anchor' in a.leash ? { ...a.leash.anchor } : undefined,
+          milkLeft: a.milkLeft, hasMilk: a.hasMilk,
+        };
+      }),
+      slots: this.population.slots.flatMap((s, index) => isFamilySpecies(s.kind) ? [{ index, cooldown: s.cooldown }] : []),
+    };
+  }
+
+  restoreFamilies(save: WildlifeSave | undefined, calendar: number): void {
+    this.lifecycle.now = calendar;
+    this.lifecycle.reset();
+    if (!save) {
+      for (const a of this.animals) {
+        if (a.bornAt !== null) a.bornAt = calendar;
+        a.readyAt = calendar + 1;
+      }
+      return;
+    }
+    for (const a of [...this.animals]) if (isFamilySpecies(a.species)) this.removeAnimal(a);
+    for (const slot of this.population.slots) if (isFamilySpecies(slot.kind)) slot.occupied = false;
+    for (const entry of save.slots) {
+      const slot = this.population.slots[entry.index];
+      if (slot && isFamilySpecies(slot.kind)) slot.cooldown = entry.cooldown;
+    }
+    for (const entry of save.animals) {
+      if (!isFamilySpecies(entry.species)) continue;
+      const a = this.createAnimal(entry.species, new THREE.Vector3(entry.x, this.terrain.getHeight(entry.x, entry.z), entry.z), entry.heading);
+      a.hp = entry.hp;
+      a.bornAt = entry.bornAt;
+      a.readyAt = entry.readyAt;
+      a.provoked = a.bornAt === null && entry.provoked;
+      a.milkLeft = entry.milkLeft;
+      a.hasMilk = entry.hasMilk;
+      if (entry.stake) a.leash = { anchor: { ...entry.stake } };
+      const home = entry.slot === undefined ? undefined : this.population.slots[entry.slot];
+      if (home && home.kind === entry.species) {
+        a.habitat = entry.extra ? { ...home } : home;
+        a.habitat.occupied = true;
+      }
+      this.applyLifeScale(a);
+    }
   }
 
   /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围;
@@ -586,6 +686,11 @@ export class Wildlife implements Updatable {
       } else if (animal.species === 'crocodile' && animal.pond) {
         x = animal.pond.x + Math.cos(a) * rng() * animal.pond.radius * 0.7;
         z = animal.pond.z + Math.sin(a) * rng() * animal.pond.radius * 0.7;
+      } else if (animal.bornAt !== null && animal.habitat) {
+        const adults = this.lifecycle.members(this.animals, animal.habitat).filter(a => a.bornAt === null && !a.leash);
+        const adult = adults.sort((a, b) => a.pos.distanceToSquared(animal.pos) - b.pos.distanceToSquared(animal.pos))[0];
+        x = (adult?.pos.x ?? animal.pos.x) + Math.cos(a) * 2;
+        z = (adult?.pos.z ?? animal.pos.z) + Math.sin(a) * 2;
       } else {
         x = animal.pos.x + Math.cos(a) * d;
         z = animal.pos.z + Math.sin(a) * d;
@@ -618,9 +723,10 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  update(delta: number, elapsed: number): void {
+  update(delta: number, elapsed: number, calendar = this.lifecycle.now): void {
     this.dogThreats.length = 0;
     this.creatureFx.update(delta);
+    this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
@@ -644,7 +750,7 @@ export class Wildlife implements Updatable {
       const vulnerable = target ? this.isPlayerVulnerable(target) : false;
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
       // 激怒的野牛按狼的感知与攻击参数追击玩家;平时与草食动物一样见人就逃
-      const enraged = animal.species === 'bison' && animal.provoked;
+      const enraged = animal.species === 'bison' && animal.bornAt === null && animal.provoked;
       const combat = enraged ? BISON_ENRAGED : animal.config;
       const hostile = animal.config.damage > 0 || enraged;
       const bear = animal.species === 'bear';
@@ -666,6 +772,10 @@ export class Wildlife implements Updatable {
         animal.alerted = true;
       }
       const rushed = animal.alerted && vulnerable;
+      if (animal.breeding && !animal.alerted) {
+        this.animate(animal, delta, elapsed, false, false);
+        continue;
+      }
       if (rushed && hostile && target) {
         this.onPlayerThreat?.(target);
         this.dogThreats.push({ id: animal.id, pos: animal.pos, player: target });
@@ -831,6 +941,10 @@ export class Wildlife implements Updatable {
 
       this.animate(animal, delta, elapsed, moving, rushed);
     }
+    this.lifecycle.update(delta, calendar, this.animals, parent => this.birthNear(parent), animal => {
+      animal.hp = Math.min(animal.config.hp, animal.hp * 2);
+      this.applyLifeScale(animal);
+    });
   }
 
   /** 注入兔子洞来源(洞系统构造完成后由游戏侧接线) */
@@ -861,7 +975,7 @@ export class Wildlife implements Updatable {
     if ('anchor' in leash) {
       // 拴在桩上才开始攒奶:计时归零产出一份,取走后重新计时
       if (!animal.hasMilk) {
-        animal.milkLeft -= delta;
+        if (animal.bornAt === null) animal.milkLeft -= delta;
         if (animal.milkLeft <= 0) animal.hasMilk = true;
       }
       if (animal.idleTime > 0) {
@@ -889,6 +1003,7 @@ export class Wildlife implements Updatable {
     if (this.leashedBy(holder)) return false;
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || animal.hidden || animal.leash || animal.species !== 'sheep') return false;
+    this.lifecycle.cancel(animal);
     animal.leash = { holder };
     animal.alerted = false;
     animal.idleTime = 0;
@@ -1111,6 +1226,7 @@ export class Wildlife implements Updatable {
   private animate(animal: Animal, delta: number, elapsed: number, moving: boolean, excited: boolean): void {
     const g = animal.model.group;
     g.position.copy(animal.pos);
+    this.applyLifeScale(animal);
     // 有奶的羊头顶浮起奶瓶图标(无背景 Sprite,轻微起伏)
     if (animal.milkIcon) {
       animal.milkIcon.visible = animal.hasMilk;
@@ -1287,7 +1403,7 @@ export class Wildlife implements Updatable {
     pos: THREE.Vector3,
     range: number,
     damage = 1
-  ): { species: AnimalSpecies } | 'hit' | null {
+  ): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
@@ -1303,7 +1419,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子与被拴住的羊不可命中 */
-  damage(id: number, damage: number): { species: AnimalSpecies } | 'hit' | null {
+  damage(id: number, damage: number): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || animal.hidden || animal.leash) return null;
     return this.applyDamage(animal, damage);
@@ -1322,7 +1438,7 @@ export class Wildlife implements Updatable {
     const result = this.applyDamage(animal, damage);
     if (!result) return false;
     if (result !== 'hit') {
-      this.onDogKill(result.species, animal.pos.clone(), threat.player);
+      this.onDogKill(result.species, animal.pos.clone(), threat.player, result.juvenile);
     } else if (knockback > 0) {
       const scale = animal.species === 'bear' || animal.species === 'bison' || animal.species === 'crocodile' ? 0.45 : 1;
       const awayX = Math.hypot(dx, dz) > 0.01 ? dx : animal.pos.x - threat.player.group.position.x;
@@ -1359,8 +1475,9 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies } | 'hit' | null {
+  private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     if (!Number.isFinite(damage) || damage <= 0) return null;
+    this.lifecycle.cancel(animal);
     animal.hp -= damage;
     this.onDamage(damage, animal.pos, animal.id);
     if (animal.species === 'sheep' || animal.species === 'bison') {
@@ -1371,7 +1488,7 @@ export class Wildlife implements Updatable {
       this.onHit(animal.id);
       // 主动攻击生物受伤后立刻警戒；野牛被打到半血转为激怒反扑；熊还会进入暴怒状态。
       if (animal.config.damage > 0 || animal.provoked) animal.alerted = true;
-      if (animal.species === 'bison' && animal.hp <= animal.config.hp * BISON_ENRAGE_HP) {
+      if (animal.species === 'bison' && animal.bornAt === null && animal.hp <= animal.config.hp * BISON_ENRAGE_HP) {
         animal.provoked = true;
         animal.alerted = true;
       }
@@ -1385,11 +1502,13 @@ export class Wildlife implements Updatable {
     animal.alive = false;
     this.population.release(animal.habitat);
     this.creatureFx.playDeath(animal.model.group, undefined, () => this.removeAnimal(animal));
-    return { species };
+    animal.breeding = false;
+    return { species, juvenile: animal.bornAt !== null };
   }
 
   /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书);局外养成剥取加成最后改写 */
-  lootOf(species: AnimalSpecies): AnimalLoot {
+  lootOf(species: AnimalSpecies, juvenile = false): AnimalLoot {
+    if (juvenile) return [{ kind: 'gameMeat', count: 1 }, { kind: 'fur', count: 1 }];
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
     // 雪之馈赠:冬季皮厚膘肥,兽肉与兽皮各多 1 份
     if (this.snowBlessed) {
@@ -1503,7 +1622,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏;leash 同步羊被牵/被拴,恒定携带 null 以便差分清空) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; milk: boolean; species: AnimalSpecies }[] {
+  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; milk: boolean; species: AnimalSpecies; juvenile: boolean; breeding: boolean }[] {
     return this.animals.map((a) => {
       let leash: LeashPose | null = null;
       if (a.leash && 'anchor' in a.leash) {
@@ -1521,6 +1640,7 @@ export class Wildlife implements Updatable {
         leash,
         milk: a.hasMilk,
         species: a.species,
+        juvenile: a.bornAt !== null, breeding: a.breeding,
       };
     });
   }
@@ -1542,7 +1662,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏/拴绳状态同步;未知 id 且带物种时新建(GM 生成) */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies }[]): void {
+  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies; juvenile?: boolean; breeding?: boolean }[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -1557,6 +1677,9 @@ export class Wildlife implements Updatable {
       a.hidden = !!p.hidden;
       a.netLeash = p.leash ?? null;
       a.hasMilk = !!p.milk;
+      a.bornAt = p.juvenile ? 0 : null;
+      a.breeding = !!p.breeding;
+      this.applyLifeScale(a);
       if (!wasAlive || a.pos.distanceToSquared(a.netPos) > 64) {
         a.pos.copy(a.netPos);
         a.heading = p.h;
@@ -1588,6 +1711,9 @@ export class Wildlife implements Updatable {
       animal.hidden = !!p.hidden;
       animal.netLeash = p.leash ?? null;
       animal.hasMilk = !!p.milk;
+      animal.bornAt = p.juvenile ? 0 : null;
+      animal.breeding = !!p.breeding;
+      this.applyLifeScale(animal);
       animal.model.group.visible = !animal.hidden;
     }
   }

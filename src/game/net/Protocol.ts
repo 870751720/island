@@ -10,7 +10,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 35;
+export const NET_PROTOCOL_VERSION = 36;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -43,7 +43,7 @@ export type PlayerState = {
 };
 
 /** 一只动物的实时姿态(快照用);species 供客人端新建房主运行时生成的动物;hidden 表示兔子躲进洞里;leash 表示羊被牵着(by)或拴在桩上(stake),null 表示未被拴(恒定携带以便差分清空) */
-export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies };
+export type AnimalPose = { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; juvenile?: boolean; breeding?: boolean; species?: AnimalSpecies };
 
 export type AmbientPose = {
   id: number;
