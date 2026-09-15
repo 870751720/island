@@ -5,13 +5,19 @@ import { LANDMARKS, type LandmarkKind } from '@/game/world/landmarks/LandmarkDef
 import type { LandmarkPreviewScene } from '@/game/world/landmarks/preview/LandmarkPreviewScene';
 import styles from './preview.module.css';
 
-const descriptions: Partial<Record<LandmarkKind, string>> = {
-  village: '开放聚落 · 中央火堆 · 农田与生产分区',
-  seaRuin: '阶梯形回廊 · 正面开口 · 海神像',
-  harvestRuin: '四片田圃 · 中央步道 · 蜂巢神龛',
-  healingRuin: '疏落环形石阵 · 中央水晶 · 安静留白',
-  rainRuin: '四角石墙 · 十字通道 · 雨神祭坛',
-  incenseRuin: '木围栏防线 · 狭窄入口 · 防鳄熏香',
+const descriptions: Record<LandmarkKind, string> = {
+  camp: '残火堆小营 · 短挡风栏 · 单顶一级帐篷',
+  fishing: '条形作业面 · 长晾网栏 · 单顶一级帐篷',
+  farm: '双色田垄 · 偏置生活角 · 单顶一级帐篷',
+  hunter: '错位挡栏 · 折线入口 · 单顶一级帐篷',
+  workshop: 'L 形石墙 · 紧凑工作区 · 单顶一级帐篷',
+  brewery: '酿酒桶与麦圃 · 半围合小院 · 单顶一级帐篷',
+  village: '弯曲生活街巷 · 集中作业区 · 单顶一级帐篷',
+  seaRuin: '三叉戟石脊 · 侧面断口 · 海神像',
+  harvestRuin: '金色麦田后景 · 矮作物前景 · 收获通道',
+  healingRuin: '八边水晶内院 · 断墙 · 中央留白',
+  rainRuin: '层叠短墙 · 收窄仪式中轴 · 雨神祭坛',
+  incenseRuin: '后侧石龛 · 双翼木防线 · 守门熏香',
 };
 
 export function LandmarkPreview() {
@@ -42,7 +48,7 @@ export function LandmarkPreview() {
       <select aria-label="预览地点" value={kind} onChange={e => setKind(e.target.value as LandmarkKind)}>
         {LANDMARKS.map(item => <option key={item.kind} value={item.kind}>{item.name}</option>)}
       </select>
-      <p className={styles.description}>{descriptions[kind] ?? '生活小院 · 帐篷与专业设施'}</p>
+      <p className={styles.description}>{descriptions[kind]}</p>
     </header>
     <div className={styles.viewport}>
       <div ref={mount} className={styles.canvas} />

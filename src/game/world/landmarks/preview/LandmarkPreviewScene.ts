@@ -27,7 +27,7 @@ export class LandmarkPreviewScene {
 
   constructor(private container: HTMLElement, kind: LandmarkKind, seed: number) {
     const blueprint = landmarkBlueprint(kind, seededRandom(seed));
-    this.span = kind === 'village' ? 14 : 10;
+    this.span = kind === 'village' ? 10 : 8;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

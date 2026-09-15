@@ -1,3 +1,6 @@
+import { LandmarkBuilder } from './LandmarkBuilder';
+import { buildSettlement } from './SettlementLayouts';
+import { buildRuin } from './RuinLayouts';
 import type { ResourceKind, InventorySlot } from '../../systems/Inventory';
 import type { CropKind } from '../../entities/Crop';
 import type { ShrineKind } from '../../entities/Shrine';
@@ -44,117 +47,9 @@ export type LandmarkPart = {
 };
 export type LandmarkBlueprint = { kind: LandmarkKind; radius: number; parts: LandmarkPart[] };
 
-/** 固定生活布局搭配随机作物和物资；一米围栏闭合成院，正面留两米门带。 */
+/** 正式生成与预览共用模板；床数量及等级由构建器统一约束。 */
 export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): LandmarkBlueprint {
-  const parts: LandmarkPart[] = [];
-  const add = (type: PartKind, x: number, z: number, extra: Partial<LandmarkPart> = {}) => parts.push({ type, x, z, ...extra });
-  const loot = (...items: [ResourceKind, number][]): InventorySlot[] => items.map(([kind, count]) => ({ kind, count }));
-  const enclosure = (x: number, z: number, stone = false) => {
-    for (let offset = -6; offset <= 6; offset++) {
-      add('fence', x + offset, z - 6, { stone });
-      // 门自带两个端柱，中间不放围栏，防止横杆封住入口。
-      if (Math.abs(offset) > 1) add('fence', x + offset, z + 6, { stone });
-      if (offset > -6 && offset < 6) {
-        add('fence', x - 6, z + offset, { stone });
-        add('fence', x + 6, z + offset, { stone });
-      }
-    }
-    add('gate', x - 1, z + 6);
-  };
-  const garden = (x: number, z: number) => {
-    const crops: CropKind[] = ['carrot', 'wheat', 'potato', 'corn'];
-    const crop = crops[Math.floor(rng() * crops.length)];
-    for (let dx = 0; dx < 3; dx++) for (let dz = 0; dz < 2; dz++) add('crop', x + dx, z + dz, { crop });
-  };
-  const yard = (x: number, z: number, role: LandmarkKind) => {
-    add('bed', x - 3, z - 3, { level: rng() < 0.2 ? 2 : 1 });
-    add('fire', x, z);
-    let contents = loot(['wood', 3], ['rope', 1], ['cookedBerry', 2]);
-    if (role === 'fishing') {
-      add('bait', x + 3, z - 3);
-      contents = loot(['bait', 5], ['sardine', 2], ['cola', 1]);
-    } else if (role === 'farm') {
-      garden(x + 2, z - 4);
-      contents = loot(['wheatSeed', 2], ['carrotSeed', 2], ['bread', 1]);
-    } else if (role === 'hunter') {
-      contents = loot(['fur', 2], ['arrow', 8], ['cookedGameMeat', 1]);
-      if (rng() < 0.15) contents.push({ kind: 'adventureBook', count: 1 });
-    } else if (role === 'workshop') {
-      add('bench', x + 3, z - 3, { level: 1 });
-      const smelt = rng() < 0.5;
-      add(smelt ? 'smelter' : 'loom', x + 3, z + 1);
-      contents = smelt ? loot(['ironOre', 3], ['flint', 2]) : loot(['rope', 3], ['cloth', 1]);
-    } else if (role === 'brewery') {
-      add('brew', x + 3, z - 3);
-      contents = loot(['fruitFruit', 3], ['berry', 3], ['wineBerry', 1]);
-    }
-    add('crate', x - 3, z + 2, { loot: contents });
-    enclosure(x, z);
-    add('torch', x + 5, z + 4);
-  };
-  if (kind === 'village') {
-    // 开放公共空地，帐篷后退，生产与农田分区。
-    add('bed', -7, -5, { level: 1 });
-    add('bed', 1, -8, { level: 2 });
-    add('bed', 8, -3, { level: 1 });
-    add('fire', 0, 0);
-    add('bench', -6, 2, { level: 1 });
-    add('loom', -8, 5);
-    add('bait', 8, 2);
-    add('brew', 6, 5);
-    garden(-3, 6); garden(1, 6);
-    add('crate', -6, -2, { loot: loot(['wood', 3], ['rope', 2]) });
-    add('crate', 9, 5, { loot: loot(['bait', 5], ['sardine', 2]) });
-    for (const x of [-5, 5]) add('torch', x, 1);
-    return { kind, radius: 22, parts };
-  }
-  const shrineKinds: Partial<Record<LandmarkKind, ShrineKind>> = {
-    seaRuin: 'poseidonBlessing', harvestRuin: 'beehiveShrine', healingRuin: 'healCrystal',
-    rainRuin: 'rainAltar', incenseRuin: 'crocIncense',
-  };
-  const shrine = shrineKinds[kind];
-  if (shrine) {
-    add('shrine', 0, -2, { shrine });
-    const line = (x: number, z: number, dx: number, dz: number, count: number, stone = true) => {
-      for (let i = 0; i < count; i++) add('fence', x + dx * i, z + dz * i, { stone });
-    };
-    if (kind === 'seaRuin') {
-      // 向正面敞开的阶梯形回廊。
-      line(-3, -6, 1, 0, 7);
-      line(-4, -5, 0, 1, 3); line(4, -5, 0, 1, 3);
-      line(-6, -2, 0, 1, 5); line(6, -2, 0, 1, 5);
-      add('torch', -4, 3); add('torch', 4, 3);
-      add('crate', 4, 0, { loot: loot(['stone', 3], ['flint', 2]) });
-    } else if (kind === 'harvestRuin') {
-      garden(-5, -4); garden(3, -4); garden(-5, 1); garden(3, 1);
-      line(-6, -6, 1, 0, 13);
-      line(-6, -5, 0, 1, 4); line(6, -5, 0, 1, 4);
-      add('torch', -2, 4); add('torch', 2, 4);
-      add('crate', 0, -5, { loot: loot(['stone', 3], ['flint', 2]) });
-    } else if (kind === 'healingRuin') {
-      for (const [x, z] of [[-4,-4],[-2,-6],[0,-7],[2,-6],[4,-4],[5,-2],[-5,-2],[-4,1],[4,1]]) {
-        add('fence', x, z, { stone: true });
-      }
-      add('torch', -2, 2); add('torch', 2, 2);
-      add('crate', 3, -3, { loot: loot(['stone', 3], ['flint', 2]) });
-    } else if (kind === 'rainRuin') {
-      // 四组折角留出十字通道，祭坛沿用真实可交互模型。
-      for (const sign of [-1, 1]) {
-        line(sign * 2, -5, sign, 0, 4); line(sign * 5, -4, 0, 1, 2);
-        line(sign * 2, 4, sign, 0, 4); line(sign * 5, 1, 0, 1, 3);
-      }
-      add('torch', -2, 0); add('torch', 2, 0);
-      add('crate', 4, -4, { loot: loot(['stone', 3], ['flint', 2]) });
-    } else {
-      line(-4, -6, 1, 0, 9, false);
-      line(-4, -5, 0, 1, 10, false); line(4, -5, 0, 1, 10, false);
-      line(-4, 5, 1, 0, 3, false); line(2, 5, 1, 0, 3, false);
-      add('gate', -1, 5);
-      add('torch', -2, 3); add('torch', 2, 3);
-      add('crate', -2, -4, { loot: loot(['stone', 3], ['flint', 2]) });
-    }
-    return { kind, radius: 10, parts };
-  }
-  yard(0, 0, kind);
-  return { kind, radius: 10, parts };
+  const builder = new LandmarkBuilder(rng);
+  if (!buildRuin(kind, builder)) buildSettlement(kind, builder);
+  return { kind, radius: kind === 'village' ? 12 : 10, parts: builder.parts };
 }
