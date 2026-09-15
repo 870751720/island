@@ -1,3 +1,4 @@
+import type { GameMode } from '../GameMode';
 import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { SaveData, SessionSave } from '../systems/SaveSystem';
@@ -49,6 +50,7 @@ type Resumable = { save: SessionSave; name: string; expires: number };
 export class NetHost {
   terrainSeed: number;
   initialSave: SaveData | null = null;
+  gameMode: GameMode = 'leisure';
   private guests: Guest[] = [];
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -70,6 +72,7 @@ export class NetHost {
 
   useSavedWorld(save: SaveData | null): void {
     this.initialSave = save;
+    if (save) this.gameMode = save.gameMode ?? 'survival';
     if (save) {
       this.terrainSeed = save.terrainSeed;
     }

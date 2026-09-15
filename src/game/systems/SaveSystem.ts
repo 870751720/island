@@ -69,6 +69,7 @@ export type PlacementSave = { id?: string; x: number; y: number; z: number; rotY
 
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {
+  gameMode?: import('../GameMode').GameMode;
   quests?: QuestSave;
   version: number;
   id: string;

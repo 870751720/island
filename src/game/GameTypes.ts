@@ -1,3 +1,4 @@
+import type { GameMode } from './GameMode';
 import type { HandTool } from './entities/Player';
 import type { NetGuest } from './net/NetGuest';
 import type { NetHost } from './net/NetHost';
@@ -10,6 +11,7 @@ export type GameOptions = {
   guest?: NetGuest;
   seeds?: { terrainSeed: number };
   save?: SaveData | null;
+  gameMode?: GameMode;
 };
 
 import type { FacilityKind } from './systems/Facilities';

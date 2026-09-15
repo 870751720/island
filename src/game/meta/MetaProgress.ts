@@ -50,7 +50,8 @@ function persist(): void {
 }
 
 /** 生存天数折算传承点:超过 2 天才开始结算,每天 10 点 */
-export function legacyPointsForDay(day: number): number {
+export function legacyPointsForDay(day: number, mode: import('../GameMode').GameMode = 'survival'): number {
+  if (mode === 'leisure') return 0;
   return day > 2 ? day * 10 : 0;
 }
 

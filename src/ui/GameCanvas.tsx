@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { StartScreen, type StartMode, type MultiplayerRole } from './StartScreen';
+import { type GameMode } from '@/game/GameMode';
 import { RoomLobby } from './RoomLobby';
 import { GameplayUI } from './GameplayUI';
+import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
@@ -14,6 +16,7 @@ type Phase = 'start' | 'host' | 'guest' | 'playing';
 /** 阶段路由:开始界面 / 联机大厅 / 游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
   const multiplayerEnabled = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1';
+  const [gameMode, setGameMode] = useState<GameMode>('leisure');
   const [phase, setPhase] = useState<Phase>('start');
   const [host, setHost] = useState<NetHost | null>(null);
   const [guest, setGuest] = useState<NetGuest | null>(null);
@@ -31,9 +34,12 @@ export function GameCanvas() {
     setPhase('guest');
   }, []);
 
-  const start = (mode: StartMode) => {
+  const start = (mode: StartMode, selectedMode: GameMode) => {
+    setGameMode(selectedMode);
     setNotice('');
     if (mode === 'new') {
+      const previous = SaveSystem.load();
+      if (previous) MetaProgress.grant(legacyPointsForDay(previous.day, previous.gameMode));
       SaveSystem.clear();
       setSinglePlayerSave(null);
     } else {
@@ -65,6 +71,7 @@ export function GameCanvas() {
       <GameplayUI
         net={{ host: host ?? undefined, guest: guest ?? undefined }}
         initialSave={singlePlayerSave}
+        gameMode={gameMode}
         onExit={exit}
         onBecomeHost={setHost}
         multiplayerEnabled={multiplayerEnabled}
@@ -75,6 +82,7 @@ export function GameCanvas() {
     return (
       <RoomLobby
         mode="host"
+        initialGameMode={gameMode}
         onBegin={(net) => {
           setHost(net as NetHost);
           setPhase('playing');
@@ -106,7 +114,8 @@ export function GameCanvas() {
   return (
     <StartScreen
       onStart={start}
-      onMultiplayer={(role: MultiplayerRole) => {
+      onMultiplayer={(role: MultiplayerRole, selectedMode: GameMode) => {
+        setGameMode(selectedMode);
         if (!multiplayerEnabled) return;
         setNotice('');
         setPhase(role);

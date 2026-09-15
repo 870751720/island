@@ -11,11 +11,14 @@ import { MenuIcon } from './start/MenuIcon';
 import { ProfileSetup } from './ProfileSetup';
 import { buttonAudio } from './start/buttonAudio';
 import { playUiSound } from '@/game/audio/UiAudio';
+import { loadGameMode, rememberGameMode, GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
+import { ModeSelector } from './start/ModeSelector';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 
 /** 自动信令大厅：房主分享五位数字码或二维码，客人输入昵称即可直接连接。 */
 export function RoomLobby({
   mode,
+  initialGameMode,
   initialRoomCode = '',
   initialStatus = '',
   onBegin,
@@ -23,10 +26,12 @@ export function RoomLobby({
 }: {
   mode: 'host' | 'guest';
   initialRoomCode?: string;
+  initialGameMode?: GameMode;
   initialStatus?: string;
   onBegin: (net: NetHost | NetGuest) => void;
   onBack: () => void;
 }) {
+  const [gameMode, setGameMode] = useState<GameMode>(initialGameMode ?? loadGameMode);
   const [host] = useState(() => (mode === 'host' ? new NetHost() : null));
   const [guest] = useState(() => (mode === 'guest' ? new NetGuest() : null));
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -83,6 +88,7 @@ export function RoomLobby({
     setBusy(true);
     setStatus('正在创建房间…');
     try {
+      host.gameMode = gameMode;
       host.useSavedWorld(resume ? SaveSystem.load() : null);
       setRoomCode(await host.createRoom());
       setStatus('房间已创建，朋友扫码或输入房间码即可加入');
@@ -139,6 +145,7 @@ export function RoomLobby({
                   <span>继续上次保存的岛和队友进度</span>
                 </label>
               )}
+              {!resume && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">{gameMode === 'leisure' ? '悠然模式无法获得荒岛传承点。' : '求生模式可按生存天数获得荒岛传承点。'}开局后无法切换。</p></>}
               <button className="room-button" data-ui-sound="manual" disabled={busy} onClick={createRoom}>
                 {busy ? '正在创建…' : '创建免费房间'}
               </button>
@@ -146,7 +153,7 @@ export function RoomLobby({
           ) : (
             <>
               <div className="room-code-card">
-                <span className="form-eyebrow">登岛口令 · 房间码</span>
+                <span className="form-eyebrow">登岛口令 · {GAME_MODE_LABELS[host?.gameMode ?? gameMode]} · 房间码</span>
                 <strong>{roomCode}</strong>
                 {qr && <img className="room-qr" src={qr} alt={`房间 ${roomCode} 的邀请二维码`} />}
                 <small>朋友扫码后输入昵称即可加入</small>

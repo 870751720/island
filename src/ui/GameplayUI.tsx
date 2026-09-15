@@ -1,4 +1,5 @@
 'use client';
+import type { GameMode } from '@/game/GameMode';
 import { gameButtonClickAudio, gameButtonPointerAudio } from './gameButtonAudio';
 
 import type { PickerPress } from './usePickerDrag';
@@ -64,6 +65,7 @@ import { IslandArrival } from './start/IslandArrival';
 export function GameplayUI({
   net,
   initialSave,
+  gameMode,
   onExit,
   onBecomeHost,
   multiplayerEnabled = true,
@@ -72,6 +74,7 @@ export function GameplayUI({
   net?: { host?: NetHost; guest?: NetGuest };
   /** 单机启动时已锁定的存档:null 表示明确开新档,不允许 Game 再读取 localStorage */
   initialSave?: SaveData | null;
+  gameMode?: GameMode;
   onExit: () => void;
   /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
   onBecomeHost: (host: NetHost) => void;
@@ -92,7 +95,7 @@ export function GameplayUI({
     damagePops,
     bottleMsg,
     setBottleMsg,
-  } = useGameLifecycle({ net, initialSave });
+  } = useGameLifecycle({ net, initialSave, gameMode });
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [pickerPress, setPickerPress] = useState<PickerPress | null>(null);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);

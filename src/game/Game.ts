@@ -131,6 +131,7 @@ import {
   IDLE_HIDE_DELAY, MULTIPLAYER_RESPAWN_DELAY, PLANT_DROP_KINDS,
   SWORD_AUTO_EQUIP_DELAY, SWORD_AUTO_EQUIP_RANGE, TETHER_RANGE, VIEW_SIZE,
 } from './GameConfig';
+import type { GameMode } from './GameMode';
 import type { GameOptions, InteractionKind } from './GameTypes';
 import { PickupPresentation } from './presentation/PickupPresentation';
 import { listPlaceables, nextToolEntry } from './systems/ToolCycle';
@@ -342,6 +343,7 @@ export class Game {
   private worldReplication: WorldReplicationController;
   private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
+  readonly gameMode: GameMode;
   /** 客人自己在房主侧的稳定玩家标识。 */
   private readonly youId: string | null;
   private activeNetActor: PlayerSession | null = null;
@@ -399,6 +401,7 @@ export class Game {
       : options.save !== undefined
         ? options.save
         : SaveSystem.load();
+    this.gameMode = save ? (save.gameMode ?? 'survival') : this.guestMode ? 'survival' : (options.gameMode ?? 'leisure');
     FirstDeathBlessing.initialize(!!save || !!SaveSystem.load());
     // 在天气、地形与角色初始化前确定本局季节,避免沿用上一局状态。
     if (save) setSeason(save.season ?? 'spring', save.seasonStartDay ?? 1);
@@ -1307,11 +1310,11 @@ export class Game {
               this.drops.dropAt('lasso', 1, led.x, led.z);
             }
             // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
-            const firstDeathBlessing = !this.hostRef && !this.guestMode && s === this.local
+            const firstDeathBlessing = this.gameMode === 'survival' && !this.hostRef && !this.guestMode && s === this.local
               && FirstDeathBlessing.consume();
             if (firstDeathBlessing || this.guestMode || !this.tryReviveWithStone(s)) {
               s.player.setDead();
-              if (this.hostRef) {
+              if (this.hostRef || (!this.guestMode && this.gameMode === 'leisure')) {
                 this.dropDeathLoot(s);
                 s.respawnLeft = MULTIPLAYER_RESPAWN_DELAY;
                 this.sysNotify(`${s.name} 倒下了`);
@@ -1322,7 +1325,7 @@ export class Game {
                 this.setJoystick(0, 0);
                 // 单机死亡:新手宽容期内可能触发波塞冬的庇佑(倒计时后免清档复活);
                 // 否则先结算战绩供死亡界面分享,再清档。联机玩家由房主在倒计时结束后重生。
-                if (!this.hostRef && !this.guestMode) {
+                if (!this.hostRef && !this.guestMode && this.gameMode === 'survival') {
                   if (firstDeathBlessing || (!this.poseidonGraceUsed && this.dayNight.day <= POSEIDON_GRACE_DAYS && Math.random() < POSEIDON_GRACE_CHANCE)) {
                     this.poseidonGrace = true;
                     this.poseidonGraceUsed = true;
@@ -2089,6 +2092,7 @@ export class Game {
         ...(forNetwork ? [] : this.savedRemoteSessions),
       ],
       version: SAVE_VERSION,
+      gameMode: this.gameMode,
       terrainSeed: this.terrainSeed,
       ...snapshotWorld(this.worldSaveSystems),
       poseidonGraceUsed: this.poseidonGraceUsed,
@@ -2592,7 +2596,7 @@ export class Game {
     s.dead = false;
   }
 
-  /** 房主权威执行联机重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
+  /** 联机与悠然共用权威重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
   private respawnMultiplayerSession(session: PlayerSession): void {
     session.inventory.reset();
     session.equipment.reset();
@@ -3705,7 +3709,7 @@ export class Game {
     const poseidonGrace = this.poseidonGrace && s === this.local;
     return this.hudSnapshotBuilder.build(s, busy, {
       autoEquipTimer: this.autoEquipTimer,
-      respawnEnabled: !!this.hostRef || poseidonGrace,
+      respawnEnabled: !!this.hostRef || this.gameMode === 'leisure' || poseidonGrace,
       poseidonGrace,
       collectTreasure: this.collectTreasure,
       dog: { stage: this.dog.growth.config.stage, xp: this.dog.growth.xp },

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { IslandTree, IslandBerryBush } from './IslandScenery';
+import { IslandTentEgg, IslandSeaEgg, IslandFireEgg } from './IslandEggs';
 import { IslandFisher } from './IslandFisher';
 /** 纯 SVG 菜单插画，不创建游戏世界或额外 WebGL 上下文。 */
 export function IslandScene({ paused }: { paused: boolean }) {
@@ -12,7 +13,7 @@ export function IslandScene({ paused }: { paused: boolean }) {
     return () => document.removeEventListener('visibilitychange', update);
   }, []);
   return (
-    <svg className="menu-island" data-paused={paused || hidden} focusable="false" viewBox="0 0 380 245" aria-hidden="true">
+    <svg className="menu-island" data-paused={paused || hidden} viewBox="0 0 380 245" role="group" aria-label="海岛小景">
       <circle className="sun" cx="310" cy="40" r="15" fill="#fff2cd" opacity=".8" />
       <g className="water" fill="none" stroke="#eef5d7" strokeWidth="2">
         <ellipse className="wave" cx="190" cy="186" rx="167" ry="44" opacity=".5" />
@@ -43,13 +44,14 @@ export function IslandScene({ paused }: { paused: boolean }) {
         </g>
         <IslandBerryBush />
         <path d="m214 180 20-7m-20 0 20 7" stroke="#846046" strokeWidth="5" strokeLinecap="round" />
-        <path className="flame" d="M216 175Q210 166 224 152Q222 162 231 163Q239 176 224 180Z" fill="#eca44e" />
-        <path className="flame" d="M220 176Q218 169 225 164Q234 177 224 178Z" fill="#ffe4a0" />
       </g>
       <g className="birds" fill="none" stroke="#537b69" strokeWidth="2" strokeLinecap="round">
         <path d="M57 56q6-5 12 1 6-6 12-2M243 32q4-4 8 0 4-4 8-1" />
       </g>
       <IslandFisher />
+      <IslandTentEgg />
+      <IslandFireEgg />
+      <IslandSeaEgg />
     </svg>
   );
 }

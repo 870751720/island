@@ -24,7 +24,7 @@ export function buildDeathReport(
     save.beds.length +
     save.shrines.length +
     save.stakes.length;
-  const legacyPoints = legacyPointsForDay(save.day);
+  const legacyPoints = legacyPointsForDay(save.day, save.gameMode);
   if (legacyPoints > 0) MetaProgress.grant(legacyPoints);
   return {
     day: save.day,

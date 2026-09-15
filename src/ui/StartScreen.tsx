@@ -1,14 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { loadGameMode, rememberGameMode, type GameMode } from '@/game/GameMode';
+import { NewGameDialog } from './start/NewGameDialog';
+import { ModeSelector } from './start/ModeSelector';
 import { MenuIcon } from './start/MenuIcon';
 import { useMenuAudio } from './start/useMenuAudio';
 import { buttonAudio } from './start/buttonAudio';
 import { playUiSound } from '@/game/audio/UiAudio';
 import { startScreenCss } from './start/styles';
+import { attachMenuEggs, menuEggCss } from './start/menuEggs';
+import { IslandTitleEgg } from './start/IslandEggs';
 import { IslandScene } from './start/IslandScene';
 import { SaveSystem, type SaveData } from '@/game/systems/SaveSystem';
-import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
+import { MetaProgress } from '@/game/meta/MetaProgress';
 import { META_TREE } from '@/game/meta/MetaTree';
 import { MetaPanel } from './MetaPanel';
 import { ProfileSetup } from './ProfileSetup';
@@ -31,14 +36,18 @@ export function StartScreen({
   notice,
   multiplayerEnabled = true,
 }: {
-  onStart: (mode: StartMode) => void;
-  onMultiplayer: (role: MultiplayerRole) => void;
+  onStart: (mode: StartMode, gameMode: GameMode) => void;
+  onMultiplayer: (role: MultiplayerRole, gameMode: GameMode) => void;
   notice?: string;
   /** 小红书离线渠道关闭创建/加入房间入口，保留其余开始界面与单机流程。 */
   multiplayerEnabled?: boolean;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => rootRef.current ? attachMenuEggs(rootRef.current) : undefined, []);
   const [savedGame] = useState(() => SaveSystem.load());
   const hasSave = !!savedGame;
+  const [gameMode, setGameMode] = useState<GameMode>('leisure');
+  const selectMode = (mode: GameMode) => { setGameMode(mode); rememberGameMode(mode); };
   const audio = useMenuAudio();
   const [legacy] = useState(hasLegacy);
   const [showMeta, setShowMeta] = useState(false);
@@ -46,18 +55,19 @@ export function StartScreen({
   /** 设置弹窗打开时暂存的待开始方式:首次设置完成后无缝接着进入游戏 */
   const [pendingStart, setPendingStart] = useState<StartMode | null>(null);
   const [showSetup, setShowSetup] = useState(false);
-  /** 待确认的放弃本局结算数据(开新档且旧档超过 2 天时弹确认) */
-  const [abandoning, setAbandoning] = useState<{ save: SaveData; points: number } | null>(null);
+  /** 新档确认期间不修改现有存档或发放传承点。 */
+  const [newGameSave, setNewGameSave] = useState<{ save: SaveData | null } | null>(null);
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,水合前不渲染按钮只显示加载提示
   const [ready, setReady] = useState(false);
   useEffect(() => {
     setReady(true);
+    setGameMode(loadGameMode());
     setProfile(loadProfile());
   }, []);
 
   /** 首次开始游戏前必须先设置昵称与性别;已设置过则直接进入 */
   const requestStart = (mode: StartMode) => {
-    if (profile) onStart(mode);
+    if (profile) onStart(mode, gameMode);
     else {
       setPendingStart(mode);
       setShowSetup(true);
@@ -65,30 +75,15 @@ export function StartScreen({
   };
 
   const startNew = () => {
-    playUiSound('confirm');
-    const save = SaveSystem.load();
-    const points = legacyPointsForDay(save?.day ?? 1);
-    // 旧档生存超过 2 天:重开前先确认,结算进荒岛传承
-    if (save && points > 0) {
-      setAbandoning({ save, points });
-      return;
-    }
-    requestStart('new');
-  };
-
-  const confirmAbandon = () => {
-    playUiSound('confirm');
-    MetaProgress.grant(abandoning!.points);
-    setAbandoning(null);
-    requestStart('new');
+    setNewGameSave({ save: SaveSystem.load() });
   };
 
   return (
-    <div className="start-screen" onPointerDownCapture={(event) => {
+    <div ref={rootRef} className="start-screen" onPointerDownCapture={(event) => {
       if (!(event.target as Element).closest('.menu-sound')) audio.unlock();
     }} onClickCapture={buttonAudio}>
-      <style>{startScreenCss}</style>
-      <div className="start-layout" inert={showMeta}>
+      <style>{startScreenCss}{menuEggCss}</style>
+      <div className="start-layout" inert={showMeta || showSetup || !!newGameSave}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
           {ready && <button className="menu-sound" data-ui-sound="manual" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
@@ -99,21 +94,22 @@ export function StartScreen({
         <main className="menu-content">
           <section className="menu-heading" aria-label="去你的岛">
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
-            <h1 className="start-title">去你的<span>岛</span>。</h1>
+            <h1 className="start-title">去你的<IslandTitleEgg />。</h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
-            <IslandScene paused={showMeta || showSetup || !!abandoning} />
+            <IslandScene paused={showMeta || showSetup || !!newGameSave} />
           </section>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}
             {ready ? <>
               <div className="menu-save-label"><span>{hasSave ? '你的岛，还在等你' : '下一站，自由'}</span><span>{hasSave ? `已生存 ${savedGame.day ?? 1} 天` : '采集 / 建造 / 生存'}</span></div>
-              <button className="start-button" data-ui-sound="manual" onClick={() => { playUiSound('confirm'); requestStart(hasSave ? 'continue' : 'new'); }}>
+              {!hasSave && <ModeSelector value={gameMode} onChange={selectMode} />}
+              <button className="start-button" data-ui-sound="manual" onClick={() => { playUiSound('confirm'); if (hasSave) requestStart('continue'); else startNew(); }}>
                 <span><strong>{hasSave ? '继续游戏' : '开始游戏'}</strong><small>{hasSave ? '回到熟悉的海风里' : '向着属于你的岛，出发'}</small></span><MenuIcon name="arrow" />
               </button>
               {multiplayerEnabled && (
                 <div className="start-mp">
-                  <button className="mp-button" onClick={() => onMultiplayer('host')}><MenuIcon name="flag" /><span>创建房间<small>邀朋友一起生存</small></span></button>
-                  <button className="mp-button" onClick={() => onMultiplayer('guest')}><MenuIcon name="people" /><span>加入房间<small>赴一场海岛之约</small></span></button>
+                  <button className="mp-button" onClick={() => onMultiplayer('host', gameMode)}><MenuIcon name="flag" /><span>创建房间<small>邀朋友一起生存</small></span></button>
+                  <button className="mp-button" onClick={() => onMultiplayer('guest', gameMode)}><MenuIcon name="people" /><span>加入房间<small>赴一场海岛之约</small></span></button>
                 </div>
               )}
               <div className="menu-utilities">
@@ -126,26 +122,12 @@ export function StartScreen({
         </main>
         <footer className="menu-footer"><span>慢慢生活，好好活着。</span><span>EXPLORE · CRAFT · SURVIVE</span></footer>
       </div>
-      {abandoning && (
-        <div className="abandon-mask">
-          <div className="abandon-panel" role="dialog" aria-modal="true" aria-labelledby="abandon-title">
-            <h3 className="abandon-title" id="abandon-title">放弃这座岛?</h3>
-            <p className="abandon-text">
-              本局已生存 {abandoning.save.day ?? 1} 天,重开将沉淀 {abandoning.points} 求生心得,
-              <br />
-              岛上的进度与物品都会消失。
-            </p>
-            <div className="abandon-actions">
-              <button className="abandon-cancel" onClick={() => setAbandoning(null)}>
-                再想想
-              </button>
-              <button className="abandon-confirm" data-ui-sound="manual" onClick={confirmAbandon}>
-                重新开始
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {newGameSave && <NewGameDialog save={newGameSave.save} value={gameMode} onChange={selectMode}
+        onCancel={() => setNewGameSave(null)} onConfirm={() => {
+          playUiSound('confirm');
+          setNewGameSave(null);
+          requestStart('new');
+        }} />}
       {showMeta && <MetaPanel onClose={() => setShowMeta(false)} onLearn={() => playUiSound('confirm')} />}
       {showSetup && (
         <ProfileSetup
@@ -159,7 +141,7 @@ export function StartScreen({
             const mode = pendingStart;
             setShowSetup(false);
             setPendingStart(null);
-            if (mode) onStart(mode);
+            if (mode) onStart(mode, gameMode);
           }}
           onCancel={() => setShowSetup(false)}
         />
