@@ -108,8 +108,11 @@ export function MapSurface({ snapshot, compact = false }: { snapshot: MapSnapsho
       {FACILITY_IMAGES.flatMap(({ source, label, href }) => snapshot[source].map((point, index) => {
         const anchor = anchored(point.x, point.z);
         if (compact) {
-          if (anchor.outside) return null;
-          return <circle key={`${source}-${index}`} cx={anchor.x} cy={anchor.z} r={1.5} fill="#765139" stroke="#fff4d6" strokeWidth={.6} />;
+          return (
+            <circle key={`${source}-${index}`} cx={anchor.x} cy={anchor.z} r={1.5} fill="#765139" stroke="#fff4d6" strokeWidth={.6} opacity={anchor.outside ? .7 : 1}>
+              <title>{label}</title>
+            </circle>
+          );
         }
         return (
           <g key={`${source}-${index}`} transform={`translate(${anchor.x} ${anchor.z})`} filter="url(#map-marker-shadow)" opacity={anchor.outside ? .55 : 1}>
