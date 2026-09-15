@@ -3,7 +3,8 @@ import { islandSceneCss } from './sceneStyles';
 
 export const startScreenCss = `
 .start-screen{${menuActionColors}${menuSurfaceColors}position:absolute;inset:0;overflow:auto;touch-action:pan-y;background:${menuBackdrop};color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;isolation:isolate}
-.start-screen *{box-sizing:border-box}
+.start-screen *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+.start-screen button:focus:not(:focus-visible){outline:none}
 .start-screen button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .16s,background .2s,box-shadow .16s}
 .start-screen button:active{transform:translateY(3px) scale(.98)}
 .start-screen button:focus-visible{outline:3px solid #416b86;outline-offset:4px}

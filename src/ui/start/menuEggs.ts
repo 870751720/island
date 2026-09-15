@@ -46,8 +46,10 @@ export function attachMenuEggs(root: HTMLElement): () => void {
 export const menuEggCss = `
 .menu-island[data-interactive=true]{pointer-events:auto}
 [data-egg]{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-[data-egg]:focus-visible{outline:2px solid #496e87;outline-offset:3px}
-.egg-hit{fill:transparent;stroke:none}.egg-leaf,.egg-spark,.egg-dog,.egg-ripple,.egg-bird{opacity:0;pointer-events:none}
+[data-egg]:focus{outline:none}
+[data-egg]:focus-visible{filter:drop-shadow(0 0 2px #fff9e4)}
+.egg-hit{fill:none;stroke:none;pointer-events:all}.egg-leaf,.egg-spark,.egg-dog,.egg-ripple,.egg-bird{opacity:0;pointer-events:none}
+[data-active] .egg-leaf,[data-active] .egg-spark,[data-active] .egg-dog,[data-active] .egg-ripple,[data-active] .egg-bird{visibility:visible}
 .egg-crown{transform-box:fill-box;transform-origin:50% 100%}
 .egg-leaf{transform-box:fill-box;transform-origin:center}
 [data-egg=tree][data-active] .egg-crown{animation:egg-sway .7s ease-in-out}
