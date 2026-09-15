@@ -94,28 +94,8 @@
   1. 等待本次 push 对应的 Actions run 结束并确认 `conclusion=success`(失败则停下排查并报告,不得谎称成功);
   2. 用 curl 确认 https://870751720.github.io/island/ 返回 200。
   两步全部通过后,才把该链接连同本次变更摘要一起交给用户。若超时或任一步失败,如实报告当前状态。
-- **标准验收命令(本机未装 gh,统一用 Python 轮询 GitHub API,按 commit SHA 定位 run、纯 JSON 解析,不要用 grep 解析 JSON、不要重复拉全量列表)**:push 后在仓库根目录执行(一条命令完成等待+验证,总超时约 5 分钟):
-
-  ```bash
-  cd D:/island && export SHA=$(git rev-parse HEAD) TOKEN=$(cat githubtoken.txt) && python - <<'EOF'
-  import json, os, sys, time, urllib.request
-
-  sha, token = os.environ["SHA"], os.environ["TOKEN"]
-  url = f"https://api.github.com/repos/870751720/island/actions/runs?head_sha={sha}&per_page=1"
-  deadline = time.time() + 300
-  while time.time() < deadline:
-      with urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": f"token {token}"})) as r:
-          runs = json.load(r)["workflow_runs"]
-      if runs and runs[0]["status"] == "completed":
-          print("conclusion:", runs[0]["conclusion"])
-          sys.exit(0 if runs[0]["conclusion"] == "success" else 1)
-      time.sleep(10)
-  print("timeout waiting for run of", sha); sys.exit(2)
-  EOF
-  curl -s -o /dev/null -w "http=%{http_code}" https://870751720.github.io/island/
-  ```
-
-  退出码非 0(部署失败或超时)时停下排查,不得继续报告成功。
+- **标准部署命令**：完成类型检查/构建并提交后，在仓库根目录执行 `npm run deploy`。脚本检查干净的 `main` 工作区，读取 `githubtoken.txt`，推送本次 SHA，按 SHA 等待 `deploy.yml` 的 Actions 成功，再用 curl 验证线上 HTTP 200。后续会话统一使用此命令，不再临时拼接推送与轮询脚本。需 Node 22.18+、Git 和 curl；详见 `docs/deployment.md`。
+- 命令非零退出（推送、API、Actions、超时或 HTTP 验证失败）时停下排查，如实报告，不能宣布部署成功。
 - 提交信息使用简洁的中文或英文祈使句均可。
 - **测试分工:改完代码不需要 ZCode 做运行时测试(不起 dev 服务器、不做浏览器冒烟测试),只需通过类型检查/构建即可。** 流程为:改码 → 类型检查/构建 → 提交 → push → 等 CI/CD 部署完成 → 把线上链接和变更摘要给用户,由用户自行测试。
 

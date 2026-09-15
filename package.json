@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deploy": "node scripts/deploy.mts",
     "build:packages": "npm run build:h5 && npm run build:xiaohongshu",
     "build:h5": "node scripts/build-h5.mjs",
     "build:xiaohongshu": "node scripts/build-xiaohongshu.mjs",
