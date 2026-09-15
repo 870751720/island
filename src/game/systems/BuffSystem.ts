@@ -25,8 +25,8 @@ export type BuffDef = {
 
 export const BUFFS: Record<BuffId, BuffDef> = {
   gravelPath: {
-    id: 'gravelPath', name: '碎石路加速', icon: '🪨',
-    description: '站在碎石小路上，移动速度提升 10%，离开路面立即失效。', good: true,
+    id: 'gravelPath', name: '步履轻快', icon: '🪨',
+    description: '碎石铺成的小路让脚步更轻快。在路上移动速度提升 10%，离开后恢复。', good: true,
   },
   poseidon: {
     id: 'poseidon',

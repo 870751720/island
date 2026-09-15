@@ -57,7 +57,7 @@ import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine } from './entities/Shrine';
 import { GravelPathSystem } from './systems/GravelPathSystem';
-import { GravelPath } from './entities/GravelPath';
+import { gravelPathFacility } from './systems/GravelPathFacility';
 import { SoilSystem } from './systems/SoilSystem';
 import { Soil } from './entities/Soil';
 import { CropSystem } from './systems/CropSystem';
@@ -2819,11 +2819,7 @@ export class Game {
     });
     def('smelter', { tool: 'place', valid: (a, x, z) => this.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.smelters.use(a, at) });
     def('loom', { tool: 'place', valid: (a, x, z) => this.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.looms.use(a, at) });
-    def('gravelPath', {
-      tool: 'place', valid: (a, x, z) => this.gravelPaths.canPlaceAt(a, x, z),
-      buildPreview: ghost((sc) => new GravelPath(sc, new THREE.Vector3()).group),
-      place: (a, at) => this.gravelPaths.place(a, at),
-    });
+    def('gravelPath', gravelPathFacility(this.gravelPaths, this.terrain));
     def('cookingStation', { tool: 'place', valid: (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => this.cookingStations.use(a, at) });
     // 火堆(放下即引燃)/熄灭的火堆
     def('campfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 60).group), place: (a, at) => this.campfire.place(a, 'campfire', at) });

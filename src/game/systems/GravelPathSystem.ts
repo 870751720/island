@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GravelPath, type GravelPathSave } from '../entities/GravelPath';
+import { GravelSurfaceBatch, type RoadNeighbors } from '../entities/GravelSurface';
 import { ModelInstances } from '../core/ModelInstances';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -20,15 +21,31 @@ export class GravelPathSystem {
   private states = new Map<PlayerSession, DigState>();
   private ids = new WorldEntityIds<GravelPath>('gravelPath');
   private instances: ModelInstances;
+  private surfaces: GravelSurfaceBatch;
+  private dirty = new Set<string>();
   private onChanged?: EntityChangeSink;
 
   constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props,
     private occupancy: PlaceOccupancy, private fx: Particles, private audio: GameAudio,
     private recover: (actor: PlayerSession) => void, private isBusy: (actor: PlayerSession) => boolean) {
     this.instances = new ModelInstances(scene);
+    this.surfaces = new GravelSurfaceBatch(scene);
   }
 
   private key(x: number, z: number): string { return `${Math.round(x)},${Math.round(z)}`; }
+  neighbors(x: number, z: number): RoadNeighbors {
+    return (dx, dz) => this.paths.has(this.key(x + dx, z + dz));
+  }
+  neighborMask(x: number, z: number): number {
+    let mask = 0;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      if (this.paths.has(this.key(x + dx, z + dz))) mask |= 1 << ((dz + 1) * 3 + dx + 1);
+    }
+    return mask;
+  }
+  private markAround(x: number, z: number): void {
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) this.dirty.add(this.key(x + dx, z + dz));
+  }
   contains(p: THREE.Vector3): boolean { return this.paths.has(this.key(p.x, p.z)); }
   blocksCell(p: THREE.Vector3): boolean {
     const x = Math.round(p.x), z = Math.round(p.z);
@@ -49,9 +66,12 @@ export class GravelPathSystem {
     return true;
   }
   private add(value: GravelPathSave): GravelPath {
-    const path = new GravelPath(this.scene, new THREE.Vector3(value.x, value.y, value.z), this.instances);
+    const path = new GravelPath(this.scene, new THREE.Vector3(value.x, this.terrain.getHeight(value.x, value.z), value.z), {
+      instances: this.instances, surfaces: this.surfaces,
+    });
     this.ids.set(path, value.id);
     this.paths.set(this.key(value.x, value.z), path);
+    this.markAround(value.x, value.z);
     return path;
   }
   private save(path: GravelPath): GravelPathSave {
@@ -84,6 +104,7 @@ export class GravelPathSystem {
       if (state.elapsed < shovelHits(actor.tools.shovel) * 0.6) return;
       const at = target.group.position;
       this.paths.delete(this.key(at.x, at.z));
+      this.markAround(at.x, at.z);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
       this.fx.burst(at, '#aca99b', 6);
       target.remove(this.scene);
@@ -108,14 +129,25 @@ export class GravelPathSystem {
       if (incoming.has(this.ids.get(path))) continue;
       path.remove(this.scene);
       this.paths.delete(key);
+      this.markAround(path.group.position.x, path.group.position.z);
     }
     for (const value of values) if (!this.paths.has(this.key(value.x, value.z))) this.add(value);
   }
-  flushInstances(): void { this.instances.flush(); }
+  flushInstances(): void {
+    for (const key of this.dirty) {
+      const path = this.paths.get(key);
+      if (path) path.fit(this.terrain, this.neighbors(path.group.position.x, path.group.position.z));
+    }
+    this.dirty.clear();
+    this.surfaces.flush();
+    this.instances.flush();
+  }
   dispose(): void {
     for (const path of this.paths.values()) path.remove(this.scene);
     this.paths.clear();
     this.states.clear();
     this.instances.dispose();
+    this.surfaces.dispose();
+    this.dirty.clear();
   }
 }

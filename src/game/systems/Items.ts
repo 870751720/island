@@ -998,7 +998,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   },
   gravelPath: {
     kind: 'gravelPath', name: '碎石小路', icon: '🪨',
-    description: '铺在干地上的碎石小路，行走时移动速度提升 10%，离开失效。可用铲子回收。',
+    description: '把碎石铺成小路，让营地间的往来更轻快。路上移速提升 10%，离开后恢复；可用铲子回收。',
   },
   fenceStone: {
     kind: 'fenceStone',
