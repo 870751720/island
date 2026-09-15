@@ -119,6 +119,7 @@ import { saveAudioSettings, type AudioSettings } from './audio/AudioSettings';
 import { ThirstGuidance } from './systems/ThirstGuidance';
 import { QuestAutoMove, type QuestMoveTarget } from './quests/QuestAutoMove';
 import { QuestSheepSupport } from './quests/QuestSheepSupport';
+import { GuidanceLabel } from './quests/GuidanceLabel';
 import { QuestGuidance } from './quests/QuestGuidance';
 import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
@@ -183,6 +184,7 @@ export class Game {
   private questSupportTimer = 0;
   private questSheepSupport!: QuestSheepSupport;
   private questGuidance!: QuestGuidance;
+  private guidanceLabel!: GuidanceLabel;
   private thirstGuidance!: ThirstGuidance;
   private digHighlight: DigHighlight;
   private digTargets: DigTargetPresentation;
@@ -1263,6 +1265,9 @@ export class Game {
           }
         }
         this.questGuidance.update(delta, this.local, this.cameraController.photoActive, this.thirstGuidance.active);
+        this.guidanceLabel.update(
+          this.thirstGuidance.active ? this.thirstGuidance.navigationTarget : this.questGuidance.navigationTarget,
+          this.thirstGuidance.active ? '喝水' : this.questGuidance.label, this.camera, this.terrain);
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
         this.props.flushInstances();
@@ -1377,6 +1382,7 @@ export class Game {
     this.landmarks = new LandmarkSystem(this.terrain, this.worldSaveSystems);
     if (!save && !this.guestMode) this.landmarks.generate(GmSystem.landmarkChances);
     this.local.quests.enabled = loadQuestGuide();
+    this.guidanceLabel = new GuidanceLabel(this.container);
     this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
     this.questAutoMove = new QuestAutoMove(this.terrain, (x, z) => this.fences.isBlocked(x, z) || this.props.isBlocked(x, z, 0.4), (x, z) => {
       this.player.input.setAutomatic(x, z);
@@ -3608,6 +3614,7 @@ export class Game {
     }
     this.questAutoMove.stop();
     this.digHighlight.dispose();
+    this.guidanceLabel.dispose();
     this.questGuidance.dispose();
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();

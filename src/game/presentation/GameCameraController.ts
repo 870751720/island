@@ -8,6 +8,7 @@ const cameraOffset = new THREE.Vector3();
 export class GameCameraController {
   private readonly photo = new PhotoCamera();
   private readonly sunShadow = new StableSunShadow();
+  private readonly followTarget = new THREE.Vector3();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -28,6 +29,7 @@ export class GameCameraController {
 
   exitPhotoMode(): void {
     this.photo.exit();
+    this.followTarget.copy(this.camera.position).sub(this.photo.offset(cameraOffset));
     this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
   }
@@ -70,6 +72,7 @@ export class GameCameraController {
 
   placeImmediately(): void {
     const target = this.playerPosition();
+    this.followTarget.copy(target);
     this.camera.position.copy(target).add(this.photo.offset());
     this.camera.lookAt(target.x, target.y, target.z);
   }
@@ -77,18 +80,14 @@ export class GameCameraController {
   update(delta: number, sun: THREE.DirectionalLight, sunOffset: THREE.Vector3): void {
     const target = this.photo.active ? this.photo.center : this.playerPosition();
     const offset = this.photo.offset(cameraOffset);
-    const desiredX = target.x + offset.x;
-    const desiredY = target.y + offset.y;
-    const desiredZ = target.z + offset.z;
     if (this.photo.active) {
-      this.camera.position.set(desiredX, desiredY, desiredZ);
+      this.followTarget.copy(target);
     } else {
       const smoothing = 1 - Math.pow(0.001, delta);
-      this.camera.position.x += (desiredX - this.camera.position.x) * smoothing;
-      this.camera.position.y += (desiredY - this.camera.position.y) * smoothing;
-      this.camera.position.z += (desiredZ - this.camera.position.z) * smoothing;
+      this.followTarget.lerp(target, smoothing);
     }
-    this.camera.lookAt(target.x, target.y, target.z);
+    this.camera.position.copy(this.followTarget).add(offset);
+    this.camera.lookAt(this.followTarget);
     this.sunShadow.update(sun, target, sunOffset);
   }
 }
