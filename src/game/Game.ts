@@ -56,6 +56,8 @@ import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { LightPool } from './world/LightPool';
 import { ShrineSystem } from './systems/ShrineSystem';
 import { Shrine } from './entities/Shrine';
+import { GravelPathSystem } from './systems/GravelPathSystem';
+import { GravelPath } from './entities/GravelPath';
 import { SoilSystem } from './systems/SoilSystem';
 import { Soil } from './entities/Soil';
 import { CropSystem } from './systems/CropSystem';
@@ -263,6 +265,7 @@ export class Game {
   private beds: BedSystem;
   private shrines: ShrineSystem;
   private soils: SoilSystem;
+  private gravelPaths: GravelPathSystem;
   private crops: CropSystem;
   private meteor: MeteorSystem;
   private campfire: CampfireSystem;
@@ -794,6 +797,11 @@ export class Game {
       // 火把火光的光源池
       this.flameLights
     );
+    this.gravelPaths = new GravelPathSystem(
+      this.scene, this.terrain, this.props, this.placeOccupancy, this.fx, this.audio,
+      (actor) => { this.giveItem('gravelPath', 1, actor); },
+      (actor) => this.isSessionBusy(actor, 'gravelPaths')
+    );
     this.soils = new SoilSystem(
       this.scene,
       this.terrain,
@@ -828,7 +836,7 @@ export class Game {
       () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils, this.gravelPaths]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -880,6 +888,7 @@ export class Game {
       beds: this.beds,
       shrines: this.shrines,
       soils: this.soils,
+      gravelPaths: this.gravelPaths,
       crops: this.crops,
       stakes: this.stakes,
       drops: this.drops,
@@ -905,6 +914,7 @@ export class Game {
       beds: this.beds,
       shrines: this.shrines,
       soils: this.soils,
+      gravelPaths: this.gravelPaths,
       crops: this.crops,
       campfire: this.campfire,
     });
@@ -962,7 +972,10 @@ export class Game {
         // 单机拍照模式:时间与全部玩法模拟冻结(玩家无敌),相机取景与渲染照常
         const simDelta = this.cameraController.photoActive && !this.guestMode && !this.hostRef ? 0 : delta;
         this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
-        for (const session of this.sessions) session.player.update(simDelta, elapsed);
+        for (const session of this.sessions) {
+          session.player.onGravelPath = this.gravelPaths.contains(session.player.group.position);
+          session.player.update(simDelta, elapsed);
+        }
         this.dayNight.update(simDelta);
         // 季节推进为房主/单机权威:每帧按天数对账换季,入冬当日强制降雪
         if (!this.guestMode) {
@@ -1113,6 +1126,7 @@ export class Game {
           this.beds.updateActor(s, simDelta);
           this.shrines.updateActor(s, simDelta);
           this.soils.updateActor(s, simDelta);
+          this.gravelPaths.updateActor(s, simDelta);
           this.crops.updateActor(s, simDelta);
           this.workbench.updateActor(s, simDelta);
           this.campfire.updateActor(s, simDelta);
@@ -1205,6 +1219,7 @@ export class Game {
         this.props.flushInstances();
         this.fences.flushInstances();
         this.soils.flushInstances();
+        this.gravelPaths.flushInstances();
         this.renderer.render(this.scene, this.camera);
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
@@ -2804,6 +2819,11 @@ export class Game {
     });
     def('smelter', { tool: 'place', valid: (a, x, z) => this.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.smelters.use(a, at) });
     def('loom', { tool: 'place', valid: (a, x, z) => this.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.looms.use(a, at) });
+    def('gravelPath', {
+      tool: 'place', valid: (a, x, z) => this.gravelPaths.canPlaceAt(a, x, z),
+      buildPreview: ghost((sc) => new GravelPath(sc, new THREE.Vector3()).group),
+      place: (a, at) => this.gravelPaths.place(a, at),
+    });
     def('cookingStation', { tool: 'place', valid: (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => this.cookingStations.use(a, at) });
     // 火堆(放下即引燃)/熄灭的火堆
     def('campfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 60).group), place: (a, at) => this.campfire.place(a, 'campfire', at) });
@@ -3215,6 +3235,7 @@ export class Game {
     this.beds.detach(session);
     this.shrines.detach(session);
     this.soils.detach(session);
+    this.gravelPaths.detach(session);
     this.crops.detach(session);
     this.emojiBubbles.remove(session.player.group);
     this.scene.remove(session.player.group);
@@ -3257,6 +3278,7 @@ export class Game {
     if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
     if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
+    if (exclude !== 'gravelPaths' && this.gravelPaths.isDigging(s)) return true;
     if (exclude !== 'soils' && this.soils.isDigging(s)) return true;
     if (exclude !== 'crops' && this.crops.isHarvesting(s)) return true;
     if (exclude !== 'autoPlace' && this.autoPlace.isPlacing(s)) return true;
@@ -3536,6 +3558,7 @@ export class Game {
     this.props.dispose();
     this.fences.dispose();
     this.soils.dispose();
+    this.gravelPaths.dispose();
     this.decorations.dispose();
     this.rain.dispose();
     this.snow.dispose();

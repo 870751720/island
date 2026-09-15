@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GravelPath } from '../entities/GravelPath';
 import { makeTentMesh } from '../entities/TentModel';
 import type { ResourceKind } from './Inventory';
 
@@ -7,6 +8,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   branch: '#8b5a2b',
   wood: '#7a5230',
   stone: '#9a9a9a',
+  gravelPath: '#aca99b',
   flint: '#5f6a72',
   ironOre: '#b07a5a',
   ironIngot: '#c9ccd1',
@@ -1276,6 +1278,13 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   branch: makeWood,
   wood: makeLog,
   stone: makeStone,
+  gravelPath: () => {
+    const scene = new THREE.Scene();
+    const model = new GravelPath(scene, new THREE.Vector3()).group;
+    scene.remove(model);
+    model.scale.setScalar(0.45);
+    return model;
+  },
   flint: makeFlint,
   ironOre: makeIronOre,
   ironIngot: makeIronIngot,

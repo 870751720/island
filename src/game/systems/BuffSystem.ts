@@ -2,6 +2,7 @@
  * 生效判定不在这里:各 buff 由对应系统(神像/玩家减速)驱动,这里只承载
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
 export type BuffId =
+  | 'gravelPath'
   | 'poseidon'
   | 'beehive'
   | 'healCrystal'
@@ -23,6 +24,10 @@ export type BuffDef = {
 };
 
 export const BUFFS: Record<BuffId, BuffDef> = {
+  gravelPath: {
+    id: 'gravelPath', name: '碎石路加速', icon: '🪨',
+    description: '站在碎石小路上，移动速度提升 10%，离开路面立即失效。', good: true,
+  },
   poseidon: {
     id: 'poseidon',
     name: '波塞冬的祝福',

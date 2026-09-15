@@ -15,6 +15,7 @@ import type { RabbitBurrowSystem } from './RabbitBurrowSystem';
 import type { SaveData } from './SaveSystem';
 import type { ShrineSystem } from './ShrineSystem';
 import { setSeason, getSeason, getSeasonStartDay } from './SeasonSystem';
+import type { GravelPathSystem } from './GravelPathSystem';
 import type { SoilSystem } from './SoilSystem';
 import type { CropSystem } from './CropSystem';
 import type { SmelterSystem } from './SmelterSystem';
@@ -39,6 +40,7 @@ export type WorldSaveSystems = {
   beds: BedSystem;
   shrines: ShrineSystem;
   soils: SoilSystem;
+  gravelPaths: GravelPathSystem;
   crops: CropSystem;
   stakes: StakeSystem;
   drops: DropSystem;
@@ -65,6 +67,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.beds.restore(save.beds);
   s.shrines.restore(save.shrines);
   s.soils.restore(save.soils ?? []);
+  s.gravelPaths.restore(save.gravelPaths ?? []);
   s.crops.restore(save.crops ?? []);
   s.stakes.restore(save.stakes);
   if (!guestMode) {
@@ -96,6 +99,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     beds: s.beds.snapshot(),
     shrines: s.shrines.snapshot(),
     soils: s.soils.snapshot(),
+    gravelPaths: s.gravelPaths.snapshot(),
     crops: s.crops.snapshot(),
     stakes: s.stakes.snapshot(),
     drops: s.drops.snapshot(),

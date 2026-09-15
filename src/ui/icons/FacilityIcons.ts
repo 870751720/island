@@ -12,6 +12,7 @@ const bush = (berries: boolean) => e(32,51,18,5,dark)+p('M10 42Q4 29 18 25Q17 12
 const seed = (color: string, shape: string) => e(26,43,12,13,wood)+e(23,39,5,7,cream)+l('M27 31Q24 21 30 13','#668e62',3)+p('M28 20Q10 20 15 12Q28 11 28 20M29 16Q36 5 44 11Q42 20 29 16',green)+g('translate(38 35)',p(shape,color,dark,1));
 const round='M0 8C0 -4 18 -4 18 8C18 23 0 23 0 8Z';
 export const FACILITY_SVG = {
+ gravelPath:svg(p('M8 38L29 13L57 27L37 54Z','#918775') + [[22,32],[31,23],[42,29],[32,37],[40,44],[17,40]].map(([x,y],i)=>p(`M${x-5} ${y}L${x-2} ${y-4}L${x+5} ${y-2}L${x+6} ${y+3}L${x} ${y+5}Z`,['#bcb29b','#85877f','#aca99b'][i%3],'#777a75',1)).join('')),
  poseidonBlessing:svg(base()+l('M32 45V10M20 12V23Q32 32 44 23V12',metal,6)+p('M26 13L32 5L38 13M14 15L20 7L25 15M39 15L44 7L50 15',cream)),
  beehiveShrine:svg(base()+p('M15 40Q13 24 23 22Q21 14 32 13Q43 14 42 22Q52 26 49 40Z','#d6ac64')+l('M22 23H42M18 30H46M17 37H47',cream,3)+e(33,39,5,6,dark)),
  healCrystal:svg(base()+p('M20 35L23 13L33 5L44 18L42 37L32 46Z','#cf92a9')+p('M23 13L33 5L31 35L20 35Z','#f3c9cf')+p('M31 35L44 18L42 37L32 46Z','#a76f90')),

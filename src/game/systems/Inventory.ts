@@ -2,6 +2,7 @@ export type ResourceKind =
   | 'branch'
   | 'wood'
   | 'stone'
+  | 'gravelPath'
   | 'flint'
   | 'ironOre'
   | 'ironIngot'

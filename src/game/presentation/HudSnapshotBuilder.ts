@@ -139,6 +139,7 @@ export class HudSnapshotBuilder {
 
   private buffsFor(session: PlayerSession): HudBuff[] {
     const list: HudBuff[] = [];
+    if (session.player.onGravelPath && !session.player.isSwimming) list.push({ ...BUFFS.gravelPath, remain: null });
     const shrines = this.systems.shrines;
     if (shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
     if (shrines.berryBlessed) list.push({ ...BUFFS.beehive, remain: null });

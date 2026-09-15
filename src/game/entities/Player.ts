@@ -294,6 +294,8 @@ export class Player implements Updatable {
   private slowLeft = 0;
   /** 天气驱动的移动速度乘数(风之加护),由 Game 每帧写入 */
   weatherSpeedMultiplier = 1;
+  /** 脚下为碎石路，两端在移动前按世界路面查询。 */
+  onGravelPath = false;
   /** 「舒爽」增益剩余时长(喝酒获得,移动加速) */
   private refreshLeft = 0;
   /** 「晕晕的」状态剩余时长(舒爽时再喝酒转为,减速但增伤) */
@@ -643,6 +645,7 @@ export class Player implements Updatable {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
       let speed = base * this.weatherSpeedMultiplier;
+      if (!this.swimming && this.onGravelPath) speed *= 1.1;
       // 冰面滑行:结冰水洼上移动速度翻倍
       if (!this.swimming && this.terrain.isOnIce(p.x, p.z)) speed *= 2;
       if (this.slowLeft > 0) speed *= 0.5;
