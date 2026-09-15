@@ -33,7 +33,7 @@ export class LandmarkSystem {
     const lists = [s.beds.snapshot(), s.campfire.snapshot(), s.crates.snapshot(), s.workbench.snapshot(),
       s.baitBarrels.snapshot(), s.brewBarrels.snapshot(), s.smelters.snapshot(), s.looms.snapshot(),
       s.fences.snapshotFences(), s.fences.snapshotGates(), s.shrines.snapshot(), s.soils.snapshot(),
-      s.waterPurifiers.snapshot(), s.cookingStations.snapshot(), s.stakes.snapshot(), s.burrows.snapshot()];
+      s.doghouses.snapshot(), s.waterPurifiers.snapshot(), s.cookingStations.snapshot(), s.stakes.snapshot(), s.burrows.snapshot()];
     for (const list of lists) for (const entity of list) block(entity.x, entity.z, 4);
     for (const player of avoidPlayers) block(player.x, player.z, 2);
     const check = new Vector3();

@@ -35,6 +35,7 @@ export type CraftId =
   | 'bed3'
   | 'baitBarrel'
   | 'brewBarrel'
+  | 'doghouse'
   | 'waterPurifier'
   | 'smelter'
   | 'loom'
@@ -91,7 +92,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
 
 /** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
 const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
-  'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
+  'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
   'workbench1', 'campfire',
 ]);
 
@@ -451,6 +452,14 @@ export const RECIPES: Recipe[] = [
     minBenchLevel: 3,
   },
   {
+    id: 'doghouse',
+    name: '狗窝',
+    cost: { wood: 10, cloth: 5, ironIngot: 3 },
+    station: 'workbench',
+    output: 'doghouse',
+    minBenchLevel: 4,
+  },
+  {
     id: 'waterPurifier',
     name: '海水净化器',
     cost: { ironIngot: 10, flint: 5, cloth: 5, adventureBook: 2 },
@@ -597,7 +606,7 @@ for (const r of RECIPES) {
 export const WORKBENCH_UPGRADE_COST: Record<number, Partial<Record<ResourceKind, number>>> = {
   2: { fur: 4 },
   3: { adventureBook: 1, stone: 20, branch: 20, rope: 5 },
-  4: { fur: 4 },
+  4: { adventureBook: 5, ironIngot: 20, cloth: 10 },
 };
 
 /** 把工作台从 level 升到下一级的材料表(满级为空表) */

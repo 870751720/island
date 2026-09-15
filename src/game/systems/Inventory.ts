@@ -145,6 +145,7 @@ export type ResourceKind =
   | 'wineFruit'
   | 'wineMilk'
   | 'wineGolden'
+  | 'doghouse'
   | 'waterPurifier'
   | 'smelter'
   | 'loom'

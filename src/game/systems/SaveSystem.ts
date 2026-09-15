@@ -14,6 +14,7 @@ import type { SoilSave } from '../entities/Soil';
 import type { CropSave } from '../entities/Crop';
 import type { BaitBarrelSave } from './BaitBarrelSystem';
 import type { BrewBarrelSave } from './BrewBarrelSystem';
+import type { DoghouseSave } from './DoghouseSystem';
 import type { WaterPurifierSave } from './WaterPurifierSystem';
 import type { RabbitBurrowSave } from './RabbitBurrowSystem';
 import type { SmelterSave } from './SmelterSystem';
@@ -119,6 +120,7 @@ export type SaveData = {
   /** 场上所有酿酒桶(落点与桶内原料/酒) */
   brewBarrels: BrewBarrelSave[];
   /** 场上所有海水净化器落点 */
+  doghouses?: DoghouseSave[];
   waterPurifiers: WaterPurifierSave[];
   /** 场上所有兔子洞(落点与状态) */
   burrows: RabbitBurrowSave[];

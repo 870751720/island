@@ -20,6 +20,7 @@ import type { SoilSystem } from './SoilSystem';
 import type { CropSystem } from './CropSystem';
 import type { SmelterSystem } from './SmelterSystem';
 import type { StakeSystem } from './StakeSystem';
+import type { DoghouseSystem } from './DoghouseSystem';
 import type { WaterPurifierSystem } from './WaterPurifierSystem';
 import type { WorkbenchSystem } from './WorkbenchSystem';
 
@@ -31,6 +32,7 @@ export type WorldSaveSystems = {
   crates: CrateSystem;
   baitBarrels: BaitBarrelSystem;
   brewBarrels: BrewBarrelSystem;
+  doghouses: DoghouseSystem;
   waterPurifiers: WaterPurifierSystem;
   burrows: RabbitBurrowSystem;
   smelters: SmelterSystem;
@@ -59,6 +61,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.crates.restore(save.crates);
   s.baitBarrels.restore(save.baitBarrels);
   s.brewBarrels.restore(save.brewBarrels);
+  s.doghouses.restore(save.doghouses ?? []);
   s.waterPurifiers.restore(save.waterPurifiers);
   s.burrows.restore(save.burrows);
   s.smelters.restore(save.smelters);
@@ -92,6 +95,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     crates: s.crates.snapshot(),
     baitBarrels: s.baitBarrels.snapshot(),
     brewBarrels: s.brewBarrels.snapshot(),
+    doghouses: s.doghouses.snapshot(),
     waterPurifiers: s.waterPurifiers.snapshot(),
     smelters: s.smelters.snapshot(),
     cookingStations: s.cookingStations.snapshot(),

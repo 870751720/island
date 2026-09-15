@@ -49,7 +49,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
-    'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'waterPurifier', 'smelter', 'loom',
+    'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'campfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
@@ -953,6 +953,12 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '黄金酒',
     icon: '✨',
     description: '黄金鱼酿的传世名酿,喝下如坠云端。',
+  },
+  doghouse: {
+    kind: 'doghouse',
+    name: '狗窝',
+    icon: '🛖',
+    description: '铺着柔软布垫的海岛草棚。玩家在附近时，薯条想睡觉会优先回窝；睡完额外获得 5 点成长经验，每 2 分钟最多一次。',
   },
   waterPurifier: {
     kind: 'waterPurifier',

@@ -7,6 +7,7 @@ import type { Particles } from '../fx/Particles';
 import type { WaterFx } from '../fx/WaterFx';
 import type { AmbientPose } from '../net/Protocol';
 import type { Wildlife } from './Wildlife';
+import { DoghouseRest } from '../systems/DoghouseRest';
 import { DogGrowth, DOG_STAGES, type DogSave } from '../systems/DogGrowth';
 import { DogCombat, type DogCompanion, type DogCombatView } from '../systems/DogCombat';
 
@@ -155,6 +156,7 @@ const FOLLOW_EMOJIS = ['🏃', '💨', '❤️'];
 export class Pomeranian {
   readonly group = new THREE.Group();
   readonly growth = new DogGrowth();
+  readonly rest = new DoghouseRest();
   private combat: DogCombat | null = null;
   private combatView: DogCombatView = { phase: 'idle', progress: 0 };
   private fighting = false;
@@ -290,11 +292,13 @@ export class Pomeranian {
 
   clearCooldowns(): void {
     this.eatCd = this.eatLeft = this.happyLeft = 0;
+    this.rest.rewardCooldown = 0;
     this.growth.protectCooldown = 0;
     this.combat?.reset();
   }
 
   recall(player: Player): void {
+    this.wake();
     this.player = player;
     this.placeNear(player.group.position, 1.5);
     this.combat?.reset();
@@ -349,6 +353,7 @@ export class Pomeranian {
 
   /** 存档恢复:瞬移到存档位置 */
   restore(x: number, z: number, save: Partial<DogSave> = {}): void {
+    this.rest.restore(save.doghouseRewardCooldown);
     this.growth.restore(save);
     this.combat?.restore(save);
     this.eatCd = Number.isFinite(save.eatCooldown) ? Math.min(60, Math.max(0, save.eatCooldown!)) : 0;
@@ -357,11 +362,11 @@ export class Pomeranian {
   }
 
   snapshot(): DogSave {
-    return { x: this.pos.x, z: this.pos.z, ...this.growth.snapshot(), ...this.combat?.snapshot(), eatCooldown: this.eatCd };
+    return { x: this.pos.x, z: this.pos.z, ...this.growth.snapshot(), ...this.combat?.snapshot(), eatCooldown: this.eatCd, doghouseRewardCooldown: this.rest.rewardCooldown };
   }
 
   netPose(): AmbientPose {
-    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.play,
+    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.rest.traveling ? 'circle' : this.play,
       dogBattleGlyph: this.battleNotice?.glyph ?? null, dogBattleSerial: this.battleNotice?.serial ?? 0,
       dogBattleLeft: this.emoji === this.battleNotice?.glyph ? Math.ceil(Math.max(0, this.emojiLeft) * 10) / 10 : 0,
       dogXp: this.growth.xp, dogEatCooldown: Math.ceil(this.eatCd),
@@ -458,6 +463,7 @@ export class Pomeranian {
 
   /** 挑下一个闲玩行为:优先围着玩家转圈;睡觉/刨坑/转圈受内置冷却限制 */
   private nextPlay(): void {
+    this.rest.cancel();
     if (this.play === 'dig') this.showEmoji(Math.random() < 0.5 ? '❓' : '😮');
     const pool: Play[] = ['circle', 'circle', 'circle', 'sit'];
     if (this.spinCd <= 0) pool.push('spin');
@@ -477,7 +483,10 @@ export class Pomeranian {
       this.digCd = DIG_SLEEP_COOLDOWN;
       this.showEmoji('🐾');
     }
-    if (this.play === 'sleep') this.sleepCd = DIG_SLEEP_COOLDOWN;
+    if (this.play === 'sleep') {
+      this.sleepCd = DIG_SLEEP_COOLDOWN;
+      this.rest.begin(this.player.group.position);
+    }
     if (this.play === 'spin') this.spinCd = SPIN_COOLDOWN;
   }
 
@@ -485,6 +494,7 @@ export class Pomeranian {
   private startNightSleep(): void {
     if (this.play === 'sleep') return;
     this.play = 'sleep';
+    this.rest.begin(this.player.group.position);
     this.playLeft = 20 + Math.random() * 20;
     this.dreamTimer = 2;
     this.sleepCd = DIG_SLEEP_COOLDOWN;
@@ -492,6 +502,7 @@ export class Pomeranian {
 
   /** 从睡觉中醒来(有食物吃或要跟人时) */
   private wake(): void {
+    this.rest.cancel();
     if (this.play !== 'sleep') return;
     this.play = 'circle';
     this.playLeft = 0.5;
@@ -541,11 +552,16 @@ export class Pomeranian {
     if (this.fighting && !wasFighting) this.tryBattleEmoji('dog-alert');
     this.combatView = this.combat?.view ?? { phase: 'idle', progress: 0 };
     const p = this.player.group.position;
+    if (!this.rest.update(delta, p)) {
+      this.wake();
+      this.pos.y = this.stepY(this.pos.x, this.pos.z);
+    }
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     let moving = false;
     let excited = false;
 
     if (this.fighting) {
+      this.wake();
       this.play = 'circle';
       this.eatLeft = this.happyLeft = 0;
       moving = this.combat?.moving ?? false;
@@ -593,7 +609,7 @@ export class Pomeranian {
         } else {
           this.heading = Math.atan2(p.z - this.pos.z, p.x - this.pos.x);
         }
-      } else if (playerDist > FOLLOW_RANGE) {
+      } else if (playerDist > FOLLOW_RANGE && !this.rest.traveling && !this.rest.resting) {
         // 3) 玩家走远:跟上去
         this.wake();
         this.wasFollowing = true;
@@ -609,17 +625,23 @@ export class Pomeranian {
         }
         if (isNight && this.play !== 'sleep') {
           this.startNightSleep();
-        } else {
+        } else if (!this.rest.traveling) {
           this.playLeft -= delta;
-          if (this.playLeft <= 0) this.nextPlay();
+          if (this.playLeft <= 0) {
+            if (this.play === 'sleep') this.growth.add(this.rest.finish());
+            this.nextPlay();
+          }
         }
-        if (this.play === 'circle') {
+        if (this.rest.traveling) {
+          moving = this.rest.travel(delta, this.pos, at => this.stepTo(at, TROT_SPEED, delta, true));
+        } else if (this.play === 'circle') {
           moving = this.orbitPlayer(TROT_SPEED * 0.55, delta, 1.6 + Math.sin(elapsed * 0.5) * 0.5);
         } else if (this.play === 'spin') {
           // 追尾巴:原地打转
           this.heading += delta * 9;
           excited = true;
         } else if (this.play === 'sleep') {
+          if (this.rest.bed) { this.pos.copy(this.rest.bed); this.heading = this.rest.heading; }
           // 趴着睡觉,隔一会儿冒个 💤
           this.dreamTimer -= delta;
           if (this.dreamTimer <= 0) {
@@ -699,7 +721,7 @@ export class Pomeranian {
     g.rotation.y = -this.viewHeading + Math.PI / 2;
 
     // 睡姿平滑过渡(水里不会趴下)
-    const target = !this.swimming && this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
+    const target = !this.swimming && !this.rest.traveling && this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;
     this.sleepBlend += (target - this.sleepBlend) * Math.min(1, delta * 3);
     const lie = this.sleepBlend;
     const up = 1 - lie;

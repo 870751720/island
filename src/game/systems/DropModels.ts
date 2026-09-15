@@ -1,3 +1,4 @@
+import { makeDoghouseModel } from '../entities/Doghouse';
 import * as THREE from 'three';
 import { PlankPath } from '../entities/PlankPath';
 import { GravelPath } from '../entities/GravelPath';
@@ -156,6 +157,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   wineFruit: '#d9a441',
   wineMilk: '#f0e6d2',
   wineGolden: '#e6b422',
+  doghouse: '#a2a261',
   waterPurifier: '#9aa3ab',
   fenceWood: '#a97b48',
   fenceStone: '#9a9a9a',
@@ -1498,6 +1500,11 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
       g.add(hoop);
     }
     return g;
+  },
+  doghouse: () => {
+    const model = makeDoghouseModel();
+    model.scale.setScalar(0.3);
+    return model;
   },
   waterPurifier: () => {
     // 海水净化器:铁皮机身 + 顶部小漏斗 + 侧面净水槽

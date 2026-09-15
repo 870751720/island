@@ -27,6 +27,7 @@ export class WorldReplicationController {
       crates: s.crates.snapshot(),
       baitBarrels: s.baitBarrels.snapshot(),
       brewBarrels: s.brewBarrels.snapshot(),
+      doghouses: s.doghouses.snapshot(),
       waterPurifiers: s.waterPurifiers.snapshot(),
       smelters: s.smelters.snapshot(),
       cookingStations: s.cookingStations.snapshot(),
@@ -61,6 +62,7 @@ export class WorldReplicationController {
     s.crates.setChangeSink(send('crates'));
     s.baitBarrels.setChangeSink(send('baitBarrels'));
     s.brewBarrels.setChangeSink(send('brewBarrels'));
+    s.doghouses.setChangeSink(send('doghouses'));
     s.waterPurifiers.setChangeSink(send('waterPurifiers'));
     s.burrows.setChangeSink(send('burrows'));
     s.smelters.setChangeSink(send('smelters'));
@@ -121,6 +123,7 @@ export class WorldReplicationController {
     if (state.crates) s.crates.netApply(state.crates);
     if (state.baitBarrels) s.baitBarrels.netApply(state.baitBarrels);
     if (state.brewBarrels) s.brewBarrels.netApply(state.brewBarrels);
+    if (state.doghouses) s.doghouses.netApply(state.doghouses);
     if (state.waterPurifiers) s.waterPurifiers.netApply(state.waterPurifiers);
     if (state.burrows) s.burrows.netApply(state.burrows);
     if (state.smelters) s.smelters.netApply(state.smelters);

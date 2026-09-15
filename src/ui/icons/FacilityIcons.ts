@@ -20,6 +20,7 @@ export const FACILITY_SVG = {
  rainAltar:svg(base()+p('M12 30Q32 22 52 30Q49 45 32 46Q15 43 12 30',metal)+e(32,30,20,6,'#d7dfca')+e(32,30,15,3,'#77b8c7')+p('M32 6Q18 22 32 23Q46 22 32 6','#89c4d1')+l('M29 15L28 18',cream,3)),
  crocIncense:svg(base()+p('M15 35H49Q47 47 32 47Q17 47 15 35',wood)+e(32,35,17,5,cream)+l('M32 33L36 16',dark,3)+l('M37 15Q24 10 36 5','#bac5af',3)),
  crate:svg(chest(false)),ironCrate:svg(chest(true)),baitBarrel:svg(barrel(wood)+p('M24 37Q32 29 40 37Q33 44 24 37',cream)+e(28,36,1,1,dark)),brewBarrel:svg(barrel('#aa7b60')+e(32,37,6,6,'#ad7185')+p('M31 31Q33 25 40 28Q39 33 31 31',green)),
+ doghouse:svg(r(9,48,46,7,2,wood)+r(13,24,4,26,1,dark)+r(47,24,4,26,1,dark)+r(17,34,30,4,1,wood)+e(32,46,12,5,cream)+p('M5 27L32 8L59 27L51 32L32 17L13 32Z','#9b9f62')+l('M15 25L30 13M27 25L33 16M40 20L49 27','#c7bd7e',2)+r(12,40,6,4,1,metal)+r(46,40,6,4,1,metal)),
  waterPurifier:svg(r(14,12,5,43,2,dark)+r(45,12,5,43,2,dark)+p('M10 16H54L45 32H19Z',metal)+e(32,16,22,5,cream)+e(32,16,17,2,'#b5d5d3')+p('M32 33Q23 44 32 45Q41 44 32 33','#79b7cc')+p('M19 46H45L42 55H22Z',metal)),
  smelter:svg(p('M11 53V30L21 18V8H41V18L53 30V53Z','#a5ada2')+r(22,8,20,8,2,'#d0d5bf')+p('M20 51V36Q32 24 44 36V51Z',dark)+g('translate(12 23) scale(.6)',flame())+l('M13 28H22M42 27H48M13 38H17',cream,3)),
  loom:svg(r(12,9,5,47,2,dark)+r(47,9,5,47,2,dark)+r(9,13,46,6,2,wood)+r(9,46,46,6,2,wood)+[22,27,32,37,42].map(x=>l(`M${x} 20V46`,cream,2)).join('')+r(20,29,24,15,2,green)+l('M21 34H43M21 39H43',cream,1)+p('M20 24L44 20L46 24L22 28Z',wood)),

@@ -14,6 +14,7 @@ export function buildDeathReport(
     save.workbenches.length +
     save.crates.length +
     save.baitBarrels.length +
+    (save.doghouses?.length ?? 0) +
     save.waterPurifiers.length +
     save.smelters.length +
     save.cookingStations.length +

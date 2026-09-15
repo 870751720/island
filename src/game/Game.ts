@@ -36,6 +36,8 @@ import { Crate } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { wineOf, TIPSY_DURATION } from './systems/Wine';
 import { BrewBarrelSystem, type BrewBarrelInfo } from './systems/BrewBarrelSystem';
+import { DoghouseSystem } from './systems/DoghouseSystem';
+import { Doghouse } from './entities/Doghouse';
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
@@ -257,6 +259,7 @@ export class Game {
   private crates: CrateSystem;
   private baitBarrels: BaitBarrelSystem;
   private brewBarrels: BrewBarrelSystem;
+  private doghouses: DoghouseSystem;
   private waterPurifiers: WaterPurifierSystem;
   private burrows: RabbitBurrowSystem;
   private smelters: SmelterSystem;
@@ -691,6 +694,12 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'brewBarrels')
     );
+    this.doghouses = new DoghouseSystem(
+      this.scene, this.terrain, this.props, this.fx, this.audio,
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      this.placeOccupancy, (actor) => this.isSessionBusy(actor, 'doghouses')
+    );
+    this.dog.rest.find = (player) => this.doghouses.nearby(player);
     this.waterPurifiers = new WaterPurifierSystem(
       this.scene,
       this.terrain,
@@ -850,7 +859,7 @@ export class Game {
       () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils, this.gravelPaths, this.plankPaths]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils, this.gravelPaths, this.plankPaths]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -893,6 +902,7 @@ export class Game {
       crates: this.crates,
       baitBarrels: this.baitBarrels,
       brewBarrels: this.brewBarrels,
+      doghouses: this.doghouses,
       waterPurifiers: this.waterPurifiers,
       burrows: this.burrows,
       smelters: this.smelters,
@@ -916,6 +926,7 @@ export class Game {
       this.guestNet
     );
     this.interactionIndicatorBuilder = new InteractionIndicatorBuilder({
+      doghouses: this.doghouses,
       workbench: this.workbench,
       crates: this.crates,
       baitBarrels: this.baitBarrels,
@@ -943,6 +954,7 @@ export class Game {
       crates: this.crates,
       baitBarrels: this.baitBarrels,
       brewBarrels: this.brewBarrels,
+      doghouses: this.doghouses,
       waterPurifiers: this.waterPurifiers,
       burrows: this.burrows,
       smelters: this.smelters,
@@ -1165,6 +1177,7 @@ export class Game {
           this.crates.updateActor(s, simDelta);
           this.baitBarrels.updateActor(s, simDelta);
           this.brewBarrels.updateActor(s, simDelta);
+          this.doghouses.updateActor(s, simDelta);
           this.waterPurifiers.updateActor(s, simDelta);
           this.burrows.updateActor(s, simDelta);
           this.smelters.updateActor(s, simDelta);
@@ -2884,6 +2897,12 @@ export class Game {
     // 饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台
     def('baitBarrel', { tool: 'place', valid: (a, x, z) => this.baitBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BaitBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.baitBarrels.use(a, at) });
     def('brewBarrel', { tool: 'place', valid: (a, x, z) => this.brewBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BrewBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.brewBarrels.use(a, at) });
+    def('doghouse', {
+      tool: 'place',
+      valid: (a, x, z) => this.doghouses.canPlaceAt(a, x, z),
+      buildPreview: ghost((sc) => new Doghouse(sc, new THREE.Vector3()).group),
+      place: (a, at) => this.doghouses.use(a, at),
+    });
     def('waterPurifier', {
       tool: 'place',
       valid: (a, x, z) => this.waterPurifiers.canPlaceAt(a, x, z),
@@ -3286,6 +3305,7 @@ export class Game {
     this.crates.detach(session);
     this.baitBarrels.detach(session);
     this.brewBarrels.detach(session);
+    this.doghouses.detach(session);
     this.waterPurifiers.detach(session);
     this.burrows.detach(session);
     this.smelters.detach(session);
@@ -3332,6 +3352,7 @@ export class Game {
     if (exclude !== 'crates' && this.crates.isDigging(s)) return true;
     if (exclude !== 'baitBarrels' && this.baitBarrels.isDigging(s)) return true;
     if (exclude !== 'brewBarrels' && this.brewBarrels.isDigging(s)) return true;
+    if (exclude !== 'doghouses' && this.doghouses.isDigging(s)) return true;
     if (exclude !== 'waterPurifiers' && this.waterPurifiers.isDigging(s)) return true;
     if (exclude !== 'burrows' && this.burrows.isDigging(s)) return true;
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;

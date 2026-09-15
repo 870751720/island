@@ -19,5 +19,5 @@ export type CycleEntry = { tool: HandTool; kind: FacilityKind | null };
 export type InteractionKind =
   | 'collect' | 'milk' | 'crafting' | 'eating' | 'fishing' | 'archery' | 'sword'
   | 'lasso' | 'water' | 'workbench' | 'campfire' | 'crates' | 'baitBarrels'
-  | 'brewBarrels' | 'waterPurifiers' | 'burrows' | 'smelters' | 'cookingStations'
+  | 'brewBarrels' | 'waterPurifiers' | 'doghouses' | 'burrows' | 'smelters' | 'cookingStations'
   | 'looms' | 'fences' | 'beds' | 'shrines' | 'plankPaths' | 'gravelPaths' | 'soils' | 'crops' | 'autoPlace';
