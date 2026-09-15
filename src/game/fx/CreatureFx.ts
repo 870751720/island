@@ -71,10 +71,10 @@ export class CreatureFx {
 
   /** 受击闪红:材质自发光短暂泛红后恢复 */
   flash(group: THREE.Group): void {
-    const saved = new Map<THREE.MeshStandardMaterial, THREE.Color>();
+    if (this.deaths.has(group)) return;
+    const saved = this.flashes.get(group)?.saved ?? new Map<THREE.MeshStandardMaterial, THREE.Color>();
     for (const mat of this.collectMaterials(group)) {
-      if (this.deaths.has(group)) break;
-      saved.set(mat, mat.emissive.clone());
+      if (!saved.has(mat)) saved.set(mat, mat.emissive.clone());
       mat.emissive.copy(FLASH_COLOR);
     }
     if (saved.size > 0) this.flashes.set(group, { left: FLASH_TIME, saved });
@@ -83,6 +83,10 @@ export class CreatureFx {
   /** 重生时恢复模型:清除残余死亡状态,还原透明度与侧翻 */
   reset(group: THREE.Group): void {
     this.deaths.delete(group);
+    const flash = this.flashes.get(group);
+    if (flash) {
+      for (const [mat, color] of flash.saved) mat.emissive.copy(color);
+    }
     this.flashes.delete(group);
     group.rotation.z = 0;
     for (const mat of this.collectMaterials(group)) {
