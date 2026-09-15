@@ -88,7 +88,7 @@ export function buildRails(kind: FenceKind, conns: FenceConnections, overrideMat
 }
 
 /** 按连接方向拼装围栏网格(柱 + 横杆),连接变化时整体重建 */
-export function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
+function buildFenceMesh(kind: FenceKind, conns: FenceConnections): THREE.Group {
   const g = new THREE.Group();
   g.add(kind === 'branch' ? woodPost(clayMaterial('#a97b48')) : stonePost());
   g.add(buildRails(kind, conns));

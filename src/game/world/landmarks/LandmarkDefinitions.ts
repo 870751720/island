@@ -1,7 +1,8 @@
 import { LandmarkBuilder } from './LandmarkBuilder';
 import { buildSettlement } from './SettlementLayouts';
 import { buildRuin } from './RuinLayouts';
-import type { ResourceKind, InventorySlot } from '../../systems/Inventory';
+import { applyLandmarkVariant, type LandmarkVariant } from './LandmarkVariants';
+import type { InventorySlot } from '../../systems/Inventory';
 import type { CropKind } from '../../entities/Crop';
 import type { ShrineKind } from '../../entities/Shrine';
 
@@ -12,7 +13,7 @@ export const LANDMARKS = [
   { kind: 'hunter', name: '猎人营地', weight: 8 },
   { kind: 'workshop', name: '废弃工坊', weight: 6 },
   { kind: 'brewery', name: '酿酒小院', weight: 6 },
-  { kind: 'village', name: '湖畔村落', weight: 20 },
+  { kind: 'village', name: '湖畔村落', weight: 2 },
   { kind: 'seaRuin', name: '海神遗迹', weight: 6 },
   { kind: 'harvestRuin', name: '丰收遗迹', weight: 5 },
   { kind: 'healingRuin', name: '治愈遗迹', weight: 4 },
@@ -45,11 +46,13 @@ export type LandmarkPart = {
   type: PartKind; x: number; z: number; rotation?: number;
   level?: number; stone?: boolean; shrine?: ShrineKind; crop?: CropKind; loot?: InventorySlot[];
 };
-export type LandmarkBlueprint = { kind: LandmarkKind; radius: number; parts: LandmarkPart[] };
+export type LandmarkBlueprint = { kind: LandmarkKind; variant: LandmarkVariant; radius: number; parts: LandmarkPart[] };
 
-/** 正式生成与预览共用模板；床数量及等级由构建器统一约束。 */
-export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): LandmarkBlueprint {
+/** 生成时从三套地点模板中选取一套；床数量及等级由构建器统一约束。 */
+export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random, selectedVariant?: LandmarkVariant): LandmarkBlueprint {
+  const variant = selectedVariant ?? Math.min(2, Math.floor(rng() * 3)) as LandmarkVariant;
   const builder = new LandmarkBuilder(rng);
   if (!buildRuin(kind, builder)) buildSettlement(kind, builder);
-  return { kind, radius: kind === 'village' ? 12 : 10, parts: builder.parts };
+  applyLandmarkVariant(kind, variant, builder);
+  return { kind, variant, radius: kind === 'village' ? 12 : 10, parts: builder.parts };
 }
