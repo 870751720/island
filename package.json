@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:preview": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "build:h5": "node scripts/build-h5.mjs",
     "build:xiaohongshu": "node scripts/build-xiaohongshu.mjs",

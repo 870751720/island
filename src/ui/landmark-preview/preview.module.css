@@ -1,0 +1,22 @@
+.page { height: 100dvh; display: flex; flex-direction: column; background: #e4e9dc; color: #293c30; font-family: system-ui, sans-serif; overflow: hidden; }
+.header { padding: max(14px, env(safe-area-inset-top)) 18px 0; flex-shrink: 0; }
+.eyebrow { font-size: 10px; letter-spacing: 3px; color: #657b62; }
+.header h1 { font-size: 22px; margin: 5px 0; }
+.header p { font-size: 12px; margin: 6px 0 10px; }
+.page select, .page button, .page input { min-height: 44px; border: 1px solid #a9b69c; border-radius: 12px; background: #f7f8f1; color: #293c30; font: inherit; padding: 0 12px; }
+.page select { width: 100%; font-size: 15px; }
+.header .description { margin-bottom: 0; color: #536b52; }
+.viewport { flex: 1; min-height: 120px; position: relative; }
+.canvas { position: absolute; inset: 0; }
+.canvas canvas { display: block; }
+.hint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; background: #f7f8f1dc; border-radius: 20px; padding: 6px 12px; pointer-events: none; }
+.status { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; pointer-events: none; }
+.footer { padding: 8px 14px max(10px, env(safe-area-inset-bottom)); background: #f1f3e9; flex-shrink: 0; }
+.actions { display: flex; gap: 6px; }
+.actions button { flex: 1; white-space: nowrap; padding: 0 8px; }
+.seed { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+.seed input { width: 78px; margin-left: 4px; padding: 0 6px; }
+.seed span { color: #657b62; }
+.footer p { font-size: 10px; color: #657b62; margin: 8px 0 0; }
+@media (min-width: 760px) { .header, .footer { padding-left: 28px; padding-right: 28px; } .header select { max-width: 360px; } .actions { max-width: 480px; } }
+@media (orientation: landscape) and (max-height: 500px) { .page { display: grid; grid-template-columns: 230px 1fr; grid-template-rows: 1fr auto; } .header { grid-column: 1; padding: 12px; } .header h1 { font-size: 18px; } .viewport { grid-column: 2; grid-row: 1 / 3; } .footer { grid-column: 1; padding: 8px; } .seed { flex-wrap: wrap; } .seed span, .footer p { display: none; } .actions { flex-wrap: wrap; } .actions button { flex: 1 0 40%; } }

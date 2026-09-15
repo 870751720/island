@@ -93,10 +93,19 @@ export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): Landma
     add('torch', x + 5, z + 4);
   };
   if (kind === 'village') {
-    yard(-8, -6, 'farm');
-    yard(8, -6, 'fishing');
-    yard(0, 10, rng() < 0.5 ? 'camp' : 'workshop');
-    add('bench', 0, -4, { level: 1 });
+    // 开放公共空地，帐篷后退，生产与农田分区。
+    add('bed', -7, -5, { level: 1 });
+    add('bed', 1, -8, { level: 2 });
+    add('bed', 8, -3, { level: 1 });
+    add('fire', 0, 0);
+    add('bench', -6, 2, { level: 1 });
+    add('loom', -8, 5);
+    add('bait', 8, 2);
+    add('brew', 6, 5);
+    garden(-3, 6); garden(1, 6);
+    add('crate', -6, -2, { loot: loot(['wood', 3], ['rope', 2]) });
+    add('crate', 9, 5, { loot: loot(['bait', 5], ['sardine', 2]) });
+    for (const x of [-5, 5]) add('torch', x, 1);
     return { kind, radius: 22, parts };
   }
   const shrineKinds: Partial<Record<LandmarkKind, ShrineKind>> = {
@@ -106,10 +115,44 @@ export function landmarkBlueprint(kind: LandmarkKind, rng = Math.random): Landma
   const shrine = shrineKinds[kind];
   if (shrine) {
     add('shrine', 0, -2, { shrine });
-    enclosure(0, 0, true);
-    add('torch', -3, 3); add('torch', 3, 3);
-    add('crate', 4, -3, { loot: loot(['stone', 3], ['flint', 2]) });
-    if (kind === 'harvestRuin') garden(-4, -3);
+    const line = (x: number, z: number, dx: number, dz: number, count: number, stone = true) => {
+      for (let i = 0; i < count; i++) add('fence', x + dx * i, z + dz * i, { stone });
+    };
+    if (kind === 'seaRuin') {
+      // 向正面敞开的阶梯形回廊。
+      line(-3, -6, 1, 0, 7);
+      line(-4, -5, 0, 1, 3); line(4, -5, 0, 1, 3);
+      line(-6, -2, 0, 1, 5); line(6, -2, 0, 1, 5);
+      add('torch', -4, 3); add('torch', 4, 3);
+      add('crate', 4, 0, { loot: loot(['stone', 3], ['flint', 2]) });
+    } else if (kind === 'harvestRuin') {
+      garden(-5, -4); garden(3, -4); garden(-5, 1); garden(3, 1);
+      line(-6, -6, 1, 0, 13);
+      line(-6, -5, 0, 1, 4); line(6, -5, 0, 1, 4);
+      add('torch', -2, 4); add('torch', 2, 4);
+      add('crate', 0, -5, { loot: loot(['stone', 3], ['flint', 2]) });
+    } else if (kind === 'healingRuin') {
+      for (const [x, z] of [[-4,-4],[-2,-6],[0,-7],[2,-6],[4,-4],[5,-2],[-5,-2],[-4,1],[4,1]]) {
+        add('fence', x, z, { stone: true });
+      }
+      add('torch', -2, 2); add('torch', 2, 2);
+      add('crate', 3, -3, { loot: loot(['stone', 3], ['flint', 2]) });
+    } else if (kind === 'rainRuin') {
+      // 四组折角留出十字通道，祭坛沿用真实可交互模型。
+      for (const sign of [-1, 1]) {
+        line(sign * 2, -5, sign, 0, 4); line(sign * 5, -4, 0, 1, 2);
+        line(sign * 2, 4, sign, 0, 4); line(sign * 5, 1, 0, 1, 3);
+      }
+      add('torch', -2, 0); add('torch', 2, 0);
+      add('crate', 4, -4, { loot: loot(['stone', 3], ['flint', 2]) });
+    } else {
+      line(-4, -6, 1, 0, 9, false);
+      line(-4, -5, 0, 1, 10, false); line(4, -5, 0, 1, 10, false);
+      line(-4, 5, 1, 0, 3, false); line(2, 5, 1, 0, 3, false);
+      add('gate', -1, 5);
+      add('torch', -2, 3); add('torch', 2, 3);
+      add('crate', -2, -4, { loot: loot(['stone', 3], ['flint', 2]) });
+    }
     return { kind, radius: 10, parts };
   }
   yard(0, 0, kind);
