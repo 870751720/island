@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useJoystickPinch } from './useJoystickPinch';
 
 const SIZE = 120;
 const KNOB = 52;
@@ -13,12 +14,17 @@ const MAX_OFFSET = (SIZE - KNOB) / 2;
  */
 export function VirtualJoystick({
   onChange,
+  onZoom,
+  onZoomEnd,
 }: {
   onChange: (x: number, z: number) => void;
+  onZoom: (factor: number) => void;
+  onZoomEnd: () => void;
 }) {
   const pointerIdRef = useRef<number | null>(null);
   const [center, setCenter] = useState<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const pinch = useJoystickPinch(onZoom, onZoomEnd);
 
   const update = (cx: number, cy: number, px: number, py: number) => {
     let dx = px - cx;
@@ -42,6 +48,11 @@ export function VirtualJoystick({
   return (
     <div
       onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        if (pinch.down(e)) {
+          reset();
+          return;
+        }
         if (pointerIdRef.current !== null) return;
         pointerIdRef.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -49,11 +60,13 @@ export function VirtualJoystick({
         update(e.clientX, e.clientY, e.clientX, e.clientY);
       }}
       onPointerMove={(e) => {
+        if (pinch.move(e)) return;
         if (pointerIdRef.current !== e.pointerId || !center) return;
         update(center.x, center.y, e.clientX, e.clientY);
       }}
-      onPointerUp={reset}
-      onPointerCancel={reset}
+      onPointerUp={(e) => { if (pinch.up(e) || pointerIdRef.current === e.pointerId) reset(); }}
+      onPointerCancel={(e) => { if (pinch.up(e) || pointerIdRef.current === e.pointerId) reset(); }}
+      onLostPointerCapture={(e) => { if (pinch.up(e) || pointerIdRef.current === e.pointerId) reset(); }}
       style={{
         position: 'absolute',
         inset: 0,

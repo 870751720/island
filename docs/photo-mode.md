@@ -23,6 +23,7 @@
 - **Game 接入**(`src/game/Game.ts`):
   - `updateCamera()` 相机模式下注视 `PhotoCamera.center`,位置由 `offset()`(基础斜俯偏移绕竖轴旋转 yaw)直接硬置以保证拖动 1:1 跟手;常规模式保持原有跟随插值,退出时自然平滑回到玩家。
   - 缩放用 `camera.zoom` + `updateProjectionMatrix()`,不改动 `VIEW_SIZE` 与 resize 逻辑。
+  - 普通游戏双指缩放独立限制为 1～2 倍并保存在本机；退出相机模式恢复该倍率，下一局继续沿用。拍照倍率不覆盖游戏偏好，详见 [游戏画面双指缩放](gameplay-zoom.md)。
   - `requestPhoto(cb)`:立即渲染一帧再 `toDataURL` 读回,不依赖 `preserveDrawingBuffer`。
   - 进入时 `setJoystick(0,0)` 清掉移动输入(摇杆层随 UI 卸载收不到抬起事件)。
 - **UI 层**:

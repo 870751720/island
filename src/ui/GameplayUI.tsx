@@ -208,7 +208,13 @@ export function GameplayUI({
     >
       <style>{hudStyles + gameThemeCss}</style>
       <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
-      {!hud.dead && !photoMode && <VirtualJoystick onChange={(x, z) => gameRef.current?.setJoystick(x, z)} />}
+      {!hud.dead && !photoMode && (
+        <VirtualJoystick
+          onChange={(x, z) => gameRef.current?.setJoystick(x, z)}
+          onZoom={(factor) => gameRef.current?.zoomGameplayBy(factor)}
+          onZoomEnd={() => gameRef.current?.rememberGameplayZoom()}
+        />
+      )}
       {!photoMode && (
         <>
           <FpsOverlay />

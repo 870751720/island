@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PhotoCamera } from '../systems/PhotoCamera';
 import { StableSunShadow } from './StableSunShadow';
+import { loadGameplayZoom, saveGameplayZoom } from './GameplayZoom';
 
 const cameraOffset = new THREE.Vector3();
 
@@ -9,13 +10,28 @@ export class GameCameraController {
   private readonly photo = new PhotoCamera();
   private readonly sunShadow = new StableSunShadow();
   private readonly followTarget = new THREE.Vector3();
+  private gameplayZoom = loadGameplayZoom();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly scene: THREE.Scene,
     private readonly camera: THREE.OrthographicCamera,
     private readonly playerPosition: () => THREE.Vector3
-  ) {}
+  ) {
+    this.camera.zoom = this.gameplayZoom;
+    this.camera.updateProjectionMatrix();
+  }
+
+  zoomGameplayBy(factor: number): void {
+    if (this.photo.active || !Number.isFinite(factor) || factor <= 0) return;
+    this.gameplayZoom = Math.min(2, Math.max(1, this.gameplayZoom * factor));
+    this.camera.zoom = this.gameplayZoom;
+    this.camera.updateProjectionMatrix();
+  }
+
+  rememberGameplayZoom(): void {
+    saveGameplayZoom(this.gameplayZoom);
+  }
 
   get photoActive(): boolean {
     return this.photo.active;
@@ -30,7 +46,7 @@ export class GameCameraController {
   exitPhotoMode(): void {
     this.photo.exit();
     this.followTarget.copy(this.camera.position).sub(this.photo.offset(cameraOffset));
-    this.camera.zoom = 1;
+    this.camera.zoom = this.gameplayZoom;
     this.camera.updateProjectionMatrix();
   }
 

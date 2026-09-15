@@ -2127,7 +2127,16 @@ export class Game {
   /** 进入相机模式:以玩家当前位置为注视点,停掉移动输入(摇杆层已隐藏不会触发抬起) */
   enterPhotoMode(): void {
     this.setJoystick(0, 0);
+    this.cameraController.rememberGameplayZoom();
     this.cameraController.enterPhotoMode();
+  }
+
+  zoomGameplayBy(factor: number): void {
+    this.cameraController.zoomGameplayBy(factor);
+  }
+
+  rememberGameplayZoom(): void {
+    this.cameraController.rememberGameplayZoom();
   }
 
   /** 退出相机模式:恢复常规跟随视角与缩放(位置由跟随插值平滑过渡) */
@@ -3602,6 +3611,7 @@ export class Game {
   }
 
   dispose(): void {
+    this.cameraController.rememberGameplayZoom();
     this.loop.stop();
     this.hostRef?.detach();
     this.guestNet?.dispose();
