@@ -16,9 +16,10 @@ function clip(points: THREE.Vector3[], axis: 'x' | 'z', edge: number, sign: numb
   return result;
 }
 
-/** 裁出一格路底，保留原地形坡折和顶点色；边缘细分仅用于自然混色。 */
+/** 裁出一格地表，保留原地形坡折和顶点色；细分用于自然混色与浅表起伏。 */
 export function groundPatchGeometry(
-  terrain: IslandTerrain, origin: THREE.Vector3, coverage: (x: number, z: number) => number, minimumCoverage = 0
+  terrain: IslandTerrain, origin: THREE.Vector3, coverage: (x: number, z: number) => number, minimumCoverage = 0,
+  surface: { color: THREE.Color; height?: (x: number, z: number) => number; segments?: number } = { color: new THREE.Color('#918775') }
 ): THREE.BufferGeometry {
   const geometry = terrain.mesh.geometry as THREE.PlaneGeometry;
   const { widthSegments: cols, heightSegments: rows, width, height } = geometry.parameters;
@@ -31,7 +32,7 @@ export function groundPatchGeometry(
   const firstZ = Math.max(0, Math.floor((minZ + height / 2) / height * rows));
   const lastZ = Math.min(rows - 1, Math.floor((maxZ + height / 2) / height * rows));
   const vertices: number[] = [], tints: number[] = [];
-  const gravel = new THREE.Color('#918775');
+  const segments = surface.segments ?? 8;
   const bary = new THREE.Vector3();
   const tint = new THREE.Color();
   for (let z = firstZ; z <= lastZ; z++) for (let x = firstX; x <= lastX; x++) {
@@ -40,10 +41,10 @@ export function groundPatchGeometry(
       const ids = [0, 1, 2].map((i) => index.getX(offset + i));
       const source = ids.map((i) => new THREE.Vector3().fromBufferAttribute(positions, i));
       const triangle = new THREE.Triangle(source[0], source[1], source[2]);
-      // 保留精确裁剪边界，8×8 混色网格不会跨过地形折线架空。
-      for (let iz = 0; iz < 8; iz++) for (let ix = 0; ix < 8; ix++) {
-        const left = minX + ix / 8, top = minZ + iz / 8;
-        const polygon = clip(clip(clip(clip(source, 'x', left, 1), 'x', left + 1 / 8, -1), 'z', top, 1), 'z', top + 1 / 8, -1);
+      // 保留精确裁剪边界，细分网格不会跨过地形折线架空。
+      for (let iz = 0; iz < segments; iz++) for (let ix = 0; ix < segments; ix++) {
+        const left = minX + ix / segments, top = minZ + iz / segments;
+        const polygon = clip(clip(clip(clip(source, 'x', left, 1), 'x', left + 1 / segments, -1), 'z', top, 1), 'z', top + 1 / segments, -1);
         for (let i = 1; i + 1 < polygon.length; i++) {
           const face: GroundTriangle = [polygon[0], polygon[i], polygon[i + 1]];
           if (new THREE.Triangle(...face).getArea() < 1e-9) continue;
@@ -55,8 +56,8 @@ export function groundPatchGeometry(
               colors.getX(ids[0]) * bary.x + colors.getX(ids[1]) * bary.y + colors.getX(ids[2]) * bary.z,
               colors.getY(ids[0]) * bary.x + colors.getY(ids[1]) * bary.y + colors.getY(ids[2]) * bary.z,
               colors.getZ(ids[0]) * bary.x + colors.getZ(ids[1]) * bary.y + colors.getZ(ids[2]) * bary.z
-            ).lerp(gravel, coverage(p.x, p.z));
-            vertices.push(p.x - origin.x, p.y - origin.y + 0.012, p.z - origin.z);
+            ).lerp(surface.color, coverage(p.x, p.z));
+            vertices.push(p.x - origin.x, p.y - origin.y + 0.012 + (surface.height?.(p.x, p.z) ?? 0), p.z - origin.z);
             tints.push(tint.r, tint.g, tint.b);
           }
         }

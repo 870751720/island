@@ -1,3 +1,5 @@
+import { StaticMeshBatch } from '../core/StaticMeshBatch';
+import { groundSurfaceMaterial, type GroundNeighbors } from '../world/GroundSurface';
 import type { ResourceKind } from './Inventory';
 import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
@@ -35,6 +37,9 @@ type PlayerSessionState = {
 export class SoilSystem {
   private soils: Soil[] = [];
   private readonly instances: ModelInstances;
+  private readonly surfaces: StaticMeshBatch;
+  private readonly cells = new Map<string, Soil>();
+  private readonly dirty = new Set<string>();
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
   private ids = new WorldEntityIds<Soil>('soil');
@@ -58,7 +63,45 @@ export class SoilSystem {
     private hasCropAt: (x: number, z: number) => boolean = () => false,
     /** 铲掉该位置的作物(铲子优先铲作物,无掉落),返回是否铲掉了 */
     private removeCropAt: (x: number, z: number) => boolean = () => false
-  ) { this.instances = new ModelInstances(scene); }
+  ) {
+    this.instances = new ModelInstances(scene);
+    this.surfaces = new StaticMeshBatch(scene, groundSurfaceMaterial());
+  }
+
+  private key(x: number, z: number): string { return `${Math.round(x)},${Math.round(z)}`; }
+
+  neighbors(x: number, z: number): GroundNeighbors {
+    return (dx, dz) => this.cells.has(this.key(x + dx, z + dz));
+  }
+
+  neighborMask(x: number, z: number): number {
+    let mask = 0;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      if (this.cells.has(this.key(x + dx, z + dz))) mask |= 1 << ((dz + 1) * 3 + dx + 1);
+    }
+    return mask;
+  }
+
+  private markAround(x: number, z: number): void {
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) this.dirty.add(this.key(x + dx, z + dz));
+  }
+
+  private add(value: SoilSave): Soil {
+    const at = new THREE.Vector3(value.x, this.terrain.getHeight(value.x, value.z), value.z);
+    const soil = new Soil(this.scene, at, this.instances, this.surfaces);
+    this.ids.set(soil, value.id);
+    this.soils.push(soil);
+    this.cells.set(this.key(at.x, at.z), soil);
+    this.markAround(at.x, at.z);
+    return soil;
+  }
+
+  private removeVisual(soil: Soil): void {
+    const { x, z } = soil.group.position;
+    this.cells.delete(this.key(x, z));
+    this.markAround(x, z);
+    soil.remove(this.scene);
+  }
 
   private st(actor: PlayerSession): PlayerSessionState {
     let st = this.states.get(actor);
@@ -98,8 +141,7 @@ export class SoilSystem {
   /** 在吸附格中心开出一格土壤(手持锄头自动安放的 place 委托,落格已校验,零消耗) */
   place(actor: PlayerSession, at: THREE.Vector3): boolean {
     if (this.canPlaceAt(actor, at.x, at.z) !== null) return false;
-    const soil = new Soil(this.scene, at, this.instances);
-    this.soils.push(soil);
+    const soil = this.add(at);
     const sp = soil.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(soil), value: { id: this.ids.get(soil), x: sp.x, y: sp.y, z: sp.z } });
     this.audio.play('mine');
@@ -158,7 +200,7 @@ export class SoilSystem {
       }
       this.soils.splice(this.soils.indexOf(target), 1);
       this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      target.remove(this.scene);
+      this.removeVisual(target);
       this.audio.play('drop');
       // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
       if (Math.random() < 0.005) {
@@ -215,37 +257,42 @@ export class SoilSystem {
       soil.remove(this.scene);
     }
     this.soils = [];
+    this.cells.clear();
+    this.dirty.clear();
   }
 
   /** 从存档恢复全部土壤 */
   restore(list: SoilSave[]): void {
-    for (const s of list) {
-      const soil = new Soil(this.scene, new THREE.Vector3(s.x, s.y, s.z), this.instances);
-      this.ids.set(soil, s.id);
-      this.soils.push(soil);
-    }
+    for (const value of list) this.add(value);
   }
 
-  flushInstances(): void { this.instances.flush(); }
+  flushInstances(): void {
+    for (const key of this.dirty) {
+      const soil = this.cells.get(key);
+      if (soil) soil.fit(this.terrain, this.neighbors(soil.group.position.x, soil.group.position.z));
+    }
+    this.dirty.clear();
+    this.surfaces.flush();
+    this.instances.flush();
+  }
 
   dispose(): void {
     this.clear();
     this.instances.dispose();
+    this.surfaces.dispose();
   }
 
   netApply(list: SoilSave[]): void {
     const incoming = new Map(list.filter((x) => x.id).map((x) => [x.id!, x]));
     for (let i = this.soils.length - 1; i >= 0; i--) {
       if (incoming.has(this.ids.get(this.soils[i]))) continue;
-      this.soils[i].remove(this.scene);
+      this.removeVisual(this.soils[i]);
       this.soils.splice(i, 1);
     }
     const current = new Map(this.soils.map((s) => [this.ids.get(s), s]));
     for (const value of list) {
       if (value.id && current.has(value.id)) continue;
-      const soil = new Soil(this.scene, new THREE.Vector3(value.x, value.y, value.z), this.instances);
-      this.ids.set(soil, value.id);
-      this.soils.push(soil);
+      this.add(value);
     }
   }
 }

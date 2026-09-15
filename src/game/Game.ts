@@ -22,7 +22,7 @@ import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
 import { SheepMilkSystem } from './systems/SheepMilkSystem';
-import { pickaxeUnlocked, hoePlaceTime } from './systems/ToolTiers';
+import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { advanceSeasonForDay, getSeason, rollInitialSeason, setSeason } from './systems/SeasonSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
@@ -61,7 +61,7 @@ import { Shrine } from './entities/Shrine';
 import { RoadSystem } from './systems/RoadSystem';
 import { roadFacility } from './systems/RoadFacility';
 import { SoilSystem } from './systems/SoilSystem';
-import { Soil } from './entities/Soil';
+import { soilFacility } from './systems/SoilFacility';
 import { CropSystem } from './systems/CropSystem';
 import { CROP_SPECS, makeCropSproutPreview } from './entities/Crop';
 import { MeteorSystem } from './systems/MeteorSystem';
@@ -2933,17 +2933,7 @@ export class Game {
     def('grassTuft', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeGrassTuft(), place: (a, at) => this.placeBush('grassTuft', at, a) });
     def('wormNest', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeWormNest().group, place: (a, at) => this.placeBush('wormNest', at, a) });
     // 土壤:手持锄头即触发的零消耗设施,站定自动开出一格土壤(高等级锄头更快),铲子可挖掉还原
-    def('soil', {
-      tool: 'hoe',
-      free: true,
-      name: '土壤',
-      placingLabel: '锄地开垦…',
-      valid: (a, x, z) => this.soils.canPlaceAt(a, x, z),
-      buildPreview: ghost((sc) => new Soil(sc, new THREE.Vector3()).group),
-      place: (a, at) => this.soils.place(a, at),
-      holdTime: (a) => hoePlaceTime(a.tools.hoe),
-      failText: () => '这里锄不了,找块没东西的干地试试',
-    });
+    def('soil', soilFacility(this.soils, this.terrain));
     // 树木种子共用设施网格与干地占位规则,预览为真实发芽模型。
     for (const species of TREE_SPECIES) {
       const kind = SEED_OF[species];

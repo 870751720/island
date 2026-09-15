@@ -38,7 +38,10 @@
 
 ### SoilSystem / Soil 实体
 
-- `entities/Soil.ts`:一格深色松土方块(0.92 见方、微沉入地),表面三道播种沟(种植系统沿用)。`SoilSave = { id?, x, y, z }`。
+- `entities/Soil.ts`：一格 1×1 米的深色翻土地表，复用碎石路的 `GroundPatch` 裁剪真实地形三角面，保留斜坡与坡折，抬高 0.012 米避免闪烁；三道浅土垄以世界坐标生成并随地形起伏。
+- `GroundSurface` 共用外沿覆盖率与季节地表材质；约 0.2 米不规则边缘逐渐混入原地形顶点色，土垄和土坷垃在外沿缩小，相邻耕地共享边不收边，拐角考虑斜向邻格。
+- 土坷垃按坐标确定性散布，独立采样高度与坡面法线。土床使用 `StaticMeshBatch` 分块合并，土坷垃使用 `ModelInstances`；仅新增、移除及其周围八格重建，清空时释放资源。
+- `SoilFacility` 让绿/红放置预览按目标格与邻接状态更新贴地模型。`SoilSave = { id?, x, y, z }`，读档重新采样地形高度，存档与协议版本均不变。
 - `systems/SoilSystem.ts`(模板 `ShrineSystem`):
   - `blocksCell`/`canPlaceAt`(复用 `dryCellReason`)接入统一占格 `PlaceOccupancy`;
   - `place`:零消耗落格生成实体,`WorldEntityIds` 分配稳定 id,发 `onChanged` 增量;
@@ -75,4 +78,4 @@
 - GM 面板「物品 → 设施」页的「土壤 · 放面前」入口移除(测试土壤改用 GM 发放锄头后正常锄地),连带删除 `gmPlaceSoil` 动作与协议条目(`Actions.ts`/`ActionProtocol.ts`)及 `Game.gmPlaceSoil`。
 
 ## 静态部件绘制合并
-土壤内部部件按接收阴影属性合并为两个网格；铲除、清空及客人删除时释放几何体和材质。详见 [绘制优化](render-batching.md)。
+土床按空间分块合并，土坷垃共享实例模板；铲除、清空及客人删除时释放对应几何体。详见 [绘制优化](render-batching.md)。

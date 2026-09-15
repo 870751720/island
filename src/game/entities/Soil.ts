@@ -1,35 +1,16 @@
-import { mergeClayMeshes } from '../core/mergeClayMeshes';
-import { ModelInstances } from '../core/ModelInstances';
-import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
+import { ModelInstances } from '../core/ModelInstances';
+import type { StaticMeshBatch } from '../core/StaticMeshBatch';
+import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import { clayMaterial } from '../world/ClayMaterial';
+import type { IslandTerrain } from '../world/IslandTerrain';
+import { groundPatchGeometry } from '../world/GroundPatch';
+import { groundCoverage, type GroundNeighbors } from '../world/GroundSurface';
 
-
-/** 程序化拼装的一格土壤:整格(1×1)深色翻土,相邻土壤的土垄正好接上连成一片;
- * 表面留出三道通贯播种沟(后续种植系统沿用),散几个小土坷垃增加松土质感 */
 /** 按落点取 0-1 的确定性伪随机(每格土坷垃的散布不一样,又不随读档/联机重放漂移) */
 function cellRandom(x: number, z: number, i: number): number {
   const v = Math.sin(x * 127.1 + z * 311.7 + i * 74.7) * 43758.5453;
   return v - Math.floor(v);
-}
-
-function makeSoilBase(): THREE.Group {
-  const g = new THREE.Group();
-  // 土床:整格扁方块,微微沉进地面,边缘与相邻土壤严丝合缝
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(1, 0.07, 1), clayMaterial('#5e4530'));
-  bed.position.y = 0.035;
-  bed.receiveShadow = true;
-  g.add(bed);
-  // 土垄:三道通贯整格的拱起条(间距 1/3 格,相邻土壤的垄自然相连)
-  const ridge = clayMaterial('#71543c');
-  for (let i = -1; i <= 1; i++) {
-    const row = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.16), ridge);
-    row.position.set(0, 0.075, i / 3);
-    row.receiveShadow = true;
-    g.add(row);
-  }
-  mergeClayMeshes(g);
-  return g;
 }
 
 function makeClod(): THREE.Group {
@@ -41,14 +22,16 @@ function makeClod(): THREE.Group {
 /** 场景中的一格土壤:手持锄头站定自动开出,铲子可以挖掉还原(无掉落),后续种植系统在上面播种 */
 export class Soil {
   readonly group: THREE.Group;
+  private readonly surface: THREE.Mesh | null;
   private readonly clods: THREE.Group[] = [];
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, private readonly instances?: ModelInstances) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, private readonly instances?: ModelInstances, private readonly surfaces?: StaticMeshBatch) {
     this.group = new THREE.Group();
     this.group.position.copy(position);
     scene.add(this.group);
-    if (instances) instances.set(this.group, 'soil:base', makeSoilBase, false);
-    else this.group.add(makeSoilBase());
+    this.surface = surfaces ? null : new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), clayMaterial('#5e4530'));
+    if (this.surface) this.group.add(this.surface);
     // 保留每格原有的确定性位置和尺寸，仅共享基础球体；预览仍使用独占网格。
     const { x, z } = position;
     for (let i = 0; i < 4; i++) {
@@ -61,11 +44,40 @@ export class Soil {
       instances?.set(clod, 'soil:clod', makeClod, false);
       if (instances) clod.matrixAutoUpdate = false;
     }
-    if (instances) this.group.matrixAutoUpdate = false;
+
+  }
+
+  fit(terrain: IslandTerrain, neighbors: GroundNeighbors): void {
+    const origin = this.group.position;
+    const coverage = (x: number, z: number) => groundCoverage(x, z, origin.x, origin.z, neighbors);
+    // 世界坐标的三道浅土垄在格界连续，外沿随混色一起降回地面。
+    const height = (x: number, z: number) => coverage(x, z) *
+      (0.008 + 0.035 * Math.pow(0.5 + 0.5 * Math.cos(z * Math.PI * 6), 2));
+    const geometry = groundPatchGeometry(terrain, origin, coverage, this.surfaces ? 0 : 0.25,
+      { color: new THREE.Color('#5e4530'), height, segments: 12 });
+    if (this.surfaces) this.surfaces.set(this.group, geometry);
+    else if (this.surface) {
+      this.surface.geometry.dispose();
+      this.surface.geometry = geometry;
+    }
+    const up = new THREE.Vector3(0, 1, 0), normal = new THREE.Vector3();
+    this.clods.forEach((clod, i) => {
+      const x = origin.x + clod.position.x, z = origin.z + clod.position.z;
+      const cover = coverage(x, z);
+      normal.set(terrain.getHeight(x - 0.04, z) - terrain.getHeight(x + 0.04, z), 0.08,
+        terrain.getHeight(x, z - 0.04) - terrain.getHeight(x, z + 0.04)).normalize();
+      clod.quaternion.setFromUnitVectors(up, normal);
+      clod.position.y = terrain.getHeight(x, z) - origin.y + 0.012 + height(x, z);
+      const size = (0.05 + cellRandom(origin.x, origin.z, i) * 0.025) * cover;
+      clod.scale.set(size, size * 0.7, size);
+      clod.visible = cover > 0.04;
+      clod.updateMatrix();
+      this.instances?.set(clod, 'soil:clod', makeClod, false);
+    });
   }
 
   remove(scene: THREE.Scene): void {
-    this.instances?.delete(this.group);
+    this.surfaces?.delete(this.group);
     for (const clod of this.clods) this.instances?.delete(clod);
     scene.remove(this.group);
     disposeOwnedMeshes(this.group);
