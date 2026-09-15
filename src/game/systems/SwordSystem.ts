@@ -95,7 +95,8 @@ export class SwordSystem {
   private settle(animalId: number): void {
     const beast = this.wildlife.damage(
       animalId,
-      DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier * this.damageMultiplier()
+      DAMAGE[this.getSwordTier() - 1] * GmSystem.attackMultiplier * this.damageMultiplier(),
+      this.player
     );
     if (beast) this.onCombat?.();
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)

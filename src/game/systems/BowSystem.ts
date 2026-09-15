@@ -302,7 +302,7 @@ export class BowSystem {
   private applyHit(hit: ArrowHit, x: number, z: number): void {
     const damage = ARROW_DAMAGE[Math.min(ARROW_DAMAGE.length, Math.max(1, this.tools.bow)) - 1] * GmSystem.attackMultiplier * this.damageMultiplier();
     if (hit.kind === 'wildlife') {
-      const beast = this.wildlife.damage(hit.animalId, damage);
+      const beast = this.wildlife.damage(hit.animalId, damage, this.player);
       if (beast) this.onCombat?.();
       // 野生动物可中数箭:受伤未死不掉肉
       if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species, beast.juvenile), x, z);

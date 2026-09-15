@@ -86,6 +86,8 @@ const HIDE_CALM_TIME = 5;
 // —— 野牛的反击行为参数 ——
 /** 被玩家打到半血后进入激怒:主动追击玩家,攻击力等参数对齐狼 */
 const BISON_ENRAGE_HP = 0.5;
+const BISON_PROTECT_RANGE = 20;
+const BISON_PROTECT_CHASE_RANGE = 40;
 const BISON_ENRAGED = {
   senseRange: 9,
   deaggroRange: 14,
@@ -304,8 +306,10 @@ type Animal = LifeState & {
   lungeLeft: number;
   /** 草食动物的受惊状态(带迟滞,避免在警戒边界反复切换) */
   alerted: boolean;
-  /** 野牛的激怒状态(被玩家打到半血后置位):转为主动追击,不再逃跑(其他物种恒为 false) */
+  /** 野牛的激怒状态(半血反击或附近小牛受击后置位):转为主动追击,不再逃跑(其他物种恒为 false) */
   provoked: boolean;
+  /** 护犊锁定攻击者，离场、死亡、入水或离开追击范围后释放。 */
+  calfAttacker: Player | null;
   /** 天数事件的绑定目标:不死不休追击该玩家(无脱战);目标离场后退化为普通野生 */
   boundTo: Player | null;
   /** 展示朝向(向逻辑朝向平滑过渡,避免状态切换时硬切) */
@@ -475,6 +479,7 @@ export class Wildlife implements Updatable {
       lungeLeft: 0,
       alerted: false,
       provoked: false,
+      calfAttacker: null,
       boundTo: null,
       viewHeading: heading,
       stamina: BEAR_SPRINT_TIME,
@@ -745,7 +750,13 @@ export class Wildlife implements Updatable {
       // 天数事件的绑定掠食者例外:永远只追绑定的玩家,目标离场(断线/离开)后退化为普通野生
       let bound = animal.boundTo;
       if (bound && !this.players().includes(bound)) animal.boundTo = bound = null;
-      const target = bound ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
+      let protectorTarget = animal.calfAttacker;
+      if (protectorTarget && (!this.players().includes(protectorTarget)
+        || !this.isPlayerVulnerable(protectorTarget)
+        || Math.hypot(protectorTarget.group.position.x - animal.pos.x, protectorTarget.group.position.z - animal.pos.z) > BISON_PROTECT_CHASE_RANGE)) {
+        animal.calfAttacker = protectorTarget = null;
+      }
+      const target = bound ?? protectorTarget ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
       const vulnerable = target ? this.isPlayerVulnerable(target) : false;
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
@@ -760,8 +771,8 @@ export class Wildlife implements Updatable {
         const pond = animal.pond;
         animal.alerted = !!pond && !!target
           && Math.hypot(p.x - pond.x, p.z - pond.z) <= pond.radius + CROC_LEASH;
-      } else if (bound) {
-        // 绑定掠食者不死不休:永远保持警戒,不存在脱战
+      } else if (bound || protectorTarget) {
+        // 绑定掠食者或仍在追击范围内的护犊野牛保持警戒
         animal.alerted = true;
       } else {
         if (dist < combat.senseRange) animal.alerted = true;
@@ -1419,10 +1430,10 @@ export class Wildlife implements Updatable {
   }
 
   /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子与被拴住的羊不可命中 */
-  damage(id: number, damage: number): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
+  damage(id: number, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || animal.hidden || animal.leash) return null;
-    return this.applyDamage(animal, damage);
+    return this.applyDamage(animal, damage, attacker);
   }
 
   /** 博美只伤害本帧威胁，沿命中路径检查遮挡；伤害不受玩家 GM 倍率影响。 */
@@ -1475,8 +1486,18 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  private applyDamage(animal: Animal, damage: number): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
+  private applyDamage(animal: Animal, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     if (!Number.isFinite(damage) || damage <= 0) return null;
+    if (attacker && animal.species === 'bison' && animal.bornAt !== null) {
+      for (const adult of this.animals) {
+        if (!adult.alive || adult.hidden || adult.leash || adult.species !== 'bison' || adult.bornAt !== null) continue;
+        if (Math.hypot(adult.pos.x - animal.pos.x, adult.pos.z - animal.pos.z) > BISON_PROTECT_RANGE) continue;
+        this.lifecycle.cancel(adult);
+        adult.provoked = true;
+        adult.alerted = true;
+        adult.calfAttacker = attacker;
+      }
+    }
     this.lifecycle.cancel(animal);
     animal.hp -= damage;
     this.onDamage(damage, animal.pos, animal.id);

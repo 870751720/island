@@ -81,6 +81,7 @@ import { LeashLines } from './fx/LeashLines';
 import { MumbleSystem } from './systems/MumbleSystem';
 import { SeaThreatSystem } from './systems/SeaThreatSystem';
 import { Particles } from './fx/Particles';
+import { DamageScreenFlash } from './fx/DamageScreenFlash';
 import { AnimalDamageNumbers } from './fx/AnimalDamageNumbers';
 import { GameAudio } from './audio/GameAudio';
 import type { SfxName } from './audio/Sfx';
@@ -338,6 +339,7 @@ export class Game {
   private swordEquipTimer = 0;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
+  private damageScreenFlash: DamageScreenFlash;
   private hostRef: NetHost | null;
   private readonly guestNet: NetGuest | null;
   private worldReplication: WorldReplicationController;
@@ -379,6 +381,7 @@ export class Game {
     options: GameOptions = {}
   ) {
     this.container = container;
+    this.damageScreenFlash = new DamageScreenFlash(container);
     this.hostRef = options.host ?? null;
     this.guestNet = options.guest ?? null;
     this.guestMode = !!options.guest;
@@ -1130,6 +1133,7 @@ export class Game {
           if (s.survival.state.health < s.lastHealth - 0.001) {
             s.player.hurt();
             if (s === this.local) {
+              this.damageScreenFlash.flash();
               s.hurtSoundTimer -= simDelta;
               if (s.hurtSoundTimer <= 0) {
                 this.audio.play('hurt');
@@ -1604,6 +1608,7 @@ export class Game {
       // 客人端闪红与受伤音跟随快照血量下降(受击/饥饿/溺水等所有掉血来源)
       if (p.health < s.lastHealth - 0.001) {
         s.player.hurt();
+        if (s === this.local) this.damageScreenFlash.flash();
         if (s === this.local && this.loopElapsed - this.lastHurtSfxAt > 1.5) {
           this.audio.play('hurt');
           this.lastHurtSfxAt = this.loopElapsed;
@@ -3645,6 +3650,7 @@ export class Game {
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
     this.animalDamageNumbers.dispose();
+    this.damageScreenFlash.dispose();
     this.drops.dispose();
     this.leashLines.dispose();
     this.props.dispose();
