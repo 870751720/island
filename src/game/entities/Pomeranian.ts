@@ -170,6 +170,9 @@ export class Pomeranian {
   onPounce: (serial: number) => void = () => {};
   private model: DogModel;
   private pos = new THREE.Vector3();
+
+  /** 玩法位置：外层 group 仅作容器，动画位移在内部模型上。 */
+  get position(): Readonly<THREE.Vector3> { return this.pos; }
   private heading = 0;
   private readonly netPos = new THREE.Vector3();
   private netHeading = 0;

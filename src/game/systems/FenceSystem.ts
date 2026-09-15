@@ -443,31 +443,32 @@ export class FenceSystem implements ObstacleSolver {
     return true;
   }
 
-  /**
-   * 手持围栏门时的最佳落位:门带中心在玩家面前的候选里打分——
-   * 端点接着现有围栏柱的优先(把门嵌进围栏线的缺口),否则取离面前最近的。
-   */
+  /** 门中心对称搜索：两端直线连接优先，其次门口朝向玩家，最后取最近落点。 */
   gateTarget(actor: PlayerSession): { gx: number; gz: number; dir: 'x' | 'z' } | null {
     const t = this.aheadPoint(actor);
     const bx = Math.round(t.x / FENCE_GRID);
     const bz = Math.round(t.z / FENCE_GRID);
+    const rotation = actor.player.group.rotation.y;
+    // 玩家面向 X 轴时，门带沿 Z 轴，门口正对玩家；反向面朝同样适用。
+    const preferred = Math.abs(Math.sin(rotation)) > Math.abs(Math.cos(rotation)) ? 'z' : 'x';
     let best: { gx: number; gz: number; dir: 'x' | 'z' } | null = null;
     let bestScore = Infinity;
-    for (let dx = -2; dx <= 1; dx++) {
-      for (let dz = -2; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const mx = bx + dx;
+        const mz = bz + dz;
+        const dist = Math.hypot(mx - t.x, mz - t.z);
+        if (dist > 1.4) continue;
         for (const dir of ['x', 'z'] as const) {
-          const gx = bx + dx;
-          const gz = bz + dz;
-          const mx = gx + (dir === 'x' ? 1 : 0);
-          const mz = gz + (dir === 'z' ? 1 : 0);
-          const dist = Math.hypot(mx - t.x, mz - t.z);
-          if (dist > 1.4 || !this.edgeValid(gx, gz, dir)) continue;
-          const ex = dir === 'x' ? gx + 2 : gx;
-          const ez = dir === 'z' ? gz + 2 : gz;
-          const touching =
-            (this.fences.has(FenceSystem.vertexKey(gx, gz)) ? 1 : 0) +
-            (this.fences.has(FenceSystem.vertexKey(ex, ez)) ? 1 : 0);
-          const score = (touching > 0 ? 0 : 10) + dist;
+          const ux = dir === 'x' ? 1 : 0;
+          const uz = dir === 'z' ? 1 : 0;
+          const gx = mx - ux;
+          const gz = mz - uz;
+          if (!this.edgeValid(gx, gz, dir)) continue;
+          // 门端点必须空着；检查端点外侧一格的柱子，才能接入已有围栏线。
+          const touching = Number(this.hasPostAt(mx - 2 * ux, mz - 2 * uz, NO_VIRTUAL))
+            + Number(this.hasPostAt(mx + 2 * ux, mz + 2 * uz, NO_VIRTUAL));
+          const score = (2 - touching) * 10 + (dir === preferred ? 0 : 2) + dist;
           if (score < bestScore) {
             bestScore = score;
             best = { gx, gz, dir };
@@ -610,7 +611,7 @@ export class FenceSystem implements ObstacleSolver {
   }
 
   /** 世界侧每帧更新:门对玩家或薯条的靠近自动开合,并向玩家所在一侧的对侧打开;各玩家的放置/挖掘由 updateActor 推进 */
-  update(delta: number, players = [...this.states.keys()].map((actor) => actor.player.group.position)): void {
+  update(delta: number, players: readonly Readonly<{ x: number; z: number }>[] = [...this.states.keys()].map((actor) => actor.player.group.position)): void {
     for (const gate of this.gates.values()) {
       // 门局部 +z 轴在世界系中的方向(门朝向只可能是 0 或 90 度,轴向无误差)
       const localZ = gate.dir === 'x' ? { x: 0, z: 1 } : { x: 1, z: 0 };

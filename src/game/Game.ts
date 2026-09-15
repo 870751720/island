@@ -1201,7 +1201,7 @@ export class Game {
             break;
           }
         }
-        this.fences.update(simDelta, [...this.sessions.map((s) => s.player.group.position), this.dog.group.position]);
+        this.fences.update(simDelta, [...this.sessions.map((s) => s.player.group.position), this.dog.position]);
         this.campfire.update(simDelta, elapsed, this.weather.rainIntensity);
         this.shrines.update(simDelta, elapsed);
         this.crops.update(simDelta, elapsed, this.weather.rainIntensity);
