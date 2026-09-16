@@ -294,14 +294,21 @@ export class CrateSystem {
   }
 
   /** 从存档恢复木箱(含箱内物品) */
-  restore(list: CrateSave[]): void {
+  restore(list: CrateSave[]): { kind: ResourceKind; count: number; x: number; z: number }[] {
+    const overflow: { kind: ResourceKind; count: number; x: number; z: number }[] = [];
     for (const c of list) {
       const crate = new Crate(this.scene, new THREE.Vector3(c.x, c.y, c.z), c.kind, c.rotY);
-      crate.storage.load(c.slots, crateCapacity(crate.kind));
+      const capacity = crateCapacity(crate.kind);
+      crate.storage.load(c.slots, Math.max(capacity, c.slots.length));
+      for (const item of crate.storage.shrink(capacity)) {
+        const count = item.count - crate.storage.add(item.kind, item.count);
+        if (count > 0) overflow.push({ kind: item.kind, count, x: c.x, z: c.z });
+      }
       crate.updateIcon();
       this.ids.set(crate, c.id);
       this.crates.push(crate);
     }
+    return overflow;
   }
 
   /** 槽位以路径字段单独上报，网络层无需重复发送整箱内容。 */

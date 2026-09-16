@@ -1,3 +1,4 @@
+import { WorldNoticePresentation } from './WorldNoticePresentation';
 import * as THREE from 'three';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { PickupToast } from '../GameContracts';
@@ -11,6 +12,7 @@ export class PickupPresentation {
   private origins = new Map<string, { pos: THREE.Vector3; until: number }>();
   private targets = new Map<string, () => THREE.Vector3>();
   private readonly itemFly: ItemFlyFx;
+  private readonly notices: WorldNoticePresentation;
 
   constructor(
     scene: THREE.Scene,
@@ -18,8 +20,10 @@ export class PickupPresentation {
     private readonly camera: THREE.Camera,
     private readonly viewport: () => { width: number; height: number },
     private readonly onPickup: (toast: PickupToast) => void,
-    private readonly playPickup: () => void
+    private readonly playPickup: () => void,
+    container: HTMLElement
   ) {
+    this.notices = new WorldNoticePresentation(container, camera);
     this.itemFly = new ItemFlyFx(scene, () => this.targetFor(this.localSession())());
   }
 
@@ -63,8 +67,14 @@ export class PickupPresentation {
 
   spawnTo(origin: THREE.Vector3, target: THREE.Vector3, kind: ResourceKind, count: number): void {
     const destination = target.clone();
+    let remaining = Math.min(count, 3);
     for (let i = 0; i < Math.min(count, 3); i++) {
-      this.itemFly.spawn(kind, origin, i * 0.12, undefined, () => destination);
+      this.itemFly.spawn(kind, origin, i * 0.12, () => {
+        if (--remaining > 0) return;
+        this.notices.show('鱼护入鱼', destination);
+        const player = this.localSession().player.group.position;
+        if (Math.hypot(player.x - destination.x, player.z - destination.z) <= 20) this.playPickup();
+      }, () => destination);
     }
   }
 
@@ -88,9 +98,11 @@ export class PickupPresentation {
 
   update(delta: number): void {
     this.itemFly.update(delta);
+    this.notices.update(delta);
   }
 
   dispose(): void {
+    this.notices.dispose();
     this.origins.clear();
     this.targets.clear();
   }

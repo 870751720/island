@@ -1,3 +1,4 @@
+import { makeFishKeepModel } from '../entities/FishKeepModel';
 import { makeDoghouseModel } from '../entities/Doghouse';
 import * as THREE from 'three';
 import { PlankPath } from '../entities/PlankPath';
@@ -1466,7 +1467,11 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironPants: () => makePants(DROP_COLORS.ironPants),
   ironHat: () => makeHat(DROP_COLORS.ironHat, '#6dada6'),
   ironBackpack: () => makeBackpack(DROP_COLORS.ironBackpack),
-  fishKeep: () => makeCrateDrop('#937444', '#547d79'),
+  fishKeep: () => {
+    const model = makeFishKeepModel();
+    model.scale.setScalar(0.4);
+    return model;
+  },
   crate: () => makeCrateDrop('#a97b48', '#7a5a32'),
   ironCrate: () => makeCrateDrop(DROP_COLORS.ironCrate, '#697076'),
   baitBarrel: () => {

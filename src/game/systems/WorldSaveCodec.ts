@@ -58,7 +58,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.campfire.restore(save.campfires);
   s.workbench.restore(save.workbenches);
   if (save.workbenchCrafted) s.workbench.restoreCrafted();
-  s.crates.restore(save.crates);
+  const crateOverflow = s.crates.restore(save.crates);
   s.baitBarrels.restore(save.baitBarrels);
   s.brewBarrels.restore(save.brewBarrels);
   s.doghouses.restore(save.doghouses ?? []);
@@ -80,6 +80,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
     if (!save.wildlife) for (const stake of save.stakes) s.wildlife.spawnStakedSheep(stake.x, stake.z);
   }
   s.drops.restore(save.drops);
+  if (!guestMode) for (const item of crateOverflow) s.drops.dropAt(item.kind, item.count, item.x, item.z);
   s.dog.restore(save.dog.x, save.dog.z, save.dog);
 }
 

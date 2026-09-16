@@ -470,7 +470,8 @@ export class Game {
       this.camera,
       () => ({ width: this.renderer.domElement.clientWidth, height: this.renderer.domElement.clientHeight }),
       (toast) => this.onPickup(toast),
-      () => this.audio.play('pickup')
+      () => this.audio.play('pickup'),
+      container
     );
 
     this.scene.add(terrain.waterGroup);

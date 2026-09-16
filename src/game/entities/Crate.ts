@@ -1,3 +1,4 @@
+import { makeFishKeepModel } from './FishKeepModel';
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
 import { Inventory } from '../systems/Inventory';
@@ -14,7 +15,7 @@ export const CRATE_CAPACITY = 10;
 /** 各箱种的静态属性:收纳格数与模型配色 */
 const CRATE_STYLES: Record<CrateKind, { capacity: number; body: string; band: string }> = {
   crate: { capacity: 10, body: '#a97b48', band: '#7a5a32' },
-  fishKeep: { capacity: 40, body: '#937444', band: '#547d79' },
+  fishKeep: { capacity: 20, body: '#937444', band: '#547d79' },
   ironCrate: { capacity: 20, body: '#9aa3ab', band: '#697076' },
 };
 
@@ -30,6 +31,7 @@ const ICON_SPIN_SPEED = Math.PI / 3; // 顶面标识自转速度(弧度/秒)
 
 /** 程序化拼装的箱体模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
 function makeCrateMesh(kind: CrateKind): THREE.Group {
+  if (kind === 'fishKeep') return makeFishKeepModel();
   const g = new THREE.Group();
   const style = CRATE_STYLES[kind];
   const woodMat = clayMaterial(style.body);
@@ -58,17 +60,6 @@ function makeCrateMesh(kind: CrateKind): THREE.Group {
       post.position.set(x, BODY_H / 2, z);
       post.castShadow = true;
       g.add(post);
-    }
-  }
-  if (kind === 'fishKeep') {
-    const netMat = clayMaterial('#d6c79e');
-    for (let i = -2; i <= 2; i++) {
-      for (const axis of [0, 1]) {
-        const strand = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.018), netMat);
-        strand.position.set(axis ? i * 0.11 : 0, BODY_H + 0.015, axis ? 0 : i * 0.11);
-        strand.rotation.y = axis * Math.PI / 2;
-        g.add(strand);
-      }
     }
   }
   mergeClayMeshes(g);

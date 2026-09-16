@@ -912,7 +912,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '📦',
     description: '木板钉成的收纳箱,能存 10 格物品。',
   },
-  fishKeep: { kind: 'fishKeep', name: '鱼护', icon: '🐟', description: '放在海边湿沙滩上的40格收纳设施，自动收存10米内玩家钓到的鱼；装不下时收入背包。' },
+  fishKeep: { kind: 'fishKeep', name: '鱼护', icon: '🐟', description: '放在海边湿沙滩上的20格圆筒网兜收纳设施，自动收存10米内玩家钓到的鱼；装不下时收入背包。' },
   ironCrate: {
     kind: 'ironCrate',
     name: '铁箱',
