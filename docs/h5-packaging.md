@@ -17,6 +17,10 @@ TapTap H5 包以压缩包内的 `index.html` 为入口，并要求解压后仅�
 - `npm run build:packages` 依次构建 H5 和小红书包，前一渠道失败即停止。
 - 发布压缩包的根目录仅放置 `island/`，并包含 `island/index.html` 与完整 `_next/` 静态资源，符合 TapTap 对单一游戏根目录的要求。
 
+## TapTap 手动云存档
+
+H5 构建独占 `NEXT_PUBLIC_TAPTAP_H5=1`，在开始主界面增加手动上传/下载入口，覆盖本地前展示云档摘要并确认，备份包含全局配置与传承。自动存档及启动流程保持不变，GitHub Pages、小红书构建均关闭此标记。详见 [TapTap H5 手动云存档](./taptap-manual-save.md)。
+
 ## 迭代记录
 
 - 新增 TapTap H5 静态构建与打包约定。

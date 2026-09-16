@@ -13,6 +13,7 @@ const nextConfig = {
   assetPrefix: isContainerExport ? './' : undefined,
   env: {
     NEXT_PUBLIC_XHS_EXPORT: isXiaohongshuExport ? '1' : '0',
+    NEXT_PUBLIC_TAPTAP_H5: isH5Export && !isXiaohongshuExport ? '1' : '0',
   },
 };
 

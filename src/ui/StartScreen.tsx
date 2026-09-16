@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { loadGameMode, rememberGameMode, type GameMode } from '@/game/GameMode';
 import { NewGameDialog } from './start/NewGameDialog';
 import { ModeSelector } from './start/ModeSelector';
@@ -19,6 +20,10 @@ import { META_TREE } from '@/game/meta/MetaTree';
 import { MetaPanel } from './MetaPanel';
 import { ProfileSetup } from './ProfileSetup';
 import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
+
+const TapTapSaveControls = process.env.NEXT_PUBLIC_TAPTAP_H5 === '1'
+  ? dynamic(() => import('./taptap/TapTapSaveControls'), { ssr: false })
+  : null;
 
 /** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
 export type StartMode = 'continue' | 'new';
@@ -56,6 +61,7 @@ export function StartScreen({
   /** 设置弹窗打开时暂存的待开始方式:首次设置完成后无缝接着进入游戏 */
   const [pendingStart, setPendingStart] = useState<StartMode | null>(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [showCloudSave, setShowCloudSave] = useState(false);
   /** 新档确认期间不修改现有存档或发放传承点。 */
   const [newGameSave, setNewGameSave] = useState<{ save: SaveData | null } | null>(null);
   // 预渲染 HTML 里的按钮在 React 水合完成前无法响应点击,水合前不渲染按钮只显示加载提示
@@ -85,7 +91,7 @@ export function StartScreen({
       if (!(event.target as Element).closest('.menu-sound')) audio.unlock();
     }} onClickCapture={buttonAudio}>
       <style>{startScreenCss}{menuEggCss}</style>
-      <div className="start-layout" style={{ visibility: ready ? 'visible' : 'hidden' }} inert={!ready || showMeta || showSetup || !!newGameSave}>
+      <div className="start-layout" style={{ visibility: ready ? 'visible' : 'hidden' }} inert={!ready || showMeta || showSetup || showCloudSave || !!newGameSave}>
         <header className="menu-topbar">
           <span className="menu-brand"><MenuIcon name="compass" /> 一座岛，一段新生活</span>
           {ready && <button className="menu-sound" data-ui-sound="manual" onClick={audio.toggle} aria-label={audio.enabled && audio.started ? '关闭开始界面声音' : '开启开始界面声音'} aria-pressed={audio.enabled && audio.started}>
@@ -98,7 +104,7 @@ export function StartScreen({
             <p className="menu-eyebrow">A LITTLE ISLAND. A NEW BEGINNING.</p>
             <h1 className="start-title">去你的<IslandTitleEgg />。</h1>
             <p className="start-subtitle">把喧嚣留在岸上。<br />从一无所有，到拥有自己的小岛。</p>
-            <IslandScene interactive={ready} paused={!ready || showMeta || showSetup || !!newGameSave} />
+            <IslandScene interactive={ready} paused={!ready || showMeta || showSetup || showCloudSave || !!newGameSave} />
           </section>
           <section className="menu-actions" aria-label="开始冒险">
             {notice && <p className="start-notice" role="status">{notice}</p>}
@@ -118,6 +124,7 @@ export function StartScreen({
                 <button className="profile-chip" onClick={() => { setPendingStart(null); setShowSetup(true); }}><MenuIcon name="user" />设置形象</button>
                 {hasSave && <button className="new-game-button" data-ui-sound="manual" onClick={startNew}>开新档</button>}
                 {legacy && <button className="legacy-button" onClick={() => setShowMeta(true)}>荒岛传承</button>}
+                {TapTapSaveControls && <TapTapSaveControls onModalChange={setShowCloudSave} />}
               </div>
             </> : <p className="start-loading" role="status">正在寻找你的岛…</p>}
           </section>
