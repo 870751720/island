@@ -94,7 +94,10 @@ export function SettingsPanel({
   };
   return (
     <div
-      onClick={onClose}
+      onPointerDown={(event) => {
+        // 入口在 pointerdown 打开面板，松手产生的 click 不应关闭新遮罩。
+        if (event.button === 0 && event.target === event.currentTarget) onClose();
+      }}
       style={{
         position: 'absolute',
         inset: 0,
