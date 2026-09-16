@@ -73,7 +73,7 @@ export function SettingsPanel({
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
 }) {
-  const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('audio');
+  const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('game');
   const [guide, setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
@@ -113,7 +113,7 @@ export function SettingsPanel({
       >
         <div className={styles.header}><strong>设置</strong><button className={styles.close} onClick={onClose} aria-label="关闭设置">×</button></div>
         <nav className={styles.tabs} aria-label="设置分类">
-          {([['audio', '声音'], ['interface', '界面'], ['game', '游戏']] as const).map(([id, label]) =>
+          {([['game', '游戏'], ['interface', '界面'], ['audio', '声音']] as const).map(([id, label]) =>
             <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
         </nav>
         <div className={styles.content} key={tab}>
