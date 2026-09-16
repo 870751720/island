@@ -1100,6 +1100,7 @@ export class Game {
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
           this.dayEvents.update();
+          this.wildlife.setSoloDeathProtection(!this.hostRef);
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
             this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
@@ -1337,6 +1338,9 @@ export class Game {
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
+            if (!this.hostRef && !this.guestMode && s === this.local) {
+              this.wildlife.onSoloPlayerDeath(s.player.group.position);
+            }
             // 倒下时松开手里的绳子:套索掉在羊脚下,羊恢复野生
             const led = this.wildlife.leashedBy(s.player);
             if (led) {
@@ -1476,6 +1480,7 @@ export class Game {
   bindHost(host: NetHost): void {
     if (this.hostRef || this.guestMode) return;
     this.hostRef = host;
+    this.wildlife.setSoloDeathProtection(false);
     host.terrainSeed = this.terrainSeed;
     // 单机时本地角色叫「我」,转为房主后对客人显示联机昵称
     this.local.setName(loadProfile()?.name || '房主');

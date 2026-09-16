@@ -378,6 +378,7 @@ export class Wildlife implements Updatable {
 
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
+  private soloDeathProtection = false;
   private nextId = 1;
   /** 权威 AI 每帧通知真正被敌对动物追击的玩家。 */
   onPlayerThreat?: (player: Player) => void;
@@ -738,9 +739,27 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  /** 伤害回调返回权威端的致命命中结果，不把睡眠免伤或 GM 保命视为击杀。 */
-  private hitPlayer(animal: Animal, player: Player, damage: number, pounce = false): void {
-    if (!this.onPlayerHit(player, damage, pounce) || animal.species === 'crocodile') return;
+  /** 中途开房时也立即清除单机遗留的撤离与禁入区域。 */
+  setSoloDeathProtection(enabled: boolean): void {
+    if (this.soloDeathProtection === enabled) return;
+    this.soloDeathProtection = enabled;
+    if (!enabled) {
+      for (const animal of this.animals) animal.retreat = undefined;
+    }
+  }
+
+  /** 在死亡处理移动玩家或复活前调用，清场不依赖是谁打出最后一击。 */
+  onSoloPlayerDeath(position: THREE.Vector3): void {
+    if (!this.soloDeathProtection) return;
+    for (const animal of this.animals) {
+      if (animal.alive && (animal.species === 'wolf' || animal.species === 'bear')
+        && Math.hypot(animal.pos.x - position.x, animal.pos.z - position.z) <= 5) {
+        this.startDeathRetreat(animal, position);
+      }
+    }
+  }
+
+  private clearCombat(animal: Animal): void {
     animal.alerted = false;
     animal.provoked = false;
     animal.calfAttacker = null;
@@ -751,11 +770,22 @@ export class Wildlife implements Updatable {
     animal.roared = false;
     animal.target.copy(animal.pos);
     animal.walkTime = 0;
+  }
+
+  private startDeathRetreat(animal: Animal, position: THREE.Vector3): void {
+    this.clearCombat(animal);
+    const { x, z } = position;
+    animal.retreat = { origin: { x, z }, path: [], arrived: false, retryLeft: 0 };
+  }
+
+  /** 联机只结算伤害；单机额外处理击杀者，附近狼熊由死亡通知统一清场。 */
+  private hitPlayer(animal: Animal, player: Player, damage: number, pounce = false): void {
+    if (!this.onPlayerHit(player, damage, pounce) || !this.soloDeathProtection) return;
     if (animal.species === 'bison') {
+      this.clearCombat(animal);
       animal.hp = animal.config.hp;
     } else if (animal.species === 'wolf' || animal.species === 'bear') {
-      const { x, z } = player.group.position;
-      animal.retreat = { origin: { x, z }, path: [], arrived: false, retryLeft: 0 };
+      this.startDeathRetreat(animal, player.group.position);
     }
   }
 
