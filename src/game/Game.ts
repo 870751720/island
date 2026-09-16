@@ -336,7 +336,6 @@ export class Game {
   /** 游戏循环累计时间(音效节流用) */
   private loopElapsed = 0;
   private readonly idleRest = new IdleRest();
-  private resting = false;
   private guestHud: GuestHudSynchronizer;
   private autoEquipTimer = 0;
   private swordEquipTimer = 0;
@@ -1040,18 +1039,18 @@ export class Game {
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
         const singlePlayer = !this.guestMode && !this.hostRef;
-        this.resting = this.idleRest.shouldPause(this.local, singlePlayer,
+        const resting = this.idleRest.shouldPause(this.local, singlePlayer,
           this.isSessionActive(this.local) || this.local.archery.isAiming || this.local.lasso.isAiming,
           IDLE_HIDE_DELAY);
-        // 单机拍照或闲置休息时冻结玩法计时；输入、相机与环境表现继续更新。
-        const simDelta = singlePlayer && (this.cameraController.photoActive || this.resting) ? 0 : delta;
+        // 仅单机拍照冻结玩法；闲置休息只停止昼夜推进与饥渴消耗。
+        const simDelta = singlePlayer && this.cameraController.photoActive ? 0 : delta;
         this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
         for (const session of this.sessions) {
           session.player.roadKind = this.gravelPaths.contains(session.player.group.position) ? 'gravelPath'
             : this.plankPaths.contains(session.player.group.position) ? 'plankPath' : null;
           session.player.update(simDelta, elapsed);
         }
-        this.dayNight.update(simDelta);
+        this.dayNight.update(resting ? 0 : simDelta);
         // 季节推进为房主/单机权威:每帧按天数对账换季,入冬当日强制降雪
         if (!this.guestMode) {
           const newSeason = advanceSeasonForDay(this.dayNight.day);
@@ -1071,7 +1070,7 @@ export class Game {
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
-        if (!this.guestMode && !this.resting) {
+        if (!this.guestMode) {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
@@ -1079,7 +1078,7 @@ export class Game {
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
             this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
-        } else if (this.guestMode) {
+        } else {
           this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
@@ -1092,7 +1091,7 @@ export class Game {
         this.pickupPresentation.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
-        if (!this.resting) this.seaThreat.update(delta, elapsed);
+        this.seaThreat.update(delta, elapsed);
         this.footprints.update(simDelta);
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
@@ -1110,7 +1109,7 @@ export class Game {
           this.audio.silent = s !== this.local;
           // 雨神祭坛光环内口渴值冻结(口渴速率归零,饥饿不受影响)
           const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
-          s.survival.drainMultiplier = (this.dayNight.day <= 15 ? 0.6 : 1) * (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
+          s.survival.drainMultiplier = (resting ? 0 : 1) * (this.dayNight.day <= 15 ? 0.6 : 1) * (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier() * (rainAltar ? 0 : 1);
           // 风之加护:天气驱动的移动速度乘数
@@ -1282,7 +1281,7 @@ export class Game {
           }
           this.questTimer = 0;
         }
-        this.questSupportTimer += this.resting ? 0 : delta;
+        this.questSupportTimer += delta;
         if (this.questSupportTimer >= 1) {
           this.questSupportTimer = 0;
           const screen = this.cameraController.photoActive ? null : this.questSheepSupport.screens.capture(this.camera);
@@ -1906,7 +1905,6 @@ export class Game {
 
   /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
   private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
-    if (this.resting) return;
     const player = session.player;
     let final = damage * (1 - session.equipment.totalReduce()) - session.equipment.totalDefense();
     // 局外养成「剑术」2 级:受到的伤害降低 10%
@@ -1928,7 +1926,6 @@ export class Game {
 
   /** 海中巨影咬击:固定伤害不吃装备防御,受击表现与狼袭同路(粒子/伤害数字/音效 + 客人补播) */
   private applySeaBite(session: PlayerSession, damage: number): void {
-    if (this.resting) return;
     session.markCombat();
     session.survival.damage(damage);
     this.playWildlifeHitFeedback(session, damage);
