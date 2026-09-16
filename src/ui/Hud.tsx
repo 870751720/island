@@ -1,6 +1,8 @@
 import { QuestPanel } from './QuestPanel';
 import { gameTheme } from './gameTheme';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
+import { BuffInputDiagnostics } from './diagnostics/BuffInputDiagnostics';
+import { traceBuff, traceBuffState } from './diagnostics/buffInputTrace';
 import { fadeStyle } from './fade';
 import { useHudInteraction } from './useHudInteraction';
 import type { HudSnapshot } from '@/game/GameContracts';
@@ -27,12 +29,16 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
 }) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
   const { hidden, interact } = useHudInteraction(idleHidden, !!tip);
+  useLayoutEffect(() => {
+    traceBuffState({ idleHidden, hidden, busy: hud.busy, dead: hud.dead, tip: tip?.buff.id ?? null });
+  }, [idleHidden, hidden, hud.busy, hud.dead, tip]);
   useEffect(() => {
-    if (hud.dead) setTip(null);
+    if (hud.dead) { traceBuff('close-death'); setTip(null); }
   }, [hud.dead]);
   const season = SEASONS[hud.season];
   return (
     <>
+    <BuffInputDiagnostics />
     <div className="hud-status hud-top-edge" inert={hidden} aria-hidden={hidden}
       onPointerDownCapture={interact} onClickCapture={interact}
       style={{ ...fadeStyle(hidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
@@ -49,10 +55,11 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
       {!hud.dead && <QuestPanel quest={hud.quests} onNavigate={onQuestNavigate} />}
       </div>
       {hud.buffs.length > 0 && (
-        <div className="hud-buffs" aria-label="当前状态效果" onScroll={() => { interact(); setTip(null); }}>
+        <div className="hud-buffs" aria-label="当前状态效果" onScroll={(event) => { traceBuff('close-scroll', { scrollTop: event.currentTarget.scrollTop }); interact(); setTip(null); }}>
           {hud.buffs.map((buff) => (
             <BuffButton key={buff.id} buff={buff} expanded={tip?.buff.id === buff.id} disabled={hidden || hud.dead}
               onActivate={(rect) => {
+                traceBuff('tip-toggle-request', { id: buff.id, previous: tip?.buff.id ?? null });
                 interact();
                 setTip(current => current?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });
               }} />
@@ -65,12 +72,14 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
           <div
             onPointerDown={(e) => {
               e.preventDefault();
+              traceBuff('close-backdrop');
               interact();
               setTip(null);
             }}
             style={{ position: 'fixed', inset: 0, zIndex: 60, pointerEvents: 'auto' }}
           />
           <div
+            data-buff-tip
             style={{
               position: 'fixed',
               pointerEvents: 'auto',
