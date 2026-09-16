@@ -1,3 +1,4 @@
+import { findRespawnPoint } from './systems/RespawnPoint';
 import { isFishCatch } from './systems/FishTable';
 import { DigHighlight } from './fx/DigHighlight';
 import { DigTargetPresentation, type DigTargetSnapshot } from './presentation/DigTargetPresentation';
@@ -1338,7 +1339,7 @@ export class Game {
               this.wildlife.releaseLeash(led.id);
               this.drops.dropAt('lasso', 1, led.x, led.z);
             }
-            // 背包里有复活石则碎裂一颗,免惩罚在出生点原地苏醒(客人端死亡表现由快照驱动)
+            // 背包里有复活石则碎裂一颗,免惩罚在复活落点原地苏醒(客人端死亡表现由快照驱动)
             const firstDeathBlessing = this.gameMode === 'survival' && !this.hostRef && !this.guestMode && s === this.local
               && FirstDeathBlessing.consume();
             if (firstDeathBlessing || this.guestMode || !this.tryReviveWithStone(s)) {
@@ -1769,13 +1770,13 @@ export class Game {
       if (s) this.emojiBubbles.show(s.player.group, event.glyph);
       return;
     }
-    // 复活石碎裂表现:本人补上提示与音效,其余玩家看到出生点光效
+    // 复活石碎裂表现:本人补上提示与音效,其余玩家看到复活落点光效
     if (event.kind === 'reviveFx') {
       const s = this.sessions.find((x) => x.id === event.target);
       if (!s) return;
       if (s === this.local) {
         this.audio.play('success');
-        this.notify('复活石发出微光碎裂了,你在出生点苏醒');
+        this.notify('复活石发出微光碎裂了,你已重新苏醒');
       } else {
         const p = s.player.group.position;
         this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#7fd8e8', 22);
@@ -2631,6 +2632,24 @@ export class Game {
     s.dead = false;
   }
 
+  /** 死亡复活由单机或房主选点，客人沿用玩家位置快照。 */
+  private findSessionRespawnPoint(session: PlayerSession): THREE.Vector3 {
+    return findRespawnPoint(
+      session.player.group.position,
+      [this.beds.snapshot(), this.campfire.snapshot(), this.workbench.snapshot()],
+      (x, z) => this.terrain.getHeight(x, z),
+      point => {
+        if (point.y <= 0 || this.terrain.isNearWater(point, 1)
+          || this.placeOccupancy.taken(point) || this.props.occupant(point, 1)) return false;
+        const resolved = point.clone();
+        this.props.resolveCollision(resolved, 0.35);
+        this.fences.resolveCollision(resolved, 0.35);
+        return resolved.distanceToSquared(point) < 0.000001;
+      },
+      () => this.terrain.findSpawnPoint(),
+    );
+  }
+
   /** 联机与悠然共用权威重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
   private respawnMultiplayerSession(session: PlayerSession): void {
     session.inventory.reset();
@@ -2644,10 +2663,10 @@ export class Game {
     session.lastHealth = 100;
     session.lastDead = false;
     session.player.input.setJoystick(0, 0);
-    session.player.respawn(this.terrain.findSpawnPoint());
+    session.player.respawn(this.findSessionRespawnPoint(session));
   }
 
-  /** 单机波塞冬庇佑复活:不清档、随身进度原样保留,状态回满在出生点苏醒,身旁送上赠礼木箱 */
+  /** 单机波塞冬庇佑复活:不清档、随身进度原样保留,状态回满在复活落点苏醒,身旁送上赠礼木箱 */
   private poseidonReviveSession(session: PlayerSession): void {
     this.poseidonGrace = false;
     const survival = session.survival.state;
@@ -2656,7 +2675,7 @@ export class Game {
     session.lastHealth = 100;
     session.lastDead = false;
     session.player.input.setJoystick(0, 0);
-    const spawn = this.terrain.findSpawnPoint();
+    const spawn = this.findSessionRespawnPoint(session);
     session.player.respawn(spawn);
     this.spawnPoseidonGift(spawn);
     // 海蓝光柱自下而上三段迸溅,配合音效与提示,让苏醒的瞬间有「被海神送回岸边」的仪式感
@@ -2664,10 +2683,10 @@ export class Game {
       this.fx.burst(new THREE.Vector3(spawn.x, spawn.y + y, spawn.z), '#2ec4b6', 16);
     }
     this.audio.play('success');
-    this.notify('海浪把你送回了出生点,波塞冬在身旁留下了一只木箱');
+    this.notify('海浪把你送回了安全落点,波塞冬在身旁留下了一只木箱');
   }
 
-  /** 在出生点旁找一块干地放下赠礼木箱(二级装备一套 + 海神的信);找不到合适位置时退化为放在出生点本身 */
+  /** 在复活落点旁找一块干地放下赠礼木箱(二级装备一套 + 海神的信);找不到合适位置时退化为放在复活落点本身 */
   private spawnPoseidonGift(spawn: THREE.Vector3): void {
     const offsets: readonly [number, number][] = [
       [1.1, 0.5],
@@ -2885,7 +2904,7 @@ export class Game {
   }
 
   /** 安放神龛道具:落在面前吸附格中心立起对应神像(背包「使用」与手持自动安放共用入口),不满足时给出提示 */
-  /** 死亡瞬间的复活石结算:碎裂一颗,免惩罚在出生点苏醒(血量回半,携带不变);没有则返回 false */
+  /** 死亡瞬间的复活石结算:碎裂一颗,免惩罚在复活落点苏醒(血量回半,携带不变);没有则返回 false */
   private tryReviveWithStone(session: PlayerSession): boolean {
     if (!session.inventory.remove('reviveStone', 1)) return false;
     const sv = session.survival.state;
@@ -2893,18 +2912,18 @@ export class Game {
     sv.health = Math.max(sv.health, 50);
     session.lastHealth = sv.health;
     session.lastDead = false;
-    session.player.respawn(this.terrain.findSpawnPoint());
+    session.player.respawn(this.findSessionRespawnPoint(session));
     this.playReviveFx(session);
     this.hostRef?.broadcastEvent({ kind: 'reviveFx', target: session.id });
     return true;
   }
 
-  /** 复活石碎裂的表现:出生点青蓝光柱迸溅 + 音效,本人另给一条提示 */
+  /** 复活石碎裂的表现:复活落点青蓝光柱迸溅 + 音效,本人另给一条提示 */
   private playReviveFx(session: PlayerSession): void {
     const p = session.player.group.position;
     this.fx.burst(new THREE.Vector3(p.x, p.y + 1.2, p.z), '#7fd8e8', 22);
     if (session === this.local) this.audio.play('success');
-    this.notify('复活石发出微光碎裂了,你在出生点苏醒', session);
+    this.notify('复活石发出微光碎裂了,你已重新苏醒', session);
   }
 
   /** 通用规则:刚放置的东西可以被铲子挖走时,若正手持铲子则收起,避免原地立刻把它挖掉 */
