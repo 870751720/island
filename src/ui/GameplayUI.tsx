@@ -225,6 +225,7 @@ export function GameplayUI({
           <TrafficOverlay />
               <Hud
                 hud={hud}
+                idleHidden={hud.busy && !hud.dead && !net?.host && !net?.guest}
                 onHeartTap={handleHeartTap}
                 onQuestNavigate={() => gameRef.current?.moveToQuest()}
                 rightReserve={mapOpen ? 190 : 100}

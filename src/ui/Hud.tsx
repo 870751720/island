@@ -1,6 +1,7 @@
 import { QuestPanel } from './QuestPanel';
 import { gameTheme } from './gameTheme';
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { fadeStyle } from './fade';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { StatusIcon, BUFF_SVG } from './icons/StatusIcons';
 import type { HudBuff } from '@/game/systems/BuffSystem';
@@ -15,16 +16,21 @@ const SEASONS = {
 } as const;
 
 /** 本地玩家状态瓶与增益区；为展开的小地图预留宽度。 */
-export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate }: {
+export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden = false }: {
   hud: HudSnapshot;
   onHeartTap: () => void;
   onQuestNavigate: () => void;
   rightReserve: number;
+  idleHidden?: boolean;
 }) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (idleHidden) setTip(null);
+  }, [idleHidden]);
   const season = SEASONS[hud.season];
   return (
-    <div className="hud-status hud-top-edge" style={{ '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+    <div className="hud-status hud-top-edge" inert={idleHidden} aria-hidden={idleHidden}
+      style={{ ...fadeStyle(idleHidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
       <div className="hud-status-stack">
       <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
@@ -51,7 +57,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate }: {
           ))}
         </div>
       )}
-      {tip && (
+      {tip && !idleHidden && (
         <>
           <div
             onPointerDown={(e) => {
