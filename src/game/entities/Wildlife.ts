@@ -1,3 +1,4 @@
+import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
 import type { WildlifeSave } from './WildlifeSave';
@@ -1372,6 +1373,17 @@ export class Wildlife implements Updatable {
   }
 
   /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子与被拴住的羊无法被攻击 */
+  collectAimTargets(origin: THREE.Vector3, range: number, out: AimTarget[], sheepOnly = false): void {
+    for (const target of this.animals) {
+      if (!target.alive || target.hidden || target.leash || target.netLeash || (sheepOnly && target.species !== 'sheep')) continue;
+      const dx = target.pos.x - origin.x;
+      const dz = target.pos.z - origin.z;
+      if (dx * dx + dz * dz <= range * range) {
+        out.push({ key: `wildlife:${target.id}`, pos: target.pos });
+      }
+    }
+  }
+
   nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Animal | null = null;
     let bestDist = range * range;

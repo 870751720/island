@@ -6,12 +6,13 @@ import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import { AimGuide } from './AimGuide';
+import { AutoAim, type AimTarget } from './AutoAim';
 import { clayMaterial } from '../world/ClayMaterial';
 
 /** 投掷范围:范围内有可套的羊才会进入瞄准状态(比羊的警觉半径远,能隔着安全距离出手) */
 const RANGE = 6;
-/** 甩索瞄准时间(秒):移动瞄准满这段时间后,松手才会掷出 */
-const DRAW_TIME = 0.45;
+/** 套索达到最佳精度的准备时间(秒) */
+const DRAW_TIME = 0.85;
 /** 掷出动作时长(秒) */
 const THROW_TIME = 0.35;
 /** 绳子伸出/收回速度 */
@@ -51,15 +52,14 @@ type Rope = {
 };
 
 /**
- * 套索:持套索且范围内有可套的羊时,移动即瞄准——沿摇杆方向显示瞄准虚线,
- * 持续瞄准片刻拉满后松手(松开摇杆/停止移动)掷出:一根绳子从玩家手上沿瞄准方向
+ * 套索:持套索且范围内有可套的羊时,移动即瞄准——自动锁定目标并显示精度范围,
+ * 准备至少 0.3 秒后松手(松开摇杆/停止移动)掷出:一根绳子从玩家手上沿瞄准方向
  * 伸出并扫掠判定,套中绵羊即由持绳玩家牵着走(打桩拴住/解开放羊由外层结算);
  * 没套中则绳子原路收回,不消耗道具。
  */
 export class LassoSystem {
-  /** 拉满剩余时间(0 表示已拉满) */
-  private drawLeft = DRAW_TIME;
-  private aimed = false;
+  private autoAim = new AutoAim();
+  private candidates: AimTarget[] = [];
   private aimDir = new THREE.Vector2();
   private throwLock = 0;
   private ropes: Rope[] = [];
@@ -117,46 +117,40 @@ export class LassoSystem {
       !this.player.isSwimming &&
       this.player.currentTool === 'lasso' &&
       this.inventory.count('lasso') > 0 &&
-      this.wildlife.leashedBy(this.player) === null &&
-      this.wildlife.nearestSheep(this.player.group.position, RANGE) !== null;
+      this.wildlife.leashedBy(this.player) === null;
     if (!canAim) {
       this.cancelAim();
       return;
     }
 
     this.player.input.getVector(this.inputVec);
-    const moving = this.inputVec.lengthSq() > 0.001;
-    if (moving) {
-      // 移动即瞄准:虚线沿摇杆方向,持续瞄准逐渐拉满(与弓一致)
-      this.aimDir.set(this.inputVec.x, this.inputVec.y).normalize();
-      this.aimed = true;
-      this.drawLeft = Math.max(0, this.drawLeft - delta);
-      this.guide.show(
-        this.player.group.position,
-        this.aimDir.x,
-        this.aimDir.y,
-        1 - this.drawLeft / DRAW_TIME
-      );
+    const origin = this.player.group.position;
+    this.candidates.length = 0;
+    this.wildlife.collectAimTargets(origin, RANGE, this.candidates, true);
+    this.autoAim.update(this.candidates, origin, this.inputVec, delta, DRAW_TIME);
+    const target = this.autoAim.target;
+    if (!target) { this.cancelAim(); return; }
+    if (this.inputVec.lengthSq() > 0.001) {
+      const dir = this.autoAim.direction;
+      this.guide.show(origin, dir.x, dir.y, this.autoAim.progress, target.pos, this.autoAim.spread);
       return;
     }
-    // 站定即收势:拉满松手掷出,没拉满视为取消
     this.guide.hide();
-    if (this.aimed && this.drawLeft <= 0) this.release();
-    else this.drawLeft = DRAW_TIME;
+    if (this.autoAim.ready) this.release();
+    else this.autoAim.reset();
   }
 
   private cancelAim(): void {
     this.guide.hide();
-    this.drawLeft = DRAW_TIME;
-    this.aimed = false;
+    this.autoAim.reset();
   }
 
   /** 掷出:沿瞄准方向从手上伸出一根绳子,播甩索动作;套中才消耗道具,掷空则收回 */
   private release(): void {
+    this.autoAim.release(this.aimDir);
+    this.player.group.rotation.y = Math.atan2(this.aimDir.x, this.aimDir.y);
     this.spawnRope(this.aimDir.x, this.aimDir.y, false);
     this.throwLock = THROW_TIME;
-    this.drawLeft = DRAW_TIME;
-    this.aimed = false;
     this.audio.play('lassoThrow');
     this.onThrow?.(this.aimDir.x, this.aimDir.y);
   }

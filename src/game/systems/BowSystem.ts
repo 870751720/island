@@ -11,14 +11,15 @@ import type { GameAudio } from '../audio/GameAudio';
 import type { Tools } from './Crafting';
 import { GmSystem } from './GmSystem';
 import { AimGuide } from './AimGuide';
+import { AutoAim, type AimTarget } from './AutoAim';
 import { clayMaterial } from '../world/ClayMaterial';
 
 /** 攻击范围:范围内有猎物才会进入瞄准状态 */
 const RANGE = 9;
 /** 每支箭的伤害(按弓等级:树枝弓 8,木弓 15,铁弓 28;同级弓弱于剑,远程换输出) */
 const ARROW_DAMAGE = [8, 15, 28];
-/** 开弓瞄准时间(秒):移动瞄准满这段时间后,松手才会放箭 */
-const DRAW_TIME = 0.45;
+/** 各级弓达到最佳精度的准备时间(秒) */
+const DRAW_TIMES = [1.2, 0.85, 0.55];
 /** 放箭动作时长(秒):播完即可重新开弓,没有额外冷却 */
 const SHOT_TIME = 0.35;
 /** 箭矢飞行速度 */
@@ -75,17 +76,15 @@ type Arrow = {
 };
 
 /**
- * 弓箭:持弓且攻击范围内有猎物时,移动即开弓——沿摇杆方向显示瞄准虚线,
- * 持续瞄准片刻拉满后松手(松开摇杆/停止移动)放箭;箭沿飞行路径扫掠判定命中。
- * 站定不瞄、没有目标不开弓,误射风险由玩家持弓自行承担。
+ * 弓箭:持弓且攻击范围内有猎物时,移动即开弓——自动锁定目标并显示精度范围,
+ * 准备至少 0.3 秒后松手(松开摇杆/停止移动)放箭;箭沿飞行路径扫掠判定命中。
+ * 站定不瞄、没有目标不开弓,准备越充分散布越小。
  */
 export class BowSystem {
   /** 有效命中后由权威端更新该玩家的战斗表现状态。 */
   onCombat?: () => void;
-  /** 拉弓剩余时间(0 表示已拉满) */
-  private drawLeft = DRAW_TIME;
-  /** 已获得瞄准方向(移动瞄准过) */
-  private aimed = false;
+  private autoAim = new AutoAim();
+  private candidates: AimTarget[] = [];
   private aimDir = new THREE.Vector2();
   private shotLock = 0;
   private arrows: Arrow[] = [];
@@ -155,50 +154,34 @@ export class BowSystem {
       !busy &&
       !this.player.isSwimming &&
       this.player.currentTool === 'bow' &&
-      (this.ammo.count('arrow') > 0 || this.hasEndlessQuiver()) &&
-      this.findTarget() !== null;
+      (this.ammo.count('arrow') > 0 || this.hasEndlessQuiver());
     if (!canAim) {
       this.cancelAim();
       return;
     }
 
     this.player.input.getVector(this.inputVec);
-    const moving = this.inputVec.lengthSq() > 0.001;
-    if (moving) {
-      // 移动即瞄准:虚线沿摇杆方向(360° 自由),持续瞄准逐渐拉满
-      this.aimDir.set(this.inputVec.x, this.inputVec.y).normalize();
-      this.aimed = true;
-      this.drawLeft = Math.max(0, this.drawLeft - delta);
-      this.guide.show(
-        this.player.group.position,
-        this.aimDir.x,
-        this.aimDir.y,
-        1 - this.drawLeft / DRAW_TIME
-      );
+    const origin = this.player.group.position;
+    this.candidates.length = 0;
+    this.crabs.collectAimTargets(origin, RANGE, this.candidates);
+    this.birds.collectAimTargets(origin, RANGE, this.candidates);
+    this.wildlife.collectAimTargets(origin, RANGE, this.candidates);
+    this.autoAim.update(this.candidates, origin, this.inputVec, delta, DRAW_TIMES[Math.min(3, Math.max(1, this.tools.bow)) - 1]);
+    const target = this.autoAim.target;
+    if (!target) { this.cancelAim(); return; }
+    if (this.inputVec.lengthSq() > 0.001) {
+      const dir = this.autoAim.direction;
+      this.guide.show(origin, dir.x, dir.y, this.autoAim.progress, target.pos, this.autoAim.spread);
       return;
     }
-    // 站定即收弓:拉满松手放箭,没拉满视为取消
     this.guide.hide();
-    if (this.aimed && this.drawLeft <= 0) this.release();
-    else this.drawLeft = DRAW_TIME;
-  }
-
-  /** 攻击范围内最近的活螃蟹/活鸟/野生动物(蝴蝶不可射) */
-  private findTarget(): THREE.Vector3 | null {
-    const p = this.player.group.position;
-    const candidates = [
-      this.crabs.nearestAlive(p, RANGE),
-      this.birds.nearestAlive(p, RANGE),
-      this.wildlife.nearestAlive(p, RANGE),
-    ].filter((v): v is THREE.Vector3 => !!v);
-    if (candidates.length === 0) return null;
-    return candidates.reduce((best, v) => (v.distanceToSquared(p) < best.distanceToSquared(p) ? v : best));
+    if (this.autoAim.ready) this.release();
+    else this.autoAim.reset();
   }
 
   private cancelAim(): void {
     this.guide.hide();
-    this.drawLeft = DRAW_TIME;
-    this.aimed = false;
+    this.autoAim.reset();
   }
 
   /** 放箭:扣一支箭(无限箭袋/局外免箭不扣),沿瞄准方向生成飞行箭矢,播放箭动作 */
@@ -207,9 +190,9 @@ export class BowSystem {
       this.cancelAim();
       return;
     }
+    this.autoAim.release(this.aimDir);
+    this.player.group.rotation.y = Math.atan2(this.aimDir.x, this.aimDir.y);
     this.shotLock = SHOT_TIME;
-    this.drawLeft = DRAW_TIME;
-    this.aimed = false;
     this.audio.play('shoot');
     const group = makeArrowModel();
     const p = this.player.group.position;

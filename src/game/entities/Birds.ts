@@ -1,3 +1,4 @@
+import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import type { Updatable } from '../core/GameLoop';
 import { nearestToSegmentXZ } from '../core/HitSegment';
@@ -503,6 +504,17 @@ export class Birds implements Updatable {
   }
 
   /** 返回范围内最近的一只活鸟的位置(无则 null),供弓箭索敌 */
+  collectAimTargets(origin: THREE.Vector3, range: number, out: AimTarget[]): void {
+    for (const target of this.birds) {
+      if (!target.alive) continue;
+      const dx = target.pos.x - origin.x;
+      const dz = target.pos.z - origin.z;
+      if (dx * dx + dz * dz <= range * range) {
+        out.push({ key: `bird:${target.id}`, pos: target.pos });
+      }
+    }
+  }
+
   nearestAlive(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
     let best: Bird | null = null;
     let bestDist = range * range;
