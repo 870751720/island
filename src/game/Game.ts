@@ -1,3 +1,4 @@
+import { isFishCatch } from './systems/FishTable';
 import { DigHighlight } from './fx/DigHighlight';
 import { DigTargetPresentation, type DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import { ITEMS } from './systems/Items';
@@ -1667,7 +1668,12 @@ export class Game {
       );
       return;
     }
-    // 其他玩家的入包飞行补播(本人那份由 HUD 快照差额本地触发,跳过避免重复)
+    // 鱼护飞行对所有客人补播，包括钓鱼本人。
+    if (event.kind === 'fishKeepFly') {
+      this.pickupPresentation.spawnTo(new THREE.Vector3(event.x, event.y, event.z), new THREE.Vector3(event.tx, event.ty, event.tz), event.item, event.count);
+      return;
+    }
+    // 背包飞行跳过本人，由 HUD 差额驱动。
     if (event.kind === 'itemFly') {
       if (event.actor === this.local.id) return;
       const s = this.sessions.find((x) => x.id === event.actor);
@@ -2910,6 +2916,7 @@ export class Game {
     // 木箱/铁箱
     def('crate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'crate').group), place: (a, at) => this.crates.use(a, 'crate', at) });
     def('ironCrate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'ironCrate').group), place: (a, at) => this.crates.use(a, 'ironCrate', at) });
+    def('fishKeep', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z, 'fishKeep'), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'fishKeep').group), place: (a, at) => this.crates.use(a, 'fishKeep', at) });
     // 饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台
     def('baitBarrel', { tool: 'place', valid: (a, x, z) => this.baitBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BaitBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.baitBarrels.use(a, at) });
     def('brewBarrel', { tool: 'place', valid: (a, x, z) => this.brewBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BrewBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.brewBarrels.use(a, at) });
@@ -3484,7 +3491,14 @@ export class Game {
       this.fx,
       this.audio,
       s.tools,
-      (kind, count) => this.giveItem(kind, count, s),
+      (kind, count) => {
+        const target = isFishCatch(kind) ? this.crates.storeCatch(s, kind, count) : null;
+        if (!target) return this.giveItem(kind, count, s);
+        const origin = this.pickupPresentation.originFor(s);
+        this.pickupPresentation.spawnTo(origin, target, kind, count);
+        this.hostRef?.broadcastEvent({ kind: 'fishKeepFly', item: kind, count, x: origin.x, y: origin.y, z: origin.z, tx: target.x, ty: target.y, tz: target.z });
+        return count;
+      },
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => this.pickupPresentation.markOrigin(position, s),
       // 波塞冬神像放置期间杂物概率降低

@@ -151,6 +151,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   ironBackpack: '#d7c196',
   crate: '#a97b48',
   ironCrate: '#9aa3ab',
+  fishKeep: '#937444',
   baitBarrel: '#9a6b3f',
   brewBarrel: '#6b4a2e',
   wineBerry: '#a34a6b',
@@ -1465,6 +1466,7 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironPants: () => makePants(DROP_COLORS.ironPants),
   ironHat: () => makeHat(DROP_COLORS.ironHat, '#6dada6'),
   ironBackpack: () => makeBackpack(DROP_COLORS.ironBackpack),
+  fishKeep: () => makeCrateDrop('#937444', '#547d79'),
   crate: () => makeCrateDrop('#a97b48', '#7a5a32'),
   ironCrate: () => makeCrateDrop(DROP_COLORS.ironCrate, '#697076'),
   baitBarrel: () => {

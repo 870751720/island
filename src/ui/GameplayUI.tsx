@@ -369,6 +369,7 @@ export function GameplayUI({
             hud.nearLoom ||
             hud.nearBed) && (
             <ToolButton
+              crateKind={hud.crateKind ?? 'crate'}
               questHighlight={questWorkbench || questCampfire}
               tool={hud.tool}
               pulse={hud.autoEquipProgress > 0}

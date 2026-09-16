@@ -3,10 +3,11 @@ import { HudIcon } from './hud/HudIcon';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
+import { ITEMS } from '@/game/systems/Items';
 import { CRATE_CAPACITY } from '@/game/entities/Crate';
 import { startHoldTap } from './holdRepeat';
 
@@ -63,6 +64,9 @@ function countBadge(count: number): React.ReactNode {
 export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const crateSlots = hud.crateSlots ?? [];
   const crateCapacity = hud.crateCapacity ?? CRATE_CAPACITY;
+  const [page, setPage] = useState(0);
+  const pages = Math.ceil(crateCapacity / 10);
+  const currentPage = Math.min(page, pages - 1);
   /** 进行中的长按连发停止函数(松手/取消时调用) */
   const holdRef = useRef<(() => void) | null>(null);
   const stopHold = () => {
@@ -123,8 +127,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         background: gameTheme.overlay,
       }}
       onPointerDown={(e) => {
-        e.preventDefault();
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) { e.preventDefault(); onClose(); }
       }}
     >
       <div
@@ -142,12 +145,15 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
       >
         <div style={{ fontWeight: 700, margin: '2px 2px 8px' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {crateCapacity > CRATE_CAPACITY
-              ? <><ItemIcon kind="ironCrate" size={20} /> 铁箱</>
-              : <><ItemIcon kind="crate" size={20} /> 木箱</>}(点按取回,长按步进)
+            <ItemIcon kind={hud.crateKind ?? 'crate'} size={20} /> {ITEMS[hud.crateKind ?? 'crate'].name}(点按取回,长按步进)
           </span>
         </div>
-        {renderGrid(crateSlots, crateCapacity, onTake)}
+        {renderGrid(crateSlots.slice(currentPage * 10, currentPage * 10 + 10), Math.min(10, crateCapacity), onTake)}
+        {pages > 1 && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+          <button disabled={currentPage === 0} style={gameButtonStyle} onClick={() => setPage(currentPage - 1)}>上一页</button>
+          <span>{currentPage + 1} / {pages} · {crateCapacity}格</span>
+          <button disabled={currentPage === pages - 1} style={gameButtonStyle} onClick={() => setPage(currentPage + 1)}>下一页</button>
+        </div>}
         <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}><HudIcon name="backpack" size={24} /> 背包(点按存入,长按步进)</div>
         {renderGrid(hud.slots, hud.capacity, onStore)}
         <button

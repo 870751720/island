@@ -1,3 +1,4 @@
+import { ITEMS } from './Items';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { NetGuest } from '../net/NetGuest';
 import type { ResourceKind } from './Inventory';
@@ -33,7 +34,7 @@ export class FacilityInteractionController {
     if (this.asleep(actor)) return false;
     const result = this.systems.crates.store(actor, kind, count);
     if (result === 'full' && count === Infinity) {
-      const label = this.systems.crates.nearbyKind(actor) === 'ironCrate' ? '铁箱' : '木箱';
+      const label = ITEMS[this.systems.crates.nearbyKind(actor) ?? 'crate'].name;
       this.notify(`${label}装不下了`, actor);
     }
     return result === 'ok';

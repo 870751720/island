@@ -10,7 +10,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 36;
+export const NET_PROTOCOL_VERSION = 37;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -107,6 +107,7 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'fishKeepFly'; item: ResourceKind; count: number; x: number; y: number; z: number; tx: number; ty: number; tz: number }
   | { kind: 'dogBattleEmoji'; glyph: DogBattleEmoji; serial: number }
   | { kind: 'dogStage'; stage: number; serial: number }
   | { kind: 'dogPounce'; serial: number }

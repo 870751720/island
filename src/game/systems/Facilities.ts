@@ -81,3 +81,13 @@ export function dryCellReason(
   const blocker = props.occupant(p, propRange);
   return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
 }
+
+/** 海岸设施共用校验：浅海或距海线 1.5 米内的湿沙滩，不允许水洼。 */
+export function wetBeachCellReason(actor: PlayerSession, x: number, z: number, terrain: IslandTerrain, occupancy: PlaceOccupancy, props: Props): string | null {
+  const p = new THREE.Vector3(x, terrain.getHeight(x, z), z);
+  const kind = terrain.getWaterKind(x, z);
+  if (actor.player.isSwimming || kind === 'pond' || (kind !== 'sea' && !terrain.isNearSea(p, 1.5))) return '要放在海边湿沙滩上';
+  if (occupancy.taken(p)) return '这格已经放了东西';
+  const blocker = props.occupant(p, 1);
+  return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+}

@@ -289,3 +289,9 @@ export function rollWait(tier: FishTier): number {
   const [min, max] = TIER_WAIT[tier];
   return min + Math.random() * (max - min);
 }
+
+/** 可自动收入鱼护的水产，不包括杂物、种子和非鱼珍宝。 */
+export function isFishCatch(kind: ResourceKind): boolean {
+  return kind === 'goldenFish' || [...SEA_FISH[2], ...SEA_FISH[3], ...POND_FISH[2], ...POND_FISH[3]]
+    .some((entry) => entry.kind === kind && ['fish', 'long', 'flat'].includes(entry.shape));
+}

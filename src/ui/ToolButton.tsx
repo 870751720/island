@@ -34,6 +34,7 @@ export function ToolButton({
   workbench,
   campfire = false,
   crate = false,
+  crateKind = 'crate',
   baitBarrel = false,
   brewBarrel = false,
   smelter = false,
@@ -72,6 +73,7 @@ export function ToolButton({
   campfire?: boolean;
   /** 是否显示为木箱模式(靠近木箱) */
   crate?: boolean;
+  crateKind?: import('@/game/entities/Crate').CrateKind;
   /** 是否显示为饵料桶模式(靠近饵料桶) */
   baitBarrel?: boolean;
   /** 是否显示为酿酒桶模式(靠近酿酒桶) */
@@ -123,7 +125,7 @@ export function ToolButton({
   const pressTimer = useRef<number | null>(null);
   const [holding, setHolding] = useState(false);
   const contexts: [boolean, string][] = [
-    [workbench, '工作台'], [campfire, '营火'], [crate, '木箱'],
+    [workbench, '工作台'], [campfire, '营火'], [crate, ITEMS[crateKind].name],
     [baitBarrel, '饵料桶'], [brewBarrel, '酿酒桶'], [smelter, '冶炼炉'],
     [cookingStation, '烹饪台'], [loom, '纺织机'], [bed, '睡觉'],
     [stake, '打桩'], [untie, '解开套索'],
@@ -268,7 +270,7 @@ export function ToolButton({
         : campfire
           ? <ItemIcon kind="campfire" size={30} />
           : crate
-            ? <ItemIcon kind="crate" size={30} />
+            ? <ItemIcon kind={crateKind} size={30} />
             : baitBarrel
               ? <ItemIcon kind="baitBarrel" size={30} />
               : brewBarrel

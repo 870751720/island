@@ -6,7 +6,7 @@ import type { ResourceKind } from '../systems/Inventory';
 import { clayMaterial } from '../world/ClayMaterial';
 
 /** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 20 格) */
-export type CrateKind = 'crate' | 'ironCrate';
+export type CrateKind = 'crate' | 'ironCrate' | 'fishKeep';
 
 /** 木箱收纳格数 */
 export const CRATE_CAPACITY = 10;
@@ -14,6 +14,7 @@ export const CRATE_CAPACITY = 10;
 /** 各箱种的静态属性:收纳格数与模型配色 */
 const CRATE_STYLES: Record<CrateKind, { capacity: number; body: string; band: string }> = {
   crate: { capacity: 10, body: '#a97b48', band: '#7a5a32' },
+  fishKeep: { capacity: 40, body: '#937444', band: '#547d79' },
   ironCrate: { capacity: 20, body: '#9aa3ab', band: '#697076' },
 };
 
@@ -57,6 +58,17 @@ function makeCrateMesh(kind: CrateKind): THREE.Group {
       post.position.set(x, BODY_H / 2, z);
       post.castShadow = true;
       g.add(post);
+    }
+  }
+  if (kind === 'fishKeep') {
+    const netMat = clayMaterial('#d6c79e');
+    for (let i = -2; i <= 2; i++) {
+      for (const axis of [0, 1]) {
+        const strand = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.018), netMat);
+        strand.position.set(axis ? i * 0.11 : 0, BODY_H + 0.015, axis ? 0 : i * 0.11);
+        strand.rotation.y = axis * Math.PI / 2;
+        g.add(strand);
+      }
     }
   }
   mergeClayMeshes(g);

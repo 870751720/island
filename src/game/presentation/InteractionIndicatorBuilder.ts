@@ -67,7 +67,7 @@ export class InteractionIndicatorBuilder {
     } else if (systems.workbench.isDigging(session)) {
       label = '挖工作台…'; progress = systems.workbench.getDigProgress(session);
     } else if (systems.crates.isDigging(session)) {
-      label = systems.crates.diggingKind(session) === 'ironCrate' ? '挖铁箱…' : '挖木箱…';
+      label = `挖${ITEMS[systems.crates.diggingKind(session) ?? 'crate'].name}…`;
       progress = systems.crates.getDigProgress(session);
     } else if (systems.baitBarrels.isDigging(session)) {
       label = '挖饵料桶…'; progress = systems.baitBarrels.getDigProgress(session);

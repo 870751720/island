@@ -11,7 +11,7 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
-import { dryCellReason } from './Facilities';
+import { dryCellReason, wetBeachCellReason } from './Facilities';
 
 const NEAR_RANGE = 2.2; // 玩家距木箱小于该值时算在木箱旁
 const DIG_RANGE = 1.6; // 持铲子可开挖木箱的距离
@@ -103,13 +103,14 @@ export class CrateSystem {
     });
   }
 
-  canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
+  canPlaceAt(actor: PlayerSession, x: number, z: number, kind: CrateKind = 'crate'): string | null {
+    if (kind === 'fishKeep') return wetBeachCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
     return dryCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 在吸附格中心放下木箱/铁箱(背包「使用」与手持自动安放共用入口) */
   use(actor: PlayerSession, kind: CrateKind, at: THREE.Vector3): boolean {
-    if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
+    if (actor.inventory.count(kind) <= 0 || this.canPlaceAt(actor, at.x, at.z, kind) !== null) return false;
     actor.inventory.remove(kind, 1);
     const crate = new Crate(this.scene, at, kind, cardinalRotY(actor.player.group.rotation.y));
     this.crates.push(crate);
@@ -132,6 +133,25 @@ export class CrateSystem {
     const cp = crate.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() } });
     return crate;
+  }
+
+  /** 权威端收鱼：选择水平距离十米内最近且可容纳的鱼护。 */
+  storeCatch(actor: PlayerSession, kind: ResourceKind, count: number): THREE.Vector3 | null {
+    const p = actor.player.group.position;
+    let target: Crate | null = null;
+    let distance = 100;
+    for (const crate of this.crates) {
+      if (crate.kind !== 'fishKeep' || !crate.storage.canFit(kind)) continue;
+      const q = crate.group.position;
+      const d = (p.x - q.x) ** 2 + (p.z - q.z) ** 2;
+      if (d <= distance) { target = crate; distance = d; }
+    }
+    if (!target) return null;
+    const before = target.storage.snapshot();
+    target.storage.add(kind, count);
+    target.updateIcon();
+    this.emitSlotChanges(target, before);
+    return target.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
   }
 
   /** 帧更新:顶面内容标识自转 */

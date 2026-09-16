@@ -61,6 +61,13 @@ export class PickupPresentation {
     }
   }
 
+  spawnTo(origin: THREE.Vector3, target: THREE.Vector3, kind: ResourceKind, count: number): void {
+    const destination = target.clone();
+    for (let i = 0; i < Math.min(count, 3); i++) {
+      this.itemFly.spawn(kind, origin, i * 0.12, undefined, () => destination);
+    }
+  }
+
   flush(): void {
     if (this.pending.length === 0) return;
     const items = this.pending;

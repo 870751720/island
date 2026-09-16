@@ -5,7 +5,7 @@ import { WaterPurifier } from '../entities/WaterPurifier';
 import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
-import { PROP_NAMES } from '../world/Props';
+import { wetBeachCellReason } from './Facilities';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -13,12 +13,9 @@ import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
 import { ActionHold } from './ActionHold';
 
-const PROP_BLOCK_RANGE = 1; // 周围资源点距离小于该值时无处摆放
 const NEAR_RANGE = 2.2; // 玩家距净化器小于该值时算在净化器旁(可自动喝水)
 const DIG_RANGE = 1.6; // 持铲子可开挖净化器的距离
 const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
-/** 距海线多远以内算湿沙滩(干地上摆放时的最大离海距离) */
-const WET_BEACH_RANGE = 1.5;
 
 /** 海水净化器存档/网络快照(落点) */
 export type WaterPurifierSave = {
@@ -94,14 +91,6 @@ export class WaterPurifierSystem {
     return best;
   }
 
-  /** 指定落点是否是湿沙滩:浅海涉水处或紧邻海线的干沙滩;水洼边不算 */
-  private onWetBeach(actor: PlayerSession, x: number, z: number): boolean {
-    if (actor.player.isSwimming) return false;
-    const kind = this.terrain.getWaterKind(x, z);
-    if (kind === 'pond') return false;
-    return kind === 'sea' || this.terrain.isNearSea(new THREE.Vector3(x, 0, z), WET_BEACH_RANGE);
-  }
-
   /** 统一安放占格判定:该点同一格内是否有本系统放置的实体 */
   blocksCell(p: THREE.Vector3): boolean {
     return this.purifiers.some((e) => {
@@ -112,11 +101,7 @@ export class WaterPurifierSystem {
   }
 
   canPlaceAt(actor: PlayerSession, x: number, z: number): string | null {
-    const p = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    if (!this.onWetBeach(actor, x, z)) return '要放在海边湿沙滩上';
-    if (this.occupancy.taken(p)) return '这格已经放了东西';
-    const blocker = this.props.occupant(p, PROP_BLOCK_RANGE);
-    return blocker ? `被${PROP_NAMES[blocker]}挡住` : null;
+    return wetBeachCellReason(actor, x, z, this.terrain, this.occupancy, this.props);
   }
 
   /** 在吸附格中心放下净化器(背包「使用」与手持自动安放共用入口) */

@@ -60,6 +60,7 @@ function isUsable(kind: ResourceKind): boolean {
     kind in CROP_OF_SEED ||
     kind === 'crate' ||
     kind === 'ironCrate' ||
+    kind === 'fishKeep' ||
     kind === 'baitBarrel' ||
     kind === 'brewBarrel' ||
     kind === 'doghouse' ||

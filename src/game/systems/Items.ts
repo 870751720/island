@@ -49,7 +49,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
-    'crate', 'ironCrate', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
+    'crate', 'ironCrate', 'fishKeep', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'campfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
@@ -912,6 +912,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '📦',
     description: '木板钉成的收纳箱,能存 10 格物品。',
   },
+  fishKeep: { kind: 'fishKeep', name: '鱼护', icon: '🐟', description: '放在海边湿沙滩上的40格收纳设施，自动收存10米内玩家钓到的鱼；装不下时收入背包。' },
   ironCrate: {
     kind: 'ironCrate',
     name: '铁箱',

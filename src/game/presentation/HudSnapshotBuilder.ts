@@ -92,6 +92,7 @@ export class HudSnapshotBuilder {
       bedSleeping: s.beds.isSleeping(session),
       bedSleepProgress: s.beds.getSleepProgress(session) ?? 0,
       crateSlots: s.crates.nearbySlots(session),
+      crateKind: s.crates.nearbyKind(session),
       crateCapacity: s.crates.nearbyCapacity(session),
       baitBarrelInfo: s.baitBarrels.nearbyInfo(session),
       brewBarrelInfo: s.brewBarrels.nearbyInfo(session),

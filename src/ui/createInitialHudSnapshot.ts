@@ -36,6 +36,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     bedSleepProgress: 0,
     crateSlots: null,
     crateCapacity: null,
+    crateKind: null,
     baitBarrelInfo: null,
     brewBarrelInfo: null,
     smelterInfo: null,

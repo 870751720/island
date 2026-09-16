@@ -57,6 +57,7 @@ export type HudSnapshot = {
   bedSleepProgress: number;
   crateSlots: InventorySlot[] | null;
   crateCapacity: number | null;
+  crateKind: import('./entities/Crate').CrateKind | null;
   baitBarrelInfo: BaitBarrelInfo | null;
   brewBarrelInfo: BrewBarrelInfo | null;
   smelterInfo: SmelterInfo | null;

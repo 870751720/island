@@ -139,6 +139,7 @@ export type ResourceKind =
   | 'ironBackpack'
   | 'crate'
   | 'ironCrate'
+  | 'fishKeep'
   | 'baitBarrel'
   | 'brewBarrel'
   | 'wineBerry'
