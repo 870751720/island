@@ -40,6 +40,7 @@ type Props = {
   onMoveItem: (from: number, to: number) => void;
   /** 整理背包:同类合并并按分类排序 */
   onSort: () => void;
+  onSettings: () => void;
 };
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
@@ -219,7 +220,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
+export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort, onSettings }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -237,8 +238,6 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
   const selectedDef = selected ? ITEMS[selected.kind] : null;
   const selectedFood = selected ? FOODS.find((food) => food.kind === selected.kind) : undefined;
   const tools = hud.toolTiers;
-  // 背包空但已拥有工具时仍显示背包按钮(工具 tab 在里面)
-  const showBackpackButton = hud.slots.some((slot) => !!slot) || TOOL_IDS.some((id) => tools[id]);
   // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
   const craftables = RECIPES.filter(
     (r) =>
@@ -278,7 +277,6 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
 
   return (
     <>
-      {showBackpackButton && (
       <button
         className="hud-control hud-backpack"
         {...pressAction(onToggle)}
@@ -290,7 +288,6 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
         <HudIcon name="backpack" size={32} />
         <span className="hud-control-label">背包</span>
       </button>
-      )}
       {open && (
         <div
           style={{
@@ -328,6 +325,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
           >
             {/* 固定在面板顶部的 tab 栏 */}
             <div style={{ display: 'flex', gap: 6 }}>
+              <button {...pressAction(onSettings)} aria-label="设置" style={{ ...gameButtonStyle, width: 44, flexShrink: 0 }}><HudIcon name="settings" size={20} /></button>
               {TABS.map((t) => (
                 <button
                   key={t}

@@ -59,6 +59,9 @@ import { useGameLifecycle } from './useGameLifecycle';
 import { useMapSnapshot } from './useMapSnapshot';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useCraftPromptHistory } from './useCraftPromptHistory';
+import { HudLayoutAdjuster } from './hud/HudLayoutAdjuster';
+import { useHudLayout } from './hud/useHudLayout';
+import type { CSSProperties } from 'react';
 import { IslandArrival } from './start/IslandArrival';
 
 /**
@@ -107,7 +110,9 @@ export function GameplayUI({
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const topControls = useHudInteraction(hud.busy);
+  const [adjustHud, setAdjustHud] = useState(false);
+  const { topOffset, setTopOffset } = useHudLayout();
+  const topControls = useHudInteraction(hud.busy, adjustHud || settingsOpen);
   // 相机模式:隐藏全部玩法 UI 自由取景拍照,由设置面板进入
   const [photoMode, setPhotoMode] = useState(false);
   const enterPhotoMode = () => {
@@ -137,14 +142,17 @@ export function GameplayUI({
     gameRef,
     hud,
     photoMode,
-    settingsOpen,
+    settingsOpen: settingsOpen || adjustHud,
     gmOpen,
     backpackOpen,
     placePickerOpen,
     mapOpen,
     facilityPanels,
     setBackpackOpen,
-    setSettingsOpen,
+    setSettingsOpen: value => {
+      if (adjustHud) { setAdjustHud(false); setSettingsOpen(true); }
+      else setSettingsOpen(value);
+    },
     setPlacePickerOpen,
     openMap,
     closeMap,
@@ -191,6 +199,7 @@ export function GameplayUI({
   useEffect(() => {
     if (hud.dead) {
       setBackpackOpen(false);
+      setAdjustHud(false);
     }
   }, [hud.dead]);
 
@@ -212,7 +221,7 @@ export function GameplayUI({
       className="gameplay-ui"
       onPointerDownCapture={gameButtonPointerAudio}
       onClickCapture={gameButtonClickAudio}
-      style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden' }}
+      style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden', '--hud-top-offset': `${topOffset}px` } as CSSProperties}
     >
       <style>{hudStyles + gameThemeCss}</style>
       <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
@@ -230,7 +239,7 @@ export function GameplayUI({
           <TrafficOverlay />
               <Hud
                 hud={hud}
-                idleHidden={hud.busy && !hud.dead && !net?.host && !net?.guest}
+                idleHidden={hud.busy && !adjustHud && !settingsOpen && !hud.dead && !net?.host && !net?.guest}
                 onHeartTap={handleHeartTap}
                 onQuestNavigate={() => gameRef.current?.moveToQuest()}
                 rightReserve={mapOpen ? 190 : 100}
@@ -278,8 +287,10 @@ export function GameplayUI({
           )}
         </div>
       )}
+      {adjustHud && !hud.dead && <HudLayoutAdjuster value={topOffset} onChange={setTopOffset} onClose={() => { setAdjustHud(false); setSettingsOpen(true); }} />}
       {settingsOpen && (
         <SettingsPanel
+          onAdjustHud={() => { setSettingsOpen(false); setAdjustHud(true); }}
           onQuestGuide={enabled => gameRef.current?.setQuestGuide(enabled)}
           onApply={(s) => gameRef.current?.setAudioSettings(s)}
           onExit={onExit}
@@ -317,6 +328,7 @@ export function GameplayUI({
       )}
       {!photoMode && (
         <Backpack
+        onSettings={() => { setBackpackOpen(false); setSettingsOpen(true); }}
         showCompanion={!net?.guest}
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}

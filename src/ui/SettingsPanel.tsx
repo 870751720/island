@@ -2,7 +2,7 @@
 import { loadQuestGuide } from '@/game/quests/QuestSettings';
 import { MenuIcon } from './icons/MenuIcons';
 
-import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
+import { gameTheme, gameButtonStyle } from './gameTheme';
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import styles from './SettingsPanel.module.css';
@@ -54,6 +54,7 @@ export type MultiplayerSection = {
  * 以及「返回主界面」(由外层卸载游戏回到开始界面)。
  */
 export function SettingsPanel({
+  onAdjustHud,
   onQuestGuide,
   onApply,
   onExit,
@@ -61,6 +62,7 @@ export function SettingsPanel({
   onEnterPhotoMode,
   multiplayer,
 }: {
+  onAdjustHud: () => void;
   /** 音量变化时热应用到 GameAudio 并持久化 */
   onQuestGuide: (enabled: boolean) => void;
   onApply: (settings: { music: number; sfx: number }) => void;
@@ -71,6 +73,7 @@ export function SettingsPanel({
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
 }) {
+  const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('audio');
   const [guide, setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
@@ -104,22 +107,17 @@ export function SettingsPanel({
       }}
     >
       <div
-        className="hud-panel-enter"
+        className={`hud-panel-enter ${styles.panel}`}
+        role="dialog" aria-modal="true" aria-label="设置"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(calc(100vw - 72px), 340px)',
-          padding: 20,
-          maxHeight: '85dvh',
-          overflowY: 'auto',
-          ...gamePanelStyle,
-          borderRadius: 22,
-          boxShadow: gameTheme.shadow,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, color: gameTheme.ink }}>设置</div>
+        <div className={styles.header}><strong>设置</strong><button className={styles.close} onClick={onClose} aria-label="关闭设置">×</button></div>
+        <nav className={styles.tabs} aria-label="设置分类">
+          {([['audio', '声音'], ['interface', '界面'], ['game', '游戏']] as const).map(([id, label]) =>
+            <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
+        </nav>
+        <div className={styles.content} key={tab}>
+        {tab === 'audio' && (
         <section className={styles.section} aria-label="声音设置">
           <h3 className={styles.sectionTitle}>声音</h3>
           <SliderRow
@@ -133,6 +131,10 @@ export function SettingsPanel({
             onChange={(v) => apply({ ...settings, sfx: v })}
           />
         </section>
+        )}
+        {tab === 'interface' && <>
+        <button style={gameButtonStyle} onClick={onAdjustHud}>调整顶部 UI 边距</button>
+        <p className={styles.guideHint}>刘海或挖孔遮住内容时，可将顶部信息整体下移。调整时实时预览，自动记住本机设置。</p>
         <div className={styles.section}>
           <label className={styles.guideRow}>
             <span className={styles.guideText}>
@@ -167,6 +169,8 @@ export function SettingsPanel({
         >
           <MenuIcon name="camera" /> 相机模式
         </button>
+        </>}
+        {tab === 'game' && <>
         {multiplayer &&
           (multiplayer.roomCode ? (
             <div
@@ -254,7 +258,9 @@ export function SettingsPanel({
         >
           返回主界面
         </button>
-        <button
+        </>}
+        </div>
+        <button className={styles.footer}
           onClick={onClose}
           style={{
             padding: '10px 0',

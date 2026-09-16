@@ -3,7 +3,7 @@ import { hudControlStyles } from './controlStyles';
 /** 局部 HUD 表现：轻量渐变与 transform/opacity 动效，不使用背景模糊。 */
 export const hudStyles = `
 ${hudControlStyles}
-.hud-top-edge{top:max(7px,env(safe-area-inset-top))}
+.hud-top-edge{top:calc(max(7px,env(safe-area-inset-top)) + min(var(--hud-top-offset,0px),15dvh))}
 .hud-status{position:absolute;container:hud-status / inline-size;left:max(8px,env(safe-area-inset-left));display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:4px;right:calc(max(10px,env(safe-area-inset-right)) + var(--hud-right-reserve));pointer-events:none;box-sizing:border-box;font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;color:#49665e}
 .hud-status-stack{width:118px;flex-shrink:0;display:flex;flex-direction:column;gap:6px}
 .hud-status-card{box-sizing:border-box;width:118px;flex-shrink:0;padding:3px 4px 4px;border:1px solid #fff9e8b3;border-radius:14px;background:linear-gradient(145deg,#fff9e4d9,#e2ecdad1);box-shadow:0 3px 9px #314c3e20,inset 0 1px 0 #ffffff99}
