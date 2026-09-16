@@ -50,7 +50,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">
           {hud.buffs.map((buff) => (
-            <BuffButton key={buff.id} buff={buff} expanded={tip?.buff.id === buff.id}
+            <BuffButton key={buff.id} buff={buff} expanded={tip?.buff.id === buff.id} disabled={hidden || hud.dead}
               onActivate={(rect) => {
                 interact();
                 setTip(current => current?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });

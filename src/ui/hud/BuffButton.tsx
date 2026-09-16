@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { playUiSound } from '@/game/audio/UiAudio';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 import { StatusIcon, BUFF_SVG } from '../icons/StatusIcons';
@@ -6,12 +6,27 @@ import { StatusIcon, BUFF_SVG } from '../icons/StatusIcons';
 const TAP_SLOP = 10;
 
 /** 捕获轻点的松手事件，同时让浏览器接管列表的原生滚动。 */
-export function BuffButton({ buff, expanded, onActivate }: {
+export function BuffButton({ buff, expanded, disabled, onActivate }: {
   buff: HudBuff;
   expanded: boolean;
+  disabled: boolean;
   onActivate: (rect: DOMRect) => void;
 }) {
   const press = useRef<{ id: number; x: number; y: number } | null>(null);
+  // inert/disabled 切换不保证旧手势的结束事件仍送到按钮；显示恢复前清空。
+  useLayoutEffect(() => {
+    press.current = null;
+  }, [disabled]);
+  useEffect(() => {
+    const reset = () => { press.current = null; };
+    const onVisibilityChange = () => { if (document.hidden) reset(); };
+    window.addEventListener('blur', reset);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('blur', reset);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
   const activate = (button: HTMLButtonElement) => {
     playUiSound('click', 'game');
     onActivate(button.getBoundingClientRect());
@@ -23,8 +38,13 @@ export function BuffButton({ buff, expanded, onActivate }: {
       data-ui-sound="manual"
       aria-label={`${buff.name}，${buff.good ? '增益' : '减益'}`}
       aria-expanded={expanded}
+      disabled={disabled}
       onPointerDown={(event) => {
-        if (event.button !== 0 || press.current) return;
+        if (event.button !== 0 || disabled) return;
+        const previous = press.current;
+        // 只有另一个仍被捕获的触点需要等待；同一 pointerId 的新按下开启新手势。
+        if (previous && previous.id !== event.pointerId
+          && event.currentTarget.hasPointerCapture(previous.id)) return;
         // 不 preventDefault：纵向滑动仍可触发原生滚动及 pointercancel。
         event.currentTarget.setPointerCapture(event.pointerId);
         press.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -38,7 +58,7 @@ export function BuffButton({ buff, expanded, onActivate }: {
       }}
       onPointerUp={(event) => {
         const start = press.current;
-        if (start?.id !== event.pointerId) return;
+        if (disabled || start?.id !== event.pointerId) return;
         press.current = null;
         if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP) return;
         event.preventDefault();
