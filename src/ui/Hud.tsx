@@ -32,6 +32,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
   }, [hud.dead]);
   const season = SEASONS[hud.season];
   return (
+    <>
     <div className="hud-status hud-top-edge" inert={hidden} aria-hidden={hidden}
       onPointerDownCapture={interact} onClickCapture={interact}
       style={{ ...fadeStyle(hidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
@@ -48,7 +49,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
       {!hud.dead && <QuestPanel quest={hud.quests} onNavigate={onQuestNavigate} />}
       </div>
       {hud.buffs.length > 0 && (
-        <div className="hud-buffs" aria-label="当前状态效果">
+        <div className="hud-buffs" aria-label="当前状态效果" onScroll={() => { interact(); setTip(null); }}>
           {hud.buffs.map((buff) => (
             <BuffButton key={buff.id} buff={buff} expanded={tip?.buff.id === buff.id} disabled={hidden || hud.dead}
               onActivate={(rect) => {
@@ -58,11 +59,13 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
           ))}
         </div>
       )}
+    </div>
       {tip && !hud.dead && (
         <>
           <div
             onPointerDown={(e) => {
               e.preventDefault();
+              interact();
               setTip(null);
             }}
             style={{ position: 'fixed', inset: 0, zIndex: 60, pointerEvents: 'auto' }}
@@ -103,6 +106,6 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
