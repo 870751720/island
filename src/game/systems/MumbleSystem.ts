@@ -119,7 +119,7 @@ const TRIGGER_RULES: TriggerRule[] = [
   {
     // 中期发展:有工作台但还没建熔炉
     id: 'craftSmelter',
-    cooldown: 300,
+    cooldown: 900,
     test: (c) => c.workbenchCount > 0 && c.smelterCount === 0 && c.tools.pickaxe > 0,
   },
   {
