@@ -7,6 +7,7 @@ import { PerformanceMonitor } from './core/PerformanceMonitor';
 import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
+import { IdleRest } from './systems/IdleRest';
 import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
@@ -334,6 +335,8 @@ export class Game {
   private lastHurtSfxAt = -10;
   /** 游戏循环累计时间(音效节流用) */
   private loopElapsed = 0;
+  private readonly idleRest = new IdleRest();
+  private resting = false;
   private guestHud: GuestHudSynchronizer;
   private autoEquipTimer = 0;
   private swordEquipTimer = 0;
@@ -1036,8 +1039,12 @@ export class Game {
     this.loop.add({
       update: (delta, elapsed) => {
         this.loopElapsed = elapsed;
-        // 单机拍照模式:时间与全部玩法模拟冻结(玩家无敌),相机取景与渲染照常
-        const simDelta = this.cameraController.photoActive && !this.guestMode && !this.hostRef ? 0 : delta;
+        const singlePlayer = !this.guestMode && !this.hostRef;
+        this.resting = this.idleRest.shouldPause(this.local, singlePlayer,
+          this.isSessionActive(this.local) || this.local.archery.isAiming || this.local.lasso.isAiming,
+          IDLE_HIDE_DELAY);
+        // 单机拍照或闲置休息时冻结玩法计时；输入、相机与环境表现继续更新。
+        const simDelta = singlePlayer && (this.cameraController.photoActive || this.resting) ? 0 : delta;
         this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
         for (const session of this.sessions) {
           session.player.roadKind = this.gravelPaths.contains(session.player.group.position) ? 'gravelPath'
@@ -1064,7 +1071,7 @@ export class Game {
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
-        if (!this.guestMode) {
+        if (!this.guestMode && !this.resting) {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
@@ -1072,7 +1079,7 @@ export class Game {
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
             this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
-        } else {
+        } else if (this.guestMode) {
           this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
           this.wildlife.netUpdate(delta, elapsed);
@@ -1085,7 +1092,7 @@ export class Game {
         this.pickupPresentation.update(simDelta);
         this.waterFx.update(delta);
         this.pondLife.update(delta, elapsed);
-        this.seaThreat.update(delta, elapsed);
+        if (!this.resting) this.seaThreat.update(delta, elapsed);
         this.footprints.update(simDelta);
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
@@ -1275,7 +1282,7 @@ export class Game {
           }
           this.questTimer = 0;
         }
-        this.questSupportTimer += delta;
+        this.questSupportTimer += this.resting ? 0 : delta;
         if (this.questSupportTimer >= 1) {
           this.questSupportTimer = 0;
           const screen = this.cameraController.photoActive ? null : this.questSheepSupport.screens.capture(this.camera);
@@ -1899,6 +1906,7 @@ export class Game {
 
   /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
   private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
+    if (this.resting) return;
     const player = session.player;
     let final = damage * (1 - session.equipment.totalReduce()) - session.equipment.totalDefense();
     // 局外养成「剑术」2 级:受到的伤害降低 10%
@@ -1920,6 +1928,7 @@ export class Game {
 
   /** 海中巨影咬击:固定伤害不吃装备防御,受击表现与狼袭同路(粒子/伤害数字/音效 + 客人补播) */
   private applySeaBite(session: PlayerSession, damage: number): void {
+    if (this.resting) return;
     session.markCombat();
     session.survival.damage(damage);
     this.playWildlifeHitFeedback(session, damage);
