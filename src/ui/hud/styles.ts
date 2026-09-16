@@ -37,7 +37,7 @@ ${hudControlStyles}
 .hud-buffs{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:26.4px;max-height:40dvh;overflow-y:auto;scrollbar-width:none;pointer-events:none;overscroll-behavior:contain}
 .hud-buff{position:relative;box-sizing:border-box;flex:0 0 26.4px;pointer-events:auto;width:26.4px;height:26.4px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid #9dcca766;border-radius:7.8px;background:#fff5e2dd;color:#526857;cursor:pointer;font-size:11.4px;touch-action:manipulation;box-shadow:0 3px 9px #081c3424}
 .hud-buff.is-bad{border-color:#ed998a99}
-.hud-buff:active{transform:scale(.92)}
+.hud-buff:active>span[aria-hidden]{transform:scale(.92)}
 .hud-buff-time{position:absolute;right:1.2px;bottom:.6px;background:#f5ebd5;font-size:5.4px;line-height:7.2px;padding:0 1.8px;border-radius:2.4px;font-variant-numeric:tabular-nums}
 .hud-panel-enter{animation:hud-panel-in .2s ease-out}
 @keyframes hud-panel-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}

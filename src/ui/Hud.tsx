@@ -7,6 +7,7 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { StatusIcon, BUFF_SVG } from './icons/StatusIcons';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 import { VitalBottles } from './hud/VitalBottles';
+import { BuffButton } from './hud/BuffButton';
 import { DayPhaseIcon } from './icons/DayPhaseIcon';
 
 const SEASONS = {
@@ -49,14 +50,11 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
       {hud.buffs.length > 0 && (
         <div className="hud-buffs" aria-label="当前状态效果">
           {hud.buffs.map((buff) => (
-            <button key={buff.id} className={`hud-buff${buff.good ? '' : ' is-bad'}`} aria-label={`${buff.name}，${buff.good ? '增益' : '减益'}`} aria-expanded={tip?.buff.id === buff.id}
-              onClick={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                setTip(tip?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });
-              }}>
-              <StatusIcon markup={BUFF_SVG[buff.id]} />
-              {buff.remain !== null && <span className="hud-buff-time">{buff.remain}</span>}
-            </button>
+            <BuffButton key={buff.id} buff={buff} expanded={tip?.buff.id === buff.id}
+              onActivate={(rect) => {
+                interact();
+                setTip(current => current?.buff.id === buff.id ? null : { buff, x: rect.left + rect.width / 2, y: rect.bottom });
+              }} />
           ))}
         </div>
       )}
