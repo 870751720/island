@@ -10,6 +10,8 @@ import type { GameAudio } from '../audio/GameAudio';
 import { DROP_COLORS, makeDropModel } from './DropModels';
 import { createWorldEntityId, type EntityChangeSink } from './WorldEntityId';
 
+const DROP_LIFETIME_MS = 10 * 60 * 1000;
+
 const PICKUP_RANGE = 1.6; // 玩家距掉落物该距离内时出现「捡回」卡片
 const PICKUP_DELAY = 0.5; // 丢弃后短暂不可捡回,避免刚丢就提示
 const DOG_EAT_DELAY = 4; // 狗狗只吃落地超过这么久的食物,给玩家捡回的机会
@@ -22,6 +24,8 @@ export type DropSource = 'discarded' | 'loot' | 'overflow';
 /** 掉落物的持久化/同步形态(存档、世界增量与客人镜像共用) */
 export type DropEntry = {
   id?: string;
+  /** 现实时间到期时间戳（毫秒）；旧档缺省为恢复后十分钟 */
+  expiresAt?: number;
   kind: ResourceKind;
   count: number;
   x: number;
@@ -51,6 +55,7 @@ type Drop = {
   tier?: number;
   mesh: THREE.Object3D;
   age: number;
+  expiresAt: number;
   baseY: number;
 };
 
@@ -72,7 +77,8 @@ export class DropSystem {
     private scene: THREE.Scene,
     private terrain: IslandTerrain,
     private fx: Particles,
-    private audio: GameAudio
+    private audio: GameAudio,
+    private authoritative = true
   ) {}
 
   /** 在玩家附近丢弃道具(带随机偏移,避免叠在角色脚下;工具可带等级) */
@@ -123,16 +129,23 @@ export class DropSystem {
     mesh.position.set(x, baseY, z);
     this.scene.add(mesh);
     const id = createWorldEntityId('drop');
-    this.drops.push({ id, kind, count, source, tier, mesh, age: 0, baseY });
+    const expiresAt = Date.now() + DROP_LIFETIME_MS;
+    this.drops.push({ id, kind, count, source, tier, mesh, age: 0, expiresAt, baseY });
     this.onChanged?.({
       op: 'add',
       id,
-      value: { id, kind, count, source, x, z, ...(tier !== undefined ? { tier } : {}) },
+      value: { id, kind, count, source, x, z, expiresAt, ...(tier !== undefined ? { tier } : {}) },
     });
     this.audio.play('drop');
   }
 
   update(delta: number, elapsed: number): void {
+    if (this.authoritative) {
+      const now = Date.now();
+      for (let i = this.drops.length - 1; i >= 0; i--) {
+        if (this.drops[i].expiresAt <= now) this.remove(i);
+      }
+    }
     this.highlight.update(elapsed);
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
@@ -243,6 +256,7 @@ export class DropSystem {
   snapshot(): DropEntry[] {
     return this.drops.map((drop) => ({
       id: drop.id,
+      expiresAt: drop.expiresAt,
       kind: drop.kind,
       count: drop.count,
       source: drop.source,
@@ -254,14 +268,16 @@ export class DropSystem {
 
   /** 从存档恢复掉落物(不播丢落音效) */
   restore(list: DropEntry[]): void {
+    const now = Date.now();
     for (const d of list) {
-      if (d.count <= 0) continue;
+      const expiresAt = d.expiresAt ?? now + DROP_LIFETIME_MS;
+      if (d.count <= 0 || (this.authoritative && expiresAt <= now)) continue;
       const mesh = makeDropModel(d.kind);
       this.highlight.apply(mesh);
       const baseY = Math.max(this.terrain.getHeight(d.x, d.z), 0) + 0.5;
       mesh.position.set(d.x, baseY, d.z);
       this.scene.add(mesh);
-      this.drops.push({ id: d.id ?? createWorldEntityId('drop'), kind: d.kind, count: d.count, source: d.source, tier: d.tier, mesh, age: 0, baseY });
+      this.drops.push({ id: d.id ?? createWorldEntityId('drop'), kind: d.kind, count: d.count, source: d.source, tier: d.tier, mesh, age: 0, expiresAt, baseY });
     }
   }
 
@@ -276,6 +292,7 @@ export class DropSystem {
       const existing = value.id ? current.get(value.id) : undefined;
       if (existing) {
         existing.count = value.count;
+        existing.expiresAt = value.expiresAt ?? existing.expiresAt;
         continue;
       }
       const mesh = makeDropModel(value.kind);
@@ -283,7 +300,7 @@ export class DropSystem {
       const baseY = Math.max(this.terrain.getHeight(value.x, value.z), 0) + 0.5;
       mesh.position.set(value.x, baseY, value.z);
       this.scene.add(mesh);
-      this.drops.push({ id: value.id || createWorldEntityId('drop'), kind: value.kind, count: value.count, source: value.source, tier: value.tier, mesh, age: 0, baseY });
+      this.drops.push({ id: value.id || createWorldEntityId('drop'), kind: value.kind, count: value.count, source: value.source, tier: value.tier, mesh, age: 0, expiresAt: value.expiresAt ?? Date.now() + DROP_LIFETIME_MS, baseY });
     }
   }
 

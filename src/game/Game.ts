@@ -881,7 +881,7 @@ export class Game {
       (kind, actor, cell) => this.settleFacility(kind, actor, cell)
     );
     this.registerFacilities();
-    this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio);
+    this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio, !this.guestMode);
     this.playerCommands = new PlayerCommandController(
       this.guestNet,
       this.drops,
@@ -1058,6 +1058,7 @@ export class Game {
           const newSeason = advanceSeasonForDay(this.dayNight.day);
           if (newSeason === 'winter') this.weather.force('snow');
         }
+        this.drops.update(simDelta, elapsed);
         this.crates.update(simDelta);
         this.meteor.update(simDelta);
         this.weather.update(simDelta);
@@ -1240,7 +1241,6 @@ export class Game {
     this.smelters.update(simDelta, elapsed, !this.guestMode);
         this.cookingStations.update(simDelta, elapsed, !this.guestMode, this.weather.rainIntensity);
     this.looms.update(simDelta, elapsed, !this.guestMode);
-        this.drops.update(simDelta, elapsed);
         this.thirstGuidance.update(delta, this.local, this.cameraController.photoActive);
         this.mumbles.update(delta, {
           nearDrinkPoint: this.thirstGuidance.nearDrinkPoint,
