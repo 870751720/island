@@ -2,6 +2,7 @@ import { QuestPanel } from './QuestPanel';
 import { gameTheme } from './gameTheme';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { fadeStyle } from './fade';
+import { useHudInteraction } from './useHudInteraction';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { StatusIcon, BUFF_SVG } from './icons/StatusIcons';
 import type { HudBuff } from '@/game/systems/BuffSystem';
@@ -24,13 +25,15 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
   idleHidden?: boolean;
 }) {
   const [tip, setTip] = useState<{ buff: HudBuff; x: number; y: number } | null>(null);
+  const { hidden, interact } = useHudInteraction(idleHidden, !!tip);
   useEffect(() => {
-    if (idleHidden) setTip(null);
-  }, [idleHidden]);
+    if (hud.dead) setTip(null);
+  }, [hud.dead]);
   const season = SEASONS[hud.season];
   return (
-    <div className="hud-status hud-top-edge" inert={idleHidden} aria-hidden={idleHidden}
-      style={{ ...fadeStyle(idleHidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
+    <div className="hud-status hud-top-edge" inert={hidden} aria-hidden={hidden}
+      onPointerDownCapture={interact} onClickCapture={interact}
+      style={{ ...fadeStyle(hidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
       <div className="hud-status-stack">
       <div className="hud-status-card">
       <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
@@ -57,7 +60,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
           ))}
         </div>
       )}
-      {tip && !idleHidden && (
+      {tip && !hud.dead && (
         <>
           <div
             onPointerDown={(e) => {

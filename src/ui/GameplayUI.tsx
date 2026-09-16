@@ -45,6 +45,8 @@ import { SettingsPanel } from './SettingsPanel';
 import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
+import { pressAction } from './pressAction';
+import { useHudInteraction } from './useHudInteraction';
 import { MapSurface, MapPanel } from './MapPanel';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { isNearbyFacilityDiggable } from './facilityInteraction';
@@ -103,6 +105,7 @@ export function GameplayUI({
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const topControls = useHudInteraction(hud.busy);
   // 相机模式:隐藏全部玩法 UI 自由取景拍照,由设置面板进入
   const [photoMode, setPhotoMode] = useState(false);
   const enterPhotoMode = () => {
@@ -232,7 +235,7 @@ export function GameplayUI({
               />
         </>
       )}
-      {/* 右上角:设置按钮左、地图入口或小地图右；玩家移动/交互中一起淡出 */}
+      {/* 右上角入口：角色闲置时淡出，操作入口后留出阅读时间。 */}
       {!hud.dead && !photoMode && (
         <div
           className="hud-top-edge"
@@ -246,29 +249,29 @@ export function GameplayUI({
           }}
         >
           <button
-            onClick={() => setSettingsOpen(true)}
+            {...pressAction(() => { topControls.interact(); setSettingsOpen(true); })}
             aria-label="设置"
             className="hud-control hud-utility hud-settings"
-            disabled={hud.busy}
+            disabled={topControls.hidden}
             aria-expanded={settingsOpen}
-            style={fadeStyle(hud.busy)}
+            style={fadeStyle(topControls.hidden)}
           >
             <HudIcon name="settings" size={23} />
           </button>
           {!mapOpen && (
             <button
-              onClick={openMap}
+              {...pressAction(() => { topControls.interact(); openMap(); })}
               aria-label="打开小地图"
               className="hud-control hud-utility hud-map-preview"
-              disabled={hud.busy}
-              style={fadeStyle(hud.busy)}
+              disabled={topControls.hidden}
+              style={fadeStyle(topControls.hidden)}
             >
               {mapSnapshot && <MapSurface snapshot={mapSnapshot} compact />}
             </button>
           )}
           {mapOpen && mapSnapshot && (
-            <div style={fadeStyle(hud.busy)}>
-              <MapPanel snapshot={mapSnapshot} onClose={closeMap} />
+            <div inert={topControls.hidden} style={fadeStyle(topControls.hidden)}>
+              <MapPanel snapshot={mapSnapshot} onClose={() => { topControls.interact(); closeMap(); }} />
             </div>
           )}
         </div>

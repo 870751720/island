@@ -2,6 +2,7 @@
 
 import { FACILITY_SVG } from './icons/FacilityIcons';
 import { useMemo } from 'react';
+import { pressAction } from './pressAction';
 import { projectMapMarker } from './mapProjection';
 import type { MapSnapshot } from '@/game/GameContracts';
 
@@ -145,7 +146,7 @@ export function MapPanel({ snapshot, onClose }: MapPanelProps) {
   return (
     <button
       type="button"
-      onClick={onClose}
+      {...pressAction(onClose)}
       aria-label="折叠小地图"
       style={{
         width: 136,

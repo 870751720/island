@@ -17,6 +17,7 @@ import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
 import { fadeStyle } from './fade';
+import { pressAction } from './pressAction';
 import { HudIcon } from './hud/HudIcon';
 import { StepButton } from './StepButton';
 
@@ -280,15 +281,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
       {showBackpackButton && (
       <button
         className="hud-control hud-backpack"
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          e.preventDefault();
-          onToggle();
-        }}
-        onClick={(e) => {
-          // 触屏/鼠标已在按下时处理；保留键盘与辅助技术的激活入口。
-          if (e.detail === 0) onToggle();
-        }}
+        {...pressAction(onToggle)}
         aria-label="背包"
         aria-expanded={open}
         disabled={hud.busy || hud.dead}
