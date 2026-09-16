@@ -36,6 +36,8 @@ export function loadLastRoom(): { code: string; name: string } | null {
 export class NetGuest {
   private net: PeerNet | null = null;
   private signal: GuestSignal | null = null;
+  dogView = { width: 0, height: 0 };
+  private sentDogView = "";
   private inputX = 0;
   private inputZ = 0;
   private inputTimer: ReturnType<typeof setInterval> | null = null;
@@ -210,11 +212,12 @@ export class NetGuest {
         this.lastHeartbeatSent = now;
         this.net?.send({ t: 'heartbeat' });
       }
-      if (this.ready && (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ)) {
+      if (this.ready && (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ || this.sentDogView !== JSON.stringify(this.dogView))) {
         this.sentInputX = this.inputX;
         this.sentInputZ = this.inputZ;
+        this.sentDogView = JSON.stringify(this.dogView);
         const seq = ++this.inputSeq;
-        this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ });
+        this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ, viewWidth: this.dogView.width, viewHeight: this.dogView.height });
         this.onInputSent(seq);
       }
     }, 1000 / INPUT_HZ / 2);

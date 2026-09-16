@@ -55,6 +55,8 @@ export type AmbientPose = {
   state?: string;
   /** 外观变体(鸟的羽色序号),客人端补建新个体时使用 */
   variant?: number;
+  dogTeleportSerial?: number;
+  dogTeleportFrom?: { x: number; y: number; z: number };
   dogBattleGlyph?: DogBattleEmoji | null;
   dogBattleSerial?: number;
   dogBattleLeft?: number;
@@ -154,7 +156,7 @@ export type NetMsg =
   | { t: 'reject'; reason: string }
   | { t: 'start' }
   | { t: 'heartbeat' }
-  | { t: 'input'; seq: number; x: number; z: number }
+  | { t: 'input'; seq: number; x: number; z: number; viewWidth?: number; viewHeight?: number }
   | { t: 'action'; name: string; args: unknown[] }
   | {
       t: 'players';

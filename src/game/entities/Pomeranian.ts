@@ -1,3 +1,4 @@
+import { DogRecovery } from '../systems/DogRecovery';
 import { DOG_BATTLE_EMOJIS, DOG_BATTLE_EMOJI_SECONDS, DOG_STAGE_NOTICE_SECONDS, type DogBattleEmoji, type DogBattleNotice } from '../systems/DogExpressions';
 import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
@@ -157,6 +158,11 @@ export class Pomeranian {
   readonly group = new THREE.Group();
   readonly growth = new DogGrowth();
   readonly rest = new DoghouseRest();
+  private readonly recovery = new DogRecovery();
+  recoveryCamera: (player: Player) => THREE.OrthographicCamera | null = () => null;
+  private teleportSerial = 0;
+  private teleportFrom = { x: 0, y: 0, z: 0 };
+  private receivedTeleport = false;
   private combat: DogCombat | null = null;
   private combatView: DogCombatView = { phase: 'idle', progress: 0 };
   private fighting = false;
@@ -367,6 +373,7 @@ export class Pomeranian {
 
   netPose(): AmbientPose {
     return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.rest.traveling ? 'circle' : this.play,
+      dogTeleportSerial: this.teleportSerial, dogTeleportFrom: this.teleportFrom,
       dogBattleGlyph: this.battleNotice?.glyph ?? null, dogBattleSerial: this.battleNotice?.serial ?? 0,
       dogBattleLeft: this.emoji === this.battleNotice?.glyph ? Math.ceil(Math.max(0, this.emojiLeft) * 10) / 10 : 0,
       dogXp: this.growth.xp, dogEatCooldown: Math.ceil(this.eatCd),
@@ -391,6 +398,17 @@ export class Pomeranian {
     this.pounceSerial = Math.max(this.pounceSerial, pose.dogPounceSerial ?? 0);
     this.netPounceTime = phase === 'windup' ? progress * 0.18 : phase === 'leap' ? 0.18 + progress * 0.32
       : phase === 'recover' ? 0.5 + progress * 0.3 : -1;
+    const serial = pose.dogTeleportSerial ?? 0;
+    if (serial > this.teleportSerial) {
+      if (this.receivedTeleport) {
+        const from = pose.dogTeleportFrom;
+        this.fx.burst(from ? new THREE.Vector3(from.x, from.y, from.z) : this.pos, '#b7a2f2', 12);
+        this.fx.burst(new THREE.Vector3(pose.x, pose.y, pose.z), '#d9f4ff', 12);
+      }
+      this.pos.set(pose.x, pose.y, pose.z);
+      this.teleportSerial = serial;
+    }
+    this.receivedTeleport = true;
     this.netPos.set(pose.x, pose.y, pose.z);
     this.netHeading = pose.h;
     if (this.pos.distanceToSquared(this.netPos) > 64) {
@@ -545,6 +563,20 @@ export class Pomeranian {
     if (!companions.some(c => c.player === this.player && !c.dead)) {
       const next = nearby[0] ?? companions.find(c => !c.dead);
       if (next) this.player = next.player;
+    }
+    const destination = this.recovery.update(delta, this.pos, this.player.group.position,
+      companions.some(c => c.player === this.player && !c.dead) ? this.recoveryCamera(this.player) : null,
+      (x, z) => this.stepY(x, z), (x, z) => this.isBlocked(x, z));
+    if (destination) {
+      this.teleportFrom = { x: this.pos.x, y: this.pos.y, z: this.pos.z };
+      this.fx.burst(this.pos, '#b7a2f2', 12);
+      this.pos.copy(destination);
+      this.fx.burst(this.pos, '#d9f4ff', 12);
+      this.teleportSerial++;
+      this.wake();
+      this.play = 'circle';
+      this.playLeft = this.eatLeft = this.happyLeft = this.lastDetour = 0;
+      if (this.combat) this.combat.restore(this.combat.snapshot());
     }
     this.battleEmojiCooldown = Math.max(0, this.battleEmojiCooldown - delta);
     const wasFighting = this.fighting;

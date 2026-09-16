@@ -638,6 +638,19 @@ export class Game {
       this.waterFx,
       (x, z) => this.isGroundBlocked(x, z)
     );
+    const dogCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
+    this.dog.recoveryCamera = (player) => {
+      if (player === this.player) return this.cameraController.photoActive ? null : this.camera;
+      const view = this.sessions.find(s => s.player === player)?.dogView;
+      if (!view) return null;
+      dogCamera.left = -view.width / 2; dogCamera.right = view.width / 2;
+      dogCamera.top = view.height / 2; dogCamera.bottom = -view.height / 2;
+      const p = player.group.position;
+      dogCamera.position.copy(p).add(new THREE.Vector3(0, 24, Math.hypot(20, 20)));
+      dogCamera.lookAt(p);
+      dogCamera.updateProjectionMatrix();
+      return dogCamera;
+    };
     this.dog.connectCombat(this.wildlife);
     this.dog.onBattleEmoji = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogBattleEmoji', ...notice });
     this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
@@ -1073,6 +1086,10 @@ export class Game {
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
         this.clouds.update(delta);
         this.terrain.updateWater(elapsed);
+        if (this.guestNet && !this.cameraController.photoActive) {
+          this.guestNet.dogView.width = (this.camera.right - this.camera.left) / this.camera.zoom;
+          this.guestNet.dogView.height = (this.camera.top - this.camera.bottom) / this.camera.zoom;
+        }
         if (!this.guestMode) {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);

@@ -25,6 +25,7 @@ export class PlayerSession implements Actor {
   /** 联机生命周期内稳定的玩家标识；不随其他玩家加入或离开而变化。 */
   readonly id: string;
   name: string;
+  dogView: { width: number; height: number } | null = null;
   readonly nameTag: PlayerNameTag;
   readonly player: Player;
   readonly quests = new QuestProgress();

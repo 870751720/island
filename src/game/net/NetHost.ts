@@ -182,6 +182,10 @@ export class NetHost {
       const x = Number.isFinite(msg.x) ? Math.max(-1, Math.min(1, msg.x)) : 0;
       const z = Number.isFinite(msg.z) ? Math.max(-1, Math.min(1, msg.z)) : 0;
       guest.session.player.input.setJoystick(x, z);
+      if (Number.isFinite(msg.viewWidth) && Number.isFinite(msg.viewHeight)
+        && msg.viewWidth! >= 1 && msg.viewWidth! <= 150 && msg.viewHeight! >= 1 && msg.viewHeight! <= 150) {
+        guest.session.dogView = { width: msg.viewWidth!, height: msg.viewHeight! };
+      }
       guest.lastInputSeq = msg.seq;
     } else if (msg.t === 'action' && guest.session && this.game) {
       if (
