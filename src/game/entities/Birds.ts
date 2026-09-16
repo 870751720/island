@@ -534,18 +534,9 @@ export class Birds implements Updatable {
     return nearestToSegmentXZ(this.birds, from, to, range);
   }
 
-  /** 对某点附近最近的一只活鸟结算一次伤害(箭矢命中调用),返回是否击杀;死后经 RESPAWN_TIME 在别处高空重新起飞 */
+  /** 按水平距离对附近最近的活鸟结算箭伤,忽略飞行/地形高度;返回是否击杀。 */
   damageNearby(pos: THREE.Vector3, range: number, damage: number): boolean {
-    let best: Bird | null = null;
-    let bestDist = range * range;
-    for (const bird of this.birds) {
-      if (!bird.alive) continue;
-      const d = bird.pos.distanceToSquared(pos);
-      if (d < bestDist) {
-        best = bird;
-        bestDist = d;
-      }
-    }
+    const best = nearestToSegmentXZ(this.birds, pos, pos, range);
     if (!best || !Number.isFinite(damage) || damage <= 0) return false;
     best.hp -= damage;
     this.onDamage(damage, best.pos, best.id);

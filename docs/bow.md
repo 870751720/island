@@ -14,6 +14,8 @@
 
 ## 设计方案
 
+- 鸟的索敌、箭矢扫掠和命中扣血统一按 XZ 水平距离判定，忽略飞行高度及地形海拔；伤害结算复用 `nearestToSegmentXZ`，避免已命中却因高度差不扣血。
+
 - `Inventory/Items`:新增资源 `arrow`,掉落物造型为三支斜插的箭捆(`DropModels.makeArrows`);数量存在独立弹药存储 `AmmoStore`(挂在 `PlayerSession.ammo`,与 tools/equipped 同级),不占背包格、无上限叠加。
 - `Crafting`:`ToolId` 扩展 `bow`;配方新增弓与箭(均为工作台配方;箭为材料类、`outputCount: 10`),`craft()` 产物经 `Game.giveItem` 分流:箭入弹药存储,其余入背包。手搓弹卡只留给斧/镐/工作台等特殊定制项,箭不弹卡。
 - `Player`:新增手持弓模型(弯木弓 + 弓弦)与 `shoot` 开弓动画;工具循环顺序 空手→斧→镐→鱼竿→弓。
