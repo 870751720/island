@@ -212,7 +212,8 @@ export class CollectSystem {
     private seedAvoidPlayers: () => readonly Vector3[] = () => [],
     /** 局外养成「采集·巧匠」加成(单机生效,联机为空实现) */
     private meta: CollectMeta = NO_COLLECT_META,
-    private onCollected?: (kind: ResourceKind, count: number) => void
+    private onCollected?: (kind: ResourceKind, count: number) => void,
+    private onStoneHarvest?: (naturallyDropped: boolean) => boolean
   ) {}
 
   /** 手持铲子靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
@@ -352,6 +353,11 @@ export class CollectSystem {
       this.hitCounts.set(prop, hits);
       return;
     }
+    let flintDropped = false;
+    const giveYield = (kind: ResourceKind, count: number) => {
+      if (kind === 'flint' && count > 0) flintDropped = true;
+      return this.give(kind, count);
+    };
     const before = countsFromSlots(this.inventory.snapshot());
     this.hitCounts.delete(prop);
     this.onYield(prop.position);
@@ -359,7 +365,7 @@ export class CollectSystem {
     if (this.isPickingFruit(prop)) {
       // 空手摘果:只摘走果子,树保留并进入挂果再生
       this.props.pickFruit(prop);
-      config.yield({ add: this.give }, prop);
+      config.yield({ add: giveYield }, prop);
     } else if (this.isDigging(prop)) {
       // 铲子把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
@@ -367,7 +373,7 @@ export class CollectSystem {
     } else {
       const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';
       this.props.harvest(prop);
-      config.yield({ add: this.give }, prop);
+      config.yield({ add: giveYield }, prop);
       if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
         this.give('berry', 1);
       }
@@ -381,7 +387,10 @@ export class CollectSystem {
         this.props.seedRegrowTree(prop.species ?? 'oak', this.seedAvoidPlayers());
       }
     }
-    this.applyMetaYield(prop, kind, config);
+    this.applyMetaYield(prop, kind, config, giveYield);
+    if (['rock', 'gravel', 'iron', 'meteor'].includes(kind) && this.onStoneHarvest?.(flintDropped)) {
+      this.give('flint', 1);
+    }
     for (const [resource, count] of Object.entries(countsFromSlots(this.inventory.snapshot()))) {
       const k = resource as ResourceKind;
       const gained = count - (before[k] ?? 0);
@@ -396,7 +405,8 @@ export class CollectSystem {
   private applyMetaYield(
     prop: Prop,
     kind: HarvestKind,
-    config: (typeof HARVEST_CONFIG)[HarvestKind]
+    config: (typeof HARVEST_CONFIG)[HarvestKind],
+    giveYield: (kind: ResourceKind, count: number) => number
   ): void {
     const { gleaning, rockWealth, seedline } = this.meta.levels;
     // 拾穗:草丛/灌木小概率额外 1 份本产出,摘果小概率多 1 个果实
@@ -422,7 +432,7 @@ export class CollectSystem {
     }
     // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次 yield)
     if (gleaning >= 3 && !this.isDigging(prop) && this.meta.takeFirstCollect()) {
-      config.yield({ add: this.give }, prop);
+      config.yield({ add: giveYield }, prop);
     }
   }
 }

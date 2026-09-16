@@ -37,6 +37,7 @@ export class QuestProgress {
   benchAction(level: number): void {
     this.state.benchLevel = Math.max(this.state.benchLevel, level);
   }
+  get personalBenchLevel(): number { return this.state.benchLevel; }
   snapshot(): QuestSave { return structuredClone(this.state); }
   collected(kind: ResourceKind, count: number): void {
     if (count <= 0 || !GATHER_KINDS.some(k => k === kind)) return;
@@ -77,7 +78,6 @@ export class QuestProgress {
       if (s.tools.axe && s.tools.pickaxe) this.state.done.push('supplies');
       if (benchLevel > 0 || s.craftedIds.has('workbench')) this.state.done.push('materials');
       if (benchLevel >= 2) this.state.done.push('fur', 'rope');
-      if (benchLevel >= 2 && ['furHat', 'furShirt', 'furPants', 'furBackpack'].every(id => this.craftCount(s, id as CraftId) > 0)) this.state.done = QUESTS.map(q => q.id);
     }
     for (const quest of QUESTS) {
       if (!this.state.done.includes(quest.id) && quest.requirements.every(req => { const row = this.row(s, req); return row.have >= row.need; })) this.state.done.push(quest.id);
@@ -130,6 +130,6 @@ export class QuestProgress {
       ? guide.kinds.reduce((sum, kind) => sum + (this.state.gathered[kind] ?? 0), 0)
       : recipes.reduce((sum, id) => sum + (this.state.crafted[id] ?? 0), 0);
     const busy = cooking || upgrading || !!(s.crafting.currentRecipe && recipes.includes(s.crafting.currentRecipe.id));
-    this.view = { enabled: this.enabled, active, finished: active === -1, celebration: this.celebrate > 0, rows, done: [...this.state.done], recipes, guide, hint, activity, busy, feedback: this.feedback, pending: Object.keys(this.state.pending).length > 0 };
+    this.view = { personalBenchLevel: this.state.benchLevel, enabled: this.enabled, active, finished: active === -1, celebration: this.celebrate > 0, rows, done: [...this.state.done], recipes, guide, hint, activity, busy, feedback: this.feedback, pending: Object.keys(this.state.pending).length > 0 };
   }
 }

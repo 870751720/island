@@ -24,6 +24,8 @@ const SWING_TIME = 0.35;
 export class SwordSystem {
   /** 有效命中后由权威端更新该玩家的战斗表现状态。 */
   onCombat?: () => void;
+  /** 权威击杀结算，在生成世界掉落前应用个人首份保底。 */
+  onWildlifeLoot?: (species: string, items: { kind: ResourceKind; count: number }[]) => void;
   /** 挥砍动作剩余时长(0 表示空闲) */
   private swingLeft = 0;
   /** 距下次可挥砍的剩余时间 */
@@ -102,7 +104,9 @@ export class SwordSystem {
     // 动物可中数刀:受伤未死不掉肉(战利品只随击杀掉落)
     if (!beast || beast === 'hit') return;
     const p = this.player.group.position;
-    this.onLoot(this.wildlife.lootOf(beast.species, beast.juvenile), p.x, p.z);
+    const items = this.wildlife.lootOf(beast.species, beast.juvenile);
+    this.onWildlifeLoot?.(beast.species, items);
+    this.onLoot(items, p.x, p.z);
   }
 
   /** 房主收到客人上行命中后的权威结算(表现已在客人端播过) */

@@ -23,6 +23,7 @@ export type MumbleContext = {
   tools: Tools;
   collecting: boolean;
   /** 岛上已放置的设施数量(客人端由快照同步) */
+  personalBenchLevel: number;
   workbenchCount: number;
   smelterCount: number;
   loomCount: number;
@@ -43,6 +44,8 @@ type TriggerRule = {
   cooldown: number;
   /** 只触发一次(如开局引导) */
   once?: boolean;
+  /** 有限频率抽签；失败后等待 retry 秒，避免按帧抽签变成必触发。 */
+  chance?: { probability: number; retry: number };
   /** 每天最多触发一次(如狼之夜/熊之夜的铺垫台词),按 ctx.day 去重 */
   oncePerDay?: boolean;
   /** 边沿型(进入夜晚/开始下雨/起风/陨石坠落),只在状态跳变的那一帧命中 */
@@ -115,6 +118,12 @@ const TRIGGER_RULES: TriggerRule[] = [
     id: 'craftWorkbench',
     cooldown: 300,
     test: (c) => c.tools.pickaxe > 0 && c.workbenchCount === 0,
+  },
+  {
+    id: 'wolfBook',
+    cooldown: 900,
+    chance: { probability: 0.3, retry: 60 },
+    test: c => c.personalBenchLevel === 2,
   },
   {
     // 中期发展:有工作台但还没建熔炉
@@ -211,6 +220,11 @@ export class MumbleSystem {
         hit = this.sustained(rule.id, active, delta);
       }
       if (!hit) continue;
+      if (rule.chance && Math.random() >= rule.chance.probability) {
+        this.cooldowns.set(rule.id, rule.chance.retry);
+        this.sustainTimers.delete(rule.id);
+        continue;
+      }
 
       this.firedOnce.add(rule.id);
       if (rule.oncePerDay) this.firedDay.set(rule.id, ctx.day);

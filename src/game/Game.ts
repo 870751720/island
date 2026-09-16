@@ -661,8 +661,11 @@ export class Game {
     this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
     this.dog.onPounce = (serial) => this.hostRef?.broadcastEvent({ kind: 'dogPounce', serial });
     this.wildlife.onDogKill = (species, position, player, juvenile) => {
-      this.sessionOf(player).stats.kills += 1;
-      this.wildlife.lootOf(species, juvenile).forEach((item, i) => {
+      const session = this.sessionOf(player);
+      session.stats.kills += 1;
+      const items = this.wildlife.lootOf(species, juvenile);
+      this.applyFirstBookDrop(session, species, items);
+      items.forEach((item, i) => {
         const angle = i * 2.4;
         this.drops.dropAt(item.kind, item.count, position.x + Math.cos(angle) * 0.4, position.z + Math.sin(angle) * 0.4);
       });
@@ -1282,6 +1285,7 @@ export class Game {
           stone: this.inventory.count('stone'),
           tools: this.tools,
           collecting: this.collect.isWorking,
+          personalBenchLevel: this.guestMode ? (this.local.quests.view?.personalBenchLevel ?? 0) : this.local.quests.personalBenchLevel,
           workbenchCount: this.workbench.count,
           smelterCount: this.smelters.count,
           loomCount: this.looms.count,
@@ -1965,6 +1969,12 @@ export class Game {
     this.playWildlifeHitFeedback(session, damage);
     if (this.hostRef && session !== this.local) {
       this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage, pounce: false });
+    }
+  }
+
+  private applyFirstBookDrop(session: PlayerSession, species: string, items: { kind: ResourceKind; count: number }[]): void {
+    if (species === 'wolf' && session.firstDrops.settle('adventureBook', items.some(item => item.kind === 'adventureBook' && item.count > 0))) {
+      items.push({ kind: 'adventureBook', count: 1 });
     }
   }
 
@@ -3472,7 +3482,8 @@ export class Game {
       () => this.sessions.map((session) => session.player.group.position),
       // 局外养成「采集·巧匠」
       this.collectMetaFor(),
-      (kind, count) => s.quests.collected(kind, count)
+      (kind, count) => s.quests.collected(kind, count),
+      (natural) => s.firstDrops.settle('flint', natural)
     );
     s.milk = new SheepMilkSystem(
       s.player,
@@ -3608,6 +3619,7 @@ export class Game {
         (s.player.tipsySeconds > 0 ? 1.3 : 1) *
         (this.metaLevel('swordplay') >= 1 && Math.random() < 0.1 ? 2 : 1)
     );
+    s.archery.onWildlifeLoot = s.sword.onWildlifeLoot = (species, items) => this.applyFirstBookDrop(s, species, items);
     s.archery.onCombat = () => s.markCombat();
     s.sword.onCombat = () => s.markCombat();
     s.lasso = new LassoSystem(

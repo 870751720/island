@@ -83,6 +83,8 @@ type Arrow = {
 export class BowSystem {
   /** 有效命中后由权威端更新该玩家的战斗表现状态。 */
   onCombat?: () => void;
+  /** 权威击杀结算，在生成世界掉落前应用个人首份保底。 */
+  onWildlifeLoot?: (species: string, items: { kind: ResourceKind; count: number }[]) => void;
   private autoAim = new AutoAim();
   private candidates: AimTarget[] = [];
   private aimDir = new THREE.Vector2();
@@ -288,7 +290,11 @@ export class BowSystem {
       const beast = this.wildlife.damage(hit.animalId, damage, this.player);
       if (beast) this.onCombat?.();
       // 野生动物可中数箭:受伤未死不掉肉
-      if (beast && beast !== 'hit') this.onLoot(this.wildlife.lootOf(beast.species, beast.juvenile), x, z);
+      if (beast && beast !== 'hit') {
+        const items = this.wildlife.lootOf(beast.species, beast.juvenile);
+        this.onWildlifeLoot?.(beast.species, items);
+        this.onLoot(items, x, z);
+      }
       return;
     }
     const point = this.tmpV.set(x, 0, z);

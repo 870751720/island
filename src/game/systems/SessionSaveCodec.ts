@@ -11,6 +11,7 @@ type RestoreHooks = {
 /** 恢复单个玩家会话；世界设施与联机名单由 Game 编排。 */
 export function restoreSession(session: PlayerSession, data: SessionSave, hooks: RestoreHooks): void {
   session.quests.restore(data.quests);
+  session.firstDrops.restore(data.firstDrops);
   session.player.setGender(data.gender);
   session.player.group.position.set(data.player.x, data.player.y, data.player.z);
   session.survival.state.hunger = data.survival.hunger;
@@ -42,6 +43,7 @@ export function snapshotSession(session: PlayerSession): SessionSave {
   const survival = session.survival.state;
   return {
     quests: session.quests.snapshot(),
+    firstDrops: session.firstDrops.snapshot(),
     id: session.id,
     name: session.name,
     player: { x: p.x, y: p.y, z: p.z },

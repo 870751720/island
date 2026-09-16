@@ -1,3 +1,4 @@
+import { FirstDropGuarantee } from '../systems/FirstDropGuarantee';
 import type { DeathLootSummary } from '../systems/DeathLoot';
 import { QuestProgress } from '../quests/QuestProgress';
 import { Player } from '../entities/Player';
@@ -29,6 +30,7 @@ export class PlayerSession implements Actor {
   dogView: { width: number; height: number } | null = null;
   readonly nameTag: PlayerNameTag;
   readonly player: Player;
+  readonly firstDrops = new FirstDropGuarantee();
   readonly quests = new QuestProgress();
   readonly survival = new SurvivalSystem();
   readonly inventory = new Inventory();
