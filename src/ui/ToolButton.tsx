@@ -50,6 +50,7 @@ export function ToolButton({
   placeKind = null,
   lassoCount = 0,
   dimmed = false,
+  showHint = true,
   onLongPress,
   onCycle,
   onWorkbench,
@@ -103,6 +104,8 @@ export function ToolButton({
   lassoCount?: number;
   /** 玩家移动/交互中:按钮淡出且不可点 */
   dimmed?: boolean;
+  /** 首次成功打开选择面板后隐藏文字教学。 */
+  showHint?: boolean;
   /** 长按打开可放置道具选择面板(不传则不响应长按) */
   onLongPress?: (press: PickerPress) => void;
   onCycle: () => void;
@@ -292,7 +295,7 @@ export function ToolButton({
                             : <ToolIcon tool={tool} size={30} />}
       </span>
       <span className="hud-control-label">{label}</span>
-      {onLongPress && <span className="hud-tool-hint" aria-hidden="true">{holding ? '选择中…' : '长按选择'}</span>}
+      {onLongPress && showHint && <span className="hud-tool-hint" aria-hidden="true">{holding ? '选择中…' : '长按选择'}</span>}
       {!workbench &&
         !campfire &&
         !crate &&

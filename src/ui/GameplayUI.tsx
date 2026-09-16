@@ -23,6 +23,7 @@ import { PerformanceOverlay } from './gm/PerformanceOverlay';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
 import { ToolButton } from './ToolButton';
+import { useToolHint } from './useToolHint';
 import { PlacePicker } from './PlacePicker';
 import { CraftPrompt } from './CraftPrompt';
 import { WorkbenchPanel } from './WorkbenchPanel';
@@ -101,6 +102,7 @@ export function GameplayUI({
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [pickerPress, setPickerPress] = useState<PickerPress | null>(null);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
+  const showToolHint = useToolHint(placePickerOpen);
   const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
@@ -465,6 +467,7 @@ export function GameplayUI({
               placeKind={hud.heldItemKind}
               lassoCount={hud.lassoCount}
               dimmed={hud.busy && !questWorkbench && !questCampfire}
+              showHint={showToolHint}
               onLongPress={(press) => { setPickerPress(press); setPlacePickerOpen(true); }}
               onCycle={() => gameRef.current?.useToolButton()}
               onWorkbench={() => openPanel('workbench')}
