@@ -12,6 +12,7 @@ import { ANIMAL_BUILDERS } from './WildlifeModels';
 import type { ResourceKind } from '../systems/Inventory';
 import type { Particles } from '../fx/Particles';
 import { CreatureFx } from '../fx/CreatureFx';
+import { DEATH_RETREAT_DISTANCE, findRetreatPath, type WildlifeRetreat } from './WildlifeRetreat';
 import { makeMilkIcon } from '../ui3d/MilkIcon';
 import type { SfxName } from '../audio/Sfx';
 
@@ -287,6 +288,7 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
 };
 
 type Animal = LifeState & {
+  retreat?: WildlifeRetreat;
   habitat?: HabitatSlot<AnimalSpecies>;
   /** 同步用短 id(房主递增分配,状态快照按 id 对应) */
   id: number;
@@ -401,7 +403,7 @@ export class Wildlife implements Updatable {
     /** 全部玩家(联机时多人,动物对最近的一名做出反应) */
     private players: () => Player[],
     /** 熊扑击命中玩家时对该玩家造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
-    private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => void,
+    private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => boolean,
     /** 熊开始普通挥击时通知联机层；这是短时动作，走可靠事件而不是姿态采样。 */
     private onAttack: (animalId: number) => void,
     /** 动物受击未死时通知联机层广播(客人端补播闪红);死亡表现由姿态快照翻转驱动,不走这里 */
@@ -669,6 +671,7 @@ export class Wildlife implements Updatable {
   /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围;
    * 被拴在桩上的羊额外不可超出桩绳长度 */
   private canStand(animal: Animal, x: number, z: number): boolean {
+    if (animal.retreat?.arrived && Math.hypot(x - animal.retreat.origin.x, z - animal.retreat.origin.z) < DEATH_RETREAT_DISTANCE) return false;
     if (animal.leash && 'anchor' in animal.leash) {
       const a = animal.leash.anchor;
       if (Math.hypot(x - a.x, z - a.z) > STAKE_LEASH) return false;
@@ -707,7 +710,7 @@ export class Wildlife implements Updatable {
         x = animal.pos.x + Math.cos(a) * d;
         z = animal.pos.z + Math.sin(a) * d;
       }
-      if (!anchor && animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
+      if (!anchor && !animal.retreat && animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
         x = animal.habitat.home.x; z = animal.habitat.home.z;
       }
       if (this.canStand(animal, x, z)) {
@@ -735,6 +738,61 @@ export class Wildlife implements Updatable {
     return false;
   }
 
+  /** 伤害回调返回权威端的致命命中结果，不把睡眠免伤或 GM 保命视为击杀。 */
+  private hitPlayer(animal: Animal, player: Player, damage: number, pounce = false): void {
+    if (!this.onPlayerHit(player, damage, pounce) || animal.species === 'crocodile') return;
+    animal.alerted = false;
+    animal.provoked = false;
+    animal.calfAttacker = null;
+    animal.boundTo = null;
+    animal.pounce = null;
+    animal.rageLeft = 0;
+    animal.roarLeft = 0;
+    animal.roared = false;
+    animal.target.copy(animal.pos);
+    animal.walkTime = 0;
+    if (animal.species === 'bison') {
+      animal.hp = animal.config.hp;
+    } else if (animal.species === 'wolf' || animal.species === 'bear') {
+      const { x, z } = player.group.position;
+      animal.retreat = { origin: { x, z }, path: [], arrived: false, retryLeft: 0 };
+    }
+  }
+
+  private updateRetreat(animal: Animal, delta: number): boolean {
+    const retreat = animal.retreat!;
+    if (Math.hypot(animal.pos.x - retreat.origin.x, animal.pos.z - retreat.origin.z) >= DEATH_RETREAT_DISTANCE) {
+      retreat.arrived = true;
+      retreat.path = [];
+      animal.target.copy(animal.pos);
+      return false;
+    }
+    retreat.retryLeft = Math.max(0, retreat.retryLeft - delta);
+    if (!retreat.path.length && retreat.retryLeft === 0) {
+      retreat.path = findRetreatPath(animal.pos, retreat.origin, (x, z) => this.canStand(animal, x, z));
+      retreat.retryLeft = 2;
+    }
+    const next = retreat.path[0];
+    if (!next) return false;
+    const distance = Math.hypot(next.x - animal.pos.x, next.z - animal.pos.z);
+    const travel = Math.min(distance, animal.config.rushSpeed * delta);
+    const angle = Math.atan2(next.z - animal.pos.z, next.x - animal.pos.x);
+    // 只沿已校验路线推进；建筑变化阻路时重新寻路。
+    const steps = Math.max(1, Math.ceil(travel / 0.25));
+    for (let i = 1; i <= steps; i++) {
+      if (!this.canStand(animal, animal.pos.x + Math.cos(angle) * travel * i / steps, animal.pos.z + Math.sin(angle) * travel * i / steps)) {
+        retreat.path = [];
+        return false;
+      }
+    }
+    animal.pos.x += Math.cos(angle) * travel;
+    animal.pos.z += Math.sin(angle) * travel;
+    animal.pos.y = this.terrain.getHeight(animal.pos.x, animal.pos.z);
+    animal.heading = angle;
+    if (travel >= distance) retreat.path.shift();
+    return travel > 0;
+  }
+
   update(delta: number, elapsed: number, calendar = this.lifecycle.now): void {
     this.dogThreats.length = 0;
     this.creatureFx.update(delta);
@@ -742,6 +800,12 @@ export class Wildlife implements Updatable {
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      if (animal.retreat && !animal.retreat.arrived) {
+        animal.lungeLeft = Math.max(0, animal.lungeLeft - delta);
+        const moving = this.updateRetreat(animal, delta);
+        this.animate(animal, delta, elapsed, moving, true);
+        continue;
+      }
       animal.hitFleeLeft = Math.max(0, animal.hitFleeLeft - delta);
       // 躲进洞里的兔子:等威胁平息后再探头,期间不吃 AI 也不参与任何判定
       if (animal.hidden) {
@@ -766,7 +830,8 @@ export class Wildlife implements Updatable {
       }
       const target = bound ?? protectorTarget ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
-      const vulnerable = target ? this.isPlayerVulnerable(target) : false;
+      const vulnerable = !!target && this.isPlayerVulnerable(target)
+        && (!animal.retreat || Math.hypot(p.x - animal.retreat.origin.x, p.z - animal.retreat.origin.z) >= DEATH_RETREAT_DISTANCE);
       const dist = target ? Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) : Infinity;
       // 激怒的野牛按狼的感知与攻击参数追击玩家;平时与草食动物一样见人就逃
       const enraged = animal.species === 'bison' && animal.bornAt === null && animal.provoked;
@@ -845,7 +910,7 @@ export class Wildlife implements Updatable {
             if (vulnerable && dist <= CROC_LEAP_RANGE) {
               animal.lungeLeft = 0.35;
               this.onAttack(animal.id);
-              this.onPlayerHit(target!, animal.config.damage);
+              this.hitPlayer(animal, target!, animal.config.damage);
             }
             entrance.phase = 'recover';
             entrance.left = CROC_RECOVER_TIME;
@@ -877,7 +942,7 @@ export class Wildlife implements Updatable {
             this.onPounceLand(animal.pos.x, animal.pos.y, animal.pos.z);
             if (vulnerable && Math.hypot(p.x - animal.pos.x, p.z - animal.pos.z) <= BEAR_POUNCE_LAND_RANGE) {
               animal.lungeLeft = 0.35;
-              this.onPlayerHit(target!, animal.config.damage, true);
+              this.hitPlayer(animal, target!, animal.config.damage, true);
             }
             pounce.phase = 'recover';
             pounce.left = BEAR_POUNCE_RECOVER;
@@ -892,7 +957,7 @@ export class Wildlife implements Updatable {
           animal.attackLeft = combat.attackCooldown;
           animal.lungeLeft = 0.35;
           this.onAttack(animal.id);
-          this.onPlayerHit(target!, combat.damage);
+          this.hitPlayer(animal, target!, combat.damage);
         }
       } else if (rushed) {
         // 逃跑(草食)/追击(狼、熊):清掉游荡目标,平息后重新选路

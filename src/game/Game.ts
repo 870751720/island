@@ -553,7 +553,10 @@ export class Game {
       terrain,
       () => this.sessions.map((s) => s.player),
       (player: Player, damage: number, pounce?: boolean) => {
-        this.applyWildlifeHit(this.sessionOf(player), damage, !!pounce);
+        const session = this.sessionOf(player);
+        const alive = !session.survival.state.dead && session.survival.state.health > 0;
+        this.applyWildlifeHit(session, damage, !!pounce);
+        return alive && session.survival.state.health <= 0 && GmSystem.allowDeath && !GmSystem.godMode;
       },
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
       // 动物受击未死:广播给客人补播闪红
@@ -563,7 +566,7 @@ export class Game {
       (x, y, z) => this.hostRef?.broadcastEvent({ kind: 'crocodileBurst', x, y, z }),
       (player: Player) => {
         const session = this.sessionOf(player);
-        return !session.survival.state.dead && !player.isSwimming && !player.isSleeping;
+        return !session.survival.state.dead && session.survival.state.health > 0 && !player.isSwimming && !player.isSleeping;
       },
       // 熊的咆哮/扑击扬尘等粒子与音效;吼声按声源位置判定:本地(房主)玩家距声源 20 米内才播放,
       // 并广播给客人各自按自己位置判定——每个端只听自己 20 米内的熊声
