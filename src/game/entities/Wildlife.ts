@@ -58,6 +58,8 @@ const BEAR_POUNCE_RECOVER = 0.9;
 const BEAR_POUNCE_LAND_RANGE = 1.6;
 /** 玩家劳作/放箭的噪音惊动半径 */
 const NOISE_RANGE = 9;
+/** 温顺动物受击后持续逃离命中时的威胁位置，不受感知距离限制。 */
+const HIT_FLEE_TIME = 3;
 /** 落地尘土 / 冲刺扬尘的颜色 */
 const DUST_COLOR = '#b3a284';
 
@@ -307,6 +309,8 @@ type Animal = LifeState & {
   lungeLeft: number;
   /** 草食动物的受惊状态(带迟滞,避免在警戒边界反复切换) */
   alerted: boolean;
+  hitFleeLeft: number;
+  hitFleeOrigin: THREE.Vector3;
   /** 野牛的激怒状态(半血反击或附近小牛受击后置位):转为主动追击,不再逃跑(其他物种恒为 false) */
   provoked: boolean;
   /** 护犊锁定攻击者，离场、死亡、入水或离开追击范围后释放。 */
@@ -479,6 +483,8 @@ export class Wildlife implements Updatable {
       attackLeft: 0,
       lungeLeft: 0,
       alerted: false,
+      hitFleeLeft: 0,
+      hitFleeOrigin: spawn.clone(),
       provoked: false,
       calfAttacker: null,
       boundTo: null,
@@ -736,6 +742,7 @@ export class Wildlife implements Updatable {
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      animal.hitFleeLeft = Math.max(0, animal.hitFleeLeft - delta);
       // 躲进洞里的兔子:等威胁平息后再探头,期间不吃 AI 也不参与任何判定
       if (animal.hidden) {
         this.updateHidden(animal, delta);
@@ -765,6 +772,7 @@ export class Wildlife implements Updatable {
       const enraged = animal.species === 'bison' && animal.bornAt === null && animal.provoked;
       const combat = enraged ? BISON_ENRAGED : animal.config;
       const hostile = animal.config.damage > 0 || enraged;
+      const hitFlee = !hostile && animal.hitFleeLeft > 0;
       const bear = animal.species === 'bear';
       // 带迟滞的警戒:靠近立刻触发,离得明显更远才平息,否则会在边界上来回抖动;
       // 鳄鱼例外:守卫自己的水洼,玩家进入「水洼 + 水边 5 米」区域就锁定,离开即脱战游回
@@ -783,7 +791,8 @@ export class Wildlife implements Updatable {
       if (hostile && animal.species !== 'crocodile' && animal.hp < animal.config.hp && dist < combat.deaggroRange) {
         animal.alerted = true;
       }
-      const rushed = animal.alerted && vulnerable;
+      if (hitFlee) animal.alerted = true;
+      const rushed = hitFlee || (animal.alerted && vulnerable);
       if (animal.breeding && !animal.alerted) {
         this.animate(animal, delta, elapsed, false, false);
         continue;
@@ -890,7 +899,8 @@ export class Wildlife implements Updatable {
         animal.target.copy(animal.pos);
         animal.idleTime = 0;
         animal.walkTime = 0;
-        const away = Math.atan2(animal.pos.z - p.z, animal.pos.x - p.x);
+        const fleeOrigin = hitFlee ? animal.hitFleeOrigin : p;
+        const away = Math.atan2(animal.pos.z - fleeOrigin.z, animal.pos.x - fleeOrigin.x);
         // 兔子优先往最近的完好洞里钻,超出寻找范围才背向逃窜
         let angle = hostile ? away + Math.PI : away;
         const burrow = animal.species === 'rabbit' && !this.windCalm
@@ -1523,6 +1533,16 @@ export class Wildlife implements Updatable {
       if (animal.config.damage > 0 || animal.provoked) animal.alerted = true;
       if (animal.species === 'bison' && animal.bornAt === null && animal.hp <= animal.config.hp * BISON_ENRAGE_HP) {
         animal.provoked = true;
+        animal.alerted = true;
+      }
+      if (animal.config.damage === 0 && !animal.provoked) {
+        const source = attacker ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
+        animal.hitFleeOrigin.copy(source?.group.position ?? animal.pos);
+        if (Math.hypot(animal.pos.x - animal.hitFleeOrigin.x, animal.pos.z - animal.hitFleeOrigin.z) < 0.01) {
+          animal.hitFleeOrigin.x -= Math.cos(animal.heading);
+          animal.hitFleeOrigin.z -= Math.sin(animal.heading);
+        }
+        animal.hitFleeLeft = HIT_FLEE_TIME;
         animal.alerted = true;
       }
       if (animal.species === 'bear') {
