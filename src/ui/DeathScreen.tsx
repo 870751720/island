@@ -1,4 +1,6 @@
 'use client';
+import { DeathLootNotice } from './DeathLootNotice';
+import type { DeathLootSummary } from '@/game/systems/DeathLoot';
 import { ItemIcon } from './ItemIcon';
 import { MenuIcon } from './icons/MenuIcons';
 
@@ -70,6 +72,7 @@ export function DeathScreen({
   onConfirm,
   autoRespawn = false,
   respawnLeft = null,
+  deathLoot = null,
   report = null,
   poseidon = false,
 }: {
@@ -77,6 +80,7 @@ export function DeathScreen({
   autoRespawn?: boolean;
   /** 联机复活倒计时剩余秒数(房主权威下发),驱动倒计时数字动态变化 */
   respawnLeft?: number | null;
+  deathLoot?: DeathLootSummary | null;
   /** 单机死亡的战绩快照(联机自动复活时为 null) */
   report?: DeathReport | null;
   /** 波塞冬的庇佑触发中:界面切换为海洋主题,明确告知玩家被海神复活 */
@@ -106,7 +110,7 @@ export function DeathScreen({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'safe center',
         gap: 'clamp(10px, 2.5vh, 24px)',
         background: poseidon
           ? gameDarkTheme.ocean
@@ -158,7 +162,7 @@ export function DeathScreen({
             animation: 'poseidon-rise 0.9s ease',
           }}
         >
-          海神从浪涛中托起了你,海浪正把你送回出生点,
+          海神从浪涛中托起了你,海浪正把你送回安全落点,
           <br />
           身旁还留下了一只装着装备与信件的木箱…
         </div>
@@ -218,6 +222,7 @@ export function DeathScreen({
           生存不足 2 天,没有沉淀下求生心得
         </p>
       )}
+      {autoRespawn && !poseidon && deathLoot && <DeathLootNotice summary={deathLoot} />}
       {autoRespawn ? (
         <div
           key={seconds}
@@ -227,7 +232,7 @@ export function DeathScreen({
             animation: 'death-count 1s ease',
           }}
         >
-          {seconds} 秒后在出生点{poseidon ? '苏醒' : '复活'}
+          {seconds} 秒后{poseidon ? '苏醒' : '复活'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>

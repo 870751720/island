@@ -1,3 +1,4 @@
+import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
 import { findRespawnPoint } from './systems/RespawnPoint';
 import { isFishCatch } from './systems/FishTable';
 import { DigHighlight } from './fx/DigHighlight';
@@ -131,8 +132,8 @@ import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
 import { buildMapSnapshot, buildMapTerrain } from './systems/MapSnapshotBuilder';
 import {
-  AUTOSAVE_INTERVAL, AUTO_EQUIP_DELAY, BEAR_SFX_RANGE, DEATH_DROP_RATIO,
-  IDLE_HIDE_DELAY, MULTIPLAYER_RESPAWN_DELAY, PLANT_DROP_KINDS,
+  AUTOSAVE_INTERVAL, AUTO_EQUIP_DELAY, BEAR_SFX_RANGE,
+  IDLE_HIDE_DELAY, MULTIPLAYER_RESPAWN_DELAY,
   SWORD_AUTO_EQUIP_DELAY, SWORD_AUTO_EQUIP_RANGE, TETHER_RANGE, VIEW_SIZE,
 } from './GameConfig';
 import type { GameMode } from './GameMode';
@@ -2650,12 +2651,10 @@ export class Game {
     );
   }
 
-  /** 联机与悠然共用权威重生：个人携带进度清零，岛屿与其他玩家保持不变。 */
+  /** 联机与悠然共用权威重生：保留工具，其余携带按既有规则重置。 */
   private respawnMultiplayerSession(session: PlayerSession): void {
-    session.inventory.reset();
-    session.equipment.reset();
-    session.ammo.reset();
-    for (const id of TOOL_IDS) session.tools[id] = 0;
+    resetRespawnBelongings(session);
+    session.deathLoot = null;
     this.syncToolTiers(session);
     const survival = session.survival.state;
     survival.hunger = survival.thirst = survival.health = survival.stamina = 100;
@@ -2701,29 +2700,9 @@ export class Game {
     this.crates.spawnGift(spawn.x, spawn.z, POSEIDON_GIFT_KINDS);
   }
 
-  /** 联机死亡的随身掉落(房主权威,掉落物经世界增量同步给客人):
-   * 丛类植株必定掉落;其余背包道具按 DEATH_DROP_RATIO 掉落份数;弹药按份数比例掉落;穿戴装备与已拥有工具各有该比例的概率掉落(工具保留等级,捡回即重新点亮)。 */
+  /** 掉落与摘要均由权威端生成，地面实体和本人 HUD 分别同步。 */
   private dropDeathLoot(session: PlayerSession): void {
-    for (const slot of session.inventory.snapshot()) {
-      if (!slot) continue;
-      const ratio = PLANT_DROP_KINDS.includes(slot.kind) ? 1 : DEATH_DROP_RATIO;
-      const n = Math.round(slot.count * ratio);
-      if (n > 0) this.drops.drop(slot.kind, n, session);
-    }
-    for (const kind of ['arrow', 'bait'] as const) {
-      const n = Math.round(session.ammo.count(kind) * DEATH_DROP_RATIO);
-      if (n > 0) {
-        this.drops.drop(kind, n, session);
-        session.ammo.remove(kind, n);
-      }
-    }
-    for (const kind of Object.values(session.equipment.snapshot())) {
-      if (kind && Math.random() < DEATH_DROP_RATIO) this.drops.drop(kind, 1, session);
-    }
-    for (const id of TOOL_IDS) {
-      const tier = session.tools[id];
-      if (tier > 0 && Math.random() < DEATH_DROP_RATIO) this.drops.drop(id, 1, session, tier);
-    }
+    session.deathLoot = settleDeathLoot(session, (kind, count) => this.drops.drop(kind, count, session));
   }
   /** GM 设置当前天数;客人端上行车主权威结算,天数随快照回流 */
   gmSetDay(day: number): void {

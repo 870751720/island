@@ -1,3 +1,4 @@
+import type { DeathLootSummary } from '../systems/DeathLoot';
 import { QuestProgress } from '../quests/QuestProgress';
 import { Player } from '../entities/Player';
 import { SurvivalSystem } from '../systems/SurvivalSystem';
@@ -66,6 +67,8 @@ export class PlayerSession implements Actor {
   lastDead = false;
   /** 联机死亡后的重生倒计时（秒）；0 表示无需重生。 */
   respawnLeft = 0;
+  /** 本次权威死亡掉落摘要，仅用于复活界面，不入存档。 */
+  deathLoot: DeathLootSummary | null = null;
   /** 权威端的放箭动画剩余时长(客人射箭由客人本地判定,房主只补动作快照) */
   shotAnimLeft = 0;
   /** 治愈水晶光环的回血累计(满 10 秒结算 1 血) */

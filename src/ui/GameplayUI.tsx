@@ -620,6 +620,7 @@ export function GameplayUI({
           onConfirm={onExit}
           autoRespawn={hud.respawnLeft !== null}
           respawnLeft={hud.respawnLeft}
+          deathLoot={hud.deathLoot}
           report={gameRef.current?.deathReport ?? null}
           poseidon={hud.poseidonGrace}
         />

@@ -59,6 +59,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     eatProgress: 0,
     autoEquipProgress: 0,
     respawnLeft: null,
+    deathLoot: null,
     poseidonGrace: false,
     canFish: false,
     fishingState: null,

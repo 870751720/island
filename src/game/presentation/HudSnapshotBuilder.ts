@@ -117,6 +117,7 @@ export class HudSnapshotBuilder {
       eatProgress: session.eating.getProgress() ?? 0,
       autoEquipProgress: runtime.autoEquipTimer > 0 ? runtime.autoEquipTimer / AUTO_EQUIP_DELAY : 0,
       respawnLeft: session.survival.state.dead && runtime.respawnEnabled ? session.respawnLeft : null,
+      deathLoot: session.survival.state.dead && runtime.respawnEnabled ? session.deathLoot : null,
       poseidonGrace: runtime.poseidonGrace && session.survival.state.dead,
       canFish: session.fishing.canStart(),
       fishingState: session.fishing.currentState,

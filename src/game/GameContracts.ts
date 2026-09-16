@@ -1,3 +1,4 @@
+import type { DeathLootSummary } from './systems/DeathLoot';
 import type { DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import type { QuestView } from './quests/QuestDefinitions';
 import type { PlayerGender } from './entities/PlayerModel';
@@ -81,6 +82,7 @@ export type HudSnapshot = {
   eatProgress: number;
   autoEquipProgress: number;
   respawnLeft: number | null;
+  deathLoot: DeathLootSummary | null;
   poseidonGrace: boolean;
   canFish: boolean;
   fishingState: FishingState | null;
