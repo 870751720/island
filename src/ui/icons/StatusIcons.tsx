@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { BuffId } from '@/game/systems/BuffSystem';
 import { claySvg, path, line, ellipse } from './SvgPaths';
 import { FACILITY_SVG } from './FacilityIcons';
@@ -25,5 +26,6 @@ export const BUFF_SVG: Record<BuffId,string> = {
  tipsy: claySvg(ellipse(32,32,23,24,'#edc28b') + line('M15 28C15 18 28 20 26 28C24 35 17 32 20 27M37 28C37 18 50 20 48 28C46 35 39 32 42 27M25 44Q32 38 40 44','#836349',3)),
 };
 export function StatusIcon({ markup, size = 20 }: { markup: string; size?: number }) {
- return <span aria-hidden="true" style={{display:'inline-block',width:size,height:size,flexShrink:0,lineHeight:0}} dangerouslySetInnerHTML={{__html:markup}} />;
+ const html = useMemo(() => ({ __html: markup }), [markup]);
+ return <span aria-hidden="true" style={{display:'inline-block',width:size,height:size,flexShrink:0,lineHeight:0,pointerEvents:'none'}} dangerouslySetInnerHTML={html} />;
 }
