@@ -9,6 +9,7 @@ import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import { DROP_COLORS, makeDropModel } from './DropModels';
 import { createWorldEntityId, type EntityChangeSink } from './WorldEntityId';
+import { findNearestDryPoint } from '../world/NearestDryPoint';
 
 const DROP_LIFETIME_MS = 10 * 60 * 1000;
 
@@ -94,6 +95,25 @@ export class DropSystem {
       p.z + Math.sin(angle) * radius,
       tier
     );
+  }
+
+  /** 每次死亡共用一个岸边落点；每件物品散落后仍须位于干地。 */
+  deathDropper(actor: Actor): (kind: ResourceKind, count: number) => void {
+    const origin = actor.player.group.position;
+    const isDry = (x: number, z: number) =>
+      this.terrain.getHeight(x, z) >= this.terrain.getWaterLevel(x, z) + 0.05;
+    const point = findNearestDryPoint(
+      origin, this.terrain.halfWidth, this.terrain.halfLength, isDry,
+      () => this.terrain.findSpawnPoint(),
+    );
+    return (kind, count) => {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 0.7 + Math.random() * 0.5;
+      const x = point.x + Math.cos(angle) * radius;
+      const z = point.z + Math.sin(angle) * radius;
+      const dry = isDry(x, z);
+      this.spawn(kind, count, 'discarded', dry ? x : point.x, dry ? z : point.z);
+    };
   }
 
   /** 背包放不下溢出到玩家附近(与主动丢弃区分来源) */

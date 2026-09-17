@@ -2790,7 +2790,7 @@ export class Game {
 
   /** 掉落与摘要均由权威端生成，地面实体和本人 HUD 分别同步。 */
   private dropDeathLoot(session: PlayerSession): void {
-    session.deathLoot = settleDeathLoot(session, (kind, count) => this.drops.drop(kind, count, session));
+    session.deathLoot = settleDeathLoot(session, this.drops.deathDropper(session));
   }
   /** GM 设置当前天数;客人端上行车主权威结算,天数随快照回流 */
   gmSetDay(day: number): void {
