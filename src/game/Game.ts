@@ -1,3 +1,4 @@
+import type { LassoResult } from './entities/LassoRules';
 import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
 import { findRespawnPoint } from './systems/RespawnPoint';
 import { isFishCatch } from './systems/FishTable';
@@ -625,6 +626,10 @@ export class Game {
       this.burrows.generateFor(this.wildlife.rabbitHomes());
       this.wildlife.setBurrowSource(this.burrows);
     }
+    this.wildlife.onLassoResult = (result) => {
+      this.playLassoResult(result);
+      this.hostRef?.broadcastEvent({ kind: 'lassoResult', ...result });
+    };
     this.wildlife.onLassoEscape = (anchor) => {
       if (!anchor) return;
       const stake = this.stakes.nearest(anchor.x, anchor.z, 0.6);
@@ -1310,6 +1315,7 @@ export class Game {
         });
         this.updateIndicator(simDelta);
         this.updateLeashLines();
+        this.leashLines.update(simDelta);
         this.updateCamera(delta);
         this.emojiBubbles.syncHearts(this.wildlife.breedingAnchors());
         this.emojiBubbles.update(simDelta);
@@ -1689,6 +1695,10 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'lassoResult') {
+      this.playLassoResult(event);
+      return;
+    }
     if (event.kind === 'dogBattleEmoji') { this.dog.showBattleEmoji(event); return; }
     if (event.kind === 'dogStage') { this.dog.showStage(event); return; }
     if (event.kind === 'dogPounce') { this.dog.netPlayPounce(event.serial); return; }
@@ -1933,7 +1943,17 @@ export class Game {
     return true;
   }
 
-  /** 每帧更新玩家/桩与羊之间的系绳渲染(两端共用,信息来自动物权威状态或姿态快照镜像) */
+  /** 权威端和客人共用套索结局表现，不改变追击或束缚状态。 */
+  private playLassoResult(result: LassoResult): void {
+    const anchor = this.wildlife.lassoExpressionAnchor(result.animalId);
+    if (anchor) {
+      if (result.escaped) this.emojiBubbles.showTaunt(anchor.target, ['laugh'], anchor.height);
+      else this.emojiBubbles.show(anchor.target, '😭', anchor.height);
+    }
+    if (result.escaped) this.leashLines.breakRope(String(result.animalId), result.from, result.to);
+  }
+
+  /** 每帧按权威状态或快照更新玩家/桩与动物之间的系绳。 */
   private updateLeashLines(): void {
     const entries: { key: string; from: THREE.Vector3; to: THREE.Vector3 }[] = [];
     const from = new THREE.Vector3();

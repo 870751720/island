@@ -1,4 +1,4 @@
-import { canLasso, isLassoPredator, advanceLassoEscape, type EscapeProgress } from './LassoRules';
+import { canLasso, isLassoPredator, advanceLassoEscape, type EscapeProgress, type LassoResult } from './LassoRules';
 import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
@@ -397,6 +397,7 @@ export class Wildlife implements Updatable {
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
   private burrowSource: BurrowSource | null = null;
   /** 挣脱消耗绳索，并通知外层移除对应木桩。 */
+  onLassoResult: (result: LassoResult) => void = () => {};
   onLassoEscape: (anchor: { x: number; z: number } | null) => void = () => {};
   /** 持绳玩家 → 联机会话 id(姿态快照序列化 leash.holder 用);由游戏侧接线 */
   private netIdOf: ((player: Player) => string) | null = null;
@@ -916,10 +917,23 @@ export class Wildlife implements Updatable {
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
-      if (animal.leash && animal.leashEscape && advanceLassoEscape(animal.species, animal.leashEscape, delta)) {
-        const anchor = 'anchor' in animal.leash ? animal.leash.anchor : null;
-        this.releaseLeash(animal.id);
-        this.onLassoEscape(anchor);
+      if (animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
+        const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta);
+        if (escaped || animal.leashEscape.attempts === 5) {
+          const leash = animal.leash;
+          const anchor = 'anchor' in leash ? leash.anchor : null;
+          const origin = 'holder' in leash ? leash.holder.group.position : null;
+          this.onLassoResult({
+            animalId: animal.id, escaped,
+            from: origin ? { x: origin.x, y: origin.y + 1, z: origin.z }
+              : { x: anchor!.x, y: this.terrain.getHeight(anchor!.x, anchor!.z) + 0.5, z: anchor!.z },
+            to: { x: animal.pos.x, y: animal.pos.y + 0.45, z: animal.pos.z },
+          });
+          if (escaped) {
+            this.releaseLeash(animal.id);
+            this.onLassoEscape(anchor);
+          }
+        }
       }
       if (animal.taunt) {
         this.updateTaunt(animal, delta, elapsed);
@@ -1173,6 +1187,11 @@ export class Wildlife implements Updatable {
       animal.hp = Math.min(animal.config.hp, animal.hp * 2);
       this.applyLifeScale(animal);
     });
+  }
+
+  lassoExpressionAnchor(id: number): { target: THREE.Object3D; height: number } | null {
+    const animal = this.animals.find(a => a.id === id && a.alive && !a.hidden);
+    return animal ? { target: animal.model.group, height: animal.species === 'bear' ? 2.8 : 1.8 } : null;
   }
 
   /** 注入兔子洞来源(洞系统构造完成后由游戏侧接线) */

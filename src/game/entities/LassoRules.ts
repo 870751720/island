@@ -18,3 +18,11 @@ export function advanceLassoEscape(species: AnimalSpecies, progress: EscapeProgr
   }
   return false;
 }
+
+export type LassoPoint = { x: number; y: number; z: number };
+export type LassoResult = {
+  animalId: number;
+  escaped: boolean;
+  from: LassoPoint;
+  to: LassoPoint;
+};

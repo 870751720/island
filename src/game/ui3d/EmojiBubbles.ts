@@ -36,7 +36,7 @@ export class EmojiBubbles {
     container.appendChild(this.layer);
   }
 
-  show(target: THREE.Object3D, glyph: string): void {
+  show(target: THREE.Object3D, glyph: string, headY?: number): void {
     this.remove(target);
     const element = document.createElement('div');
     Object.assign(element.style, {
@@ -59,7 +59,7 @@ export class EmojiBubbles {
       element.textContent = glyph;
     }
     this.layer.appendChild(element);
-    this.active.set(target, { element, target, elapsed: 0 });
+    this.active.set(target, { element, target, elapsed: 0, headY });
   }
 
   /** 一组最多三枚自绘表情，逐个弹出；不经过系统字体回退。 */

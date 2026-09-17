@@ -1,3 +1,5 @@
+import { RopeBreak } from './RopeBreak';
+import type { LassoPoint } from '../entities/LassoRules';
 import * as THREE from 'three';
 
 /** 绳子的分段数(足够画出下垂弧线,手机上开销可忽略) */
@@ -17,6 +19,9 @@ type RopeLine = {
  * 每帧由外层喂入当前应显示的绳子列表(键为羊 id),池化复用,离开的绳子自动隐藏。
  */
 export class LeashLines {
+  private breaks: RopeBreak[] = [];
+  // 可靠事件可能早于解绳快照到达：先隐藏旧绳，收到无绳状态后解除屏蔽。
+  private brokenKeys = new Set<string>();
   private pool = new Map<string, RopeLine>();
   private group = new THREE.Group();
 
@@ -27,14 +32,31 @@ export class LeashLines {
   /** 按键对账并更新所有绳子的形状;from/to 为绳子两端的世界坐标 */
   sync(entries: { key: string; from: THREE.Vector3; to: THREE.Vector3 }[]): void {
     const live = new Set(entries.map((e) => e.key));
+    for (const key of this.brokenKeys) if (!live.has(key)) this.brokenKeys.delete(key);
     for (const [key, rope] of this.pool) {
       if (!live.has(key)) {
         rope.line.visible = false;
       }
     }
     for (const entry of entries) {
+      if (this.brokenKeys.has(entry.key)) continue;
       const rope = this.acquire(entry.key);
       this.shape(rope, entry.from, entry.to);
+    }
+  }
+
+  breakRope(key: string, from: LassoPoint, to: LassoPoint): void {
+    this.brokenKeys.add(key);
+    const rope = this.pool.get(key);
+    if (rope) rope.line.visible = false;
+    this.breaks.push(new RopeBreak(this.group, from, to));
+  }
+
+  update(delta: number): void {
+    for (let i = this.breaks.length - 1; i >= 0; i--) {
+      if (!this.breaks[i].update(delta)) continue;
+      this.breaks[i].dispose();
+      this.breaks.splice(i, 1);
     }
   }
 
@@ -73,6 +95,9 @@ export class LeashLines {
   }
 
   dispose(): void {
+    for (const effect of this.breaks) effect.dispose();
+    this.breaks.length = 0;
+    this.brokenKeys.clear();
     for (const rope of this.pool.values()) {
       rope.line.geometry.dispose();
       (rope.line.material as THREE.Material).dispose();

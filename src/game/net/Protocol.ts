@@ -1,3 +1,4 @@
+import type { LassoResult } from '../entities/LassoRules';
 import type { DogBattleEmoji } from '../systems/DogExpressions';
 import type { PlayerGender } from '../entities/PlayerModel';
 import type { SaveData } from '../systems/SaveSystem';
@@ -128,6 +129,7 @@ export type NetEvent =
   | { kind: 'lassoThrown'; actor: string; dx: number; dz: number }
   /** 套索命中权威结算成功:他人端立即收掉该玩家的视觉绳(不再播完伸出→收回) */
   | { kind: 'lassoCaught'; actor: string }
+  | ({ kind: 'lassoResult' } & LassoResult)
   | { kind: 'collectFx'; x: number; y: number; z: number; color: string; count: number }
   | { kind: 'itemFly'; actor: string; item: ResourceKind; count: number; x: number; y: number; z: number }
   | { kind: 'gm'; config: GmConfig }
