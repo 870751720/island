@@ -1,12 +1,14 @@
 import { useId } from 'react';
 import { IslandDogHead } from './IslandDogHead';
+import { IslandCatHead } from './IslandCatHead';
 
 export function IslandTentEgg() {
   const clip = useId();
   return <g data-egg="tent" role="button" tabIndex={0} aria-label="轻敲帐篷">
     <defs><clipPath id={clip}><rect x="188" y="125" width="40" height="37" /></clipPath></defs>
-    <g clipPath={`url(#${clip})`}><g className="egg-dog" opacity="0" visibility="hidden">
-      <IslandDogHead />
+    <g clipPath={`url(#${clip})`}><g className="egg-companion" opacity="0" visibility="hidden">
+      <g data-companion="dog" display="none"><IslandDogHead /></g>
+      <g data-companion="cat" display="none"><IslandCatHead /></g>
     </g></g>
     <path className="egg-hit" fill="none" pointerEvents="all" d="M176 160 205 116 259 135 270 166 242 159Z" />
   </g>;

@@ -26,6 +26,12 @@ export function attachMenuEggs(root: HTMLElement): () => void {
         ripple.setAttribute('transform', `translate(${local.x} ${local.y})`);
       } else ripple?.setAttribute('transform', 'translate(190 224)');
     }
+    if (target.dataset.egg === 'tent') {
+      const companion = Math.random() < 0.5 ? 'cat' : 'dog';
+      for (const head of target.querySelectorAll('[data-companion]')) {
+        head.setAttribute('display', head.getAttribute('data-companion') === companion ? 'inline' : 'none');
+      }
+    }
     target.setAttribute('data-active', 'true');
     timers.set(target, setTimeout(() => {
       target.removeAttribute('data-active');
@@ -48,13 +54,13 @@ export const menuEggCss = `
 [data-egg]{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 [data-egg]:focus{outline:none}
 [data-egg]:focus-visible{filter:drop-shadow(0 0 2px #fff9e4)}
-.egg-hit{fill:none;stroke:none;pointer-events:all}.egg-leaf,.egg-spark,.egg-dog,.egg-ripple,.egg-bird{opacity:0;pointer-events:none}
-[data-active] .egg-leaf,[data-active] .egg-spark,[data-active] .egg-dog,[data-active] .egg-ripple,[data-active] .egg-bird{visibility:visible}
+.egg-hit{fill:none;stroke:none;pointer-events:all}.egg-leaf,.egg-spark,.egg-companion,.egg-ripple,.egg-bird{opacity:0;pointer-events:none}
+[data-active] .egg-leaf,[data-active] .egg-spark,[data-active] .egg-companion,[data-active] .egg-ripple,[data-active] .egg-bird{visibility:visible}
 .egg-crown{transform-box:fill-box;transform-origin:50% 100%}
 .egg-leaf{transform-box:fill-box;transform-origin:center}
 [data-egg=tree][data-active] .egg-crown{animation:egg-sway .7s ease-in-out}
 [data-egg=tree][data-active] .egg-leaf{animation:egg-leaf 1.8s ease-out}
-[data-egg=tent][data-active] .egg-dog{animation:egg-peek 2.2s ease-in-out}
+[data-egg=tent][data-active] .egg-companion{animation:egg-peek 2.2s ease-in-out}
 [data-egg=sea][data-active] .egg-ripple{animation:egg-ripple 2s ease-out;transform-box:view-box;transform-origin:0 0}
 [data-egg=fire][data-active] .egg-spark{animation:egg-spark 1.4s ease-out}
 [data-egg=fire][data-active] .flame{animation:egg-fire .9s ease-in-out}
@@ -70,5 +76,5 @@ export const menuEggCss = `
 @keyframes egg-fire{40%{transform:scale(1.1,1.5)}75%{transform:scale(.9,.95)}}
 @keyframes egg-title{35%{transform:translateY(-7px) rotate(5deg)}70%{transform:translateY(2px) rotate(-2deg)}}
 @keyframes egg-visit{0%,100%{opacity:0;transform:translate(20px,-15px)}25%,80%{opacity:1;transform:translate(0,0)}}
-@media(prefers-reduced-motion:reduce){[data-egg][data-active] .egg-leaf,[data-egg][data-active] .egg-dog,[data-egg][data-active] .egg-ripple,[data-egg][data-active] .egg-spark,[data-egg][data-active] .egg-bird{opacity:1;animation:none!important}.egg-title[data-active],.egg-crown{animation:none!important}}
+@media(prefers-reduced-motion:reduce){[data-egg][data-active] .egg-leaf,[data-egg][data-active] .egg-companion,[data-egg][data-active] .egg-ripple,[data-egg][data-active] .egg-spark,[data-egg][data-active] .egg-bird{opacity:1;animation:none!important}.egg-title[data-active],.egg-crown{animation:none!important}}
 `;
