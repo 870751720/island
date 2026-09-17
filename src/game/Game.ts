@@ -7,7 +7,7 @@ import { DigHighlight } from './fx/DigHighlight';
 import { DigTargetPresentation, type DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import { ITEMS } from './systems/Items';
 import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
-import type { DogStageNotice } from './entities/Pomeranian';
+import type { DogStageNotice } from './entities/Companion';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
 import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
@@ -25,7 +25,7 @@ import { Crabs } from './entities/Crab';
 import { Butterflies } from './entities/Butterflies';
 import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
-import { Pomeranian } from './entities/Pomeranian';
+import { Companion } from './entities/Companion';
 import { CollectSystem } from './systems/CollectSystem';
 import { LivestockHarvestSystem } from './systems/LivestockHarvestSystem';
 import { pickaxeUnlocked } from './systems/ToolTiers';
@@ -312,7 +312,9 @@ export class Game {
   private butterflies: Butterflies;
   private birds: Birds;
   private wildlife: Wildlife;
-  private dog: Pomeranian;
+  private dog: Companion;
+  private companionFindSerial = 0;
+  private receivedCompanionFind = 0;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
   private readonly husbandryIndicators: HusbandryIndicators;
@@ -654,14 +656,15 @@ export class Game {
         this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, actor: actor.id, x: p.x, y: p.y + 1, z: p.z });
       }
     };
-    // 黑色博美伴侣:出生在玩家身旁,闻到可喂食物会跑去吃,平时跟着玩家或在身边自己玩
-    this.dog = new Pomeranian(
+    // 世界共享伙伴：存档身份优先，新岛采用开局选择。
+    this.dog = new Companion(
       this.scene,
       terrain,
       this.player,
       this.fx,
       this.waterFx,
-      (x, z) => this.isGroundBlocked(x, z)
+      (x, z) => this.isGroundBlocked(x, z),
+      save ? (save.dog.kind ?? 'dog') : options.companionKind
     );
     const dogCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
     this.dog.recoveryCamera = (player) => {
@@ -677,6 +680,22 @@ export class Game {
       return dogCamera;
     };
     this.dog.connectCombat(this.wildlife);
+    this.pickupPresentation.onCompanionReward = options.onCompanionReward ?? null;
+    this.dog.onFind = (player, item, position) => {
+      const actor = this.sessions.find(s => s.player === player);
+      if (!actor || actor.survival.state.dead || actor.player.isSwimming || actor.player.isSleeping) return false;
+      const event: Extract<NetEvent, { kind: 'companionFind' }> = {
+        kind: 'companionFind', serial: ++this.companionFindSerial, actor: actor.id, item,
+        packed: actor.inventory.canFit(item), x: position.x, y: position.y + .2, z: position.z,
+      };
+      // 可靠事件先于库存增量，让客人把随后到账的食物从发掘位置飞入背包。
+      this.netApplyEvent(event);
+      this.hostRef?.broadcastEvent(event);
+      this.pickupPresentation.markOrigin(position, actor);
+      if (actor.inventory.add(item, 1) === 0) this.drops.dropAt(item, 1, position.x, position.z);
+      this.notify(event.packed ? `可乐找到了${ITEMS[item].name}！` : `可乐找到的${ITEMS[item].name}放在地上了，背包已满`, actor);
+      return true;
+    };
     this.dog.onBattleEmoji = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogBattleEmoji', ...notice });
     this.dog.onStage = (notice) => this.hostRef?.broadcastEvent({ kind: 'dogStage', ...notice });
     this.dog.onPounce = (serial) => this.hostRef?.broadcastEvent({ kind: 'dogPounce', serial });
@@ -1131,7 +1150,7 @@ export class Game {
           this.wildlife.setSoloDeathProtection(!this.hostRef);
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
-            this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead })));
+            this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead, fighting: s.inCombat })));
         } else {
           this.crabs.netUpdate(delta, elapsed);
           this.birds.netUpdate(delta, elapsed);
@@ -1703,6 +1722,14 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'companionFind') {
+      if (event.serial <= this.receivedCompanionFind) return;
+      this.receivedCompanionFind = event.serial;
+      const origin = new THREE.Vector3(event.x, event.y, event.z);
+      this.fx.burst(origin, '#ddc48a', 10);
+      if (event.packed && event.actor === this.local.id) this.pickupPresentation.markCompanionReward(event.item, origin);
+      return;
+    }
     if (event.kind === 'animalEat') { this.wildlife.netPlayEat(event.id); return; }
     if (event.kind === 'lassoResult') {
       this.playLassoResult(event);
@@ -2849,6 +2876,7 @@ export class Game {
   gmDog(command: DogGmCommand, value = 0, actor: PlayerSession = this.local): void {
     if (!DOG_GM_COMMANDS.includes(command) || !Number.isFinite(value)) return;
     if (this.guestNet) { this.guestNet.action('gmDog', [command, value]); return; }
+    if (this.dog.kind === 'cat' && ['protect', 'rescue', 'emojiAlert', 'emojiBite', 'emojiGuard'].includes(command)) return;
     if (command === 'stage') this.dog.growth.setStage(value);
     else if (command === 'xp') this.dog.growth.add(Math.min(1500, Math.max(0, value)));
     else if (command === 'cooldowns') this.dog.clearCooldowns();
@@ -2879,11 +2907,11 @@ export class Game {
         actor.survival.state.health = 30;
         actor.player.setHealth(30);
       }
-      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : '已生成 5 血狼，薯条将按当前阶段扑咬护主', actor);
+      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : this.dog.kind === 'cat' ? '已生成 5 血狼，可乐会停止发掘并躲开' : '已生成 5 血狼，薯条将按当前阶段扑咬护主', actor);
       return;
     }
     const state = this.dog.debugState;
-    this.notify(`薯条 ${state.stage} 阶段 · ${state.xp} 经验 · 攻击力 ${state.stage}`, actor);
+    this.notify(`${this.dog.kind === 'cat' ? '可乐' : '薯条'} ${state.stage} 阶段 · ${state.xp} 经验${this.dog.kind === 'cat' ? ` · 发掘冷却 ${Math.ceil(state.forageCooldown)} 秒` : ` · 攻击力 ${state.stage}`}`, actor);
   }
 
   /** GM 特殊事件:立即在该玩家所在水洼触发一次鳄鱼袭击(不走概率);客人端上行房主结算 */
@@ -3849,7 +3877,7 @@ export class Game {
       respawnEnabled: !!this.hostRef || this.gameMode === 'leisure' || poseidonGrace,
       poseidonGrace,
       collectTreasure: this.collectTreasure,
-      dog: { stage: this.dog.growth.config.stage, xp: this.dog.growth.xp },
+      dog: { kind: this.dog.kind, stage: this.dog.growth.config.stage, xp: this.dog.growth.xp, forageCooldown: Math.ceil(this.dog.debugState.forageCooldown) },
     });
   }
 

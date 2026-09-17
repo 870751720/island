@@ -1,5 +1,6 @@
 'use client';
 
+import type { CompanionKind } from '@/game/companions/CompanionDefinition';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { loadGameMode, rememberGameMode, type GameMode } from '@/game/GameMode';
@@ -42,7 +43,7 @@ export function StartScreen({
   notice,
   multiplayerEnabled = true,
 }: {
-  onStart: (mode: StartMode, gameMode: GameMode) => void;
+  onStart: (mode: StartMode, gameMode: GameMode, pet: CompanionKind) => void;
   onMultiplayer: (role: MultiplayerRole, gameMode: GameMode) => void;
   notice?: string;
   /** 小红书离线渠道关闭创建/加入房间入口，保留其余开始界面与单机流程。 */
@@ -52,6 +53,7 @@ export function StartScreen({
   useEffect(() => rootRef.current ? attachMenuEggs(rootRef.current) : undefined, []);
   const [savedGame] = useState(() => SaveSystem.load());
   const hasSave = !!savedGame;
+  const [pet, setPet] = useState<CompanionKind>('dog');
   const [gameMode, setGameMode] = useState<GameMode>('leisure');
   const selectMode = (mode: GameMode) => { setGameMode(mode); rememberGameMode(mode); };
   const audio = useMenuAudio();
@@ -74,7 +76,7 @@ export function StartScreen({
 
   /** 首次开始游戏前必须先设置昵称与性别;已设置过则直接进入 */
   const requestStart = (mode: StartMode) => {
-    if (profile) onStart(mode, gameMode);
+    if (profile) onStart(mode, gameMode, pet);
     else {
       setPendingStart(mode);
       setShowSetup(true);
@@ -131,7 +133,7 @@ export function StartScreen({
         </main>
         <footer className="menu-footer"><span>慢慢生活，好好活着。</span><span>EXPLORE · CRAFT · SURVIVE</span></footer>
       </div>
-      {newGameSave && <NewGameDialog save={newGameSave.save} value={gameMode} onChange={selectMode}
+      {newGameSave && <NewGameDialog save={newGameSave.save} value={gameMode} onChange={selectMode} pet={pet} onPetChange={setPet}
         onCancel={() => setNewGameSave(null)} onConfirm={() => {
           playUiSound('confirm');
           setNewGameSave(null);
@@ -150,7 +152,7 @@ export function StartScreen({
             const mode = pendingStart;
             setShowSetup(false);
             setPendingStart(null);
-            if (mode) onStart(mode, gameMode);
+            if (mode) onStart(mode, gameMode, pet);
           }}
           onCancel={() => setShowSetup(false)}
         />

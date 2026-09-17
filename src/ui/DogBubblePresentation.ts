@@ -1,6 +1,6 @@
 import { gameTheme } from './gameTheme';
 import { DOG_STAGES } from '@/game/systems/DogGrowth';
-import type { DogStageNotice } from '@/game/entities/Pomeranian';
+import type { DogStageNotice } from '@/game/entities/Companion';
 import { EMOJI_BUBBLE_ASPECT, EMOJI_CONTENT_RATIO } from '@/game/ui3d/EmojiBubbleSize';
 import { DOG_EMOJI_SVG } from './icons/DogEmojiIcons';
 

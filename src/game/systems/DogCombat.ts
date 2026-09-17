@@ -3,7 +3,7 @@ import type { Player } from '../entities/Player';
 import type { Wildlife, DogThreat } from '../entities/Wildlife';
 import type { DogGrowth } from './DogGrowth';
 
-export type DogCompanion = { player: Player; health: number; dead: boolean };
+export type DogCompanion = { player: Player; health: number; dead: boolean; fighting?: boolean };
 export type DogCombatView = { phase: 'idle' | 'windup' | 'leap' | 'recover'; progress: number };
 export const DOG_POUNCE_DURATION = 0.8;
 export type DogCombatSave = { attackCooldown?: number; knockbackCooldown?: number; rescueCooldown?: number };

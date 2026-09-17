@@ -52,6 +52,7 @@ export class NetHost {
   terrainSeed: number;
   initialSave: SaveData | null = null;
   gameMode: GameMode = 'leisure';
+  companionKind: import('../companions/CompanionDefinition').CompanionKind = 'dog';
   private guests: Guest[] = [];
   private game: Game | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;

@@ -87,9 +87,9 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
   cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚，也可酿成奶酒。' },
-  wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，用于三级床和狗窝。' },
+  wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，用于三级床和宠物窝。' },
   shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '永久工具。手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
-  feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和薯条会走近取食，只能存放可喂食的食物。' },
+  feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和同行伙伴会走近取食，只能存放可喂食的食物。' },
   branch: {
     kind: 'branch',
     name: '树枝',
@@ -961,9 +961,9 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   },
   doghouse: {
     kind: 'doghouse',
-    name: '狗窝',
+    name: '宠物窝',
     icon: '🛖',
-    description: '铺着柔软布垫的海岛草棚。玩家在附近时，薯条想睡觉会优先回窝；睡完额外获得 5 点成长经验，每 2 分钟最多一次。',
+    description: '铺着柔软布垫的海岛草棚。玩家在附近时，同行伙伴想睡觉会优先回窝；睡完额外获得 5 点成长经验，每 2 分钟最多一次。',
   },
   waterPurifier: {
     kind: 'waterPurifier',
@@ -1025,13 +1025,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fenceGate',
     name: '木门',
     icon: '🚪',
-    description: '两格宽的双扇木门，玩家和薯条靠近自动开门。',
+    description: '两格宽的双扇木门，玩家和同行伙伴靠近自动开门。',
   },
   stoneGate: {
     kind: 'stoneGate',
     name: '石门',
     icon: '🚪',
-    description: '两格宽的双扇石门，玩家和薯条靠近自动开门。',
+    description: '两格宽的双扇石门，玩家和同行伙伴靠近自动开门。',
   },
   bed1: {
     kind: 'bed1',

@@ -1,5 +1,6 @@
 'use client';
 
+import type { CompanionKind } from '@/game/companions/CompanionDefinition';
 import { useEffect, useState } from 'react';
 import { StartScreen, type StartMode, type MultiplayerRole } from './StartScreen';
 import { type GameMode } from '@/game/GameMode';
@@ -21,6 +22,7 @@ export function GameCanvas() {
 
 function GamePhases() {
   const multiplayerEnabled = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1';
+  const [pet, setPet] = useState<CompanionKind>('dog');
   const [gameMode, setGameMode] = useState<GameMode>('leisure');
   const [phase, setPhase] = useState<Phase>('start');
   const [host, setHost] = useState<NetHost | null>(null);
@@ -39,7 +41,8 @@ function GamePhases() {
     setPhase('guest');
   }, []);
 
-  const start = (mode: StartMode, selectedMode: GameMode) => {
+  const start = (mode: StartMode, selectedMode: GameMode, pet: CompanionKind) => {
+    setPet(pet);
     setGameMode(selectedMode);
     setNotice('');
     if (mode === 'new') {
@@ -75,6 +78,7 @@ function GamePhases() {
     return (
       <GameplayUI
         net={{ host: host ?? undefined, guest: guest ?? undefined }}
+        companionKind={pet}
         initialSave={singlePlayerSave}
         gameMode={gameMode}
         onExit={exit}

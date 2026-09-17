@@ -145,7 +145,7 @@ export type SaveData = {
   wildlife?: WildlifeSave;
   stakes: StakeSave[];
   drops: DropEntry[];
-  /** 黑色博美伴侣的落点、成长与技能冷却（新字段缺省恢复） */
+  /** 共享伙伴的类型、落点、成长与冷却；类型缺省为薯条 */
   dog: DogSave;
   /** 本局已抽中过的珍宝(保底权重用,集齐后清空) */
   drawnTreasures: ResourceKind[];

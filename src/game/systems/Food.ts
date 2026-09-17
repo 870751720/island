@@ -1,7 +1,7 @@
 import type { ActionType } from '../entities/Player';
 import type { InventorySlot, ResourceKind } from './Inventory';
 
-export type FoodEater = 'rabbit' | 'sheep' | 'bison' | 'wolf' | 'bear' | 'dog';
+export type FoodEater = 'rabbit' | 'sheep' | 'bison' | 'wolf' | 'bear' | 'dog' | 'cat';
 
 /** 可食用食物:每种食物有各自的进食动画与特效色 */
 export type Food = {
@@ -49,19 +49,19 @@ export const FOODS: Food[] = [
   { kind: 'birdMeat', eaters: ['wolf', 'bear'], name: '鸟肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#c98a5a', hunger: 5, thirst: 2, health: 0 },
   { kind: 'gameMeat', eaters: ['wolf', 'bear'], name: '兽肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#b04a3a', hunger: 10, thirst: 5, health: 0 },
   { kind: 'cookedBerry', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '烤浆果', consumeType: 'eat', action: 'eat_berry', fxColor: '#a0522d', hunger: 5, thirst: 1, health: 1 },
-  { kind: 'cookedSmallFish', eaters: ['wolf', 'bear', 'dog'], name: '烤小鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#d99a4e', hunger: 20, thirst: 10, health: 10 },
-  { kind: 'cookedBigFish', eaters: ['wolf', 'bear', 'dog'], name: '烤大鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#c76b3a', hunger: 40, thirst: 20, health: 20 },
-  { kind: 'cookedGoldenFish', eaters: ['wolf', 'bear', 'dog'], name: '烤黄金鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
-  { kind: 'cookedCrabMeat', eaters: ['wolf', 'bear', 'dog'], name: '烤蟹肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#e8703a', hunger: 8, thirst: 1, health: 2 },
-  { kind: 'cookedBirdMeat', eaters: ['wolf', 'bear', 'dog'], name: '烤鸟肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#b5722f', hunger: 8, thirst: 1, health: 2 },
-  { kind: 'cookedGameMeat', eaters: ['wolf', 'bear', 'dog'], name: '烤兽肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
+  { kind: 'cookedSmallFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤小鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#d99a4e', hunger: 20, thirst: 10, health: 10 },
+  { kind: 'cookedBigFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤大鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#c76b3a', hunger: 40, thirst: 20, health: 20 },
+  { kind: 'cookedGoldenFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤黄金鱼', consumeType: 'eat', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
+  { kind: 'cookedCrabMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤蟹肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#e8703a', hunger: 8, thirst: 1, health: 2 },
+  { kind: 'cookedBirdMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤鸟肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#b5722f', hunger: 8, thirst: 1, health: 2 },
+  { kind: 'cookedGameMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '烤兽肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#9c4a2f', hunger: 30, thirst: 20, health: 20 },
   { kind: 'boiledBerry', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '煮浆果', consumeType: 'eat', action: 'eat_berry', fxColor: '#7a5cb0', hunger: 6, thirst: 3, health: 2 },
-  { kind: 'boiledSmallFish', eaters: ['wolf', 'bear', 'dog'], name: '鲜鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#d9b98a', hunger: 15, thirst: 20, health: 12 },
-  { kind: 'boiledBigFish', eaters: ['wolf', 'bear', 'dog'], name: '大鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#c9a06a', hunger: 25, thirst: 40, health: 24 },
-  { kind: 'boiledGoldenFish', eaters: ['wolf', 'bear', 'dog'], name: '黄金鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
-  { kind: 'boiledCrabMeat', eaters: ['wolf', 'bear', 'dog'], name: '煮蟹肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#e07a5a', hunger: 10, thirst: 5, health: 3 },
-  { kind: 'boiledBirdMeat', eaters: ['wolf', 'bear', 'dog'], name: '鸟肉汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#c4a06a', hunger: 10, thirst: 5, health: 3 },
-  { kind: 'boiledGameMeat', eaters: ['wolf', 'bear', 'dog'], name: '兽肉汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#a06a4a', hunger: 15, thirst: 28, health: 24 },
+  { kind: 'boiledSmallFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '鲜鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#d9b98a', hunger: 15, thirst: 20, health: 12 },
+  { kind: 'boiledBigFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '大鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#c9a06a', hunger: 25, thirst: 40, health: 24 },
+  { kind: 'boiledGoldenFish', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '黄金鱼汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#e6b422', hunger: 100, thirst: 100, health: 100 },
+  { kind: 'boiledCrabMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '煮蟹肉', consumeType: 'eat', action: 'eat_fish', fxColor: '#e07a5a', hunger: 10, thirst: 5, health: 3 },
+  { kind: 'boiledBirdMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '鸟肉汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#c4a06a', hunger: 10, thirst: 5, health: 3 },
+  { kind: 'boiledGameMeat', eaters: ['wolf', 'bear', 'dog', 'cat'], name: '兽肉汤', consumeType: 'drink', action: 'eat_fish', fxColor: '#a06a4a', hunger: 15, thirst: 28, health: 24 },
   { kind: 'cookedCarrot', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '烤胡萝卜', consumeType: 'eat', action: 'eat_berry', fxColor: '#c96a2a', hunger: 12, thirst: 1, health: 2 },
   { kind: 'boiledCarrot', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '胡萝卜汤', consumeType: 'drink', action: 'eat_berry', fxColor: '#d98a4a', hunger: 10, thirst: 5, health: 3 },
   { kind: 'bread', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '烤面包', consumeType: 'eat', action: 'eat_berry', fxColor: '#d9a441', hunger: 15, thirst: 0, health: 3 },

@@ -11,7 +11,7 @@ import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
 
-export const NET_PROTOCOL_VERSION = 45;
+export const NET_PROTOCOL_VERSION = 46;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -62,6 +62,8 @@ export type AmbientPose = {
   dogBattleGlyph?: DogBattleEmoji | null;
   dogBattleSerial?: number;
   dogBattleLeft?: number;
+  companionKind?: import('../companions/CompanionDefinition').CompanionKind;
+  catForageCooldown?: number;
   dogXp?: number;
   dogEatCooldown?: number;
   dogProtectCooldown?: number;
@@ -111,6 +113,7 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'companionFind'; serial: number; actor: string; item: ResourceKind; packed: boolean; x: number; y: number; z: number }
   | { kind: 'fishKeepFly'; item: ResourceKind; count: number; x: number; y: number; z: number; tx: number; ty: number; tz: number }
   | { kind: 'dogBattleEmoji'; glyph: DogBattleEmoji; serial: number }
   | { kind: 'dogStage'; stage: number; serial: number }

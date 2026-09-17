@@ -1,4 +1,6 @@
 'use client';
+import type { CompanionKind } from '@/game/companions/CompanionDefinition';
+import type { CompanionReward } from './CompanionRewardFlight';
 import type { GameMode } from '@/game/GameMode';
 import { CLAY_SVG } from './icons/ClayIcons';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -27,6 +29,7 @@ export interface DamagePop {
 interface GameLifecycleOptions {
   net?: { host?: NetHost; guest?: NetGuest };
   initialSave?: SaveData | null;
+  companionKind?: CompanionKind;
   gameMode?: GameMode;
 }
 
@@ -34,7 +37,7 @@ interface GameLifecycleOptions {
  * 衔接 React UI 与 Game 实例生命周期。
  * 世界构建保留双帧延迟，确保同步构造 Game 前加载遮罩已完成首帧绘制。
  */
-export function useGameLifecycle({ net, initialSave, gameMode }: GameLifecycleOptions) {
+export function useGameLifecycle({ net, initialSave, gameMode, companionKind }: GameLifecycleOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const questFeedbackRef = useRef<HTMLDivElement>(null);
@@ -49,6 +52,7 @@ export function useGameLifecycle({ net, initialSave, gameMode }: GameLifecycleOp
   const [pickups, setPickups] = useState<PickupPop[]>([]);
   const [damagePops, setDamagePops] = useState<DamagePop[]>([]);
   const [bottleMsg, setBottleMsg] = useState<string | null>(null);
+  const [companionReward, setCompanionReward] = useState<CompanionReward | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -125,16 +129,18 @@ export function useGameLifecycle({ net, initialSave, gameMode }: GameLifecycleOp
           setBottleMsg,
           {
             host: net?.host,
+            onCompanionReward: (kind, x, y) => setCompanionReward({ id: ++pickupIdRef.current, kind, x, y }),
             guest: net?.guest,
             ...(net?.host
               ? {
                   seeds: { terrainSeed: net.host.terrainSeed },
                   save: net.host.initialSave,
                   gameMode: net.host.gameMode,
+                  companionKind: net.host.companionKind,
                 }
               : net?.guest
                 ? {}
-                : { save: initialSave ?? null, gameMode }),
+                : { save: initialSave ?? null, gameMode, companionKind }),
           },
         );
         gameRef.current = game;
@@ -167,6 +173,7 @@ export function useGameLifecycle({ net, initialSave, gameMode }: GameLifecycleOp
     pickups,
     damagePops,
     bottleMsg,
+    companionReward,
     setBottleMsg,
   };
 }

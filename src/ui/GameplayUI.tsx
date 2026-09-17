@@ -1,4 +1,5 @@
 'use client';
+import type { CompanionKind } from '@/game/companions/CompanionDefinition';
 import type { GameMode } from '@/game/GameMode';
 import { gameButtonClickAudio, gameButtonPointerAudio } from './gameButtonAudio';
 
@@ -11,6 +12,7 @@ import { ITEMS } from '@/game/systems/Items';
 import { useEffect, useRef, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { QuestRewardFlight } from './QuestRewardFlight';
+import { CompanionRewardFlight } from './CompanionRewardFlight';
 import { QuestFeedback } from './QuestFeedback';
 import { VitalWarn } from './VitalWarn';
 import { Hud } from './Hud';
@@ -71,6 +73,7 @@ import { IslandArrival } from './start/IslandArrival';
 export function GameplayUI({
   net,
   initialSave,
+  companionKind,
   gameMode,
   onExit,
   onBecomeHost,
@@ -80,6 +83,7 @@ export function GameplayUI({
   net?: { host?: NetHost; guest?: NetGuest };
   /** 单机启动时已锁定的存档:null 表示明确开新档,不允许 Game 再读取 localStorage */
   initialSave?: SaveData | null;
+  companionKind?: CompanionKind;
   gameMode?: GameMode;
   onExit: () => void;
   /** 单机中途在设置里开启多人模式:把新创建的房主会话交回外层统一托管(退出时一并销毁) */
@@ -100,8 +104,9 @@ export function GameplayUI({
     pickups,
     damagePops,
     bottleMsg,
+    companionReward,
     setBottleMsg,
-  } = useGameLifecycle({ net, initialSave, gameMode });
+  } = useGameLifecycle({ net, initialSave, gameMode, companionKind });
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [pickerPress, setPickerPress] = useState<PickerPress | null>(null);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
@@ -734,6 +739,7 @@ export function GameplayUI({
       />
       )}
       <QuestRewardFlight quest={hud.quests} visible={!photoMode && !hud.dead} containerRef={containerRef} />
+      <CompanionRewardFlight reward={companionReward} visible={!photoMode && !hud.dead} containerRef={containerRef} />
       <QuestFeedback ref={questFeedbackRef} quest={hud.quests} visible={!photoMode && !hud.dead} />
       {!photoMode && <VitalWarn ref={vitalWarnRef} />}
     </div>

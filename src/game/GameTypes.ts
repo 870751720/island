@@ -12,6 +12,8 @@ export type GameOptions = {
   seeds?: { terrainSeed: number };
   save?: SaveData | null;
   gameMode?: GameMode;
+  companionKind?: import('./companions/CompanionDefinition').CompanionKind;
+  onCompanionReward?: (kind: ResourceKind, x: number, y: number) => void;
 };
 
 import type { FacilityKind } from './systems/Facilities';

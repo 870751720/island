@@ -1,3 +1,9 @@
+import { makePomeranianModel } from '../companions/PomeranianModel';
+import type { CompanionModel } from '../companions/CompanionModel';
+import { makeColaModel } from '../companions/ColaModel';
+import { CatForaging } from '../companions/CatForaging';
+import { companionKind, type CompanionKind } from '../companions/CompanionDefinition';
+import type { ResourceKind } from '../systems/Inventory';
 import type { AnimalFoodSource } from '../systems/AnimalFood';
 import { clearFoodPath } from '../systems/AnimalForaging';
 import { DogRecovery } from '../systems/DogRecovery';
@@ -52,100 +58,7 @@ const EAT_COOLDOWN = 60;
 const HAPPY_DURATION = 2.2;
 
 /** 闲玩行为:围着玩家转圈 / 原地转圈 / 原地趴坐 / 趴下睡觉 / 刨坑 */
-type Play = 'circle' | 'spin' | 'sit' | 'sleep' | 'dig';
-
-type DogModel = {
-  group: THREE.Group;
-  legs: THREE.Mesh[];
-  head: THREE.Object3D;
-  tail: THREE.Object3D;
-  body: THREE.Object3D;
-};
-
-function clay(color: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
-}
-
-/** 一条短腿:锥形杆从髋部垂下,根部落在一端以便摆动 */
-function makeLeg(mat: THREE.Material, x: number, y: number, z: number, len: number): THREE.Mesh {
-  const leg = new THREE.Mesh(
-    new THREE.CylinderGeometry(len * 0.24, len * 0.32, len, 4),
-    mat
-  );
-  leg.geometry.translate(0, -len / 2, 0);
-  leg.position.set(x, y, z);
-  leg.castShadow = true;
-  return leg;
-}
-
-/** 低多边形黑色博美:蓬松黑毛圆身 + 张开的鬃毛、尖耳、平贴短尾与粉舌头 */
-function makePomeranianModel(): DogModel {
-  const group = new THREE.Group();
-  const fur = clay('#26262e');
-  const mane = clay('#33333d');
-  const dark = clay('#101014');
-
-  // 躯干:圆润的毛球,腿短身低,几乎贴地一团黑毛
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 6), fur);
-  body.scale.set(0.95, 1, 1.3);
-  body.position.y = 0.21;
-  body.castShadow = true;
-  group.add(body);
-
-  // 头颈:鬃毛大盘 + 略小的头,博美标志性的「狮子脸」
-  const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.39, 0.18);
-  const ruff = new THREE.Mesh(new THREE.SphereGeometry(0.17, 7, 6), mane);
-  ruff.scale.set(1.1, 0.95, 1);
-  ruff.castShadow = true;
-  headPivot.add(ruff);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 7, 6), fur);
-  head.position.set(0, 0.02, 0.08);
-  head.castShadow = true;
-  headPivot.add(head);
-  // 尖耳朵:小锥体立在头顶两侧
-  for (const side of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 4), fur);
-    ear.position.set(side * 0.08, 0.16, 0.02);
-    ear.rotation.z = -side * 0.25;
-    headPivot.add(ear);
-  }
-  // 黑鼻头 + 粉舌头 + 两个白色像素点眼睛
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.028, 5, 4), dark);
-  nose.position.set(0, -0.02, 0.21);
-  headPivot.add(nose);
-  const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.012, 0.07), clay('#e58a95'));
-  tongue.position.set(0, -0.06, 0.19);
-  headPivot.add(tongue);
-  for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 4, 3), clay('#f5f5f5'));
-    eye.position.set(side * 0.06, 0.04, 0.18);
-    headPivot.add(eye);
-  }
-  group.add(headPivot);
-
-  // 四条小短腿:短到几乎藏进毛里
-  const legs = [
-    makeLeg(fur, -0.09, 0.17, 0.14, 0.14),
-    makeLeg(fur, 0.09, 0.17, 0.14, 0.14),
-    makeLeg(fur, -0.09, 0.18, -0.14, 0.15),
-    makeLeg(fur, 0.09, 0.18, -0.14, 0.15),
-  ];
-  legs.forEach((l) => group.add(l));
-
-  // 尾巴:不翘起,一短串毛球平贴在身后,略微下垂
-  const tail = new THREE.Group();
-  tail.position.set(0, 0.22, -0.22);
-  for (let i = 0; i < 3; i++) {
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.055 - i * 0.012, 5, 4), i === 0 ? fur : mane);
-    ball.position.set(0, -i * 0.015, -i * 0.07);
-    ball.castShadow = true;
-    tail.add(ball);
-  }
-  group.add(tail);
-
-  return { group, legs, head: headPivot, tail, body };
-}
+type Play = 'circle' | 'spin' | 'sit' | 'sleep' | 'dig' | 'groom' | 'stretch';
 
 /** 闲玩时随机冒的表情池 */
 const PLAY_EMOJIS = ['🐕', '❤️', '✨', '🐾', '🎾', '😊', '🥰'];
@@ -153,10 +66,15 @@ const PLAY_EMOJIS = ['🐕', '❤️', '✨', '🐾', '🎾', '😊', '🥰'];
 const FOLLOW_EMOJIS = ['🏃', '💨', '❤️'];
 
 /**
- * 黑色博美伴侣:出生在玩家身旁,被附近地面上的食物吸引,吃完回来继续跟随玩家;
- * 距离玩家够近时不跟了,围着玩家转圈或原地打转自己玩,时不时头顶冒个小表情。
+ * 共享伙伴控制器：跟随、投喂、成长、回窝与同步；犬类护主和猫咪觅食各自结算。
  */
-export class Pomeranian {
+export class Companion {
+  readonly kind: CompanionKind;
+  private wildlife: Wildlife | null = null;
+  private readonly forage: CatForaging | null;
+  onFind: (player: Player, kind: ResourceKind, position: THREE.Vector3) => boolean = () => false;
+  private catState = 'idle';
+  private shakeLeft = 0;
   readonly group = new THREE.Group();
   readonly growth = new DogGrowth();
   readonly rest = new DoghouseRest();
@@ -178,7 +96,7 @@ export class Pomeranian {
   private pounceSerial = 0;
   onStage: (notice: DogStageNotice) => void = () => {};
   onPounce: (serial: number) => void = () => {};
-  private model: DogModel;
+  private model: CompanionModel;
   private pos = new THREE.Vector3();
 
   /** 玩法位置：外层 group 仅作容器，动画位移在内部模型上。 */
@@ -235,20 +153,32 @@ export class Pomeranian {
     private fx: Particles,
     private waterFx: WaterFx,
     /** 围栏等静态阻挡:点在阻挡内时不可走 */
-    private isBlocked: (x: number, z: number) => boolean = () => false
+    private isBlocked: (x: number, z: number) => boolean = () => false,
+    kind: CompanionKind = 'dog'
   ) {
+    this.kind = companionKind(kind);
+    this.forage = this.kind === 'cat' ? new CatForaging({
+      position: this.pos,
+      dry: (x, z) => this.walkable(x, z),
+      height: (x, z) => this.terrain.getHeight(x, z),
+      move: (target, speed, delta) => this.stepTo(target, speed, delta, true),
+      reward: (player, food, pos) => this.onFind(player, food, pos),
+      grow: amount => this.growth.add(amount),
+    }) : null;
     this.growth.onStage = (stage) => {
       const notice = { stage, serial: this.noticeSerial + 1 };
       this.showStage(notice);
       this.onStage(notice);
     };
-    this.model = makePomeranianModel();
+    this.model = this.kind === 'cat' ? makeColaModel() : makePomeranianModel();
     this.group.add(this.model.group);
     this.placeNear(player.group.position, 1.5);
     scene.add(this.group);
   }
 
   connectCombat(wildlife: Wildlife): void {
+    this.wildlife = wildlife;
+    if (this.kind === 'cat') return;
     this.combat = new DogCombat(wildlife, this.growth, this.pos,
       (target, speed, delta) => this.stepTo(target, speed, delta, true),
       target => { this.heading = Math.atan2(target.z - this.pos.z, target.x - this.pos.x); },
@@ -276,6 +206,7 @@ export class Pomeranian {
   }
 
   previewBattleEmoji(glyph: DogBattleEmoji): void {
+    if (this.kind === 'cat') return;
     this.tryBattleEmoji(glyph, true);
   }
 
@@ -294,12 +225,13 @@ export class Pomeranian {
   }
 
   get debugState() {
-    return { stage: this.growth.config.stage, xp: this.growth.xp, eatCooldown: this.eatCd,
+    return { kind: this.kind, forageCooldown: this.forage?.cooldown ?? 0, activity: this.catState, stage: this.growth.config.stage, xp: this.growth.xp, eatCooldown: this.eatCd,
       protectCooldown: this.growth.protectCooldown, companionSeconds: this.growth.companionSeconds,
       combat: this.combat?.status };
   }
 
   clearCooldowns(): void {
+    if (this.forage) this.forage.cooldown = 0;
     this.eatCd = this.eatLeft = this.happyLeft = 0;
     this.rest.rewardCooldown = 0;
     this.growth.protectCooldown = 0;
@@ -307,6 +239,7 @@ export class Pomeranian {
   }
 
   recall(player: Player): void {
+    this.forage?.cancel();
     this.wake();
     this.player = player;
     this.placeNear(player.group.position, 1.5);
@@ -362,6 +295,7 @@ export class Pomeranian {
 
   /** 存档恢复:瞬移到存档位置 */
   restore(x: number, z: number, save: Partial<DogSave> = {}): void {
+    this.forage?.restore(save.forageCooldown);
     this.rest.restore(save.doghouseRewardCooldown);
     this.growth.restore(save);
     this.combat?.restore(save);
@@ -371,11 +305,12 @@ export class Pomeranian {
   }
 
   snapshot(): DogSave {
-    return { x: this.pos.x, z: this.pos.z, ...this.growth.snapshot(), ...this.combat?.snapshot(), eatCooldown: this.eatCd, doghouseRewardCooldown: this.rest.rewardCooldown };
+    return { kind: this.kind, forageCooldown: this.forage?.cooldown, x: this.pos.x, z: this.pos.z, ...this.growth.snapshot(), ...this.combat?.snapshot(), eatCooldown: this.eatCd, doghouseRewardCooldown: this.rest.rewardCooldown };
   }
 
   netPose(): AmbientPose {
-    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.rest.traveling ? 'circle' : this.play,
+    return { id: 0, x: this.pos.x, y: this.pos.y, z: this.pos.z, h: this.heading, visible: true, state: this.catState !== 'idle' ? this.catState : this.fighting ? 'guard' : this.eatLeft > 0 ? 'eat' : this.kind === 'cat' && this.happyLeft > 0 ? 'groom' : this.rest.traveling ? 'circle' : this.play,
+      companionKind: this.kind, catForageCooldown: Math.ceil(this.forage?.cooldown ?? 0),
       dogTeleportSerial: this.teleportSerial, dogTeleportFrom: this.teleportFrom,
       dogBattleGlyph: this.battleNotice?.glyph ?? null, dogBattleSerial: this.battleNotice?.serial ?? 0,
       dogBattleLeft: this.emoji === this.battleNotice?.glyph ? Math.ceil(Math.max(0, this.emojiLeft) * 10) / 10 : 0,
@@ -387,6 +322,8 @@ export class Pomeranian {
   }
 
   netApply(pose: AmbientPose, _elapsed: number): void {
+    this.catState = this.kind === 'cat' && ['sniff', 'dig', 'flee'].includes(pose.state ?? '') ? pose.state! : 'idle';
+    if (this.forage) this.forage.cooldown = pose.catForageCooldown ?? 0;
     if (pose.dogBattleGlyph && (pose.dogBattleLeft ?? 0) > 0) {
       this.showBattleEmoji({ glyph: pose.dogBattleGlyph, serial: pose.dogBattleSerial ?? 0 }, pose.dogBattleLeft);
     }
@@ -418,7 +355,7 @@ export class Pomeranian {
       this.pos.copy(this.netPos);
       this.heading = pose.h;
     }
-    if (pose.state === 'circle' || pose.state === 'spin' || pose.state === 'sit' || pose.state === 'sleep' || pose.state === 'dig') {
+    if (pose.state === 'circle' || pose.state === 'spin' || pose.state === 'sit' || pose.state === 'sleep' || pose.state === 'dig' || pose.state === 'groom' || pose.state === 'stretch') {
       this.play = pose.state;
     }
     this.group.visible = pose.visible;
@@ -486,10 +423,10 @@ export class Pomeranian {
   private nextPlay(): void {
     this.rest.cancel();
     if (this.play === 'dig') this.showEmoji(Math.random() < 0.5 ? '❓' : '😮');
-    const pool: Play[] = ['circle', 'circle', 'circle', 'sit'];
-    if (this.spinCd <= 0) pool.push('spin');
+    const pool: Play[] = this.kind === 'cat' ? ['sit', 'sit', 'groom', 'stretch', 'circle'] : ['circle', 'circle', 'circle', 'sit'];
+    if (this.kind === 'dog' && this.spinCd <= 0) pool.push('spin');
     if (this.sleepCd <= 0) pool.push('sleep');
-    if (this.digCd <= 0) pool.push('dig', 'dig');
+    if (this.kind === 'dog' && this.digCd <= 0) pool.push('dig', 'dig');
     this.play = pool[Math.floor(Math.random() * pool.length)];
     this.playLeft =
       this.play === 'spin'
@@ -567,10 +504,11 @@ export class Pomeranian {
       const next = nearby[0] ?? companions.find(c => !c.dead);
       if (next) this.player = next.player;
     }
-    const destination = this.recovery.update(delta, this.pos, this.player.group.position,
+    const destination = this.catState === 'flee' ? null : this.recovery.update(delta, this.pos, this.player.group.position,
       companions.some(c => c.player === this.player && !c.dead) ? this.recoveryCamera(this.player) : null,
       (x, z) => this.stepY(x, z), (x, z) => this.isBlocked(x, z));
     if (destination) {
+      this.forage?.cancel();
       this.teleportFrom = { x: this.pos.x, y: this.pos.y, z: this.pos.z };
       this.fx.burst(this.pos, '#b7a2f2', 12);
       this.pos.copy(destination);
@@ -594,8 +532,20 @@ export class Pomeranian {
     const playerDist = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     let moving = false;
     let excited = false;
+    const catBusy = this.forage?.update(delta, this.player,
+      companions.some(c => c.player === this.player && !c.dead && c.health > 0),
+      this.growth.config.stage, [...(this.wildlife?.dogThreats ?? []), ...companions.filter(c => c.fighting && !c.dead)
+        .map((c, i) => ({ id: -i - 1, pos: c.player.group.position, player: c.player }))],
+      this.eatLeft <= 0 && this.happyLeft <= 0 && this.play !== 'sleep' && !this.rest.traveling && !this.rest.resting) ?? false;
+    this.catState = this.forage?.activity ?? 'idle';
 
-    if (this.fighting) {
+    if (catBusy) {
+      this.wake();
+      this.play = this.catState === 'dig' ? 'dig' : 'sit';
+      this.playLeft = .5;
+      this.eatLeft = this.happyLeft = 0;
+      moving = this.forage?.moving ?? false;
+    } else if (this.fighting) {
       this.wake();
       this.play = 'circle';
       this.eatLeft = this.happyLeft = 0;
@@ -607,12 +557,13 @@ export class Pomeranian {
     } else if (this.happyLeft > 0) {
       // 吃饱了:原地开心转圈
       this.happyLeft -= delta;
-      this.heading += delta * 10;
-      excited = true;
+      if (this.kind === 'dog') this.heading += delta * 10;
+      else if (playerDist > 1) moving = this.stepTo(p, 1.2, delta);
+      excited = this.kind === 'dog';
     } else {
       // 1) 附近有食物:优先跑去吃
-      const foodTarget = this.eatCd <= 0 ? [...drops.foodTargets('dog', this.pos, SMELL_RANGE),
-        ...(this.foodBarrels?.foodTargets('dog', this.pos, SMELL_RANGE) ?? [])]
+      const foodTarget = this.eatCd <= 0 ? [...drops.foodTargets(this.kind, this.pos, SMELL_RANGE),
+        ...(this.foodBarrels?.foodTargets(this.kind, this.pos, SMELL_RANGE) ?? [])]
         .filter(t => clearFoodPath(this.pos, t.position, (x, z) => !this.isBlocked(x, z)))
         .sort((a, b) => a.position.distanceToSquared(this.pos) - b.position.distanceToSquared(this.pos))[0] : null;
       const foodPosition = foodTarget?.position;
@@ -625,7 +576,7 @@ export class Pomeranian {
             this.eatLeft = EAT_DURATION;
             this.happyLeft = HAPPY_DURATION;
             this.eatCd = EAT_COOLDOWN;
-            this.showEmoji(Math.random() < 0.5 ? '😋' : '🦴');
+            this.showEmoji(this.kind === 'cat' ? '❤️' : Math.random() < 0.5 ? '😋' : '🦴');
           }
         } else {
           moving = this.stepTo(foodPosition, RUN_SPEED, delta);
@@ -641,7 +592,7 @@ export class Pomeranian {
         if (!this.waitingForReturn && playerDist > 14) this.waitingForReturn = true;
         if (this.waitingForReturn && playerDist <= FOLLOW_RANGE) {
           this.waitingForReturn = false;
-          this.showEmoji('🥰');
+          this.showEmoji(this.kind === 'cat' ? '❤️' : '🥰');
         }
         if (playerDist > FOLLOW_RANGE) {
           moving = this.stepTo(p, SWIM_SPEED, delta);
@@ -660,7 +611,7 @@ export class Pomeranian {
         this.wasFollowing = false;
         if (this.waitingForReturn) {
           this.waitingForReturn = false;
-          this.showEmoji('🥰');
+          this.showEmoji(this.kind === 'cat' ? '❤️' : '🥰');
         }
         if (isNight && this.play !== 'sleep') {
           this.startNightSleep();
@@ -693,7 +644,7 @@ export class Pomeranian {
           this.emojiTimer -= delta;
           if (this.emojiTimer <= 0) {
             this.showEmoji(
-              PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)],
+              this.kind === 'cat' ? ['❤️', '✨', '🐾'][Math.floor(Math.random() * 3)] : PLAY_EMOJIS[Math.floor(Math.random() * PLAY_EMOJIS.length)],
               PLAY_EMOJI_TIME
             );
             this.emojiTimer = PLAY_EMOJI_INTERVAL;
@@ -708,7 +659,7 @@ export class Pomeranian {
     if (this.sleepCd > 0) this.sleepCd -= delta;
     if (this.spinCd > 0) this.spinCd -= delta;
     if (this.orbitFlipCd > 0) this.orbitFlipCd -= delta;
-    if (this.play === 'dig' && this.eatLeft <= 0) {
+    if (this.kind === 'dog' && this.play === 'dig' && this.eatLeft <= 0) {
       this.digDustTimer -= delta;
       if (this.digDustTimer <= 0) {
         this.digDustTimer = 0.16;
@@ -731,6 +682,7 @@ export class Pomeranian {
     // 狗刨状态由所在点水深决定(房主/客人端各自判定,表现一致)
     this.swimming = this.waterDepth(this.pos.x, this.pos.z) > SWIM_DEPTH;
     if (this.swimming !== this.wasSwimming) {
+      if (this.wasSwimming && !this.swimming && this.kind === 'cat') this.shakeLeft = 1.2;
       // 入水/出水瞬间:水花 + 一圈涟漪
       this.wasSwimming = this.swimming;
       this.waterFx.splash(new THREE.Vector3(this.pos.x, this.terrain.getWaterLevel(this.pos.x, this.pos.z), this.pos.z));
@@ -758,6 +710,20 @@ export class Pomeranian {
     );
     this.viewHeading += diff * Math.min(1, delta * 10);
     g.rotation.y = -this.viewHeading + Math.PI / 2;
+    if (this.model.update) {
+      if (this.catState === 'dig') {
+        this.digDustTimer -= delta;
+        if (this.digDustTimer <= 0) {
+          this.digDustTimer = .24;
+          this.fx.burst(new THREE.Vector3(this.pos.x + Math.cos(this.heading) * .3, this.pos.y + .05, this.pos.z + Math.sin(this.heading) * .3), '#c9b382', 2);
+        }
+      }
+      this.shakeLeft = Math.max(0, this.shakeLeft - delta);
+      this.model.update(elapsed, this.swimming ? 'swim' : this.catState === 'dig' ? 'dig'
+        : moving ? 'walk' : this.catState === 'sniff' ? 'sniff' : this.catState === 'flee' ? 'idle'
+        : this.shakeLeft > 0 ? 'shake' : this.eatLeft > 0 ? 'sniff' : this.happyLeft > 0 ? 'groom' : this.play);
+      return;
+    }
 
     // 睡姿平滑过渡(水里不会趴下)
     const target = !this.swimming && !this.rest.traveling && this.play === 'sleep' && this.eatLeft <= 0 ? 1 : 0;

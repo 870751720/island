@@ -1,5 +1,5 @@
 import type { Wildlife } from '../entities/Wildlife';
-import type { Pomeranian } from '../entities/Pomeranian';
+import type { Companion } from '../entities/Companion';
 import type { Props } from '../world/Props';
 import type { BaitBarrelSystem } from './BaitBarrelSystem';
 import type { BedSystem } from './BedSystem';
@@ -47,7 +47,7 @@ export type WorldSaveSystems = {
   crops: CropSystem;
   stakes: StakeSystem;
   drops: DropSystem;
-  dog: Pomeranian;
+  dog: Companion;
   wildlife: Wildlife;
 };
 

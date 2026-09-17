@@ -139,7 +139,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         </div>
         {renderGrid(crateSlots, crateCapacity, onTake)}
         <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}><HudIcon name="backpack" size={24} /> 背包(点按存入,长按步进)</div>
-        {hud.crateKind === 'feedBarrel' && <div style={{ fontSize: 12, marginBottom: 8 }}>只能存放可喂食的食物，动物和薯条会走近取食。</div>}
+        {hud.crateKind === 'feedBarrel' && <div style={{ fontSize: 12, marginBottom: 8 }}>只能存放可喂食的食物，动物和同行伙伴会走近取食。</div>}
         {renderGrid(hud.slots, hud.capacity, onStore, hud.crateKind === 'feedBarrel')}
         <button
           onPointerDown={(e) => {

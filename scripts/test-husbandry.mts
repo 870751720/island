@@ -20,6 +20,7 @@ modules['./Food'] = load('systems/Food');
 modules['./AnimalFood'] = load('systems/AnimalFood');
 modules['../systems/AnimalForaging'] = load('systems/AnimalForaging');
 modules['./WildlifePursuit'] = load('entities/WildlifePursuit');
+modules['./WildlifeMovement'] = load('entities/WildlifeMovement');
 modules['./LassoRules'] = load('entities/LassoRules');
 modules['./WildlifeLifecycle'] = load('entities/WildlifeLifecycle');
 modules['../core/HitSegment'] = load('core/HitSegment');
@@ -84,6 +85,7 @@ function animal(species = 'sheep'): any {
 }
 function harness(a: any): any {
   return Object.assign(Object.create(Wildlife.prototype), { animals: [a], mercyCooldown: 0, dogThreats: [],
+    movement: new modules['./WildlifeMovement'].WildlifeMovement(),
     creatureFx: { update() {} }, lifecycle: { now: 1, cancel() {}, update() {}, reset() {} }, population: { slots: [], update() {}, release() {} },
     pursuit: new modules['./WildlifePursuit'].WildlifePursuit(), players: () => [player], isPlayerVulnerable: () => true, animate() {}, onAttack() {}, hitPlayer() {},
     nearestPlayer: () => player, terrain: { getHeight: () => 1 }, isGrass: () => true, isBlocked: () => false,

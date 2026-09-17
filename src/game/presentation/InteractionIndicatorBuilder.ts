@@ -74,7 +74,7 @@ export class InteractionIndicatorBuilder {
     } else if (systems.brewBarrels.isDigging(session)) {
       label = '挖酿酒桶…'; progress = systems.brewBarrels.getDigProgress(session);
     } else if (systems.doghouses.isDigging(session)) {
-      label = '挖狗窝…'; progress = systems.doghouses.getDigProgress(session);
+      label = '挖宠物窝…'; progress = systems.doghouses.getDigProgress(session);
     } else if (systems.burrows.isDigging(session)) {
       label = '挖兔子洞…'; progress = systems.burrows.getDigProgress(session);
     } else if (systems.smelters.isDigging(session)) {

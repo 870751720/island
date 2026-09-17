@@ -8,6 +8,8 @@ import type { ResourceKind } from '../systems/Inventory';
 type PickupItem = { kind: ResourceKind; count: number };
 
 export class PickupPresentation {
+  onCompanionReward: ((kind: ResourceKind, x: number, y: number) => void) | null = null;
+  private companionOrigins = new Map<ResourceKind, { pos: THREE.Vector3; until: number }>();
   private pending: PickupItem[] = [];
   private origins = new Map<string, { pos: THREE.Vector3; until: number }>();
   private targets = new Map<string, () => THREE.Vector3>();
@@ -29,6 +31,11 @@ export class PickupPresentation {
 
   markOrigin(position: THREE.Vector3, session = this.localSession()): void {
     this.origins.set(session.id, { pos: position.clone(), until: performance.now() + 1000 });
+  }
+
+  markCompanionReward(kind: ResourceKind, position: THREE.Vector3): void {
+    this.companionOrigins.set(kind, { pos: position.clone(), until: performance.now() + 5000 });
+    this.markOrigin(position);
   }
 
   emit(kind: ResourceKind, count: number): void {
@@ -80,8 +87,22 @@ export class PickupPresentation {
 
   flush(): void {
     if (this.pending.length === 0) return;
-    const items = this.pending;
+    const items = this.pending.filter(item => {
+      const source = this.companionOrigins.get(item.kind);
+      if (!source) return true;
+      this.companionOrigins.delete(item.kind);
+      if (performance.now() > source.until || !this.onCompanionReward) return true;
+      const point = source.pos.clone().project(this.camera);
+      const { width, height } = this.viewport();
+      const x = (point.x + 1) * width / 2, y = (1 - point.y) * height / 2;
+      this.onCompanionReward(item.kind, x, y);
+      this.onPickup({ items: [{ kind: item.kind, count: 1 }], x, y });
+      this.playPickup();
+      item.count--;
+      return item.count > 0;
+    });
     this.pending = [];
+    if (!items.length) return;
     const local = this.localSession();
     this.spawn(local, this.originFor(local), items, () => {
       this.playPickup();
@@ -102,6 +123,7 @@ export class PickupPresentation {
   }
 
   dispose(): void {
+    this.companionOrigins.clear();
     this.notices.dispose();
     this.origins.clear();
     this.targets.clear();

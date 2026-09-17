@@ -1,6 +1,6 @@
 import type { FoodEater } from './Food';
 
-export type TameSpecies = Exclude<FoodEater, 'dog'>;
+export type TameSpecies = Exclude<FoodEater, 'dog' | 'cat'>;
 export const HEART_MAX: Record<TameSpecies, number> = { rabbit: 30, sheep: 60, bison: 100, wolf: 150, bear: 200 };
 export const PRODUCTION_SECONDS = 600;
 export const HOME_RADIUS = 15;

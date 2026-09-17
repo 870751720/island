@@ -15,7 +15,7 @@ export function mergeClayMeshes(root: THREE.Group, preserved: readonly THREE.Obj
   try {
     mergeOwnedClayMeshes(root, preserved);
   } finally {
-    root.add(...preserved);
+    if (preserved.length) root.add(...preserved);
   }
 }
 

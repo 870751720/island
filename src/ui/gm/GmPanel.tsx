@@ -41,7 +41,7 @@ const TABS = [
   { id: 'items', label: '物品' },
   { id: 'animals', label: '动物' },
   { id: 'husbandry', label: '驯养' },
-  { id: 'dog', label: '薯条' },
+  { id: 'dog', label: '伙伴' },
   { id: 'events', label: '特殊事件' },
 ] as const;
 

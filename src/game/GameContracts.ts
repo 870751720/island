@@ -22,7 +22,7 @@ import type { DayPhase } from './systems/DayNightSystem';
 export type HudSnapshot = {
   digTarget?: DigTargetSnapshot | null;
   quests?: QuestView | null;
-  dog?: { stage: number; xp: number };
+  dog?: { kind?: import('./companions/CompanionDefinition').CompanionKind; stage: number; xp: number; forageCooldown?: number };
   hunger: number;
   thirst: number;
   health: number;
