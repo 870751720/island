@@ -28,7 +28,7 @@ export type BuffDef = {
 export const BUFFS: Record<BuffId, BuffDef> = {
   steadyPlacement: {
     id: 'steadyPlacement', name: '稳稳安放', icon: '🏠',
-    description: '捧稳手中的设施，放慢脚步找准位置。移动速度降低 30%，收起或用完后恢复。', good: false,
+    description: '捧稳手中的设施，放慢脚步找准位置。移动速度降低 40%，收起或用完后恢复。', good: false,
   },
   plankPath: {
     id: 'plankPath', name: '步履轻快', icon: '🪵',

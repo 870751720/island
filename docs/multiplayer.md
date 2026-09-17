@@ -28,7 +28,7 @@ TapTap H5 的手动云存档只在开始主界面操作。房主本地存档中�
 
 ### 手持设施减速
 
-「稳稳安放」沿用 `NetGuest.action('tool', [tool, placeKind])` 上行与 `Actions.ts` → `Game.setToolFor` 房主权威入口。房主对每名玩家、客人对本地预测均在移动前通过 `AutoPlaceSystem.isCarryingFacility` 检查选中设施、工具和背包余量，移动倍率乘以 0.7。放置仍由房主结算，背包余量与工具经既有 HUD 快照回流，用完后解除减速；Buff 由房主按会话生成并随 `HudSnapshot.buffs` 回流。远程角色沿用姿态插值，无需独立模拟此倍率；此状态无一次性特效，不新增事件、协议字段或存档字段。
+「稳稳安放」沿用 `NetGuest.action('tool', [tool, placeKind])` 上行与 `Actions.ts` → `Game.setToolFor` 房主权威入口。房主对每名玩家、客人对本地预测均在移动前通过 `AutoPlaceSystem.isCarryingFacility` 检查选中设施、工具和背包余量，移动倍率乘以 0.6。放置仍由房主结算，背包余量与工具经既有 HUD 快照回流，用完后解除减速；Buff 由房主按会话生成并随 `HudSnapshot.buffs` 回流。远程角色沿用姿态插值，无需独立模拟此倍率；此状态无一次性特效，不新增事件、协议字段或存档字段。
 
 游戏目前是纯单机:一个 `Game` 实例绑定唯一 `Player`,玩法判定、存档、HUD 全部围绕单玩家。目标是支持多人联机共玩同一座岛(人数不设上限),且不引入任何游戏服务器、保持 GitHub Pages 纯静态部署。
 

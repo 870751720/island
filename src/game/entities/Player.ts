@@ -651,7 +651,7 @@ export class Player implements Updatable {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
       let speed = base * this.weatherSpeedMultiplier;
-      if (this.carryingFacility) speed *= 0.7;
+      if (this.carryingFacility) speed *= 0.6;
       if (!this.swimming && this.roadKind) speed *= 1.1;
       // 冰面滑行:结冰水洼上移动速度翻倍
       if (!this.swimming && this.terrain.isOnIce(p.x, p.z)) speed *= 2;
