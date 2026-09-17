@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { DOG_EMOJI_SVG } from '../../ui/icons/DogEmojiIcons';
 import { emojiBubbleHeight } from './EmojiBubbleSize';
 import type { Wildlife } from '../entities/Wildlife';
+import { FloatingHearts } from './FloatingHearts';
 
-type Indicator = { element: HTMLDivElement; fill: HTMLElement; eating: HTMLElement; wool: HTMLElement; amount: number };
+type Indicator = { element: HTMLDivElement; heart: HTMLElement; floating: FloatingHearts; fill: HTMLElement; eating: HTMLElement; wool: HTMLElement; amount: number };
 const heartPath = 'M32 54L10 32C-2 15 17 3 32 20C47 3 66 15 54 32Z';
 
 /** DOM 矢量爱心：手机缩放保持清晰，填充平滑且不产生逐帧 React 更新。 */
@@ -35,16 +36,20 @@ export class HusbandryIndicators {
         Object.assign(fill.style, { position: 'absolute', inset: '0', clipPath: 'inset(100% 0 0 0)' });
         fill.innerHTML = `<svg viewBox="0 0 64 64" width="100%" height="100%"><path d="${heartPath}" fill="#db7d8a" stroke="#825853" stroke-width="4"/></svg>`;
         heart.appendChild(fill); element.appendChild(heart);
+        const floating = new FloatingHearts(); element.appendChild(floating.element);
         const eating = document.createElement('span'); eating.innerHTML = DOG_EMOJI_SVG['😋']; element.appendChild(eating);
         const wool = document.createElement('span'); wool.textContent = '✂'; wool.style.color = '#fff5e9'; wool.style.textShadow = '0 1px 3px #48392b'; element.appendChild(wool);
         this.layer.appendChild(element);
-        entry = { element, fill, eating, wool, amount: state.heart }; this.entries.set(state.id, entry);
+        entry = { element, heart, floating, fill, eating, wool, amount: state.heart }; this.entries.set(state.id, entry);
       }
       entry.amount += (state.heart - entry.amount) * (1 - Math.exp(-8 * delta));
       entry.fill.style.clipPath = `inset(${100 * (1 - Math.max(0, Math.min(1, entry.amount)))}% 0 0 0)`;
       this.point.setFromMatrixPosition(state.target.matrixWorld); this.point.y += state.height;
       this.point.project(this.camera);
-      entry.element.style.display = Math.abs(this.point.x) > 1.1 || Math.abs(this.point.y) > 1.1 || Math.abs(this.point.z) > 1 ? 'none' : 'flex';
+      const visible = Math.abs(this.point.x) <= 1.1 && Math.abs(this.point.y) <= 1.1 && Math.abs(this.point.z) <= 1;
+      entry.element.style.display = visible ? 'flex' : 'none';
+      entry.heart.style.display = state.tamed ? 'none' : 'block';
+      entry.floating.update(delta, size, state.tamed && visible);
       entry.element.style.width = entry.element.style.height = `${size}px`;
       entry.element.style.transform = `translate(-50%, -100%) translate(${(this.point.x * 0.5 + 0.5) * width}px, ${(-this.point.y * 0.5 + 0.5) * height}px)`;
       entry.eating.style.cssText = `display:${state.eating ? 'block' : 'none'};width:${size}px;height:${size}px;flex-shrink:0`;
