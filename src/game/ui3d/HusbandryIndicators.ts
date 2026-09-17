@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DOG_EMOJI_SVG } from '../../ui/icons/DogEmojiIcons';
+import { EATING_ICON_SVG } from '../../ui/icons/EatingIcon';
 import { emojiBubbleHeight } from './EmojiBubbleSize';
 import type { Wildlife } from '../entities/Wildlife';
 import { FloatingHearts } from './FloatingHearts';
@@ -37,7 +37,7 @@ export class HusbandryIndicators {
         fill.innerHTML = `<svg viewBox="0 0 64 64" width="100%" height="100%"><path d="${heartPath}" fill="#db7d8a" stroke="#825853" stroke-width="4"/></svg>`;
         heart.appendChild(fill); element.appendChild(heart);
         const floating = new FloatingHearts(); element.appendChild(floating.element);
-        const eating = document.createElement('span'); eating.innerHTML = DOG_EMOJI_SVG['😋']; element.appendChild(eating);
+        const eating = document.createElement('span'); eating.innerHTML = EATING_ICON_SVG; element.appendChild(eating);
         const wool = document.createElement('span'); wool.textContent = '✂'; wool.style.color = '#fff5e9'; wool.style.textShadow = '0 1px 3px #48392b'; element.appendChild(wool);
         this.layer.appendChild(element);
         entry = { element, heart, floating, fill, eating, wool, amount: state.heart }; this.entries.set(state.id, entry);
