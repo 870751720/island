@@ -2,6 +2,7 @@
 import { loadQuestGuide } from '@/game/quests/QuestSettings';
 import { MenuIcon } from './icons/MenuIcons';
 import { GameModeSettings } from './GameModeSettings';
+import { MobileDisplaySetting } from './display/MobileDisplay';
 
 import { gameTheme, gameButtonStyle } from './gameTheme';
 
@@ -139,6 +140,7 @@ export function SettingsPanel({
         </section>
         )}
         {tab === 'interface' && <>
+        <MobileDisplaySetting />
         <button style={gameButtonStyle} onClick={onAdjustHud}>调整顶部 UI 边距</button>
         <p className={styles.guideHint}>刘海或挖孔遮住内容时，可将顶部信息整体下移。调整时实时预览，自动记住本机设置。</p>
         <div className={styles.section}>

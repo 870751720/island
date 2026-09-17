@@ -1,0 +1,33 @@
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: max(150px, 24dvh);
+  transform: translateX(-50%);
+  z-index: 1000;
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fff8e9bb;
+  border-radius: 16px;
+  background: #eef0dff5;
+  color: #49665e;
+  box-shadow: 0 4px 18px #314c3e26;
+  font: 14px/1.5 Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.hint span { flex: 1; }
+.hint small { font-size: 11px; }
+.hint button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #789b7c;
+  border-radius: 10px;
+  background: #dce8d6;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+@media (orientation: landscape) { .hint { display: none; } }

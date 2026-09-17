@@ -10,11 +10,16 @@ import { SaveSystem } from '@/game/systems/SaveSystem';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
+import { MobileDisplay } from './display/MobileDisplay';
 
 type Phase = 'start' | 'host' | 'guest' | 'playing';
 
 /** 阶段路由:开始界面 / 联机大厅 / 游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
+  return <><MobileDisplay /><GamePhases /></>;
+}
+
+function GamePhases() {
   const multiplayerEnabled = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1';
   const [gameMode, setGameMode] = useState<GameMode>('leisure');
   const [phase, setPhase] = useState<Phase>('start');
