@@ -1,6 +1,6 @@
 'use client';
 
-import type { CraftId } from '@/game/systems/Crafting';
+import type { CraftId, ToolId } from '@/game/systems/Crafting';
 
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect, useRef } from 'react';
@@ -12,12 +12,17 @@ import type { FacilityPanelKey } from './useFacilityPanels';
 
 /** Q 长按弹出选择面板的判定时长,与触屏工具按钮长按一致 */
 const TOOL_HOLD_MS = 350;
-/** 数字键 1~4 对应的表情下标(与长按选择面板顶部表情区顺序一致) */
-const EMOJI_KEYS = ['1', '2', '3', '4'];
+/** 固定数字键映射,不随工具循环顺序变化。 */
+const TOOL_KEYS: Readonly<Partial<Record<string, ToolId>>> = {
+  '1': 'axe', '2': 'pickaxe', '3': 'shovel', '4': 'hoe',
+  '5': 'fishingrod', '6': 'bow', '7': 'sword', '8': 'shears',
+};
+/** 与长按选择面板顶部表情区顺序一致。 */
+const EMOJI_KEYS = ['u', 'i', 'o', 'p'];
 
 /** 桌面端键盘快捷键(触屏操作的补充,见 docs/desktop-shortcuts.md):
- * B 开关背包、Q 切工具/长按弹选择面板、1~4 发表情、M 开关地图、Esc 关闭弹层或打开设置、
- * F 触发当前提示卡、G 触发进食卡「吃饱」。监听只挂一次,状态经 latest ref 读取,
+ * B 开关背包、Q 切工具/长按弹选择面板、1~8 选工具、UIOP 发表情、M 开关地图、Esc 关闭弹层或打开设置、
+ * F 触发当前提示卡或无卡时进食、G 触发进食卡「吃饱」。监听只挂一次,状态经 latest ref 读取,
  * 避免 HUD 快照高频更新导致重挂监听、打断 Q 长按计时。 */
 export function useKeyboardShortcuts({
   gameRef,
@@ -178,9 +183,9 @@ export function useKeyboardShortcuts({
         case 'f': {
           // 触发当前可见的那张提示卡(捡回 > 进食 > 手搓),与卡片点击等价
           const card = currentPromptCard(s.hud, s.backpackOpen, s.dismissedRecipes);
-          if (!card || !game) return;
-          if (card.card === 'drop') game.pickupDrop();
-          else if (card.card === 'eat') game.eatFood();
+          if (!game) return;
+          if (!card || card.card === 'eat') game.eatFood();
+          else if (card.card === 'drop') game.pickupDrop();
           else s.craftFromPrompt(card.recipe.id);
           break;
         }
@@ -188,7 +193,9 @@ export function useKeyboardShortcuts({
           if (currentPromptCard(s.hud, s.backpackOpen, s.dismissedRecipes)?.card === 'eat') game?.eatUntilFull();
           break;
         default: {
-          const emojiIndex = EMOJI_KEYS.indexOf(e.key);
+          const tool = TOOL_KEYS[e.key];
+          if (tool && s.hud.toolTiers[tool] > 0) game?.selectTool(tool);
+          const emojiIndex = EMOJI_KEYS.indexOf(e.key.toLowerCase());
           if (emojiIndex >= 0 && game) game.playEmoji(EMOJIS[emojiIndex].glyph);
         }
       }

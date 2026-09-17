@@ -2404,7 +2404,8 @@ export class Game {
   /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走;
    * 可放置道具经 placeKind 选中具体一种(围栏区分木/石) */
   setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
-    if (tool === 'shears' && s.tools.shears <= 0) return;
+    const ownedTool = TOOL_IDS.find((id) => id === tool);
+    if (ownedTool && s.tools[ownedTool] <= 0) return;
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
     if (placeKind && this.autoPlace.supports(placeKind)) {
