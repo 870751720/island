@@ -661,9 +661,9 @@ export class Props implements Updatable {
     return out;
   }
 
-  /** 落点附近是否有占位的资源点(被挖走的不算) */
+  /** 落点附近是否有占位的资源点。 */
   isOccupied(p: THREE.Vector3, range: number): boolean {
-    return this.nearby(p.x, p.z).some((prop) => prop.position.distanceTo(p) < range);
+    return this.occupant(p, range) !== null;
   }
 
   /** 落点范围内最近资源点的种类(没有为 null),放置提示点名挡住的东西用 */
@@ -671,6 +671,9 @@ export class Props implements Updatable {
     let best: PropKind | null = null;
     let bestDist = range;
     for (const prop of this.nearby(p.x, p.z)) {
+      // 耗尽且不再生的资源释放占地；尚不可采集的树苗仍需保留位置。
+      const growingTree = prop.kind === 'tree' && (prop.growth === 'sprout' || prop.growth === 'sapling');
+      if (!prop.ready && PROP_CONFIG[prop.kind].regrow === 0 && !growingTree) continue;
       const d = prop.position.distanceTo(p);
       if (d < bestDist) {
         bestDist = d;
