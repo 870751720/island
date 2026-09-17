@@ -20,6 +20,7 @@ import { fadeStyle } from './fade';
 import { pressAction } from './pressAction';
 import { HudIcon } from './hud/HudIcon';
 import { StepButton } from './StepButton';
+import { SlotItemName } from './SlotItemName';
 
 type Props = {
   open: boolean;
@@ -88,7 +89,6 @@ function isUsable(kind: ResourceKind): boolean {
 }
 
 const SLOT_SIZE = 52;
-const SLOT_HEIGHT = 84;
 const SLOT_GAP = 8;
 const COLUMNS = 5;
 const TAB_LABELS: Record<Tab, string> = { items: '物品', craft: '制作', tools: '工具', char: '角色' };
@@ -109,12 +109,9 @@ const DETAIL_AREA_STYLE: React.CSSProperties = {
 
 function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
   return {
-    width: '100%',
-    minWidth: 44,
-    height: SLOT_HEIGHT,
-    flexDirection: 'column',
-    padding: '16px 3px 3px',
-    gap: 3,
+    width: SLOT_SIZE,
+    height: SLOT_SIZE,
+    paddingBottom: 14,
     borderRadius: 10,
     border: selected ? gameTheme.selectionBorder : gameTheme.line,
     background: filled ? gameTheme.surface : gameTheme.inset,
@@ -140,7 +137,11 @@ function countBadge(count: number): React.ReactNode {
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        fontSize: 11,
+        fontSize: 10,
+        lineHeight: '12px',
+        background: gameTheme.surface,
+        borderRadius: 3,
+        padding: '0 1px',
         fontWeight: 700,
         color: gameTheme.ink,
         fontFamily: gameTheme.font,
@@ -319,7 +320,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
             style={{
               // 面板上方预留空间，内容增多时在面板内滚动。
               marginTop: 'max(12px, calc(50vh - 260px))',
-              width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
+              width: `min(calc(100vw - 16px), ${COLUMNS * SLOT_SIZE + (COLUMNS - 1) * SLOT_GAP + 26}px)`,
               boxSizing: 'border-box',
               maxHeight: '80vh',
               overflowY: 'auto',
@@ -388,7 +389,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                   ref={gridRef}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: `repeat(${COLUMNS}, minmax(44px, 1fr))`,
+                    gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
                     gap: SLOT_GAP,
                     justifyContent: 'center',
                   }}
@@ -464,9 +465,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                             <span style={drag?.from === i ? { opacity: 0.3 } : undefined}>
                               <ItemIcon kind={slot.kind} size={26} />
                             </span>
-                            <span style={{ fontSize: 11, lineHeight: '14px', height: 28, width: '100%', color: gameTheme.ink, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', pointerEvents: 'none' }}>
-                              {ITEMS[slot.kind].name}
-                            </span>
+                            <SlotItemName name={ITEMS[slot.kind].name} />
                             {countBadge(slot.count)}
                           </>
                         )}
