@@ -625,6 +625,12 @@ export class Game {
       this.burrows.generateFor(this.wildlife.rabbitHomes());
       this.wildlife.setBurrowSource(this.burrows);
     }
+    this.wildlife.onLassoEscape = (anchor) => {
+      if (!anchor) return;
+      const stake = this.stakes.nearest(anchor.x, anchor.z, 0.6);
+      if (stake) this.stakes.remove(stake);
+    };
+
     this.wildlife.onPlayerThreat = (player) => this.sessionOf(player).markCombat();
     // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用)
     this.wildlife.setPlayerIdResolver((p) => this.sessionOf(p).id);
@@ -1890,7 +1896,7 @@ export class Game {
     const led = this.wildlife.leashedBy(actor.player);
     if (!led || actor.player.isSwimming) return false;
     const p = actor.player.group.position;
-    if (!this.wildlife.stakeSheep(led.id, p.x, p.z)) return false;
+    if (!this.wildlife.stakeAnimal(led.id, p.x, p.z)) return false;
     this.stakes.place(p.x, p.z);
     this.audio.play('knock');
     const fxPos = p.clone();

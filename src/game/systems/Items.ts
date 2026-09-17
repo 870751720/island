@@ -146,7 +146,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'lasso',
     name: '套索',
     icon: '🪢',
-    description: '三股绳线编成的活结绳圈,甩出去能套住绵羊,牵着走或拴在桩上。',
+    description: '三股绳线编成的活结绳圈,可套住绵羊、兔子、野牛、狼和熊，牵引或打桩。狼和熊仍会攻击并可能挣脱。',
   },
   cloth: {
     kind: 'cloth',

@@ -1,3 +1,4 @@
+import { canLasso, isLassoPredator, advanceLassoEscape, type EscapeProgress } from './LassoRules';
 import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
@@ -116,7 +117,7 @@ const STAKE_LEASH = 3;
 /** 联机快照里的拴绳信息:by 为持绳玩家的会话 id,stake 为拴桩坐标 */
 export type LeashPose = { by: string } | { stake: { x: number; z: number } };
 
-/** 羊的被拴状态(仅羊会进入):被玩家牵着,或被拴在木桩上 */
+/** 动物的被拴状态:被玩家牵着,或被拴在木桩上 */
 type LeashState =
   | { holder: Player }
   | { anchor: { x: number; z: number } };
@@ -354,6 +355,7 @@ type Animal = LifeState & {
   // —— 羊专属状态(其他物种恒为初始值) ——
   /** 被套索套住:被玩家牵着(holder)或拴在木桩(anchor);期间不可被攻击 */
   leash: LeashState | null;
+  leashEscape?: EscapeProgress;
   /** 牵引绳持续绷紧的累计时长(卡住/玩家下水),超过上限滑脱 */
   /** 客人侧从姿态快照镜像的拴绳信息(渲染绳子用,不参与本地 AI) */
   netLeash: LeashPose | null;
@@ -394,7 +396,8 @@ export class Wildlife implements Updatable {
   private safeSpawn: THREE.Vector3;
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
   private burrowSource: BurrowSource | null = null;
-  /** 拴绳意外结束(绳套绷断/宿主死亡等由 AI 内部触发的路径)时通知外层:掉套索、清理桩 */
+  /** 挣脱消耗绳索，并通知外层移除对应木桩。 */
+  onLassoEscape: (anchor: { x: number; z: number } | null) => void = () => {};
   /** 持绳玩家 → 联机会话 id(姿态快照序列化 leash.holder 用);由游戏侧接线 */
   private netIdOf: ((player: Player) => string) | null = null;
 
@@ -623,7 +626,7 @@ export class Wildlife implements Updatable {
 
   snapshotFamilies(): WildlifeSave {
     return {
-      animals: this.animals.filter(a => a.alive && isFamilySpecies(a.species)).map(a => {
+      animals: this.animals.filter(a => a.alive && (isFamilySpecies(a.species) || (a.leash && 'anchor' in a.leash))).map(a => {
         const index = a.habitat ? this.population.slots.indexOf(a.habitat) : -1;
         const homeIndex = a.habitat ? this.population.slots.findIndex(s => s.kind === a.species && s.home === a.habitat!.home) : undefined;
         return {
@@ -634,6 +637,7 @@ export class Wildlife implements Updatable {
           provoked: a.provoked,
           stake: a.leash && 'anchor' in a.leash ? { ...a.leash.anchor } : undefined,
           milkLeft: a.milkLeft, hasMilk: a.hasMilk,
+          leashEscape: a.leashEscape ? { ...a.leashEscape } : undefined,
         };
       }),
       slots: this.population.slots.flatMap((s, index) => isFamilySpecies(s.kind) ? [{ index, cooldown: s.cooldown }] : []),
@@ -657,7 +661,7 @@ export class Wildlife implements Updatable {
       if (slot && isFamilySpecies(slot.kind)) slot.cooldown = entry.cooldown;
     }
     for (const entry of save.animals) {
-      if (!isFamilySpecies(entry.species)) continue;
+      if (!isFamilySpecies(entry.species) && !(entry.stake && canLasso(entry.species))) continue;
       const a = this.createAnimal(entry.species, new THREE.Vector3(entry.x, this.terrain.getHeight(entry.x, entry.z), entry.z), entry.heading);
       a.hp = entry.hp;
       a.bornAt = entry.bornAt;
@@ -665,9 +669,12 @@ export class Wildlife implements Updatable {
       a.provoked = a.bornAt === null && entry.provoked;
       a.milkLeft = entry.milkLeft;
       a.hasMilk = entry.hasMilk;
-      if (entry.stake) a.leash = { anchor: { ...entry.stake } };
+      if (entry.stake) {
+        a.leash = { anchor: { ...entry.stake } };
+        if (isLassoPredator(a.species)) a.leashEscape = { ...(entry.leashEscape ?? { elapsed: 0, attempts: 0 }) };
+      }
       const home = entry.slot === undefined ? undefined : this.population.slots[entry.slot];
-      if (home && home.kind === entry.species) {
+      if (isFamilySpecies(entry.species) && home && home.kind === entry.species) {
         a.habitat = entry.extra ? { ...home } : home;
         a.habitat.occupied = true;
       }
@@ -909,6 +916,11 @@ export class Wildlife implements Updatable {
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      if (animal.leash && animal.leashEscape && advanceLassoEscape(animal.species, animal.leashEscape, delta)) {
+        const anchor = 'anchor' in animal.leash ? animal.leash.anchor : null;
+        this.releaseLeash(animal.id);
+        this.onLassoEscape(anchor);
+      }
       if (animal.taunt) {
         this.updateTaunt(animal, delta, elapsed);
         continue;
@@ -940,8 +952,8 @@ export class Wildlife implements Updatable {
         this.updateHidden(animal, delta);
         continue;
       }
-      // 被套索套住的羊:牵引/拴桩逻辑接管,不再受惊逃跑或游荡
-      if (animal.leash) {
+      // 温顺动物由牵引接管；狼与熊保留完整追击、攻击行为。
+      if (animal.leash && !isLassoPredator(animal.species)) {
         const moving = this.updateLeashed(animal, delta);
         this.animate(animal, delta, elapsed, moving, false);
         continue;
@@ -956,7 +968,8 @@ export class Wildlife implements Updatable {
         || Math.hypot(protectorTarget.group.position.x - animal.pos.x, protectorTarget.group.position.z - animal.pos.z) > BISON_PROTECT_CHASE_RANGE)) {
         animal.calfAttacker = protectorTarget = null;
       }
-      const target = bound ?? protectorTarget ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
+      const holder = animal.leash && 'holder' in animal.leash ? animal.leash.holder : null;
+      const target = holder ?? bound ?? protectorTarget ?? this.nearestPlayer(animal.pos.x, animal.pos.z);
       const p = target ? target.group.position : animal.pos;
       const vulnerable = !!target && this.isPlayerVulnerable(target)
         && (!animal.retreat || Math.hypot(p.x - animal.retreat.origin.x, p.z - animal.retreat.origin.z) >= DEATH_RETREAT_DISTANCE);
@@ -973,7 +986,7 @@ export class Wildlife implements Updatable {
         const pond = animal.pond;
         animal.alerted = !!pond && !!target
           && Math.hypot(p.x - pond.x, p.z - pond.z) <= pond.radius + CROC_LEASH;
-      } else if (bound || protectorTarget) {
+      } else if (animal.leash || bound || protectorTarget) {
         // 绑定掠食者或仍在追击范围内的护犊野牛保持警戒
         animal.alerted = true;
       } else {
@@ -1189,7 +1202,7 @@ export class Wildlife implements Updatable {
     animal.walkTime += delta;
     if ('anchor' in leash) {
       // 拴在桩上才开始攒奶:计时归零产出一份,取走后重新计时
-      if (!animal.hasMilk) {
+      if (animal.species === 'sheep' && !animal.hasMilk) {
         if (animal.bornAt === null) animal.milkLeft -= delta;
         if (animal.milkLeft <= 0) animal.hasMilk = true;
       }
@@ -1213,20 +1226,24 @@ export class Wildlife implements Updatable {
     return this.step(animal, angle, LEAD_SPEED, delta);
   }
 
-  /** 套索命中:把一只没被套住的绵羊交给持绳玩家牵着(一名玩家同时只能牵一只) */
-  lassoSheep(id: number, holder: Player): boolean {
+  /** 套索命中:把一只可捕捉且未被套住的动物交给持绳玩家牵着(一名玩家同时只能牵一只) */
+  lassoAnimal(id: number, holder: Player): boolean {
     if (this.leashedBy(holder)) return false;
     const animal = this.animals.find((a) => a.id === id);
-    if (!animal?.alive || animal.hidden || animal.leash || animal.species !== 'sheep') return false;
+    if (!animal?.alive || animal.hidden || animal.leash || animal.netLeash || !canLasso(animal.species)) return false;
     this.lifecycle.cancel(animal);
     animal.leash = { holder };
+    animal.leashEscape = isLassoPredator(animal.species) ? { elapsed: 0, attempts: 0 } : undefined;
+    animal.taunt = undefined;
+    animal.mock = undefined;
+    animal.retreat = undefined;
     animal.alerted = false;
     animal.idleTime = 0;
     return true;
   }
 
   /** 持绳玩家脚下打桩:把被牵着的羊改为拴在 (x,z) */
-  stakeSheep(id: number, x: number, z: number): boolean {
+  stakeAnimal(id: number, x: number, z: number): boolean {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.alive || !animal.leash || !('holder' in animal.leash)) return false;
     animal.leash = { anchor: { x, z } };
@@ -1239,6 +1256,7 @@ export class Wildlife implements Updatable {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.leash) return null;
     animal.leash = null;
+    animal.leashEscape = undefined;
     animal.hasMilk = false;
     animal.milkLeft = MILK_INTERVAL;
     animal.alerted = true;
@@ -1287,12 +1305,12 @@ export class Wildlife implements Updatable {
       });
   }
 
-  /** 位置附近最近的可套绵羊(已被拴/牵的不算),供套索索敌门槛 */
-  nearestSheep(origin: THREE.Vector3, range: number): { id: number; x: number; z: number } | null {
+  /** 位置附近最近的可套动物(已被拴/牵的不算),供套索索敌门槛 */
+  nearestLassoAnimal(origin: THREE.Vector3, range: number): { id: number; x: number; z: number } | null {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden || animal.leash || animal.species !== 'sheep') continue;
+      if (!animal.alive || animal.hidden || animal.leash || animal.netLeash || !canLasso(animal.species)) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -1302,10 +1320,10 @@ export class Wildlife implements Updatable {
     return best ? { id: best.id, x: best.pos.x, z: best.pos.z } : null;
   }
 
-  /** 套索绳圈扫掠判定:返回飞行线段附近第一只可套绵羊 */
-  hitSegmentSheep(from: THREE.Vector3, to: THREE.Vector3, range: number): { id: number } | null {
+  /** 套索绳圈扫掠判定:返回飞行线段附近第一只可套动物 */
+  hitSegmentLassoAnimal(from: THREE.Vector3, to: THREE.Vector3, range: number): { id: number } | null {
     const hit = nearestToSegmentXZ(
-      this.animals.filter((a) => a.alive && !a.hidden && !a.leash && a.species === 'sheep'),
+      this.animals.filter((a) => a.alive && !a.hidden && !a.leash && !a.netLeash && canLasso(a.species)),
       from,
       to,
       range
@@ -1576,9 +1594,9 @@ export class Wildlife implements Updatable {
   }
 
   /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子与被拴住的羊无法被攻击 */
-  collectAimTargets(origin: THREE.Vector3, range: number, out: AimTarget[], sheepOnly = false): void {
+  collectAimTargets(origin: THREE.Vector3, range: number, out: AimTarget[], lassoOnly = false): void {
     for (const target of this.animals) {
-      if (!target.alive || target.hidden || target.leash || target.netLeash || (sheepOnly && target.species !== 'sheep')) continue;
+      if (!target.alive || target.hidden || target.leash || target.netLeash || (lassoOnly && !canLasso(target.species))) continue;
       const dx = target.pos.x - origin.x;
       const dz = target.pos.z - origin.z;
       if (dx * dx + dz * dz <= range * range) {

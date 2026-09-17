@@ -9,7 +9,7 @@ import { AimGuide } from './AimGuide';
 import { AutoAim, type AimTarget } from './AutoAim';
 import { clayMaterial } from '../world/ClayMaterial';
 
-/** 投掷范围:范围内有可套的羊才会进入瞄准状态(比羊的警觉半径远,能隔着安全距离出手) */
+/** 投掷范围:范围内有可套的动物才会进入瞄准状态(比羊的警觉半径远,能隔着安全距离出手) */
 const RANGE = 6;
 /** 套索达到最佳精度的准备时间(秒) */
 const DRAW_TIME = 0.85;
@@ -52,9 +52,9 @@ type Rope = {
 };
 
 /**
- * 套索:持套索且范围内有可套的羊时,移动即瞄准——自动锁定目标并显示精度范围,
+ * 套索:持套索且范围内有可套的动物时,移动即瞄准——自动锁定目标并显示精度范围,
  * 准备至少 0.3 秒后松手(松开摇杆/停止移动)掷出:一根绳子从玩家手上沿瞄准方向
- * 伸出并扫掠判定,套中绵羊即由持绳玩家牵着走(打桩拴住/解开放羊由外层结算);
+ * 伸出并扫掠判定,套中后建立玩家与动物的束缚关系(打桩拴住/解开放羊由外层结算);
  * 没套中则绳子原路收回,不消耗道具。
  */
 export class LassoSystem {
@@ -229,7 +229,7 @@ export class LassoSystem {
       rope.left -= ROPE_SPEED * delta;
       this.layoutRope(rope, hand);
 
-      const hit = rope.visual ? null : this.wildlife.hitSegmentSheep(rope.prev, rope.pos, HIT_RANGE);
+      const hit = rope.visual ? null : this.wildlife.hitSegmentLassoAnimal(rope.prev, rope.pos, HIT_RANGE);
       if (hit) {
         this.resolveHit(hit.id, rope, i);
         continue;
@@ -239,7 +239,7 @@ export class LassoSystem {
     }
   }
 
-  /** 命中结算:消耗一个套索;客人端只做本地表现并上行,房主/单机端权威把羊交给持绳玩家 */
+  /** 命中结算:消耗一个套索;客人端只做本地表现并上行,房主/单机端权威把动物交给持绳玩家 */
   private resolveHit(animalId: number, rope: Rope, index: number): void {
     const p = rope.pos;
     this.inventory.remove('lasso', 1);
@@ -253,9 +253,9 @@ export class LassoSystem {
     this.removeRope(rope, index);
   }
 
-  /** 权威结算一次命中:把羊置为被本玩家牵着;目标已被别人套走时退回套索 */
+  /** 权威结算一次命中:把动物置为被本玩家牵着;目标已被别人套走时退回套索 */
   private applyHit(animalId: number, x: number, z: number): boolean {
-    if (!this.wildlife.lassoSheep(animalId, this.player)) {
+    if (!this.wildlife.lassoAnimal(animalId, this.player)) {
       this.inventory.add('lasso', 1);
       return false;
     }

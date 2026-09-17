@@ -6,6 +6,7 @@ export type WildlifeSave = {
     species: AnimalSpecies; x: number; z: number; heading: number;
     hp: number; bornAt: number | null; readyAt: number;
     slot?: number; extra?: boolean; stake?: { x: number; z: number };
+    leashEscape?: { elapsed: number; attempts: number };
     provoked: boolean;
     milkLeft: number; hasMilk: boolean;
   }[];
