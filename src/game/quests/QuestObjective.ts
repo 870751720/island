@@ -33,6 +33,19 @@ export function resolveQuestObjective(s: PlayerSession, active: number, rows: Qu
     const unmet = quest.requirements.filter((_, i) => rows[i].have < rows[i].need);
     const req = unmet[0];
     if (req?.type === 'drink') { guide = { type: 'drink' }; }
+    else if (req?.type === 'transplant') {
+      if (!s.tools.shovel && (req.action === 'dig' || !counts.berryBush)) resolveRecipe('shovel');
+      else if (req.action === 'dig' || !counts.berryBush) {
+        guide = { type: 'transplant', action: 'dig' };
+        hint = '切换到铲子，靠近高亮浆果丛站定挖掘；背包留一个空位。';
+      } else if (!campfires) {
+        if (counts.campfire || counts.deadCampfire) hint = '先在背包中使用火堆，找空地站定放下，熄灭的火堆也可以。';
+        else resolveRecipe('campfire');
+      } else {
+        guide = { type: 'transplant', action: 'place' };
+        hint = '到火堆附近空地，在背包中使用浆果丛，绿影距火堆6米内站定放下。';
+      }
+    }
     else if (req?.type === 'gather') guide = { type: 'resource', kinds: unmet.filter((r): r is Extract<QuestRequirement, { type: 'gather' }> => r.type === 'gather').map(r => r.kind) };
     else if (req?.type === 'craft') {
       // 多件任务优先引导已可制作的配方，避免已有材料却被固定顺序卡住。

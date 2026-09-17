@@ -2,6 +2,7 @@ import type { CraftId } from '../systems/Crafting';
 import type { ResourceKind } from '../systems/Inventory';
 
 export type QuestRequirement =
+  | { type: 'transplant'; action: 'dig' | 'place' }
   | { type: 'drink' }
   | { type: 'gather'; kind: ResourceKind; count: number }
   | { type: 'craft'; id: CraftId; count: number }
@@ -32,10 +33,11 @@ export const QUESTS: readonly QuestDefinition[] = [
   { id: 'stone-sword', title: '换上石剑', hint: '在二级工作台制作石剑，提高近战伤害。', requirements: [craft('refined-sword')], reward: { stone: 2 } },
   { id: 'hat', title: '第一件皮装备', hint: '在二级工作台制作皮帽，身上的草帽也能作为材料。', requirements: [craft('furHat')], reward: { fur: 1 } },
   { id: 'leather', title: '换上探险装', hint: '在二级工作台制作皮衣和皮裤。', requirements: [craft('furShirt'), craft('furPants')], reward: { rope: 2 } },
+  { id: 'transplant', title: '把浆果搬回家', hint: '把一丛浆果移到火堆附近，让食物离家更近。', requirements: [craft('shovel'), { type: 'transplant', action: 'dig' }, { type: 'transplant', action: 'place' }], reward: { berry: 3, wood: 2 } },
   { id: 'graduate', title: '整装出发', hint: '制作皮包，做齐皮制四件套，开启自由探索。', requirements: [craft('furBackpack'), craft('furHat'), craft('furShirt'), craft('furPants'), { type: 'bench', level: 2 }], reward: { berry: 5, wood: 3 } },
 ];
 export const GATHER_KINDS = ['branch', 'stone', 'wood', 'fiber', 'fur', 'flint', 'gameMeat'] as const;
-export type QuestGuide = { type: 'drink' } | { type: 'resource'; kinds: ResourceKind[] } | { type: 'bench'; level: number; ready: boolean } | { type: 'campfire'; action: 'fuel' | 'cook'; ready: boolean } | null;
+export type QuestGuide = { type: 'transplant'; action: 'dig' | 'place' } | { type: 'drink' } | { type: 'resource'; kinds: ResourceKind[] } | { type: 'bench'; level: number; ready: boolean } | { type: 'campfire'; action: 'fuel' | 'cook'; ready: boolean } | null;
 export type QuestView = {
   personalBenchLevel: number;
   enabled: boolean; active: number; finished: boolean; celebration: boolean;
@@ -48,6 +50,7 @@ export type QuestView = {
 };
 export type QuestSave = {
   completed?: boolean;
+  transplant?: Partial<Record<'dig' | 'place', number>>;
   drinks?: number;
   sheepSupport?: string[];
   camp?: Partial<Record<'place' | 'fuel' | 'cook', number>>;

@@ -127,6 +127,7 @@ import { ThirstGuidance } from './systems/ThirstGuidance';
 import { QuestAutoMove, type QuestMoveTarget } from './quests/QuestAutoMove';
 import { QuestSheepSupport } from './quests/QuestSheepSupport';
 import { GuidanceLabel } from './quests/GuidanceLabel';
+import { nearTransplantCamp } from './quests/QuestTransplant';
 import { QuestGuidance } from './quests/QuestGuidance';
 import { loadQuestGuide, saveQuestGuide } from './quests/QuestSettings';
 import type { HudSnapshot, MapSnapshot, PickupToast, VitalLevels } from './GameContracts';
@@ -1448,7 +1449,7 @@ export class Game {
       this.guestNet?.sendInput(x, z);
     }, text => this.notify(text));
     this.questSheepSupport = new QuestSheepSupport(this.terrain, this.wildlife);
-    this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire);
+    this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire, (actor, x, z) => this.bushCellOk(actor, x, z) === null);
     // 个人档案性别优先于存档性别:玩家在开始界面改过形象后,续档也应生效
     const profile = loadProfile();
     if (profile) this.local.player.setGender(profile.gender);
@@ -2166,7 +2167,8 @@ export class Game {
     const target = drink ? this.thirstGuidance?.navigationTarget : this.questGuidance?.navigationTarget;
     if (!target) return null;
     return { ...target, key: `${q.active}:${JSON.stringify(q.guide)}:${drink}`, drink,
-      radius: q.guide.type === 'bench' || q.guide.type === 'campfire' ? 1.5 : 1.25 };
+      radius: q.guide.type === 'transplant' && q.guide.action === 'place' ? 0.25
+        : q.guide.type === 'bench' || q.guide.type === 'campfire' ? 1.5 : 1.25 };
   }
 
   moveToQuest(): void {
@@ -3102,12 +3104,13 @@ export class Game {
   /** 在给定格中心种回挖来的丛/蚯蚓窝(统一设施结算的 place 委托,落格已校验) */
   private placeBush(kind: 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest', at: THREE.Vector3, actor: PlayerSession): boolean {
     const cell = { x: at.x, z: at.z };
-    actor.inventory.remove(kind, 1);
+    if (!actor.inventory.remove(kind, 1)) return false;
     if (kind === 'wormNest') {
       this.props.placeWormNest(cell.x, cell.z);
     } else {
       const bushKind = kind === 'berryBush' ? 'berry' : kind === 'grassTuft' ? 'grass' : 'shrub';
       this.props.placeBush(bushKind, cell.x, cell.z);
+      if (kind === 'berryBush' && nearTransplantCamp(cell, this.campfire.snapshot())) actor.quests.transplantAction('place');
     }
     this.audio.play('success');
     const fxPos = new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z) + 0.5, cell.z);
@@ -3483,7 +3486,8 @@ export class Game {
       // 局外养成「采集·巧匠」
       this.collectMetaFor(),
       (kind, count) => s.quests.collected(kind, count),
-      (natural) => s.firstDrops.settle('flint', natural)
+      (natural) => s.firstDrops.settle('flint', natural),
+      (kind) => { if (kind === 'berry') s.quests.transplantAction('dig'); }
     );
     s.milk = new SheepMilkSystem(
       s.player,

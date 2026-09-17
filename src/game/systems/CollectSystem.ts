@@ -213,7 +213,8 @@ export class CollectSystem {
     /** 局外养成「采集·巧匠」加成(单机生效,联机为空实现) */
     private meta: CollectMeta = NO_COLLECT_META,
     private onCollected?: (kind: ResourceKind, count: number) => void,
-    private onStoneHarvest?: (naturallyDropped: boolean) => boolean
+    private onStoneHarvest?: (naturallyDropped: boolean) => boolean,
+    private onDug?: (kind: Prop['kind']) => void
   ) {}
 
   /** 手持铲子靠近丛/蚯蚓窝时是在整棵挖走,而不是徒手采集/捉蚯蚓 */
@@ -369,6 +370,7 @@ export class CollectSystem {
     } else if (this.isDigging(prop)) {
       // 铲子把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
+      this.onDug?.(prop.kind);
       this.give(DIG_YIELD[prop.kind as 'berry' | 'shrub' | 'grass' | 'wormNest']!, 1);
     } else {
       const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';

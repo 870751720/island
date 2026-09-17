@@ -9,6 +9,7 @@ import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import type { DropSystem } from '../systems/DropSystem';
 import type { ResourceKind } from '../systems/Inventory';
 import type { CampfireSystem } from '../systems/CampfireSystem';
+import { transplantCells } from './QuestTransplant';
 import { QuestRoute } from './QuestRoute';
 import { loadQuestGuide } from './QuestSettings';
 
@@ -23,7 +24,7 @@ export class QuestGuidance {
   private scan = 0;
   private key = '';
   private activity = -1;
-  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props, private wildlife: Wildlife, private bench: WorkbenchSystem, private drops: DropSystem, private campfire: CampfireSystem) {
+  constructor(private scene: THREE.Scene, private terrain: IslandTerrain, private props: Props, private wildlife: Wildlife, private bench: WorkbenchSystem, private drops: DropSystem, private campfire: CampfireSystem, private canPlant: (actor: PlayerSession, x: number, z: number) => boolean) {
     this.route = new QuestRoute(terrain);
     this.effect = new GuidanceEffect(scene, terrain, this.route);
   }
@@ -47,6 +48,12 @@ export class QuestGuidance {
       this.label = guide.type === 'bench' ? '使用工作台制作' : guide.type === 'campfire' ? (guide.action === 'fuel' ? '给火堆添柴' : '烤兽肉') : '';
       if (guide.type === 'bench') targets = this.bench.snapshot().filter(b => b.level >= guide.level);
       else if (guide.type === 'campfire') targets = this.campfire.snapshot().filter(f => guide.action === 'fuel' || f.fuel > 0);
+      else if (guide.type === 'transplant') {
+        this.label = guide.action === 'dig' ? '手持铲子，站定挖浆果丛' : '在附近使用浆果丛，站定移植';
+        targets = guide.action === 'dig'
+          ? this.props.list.filter(p => p.kind === 'berry').map(p => ({ x: p.position.x, z: p.position.z }))
+          : transplantCells(session.player.group.position, this.campfire.snapshot(), (x, z) => this.canPlant(session, x, z));
+      }
       else {
         const kinds = guide.kinds;
         // 已掉落的皮毛优先；没有可到达的皮毛再找羊。
@@ -68,6 +75,7 @@ export class QuestGuidance {
       this.hint = path ? null : guide.type === 'bench'
         ? '暂未找到可到达的工作台，请先放下对应等级的工作台。'
         : guide.type === 'campfire' ? '请先放下火堆，并添柴点燃。'
+        : guide.type === 'transplant' ? (guide.action === 'dig' ? '暂未找到可到达的浆果丛，继续探索岛屿。' : '火堆附近没有可到达的空地，请清理空地或换一处火堆。')
         : (guide.kinds.includes('fur') || guide.kinds.includes('gameMeat')) ? '暂未找到可到达的羊或皮毛，继续探索岛屿。' : '暂未找到可到达的物资，继续探索岛屿。';
       this.navigationTarget = path?.[path.length - 1] ?? null;
       if (this.navigationTarget && !this.label) {

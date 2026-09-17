@@ -30,6 +30,10 @@ export class QuestProgress {
     this.state.sheepSupport ??= [];
     if (!this.hasSheepSupport(key)) this.state.sheepSupport.push(key);
   }
+  transplantAction(action: 'dig' | 'place'): void {
+    this.state.transplant ??= {};
+    this.state.transplant[action] = 1;
+  }
   drank(): void { this.state.drinks = (this.state.drinks ?? 0) + 1; }
   campAction(action: 'place' | 'fuel' | 'cook'): void {
     this.state.camp ??= {};
@@ -61,6 +65,7 @@ export class QuestProgress {
     return count;
   }
   private row(s: PlayerSession, req: QuestRequirement) {
+    if (req.type === 'transplant') return { label: req.action === 'dig' ? '挖起浆果丛' : '移植到火堆附近', have: this.state.transplant?.[req.action] ?? 0, need: 1 };
     if (req.type === 'drink') return { label: '喝完一轮水', have: Math.min(1, this.state.drinks ?? 0), need: 1 };
     if (req.type === 'camp') return { label: { place: '放置火堆', fuel: '添加燃料', cook: '烤熟兽肉' }[req.action], have: Math.min(1, this.state.camp?.[req.action] ?? 0), need: 1 };
     if (req.type === 'bench') return { label: `${req.level}级工作台`, have: Math.min(req.level, this.state.benchLevel), need: req.level };
@@ -84,7 +89,7 @@ export class QuestProgress {
       if (!this.state.done.includes(quest.id) && quest.requirements.every(req => { const row = this.row(s, req); return row.have >= row.need; })) this.state.done.push(quest.id);
     }
     // 核心目标已达成即毕业，不要求成熟玩家补做早期采集作业。
-    if (this.state.done.includes('graduate') && (this.state.completed || ['drink', 'campfire', 'fuel', 'cook', 'stone-sword'].every(id => this.state.done.includes(id)))) {
+    if (this.state.done.includes('graduate') && (this.state.completed || ['drink', 'campfire', 'fuel', 'cook', 'stone-sword', 'transplant'].every(id => this.state.done.includes(id)))) {
       this.state.completed = true;
       for (const quest of QUESTS) if (!this.state.done.includes(quest.id)) {
         this.state.done.push(quest.id);
