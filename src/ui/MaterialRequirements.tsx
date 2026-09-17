@@ -3,6 +3,7 @@ import { toolName, toolUpgradeFrom } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { gameTheme } from './gameTheme';
+import { OverflowMarquee } from './OverflowMarquee';
 
 /** 材料缺口跟随当前玩家快照和制作份数实时计算。 */
 export function MaterialRequirements({ cost, available, count = 1, recipe, tools }: {
@@ -23,18 +24,23 @@ export function MaterialRequirements({ cost, available, count = 1, recipe, tools
     key: `tool-${from.tool}`, name: toolName(from.tool, from.tier),
     owned: tools[from.tool] >= from.tier ? 1 : 0, needed: 1,
   });
+  const details = rows.map((row) => ({ ...row, missing: Math.max(0, row.needed - row.owned) }));
+  // 缺口排在前面，打开面板即可先看到采集目标。
+  details.sort((a, b) => Number(b.missing > 0) - Number(a.missing > 0));
+  const label = details.map(({ name, owned, needed, missing }) =>
+    `${name} ${owned}/${needed}${missing ? ` 缺${missing}` : ' ✓'}`).join(' · ');
   return (
-    <div style={{ display: 'grid', gap: 5, fontSize: 13 }}>
-      {rows.map(({ key, name, owned, needed }) => {
-        const missing = Math.max(0, needed - owned);
-        return (
-          <div key={key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color: missing ? gameTheme.danger : gameTheme.muted }}>
-            <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{name}</span>
-            <span style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{owned} / {needed}</span>
-            <span style={{ minWidth: 42, textAlign: 'right', whiteSpace: 'nowrap' }}>{missing ? `缺 ${missing}` : '✓ 齐全'}</span>
-          </div>
-        );
-      })}
+    <div style={{ fontSize: 12, color: gameTheme.muted, fontVariantNumeric: 'tabular-nums' }}>
+      <OverflowMarquee label={label}>
+        {details.map(({ key, name, owned, needed, missing }, index) => (
+          <span key={key}>
+            {index > 0 && <span style={{ color: gameTheme.muted, opacity: 0.55 }}> · </span>}
+            <span style={{ color: missing ? gameTheme.danger : gameTheme.muted }}>
+              {name} {owned}/{needed}{missing ? <strong style={{ fontWeight: 600 }}> 缺{missing}</strong> : ' ✓'}
+            </span>
+          </span>
+        ))}
+      </OverflowMarquee>
     </div>
   );
 }

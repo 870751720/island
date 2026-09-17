@@ -1,0 +1,35 @@
+.viewport {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.content {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.viewport[data-overflow='true'] {
+  mask-image: linear-gradient(to right, transparent, #000 3px, #000 calc(100% - 6px), transparent);
+}
+
+.viewport[data-overflow='true'] .content {
+  animation: glide var(--duration) linear infinite;
+}
+
+@keyframes glide {
+  0%, 15%, 100% { transform: translateX(0); }
+  50%, 65% { transform: translateX(var(--travel)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport[data-overflow='true'] {
+    overflow-x: auto;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    mask-image: none;
+  }
+  .viewport::-webkit-scrollbar { display: none; }
+  .viewport[data-overflow='true'] .content { animation: none; }
+}
