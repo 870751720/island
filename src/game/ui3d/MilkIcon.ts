@@ -1,3 +1,4 @@
+import { roundedRectPath } from '@/platform/compat';
 import * as THREE from 'three';
 
 /** 羊奶图标纹理(绵羊头顶冒出的奶瓶,透明无背景;全部实例共享一张) */
@@ -11,11 +12,11 @@ export function makeMilkIcon(): THREE.Sprite {
     canvas.height = 128;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#d0b18c';
-    ctx.beginPath(); ctx.roundRect(45, 14, 38, 17, 6); ctx.fill();
+    roundedRectPath(ctx, 45, 14, 38, 17, 6); ctx.fill();
     ctx.fillStyle = '#b1d2c7';
-    ctx.beginPath(); ctx.roundRect(35, 29, 58, 82, 14); ctx.fill();
+    roundedRectPath(ctx, 35, 29, 58, 82, 14); ctx.fill();
     ctx.fillStyle = '#fff0d5';
-    ctx.beginPath(); ctx.roundRect(41, 51, 46, 53, 10); ctx.fill();
+    roundedRectPath(ctx, 41, 51, 46, 53, 10); ctx.fill();
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(47, 37); ctx.lineTo(47, 47); ctx.stroke();
     sharedTexture = new THREE.CanvasTexture(canvas);

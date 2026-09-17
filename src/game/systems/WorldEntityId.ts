@@ -1,11 +1,8 @@
+import { createUuid } from '@/platform/compat';
 /** 世界实体的持久化身份。新实体使用短随机 id；旧存档在加载时补齐后随下次保存固化。 */
-let sequence = 0;
 
 export function createWorldEntityId(prefix: string): string {
-  sequence += 1;
-  const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID().replaceAll('-', '').slice(0, 12)
-    : `${Date.now().toString(36)}${sequence.toString(36)}`;
+  const random = createUuid().replace(/-/g, '').slice(0, 12);
   return `${prefix}_${random}`;
 }
 

@@ -1,3 +1,4 @@
+import { clonePlainData } from '@/platform/compat';
 export type FirstDropKind = 'flint' | 'adventureBook';
 export type FirstDropSave = Partial<Record<FirstDropKind, { attempts: number; done: boolean }>>;
 
@@ -7,8 +8,8 @@ const LIMITS: Record<FirstDropKind, number> = { flint: 2, adventureBook: 3 };
 export class FirstDropGuarantee {
   private state: FirstDropSave = {};
 
-  restore(save?: FirstDropSave): void { this.state = structuredClone(save ?? {}); }
-  snapshot(): FirstDropSave { return structuredClone(this.state); }
+  restore(save?: FirstDropSave): void { this.state = clonePlainData(save ?? {}); }
+  snapshot(): FirstDropSave { return clonePlainData(this.state); }
 
   /** 一次完整采石或击杀结算后调用，返回是否需要额外补出一份。 */
   settle(kind: FirstDropKind, naturallyDropped: boolean): boolean {

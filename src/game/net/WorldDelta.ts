@@ -41,7 +41,7 @@ function setFieldPath(target: WorldEntity, path: string, value: unknown): void {
     if (!next || typeof next !== 'object') return;
     cursor = next as Record<string, unknown> | unknown[];
   }
-  const last = parts.at(-1)!;
+  const last = parts[parts.length - 1];
   if (Array.isArray(cursor)) cursor[Number(last)] = value;
   else cursor[last] = value;
 }

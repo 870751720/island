@@ -1,3 +1,4 @@
+import { roundedRectPath } from '@/platform/compat';
 import QRCode from 'qrcode';
 import type { DeathCause, DeathReport } from '@/game/systems/RunStats';
 
@@ -98,7 +99,7 @@ export async function renderDeathCard(report: DeathReport): Promise<Blob> {
   for (let i = 0; i < stats.length; i++) {
     const x = gap + (boxW + gap) * i;
     ctx.fillStyle = 'rgba(20, 30, 24, 0.66)';
-    roundRect(ctx, x, boxY, boxW, boxH, 18);
+    roundedRectPath(ctx, x, boxY, boxW, boxH, 18);
     ctx.fill();
     ctx.fillStyle = CREAM;
     ctx.font = 'bold 52px sans-serif';
@@ -115,7 +116,7 @@ export async function renderDeathCard(report: DeathReport): Promise<Blob> {
   const qrX = CARD_W - qrSize - 64;
   const qrY = CARD_H - qrSize - 72;
   ctx.fillStyle = CREAM;
-  roundRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
+  roundedRectPath(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
   ctx.fill();
   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
@@ -132,22 +133,7 @@ export async function renderDeathCard(report: DeathReport): Promise<Blob> {
   );
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+
 
 /** 文件形式的系统分享(微信/保存图片等);不支持时返回 false 由调用方降级展示 */
 export async function shareDeathCard(blob: Blob, report: DeathReport): Promise<boolean> {

@@ -1,4 +1,5 @@
 'use client';
+import { writeClipboardText } from '@/platform/compat';
 import { DeathLootNotice } from './DeathLootNotice';
 import type { DeathLootSummary } from '@/game/systems/DeathLoot';
 import { ItemIcon } from './ItemIcon';
@@ -44,7 +45,7 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         onClick={async (e) => {
           e.stopPropagation();
           try {
-            await navigator.clipboard.writeText(deathReportText(report));
+            await writeClipboardText(deathReportText(report));
             setHint('战绩文案已复制');
           } catch {
             setHint('复制失败,请手动保存图片');

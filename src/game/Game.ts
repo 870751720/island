@@ -1,4 +1,3 @@
-import { arrivalDiagnostics } from './core/ArrivalDiagnostics';
 import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
 import { findRespawnPoint } from './systems/RespawnPoint';
 import { isFishCatch } from './systems/FishTable';
@@ -402,7 +401,6 @@ export class Game {
 
     // 有存档则用存档里的世界种子重建同一座岛,否则随机生成一座新岛;
     // 联机时种子与初始状态来自网络(房主大厅的种子 / 客人的欢迎包),客人不读写本地存档
-    arrivalDiagnostics.mark('读取世界初始状态');
     const welcome = this.guestNet?.welcome ?? null;
     this.youId = welcome?.you ?? null;
     const seeds = welcome?.seeds ?? options.seeds;
@@ -424,12 +422,10 @@ export class Game {
       this.mumbleTimer = 4;
     });
 
-    arrivalDiagnostics.mark('创建 WebGL 渲染器');
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     // 允许浏览器恢复上下文；能否恢复取决于设备，记录现场以区分 GPU 丢失和逻辑异常。
     this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
-    arrivalDiagnostics.record('WebGL 就绪', `版本=${this.renderer.getContext().getParameter(this.renderer.getContext().VERSION)}`);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.resize();
@@ -458,7 +454,6 @@ export class Game {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    arrivalDiagnostics.mark('生成岛屿地形');
     const terrain = new IslandTerrain(200, 1000, this.terrainSeed);
     this.terrain = terrain;
     this.scene.add(terrain.mesh);
@@ -467,7 +462,6 @@ export class Game {
     this.scene.add(this.ocean.mesh);
     this.clouds = new Clouds(terrain.width, terrain.length);
     this.scene.add(this.clouds.group);
-    arrivalDiagnostics.mark('生成植被与资源');
     this.props = new Props(this.scene, terrain, !save);
     this.fx = new Particles(this.scene);
     this.waterFx = new WaterFx(this.scene, this.fx);
@@ -499,7 +493,6 @@ export class Game {
       (session, damage) => this.applySeaBite(session, damage)
     );
     this.decorations = new Decorations(this.scene, terrain, this.terrainSeed);
-    arrivalDiagnostics.mark('创建玩家与玩法系统');
     this.local = new PlayerSession(
       new Player(terrain, terrain.findSpawnPoint(), this.waterFx, this.footprints),
       this.youId ?? undefined,
@@ -1444,7 +1437,6 @@ export class Game {
       },
     });
 
-    arrivalDiagnostics.mark('恢复存档与世界状态');
     this.applySave(save);
     this.landmarks = new LandmarkSystem(this.terrain, this.worldSaveSystems);
     if (!save && !this.guestMode) this.landmarks.generate(GmSystem.landmarkChances);

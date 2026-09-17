@@ -1,3 +1,4 @@
+import { writeClipboardText } from '@/platform/compat';
 import QRCode from 'qrcode';
 
 /** 房间码邀请链接(当前页地址带上 ?room=xxxxx) */
@@ -22,7 +23,7 @@ export async function shareRoomInvite(roomCode: string, url: string): Promise<st
       await navigator.share({ title: '去你的岛联机邀请', text, url });
       return null;
     }
-    await navigator.clipboard.writeText(`${text}\n${url}`);
+    await writeClipboardText(`${text}\n${url}`);
     return '邀请链接已复制';
   } catch {
     // 用户取消分享时不改变房间状态。

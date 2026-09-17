@@ -1,3 +1,4 @@
+import { createUuid } from '@/platform/compat';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { PeerSignal } from './PeerNet';
 
@@ -142,7 +143,7 @@ export class GuestSignal {
   private closed = false;
   private cancelReady: (() => void) | null = null;
   private code = '';
-  readonly peer = `${crypto.randomUUID()}-${randomId(6)}`;
+  readonly peer = `${createUuid()}-${randomId(6)}`;
   onSignal: (signal: PeerSignal) => void = () => {};
   onClose: () => void = () => {};
 

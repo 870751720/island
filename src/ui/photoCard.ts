@@ -1,3 +1,4 @@
+import { roundedRectPath } from '@/platform/compat';
 import QRCode from 'qrcode';
 import { GAME_URL, GAME_TITLE } from './shareCard';
 
@@ -65,22 +66,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+
 
 const CARD_W = 750;
 const CREAM = '#f2efe4';
@@ -133,7 +119,7 @@ export async function renderPhotoCard(
   const qrX = CARD_W - qrSize - 44;
   const qrY = H - qrSize - 48;
   ctx.fillStyle = CREAM;
-  roundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 14);
+  roundedRectPath(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 14);
   ctx.fill();
   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 

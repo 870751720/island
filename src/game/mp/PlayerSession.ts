@@ -1,3 +1,4 @@
+import { createUuid } from '@/platform/compat';
 import { FirstDropGuarantee } from '../systems/FirstDropGuarantee';
 import type { DeathLootSummary } from '../systems/DeathLoot';
 import { QuestProgress } from '../quests/QuestProgress';
@@ -78,7 +79,7 @@ export class PlayerSession implements Actor {
   /** 权威端累计的连续闲置时长:满 IDLE_HIDE_DELAY 后该玩家的 HUD 淡出(本地与远程会话各自计时) */
   hudIdleTime = 0;
 
-  constructor(player: Player, id = crypto.randomUUID(), name = '岛友') {
+  constructor(player: Player, id = createUuid(), name = '岛友') {
     this.player = player;
     this.id = id;
     this.name = name;

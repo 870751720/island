@@ -1,3 +1,4 @@
+import { roundedRectPath } from '@/platform/compat';
 import * as THREE from 'three';
 
 /** 低成本玩家名牌：每名玩家一个 CanvasTexture 精灵，始终朝向相机。 */
@@ -28,8 +29,7 @@ export class PlayerNameTag {
     const ctx = this.canvas.getContext('2d')!;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.fillStyle = 'rgba(24, 35, 28, 0.72)';
-    ctx.beginPath();
-    ctx.roundRect(8, 6, 240, 52, 24);
+    roundedRectPath(ctx, 8, 6, 240, 52, 24);
     ctx.fill();
     ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'center';

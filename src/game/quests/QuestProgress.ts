@@ -1,3 +1,4 @@
+import { clonePlainData } from '@/platform/compat';
 import { resolveQuestObjective } from './QuestObjective';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { RECIPES, type CraftId } from '../systems/Crafting';
@@ -19,7 +20,7 @@ export class QuestProgress {
 
   restore(save?: QuestSave): void {
     this.legacy = !save;
-    if (save) { this.state = structuredClone(save); this.state.completed ??= save.done.includes('graduate') && save.paid.includes('graduate'); }
+    if (save) { this.state = clonePlainData(save); this.state.completed ??= save.done.includes('graduate') && save.paid.includes('graduate'); }
     this.celebrate = 0;
     this.feedbackTimer = 0;
     this.feedback = undefined;
@@ -38,7 +39,7 @@ export class QuestProgress {
     this.state.benchLevel = Math.max(this.state.benchLevel, level);
   }
   get personalBenchLevel(): number { return this.state.benchLevel; }
-  snapshot(): QuestSave { return structuredClone(this.state); }
+  snapshot(): QuestSave { return clonePlainData(this.state); }
   collected(kind: ResourceKind, count: number): void {
     if (count <= 0 || !GATHER_KINDS.some(k => k === kind)) return;
     this.state.gathered[kind] = (this.state.gathered[kind] ?? 0) + count;

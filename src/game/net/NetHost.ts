@@ -1,3 +1,4 @@
+import { createUuid } from '@/platform/compat';
 import type { GameMode } from '../GameMode';
 import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -109,7 +110,7 @@ export class NetHost {
       joined: false,
       gender: null,
       lastSeen: performance.now(),
-      resumeToken: crypto.randomUUID(),
+      resumeToken: createUuid(),
       lastInputSeq: 0,
       players: new Map(), combatAnimals: new Map(), passiveAnimals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
       dog: null, hud: null, climate: '',
