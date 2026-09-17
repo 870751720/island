@@ -12,7 +12,7 @@ function disposeTerrain(terrain: IslandTerrain): void {
 /** 正北方向选址,距离按出生点到洼心的水平距离计算。 */
 function selectStarterPond(terrain: IslandTerrain): WaterArea | null {
   const spawn = terrain.findSpawnPoint();
-  for (const distance of [32.5, 35, 30]) {
+  for (const distance of [75, 80, 70]) {
     const x = spawn.x;
     const z = spawn.z - distance;
     const radius = 8.2;
@@ -37,7 +37,7 @@ export function hasStarterDrinkingApproach(terrain: IslandTerrain): boolean {
   if (!pond) return false;
   const spawn = terrain.findSpawnPoint();
   const distance = spawn.z - pond.z;
-  if (pond.x !== spawn.x || distance < 30 || distance > 35) return false;
+  if (pond.x !== spawn.x || distance < 70 || distance > 80) return false;
   for (let step = 0; step <= distance; step += 0.25) {
     const z = spawn.z - step;
     const kind = terrain.getWaterKind(spawn.x, z);

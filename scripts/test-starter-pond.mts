@@ -28,7 +28,7 @@ for (const seed of [1, 42, 123, 456, 789, 13, 17, 99, 333, 999]) {
   const spawn = terrain.findSpawnPoint();
   assert.ok(pond, '新档固定生成水洼');
   assert.equal(pond.x, spawn.x, '位于正北方向');
-  assert.ok(spawn.z - pond.z >= 30 && spawn.z - pond.z <= 35, '洼心距出生点30～35米');
+  assert.ok(spawn.z - pond.z >= 70 && spawn.z - pond.z <= 80, '洼心距出生点70～80米');
   assert.equal(pond.freezable, false, '固定淡水洼不结冰');
   assert.ok(hasStarterDrinkingApproach(terrain), '有直接可走的浅水饮水路线');
   const saved = JSON.parse(JSON.stringify({ starterPond: pond }));
