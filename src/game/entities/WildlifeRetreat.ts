@@ -9,7 +9,6 @@ export type WildlifeRetreat = {
   /** 单机嘲讽清场可使用更短距离，并在抵达后恢复正常行为。 */
   distance?: number;
   mercy?: boolean;
-  calmLeft?: number;
   fixedDestination?: boolean;
   destination?: Point;
 };

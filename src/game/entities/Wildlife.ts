@@ -385,7 +385,6 @@ export class Wildlife implements Updatable {
   private mercyCooldown = 0;
   private lastTaunt = -1;
   onTauntExpression: (target: THREE.Object3D, glyphs: readonly TauntGlyph[], height: number) => void = () => {};
-  onTauntAudience: (position: THREE.Vector3) => void = () => {};
   private nextId = 1;
   /** 权威 AI 每帧通知真正被敌对动物追击的玩家。 */
   onPlayerThreat?: (player: Player) => void;
@@ -817,14 +816,13 @@ export class Wildlife implements Updatable {
       heading: Math.atan2(player.group.position.z - animal.pos.z, player.group.position.x - animal.pos.x),
     };
     for (const other of this.animals) {
-      if (other === animal || !other.alive || other.hidden || other.leash || other.taunt) continue;
+      if (other === animal || (other.config.damage <= 0 && other.species !== 'bison') || !other.alive || other.hidden || other.leash || other.taunt) continue;
       if (Math.hypot(other.pos.x - player.group.position.x, other.pos.z - player.group.position.z) > 10) continue;
       this.startDeathRetreat(other, player.group.position);
-      Object.assign(other.retreat!, { distance: 12, mercy: true, calmLeft: 10 });
+      Object.assign(other.retreat!, { distance: 12, mercy: true });
       other.mock = { elapsed: 0, delay: 0.2 + Math.random() * 0.4, round: -1, variant: Math.floor(Math.random() * TAUNT_SPECTATOR_GLYPHS.length) };
     }
     this.dogThreats.length = 0;
-    this.onTauntAudience(player.group.position);
     return true;
   }
 
@@ -851,12 +849,15 @@ export class Wildlife implements Updatable {
     } else {
       if (!animal.retreat) {
         this.startDeathRetreat(animal, taunt.player.group.position);
-        Object.assign(animal.retreat!, { mercy: true, calmLeft: 10, fixedDestination: true });
+        Object.assign(animal.retreat!, { mercy: true, fixedDestination: true });
         this.onTauntExpression(animal.model.group, ['wave', 'laugh'], 2.8);
       }
       const retreat = animal.retreat!;
       moving = this.updateRetreat(animal, delta);
-      if (retreat.arrived) animal.taunt = undefined;
+      if (retreat.arrived) {
+        animal.taunt = undefined;
+        animal.retreat = undefined;
+      }
     }
     this.animate(animal, delta, elapsed, moving, taunt.elapsed >= BEAR_TAUNT_SECONDS);
   }
@@ -926,14 +927,7 @@ export class Wildlife implements Updatable {
           continue;
         }
       }
-      if (animal.retreat?.arrived && animal.retreat.calmLeft !== undefined) {
-        animal.retreat.calmLeft -= delta;
-        if (animal.retreat.calmLeft <= 0) animal.retreat = undefined;
-        else {
-          this.animate(animal, delta, elapsed, false, false);
-          continue;
-        }
-      }
+      if (animal.retreat?.arrived && animal.retreat.mercy) animal.retreat = undefined;
       if (animal.retreat && !animal.retreat.arrived) {
         animal.lungeLeft = Math.max(0, animal.lungeLeft - delta);
         const moving = this.updateRetreat(animal, delta);

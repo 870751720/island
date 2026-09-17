@@ -104,7 +104,6 @@ function makeCrabModel(): CrabModel {
 }
 
 type Crab = {
-  tauntRetreat?: { origin: THREE.Vector3; left: number };
   /** 联机同步用稳定 id(死亡个体移除后,新个体用新 id,客人端按 id 补建) */
   id: number;
   model: CrabModel;
@@ -231,18 +230,6 @@ export class Crabs implements Updatable {
     return false;
   }
 
-  scatterFromTaunt(position: THREE.Vector3, show: (target: THREE.Object3D, height: number) => void): void {
-    for (const crab of this.crabs) {
-      if (!crab.alive || Math.hypot(crab.pos.x - position.x, crab.pos.z - position.z) > 10) continue;
-      crab.tauntRetreat = { origin: position.clone(), left: 8 };
-      show(crab.model.group, 0.65);
-    }
-  }
-
-  clearTauntRetreats(): void {
-    for (const crab of this.crabs) crab.tauntRetreat = undefined;
-  }
-
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
     // 种群补充:每个空位独立冷却到期后,找一处远离所有玩家的海岸落脚
@@ -271,11 +258,7 @@ export class Crabs implements Updatable {
           threat = p;
         }
       }
-      if (crab.tauntRetreat) {
-        crab.tauntRetreat.left -= delta;
-        if (crab.tauntRetreat.left <= 0) crab.tauntRetreat = undefined;
-        else threat = crab.tauntRetreat.origin;
-      }
+
       const flee = threat !== null;
       const p = threat!;
       crab.walkTime += delta;

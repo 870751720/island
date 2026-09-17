@@ -47,7 +47,7 @@ function makeAnimal(species = 'bear', x = 1, z = 0) {
   return {
     taunt: undefined as unknown, mock: undefined as unknown, retreat: undefined as WildlifeRetreat | undefined,
     species, alive: true, hidden: false, hp: 100,
-    config: { hp: 100, rushSpeed: 5 }, pos: new THREE.Vector3(x, 0, z),
+    config: { hp: 100, rushSpeed: 5, damage: ['rabbit', 'sheep', 'deer'].includes(species) ? 0 : 30 }, pos: new THREE.Vector3(x, 0, z),
     target: new THREE.Vector3(), model: { group: new THREE.Group() }, heading: 0,
     pounce: { phase: 'leap' }, entrance: null, lungeLeft: 0.35,
   };
@@ -56,15 +56,16 @@ function harness() {
   const bear = makeAnimal();
   const wolf = makeAnimal('wolf', 10);
   const distant = makeAnimal('wolf', 10.01);
+  const passive = makeAnimal('rabbit', 2);
   const hidden = { ...makeAnimal('rabbit', 2), hidden: true };
   const leashed = { ...makeAnimal('sheep', 2), leash: {} };
   const player = { group: new THREE.Group(), applySlow(): void { throw new Error('放生不应施加扑击减速'); } };
   const bubbles: string[][] = [];
   const wildlife = Object.assign(Object.create(Wildlife.prototype), {
-    animals: [bear, wolf, distant, hidden, leashed], soloDeathProtection: true,
+    animals: [bear, wolf, distant, hidden, leashed, passive], soloDeathProtection: true,
     mercyCooldown: 0, lastTaunt: -1, dogThreats: [], players: () => [player],
     onTauntExpression: (_target: unknown, glyphs: string[]) => bubbles.push(glyphs),
-    onTauntAudience() {}, animate() {}, canStand: () => true,
+    animate() {}, canStand: () => true,
     terrain: { getHeight: () => 0 },
   });
   const state = { health: 20, dead: false };
@@ -76,7 +77,7 @@ function harness() {
     hostRef: null, guestNet: null, local: session, metaLevel: () => 0, playWildlifeHitFeedback() {},
   });
   const hit = () => game.applyWildlifeHit(session, 100, true, () => wildlife.tryBearTaunt(bear, player));
-  return { bear, wolf, distant, hidden, leashed, player, wildlife, state, session, game, hit, bubbles };
+  return { bear, wolf, passive, distant, hidden, leashed, player, wildlife, state, session, game, hit, bubbles };
 }
 
 const h = harness();
@@ -89,6 +90,8 @@ assert.ok(h.wolf.retreat);
 assert.equal(h.distant.retreat, undefined);
 assert.equal(h.hidden.retreat, undefined);
 assert.equal(h.leashed.retreat, undefined);
+assert.equal(h.passive.retreat, undefined);
+assert.equal(h.passive.mock, undefined);
 assert.equal(h.wildlife.applyDamage(h.bear, 999), null);
 assert.equal(h.bear.hp, 100);
 h.session.survival.damage(2);
@@ -110,7 +113,7 @@ assert.ok(h.bear.taunt, '途中继续无敌');
 h.bear.pos.set(destination.x, 0, destination.z);
 h.wildlife.updateTaunt(h.bear, 0, 5.4);
 assert.equal(h.bear.taunt, undefined);
-assert.equal(h.bear.retreat!.arrived, true);
+assert.equal(h.bear.retreat, undefined, '抵达后立即清除撤离限制，没有等待');
 
 const host = harness();
 host.game.hostRef = { broadcastEvent() {} };

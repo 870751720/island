@@ -678,11 +678,6 @@ export class Game {
     this.indicator = new PlayerIndicator(this.camera, this.scene);
     this.emojiBubbles = new EmojiBubbles(container, this.camera);
     this.wildlife.onTauntExpression = (target, glyphs, height) => this.emojiBubbles.showTaunt(target, glyphs, height);
-    this.wildlife.onTauntAudience = (position) => {
-      const show = (target: THREE.Object3D, height: number) => this.emojiBubbles.showTaunt(target, ['look', 'laugh'], height);
-      this.crabs.scatterFromTaunt(position, show);
-      this.birds.scatterFromTaunt(position, show);
-    };
 
     this.workbench = new WorkbenchSystem(
       this.scene,
@@ -1497,8 +1492,6 @@ export class Game {
     this.hostRef = host;
     this.wildlife.setSoloDeathProtection(false);
     this.emojiBubbles.clearTaunts();
-    this.crabs.clearTauntRetreats();
-    this.birds.clearTauntRetreats();
     host.terrainSeed = this.terrainSeed;
     // 单机时本地角色叫「我」,转为房主后对客人显示联机昵称
     this.local.setName(loadProfile()?.name || '房主');

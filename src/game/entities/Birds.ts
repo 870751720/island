@@ -113,7 +113,6 @@ function makeBirdModel(color: string): BirdModel {
 type BirdState = 'fly' | 'land' | 'walk' | 'flee';
 
 type Bird = {
-  tauntFlee?: boolean;
   /** 联机同步用稳定 id(死亡个体移除后,新个体用新 id,客人端按 id 补建) */
   id: number;
   /** 羽色变体序号(BODY_COLORS 下标,联机补建时保持外观一致) */
@@ -272,28 +271,6 @@ export class Birds implements Updatable {
     return this.pickWanderTarget(rng);
   }
 
-  scatterFromTaunt(position: THREE.Vector3, show: (target: THREE.Object3D, height: number) => void): void {
-    for (const bird of this.birds) {
-      if (!bird.alive || Math.hypot(bird.pos.x - position.x, bird.pos.z - position.z) > 10) continue;
-      bird.fleeHeading = Math.atan2(bird.pos.z - position.z, bird.pos.x - position.x);
-      bird.tauntFlee = true;
-      bird.state = 'flee';
-      bird.stateTime = 0;
-      bird.stepTarget = null;
-      show(bird.model.group, 0.8);
-    }
-  }
-
-  clearTauntRetreats(): void {
-    for (const bird of this.birds) {
-      if (!bird.tauntFlee) continue;
-      bird.tauntFlee = false;
-      bird.state = 'fly';
-      bird.stateTime = 0;
-      bird.target = this.pickWanderTarget(Math.random);
-    }
-  }
-
   update(delta: number, elapsed: number): void {
     this.fx.update(delta);
     // 种群补充:每个空位独立冷却到期后,在别处高空补入全新实体
@@ -334,7 +311,6 @@ export class Birds implements Updatable {
           // fleeHeading 用 atan2(dz,dx) 约定,换算成身体朝向的 atan2(dx,dz) 约定
           bird.heading = Math.PI / 2 - bird.fleeHeading;
           if (bird.stateTime > FLEE_TIME) {
-            bird.tauntFlee = false;
             bird.state = 'fly';
             bird.stateTime = 0;
             bird.target = this.pickWanderTarget(Math.random);
