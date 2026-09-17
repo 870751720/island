@@ -8,7 +8,7 @@ const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
 const FADE_SECONDS = 0.5;
 const HEAD_Y = 3.44;
-import { emojiBubbleHeight, EMOJI_BUBBLE_ASPECT as ASPECT } from './EmojiBubbleSize';
+import { emojiBubbleHeight, EMOJI_BUBBLE_ASPECT as ASPECT, EMOJI_CONTENT_RATIO } from './EmojiBubbleSize';
 
 interface Bubble {
   element: HTMLDivElement;
@@ -73,8 +73,10 @@ export class EmojiBubbles {
     for (const [index, glyph] of glyphs.entries()) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 64 64');
-      svg.style.width = `${80 / glyphs.length}%`;
-      svg.style.height = '80%';
+      const aspect = ASPECT + (glyphs.length - 1) * EMOJI_CONTENT_RATIO;
+      svg.style.width = `${100 * EMOJI_CONTENT_RATIO / aspect}%`;
+      svg.style.height = `${100 * EMOJI_CONTENT_RATIO}%`;
+      svg.style.flexShrink = '0';
       svg.innerHTML = TAUNT_ICONS[glyph];
       svg.animate?.([
         { transform: 'scale(0)', opacity: 0 },
@@ -130,8 +132,8 @@ export class EmojiBubbles {
       style.display = this.anchor.z < -1 || this.anchor.z > 1 ? 'none' : 'flex';
       const pop = Math.min(1, bubble.elapsed / POP_SECONDS);
       const backOut = 1 + 2.7 * Math.pow(pop - 1, 3) + 1.7 * Math.pow(pop - 1, 2);
-      const bubbleHeight = (bubble.taunt ? Math.max(32, Math.min(56, size)) : size) * backOut;
-      style.width = `${bubbleHeight * (bubble.count ? bubble.count * 0.8 + 0.35 : ASPECT)}px`;
+      const bubbleHeight = size * backOut;
+      style.width = `${bubbleHeight * (ASPECT + ((bubble.count ?? 1) - 1) * EMOJI_CONTENT_RATIO)}px`;
       style.height = `${bubbleHeight}px`;
       style.fontSize = `${bubbleHeight * 0.59375}px`;
       const x = Math.round((this.anchor.x + 1) * width / 2);
