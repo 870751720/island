@@ -20,7 +20,7 @@
 
 - **工具按钮手势**:按下时将 pointer capture 显式设置到按钮自身,保证按压缩放、子图标更新及面板遮罩出现后仍能收到同一触点的移动和抬起。长按触发前 12px 内轻微移动不取消长按,超过容差取消整次操作;菜单打开后同一触点可自由滑选;触控取消、捕获丢失、窗口失焦或页面隐藏时清理计时和按住状态,避免后续按下被残留触点阻塞。
 
-- **选择面板触屏事件**:长按展开后，同一触点滑到物品或表情上即显示绿色描边、抬升放大和「松手选择 · 名称」，松手命中时立即选择；未滑动或在空白处松手只保留菜单，不改变手持。只追踪开菜单的 pointerId，通过屏幕坐标命中检测绕过按钮 pointer capture，其他触点不参与滑选。贴近面板上下 30px 边缘时按帧自动滚动，持续更新候选项；松手、触控取消、捕获丢失、失焦、页面隐藏及卸载停止跟踪。松手选择后的尾随 click 在菜单卸载后仍被拦截一次，下一次按下或 800ms 超时解除，避免穿透和吞掉下一次点按。后续点选/关闭在 click 结算，列表支持原生纵向滑动。动画遵循 prefers-reduced-motion。手势逻辑封装在 `src/ui/usePickerDrag.ts`，视觉样式在 `src/ui/PlacePicker.css`。
+- **选择面板触屏事件**:长按展开后，开菜单的触点相对最初按下位置移动超过 12px 才进入滑选，轻微抖动或原地松手保留菜单；滑到物品或表情上显示高亮与候选名称，松手命中时提交一次选择，空白处松手保持展开。只追踪开菜单的 pointerId，通过屏幕坐标命中检测绕过按钮 pointer capture；贴近面板上下 30px 边缘时按帧自动滚动。松手、取消、捕获丢失、失焦、隐藏及卸载停止跟踪。后续点选和关闭由 `usePickerTap.ts` 配对新的 pointerdown/pointerup：按钮内部图标不参与命中，捕获到稳定节点，移动超过 12px 或原生滚动取消触点时不选择；按下与松手都在同一选项或遮罩空白才执行。指针合成 click 不再执行选项或关闭，零点击计数的键盘/辅助技术激活仍可用。松手后的尾随 click 保护跨菜单卸载保留一次，下一次按下或 800ms 超时解除，避免穿透。关闭菜单清空开菜单触点，避免键盘重开复用旧手势。列表保留原生纵向滚动，动画遵循 prefers-reduced-motion。滑选逻辑在 `usePickerDrag.ts`，视觉样式在 `PlacePicker.css`。
 
 - **设施注册表** `src/game/systems/Facilities.ts` + `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → FacilityDef` 注册表,`FacilityDef = { tool, valid?, target?, buildPreview, handModel?, onPreview?, place(actor, at), holdTime?, failText? }`。所有可放置道具(建筑/神龛/丛/围栏木/石/围栏门)注册一份定义即获得全套行为:工具循环与长按选择面板入口、手持模型、绿/红落点预览、站定自动放置与背包「使用」就近放置。
 - **统一结算**:`Game.settleFacility(kind, actor, cell?)` 为唯一权威结算(失败提示、铲子收起等外围处理集中于此);`Game.pickPlaceItem(kind)` 是背包「使用」和手持选择面板的入口。`AutoPlaceSystem` 构造时注入该 settle 回调,站定自动放置走满后带已选格回调。

@@ -3,10 +3,11 @@ import { useLayoutEffect, useRef, useState } from 'react';
 export interface PickerPress {
   pointerId: number;
   source: HTMLElement;
+  start: { x: number; y: number };
 }
 
 /** 松手选择会卸载菜单，尾随 click 的保护必须独立存活到下一次按下。 */
-function suppressReleaseClick() {
+export function suppressReleaseClick() {
   const clear = () => {
     window.removeEventListener('click', swallow, true);
     window.removeEventListener('pointerdown', clear, true);
@@ -30,7 +31,7 @@ export function usePickerDrag(press: PickerPress | null, onSelect: (key: string)
   const [hovered, setHovered] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   useLayoutEffect(() => {
-    if (!press || !press.source.hasPointerCapture(press.pointerId)) return;
+    if (!press) return;
     let active = true;
     let point: { x: number; y: number } | null = null;
     let frame = 0;
@@ -66,6 +67,7 @@ export function usePickerDrag(press: PickerPress | null, onSelect: (key: string)
     };
     const move = (event: PointerEvent) => {
       if (!active || event.pointerId !== press.pointerId) return;
+      if (!point && Math.hypot(event.clientX - press.start.x, event.clientY - press.start.y) <= 12) return;
       point = { x: event.clientX, y: event.clientY };
       setHovered(hit());
     };

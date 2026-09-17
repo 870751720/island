@@ -1,5 +1,6 @@
 .place-picker-overlay { animation: picker-appear 140ms ease-out; }
 .place-picker-panel { overscroll-behavior: contain; }
+.place-picker-item > * { pointer-events: none; }
 .place-picker-hint {
   position: sticky;
   top: -10px;

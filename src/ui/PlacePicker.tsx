@@ -3,6 +3,7 @@
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
 import { usePickerDrag, type PickerPress } from './usePickerDrag';
+import { usePickerTap } from './usePickerTap';
 import './PlacePicker.css';
 import type { ReactNode } from 'react';
 import type { EmojiDef } from '../game/social/Emojis';
@@ -38,13 +39,15 @@ export function PlacePicker<T extends PickerItem>({
   onPickEmoji?: (glyph: string) => void;
 }) {
   const showEmojis = !!emojis?.length && !!onPickEmoji;
-  const { panelRef, hovered, dragging } = usePickerDrag(press, (key) => {
+  const select = (key: string) => {
     if (key.startsWith('emoji:')) onPickEmoji?.(key.slice(6));
     else {
       const item = items.find((entry) => `item:${entry.key}` === key);
       if (item) onPick(item);
     }
-  });
+  };
+  const { panelRef, hovered, dragging } = usePickerDrag(press, select);
+  const tapHandlers = usePickerTap(select, onClose);
   const hoverName = hovered?.startsWith('emoji:')
     ? emojis?.find((emoji) => `emoji:${emoji.glyph}` === hovered)?.name
     : items.find((item) => `item:${item.key}` === hovered)?.name;
@@ -52,7 +55,10 @@ export function PlacePicker<T extends PickerItem>({
     <div
       className="place-picker-overlay"
       onContextMenu={(event) => event.preventDefault()}
-      onClick={onClose}
+      {...tapHandlers}
+      onClick={(event) => {
+        if (event.detail === 0 && event.target === event.currentTarget) onClose();
+      }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -95,7 +101,7 @@ export function PlacePicker<T extends PickerItem>({
                   aria-label={emoji.name}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onPickEmoji!(emoji.glyph);
+                    if (e.detail === 0) onPickEmoji!(emoji.glyph);
                   }}
                   style={{
                     width: 60,
@@ -128,7 +134,7 @@ export function PlacePicker<T extends PickerItem>({
               aria-pressed={!!item.active}
               onClick={(e) => {
                 e.stopPropagation();
-                onPick(item);
+                if (e.detail === 0) onPick(item);
               }}
               style={{
                 position: 'relative',

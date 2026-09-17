@@ -105,6 +105,7 @@ export function GameplayUI({
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [pickerPress, setPickerPress] = useState<PickerPress | null>(null);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
+  useEffect(() => { if (!placePickerOpen) setPickerPress(null); }, [placePickerOpen]);
   const showToolHint = useToolHint(placePickerOpen);
   const { panels: facilityPanels, openPanel, closePanel } = useFacilityPanels(hud);
   const [gmOpen, setGmOpen] = useState(false);

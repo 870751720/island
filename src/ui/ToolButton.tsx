@@ -232,7 +232,7 @@ export function ToolButton({
             pressTimer.current = null;
             longFired.current = true;
             setHolding(false);
-            onLongPress({ pointerId, source });
+            onLongPress({ pointerId, source, start: { ...pressStart.current } });
           }, LONG_PRESS_MS);
         }
       }}
