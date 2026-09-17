@@ -396,9 +396,9 @@ export class Wildlife implements Updatable {
 
   husbandryIndicators() {
     return this.animals.filter(a => a.alive && !a.hidden && (a.husbandry.tamed || this.canTame(a) || (a.netLeash && a.netReady)))
-      .map(a => ({ id: a.id, target: a.model.group, heart: a.husbandry.heart / (HEART_MAX[a.species as TameSpecies] || 1),
+      .map(a => ({ id: a.id, target: a.model.head, heart: a.husbandry.heart / (HEART_MAX[a.species as TameSpecies] || 1),
         tamed: a.husbandry.tamed, eating: a.husbandry.eating > 0, wool: a.husbandry.wool,
-        height: a.species === 'bear' ? 2.5 : a.species === 'bison' ? 2 : 1.6 }));
+        height: a.species === 'rabbit' ? 0.43 : a.species === 'sheep' ? 0.22 : a.species === 'wolf' ? 0.33 : 0.4 }));
   }
 
   private canTame(a: Animal): boolean {

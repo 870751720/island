@@ -44,12 +44,13 @@ export class HusbandryIndicators {
       }
       entry.amount += (state.heart - entry.amount) * (1 - Math.exp(-8 * delta));
       entry.fill.style.clipPath = `inset(${100 * (1 - Math.max(0, Math.min(1, entry.amount)))}% 0 0 0)`;
-      this.point.setFromMatrixPosition(state.target.matrixWorld); this.point.y += state.height;
+      this.point.set(0, state.height, 0).applyMatrix4(state.target.matrixWorld);
       this.point.project(this.camera);
       const visible = Math.abs(this.point.x) <= 1.1 && Math.abs(this.point.y) <= 1.1 && Math.abs(this.point.z) <= 1;
       entry.element.style.display = visible ? 'flex' : 'none';
-      entry.heart.style.display = state.tamed ? 'none' : 'block';
-      entry.floating.update(delta, size, state.tamed && visible);
+      const showFloating = state.tamed && state.heart >= 0.5;
+      entry.heart.style.display = showFloating ? 'none' : 'block';
+      entry.floating.update(delta, size, showFloating && visible);
       entry.element.style.width = entry.element.style.height = `${size}px`;
       entry.element.style.transform = `translate(-50%, -100%) translate(${(this.point.x * 0.5 + 0.5) * width}px, ${(-this.point.y * 0.5 + 0.5) * height}px)`;
       entry.eating.style.cssText = `display:${state.eating ? 'block' : 'none'};width:${size}px;height:${size}px;flex-shrink:0`;
