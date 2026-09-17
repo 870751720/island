@@ -201,7 +201,7 @@ export function SettingsPanel({
                 <img
                   src={qr}
                   alt={`房间 ${multiplayer.roomCode} 的邀请二维码`}
-                  style={{ width: 'min(46vw,170px)', height: 'min(46vw,170px)', borderRadius: 8 }}
+                  style={{ width: 'min(calc(46 * var(--game-vw)),170px)', height: 'min(calc(46 * var(--game-vw)),170px)', borderRadius: 8 }}
                 />
               )}
               <button

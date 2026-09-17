@@ -6,7 +6,7 @@ export const saveStyles = `
 .tap-save-choices button{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 14px;border:1px solid #89a3ac55;border-radius:14px;background:var(--menu-surface);color:#527386;font:600 14px Arial,"PingFang SC","Microsoft YaHei",sans-serif;text-align:left;cursor:pointer;touch-action:manipulation}
 .tap-save-choices small{display:block;margin-top:5px;font-size:11px;font-weight:400;color:#657761}
 .tap-save-choices button:focus-visible{outline:3px solid #416b86;outline-offset:3px}
-.tap-save-mask{${menuActionColors}${menuSurfaceColors}position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));background:#1a322b8f;color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif}
+.tap-save-mask{${menuActionColors}${menuSurfaceColors}position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--game-safe-top)) 20px calc(20px + var(--game-safe-bottom));background:#1a322b8f;color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif}
 .tap-save-mask *{box-sizing:border-box}
 .tap-save-panel{width:min(100%,360px);max-height:100%;overflow-y:auto;padding:24px 22px;background:var(--menu-panel);border:2px solid var(--menu-border);border-radius:24px;box-shadow:0 20px 60px #122d3d44;text-align:center}
 .tap-save-emblem{display:grid;place-items:center;width:48px;height:48px;margin:0 auto 12px;background:var(--menu-selected);border:1px solid #89a3ac55;border-radius:16px;color:#527386}

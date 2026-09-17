@@ -1,7 +1,7 @@
 .panel {
   box-sizing: border-box;
-  width: min(calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)), 380px);
-  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  width: min(calc(100 * var(--game-vw) - 32px - var(--game-safe-left) - var(--game-safe-right)), 380px);
+  max-height: calc(100 * var(--game-vh) - 32px - var(--game-safe-top) - var(--game-safe-bottom));
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -30,11 +30,11 @@ ul.modeHint { padding-left: 20px; }
 .modeActions button { flex: 1 1 110px; }
 .modeActions button:disabled, .modeEntry:disabled { opacity: .45; cursor: default; }
 .adjustOverlay { position: absolute; inset: 0; z-index: 210; display: flex; align-items: flex-end; justify-content: center; }
-.adjustPanel { box-sizing: border-box; width: min(100%, 420px); padding: 14px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); border: 1px solid #fff8e9bb; border-radius: 20px 20px 0 0; background: #eef0df; color: #49665e; font-family: Arial,"PingFang SC","Microsoft YaHei",sans-serif; max-height: 50dvh; overflow-y: auto; }
+.adjustPanel { box-sizing: border-box; width: min(100%, 420px); padding: 14px max(16px,var(--game-safe-right)) max(12px,var(--game-safe-bottom)) max(16px,var(--game-safe-left)); border: 1px solid #fff8e9bb; border-radius: 20px 20px 0 0; background: #eef0df; color: #49665e; font-family: Arial,"PingFang SC","Microsoft YaHei",sans-serif; max-height: calc(50 * var(--game-vh)); overflow-y: auto; }
 .adjustHint { font-size: 11px; line-height: 1.5; margin: 0 0 10px; }
 .adjustActions { display: flex; gap: 10px; }
 .adjustActions button { flex: 1; }
-@media (orientation: landscape) and (max-height: 500px) {
+@container game-viewport (orientation: landscape) and (max-height: 500px) {
   .panel { padding: 8px 12px; gap: 6px; }
   .adjustPanel { padding-top: 8px; }
   .adjustHint { margin-bottom: 4px; }

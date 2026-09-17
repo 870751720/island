@@ -39,7 +39,7 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
       <img
         src={url}
         alt="荒岛生涯战绩卡"
-        style={{ width: 'min(78vw, 340px)', maxHeight: '65dvh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+        style={{ width: 'min(calc(78 * var(--game-vw)), 340px)', maxHeight: 'calc(65 * var(--game-vh))', objectFit: 'contain', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
       />
       <button
         onClick={async (e) => {
@@ -112,7 +112,7 @@ export function DeathScreen({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'safe center',
-        gap: 'clamp(10px, 2.5vh, 24px)',
+        gap: 'clamp(10px, calc(2.5 * var(--game-vh)), 24px)',
         background: poseidon
           ? gameDarkTheme.ocean
           : gameDarkTheme.panel,
@@ -132,7 +132,7 @@ export function DeathScreen({
       {poseidon ? (
         <div
           style={{
-            fontSize: 'clamp(52px, 16vw, 84px)',
+            fontSize: 'clamp(52px, calc(16 * var(--game-vw)), 84px)',
             lineHeight: 1,
             animation: 'poseidon-glow 2.2s ease-in-out infinite',
           }}
@@ -140,12 +140,12 @@ export function DeathScreen({
           <ItemIcon kind="poseidonBlessing" size={64} />
         </div>
       ) : (
-        <div style={{ fontSize: 'clamp(52px, 16vw, 84px)', lineHeight: 1 }}><MenuIcon name="skull" size="clamp(52px, 16vw, 84px)" /></div>
+        <div style={{ fontSize: 'clamp(52px, calc(16 * var(--game-vw)), 84px)', lineHeight: 1 }}><MenuIcon name="skull" size="clamp(52px, calc(16 * var(--game-vw)), 84px)" /></div>
       )}
       <div
         style={{
           color: poseidon ? '#8fd8cf' : gameDarkTheme.ink,
-          fontSize: 'clamp(22px, 6.5vw, 32px)',
+          fontSize: 'clamp(22px, calc(6.5 * var(--game-vw)), 32px)',
           letterSpacing: '0.1em',
           animation: poseidon ? 'poseidon-rise 0.8s ease' : undefined,
         }}
@@ -156,10 +156,10 @@ export function DeathScreen({
         <div
           style={{
             color: gameDarkTheme.ink,
-            fontSize: 'clamp(15px, 4vw, 18px)',
+            fontSize: 'clamp(15px, calc(4 * var(--game-vw)), 18px)',
             lineHeight: 1.7,
             textAlign: 'center',
-            maxWidth: '82vw',
+            maxWidth: 'calc(82 * var(--game-vw))',
             animation: 'poseidon-rise 0.9s ease',
           }}
         >
@@ -175,7 +175,7 @@ export function DeathScreen({
             gap: 8,
             flexWrap: 'wrap',
             justifyContent: 'center',
-            maxWidth: '86vw',
+            maxWidth: 'calc(86 * var(--game-vw))',
           }}
         >
           {[
@@ -193,7 +193,7 @@ export function DeathScreen({
                 background: gameDarkTheme.surface,
                 border: gameDarkTheme.line,
                 color: gameDarkTheme.ink,
-                fontSize: 'clamp(13px, 3.5vw, 15px)',
+                fontSize: 'clamp(13px, calc(3.5 * var(--game-vw)), 15px)',
                 letterSpacing: '0.05em',
               }}
             >
@@ -210,7 +210,7 @@ export function DeathScreen({
             background: 'linear-gradient(135deg, rgba(247,215,116,0.22), rgba(247,215,116,0.1))',
             border: '1px solid rgba(247,215,116,0.45)',
             color: gameDarkTheme.warning,
-            fontSize: 'clamp(14px, 3.8vw, 16px)',
+            fontSize: 'clamp(14px, calc(3.8 * var(--game-vw)), 16px)',
             fontWeight: 700,
             letterSpacing: '0.05em',
           }}
@@ -219,7 +219,7 @@ export function DeathScreen({
         </div>
       )}
       {report && !autoRespawn && report.legacyPoints === 0 && (
-        <p style={{ margin: 0, color: gameDarkTheme.muted, fontSize: 'clamp(12px, 3.2vw, 14px)' }}>
+        <p style={{ margin: 0, color: gameDarkTheme.muted, fontSize: 'clamp(12px, calc(3.2 * var(--game-vw)), 14px)' }}>
           生存不足 2 天,没有沉淀下求生心得
         </p>
       )}
@@ -229,7 +229,7 @@ export function DeathScreen({
           key={seconds}
           style={{
             color: poseidon ? '#8fd8cf' : gameDarkTheme.ink,
-            fontSize: 'clamp(15px, 4vw, 18px)',
+            fontSize: 'clamp(15px, calc(4 * var(--game-vw)), 18px)',
             animation: 'death-count 1s ease',
           }}
         >
@@ -242,13 +242,13 @@ export function DeathScreen({
               onClick={share}
               disabled={sharing}
               style={{
-                minWidth: 'min(60vw, 220px)',
+                minWidth: 'min(calc(60 * var(--game-vw)), 220px)',
                 ...gameDarkButtonStyle,
                 background: gameDarkTheme.accent,
                 color: '#1b2a24',
                 minHeight: 56,
                 borderRadius: 16,
-                fontSize: 'clamp(16px, 4.5vw, 20px)',
+                fontSize: 'clamp(16px, calc(4.5 * var(--game-vw)), 20px)',
                 fontWeight: 700,
                 letterSpacing: '0.2em',
                 border: 'none',
@@ -262,14 +262,14 @@ export function DeathScreen({
           <button
             onClick={onConfirm}
             style={{
-              minWidth: 'min(60vw, 220px)',
+              minWidth: 'min(calc(60 * var(--game-vw)), 220px)',
               ...gameDarkButtonStyle,
               minHeight: 56,
               borderRadius: 16,
               background: report ? 'transparent' : gameDarkTheme.accent,
               color: report ? gameDarkTheme.ink : '#1b2a24',
               border: report ? gameDarkTheme.line : 'none',
-              fontSize: 'clamp(16px, 4.5vw, 20px)',
+              fontSize: 'clamp(16px, calc(4.5 * var(--game-vw)), 20px)',
               fontWeight: 700,
               letterSpacing: '0.2em',
               cursor: 'pointer',

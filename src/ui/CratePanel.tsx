@@ -121,8 +121,8 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
     >
       <div
         style={{
-          marginTop: 'max(12px, calc(50vh - 220px))',
-          width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
+          marginTop: 'max(12px, calc(50 * var(--game-vh) - 220px))',
+          width: `min(calc(88 * var(--game-vw)), ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
           padding: '12px',
           ...gamePanelStyle,
           borderRadius: 22,

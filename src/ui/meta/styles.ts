@@ -1,7 +1,7 @@
 import { menuActionColors, menuBackdrop, menuSurfaceColors } from '../start/palette';
 
 export const metaPanelCss = `
-.meta-panel{${menuActionColors}${menuSurfaceColors}position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;background:${menuBackdrop};color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;padding:calc(6px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left))}
+.meta-panel{${menuActionColors}${menuSurfaceColors}position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;background:${menuBackdrop};color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;padding:calc(6px + var(--game-safe-top)) calc(14px + var(--game-safe-right)) calc(6px + var(--game-safe-bottom)) calc(14px + var(--game-safe-left))}
 .meta-panel *{box-sizing:border-box}
 .meta-panel button{font:inherit;touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .16s,box-shadow .16s,background .2s}
 .meta-panel button:focus-visible{outline:3px solid #416b86;outline-offset:3px}
@@ -39,8 +39,8 @@ export const metaPanelCss = `
 .meta-notice{min-height:16px;font-size:10px;line-height:1.6;text-align:center;color:var(--muted);margin:6px 0 0}.meta-footer{max-width:960px;margin:16px auto 0;text-align:center;font-size:10px;line-height:1.8;color:#718274}
 @media(hover:hover){.meta-buy:hover:not(:disabled){background:var(--action-hover)}.meta-talent:hover,.meta-level-tabs button:hover{border-color:var(--menu-selection)}}
 @media(prefers-reduced-motion:reduce){.meta-panel *{animation:none!important;transition:none!important}}
-@media(min-width:700px),(orientation:landscape){.meta-content{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:center;gap:20px}.meta-map{height:100%;max-height:520px}.meta-detail{width:100%;max-width:420px;justify-self:center}.meta-head h2{font-size:26px}}
-@media(max-height:650px){.meta-points{padding:3px 8px}.meta-head .meta-eyebrow,.meta-footer,.meta-hint{display:none}.meta-notice{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%)}.meta-talent{gap:3px}.meta-content{gap:6px}.meta-root{padding:3px}}
-@media(orientation:landscape) and (max-height:450px){.meta-head h2{font-size:21px}.meta-head{height:44px}.meta-root{border:0;padding:0}.meta-root svg{display:none}.meta-content{margin-top:4px}.meta-branch{grid-template-rows:26px repeat(3,minmax(44px,1fr))}.meta-branch h3{height:26px}.meta-talent{display:grid;grid-template-columns:1fr auto;gap:2px 5px;padding:3px 8px}.meta-talent strong{grid-row:span 2}.meta-detail{padding:8px 10px}.meta-effect{margin:4px 0}}
-@media(max-width:360px){.meta-head{gap:8px}.meta-head h2{font-size:22px}.meta-branch h3 small{display:none}.meta-branches{gap:8px}}
+@container game-viewport (min-width:700px) or (orientation:landscape){.meta-content{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:center;gap:20px}.meta-map{height:100%;max-height:520px}.meta-detail{width:100%;max-width:420px;justify-self:center}.meta-head h2{font-size:26px}}
+@container game-viewport (max-height:650px){.meta-points{padding:3px 8px}.meta-head .meta-eyebrow,.meta-footer,.meta-hint{display:none}.meta-notice{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%)}.meta-talent{gap:3px}.meta-content{gap:6px}.meta-root{padding:3px}}
+@container game-viewport (orientation:landscape) and (max-height:450px){.meta-head h2{font-size:21px}.meta-head{height:44px}.meta-root{border:0;padding:0}.meta-root svg{display:none}.meta-content{margin-top:4px}.meta-branch{grid-template-rows:26px repeat(3,minmax(44px,1fr))}.meta-branch h3{height:26px}.meta-talent{display:grid;grid-template-columns:1fr auto;gap:2px 5px;padding:3px 8px}.meta-talent strong{grid-row:span 2}.meta-detail{padding:8px 10px}.meta-effect{margin:4px 0}}
+@container game-viewport (max-width:360px){.meta-head{gap:8px}.meta-head h2{font-size:22px}.meta-branch h3 small{display:none}.meta-branches{gap:8px}}
 `;

@@ -69,7 +69,7 @@ const overlayStyle = {
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: 30,
-  width: 'min(330px, calc(100vw - 24px))',
+  width: 'min(330px, calc(100 * var(--game-vw) - 24px))',
   padding: '5px 10px 7px',
   borderRadius: 10,
   background: 'rgba(0,0,0,0.55)',

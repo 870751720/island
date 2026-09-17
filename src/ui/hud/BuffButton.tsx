@@ -1,3 +1,4 @@
+import { gameRect } from '@/platform/displayCoordinates';
 import { playUiSound } from '@/game/audio/UiAudio';
 import type { HudBuff } from '@/game/systems/BuffSystem';
 import { StatusIcon, BUFF_SVG } from '../icons/StatusIcons';
@@ -13,7 +14,7 @@ export function BuffButton({ buff, expanded, disabled, onActivate }: {
   const activate = (button: HTMLButtonElement) => {
     traceBuff('activate', { id: buff.id, disabled, expanded });
     if (disabled) return;
-    onActivate(button.getBoundingClientRect());
+    onActivate(gameRect(button));
     playUiSound('click', 'game');
   };
   return (

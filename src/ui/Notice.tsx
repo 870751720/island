@@ -23,10 +23,10 @@ export function Notice({ notice }: { notice: { id: number; text: string } | null
     <div
       style={{
         position: 'absolute',
-        top: 'max(12vh, env(safe-area-inset-top))',
+        top: 'max(calc(12 * var(--game-vh)), var(--game-safe-top))',
         left: '50%',
         transform: 'translateX(-50%)',
-        maxWidth: '80vw',
+        maxWidth: 'calc(80 * var(--game-vw))',
         padding: '10px 18px',
         borderRadius: 12,
         background: gameTheme.panel, border: gameTheme.border, boxShadow: gameTheme.controlShadow,

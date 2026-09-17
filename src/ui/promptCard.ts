@@ -32,7 +32,7 @@ export function promptWrapStyle(hud: HudSnapshot): CSSProperties {
   // 工具按钮:右侧 16px、垂直居中、直径 72;卡片落在其下方并靠右对齐
   return {
     position: 'absolute',
-    right: 'max(16px, env(safe-area-inset-right))',
+    right: 'max(16px, var(--game-safe-right))',
     top: 'calc(50% + 61px)',
     ...fadeStyle(hud.busy),
   };

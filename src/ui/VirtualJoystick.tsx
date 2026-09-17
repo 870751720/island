@@ -1,4 +1,6 @@
 'use client';
+import { gamePoint } from '@/platform/displayCoordinates';
+
 
 import { useRef, useState } from 'react';
 import { useJoystickPinch } from './useJoystickPinch';
@@ -56,13 +58,15 @@ export function VirtualJoystick({
         if (pointerIdRef.current !== null) return;
         pointerIdRef.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);
-        setCenter({ x: e.clientX, y: e.clientY });
-        update(e.clientX, e.clientY, e.clientX, e.clientY);
+        const point = gamePoint(e);
+        setCenter(point);
+        update(point.x, point.y, point.x, point.y);
       }}
       onPointerMove={(e) => {
         if (pinch.move(e)) return;
         if (pointerIdRef.current !== e.pointerId || !center) return;
-        update(center.x, center.y, e.clientX, e.clientY);
+        const point = gamePoint(e);
+        update(center.x, center.y, point.x, point.y);
       }}
       onPointerUp={(e) => { if (pinch.up(e) || pointerIdRef.current === e.pointerId) reset(); }}
       onPointerCancel={(e) => { if (pinch.up(e) || pointerIdRef.current === e.pointerId) reset(); }}

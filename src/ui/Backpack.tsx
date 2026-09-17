@@ -1,4 +1,6 @@
 'use client';
+import { gameViewportSize, gameRect, gamePoint } from '@/platform/displayCoordinates';
+
 import { DogCompanionCard } from './DogCompanionCard';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
@@ -167,8 +169,8 @@ type TipState = { x: number; y: number; content: React.ReactNode };
 
 function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
   const WIDTH = 230;
-  const left = Math.min(Math.max(tip.x - WIDTH / 2, 10), window.innerWidth - WIDTH - 10);
-  const showAbove = tip.y > window.innerHeight * 0.4;
+  const left = Math.min(Math.max(tip.x - WIDTH / 2, 10), gameViewportSize().width - WIDTH - 10);
+  const showAbove = tip.y > gameViewportSize().height * 0.4;
   return (
     <>
       <div
@@ -183,7 +185,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
           position: 'fixed',
           left,
           top: showAbove ? undefined : tip.y + 14,
-          bottom: showAbove ? window.innerHeight - tip.y + 14 : undefined,
+          bottom: showAbove ? gameViewportSize().height - tip.y + 14 : undefined,
           width: WIDTH,
           padding: '10px 12px',
           ...gamePanelStyle,
@@ -233,7 +235,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
   const openTip = (e: React.PointerEvent, content: React.ReactNode) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const rect = gameRect(e.currentTarget);
     setTip({ x: rect.left + rect.width / 2, y: rect.top, content });
   };
 
@@ -295,10 +297,10 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
             className="hud-panel-enter"
             style={{
               // 面板上方预留空间，内容增多时在面板内滚动。
-              marginTop: 'max(12px, calc(50vh - 260px))',
-              width: `min(calc(100vw - 16px), ${COLUMNS * SLOT_SIZE + (COLUMNS - 1) * SLOT_GAP + 26}px)`,
+              marginTop: 'max(12px, calc(50 * var(--game-vh) - 260px))',
+              width: `min(calc(100 * var(--game-vw) - 16px), ${COLUMNS * SLOT_SIZE + (COLUMNS - 1) * SLOT_GAP + 26}px)`,
               boxSizing: 'border-box',
-              maxHeight: '80vh',
+              maxHeight: 'calc(80 * var(--game-vh))',
               overflowY: 'auto',
               padding: '12px',
               ...gamePanelStyle,
@@ -390,7 +392,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                             if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
                             d.moved = true;
                           }
-                          setDrag({ from: d.from, x: e.clientX, y: e.clientY });
+                          setDrag({ from: d.from, ...gamePoint(e) });
                           setHoverIndex(slotIndexAt(e.clientX, e.clientY));
                         }}
                         onPointerUp={(e) => {

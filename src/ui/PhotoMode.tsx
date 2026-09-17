@@ -1,4 +1,6 @@
 'use client';
+import { gamePoint } from '@/platform/displayCoordinates';
+
 
 import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
 
@@ -66,15 +68,14 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointers.current.set(e.pointerId, gamePoint(e));
     rebase();
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const p = pointers.current.get(e.pointerId);
     if (!p) return;
-    p.x = e.clientX;
-    p.y = e.clientY;
+    Object.assign(p, gamePoint(e));
     const pts = [...pointers.current.values()];
     if (pts.length >= 2 && pinchBase.current) {
       const [a, b] = pts;
@@ -174,9 +175,9 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
       <div
         style={{
           position: 'absolute',
-          top: 'max(12px, env(safe-area-inset-top))',
-          left: 'max(12px, env(safe-area-inset-left))',
-          right: 'max(12px, env(safe-area-inset-right))',
+          top: 'max(12px, var(--game-safe-top))',
+          left: 'max(12px, var(--game-safe-left))',
+          right: 'max(12px, var(--game-safe-right))',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -207,7 +208,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 'max(20px, env(safe-area-inset-bottom))',
+          bottom: 'max(20px, var(--game-safe-bottom))',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -255,7 +256,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
             src={shot.url}
             alt="荒岛照片"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: '55dvh', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+            style={{ maxWidth: '100%', maxHeight: 'calc(55 * var(--game-vh))', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
           />
           <div style={{ color: gameDarkTheme.ink, fontSize: 15, textAlign: 'center' }}>{shot.caption}</div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>

@@ -1,4 +1,6 @@
 'use client';
+import { gamePoint, gameViewportSize } from '@/platform/displayCoordinates';
+
 import { MenuIcon } from './icons/MenuIcons';
 
 import { gameTheme } from './gameTheme';
@@ -112,18 +114,18 @@ export function TreasureWheel({
   /** 触摸拨动:像拨密码锁转轮那样上下滑动,松手时拨动超过半格即触发滚动 */
   const onPointerDown = (e: React.PointerEvent) => {
     if (phase !== 'ready') return;
-    dragStartRef.current = e.clientY;
+    dragStartRef.current = gamePoint(e).y;
     setDragging(true);
   };
   const onPointerUp = (e: React.PointerEvent) => {
     if (dragStartRef.current == null) return;
-    const dy = e.clientY - dragStartRef.current;
+    const dy = gamePoint(e).y - dragStartRef.current;
     dragStartRef.current = null;
     setDragging(false);
     if (Math.abs(dy) > 18) spin();
   };
 
-  const width = Math.min(300, Math.floor((typeof window === 'undefined' ? 375 : window.innerWidth) * 0.8));
+  const width = Math.min(300, Math.floor(gameViewportSize().width * 0.8));
   const rowH = Math.round(width * 0.42);
   const height = rowH * VISIBLE_ROWS;
   // 循环条带:起始前多铺一组奖池,保证任意时刻中心行上下相邻行都有内容

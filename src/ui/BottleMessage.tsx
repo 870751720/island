@@ -40,7 +40,7 @@ export function BottleMessage({
       <div
         onPointerDown={(e) => e.stopPropagation()}
         style={{
-          width: 'min(340px, calc(100vw - 72px))',
+          width: 'min(340px, calc(100 * var(--game-vw) - 72px))',
           padding: '22px 20px 18px',
           ...gamePanelStyle,
           borderRadius: 22,

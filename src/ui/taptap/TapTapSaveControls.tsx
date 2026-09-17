@@ -1,4 +1,6 @@
 'use client';
+import { getGameViewport } from '@/platform/displayCoordinates';
+
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
@@ -131,6 +133,6 @@ export default function TapTapSaveControls({ onModalChange }: {
           {dialog.phase === 'confirm' && <button className="tap-save-primary" onClick={() => void confirm()}>{dialog.action === 'upload' ? '确认上传' : '确认覆盖并读取'}</button>}
         </div>
       </div>
-    </div>, document.body)}
+    </div>, getGameViewport() ?? document.body)}
   </>;
 }

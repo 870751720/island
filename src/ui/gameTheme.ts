@@ -30,7 +30,7 @@ export const gamePanelStyle: CSSProperties = {
   borderRadius: 22,
   boxShadow: gameTheme.shadow,
   fontFamily: gameTheme.font,
-  maxHeight: 'calc(80dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+  maxHeight: 'calc(80 * var(--game-vh) - var(--game-safe-top) - var(--game-safe-bottom))',
   overflowY: 'auto',
 };
 

@@ -6,7 +6,7 @@ ${islandSceneCss}
 .island-arrival{${menuSurfaceColors}position:absolute;inset:0;z-index:1000;background:${menuBackdrop};color:var(--ink);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;opacity:1;transition:opacity .6s ease;isolation:isolate}
 .island-arrival *{box-sizing:border-box}
 .island-arrival[data-ready=true]{opacity:0}
-.arrival-layout{min-height:100%;width:min(100%,440px);margin:auto;display:flex;flex-direction:column;justify-content:center;padding:calc(26px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(30px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left))}
+.arrival-layout{min-height:100%;width:min(100%,440px);margin:auto;display:flex;flex-direction:column;justify-content:center;padding:calc(26px + var(--game-safe-top)) calc(24px + var(--game-safe-right)) calc(30px + var(--game-safe-bottom)) calc(24px + var(--game-safe-left))}
 .arrival-heading{text-align:center}
 .arrival-brand{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;letter-spacing:.18em}
 .arrival-heading .menu-island{height:220px;margin:12px auto 0}
@@ -27,7 +27,7 @@ ${islandSceneCss}
 .island-arrival[data-ready=true] .arrival-track span{animation:none;width:100%;transition:width .2s ease}
 @keyframes arrival-drift{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
 @keyframes arrival-tip-in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@media(max-height:700px) and (orientation:portrait){.arrival-heading .menu-island{height:160px}.arrival-caption{margin-bottom:16px}.arrival-panel{padding-top:18px}.arrival-layout{padding-top:calc(16px + env(safe-area-inset-top))}}
-@media(orientation:landscape){.arrival-layout{width:min(100%,820px);display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:28px}.arrival-heading .menu-island{height:180px}.arrival-caption{margin-bottom:0}}
+@container game-viewport (max-height:700px) and (orientation:portrait){.arrival-heading .menu-island{height:160px}.arrival-caption{margin-bottom:16px}.arrival-panel{padding-top:18px}.arrival-layout{padding-top:calc(16px + var(--game-safe-top))}}
+@container game-viewport (orientation:landscape){.arrival-layout{width:min(100%,820px);display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:28px}.arrival-heading .menu-island{height:180px}.arrival-caption{margin-bottom:0}}
 @media(prefers-reduced-motion:reduce){.island-arrival,.island-arrival *{animation:none!important;transition:none!important}.arrival-track span{transform:translateX(75%)}}
 `;

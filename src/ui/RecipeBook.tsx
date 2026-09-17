@@ -155,8 +155,8 @@ const overlayStyle: CSSProperties = {
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(calc(100vw - 56px), 400px)',
-  maxHeight: '80vh',
+  width: 'min(calc(100 * var(--game-vw) - 56px), 400px)',
+  maxHeight: 'calc(80 * var(--game-vh))',
   overflowY: 'auto',
   padding: '16px 14px',
   ...gamePanelStyle,

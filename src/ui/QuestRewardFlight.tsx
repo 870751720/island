@@ -1,4 +1,6 @@
 'use client';
+import { gameRect } from '@/platform/displayCoordinates';
+
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { QuestView } from '@/game/quests/QuestDefinitions';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -24,9 +26,9 @@ export function QuestRewardFlight({ quest, visible, containerRef }: {
     const source = container?.querySelector('.quest-card');
     const target = container?.querySelector('.hud-backpack');
     if (!container || !source || !target) return;
-    const origin = source.getBoundingClientRect();
-    const destination = target.getBoundingClientRect();
-    const bounds = container.getBoundingClientRect();
+    const origin = gameRect(source);
+    const destination = gameRect(target);
+    const bounds = gameRect(container);
     const x = origin.left + origin.width / 2 - bounds.left;
     const y = origin.top + origin.height / 2 - bounds.top;
     const dx = destination.left + destination.width / 2 - bounds.left - x;

@@ -17,7 +17,7 @@ type Phase = 'start' | 'host' | 'guest' | 'playing';
 
 /** 阶段路由:开始界面 / 联机大厅 / 游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
-  return <><MobileDisplay /><GamePhases /></>;
+  return <MobileDisplay><GamePhases /></MobileDisplay>;
 }
 
 function GamePhases() {

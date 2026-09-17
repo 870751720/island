@@ -104,7 +104,7 @@ const biteHintStyle: CSSProperties = {
   fontSize: 20,
   fontWeight: 700,
   fontFamily: gameTheme.font,
-  textAlign: 'center', maxWidth: 'calc(100vw - 72px)',
+  textAlign: 'center', maxWidth: 'calc(100 * var(--game-vw) - 72px)',
 };
 
 const clickCountStyle: CSSProperties = {

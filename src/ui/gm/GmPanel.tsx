@@ -100,8 +100,8 @@ const overlayStyle = {
 } as const;
 
 const cardStyle = {
-  width: 'min(320px, 86vw)',
-  maxHeight: '85dvh',
+  width: 'min(320px, calc(86 * var(--game-vw)))',
+  maxHeight: 'calc(85 * var(--game-vh))',
   overflowY: 'auto',
   padding: 20,
   ...gamePanelStyle,

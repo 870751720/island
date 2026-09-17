@@ -65,7 +65,7 @@ export function ItemsTab({
           </button>
         ))}
       </div>
-      <div style={{ maxHeight: '42vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ maxHeight: 'calc(42 * var(--game-vh))', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tools.map((id) => (
           <div key={id} style={rowStyle}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

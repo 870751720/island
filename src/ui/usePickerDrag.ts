@@ -1,3 +1,4 @@
+import { gamePoint, gameRect } from '@/platform/displayCoordinates';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 export interface PickerPress {
@@ -48,11 +49,12 @@ export function usePickerDrag(press: PickerPress | null, onSelect: (key: string)
       const dt = lastTime ? Math.min(time - lastTime, 32) : 0;
       lastTime = time;
       if (panel && point) {
-        const rect = panel.getBoundingClientRect();
-        if (point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom) {
+        const rect = gameRect(panel);
+        const local = gamePoint({ clientX: point.x, clientY: point.y });
+        if (local.x >= rect.left && local.x <= rect.right && local.y >= rect.top && local.y <= rect.bottom) {
           const edge = 30;
-          const speed = point.y < rect.top + edge ? -(rect.top + edge - point.y) / edge
-            : point.y > rect.bottom - edge ? (point.y - rect.bottom + edge) / edge : 0;
+          const speed = local.y < rect.top + edge ? -(rect.top + edge - local.y) / edge
+            : local.y > rect.bottom - edge ? (local.y - rect.bottom + edge) / edge : 0;
           panel.scrollTop += speed * dt * 0.32;
         }
         setHovered(hit());

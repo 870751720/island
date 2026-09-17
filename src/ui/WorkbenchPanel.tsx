@@ -218,7 +218,7 @@ const overlayStyle: CSSProperties = {
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(calc(100vw - 56px), 400px)',
+  width: 'min(calc(100 * var(--game-vw) - 56px), 400px)',
   padding: '16px 14px',
   ...gamePanelStyle,
   borderRadius: 22,
@@ -226,7 +226,7 @@ const panelStyle: CSSProperties = {
   fontSize: 15,
   color: gameTheme.ink,
   boxShadow: gameTheme.shadow,
-  maxHeight: '90vh',
+  maxHeight: 'calc(90 * var(--game-vh))',
   overflowY: 'auto',
 };
 
@@ -235,7 +235,7 @@ const listStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 10,
-  maxHeight: 'max(416px, 60vh)',
+  maxHeight: 'max(416px, calc(60 * var(--game-vh)))',
   minHeight: 0,
   overflowY: 'auto',
   WebkitOverflowScrolling: 'touch',

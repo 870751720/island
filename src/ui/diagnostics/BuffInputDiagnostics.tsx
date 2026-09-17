@@ -61,8 +61,8 @@ export function BuffInputDiagnostics() {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <div data-buff-diagnostics style={{ position: 'fixed', bottom: 'max(8px, env(safe-area-inset-bottom))',
-    left: 8, zIndex: 500, width: report ? 'min(340px, calc(100vw - 16px))' : undefined,
+  return <div data-buff-diagnostics style={{ position: 'fixed', bottom: 'max(8px, var(--game-safe-bottom))',
+    left: 8, zIndex: 500, width: report ? 'min(340px, calc(100 * var(--game-vw) - 16px))' : undefined,
     background: '#fff4df', color: '#304d40', padding: 8, borderRadius: 10, fontFamily: 'sans-serif' }}>
     <button style={{ minHeight: 44 }} onClick={() => setReport(buffTraceReport())}>记录刚才的 Buff 问题</button>
     {report && <>

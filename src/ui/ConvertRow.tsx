@@ -25,8 +25,8 @@ export const convertOverlayStyle: CSSProperties = {
 };
 
 export const convertPanelStyle: CSSProperties = {
-  width: 'min(360px, calc(100vw - 64px))',
-  maxHeight: '80dvh',
+  width: 'min(360px, calc(100 * var(--game-vw) - 64px))',
+  maxHeight: 'calc(80 * var(--game-vh))',
   overflowY: 'auto',
   padding: '18px 20px',
   borderRadius: 18,

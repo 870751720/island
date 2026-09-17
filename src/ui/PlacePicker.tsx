@@ -73,7 +73,7 @@ export function PlacePicker<T extends PickerItem>({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'absolute',
-          right: 'max(16px, env(safe-area-inset-right))',
+          right: 'max(16px, var(--game-safe-right))',
           top: '50%',
           transform: 'translateY(-50%)',
           display: 'flex',
@@ -83,7 +83,7 @@ export function PlacePicker<T extends PickerItem>({
           borderRadius: 14,
           ...gamePanelStyle,
           boxShadow: gameTheme.shadow,
-          maxHeight: '60vh',
+          maxHeight: 'calc(60 * var(--game-vh))',
           overflowY: 'auto',
         }}
       >

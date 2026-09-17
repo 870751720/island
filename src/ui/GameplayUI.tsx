@@ -227,7 +227,7 @@ export function GameplayUI({
       className="gameplay-ui"
       onPointerDownCapture={gameButtonPointerAudio}
       onClickCapture={gameButtonClickAudio}
-      style={{ position: 'relative', width: '100vw', height: '100dvh', overflow: 'hidden', '--hud-top-offset': `${topOffset}px` } as CSSProperties}
+      style={{ position: 'relative', width: 'calc(100 * var(--game-vw))', height: 'calc(100 * var(--game-vh))', overflow: 'hidden', '--hud-top-offset': `${topOffset}px` } as CSSProperties}
     >
       <style>{hudStyles + gameThemeCss}</style>
       <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
@@ -258,7 +258,7 @@ export function GameplayUI({
           className="hud-top-edge"
           style={{
             position: 'absolute',
-            right: 'max(10px, env(safe-area-inset-right))',
+            right: 'max(10px, var(--game-safe-right))',
             display: 'flex',
             alignItems: 'flex-start',
             gap: 8,
@@ -699,7 +699,7 @@ export function GameplayUI({
           left: 0,
           top: 0,
           display: 'none',
-          maxWidth: '60vw',
+          maxWidth: 'calc(60 * var(--game-vw))',
           padding: '6px 14px',
           background: gameTheme.panel,
           color: gameTheme.ink,

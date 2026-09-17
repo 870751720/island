@@ -10,7 +10,7 @@ export const hudControlStyles = `
 .hud-map-preview{overflow:hidden;background:#6caec5}
 .hud-settings>svg{transition:transform .25s ease}
 .hud-settings:active>svg{transform:rotate(35deg)}
-.hud-backpack,.hud-tool{position:absolute;right:max(16px,env(safe-area-inset-right));width:72px;height:72px;border-radius:23px}
+.hud-backpack,.hud-tool{position:absolute;right:max(16px,var(--game-safe-right));width:72px;height:72px;border-radius:23px}
 .hud-backpack{top:calc(50% - 120px)}
 .hud-backpack>svg{color:#493f32;transition:transform .18s ease}
 .hud-backpack:active>svg{transform:translateY(-2px) rotate(-7deg)}

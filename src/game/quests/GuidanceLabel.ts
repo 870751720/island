@@ -7,7 +7,7 @@ export class GuidanceLabel {
   private readonly anchor = new Vector3();
 
   constructor(private readonly container: HTMLElement) {
-    this.element.style.cssText = 'position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);pointer-events:none;z-index:24;visibility:hidden;';
+    this.element.style.cssText = 'position:absolute;inset:var(--game-safe-top,0px) var(--game-safe-right,0px) var(--game-safe-bottom,0px) var(--game-safe-left,0px);pointer-events:none;z-index:24;visibility:hidden;';
     this.element.innerHTML = '<span style="position:absolute;display:block;width:max-content;max-width:100%;font:600 13px/1.4 Arial,\'PingFang SC\',\'Microsoft YaHei\',sans-serif;color:#fff2ce;text-shadow:0 1px 2px #302819cc,1px 0 1px #30281988,-1px 0 1px #30281988;text-align:center;transform:translate(-50%,-50%)"></span>';
     container.appendChild(this.element);
   }

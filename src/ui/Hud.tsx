@@ -1,3 +1,4 @@
+import { gameViewportSize } from '@/platform/displayCoordinates';
 import { QuestPanel } from './QuestPanel';
 import { gameTheme } from './gameTheme';
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
@@ -83,7 +84,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
             style={{
               position: 'fixed',
               pointerEvents: 'auto',
-              left: Math.min(Math.max(tip.x - 115, 10), window.innerWidth - 240),
+              left: Math.min(Math.max(tip.x - 115, 10), gameViewportSize().width - 240),
               top: tip.y + 8,
               width: 230,
               padding: '10px 12px',

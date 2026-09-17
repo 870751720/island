@@ -1,3 +1,4 @@
+import { gameRect } from '@/platform/displayCoordinates';
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ItemIcon } from './ItemIcon';
@@ -18,7 +19,7 @@ export function CompanionRewardFlight({ reward, containerRef, visible }: {
     const container = containerRef.current;
     const target = container?.querySelector('.hud-backpack');
     if (!container || !target) return;
-    const bounds = container.getBoundingClientRect(), rect = target.getBoundingClientRect();
+    const bounds = gameRect(container), rect = gameRect(target);
     const dx = rect.left + rect.width / 2 - bounds.left - reward.x;
     const dy = rect.top + rect.height / 2 - bounds.top - reward.y;
     setFlight({ reward, style: { left: reward.x, top: reward.y, '--flight-x': `${dx}px`, '--flight-y': `${dy}px`,
