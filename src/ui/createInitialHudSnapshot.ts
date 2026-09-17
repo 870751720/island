@@ -20,6 +20,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     hasBow: false,
     hasSword: false,
     hasLasso: false,
+    hasShears: false,
     lassoCount: 0,
     leading: false,
     nearTether: false,

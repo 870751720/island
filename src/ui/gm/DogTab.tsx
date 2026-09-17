@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { Game } from '@/game/Game';
 import { DOG_STAGES, type DogGmCommand } from '@/game/systems/DogGrowth';
-import { DOG_FOOD_EXCLUSIONS, DOG_FOODS } from '@/game/systems/DogFood';
+import { dogFood, DOG_FOODS } from '@/game/systems/DogFood';
 import { FOODS } from '@/game/systems/Food';
 import { ActionButton } from './controls';
 import { gameTheme } from '../gameTheme';
@@ -18,7 +18,7 @@ export function DogTab({ getGame }: { getGame: () => Game | null }) {
   const run = (command: DogGmCommand, value = 0) => getGame()?.gmDog(command, value);
   const next = DOG_STAGES.find(s => s.stage === (state?.stage ?? 1) + 1);
   const selected = FOODS.find(f => f.kind === kind)!;
-  const rejection = DOG_FOOD_EXCLUSIONS[selected.kind];
+  const rejection = dogFood(selected.kind) ? undefined : '薯条不吃这种食物';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, color: gameTheme.ink }}>
       <div style={{ padding: 10, background: gameTheme.inset, borderRadius: 12, fontSize: 13, lineHeight: 1.7 }}>
@@ -45,7 +45,7 @@ export function DogTab({ getGame }: { getGame: () => Game | null }) {
         食物逐项测试（可喂 {DOG_FOODS.length} 种）
         <select aria-label="薯条测试食物" value={kind} onChange={e => setKind(e.target.value)}
           style={{ width: '100%', minHeight: 44, marginTop: 5, color: gameTheme.ink, background: gameTheme.inset, borderRadius: 8 }}>
-          {FOODS.map(f => <option key={f.kind} value={f.kind}>{f.name} · {DOG_FOOD_EXCLUSIONS[f.kind] ? '拒食' : `+${f.hunger}经验`}</option>)}
+          {FOODS.map(f => <option key={f.kind} value={f.kind}>{f.name} · {!dogFood(f.kind) ? '拒食' : `+${f.hunger}经验`}</option>)}
         </select>
       </label>
       <div style={{ fontSize: 12 }}>{rejection ?? `可喂，每份增加 ${selected.hunger} 经验；从背包丢弃喂食。`}</div>

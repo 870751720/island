@@ -1,3 +1,4 @@
+import { makeFeedBarrelModel, makeShearsModel, makeWoolModel } from '../entities/HusbandryModels';
 import { makeFishKeepModel } from '../entities/FishKeepModel';
 import { makeDoghouseModel } from '../entities/Doghouse';
 import * as THREE from 'three';
@@ -31,6 +32,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   bottle: '#a8d4d6',
   letter: '#f2e8cd',
   milk: '#f6f1e4',
+  cowMilk: '#fff1dd', wool: '#eee5d5', shears: '#bcc7ca', feedBarrel: '#a17a4d',
   sardine: '#b8cdd9',
   perch: '#8fa87b',
   shrimp: '#e8927c',
@@ -1316,6 +1318,8 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   bottle: makeBottle,
   letter: makeLetter,
   milk: makeMilkBottle,
+  cowMilk: makeMilkBottle, wool: makeWoolModel, shears: makeShearsModel,
+  feedBarrel: () => { const g = makeFeedBarrelModel(); g.scale.setScalar(0.45); return g; },
   wineBerry: () => makeWineBottle(DROP_COLORS.wineBerry),
   wineFruit: () => makeWineBottle(DROP_COLORS.wineFruit),
   wineMilk: () => makeWineBottle(DROP_COLORS.wineMilk),

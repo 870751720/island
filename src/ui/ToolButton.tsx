@@ -20,6 +20,7 @@ export const TOOL_LABELS: Partial<Record<HandTool, string>> = {
   bow: '弓',
   sword: '剑',
   lasso: '套索',
+  shears: '剪刀',
 };
 
 /** 右中侧工具切换按钮:单击循环 空手 → 斧子 → 镐子 → 鱼竿 → 弓(仅已拥有的);pulse 时外圈提示可切换;

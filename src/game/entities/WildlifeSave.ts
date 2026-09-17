@@ -1,3 +1,4 @@
+import type { HusbandryState } from '../systems/AnimalHusbandry';
 import type { AnimalSpecies } from './Wildlife';
 
 /** 可选世界存档；旧档仍按原有栖息地和木桩恢复。 */
@@ -8,7 +9,7 @@ export type WildlifeSave = {
     slot?: number; extra?: boolean; stake?: { x: number; z: number };
     leashEscape?: { elapsed: number; attempts: number };
     provoked: boolean;
-    milkLeft: number; hasMilk: boolean;
+    husbandry?: Partial<HusbandryState>;
   }[];
   slots: { index: number; cooldown: number }[];
 };

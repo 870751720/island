@@ -11,6 +11,7 @@ export interface FamilyAnimal extends LifeState {
   alerted: boolean;
   provoked: boolean;
   leash: unknown;
+  husbandry: { tamed: boolean };
   pos: Vector3;
   habitat?: HabitatSlot<AnimalSpecies>;
 }
@@ -53,7 +54,7 @@ export class WildlifeLifecycle<A extends FamilyAnimal> {
         mature(a);
       }
     }
-    const calm = (a: A): boolean => a.alive && a.bornAt === null && !a.alerted && !a.provoked && !a.leash;
+    const calm = (a: A): boolean => a.alive && !a.husbandry.tamed && a.bornAt === null && !a.alerted && !a.provoked && !a.leash;
     for (const pair of [...this.pairs]) {
       const [a, b] = pair.parents;
       const group = this.members(animals, a.habitat!);

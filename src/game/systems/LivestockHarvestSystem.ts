@@ -5,11 +5,13 @@ import type { GameAudio } from '../audio/GameAudio';
 const MILK_RANGE = 2.2;
 const MILK_TIME = 0.6; // 一次挤奶动作时长(秒)
 
-/** 空手走近有奶的拴养绵羊自动挤奶:站定播放采集动作,进度满结算入包(移动即中断) */
-export class SheepMilkSystem {
+/** 成年驯养牲畜的挤奶与剪毛；手持剪刀时只处理剪毛。 */
+export class LivestockHarvestSystem {
   private timer = 0;
   private workingNow = false;
   private targetId = 0;
+  private wool = false;
+  label = '挤奶…';
 
   constructor(
     private player: Player,
@@ -18,13 +20,17 @@ export class SheepMilkSystem {
     /** 其他占用双手的行为为真时让位 */
     private isBusy: () => boolean = () => false,
     /** 一次挤奶完成:交回游戏侧结算(客人端上行房主权威结算) */
-    private onComplete: (sheepId: number, x: number, z: number) => void
+    private onComplete: (animalId: number, wool: boolean) => void
   ) {}
 
   update(delta: number): void {
-    const sheep = this.wildlife.milkableNear(this.player.group.position, MILK_RANGE);
+    const wool = this.player.currentTool === 'shears';
+    const sheep = this.wildlife.harvestableNear(this.player.group.position, MILK_RANGE, wool);
+    if (sheep?.id !== this.targetId || wool !== this.wool) this.timer = 0;
+    this.wool = wool;
+    this.label = wool ? '剪羊毛…' : sheep?.kind === 'cowMilk' ? '挤牛奶…' : '挤羊奶…';
     // 与采浆果一致:不需要特定工具,站定即可(移动或双手被占用时中断)
-    const working = !!sheep && !this.player.isMoving && !this.isBusy();
+    const working = !!sheep && !this.player.isMoving && !this.player.isSwimming && !this.isBusy();
     const wasWorking = this.workingNow;
     this.workingNow = working;
     if (working) {
@@ -41,7 +47,7 @@ export class SheepMilkSystem {
     this.timer += delta;
     if (this.timer < MILK_TIME) return;
     this.timer = 0;
-    this.onComplete(this.targetId, sheep!.x, sheep!.z);
+    this.onComplete(this.targetId, wool);
   }
 
   /** 是否正在挤奶(进度指示与其他系统让位判定用) */

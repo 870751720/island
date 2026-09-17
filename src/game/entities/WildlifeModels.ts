@@ -12,6 +12,7 @@ export type AnimalModel = {
   head: THREE.Object3D;
   tail: THREE.Object3D;
   eyes?: THREE.Mesh[];
+  coat?: { body: THREE.Mesh; tufts: THREE.Object3D[] };
   rabbitRig?: {
     body: THREE.Object3D;
     ears: THREE.Object3D[];
@@ -231,6 +232,7 @@ function makeWolfModel(): AnimalModel {
 function makeSheepModel(): AnimalModel {
   const group = new THREE.Group();
   const wool = clay('#e8e2d4');
+  const tufts: THREE.Object3D[] = [];
   const skin = clay('#5a4f46');
 
   // 蓬松羊毛:主团 + 几个鼓包
@@ -244,6 +246,7 @@ function makeSheepModel(): AnimalModel {
     const bump = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 5), wool);
     bump.position.set(Math.cos(a) * 0.2, 0.58, Math.sin(a) * 0.3);
     group.add(bump);
+    tufts.push(bump);
   }
 
   const headPivot = new THREE.Group();
@@ -263,6 +266,7 @@ function makeSheepModel(): AnimalModel {
   fringe.scale.set(0.95, 0.55, 0.9);
   fringe.position.set(0, 0.09, -0.03);
   headPivot.add(fringe);
+  tufts.push(fringe);
   group.add(headPivot);
 
   const legs = [
@@ -277,7 +281,7 @@ function makeSheepModel(): AnimalModel {
   tail.position.set(0, 0.5, -0.44);
   group.add(tail);
 
-  return { group, legs, head: headPivot, tail };
+  return { group, legs, head: headPivot, tail, coat: { body, tufts } };
 }
 
 /** 野牛玩法使用普通牛外形:平直厚实躯干 + 宽口鼻牛头 + 横耳弯角 + 中等粗腿 + 长尾 */

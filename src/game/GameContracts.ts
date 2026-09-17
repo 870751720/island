@@ -43,6 +43,7 @@ export type HudSnapshot = {
   hasBow: boolean;
   hasSword: boolean;
   hasLasso: boolean;
+  hasShears: boolean;
   lassoCount: number;
   leading: boolean;
   nearTether: boolean;

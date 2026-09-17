@@ -8,6 +8,7 @@ import { ItemIcon } from './ItemIcon';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
+import { isAnimalFood } from '@/game/systems/AnimalFood';
 import { CRATE_CAPACITY } from '@/game/entities/Crate';
 import { startHoldTap } from './holdRepeat';
 
@@ -79,17 +80,19 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
   const renderGrid = (
     slots: InventorySlot[],
     capacity: number,
-    transfer: (kind: ResourceKind, count: number) => boolean
+    transfer: (kind: ResourceKind, count: number) => boolean,
+    feeding = false
   ) => (
     <div style={gridStyle}>
       {Array.from({ length: capacity }, (_, i) => {
         const slot = slots[i] ?? null;
+        const allowed = !feeding || !slot || isAnimalFood(slot.kind);
         return (
           <div
             key={i}
             onPointerDown={(e) => {
               e.preventDefault();
-              if (!slot) return;
+              if (!slot || !allowed) return;
               (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
               holdRef.current = startHoldTap({
                 onTap: () => transfer(slot.kind, Infinity),
@@ -98,7 +101,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
             }}
             onPointerUp={stopHold}
             onPointerCancel={stopHold}
-            style={slotStyle(!!slot)}
+            style={{ ...slotStyle(!!slot), opacity: allowed ? 1 : 0.4 }}
           >
             {slot && (
               <>
@@ -147,7 +150,8 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         </div>
         {renderGrid(crateSlots, crateCapacity, onTake)}
         <div style={{ fontWeight: 700, margin: '14px 2px 8px' }}><HudIcon name="backpack" size={24} /> 背包(点按存入,长按步进)</div>
-        {renderGrid(hud.slots, hud.capacity, onStore)}
+        {hud.crateKind === 'feedBarrel' && <div style={{ fontSize: 12, marginBottom: 8 }}>只能存放可喂食的食物，动物和薯条会走近取食。</div>}
+        {renderGrid(hud.slots, hud.capacity, onStore, hud.crateKind === 'feedBarrel')}
         <button
           onPointerDown={(e) => {
             e.preventDefault();

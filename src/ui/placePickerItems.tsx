@@ -16,7 +16,7 @@ export interface PlacePickerItem extends PickerItem {
 
 type PlacePickerSnapshot = Pick<
   HudSnapshot,
-  'tool' | 'toolTiers' | 'hasLasso' | 'placeables' | 'heldItemKind'
+  'tool' | 'toolTiers' | 'hasLasso' | 'hasShears' | 'placeables' | 'heldItemKind'
 >;
 
 /** 按既有优先级生成手持项:空手、已拥有工具、套索、可放置道具;图标统一走 ItemIcon/ToolIcon,与背包一致。 */
@@ -37,6 +37,7 @@ export function createPlacePickerItems(hud: PlacePickerSnapshot): PlacePickerIte
       tool,
       active: hud.tool === tool,
     })),
+    ...(hud.hasShears ? [{ key: 'shears', icon: toolIcon('shears'), name: '剪刀', tool: 'shears' as const, active: hud.tool === 'shears' }] : []),
     ...(hud.hasLasso
       ? [
           {

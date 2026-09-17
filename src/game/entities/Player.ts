@@ -1,3 +1,4 @@
+import { makeShearsModel } from './HusbandryModels';
 import type { RoadKind } from './RoadModel';
 import * as THREE from 'three';
 import { SWIM_DEPTH } from '../systems/WaterAccess';
@@ -61,6 +62,7 @@ export type HandTool =
   | 'fishingrod'
   | 'bow'
   | 'sword'
+  | 'shears'
   | 'lasso'
   | 'fence'
   | 'fenceGate'
@@ -365,6 +367,7 @@ export class Player implements Updatable {
       ['fishingrod', [makeFishingRodModel(1), makeFishingRodModel(2), makeFishingRodModel(3)]],
       ['bow', [makeBowModel(1), makeBowModel(2), makeBowModel(3)]],
       ['sword', [makeSwordModel(1), makeSwordModel(2), makeSwordModel(3)]],
+      ['shears', [makeShearsModel()]],
       ['lasso', [makeLassoModel()]],
     ];
     for (const [tool, models] of tiers) {

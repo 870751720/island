@@ -33,6 +33,7 @@ export class FacilityInteractionController {
     if (this.guest) return this.guest.action('crateStore', [kind, count === Infinity ? null : count]);
     if (this.asleep(actor)) return false;
     const result = this.systems.crates.store(actor, kind, count);
+    if (result === 'invalid') this.notify('食料桶只能存放可喂食的食物', actor);
     if (result === 'full' && count === Infinity) {
       const label = ITEMS[this.systems.crates.nearbyKind(actor) ?? 'crate'].name;
       this.notify(`${label}装不下了`, actor);

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { animalFood, isAnimalFood, type FoodTarget } from './AnimalFood';
+import type { FoodEater } from './Food';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
 import { Crate, crateCapacity, type CrateKind } from '../entities/Crate';
@@ -21,7 +23,7 @@ const SWING_TIME = 0.6; // 每次挖掘动作时长(秒)
 type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget: Crate | null };
 
 /** 存取结果:ok 成功;empty 一侧已无该物品(连点已空格子,静默);full 对方装不下 */
-export type TransferResult = 'ok' | 'empty' | 'full';
+export type TransferResult = 'ok' | 'empty' | 'full' | 'invalid';
 
 /** 木箱的存档/网络快照(落点、箱种与箱内格子)。 */
 export type CrateSave = {
@@ -253,6 +255,7 @@ export class CrateSystem {
   /** 把背包里该种类道具存入身旁木箱(count 为 Infinity 时整格存入) */
   store(actor: PlayerSession, kind: ResourceKind, count = Infinity): TransferResult {
     const crate = this.nearby(actor);
+    if (crate?.kind === 'feedBarrel' && !isAnimalFood(kind)) return 'invalid';
     const n = Math.min(actor.inventory.count(kind), count);
     if (!crate || n <= 0) return 'empty';
     if (!crate.storage.canFit(kind)) return 'full';
@@ -277,6 +280,22 @@ export class CrateSystem {
     this.emitSlotChanges(crate, before);
     actor.inventory.add(kind, n);
     return 'ok';
+  }
+
+  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number): FoodTarget[] {
+    return this.crates.filter(crate => crate.kind === 'feedBarrel'
+      && Math.hypot(crate.group.position.x - origin.x, crate.group.position.z - origin.z) <= range
+      && crate.storage.snapshot().some(slot => slot && animalFood(slot.kind, eater)))
+      .map(crate => ({ position: crate.group.position.clone(), consume: () => {
+        if (!this.crates.includes(crate)) return 0;
+        const slot = crate.storage.snapshot().find(slot => slot && animalFood(slot.kind, eater));
+        if (!slot) return 0;
+        const before = crate.storage.snapshot();
+        crate.storage.remove(slot.kind, 1);
+        crate.updateIcon();
+        this.emitSlotChanges(crate, before);
+        return animalFood(slot.kind, eater)!.hunger;
+      } }));
   }
 
   /** 当前所有木箱的存档快照(落点、箱种与箱内内容) */

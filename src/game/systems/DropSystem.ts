@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { dogFood } from './DogFood';
-import type { Food } from './Food';
+import { animalFood, type FoodTarget } from './AnimalFood';
+import type { FoodEater } from './Food';
 import { DropHighlight } from '../fx/DropHighlight';
 import type { ResourceKind } from './Inventory';
 import type { Actor } from '../mp/Actor';
@@ -196,47 +196,19 @@ export class DropSystem {
     return false;
   }
 
-  /** 范围内最近的一份可喂食物(狗狗寻食用,只比较水平距离——掉落物悬浮在空中),没有则 null。
-   * 只认玩家主动丢弃的食物:狩猎战利品和背包溢出的不抢 */
-  nearestDogFood(origin: THREE.Vector3, range: number): THREE.Vector3 | null {
-    let best: Drop | null = null;
-    let bestDist = range * range;
-    for (const drop of this.drops) {
-      if (!dogFood(drop.kind) || drop.source !== 'discarded' || drop.age < DOG_EAT_DELAY) continue;
-      const dx = drop.mesh.position.x - origin.x;
-      const dz = drop.mesh.position.z - origin.z;
-      const d = dx * dx + dz * dz;
-      if (d < bestDist) {
-        best = drop;
-        bestDist = d;
-      }
-    }
-    return best ? best.mesh.position.clone() : null;
-  }
-
-  /** 吃掉范围内最近的一份可喂食物，返回食物定义用于成长结算 */
-  consumeDogFoodNear(origin: THREE.Vector3, range: number): Food | null {
-    let best = -1;
-    let bestDist = range * range;
-    for (let i = 0; i < this.drops.length; i++) {
-      const drop = this.drops[i];
-      if (!dogFood(drop.kind) || drop.source !== 'discarded' || drop.age < DOG_EAT_DELAY) continue;
-      const dx = drop.mesh.position.x - origin.x;
-      const dz = drop.mesh.position.z - origin.z;
-      const d = dx * dx + dz * dz;
-      if (d < bestDist) {
-        best = i;
-        bestDist = d;
-      }
-    }
-    if (best < 0) return null;
-    const drop = this.drops[best];
-    this.fx.burst(drop.mesh.position, '#e8b88a', 6);
-    // 每次只吃一份，余下堆叠继续留在地上并同步数量。
-    drop.count -= 1;
-    if (drop.count <= 0) this.remove(best);
-    else this.onChanged?.({ op: 'set', id: drop.id, fields: { count: drop.count } });
-    return dogFood(drop.kind) ?? null;
+  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number): FoodTarget[] {
+    return this.drops.filter(drop => drop.source === 'discarded' && drop.age >= DOG_EAT_DELAY
+      && animalFood(drop.kind, eater) && Math.hypot(drop.mesh.position.x - origin.x, drop.mesh.position.z - origin.z) <= range)
+      .map(drop => ({ position: drop.mesh.position.clone(), consume: () => {
+        const index = this.drops.indexOf(drop);
+        if (index < 0 || drop.count <= 0) return 0;
+        const food = animalFood(drop.kind, eater);
+        if (!food) return 0;
+        drop.count--;
+        if (!drop.count) this.remove(index);
+        else this.onChanged?.({ op: 'set', id: drop.id, fields: { count: drop.count } });
+        return food.hunger;
+      } }));
   }
 
   private remove(index: number): void {

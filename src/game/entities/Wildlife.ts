@@ -1,3 +1,8 @@
+import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
+import { AnimalForaging, clearFoodPath } from '../systems/AnimalForaging';
+import type { AnimalFoodSource } from '../systems/AnimalFood';
+import type { Props } from '../world/Props';
+import type { AnimalPose } from '../net/Protocol';
 import { canLasso, isLassoPredator, advanceLassoEscape, type EscapeProgress, type LassoResult } from './LassoRules';
 import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
@@ -110,8 +115,6 @@ const LEAD_FOLLOW_DIST = 2.2;
 const LEAD_SPEED = 5;
 /** 被拴在桩上时的游荡半径(选吃草点的范围) */
 const STAKE_WANDER = 2.2;
-/** 拴在桩上的绵羊产出一批羊奶所需的时间(秒) */
-const MILK_INTERVAL = 180;
 /** 桩绳硬上限:超出该距离的落点不可站立 */
 const STAKE_LEASH = 3;
 
@@ -357,15 +360,12 @@ type Animal = LifeState & {
   /** 被套索套住:被玩家牵着(holder)或拴在木桩(anchor);期间不可被攻击 */
   leash: LeashState | null;
   leashEscape?: EscapeProgress;
-  /** 牵引绳持续绷紧的累计时长(卡住/玩家下水),超过上限滑脱 */
   /** 客人侧从姿态快照镜像的拴绳信息(渲染绳子用,不参与本地 AI) */
   netLeash: LeashPose | null;
-  // —— 羊奶产出(其他物种恒为初始值) ——
-  /** 拴在桩上累计的产奶计时(秒),归零后 hasMilk 置位;解开拴绳时清零重计 */
-  milkLeft: number;
-  /** 当前有可挤的羊奶(羊头顶奶瓶图标);客人端由姿态快照镜像 */
-  hasMilk: boolean;
-  /** 头顶奶瓶图标(仅绵羊创建) */
+  netReady: boolean;
+  husbandry: HusbandryState;
+  foraging: AnimalForaging;
+  /** 头顶奶瓶图标。 */
   milkIcon: THREE.Sprite | null;
 };
 
@@ -384,6 +384,26 @@ export class Wildlife implements Updatable {
 
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
+  private foodDrops: AnimalFoodSource | null = null;
+  onAnimalEat: (id: number) => void = () => {};
+  private foodBarrels: AnimalFoodSource | null = null;
+  private forageProps: Props | null = null;
+
+  setFoodSources(drops: AnimalFoodSource, barrels: AnimalFoodSource, props: Props): void {
+    this.foodDrops = drops; this.foodBarrels = barrels; this.forageProps = props;
+  }
+
+  husbandryIndicators() {
+    return this.animals.filter(a => a.alive && !a.hidden && (a.husbandry.tamed || this.canTame(a) || (a.netLeash && a.netReady)))
+      .map(a => ({ id: a.id, target: a.model.group, heart: a.husbandry.heart / (HEART_MAX[a.species as TameSpecies] || 1),
+        tamed: a.husbandry.tamed, eating: a.husbandry.eating > 0, wool: a.husbandry.wool,
+        height: a.species === 'bear' ? 2.5 : a.species === 'bison' ? 2 : 1.6 }));
+  }
+
+  private canTame(a: Animal): boolean {
+    return !!a.leash && canLasso(a.species) && (!isLassoPredator(a.species) || (a.leashEscape?.attempts ?? 0) >= 5);
+  }
+
   private pursuit = new WildlifePursuit();
   private soloDeathProtection = false;
   private mercyCooldown = 0;
@@ -518,11 +538,12 @@ export class Wildlife implements Updatable {
       burrow: null,
       leash: null,
       netLeash: null,
-      milkLeft: MILK_INTERVAL,
-      hasMilk: false,
+      netReady: false,
+      husbandry: newHusbandry(),
+      foraging: new AnimalForaging(),
       milkIcon: null,
     };
-    if (species === 'sheep') {
+    if (species === 'sheep' || species === 'bison') {
       animal.milkIcon = makeMilkIcon();
       model.group.add(animal.milkIcon);
     }
@@ -629,7 +650,7 @@ export class Wildlife implements Updatable {
 
   snapshotFamilies(): WildlifeSave {
     return {
-      animals: this.animals.filter(a => a.alive && (isFamilySpecies(a.species) || (a.leash && 'anchor' in a.leash))).map(a => {
+      animals: this.animals.filter(a => a.alive && (isFamilySpecies(a.species) || a.husbandry.tamed || (a.leash && 'anchor' in a.leash))).map(a => {
         const index = a.habitat ? this.population.slots.indexOf(a.habitat) : -1;
         const homeIndex = a.habitat ? this.population.slots.findIndex(s => s.kind === a.species && s.home === a.habitat!.home) : undefined;
         return {
@@ -639,7 +660,9 @@ export class Wildlife implements Updatable {
           extra: !!a.habitat && index < 0,
           provoked: a.provoked,
           stake: a.leash && 'anchor' in a.leash ? { ...a.leash.anchor } : undefined,
-          milkLeft: a.milkLeft, hasMilk: a.hasMilk,
+          husbandry: { ...a.husbandry, eating: 0,
+            heart: a.husbandry.tamed || (a.leash && 'anchor' in a.leash) ? a.husbandry.heart : 0,
+            home: a.husbandry.tamed ? (a.husbandry.home ?? { x: a.pos.x, z: a.pos.z }) : null },
           leashEscape: a.leashEscape ? { ...a.leashEscape } : undefined,
         };
       }),
@@ -664,20 +687,19 @@ export class Wildlife implements Updatable {
       if (slot && isFamilySpecies(slot.kind)) slot.cooldown = entry.cooldown;
     }
     for (const entry of save.animals) {
-      if (!isFamilySpecies(entry.species) && !(entry.stake && canLasso(entry.species))) continue;
+      if (!isFamilySpecies(entry.species) && !(canLasso(entry.species) && (entry.stake || entry.husbandry?.tamed))) continue;
       const a = this.createAnimal(entry.species, new THREE.Vector3(entry.x, this.terrain.getHeight(entry.x, entry.z), entry.z), entry.heading);
       a.hp = entry.hp;
       a.bornAt = entry.bornAt;
       a.readyAt = entry.readyAt;
       a.provoked = a.bornAt === null && entry.provoked;
-      a.milkLeft = entry.milkLeft;
-      a.hasMilk = entry.hasMilk;
+      a.husbandry = canLasso(entry.species) ? restoreHusbandry(entry.husbandry, entry.species as TameSpecies) : newHusbandry();
       if (entry.stake) {
         a.leash = { anchor: { ...entry.stake } };
         if (isLassoPredator(a.species)) a.leashEscape = { ...(entry.leashEscape ?? { elapsed: 0, attempts: 0 }) };
       }
       const home = entry.slot === undefined ? undefined : this.population.slots[entry.slot];
-      if (isFamilySpecies(entry.species) && home && home.kind === entry.species) {
+      if (!a.husbandry.tamed && isFamilySpecies(entry.species) && home && home.kind === entry.species) {
         a.habitat = entry.extra ? { ...home } : home;
         a.habitat.occupied = true;
       }
@@ -688,13 +710,16 @@ export class Wildlife implements Updatable {
   /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围;
    * 被拴在桩上的羊额外不可超出桩绳长度 */
   private canStand(animal: Animal, x: number, z: number): boolean {
+    const home = animal.husbandry.home;
+    if (animal.husbandry.tamed && !animal.leash && home && Math.hypot(x - home.x, z - home.z) > HOME_RADIUS
+      && Math.hypot(x - home.x, z - home.z) >= Math.hypot(animal.pos.x - home.x, animal.pos.z - home.z)) return false;
     if (animal.retreat?.arrived && Math.hypot(x - animal.retreat.origin.x, z - animal.retreat.origin.z) < (animal.retreat.distance ?? DEATH_RETREAT_DISTANCE)) return false;
     if (animal.leash && 'anchor' in animal.leash) {
       const a = animal.leash.anchor;
       if (Math.hypot(x - a.x, z - a.z) > STAKE_LEASH) return false;
     }
     if (animal.species !== 'crocodile') {
-      if (animal.config.damage > 0 && animal.habitat && Math.hypot(x - this.safeSpawn.x, z - this.safeSpawn.z) < 60) return false;
+      if (!animal.husbandry.tamed && !animal.leash && animal.config.damage > 0 && animal.habitat && Math.hypot(x - this.safeSpawn.x, z - this.safeSpawn.z) < 60) return false;
       return this.isGrass(x, z);
     }
     const inPond = this.terrain.getWaterKind(x, z) === 'pond';
@@ -718,7 +743,7 @@ export class Wildlife implements Updatable {
       } else if (animal.species === 'crocodile' && animal.pond) {
         x = animal.pond.x + Math.cos(a) * rng() * animal.pond.radius * 0.7;
         z = animal.pond.z + Math.sin(a) * rng() * animal.pond.radius * 0.7;
-      } else if (animal.bornAt !== null && animal.habitat) {
+      } else if (!animal.husbandry.tamed && animal.bornAt !== null && animal.habitat) {
         const adults = this.lifecycle.members(this.animals, animal.habitat).filter(a => a.bornAt === null && !a.leash);
         const adult = adults.sort((a, b) => a.pos.distanceToSquared(animal.pos) - b.pos.distanceToSquared(animal.pos))[0];
         x = (adult?.pos.x ?? animal.pos.x) + Math.cos(a) * 2;
@@ -727,7 +752,7 @@ export class Wildlife implements Updatable {
         x = animal.pos.x + Math.cos(a) * d;
         z = animal.pos.z + Math.sin(a) * d;
       }
-      if (!anchor && !animal.retreat && animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
+      if (!animal.husbandry.tamed && !anchor && !animal.retreat && animal.habitat && Math.hypot(x - animal.habitat.home.x, z - animal.habitat.home.z) > animal.habitat.radius) {
         x = animal.habitat.home.x; z = animal.habitat.home.z;
       }
       if (this.canStand(animal, x, z)) {
@@ -743,7 +768,8 @@ export class Wildlife implements Updatable {
     const tryDir = (a: number): boolean => {
       const nx = animal.pos.x + Math.cos(a) * speed * delta;
       const nz = animal.pos.z + Math.sin(a) * speed * delta;
-      if (!this.canStand(animal, nx, nz)) return false;
+      const next = new THREE.Vector3(nx, animal.pos.y, nz);
+      if (!clearFoodPath(animal.pos, next, (x, z) => this.canStand(animal, x, z))) return false;
       animal.pos.set(nx, this.terrain.getHeight(nx, nz), nz);
       animal.heading = a;
       return true;
@@ -938,11 +964,11 @@ export class Wildlife implements Updatable {
     this.creatureFx.update(delta);
     this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
-    this.pursuit.begin(this.animals.filter(a => a.alive && !a.hidden && !a.taunt && !a.retreat
+    this.pursuit.begin(this.animals.filter(a => a.alive && !a.husbandry.tamed && !a.hidden && !a.taunt && !a.retreat
       && (a.config.damage > 0 || a.provoked)).map(a => ({ id: a.id, pos: a.pos, radius: this.pursuitRadius(a) })), delta);
     for (const animal of this.animals) {
       if (!animal.alive) continue;
-      if (animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
+      if (!animal.husbandry.tamed && animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
         const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta);
         if (escaped || animal.leashEscape.attempts === 5) {
           const leash = animal.leash;
@@ -959,6 +985,15 @@ export class Wildlife implements Updatable {
             this.onLassoEscape(anchor);
           }
         }
+      }
+      if (canLasso(animal.species)) {
+        if (advanceHusbandry(animal.husbandry, animal.species as TameSpecies, animal.bornAt === null, delta)) {
+          this.clearTameCombat(animal);
+          animal.foraging.reset();
+          animal.target.copy(animal.pos);
+        }
+        const handled = this.updateHusbandry(animal, delta);
+        if (handled !== null) { this.animate(animal, delta, elapsed, handled, false); continue; }
       }
       if (animal.taunt) {
         this.updateTaunt(animal, delta, elapsed);
@@ -1246,15 +1281,66 @@ export class Wildlife implements Updatable {
    *   绳子永不自动滑脱,只有玩家主动松开(切工具/倒下/存档退款)才会解开。
    * - 被拴在桩上(anchor):绕桩小范围吃草踱步,canStand 限制不超出桩绳。
    */
+  private clearTameCombat(animal: Animal): void {
+    animal.boundTo = animal.calfAttacker = null;
+    animal.alerted = animal.provoked = animal.roared = false;
+    animal.pounce = null;
+    animal.taunt = animal.mock = animal.retreat = undefined;
+    animal.rageLeft = animal.roarLeft = animal.lungeLeft = animal.hitFleeLeft = 0;
+    animal.tiredLeft = 0;
+    animal.stamina = BEAR_SPRINT_TIME;
+    animal.attackLeft = 0;
+  }
+
+  private updateHusbandry(animal: Animal, delta: number): boolean | null {
+    const state = animal.husbandry;
+    if (!state.tamed && !this.canTame(animal)) return null;
+    if (delta <= 0) return false;
+    if (state.tamed && !animal.leash && state.home
+      && Math.hypot(animal.pos.x - state.home.x, animal.pos.z - state.home.z) > HOME_RADIUS) {
+      animal.foraging.reset();
+      animal.target.set(state.home.x, animal.pos.y, state.home.z);
+      return this.step(animal, Math.atan2(state.home.z - animal.pos.z, state.home.x - animal.pos.x), animal.config.walkSpeed, delta);
+    }
+    if (state.eating > 0) return false;
+    if (state.cooldown <= 0 && (!state.tamed || state.seeking) && this.foodDrops) {
+      const sources = state.tamed && this.foodBarrels ? [this.foodDrops, this.foodBarrels] : [this.foodDrops];
+      const allowed = (x: number, z: number) => this.canStand(animal, x, z)
+        && (!(animal.leash && 'holder' in animal.leash)
+          || Math.hypot(x - animal.leash.holder.group.position.x, z - animal.leash.holder.group.position.z) <= STAKE_LEASH);
+      const movement = animal.foraging.update(delta, animal.pos, animal.species as TameSpecies, state.tamed,
+        sources, this.forageProps, allowed,
+        target => this.step(animal, Math.atan2(target.z - animal.pos.z, target.x - animal.pos.x),
+          Math.min(2, Math.hypot(target.x - animal.pos.x, target.z - animal.pos.z) / Math.max(delta, 0.001)), delta),
+        hunger => {
+          this.onAnimalEat(animal.id);
+          if (feedAnimal(state, animal.species as TameSpecies, hunger)) {
+            this.lifecycle.cancel(animal);
+            this.clearTameCombat(animal);
+            this.population.release(animal.habitat);
+            animal.habitat = undefined;
+            animal.target.copy(animal.pos);
+          }
+        });
+      if (movement !== null) return movement;
+    }
+    if (!state.tamed) return null;
+    if (animal.leash) return this.updateLeashed(animal, delta);
+    state.home ??= { x: animal.pos.x, z: animal.pos.z };
+    animal.walkTime += delta;
+    if (animal.idleTime > 0) { animal.idleTime -= delta; return false; }
+    if (animal.walkTime > 6 || animal.pos.distanceToSquared(animal.target) < 0.04) {
+      animal.walkTime = 0; animal.idleTime = 1 + Math.random() * 3;
+      this.pickTarget(animal, Math.random);
+      return false;
+    }
+    return this.step(animal, Math.atan2(animal.target.z - animal.pos.z, animal.target.x - animal.pos.x), animal.config.walkSpeed, delta);
+  }
+
   private updateLeashed(animal: Animal, delta: number): boolean {
     const leash = animal.leash!;
     animal.walkTime += delta;
     if ('anchor' in leash) {
-      // 拴在桩上才开始攒奶:计时归零产出一份,取走后重新计时
-      if (animal.species === 'sheep' && !animal.hasMilk) {
-        if (animal.bornAt === null) animal.milkLeft -= delta;
-        if (animal.milkLeft <= 0) animal.hasMilk = true;
-      }
       if (animal.idleTime > 0) {
         animal.idleTime -= delta;
         return false;
@@ -1282,7 +1368,8 @@ export class Wildlife implements Updatable {
     if (!animal?.alive || animal.hidden || animal.leash || animal.netLeash || !canLasso(animal.species)) return false;
     this.lifecycle.cancel(animal);
     animal.leash = { holder };
-    animal.leashEscape = isLassoPredator(animal.species) ? { elapsed: 0, attempts: 0 } : undefined;
+    animal.leashEscape = isLassoPredator(animal.species) ? { elapsed: 0, attempts: animal.husbandry.tamed ? 5 : 0 } : undefined;
+    animal.foraging.reset();
     animal.taunt = undefined;
     animal.mock = undefined;
     animal.retreat = undefined;
@@ -1301,14 +1388,16 @@ export class Wildlife implements Updatable {
   }
 
   /** 解开拴绳(解绳按钮/存档退款/断线兜底):返回羊的落点,未在拴绳状态返回 null */
-  releaseLeash(id: number): { x: number; z: number } | null {
+  releaseLeash(id: number, center?: { x: number; z: number }): { x: number; z: number } | null {
     const animal = this.animals.find((a) => a.id === id);
     if (!animal?.leash) return null;
     animal.leash = null;
     animal.leashEscape = undefined;
-    animal.hasMilk = false;
-    animal.milkLeft = MILK_INTERVAL;
-    animal.alerted = true;
+    animal.foraging.reset();
+    if (animal.husbandry.tamed) animal.husbandry.home = center ? { x: center.x, z: center.z } : animal.husbandry.home ?? { x: animal.pos.x, z: animal.pos.z };
+    else animal.husbandry.heart = 0;
+    animal.target.copy(animal.pos);
+    animal.alerted = !animal.husbandry.tamed;
     animal.idleTime = 0;
     return { x: animal.pos.x, z: animal.pos.z };
   }
@@ -1339,7 +1428,7 @@ export class Wildlife implements Updatable {
   }
 
   guideSheep(): { x: number; z: number }[] {
-    return this.animals.filter(a => a.alive && !a.hidden && !a.leash && !a.netLeash && a.species === 'sheep').map(a => a.pos);
+    return this.animals.filter(a => a.alive && !a.hidden && !a.leash && !a.netLeash && !a.husbandry.tamed && a.species === 'sheep').map(a => a.pos);
   }
 
   leashedInfos(): { id: number; x: number; z: number; pose: LeashPose | null }[] {
@@ -1401,28 +1490,28 @@ export class Wildlife implements Updatable {
     return { id: best.id, anchor: anchor.anchor };
   }
 
-  /** 玩家身边有奶可挤的拴养绵羊(空手自动挤奶判定用) */
-  milkableNear(origin: THREE.Vector3, range: number): { id: number; x: number; z: number } | null {
+  harvestableNear(origin: THREE.Vector3, range: number, wool: boolean): { id: number; x: number; z: number; kind: 'milk' | 'cowMilk' | 'wool' } | null {
     let best: Animal | null = null;
-    let bestDist = range * range;
+    let distance = range;
     for (const animal of this.animals) {
-      if (!animal.alive || !animal.hasMilk) continue;
-      const d = animal.pos.distanceToSquared(origin);
-      if (d < bestDist) {
-        best = animal;
-        bestDist = d;
-      }
+      if (!animal.alive || !animal.husbandry.tamed || animal.bornAt !== null || animal.hidden) continue;
+      if (wool ? !animal.husbandry.wool : !animal.husbandry.milk) continue;
+      const d = Math.hypot(animal.pos.x - origin.x, animal.pos.z - origin.z);
+      if (d < distance && clearFoodPath(origin, animal.pos, (x, z) => !this.isBlocked(x, z))) { best = animal; distance = d; }
     }
-    return best ? { id: best.id, x: best.pos.x, z: best.pos.z } : null;
+    return best ? { id: best.id, x: best.pos.x, z: best.pos.z, kind: wool ? 'wool' : best.species === 'bison' ? 'cowMilk' : 'milk' } : null;
   }
 
-  /** 取走一只羊身上的羊奶(有奶才成功),重置产奶计时 */
-  takeMilk(id: number): boolean {
-    const animal = this.animals.find((a) => a.id === id);
-    if (!animal?.alive || !animal.hasMilk) return false;
-    animal.hasMilk = false;
-    animal.milkLeft = MILK_INTERVAL;
-    return true;
+  takeProduce(id: number, origin: THREE.Vector3, wool: boolean): { kind: ResourceKind; position: THREE.Vector3 } | null {
+    const target = this.harvestableNear(origin, 2.2, wool);
+    if (target?.id !== id) return null;
+    const animal = this.animals.find(a => a.id === id)!;
+    if (wool) {
+      animal.husbandry.wool = false; animal.husbandry.shorn = true; animal.husbandry.woolLeft = PRODUCTION_SECONDS;
+    } else {
+      animal.husbandry.milk = false; animal.husbandry.milkLeft = PRODUCTION_SECONDS;
+    }
+    return { kind: target.kind, position: animal.pos.clone() };
   }
 
   /** 读档:在桩位生成一只已被拴住的羊(栖息地正常生成之外的额外个体) */
@@ -1493,7 +1582,7 @@ export class Wildlife implements Updatable {
   killHidden(x: number, z: number): number {
     let killed = 0;
     for (const animal of [...this.animals]) {
-      if (!animal.hidden || !animal.burrow) continue;
+      if (animal.husbandry.tamed || !animal.hidden || !animal.burrow) continue;
       if (Math.hypot(x - animal.burrow.x, z - animal.burrow.z) > BURROW_ENTER_RANGE) continue;
       animal.alive = false;
       animal.hidden = false;
@@ -1510,8 +1599,14 @@ export class Wildlife implements Updatable {
     g.position.copy(animal.pos);
     this.applyLifeScale(animal);
     // 有奶的羊头顶浮起奶瓶图标(无背景 Sprite,轻微起伏)
+    if (animal.model.coat) {
+      const { body, tufts } = animal.model.coat;
+      const shorn = animal.husbandry.shorn;
+      body.scale.set(shorn ? 0.78 : 1, shorn ? 0.73 : 0.95, shorn ? 1.17 : 1.4);
+      for (const tuft of tufts) tuft.visible = !shorn;
+    }
     if (animal.milkIcon) {
-      animal.milkIcon.visible = animal.hasMilk;
+      animal.milkIcon.visible = animal.husbandry.milk;
       animal.milkIcon.position.y = 1.25 + Math.sin(elapsed * 2 + animal.phase) * 0.06;
     }
     // 鳄鱼在水洼里:身体半沉推进;出场潜伏时几乎整个没入水下,只靠涟漪暴露位置
@@ -1611,6 +1706,7 @@ export class Wildlife implements Updatable {
     if (animal.species === 'sheep' && (animal.leash || animal.netLeash) && !moving) {
       headPitch -= Math.max(0, Math.sin(elapsed * 0.8 + animal.phase)) * 0.55;
     }
+    if (animal.husbandry.eating > 0) headPitch = 0.4 + Math.sin(elapsed * 12) * 0.08;
     animal.model.head.position.z = (animal.species === 'bear' ? 0.48 : animal.species === 'bison' ? 0.63 : animal.species === 'rabbit' ? 0.22 : animal.species === 'wolf' ? 0.39 : animal.species === 'crocodile' ? 0.52 : 0.4) + bob;
     animal.model.head.rotation.x = headPitch;
     // 兔尾以轻颤为主,鳄鱼在水中靠粗尾左右大幅摆动推进,其余动物轻晃摆尾。
@@ -1637,7 +1733,7 @@ export class Wildlife implements Updatable {
    * 被套索拴住/牵住的羊不为所动 */
   startle(x: number, z: number, range = NOISE_RANGE): void {
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden || animal.leash) continue;
+      if (!animal.alive || animal.husbandry.tamed || animal.hidden || animal.leash) continue;
       if (Math.hypot(x - animal.pos.x, z - animal.pos.z) < range) animal.alerted = true;
     }
   }
@@ -1645,7 +1741,7 @@ export class Wildlife implements Updatable {
   /** 返回范围内最近的一只活动物位置(无则 null),供弓箭索敌;躲进洞里的兔子与被拴住的羊无法被攻击 */
   collectAimTargets(origin: THREE.Vector3, range: number, out: AimTarget[], lassoOnly = false): void {
     for (const target of this.animals) {
-      if (!target.alive || target.hidden || target.leash || target.netLeash || (lassoOnly && !canLasso(target.species))) continue;
+      if (!target.alive || target.hidden || target.leash || target.netLeash || (lassoOnly ? !canLasso(target.species) : target.husbandry.tamed)) continue;
       const dx = target.pos.x - origin.x;
       const dz = target.pos.z - origin.z;
       if (dx * dx + dz * dz <= range * range) {
@@ -1658,7 +1754,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden || animal.leash) continue;
+      if (!animal.alive || animal.husbandry.tamed || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -1673,7 +1769,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden || animal.leash) continue;
+      if (!animal.alive || animal.husbandry.tamed || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(origin);
       if (d < bestDist) {
         best = animal;
@@ -1685,7 +1781,7 @@ export class Wildlife implements Updatable {
 
   /** 箭矢扫掠判定:返回与飞行线段平面距离最近的活动物(无则 null);躲藏的兔子与被拴住的羊不可命中 */
   hitSegment(from: THREE.Vector3, to: THREE.Vector3, range: number): Animal | null {
-    return nearestToSegmentXZ(this.animals.filter((a) => !a.hidden && !a.leash), from, to, range);
+    return nearestToSegmentXZ(this.animals.filter((a) => !a.hidden && !a.leash && !a.husbandry.tamed), from, to, range);
   }
 
   /**
@@ -1700,7 +1796,7 @@ export class Wildlife implements Updatable {
     let best: Animal | null = null;
     let bestDist = range * range;
     for (const animal of this.animals) {
-      if (!animal.alive || animal.hidden || animal.leash) continue;
+      if (!animal.alive || animal.husbandry.tamed || animal.hidden || animal.leash) continue;
       const d = animal.pos.distanceToSquared(pos);
       if (d < bestDist) {
         best = animal;
@@ -1714,7 +1810,7 @@ export class Wildlife implements Updatable {
   /** 对指定动物结算一次箭伤(客人端上行的命中由房主按 id 权威结算);躲藏的兔子与被拴住的羊不可命中 */
   damage(id: number, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     const animal = this.animals.find((a) => a.id === id);
-    if (!animal?.alive || animal.hidden || animal.leash) return null;
+    if (!animal?.alive || animal.husbandry.tamed || animal.hidden || animal.leash) return null;
     return this.applyDamage(animal, damage, attacker);
   }
 
@@ -1770,10 +1866,10 @@ export class Wildlife implements Updatable {
 
   private applyDamage(animal: Animal, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     if (animal.taunt) return null;
-    if (!Number.isFinite(damage) || damage <= 0) return null;
+    if (animal.husbandry.tamed || !Number.isFinite(damage) || damage <= 0) return null;
     if (attacker && animal.species === 'bison' && animal.bornAt !== null) {
       for (const adult of this.animals) {
-        if (!adult.alive || adult.hidden || adult.leash || adult.species !== 'bison' || adult.bornAt !== null) continue;
+        if (!adult.alive || adult.husbandry.tamed || adult.hidden || adult.leash || adult.species !== 'bison' || adult.bornAt !== null) continue;
         if (Math.hypot(adult.pos.x - animal.pos.x, adult.pos.z - animal.pos.z) > BISON_PROTECT_RANGE) continue;
         this.lifecycle.cancel(adult);
         adult.provoked = true;
@@ -1936,7 +2032,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机快照:各动物的位置朝向与存活(房主侧收集;species 供客人端新建未知 id 的动物;hidden 同步兔子躲藏;leash 同步羊被牵/被拴,恒定携带 null 以便差分清空) */
-  netPoses(): { id: number; x: number; z: number; h: number; alive: boolean; hidden: boolean; leash: LeashPose | null; milk: boolean; species: AnimalSpecies; juvenile: boolean; breeding: boolean }[] {
+  netPoses(): AnimalPose[] {
     return this.animals.map((a) => {
       let leash: LeashPose | null = null;
       if (a.leash && 'anchor' in a.leash) {
@@ -1952,7 +2048,9 @@ export class Wildlife implements Updatable {
         alive: a.alive,
         hidden: a.hidden,
         leash,
-        milk: a.hasMilk,
+        milk: a.husbandry.milk,
+        husbandry: { tamed: a.husbandry.tamed, heart: Math.round(a.husbandry.heart * 100) / 100, eating: a.husbandry.eating > 0,
+          wool: a.husbandry.wool, shorn: a.husbandry.shorn, ready: this.canTame(a) },
         species: a.species,
         juvenile: a.bornAt !== null, breeding: a.breeding,
       };
@@ -1976,7 +2074,7 @@ export class Wildlife implements Updatable {
   }
 
   /** 联机应用(客人侧):用房主姿态覆盖本地 AI 推出的结果,存活/躲藏/拴绳状态同步;未知 id 且带物种时新建(GM 生成) */
-  netApply(poses: { id: number; x: number; z: number; h: number; alive: boolean; hidden?: boolean; leash?: LeashPose | null; milk?: boolean; species?: AnimalSpecies; juvenile?: boolean; breeding?: boolean }[]): void {
+  netApply(poses: AnimalPose[]): void {
     const map = new Map(poses.map((p) => [p.id, p]));
     for (const a of this.animals) {
       const p = map.get(a.id);
@@ -1990,7 +2088,13 @@ export class Wildlife implements Updatable {
       a.netHeading = p.h;
       a.hidden = !!p.hidden;
       a.netLeash = p.leash ?? null;
-      a.hasMilk = !!p.milk;
+      a.husbandry.milk = !!p.milk;
+      a.husbandry.tamed = !!p.husbandry?.tamed;
+      a.husbandry.heart = p.husbandry?.heart ?? 0;
+      a.husbandry.eating = Math.max(a.husbandry.eating, p.husbandry?.eating ? 0.4 : 0);
+      a.husbandry.wool = !!p.husbandry?.wool;
+      a.husbandry.shorn = !!p.husbandry?.shorn;
+      a.netReady = !!p.husbandry?.ready;
       a.bornAt = p.juvenile ? 0 : null;
       a.breeding = !!p.breeding;
       this.applyLifeScale(a);
@@ -2024,7 +2128,13 @@ export class Wildlife implements Updatable {
       animal.netHeading = p.h;
       animal.hidden = !!p.hidden;
       animal.netLeash = p.leash ?? null;
-      animal.hasMilk = !!p.milk;
+      animal.husbandry.milk = !!p.milk;
+      animal.husbandry.tamed = !!p.husbandry?.tamed;
+      animal.husbandry.heart = p.husbandry?.heart ?? 0;
+      animal.husbandry.eating = Math.max(animal.husbandry.eating, p.husbandry?.eating ? 0.4 : 0);
+      animal.husbandry.wool = !!p.husbandry?.wool;
+      animal.husbandry.shorn = !!p.husbandry?.shorn;
+      animal.netReady = !!p.husbandry?.ready;
       animal.bornAt = p.juvenile ? 0 : null;
       animal.breeding = !!p.breeding;
       this.applyLifeScale(animal);
@@ -2045,8 +2155,13 @@ export class Wildlife implements Updatable {
   /** 客人侧由可靠网络事件立即触发熊的普通挥击，不等待下一帧姿态快照。 */
   netPlayAttack(id: number): void {
     const animal = this.animals.find((candidate) => candidate.id === id);
-    if (!animal?.alive) return;
+    if (!animal?.alive || animal.husbandry.tamed) return;
     animal.lungeLeft = 0.35;
+  }
+
+  netPlayEat(id: number): void {
+    const animal = this.animals.find(a => a.id === id && a.alive);
+    if (animal) animal.husbandry.eating = 1.6;
   }
 
   /** 客人端只平滑权威姿态并播放视觉动画，不运行 AI 或伤害结算。 */
@@ -2056,6 +2171,7 @@ export class Wildlife implements Updatable {
     for (const a of this.animals) {
       if (!a.alive || a.hidden) continue;
       a.lungeLeft = Math.max(0, a.lungeLeft - delta);
+      a.husbandry.eating = Math.max(0, a.husbandry.eating - delta);
       const beforeX = a.pos.x;
       const beforeZ = a.pos.z;
       a.pos.lerp(a.netPos, k);

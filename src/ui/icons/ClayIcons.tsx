@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, type FC } from 'react';
+import { HUSBANDRY_SVG } from './HusbandryIcons';
 import { FOOD_SVG } from './FoodIcons';
 import { REMAINING_FOOD_SVG } from './RemainingFoodIcons';
 import { MATERIAL_SVG } from './MaterialIcons';
@@ -20,6 +21,7 @@ type IconProps = { size: number };
 
 export const CLAY_SVG: Partial<Record<ResourceKind, string>> = {
   ...FOOD_SVG,
+  ...HUSBANDRY_SVG,
   ...REMAINING_FOOD_SVG,
   ...MATERIAL_SVG,
   ...TOOL_SVG,

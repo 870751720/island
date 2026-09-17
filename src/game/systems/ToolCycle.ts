@@ -35,7 +35,7 @@ export function nextToolEntry(
   lastKind: ResourceKind | null,
   hasTool: (tool: Exclude<HandTool, 'hand'>) => boolean
 ): CycleEntry {
-  const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso'];
+  const order: HandTool[] = ['hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso', 'shears'];
   const entries: CycleEntry[] = order
     .filter((tool) => tool === 'hand' || hasTool(tool))
     .map((tool) => ({ tool, kind: null }));

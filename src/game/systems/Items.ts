@@ -17,9 +17,9 @@ export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   材料: [
     'branch', 'wood', 'stone', 'flint', 'ironOre', 'ironIngot',
-    'fiber', 'rope', 'cloth', 'fur', 'worm', 'wheat', 'adventureBook',
+    'fiber', 'rope', 'cloth', 'wool', 'fur', 'worm', 'wheat', 'adventureBook',
   ],
-  工具: ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'],
+  工具: ['shears', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
@@ -28,7 +28,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   食物: [
     'berry', 'oakFruit', 'pineFruit', 'fruitFruit', 'carrot',
     'potato', 'sweetPotato', 'corn', 'soybean', 'tomato', 'pepper', 'eggplant', 'strawberry', 'cabbage', 'pumpkin',
-    'cola', 'colaZero', 'milk',
+    'cola', 'colaZero', 'milk', 'cowMilk',
     'sardine', 'perch', 'shrimp', 'loach', 'puffer', 'cuttlefish',
     'anchovy', 'horseMackerel', 'yellowCroaker', 'saury', 'hairtail',
     'grouper', 'catfish', 'grassCarp', 'swordfish', 'manta', 'goldenFish',
@@ -49,7 +49,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
-    'crate', 'ironCrate', 'fishKeep', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
+    'crate', 'ironCrate', 'fishKeep', 'feedBarrel', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
     'deadCampfire', 'campfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
@@ -86,6 +86,10 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 }
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
+  cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，生命+5、饥饿+10、饥渴+25，也可酿成奶酒。' },
+  wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，用于三级床和狗窝。' },
+  shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '永久工具。手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
+  feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和薯条会走近取食，只能存放可喂食的食物。' },
   branch: {
     kind: 'branch',
     name: '树枝',
@@ -183,7 +187,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'milk',
     name: '羊奶',
     icon: '🥛',
-    description: '从拴养的绵羊身上挤出的鲜奶,温热香浓,直接喝最滋补。',
+    description: '从成年驯养绵羊身上挤出的鲜奶,温热香浓,直接喝最滋补。',
   },
   sardine: {
     kind: 'sardine',
@@ -947,7 +951,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'wineMilk',
     name: '奶酒',
     icon: '🥛',
-    description: '羊奶酿的奶酒,顺口又养人。',
+    description: '羊奶或牛奶酿的奶酒,顺口又养人。',
   },
   wineGolden: {
     kind: 'wineGolden',

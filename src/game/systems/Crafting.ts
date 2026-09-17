@@ -21,6 +21,8 @@ export type CraftId =
   | IronToolId
   | 'rope'
   | 'lasso'
+  | 'shears'
+  | 'feedBarrel'
   | 'arrow'
   | 'crate'
   | 'ironCrate'
@@ -93,7 +95,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
 
 /** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
 const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
-  'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
+  'feedBarrel', 'shears', 'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
   'workbench1', 'campfire',
 ]);
 
@@ -167,6 +169,12 @@ export const RECIPES: Recipe[] = [
     cost: { fiber: 3 },
     station: 'workbench',
     output: 'rope',
+  },
+  {
+    id: 'shears', name: '剪刀', cost: { ironIngot: 2, wood: 1 }, station: 'workbench', output: 'shears', minBenchLevel: 3,
+  },
+  {
+    id: 'feedBarrel', name: '食料桶', cost: { ironIngot: 3, wood: 3, adventureBook: 1 }, station: 'workbench', output: 'feedBarrel', minBenchLevel: 4,
   },
   {
     id: 'lasso',
@@ -439,7 +447,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'bed3',
     name: '三级床',
-    cost: { bed2: 1, cloth: 5, fur: 5 },
+    cost: { bed2: 1, wool: 5, fur: 5 },
     station: 'workbench',
     output: 'bed3',
     minBenchLevel: 3,
@@ -463,7 +471,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'doghouse',
     name: '狗窝',
-    cost: { wood: 10, cloth: 5, ironIngot: 3 },
+    cost: { wood: 10, cloth: 5, ironIngot: 3, wool: 5 },
     station: 'workbench',
     output: 'doghouse',
     minBenchLevel: 4,

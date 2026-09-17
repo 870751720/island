@@ -55,9 +55,9 @@ export class InteractionIndicatorBuilder {
     let itemKind: HudSnapshot['indicator']['itemKind'];
     if (session.survival.state.dead) {
       // 死亡时不显示。
-    } else if (session.milk.isWorking) {
-      label = '挤羊奶…';
-      progress = session.milk.getProgress();
+    } else if (session.livestock.isWorking) {
+      label = session.livestock.label;
+      progress = session.livestock.getProgress();
     } else if (session.crafting.isWorking) {
       const { total, current } = session.crafting.queueInfo;
       label = `制作中:${session.crafting.currentRecipe!.name}${total > 1 ? ` ${current}/${total}` : ''}`;

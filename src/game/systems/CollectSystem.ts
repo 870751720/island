@@ -318,7 +318,7 @@ export class CollectSystem {
 
   /** 资源点是否可交互:树/大石块要求对应工具拿在手上 */
   canCollect(prop: Prop = this.nearby!): boolean {
-    if (!prop) return false;
+    if (!prop || this.player.currentTool === 'shears') return false;
     const kind = this.kindOf(prop);
     if (kind === 'tree' || kind === 'stump') {
       return this.player.currentTool === 'axe';

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import * as THREE from 'three';
 
-const modules: Record<string, unknown> = { three: THREE };
+const modules: Record<string, any> = { three: THREE };
 function load(file: string) {
   const source = fs.readFileSync(new URL(`../src/game/entities/${file}.ts`, import.meta.url), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -15,6 +15,9 @@ function load(file: string) {
 const rules = load('LassoRules');
 modules['./LassoRules'] = rules;
 modules['./WildlifeLifecycle'] = load('WildlifeLifecycle');
+modules['./WildlifePursuit'] = load('WildlifePursuit');
+modules['../systems/AnimalHusbandry'] = load('../systems/AnimalHusbandry');
+modules['../systems/AnimalForaging'] = load('../systems/AnimalForaging');
 const { Wildlife } = load('Wildlife');
 for (const species of ['sheep', 'rabbit', 'bison', 'wolf', 'bear']) assert.ok(rules.canLasso(species));
 for (const species of ['deer', 'crocodile']) assert.equal(rules.canLasso(species), false);
@@ -39,14 +42,15 @@ const player = { group: new THREE.Group() };
 function animal(species: string) {
   return { id: 1, species, alive: true, hidden: false, leash: null, netLeash: null, pos: new THREE.Vector3(), target: new THREE.Vector3(),
     config: { damage: 10, attackRange: 2, attackCooldown: 1, senseRange: 10, deaggroRange: 15, hp: 100 }, hp: 100,
-    bornAt: null, readyAt: 0, hasMilk: false, milkLeft: 10, attackLeft: 0, hitFleeLeft: 0, lungeLeft: 0, rageLeft: 0, roarLeft: 0,
+    bornAt: null, readyAt: 0, husbandry: modules['../systems/AnimalHusbandry'].newHusbandry(), foraging: { reset() {} }, attackLeft: 0, hitFleeLeft: 0, lungeLeft: 0, rageLeft: 0, roarLeft: 0,
     idleTime: 0, leashEscape: undefined as { elapsed: number; attempts: number } | undefined, walkTime: 0, stamina: 10, roared: true, pounce: null };
 }
 function harness(a: ReturnType<typeof animal>) {
   return Object.assign(Object.create(Wildlife.prototype), { animals: [a], mercyCooldown: 0, dogThreats: [],
+    pursuit: new modules['./WildlifePursuit'].WildlifePursuit(),
     creatureFx: { update() {} }, lifecycle: { now: 1, cancel() {}, update() {} }, population: { slots: [], update() {} },
     players: () => [player], isPlayerVulnerable: () => true, animate() {}, onAttack() {}, hitPlayer() {},
-    nearestPlayer: () => player, terrain: { getHeight: () => 0 }, onLassoEscape() {}, onLassoResult() {},
+    nearestPlayer: () => player, isGrass: () => true, isBlocked: () => false, terrain: { getHeight: () => 0 }, onLassoEscape() {}, onLassoResult() {},
   });
 }
 for (const species of ['sheep', 'rabbit', 'bison', 'wolf', 'bear']) {
@@ -76,7 +80,8 @@ for (const species of ['sheep', 'rabbit', 'bison', 'wolf', 'bear']) {
   } else {
     w.stakeAnimal(1, 0, 0); a.idleTime = 10;
     w.updateLeashed(a, 1);
-    assert.equal(a.milkLeft, species === 'sheep' ? 9 : 10, '只有绵羊产奶');
+    assert.equal(a.husbandry.milkLeft, 600, '只套索不能产奶');
+    assert.equal(a.husbandry.milk, false);
   }
 }
 console.log('Lasso rules, hostile attacks, staking, save restoration and milk checks passed.');

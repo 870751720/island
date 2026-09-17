@@ -1,3 +1,4 @@
+import { makeFeedBarrelModel } from './HusbandryModels';
 import { makeFishKeepModel } from './FishKeepModel';
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
@@ -7,13 +8,14 @@ import type { ResourceKind } from '../systems/Inventory';
 import { clayMaterial } from '../world/ClayMaterial';
 
 /** 箱子道具种类:木箱与铁箱(同模型,铁箱换铁色并扩到 20 格) */
-export type CrateKind = 'crate' | 'ironCrate' | 'fishKeep';
+export type CrateKind = 'crate' | 'ironCrate' | 'fishKeep' | 'feedBarrel';
 
 /** 木箱收纳格数 */
 export const CRATE_CAPACITY = 10;
 
 /** 各箱种的静态属性:收纳格数与模型配色 */
 const CRATE_STYLES: Record<CrateKind, { capacity: number; body: string; band: string }> = {
+  feedBarrel: { capacity: 20, body: '#a17a4d', band: '#7e8a8c' },
   crate: { capacity: 10, body: '#a97b48', band: '#7a5a32' },
   fishKeep: { capacity: 20, body: '#937444', band: '#547d79' },
   ironCrate: { capacity: 20, body: '#9aa3ab', band: '#697076' },
@@ -31,6 +33,7 @@ const ICON_SPIN_SPEED = Math.PI / 3; // 顶面标识自转速度(弧度/秒)
 
 /** 程序化拼装的箱体模型:正方形箱体 + 四面对称的封边条与四角护柱,任意朝向观感一致 */
 function makeCrateMesh(kind: CrateKind): THREE.Group {
+  if (kind === 'feedBarrel') return makeFeedBarrelModel();
   if (kind === 'fishKeep') return makeFishKeepModel();
   const g = new THREE.Group();
   const style = CRATE_STYLES[kind];

@@ -34,6 +34,7 @@ export const BREWABLE: Partial<Record<ResourceKind, ResourceKind>> = {
   berry: 'wineBerry',
   fruitFruit: 'wineFruit',
   milk: 'wineMilk',
+  cowMilk: 'wineMilk',
   goldenFish: 'wineGolden',
 };
 

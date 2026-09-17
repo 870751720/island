@@ -1,3 +1,5 @@
+import type { AnimalFoodSource } from '../systems/AnimalFood';
+import { clearFoodPath } from '../systems/AnimalForaging';
 import { DogRecovery } from '../systems/DogRecovery';
 import { DOG_BATTLE_EMOJIS, DOG_BATTLE_EMOJI_SECONDS, DOG_STAGE_NOTICE_SECONDS, type DogBattleEmoji, type DogBattleNotice } from '../systems/DogExpressions';
 import * as THREE from 'three';
@@ -189,6 +191,7 @@ export class Pomeranian {
   /** 吃饱后的开心转圈剩余时间 */
   private happyLeft = 0;
   /** 进食冷却剩余时间:归零前不再追食 */
+  foodBarrels: AnimalFoodSource | null = null;
   private eatCd = 0;
   /** 当前头顶表情与剩余显示时间(由 Game 投影到屏幕,交给 React 气泡渲染) */
   private emoji: string | null = null;
@@ -608,13 +611,17 @@ export class Pomeranian {
       excited = true;
     } else {
       // 1) 附近有食物:优先跑去吃
-      const foodPosition = this.eatCd <= 0 ? drops.nearestDogFood(this.pos, SMELL_RANGE) : null;
+      const foodTarget = this.eatCd <= 0 ? [...drops.foodTargets('dog', this.pos, SMELL_RANGE),
+        ...(this.foodBarrels?.foodTargets('dog', this.pos, SMELL_RANGE) ?? [])]
+        .filter(t => clearFoodPath(this.pos, t.position, (x, z) => !this.isBlocked(x, z)))
+        .sort((a, b) => a.position.distanceToSquared(this.pos) - b.position.distanceToSquared(this.pos))[0] : null;
+      const foodPosition = foodTarget?.position;
       if (foodPosition) {
         this.wake();
         if (Math.hypot(foodPosition.x - this.pos.x, foodPosition.z - this.pos.z) <= EAT_RANGE) {
-          const food = drops.consumeDogFoodNear(this.pos, EAT_RANGE);
-          if (food) {
-            this.growth.add(food.hunger);
+          const hunger = foodTarget!.consume();
+          if (hunger > 0) {
+            this.growth.add(hunger);
             this.eatLeft = EAT_DURATION;
             this.happyLeft = HAPPY_DURATION;
             this.eatCd = EAT_COOLDOWN;

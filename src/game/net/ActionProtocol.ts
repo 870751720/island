@@ -61,7 +61,7 @@ export interface NetActionArgs {
   lassoHit: [animalId: number, x: number, z: number];
   lassoStake: [];
   lassoUntie: [];
-  milkSheep: [sheepId: number, x: number, z: number];
+  harvestAnimal: [animalId: number, wool: boolean];
   gmDog: [command: DogGmCommand, value: number];
   gmSpawnAnimal: [species: AnimalSpecies];
   gmSpawnLandmark: [choice: LandmarkChoice];
@@ -128,7 +128,7 @@ const NET_ACTION_ARG_COUNTS = {
   lassoHit: [3],
   lassoStake: [0],
   lassoUntie: [0],
-  milkSheep: [3],
+  harvestAnimal: [2],
   gmDog: [2],
   gmSpawnAnimal: [1],
   gmSpawnLandmark: [1],
@@ -144,7 +144,7 @@ const NET_ACTION_ARG_COUNTS = {
 } as const satisfies Record<NetActionName, readonly number[]>;
 
 const HAND_TOOLS: ReadonlySet<string> = new Set([
-  'hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso', 'fence', 'fenceGate', 'place',
+  'hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso', 'shears', 'fence', 'fenceGate', 'place',
 ]);
 const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack']);
 const ANIMAL_SPECIES: ReadonlySet<string> = new Set(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile']);
@@ -235,8 +235,9 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'lassoThrow':
       return isFiniteNumber(first) && isFiniteNumber(second);
     case 'lassoHit':
-    case 'milkSheep':
       return isSafeInteger(first) && isFiniteNumber(second) && isFiniteNumber(third);
+    case 'harvestAnimal':
+      return isSafeInteger(first) && typeof second === 'boolean';
     case 'gmSpawnAnimal':
       return isString(first) && ANIMAL_SPECIES.has(first);
     case 'gmSpawnLandmark':

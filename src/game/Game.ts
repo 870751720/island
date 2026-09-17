@@ -1,3 +1,4 @@
+import { HusbandryIndicators } from './ui3d/HusbandryIndicators';
 import type { LassoResult } from './entities/LassoRules';
 import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
 import { findRespawnPoint } from './systems/RespawnPoint';
@@ -26,7 +27,7 @@ import { Birds } from './entities/Birds';
 import { Wildlife, ANIMAL_LABELS, type AnimalSpecies } from './entities/Wildlife';
 import { Pomeranian } from './entities/Pomeranian';
 import { CollectSystem } from './systems/CollectSystem';
-import { SheepMilkSystem } from './systems/SheepMilkSystem';
+import { LivestockHarvestSystem } from './systems/LivestockHarvestSystem';
 import { pickaxeUnlocked } from './systems/ToolTiers';
 import { DayNightSystem } from './systems/DayNightSystem';
 import { advanceSeasonForDay, getSeason, rollInitialSeason, setSeason } from './systems/SeasonSystem';
@@ -314,6 +315,7 @@ export class Game {
   private dog: Pomeranian;
   private clouds: Clouds;
   private indicator: PlayerIndicator;
+  private readonly husbandryIndicators: HusbandryIndicators;
   private readonly emojiBubbles: EmojiBubbles;
   private sun: THREE.DirectionalLight;
   private onHud: (snap: HudSnapshot) => void;
@@ -636,6 +638,7 @@ export class Game {
       if (stake) this.stakes.remove(stake);
     };
 
+    this.wildlife.onAnimalEat = id => this.hostRef?.broadcastEvent({ kind: 'animalEat', id });
     this.wildlife.onPlayerThreat = (player) => this.sessionOf(player).markCombat();
     // 拴绳的联机接线:持绳玩家 → 会话 id(姿态快照用)
     this.wildlife.setPlayerIdResolver((p) => this.sessionOf(p).id);
@@ -689,6 +692,7 @@ export class Game {
     };
     this.indicator = new PlayerIndicator(this.camera, this.scene);
     this.emojiBubbles = new EmojiBubbles(container, this.camera);
+    this.husbandryIndicators = new HusbandryIndicators(container, this.camera, this.wildlife);
     this.wildlife.onTauntExpression = (target, glyphs, height) => this.emojiBubbles.showTaunt(target, glyphs, height);
 
     this.workbench = new WorkbenchSystem(
@@ -717,6 +721,7 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'crates')
     );
+    this.dog.foodBarrels = this.crates;
     this.baitBarrels = new BaitBarrelSystem(
       this.scene,
       this.terrain,
@@ -921,6 +926,7 @@ export class Game {
     );
     this.registerFacilities();
     this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio, !this.guestMode);
+    this.wildlife.setFoodSources(this.drops, this.crates, this.props);
     this.playerCommands = new PlayerCommandController(
       this.guestNet,
       this.drops,
@@ -1209,7 +1215,7 @@ export class Game {
             continue;
           }
           s.collect.update(simDelta);
-          s.milk.update(simDelta);
+          s.livestock.update(simDelta);
           s.crafting.update(simDelta);
           // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
           if (
@@ -1319,6 +1325,7 @@ export class Game {
         this.updateCamera(delta);
         this.emojiBubbles.syncHearts(this.wildlife.breedingAnchors());
         this.emojiBubbles.update(simDelta);
+        this.husbandryIndicators.update(simDelta);
         this.ocean.update(this.camera, elapsed);
         this.questTimer += simDelta;
         if (!this.guestMode && this.questTimer >= 0.25) {
@@ -1695,6 +1702,7 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'animalEat') { this.wildlife.netPlayEat(event.id); return; }
     if (event.kind === 'lassoResult') {
       this.playLassoResult(event);
       return;
@@ -1920,7 +1928,7 @@ export class Game {
     if (this.guestNet) return this.guestNet.action('lassoUntie', []);
     const staked = this.wildlife.stakedNear(actor.player.group.position, TETHER_RANGE);
     if (!staked) return false;
-    this.wildlife.releaseLeash(staked.id);
+    this.wildlife.releaseLeash(staked.id, actor.player.group.position);
     const stake = this.stakes.nearest(staked.anchor.x, staked.anchor.z, 0.6);
     if (stake) this.stakes.remove(stake);
     this.giveItem('lasso', 1, actor);
@@ -1928,18 +1936,17 @@ export class Game {
     return true;
   }
 
-  /** 空手挤奶结算:从拴养有奶的羊身上取走一份羊奶并重置产奶计时(客人端上行动作由房主结算) */
-  milkSheep(actor: PlayerSession = this.local, sheepId: number, x: number, z: number): boolean {
-    if (this.guestNet) return this.guestNet.action('milkSheep', [sheepId, x, z]);
-    if (!this.wildlife.takeMilk(sheepId)) return false;
-    const pos = new THREE.Vector3(x, this.terrain.getHeight(x, z), z);
-    this.giveItem('milk', 1, actor);
+  harvestAnimal(actor: PlayerSession, animalId: number, wool: boolean): boolean {
+    if (this.guestNet) return this.guestNet.action('harvestAnimal', [animalId, wool]);
+    if (actor.survival.state.dead || actor.player.isMoving || actor.player.isSwimming || this.isSessionBusy(actor, 'milk')) return false;
+    if (wool !== (actor.player.currentTool === 'shears') || (wool && actor.inventory.count('shears') <= 0)) return false;
+    const result = this.wildlife.takeProduce(animalId, actor.player.group.position, wool);
+    if (!result) return false;
+    this.giveItem(result.kind, 1, actor);
+    const pos = result.position;
     this.pickupPresentation.markOrigin(pos, actor);
-    // 入包音效由拾取飞行(flushPickups/快照回流)统一播放,这里不再播,避免客人端补播两次
     this.fx.burst(new THREE.Vector3(pos.x, pos.y + 0.8, pos.z), '#f6f1e4', 8);
-    if (this.hostRef && actor !== this.local) {
-      this.hostRef.broadcastEvent({ kind: 'collectFx', x: pos.x, y: pos.y + 0.8, z: pos.z, color: '#f6f1e4', count: 8 });
-    }
+    this.hostRef?.broadcastEvent({ kind: 'collectFx', x: pos.x, y: pos.y + 0.8, z: pos.z, color: '#f6f1e4', count: 8 });
     return true;
   }
 
@@ -2396,6 +2403,7 @@ export class Game {
   /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走;
    * 可放置道具经 placeKind 选中具体一种(围栏区分木/石) */
   setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
+    if (tool === 'shears' && s.inventory.count('shears') <= 0) return;
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
     if (placeKind && this.autoPlace.supports(placeKind)) {
@@ -2478,7 +2486,7 @@ export class Game {
       this.crafting.isWorking ||
       this.workbench.isUpgrading(this.local) ||
       this.eating.isWorking ||
-      this.local.milk.isWorking ||
+      this.local.livestock.isWorking ||
       this.beds.isBusy(this.local) ||
       this.survival.state.dead ||
       this.wildlife.leashedBy(this.player)
@@ -2486,7 +2494,7 @@ export class Game {
       return null;
     }
     // 手持可放置道具(含围栏/围栏门)时是玩家手动选择,不自动切换
-    if (this.player.holdsFacility) {
+    if (this.player.holdsFacility || this.player.currentTool === 'shears') {
       return null;
     }
     const nearby = this.collect.getNearby();
@@ -3005,6 +3013,7 @@ export class Game {
       () => buildGhost(build);
     // 木箱/铁箱
     def('crate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'crate').group), place: (a, at) => this.crates.use(a, 'crate', at) });
+    def('feedBarrel', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'feedBarrel').group), place: (a, at) => this.crates.use(a, 'feedBarrel', at) });
     def('ironCrate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'ironCrate').group), place: (a, at) => this.crates.use(a, 'ironCrate', at) });
     def('fishKeep', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z, 'fishKeep'), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'fishKeep').group), place: (a, at) => this.crates.use(a, 'fishKeep', at) });
     // 饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台
@@ -3455,7 +3464,7 @@ export class Game {
     if (exclude !== 'sword' && s.sword.isWorking) return true;
     if (exclude !== 'lasso' && (s.lasso.isWorking || s.lasso.isAiming)) return true;
     if (exclude !== 'collect' && s.collect.isWorking) return true;
-    if (exclude !== 'milk' && s.milk.isWorking) return true;
+    if (exclude !== 'milk' && s.livestock.isWorking) return true;
     if (exclude !== 'crafting' && s.crafting.isWorking) return true;
     if (exclude !== 'eating' && s.eating.isWorking) return true;
     if (exclude !== 'fishing' && s.fishing.isWorking) return true;
@@ -3543,14 +3552,14 @@ export class Game {
       (natural) => s.firstDrops.settle('flint', natural),
       (kind) => { if (kind === 'berry') s.quests.transplantAction('dig'); }
     );
-    s.milk = new SheepMilkSystem(
+    s.livestock = new LivestockHarvestSystem(
       s.player,
       this.wildlife,
       this.audio,
       // 合成/进食/钓鱼等占用双手时挤奶让位
       () => this.isSessionBusy(s, 'milk'),
-      // 一次挤奶完成:统一走 milkSheep 结算(客人端上行,房主权威入包)
-      (sheepId, x, z) => this.milkSheep(s, sheepId, x, z)
+      // 产物由房主校验距离、工具、驯养与成熟状态后入包。
+      (animalId, wool) => this.harvestAnimal(s, animalId, wool)
     );
     s.crafting = new CraftingSystem(
       s.player,
@@ -3739,6 +3748,7 @@ export class Game {
 
   /** 手上是否还持有该工具(套索额外把「正牵着羊」也算持有,绳子还在手里);可放置道具不经此判定,由循环条目按背包展开 */
   private hasToolFor(s: PlayerSession, tool: Exclude<HandTool, 'hand'>): boolean {
+    if (tool === 'shears') return s.inventory.count('shears') > 0;
     if (tool === 'lasso')
       return s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null;
     if (tool === 'fence' || tool === 'fenceGate' || tool === 'place') return false;
@@ -3763,6 +3773,7 @@ export class Game {
     this.questGuidance.dispose();
     this.thirstGuidance.dispose();
     this.emojiBubbles.dispose();
+    this.husbandryIndicators.dispose();
     this.animalDamageNumbers.dispose();
     this.damageScreenFlash.dispose();
     this.drops.dispose();
