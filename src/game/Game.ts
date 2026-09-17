@@ -557,10 +557,10 @@ export class Game {
       this.scene,
       terrain,
       () => this.sessions.map((s) => s.player),
-      (player: Player, damage: number, pounce?: boolean) => {
+      (player: Player, damage: number, pounce?: boolean, spare?: () => boolean) => {
         const session = this.sessionOf(player);
         const alive = !session.survival.state.dead && session.survival.state.health > 0;
-        this.applyWildlifeHit(session, damage, !!pounce);
+        this.applyWildlifeHit(session, damage, !!pounce, spare);
         return alive && session.survival.state.health <= 0 && GmSystem.allowDeath && !GmSystem.godMode;
       },
       (animalId) => this.hostRef?.broadcastEvent({ kind: 'wildlifeAttack', animalId }),
@@ -677,6 +677,12 @@ export class Game {
     };
     this.indicator = new PlayerIndicator(this.camera, this.scene);
     this.emojiBubbles = new EmojiBubbles(container, this.camera);
+    this.wildlife.onTauntExpression = (target, glyphs, height) => this.emojiBubbles.showTaunt(target, glyphs, height);
+    this.wildlife.onTauntAudience = (position) => {
+      const show = (target: THREE.Object3D, height: number) => this.emojiBubbles.showTaunt(target, ['look', 'laugh'], height);
+      this.crabs.scatterFromTaunt(position, show);
+      this.birds.scatterFromTaunt(position, show);
+    };
 
     this.workbench = new WorkbenchSystem(
       this.scene,
@@ -1490,6 +1496,9 @@ export class Game {
     if (this.hostRef || this.guestMode) return;
     this.hostRef = host;
     this.wildlife.setSoloDeathProtection(false);
+    this.emojiBubbles.clearTaunts();
+    this.crabs.clearTauntRetreats();
+    this.birds.clearTauntRetreats();
     host.terrainSeed = this.terrainSeed;
     // 单机时本地角色叫「我」,转为房主后对客人显示联机昵称
     this.local.setName(loadProfile()?.name || '房主');
@@ -1947,12 +1956,19 @@ export class Game {
   }
 
   /** 动物击中某玩家的最终结算:减伤+防御掉血 + 压制减速 + 打击粒子/音效 + 本地伤害数字 */
-  private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean): void {
+  private applyWildlifeHit(session: PlayerSession, damage: number, pounce: boolean, spare?: () => boolean): void {
     const player = session.player;
     let final = damage * (1 - session.equipment.totalReduce()) - session.equipment.totalDefense();
     // 局外养成「剑术」2 级:受到的伤害降低 10%
     if (this.metaLevel('swordplay') >= 2 && session === this.local) final *= 0.9;
     final = Math.max(1, Math.round(final));
+    const state = session.survival.state;
+    if (!this.hostRef && !this.guestNet && !state.dead && !session.survival.sleeping
+      && !GmSystem.godMode && GmSystem.allowDeath && state.health > 0 && final >= state.health && spare?.()) {
+      final = Math.max(0, state.health - 1);
+      state.health = Math.max(1, state.health);
+      pounce = false;
+    }
     session.markCombat();
     session.survival.damage(final);
     // 扑击命中额外压制:减速 3 秒(移动减半),摔得爬不起来;
@@ -1960,7 +1976,7 @@ export class Game {
     if (pounce && !(this.metaLevel('swordplay') >= 3 && session === this.local && Math.random() < 0.2)) {
       player.applySlow(3);
     }
-    this.playWildlifeHitFeedback(session, final);
+    if (final > 0) this.playWildlifeHitFeedback(session, final);
     // 客人被击中的表现在客人端补播(闪红与音效由血量快照驱动,这里补齐粒子/数字/减速)
     if (this.hostRef && session !== this.local) {
       this.hostRef.broadcastEvent({ kind: 'wildlifeHit', target: session.id, damage: final, pounce });

@@ -15,6 +15,7 @@ import { CreatureFx } from '../fx/CreatureFx';
 import { DEATH_RETREAT_DISTANCE, findRetreatPath, type WildlifeRetreat } from './WildlifeRetreat';
 import { makeMilkIcon } from '../ui3d/MilkIcon';
 import type { SfxName } from '../audio/Sfx';
+import { BEAR_TAUNT_COOLDOWN, BEAR_TAUNT_SECONDS, BEAR_TAUNT_SCRIPTS, TAUNT_SPECTATOR_GLYPHS, canBearSpare, chooseTaunt, rollBearMercy, tauntRound, type TauntGlyph } from './BearTaunt';
 
 export type DogThreat = { id: number; pos: THREE.Vector3; player: Player };
 
@@ -289,6 +290,8 @@ const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
 
 type Animal = LifeState & {
   retreat?: WildlifeRetreat;
+  taunt?: { player: Player; elapsed: number; variant: number; round: number; x: number; z: number; heading: number };
+  mock?: { elapsed: number; delay: number; round: number; variant: number };
   habitat?: HabitatSlot<AnimalSpecies>;
   /** 同步用短 id(房主递增分配,状态快照按 id 对应) */
   id: number;
@@ -379,6 +382,10 @@ export class Wildlife implements Updatable {
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
   private soloDeathProtection = false;
+  private mercyCooldown = 0;
+  private lastTaunt = -1;
+  onTauntExpression: (target: THREE.Object3D, glyphs: readonly TauntGlyph[], height: number) => void = () => {};
+  onTauntAudience: (position: THREE.Vector3) => void = () => {};
   private nextId = 1;
   /** 权威 AI 每帧通知真正被敌对动物追击的玩家。 */
   onPlayerThreat?: (player: Player) => void;
@@ -404,7 +411,7 @@ export class Wildlife implements Updatable {
     /** 全部玩家(联机时多人,动物对最近的一名做出反应) */
     private players: () => Player[],
     /** 熊扑击命中玩家时对该玩家造成伤害(游戏侧负责掉血与特效);pounce 标记是扑击命中(近身挥击为 false) */
-    private onPlayerHit: (player: Player, damage: number, pounce?: boolean) => boolean,
+    private onPlayerHit: (player: Player, damage: number, pounce?: boolean, spare?: () => boolean) => boolean,
     /** 熊开始普通挥击时通知联机层；这是短时动作，走可靠事件而不是姿态采样。 */
     private onAttack: (animalId: number) => void,
     /** 动物受击未死时通知联机层广播(客人端补播闪红);死亡表现由姿态快照翻转驱动,不走这里 */
@@ -672,7 +679,7 @@ export class Wildlife implements Updatable {
   /** 某点对该动物是否可站立:普通动物只在草地;鳄鱼额外可入水洼,且不超出所属水洼的 leash 范围;
    * 被拴在桩上的羊额外不可超出桩绳长度 */
   private canStand(animal: Animal, x: number, z: number): boolean {
-    if (animal.retreat?.arrived && Math.hypot(x - animal.retreat.origin.x, z - animal.retreat.origin.z) < DEATH_RETREAT_DISTANCE) return false;
+    if (animal.retreat?.arrived && Math.hypot(x - animal.retreat.origin.x, z - animal.retreat.origin.z) < (animal.retreat.distance ?? DEATH_RETREAT_DISTANCE)) return false;
     if (animal.leash && 'anchor' in animal.leash) {
       const a = animal.leash.anchor;
       if (Math.hypot(x - a.x, z - a.z) > STAKE_LEASH) return false;
@@ -684,7 +691,7 @@ export class Wildlife implements Updatable {
     const inPond = this.terrain.getWaterKind(x, z) === 'pond';
     if (!inPond && !this.isGrass(x, z)) return false;
     const pond = animal.pond;
-    if (pond && Math.hypot(x - pond.x, z - pond.z) > pond.radius + CROC_LEASH) return false;
+    if (pond && !animal.retreat?.mercy && Math.hypot(x - pond.x, z - pond.z) > pond.radius + CROC_LEASH) return false;
     return !this.isBlocked(x, z);
   }
 
@@ -744,7 +751,12 @@ export class Wildlife implements Updatable {
     if (this.soloDeathProtection === enabled) return;
     this.soloDeathProtection = enabled;
     if (!enabled) {
-      for (const animal of this.animals) animal.retreat = undefined;
+      for (const animal of this.animals) {
+        animal.retreat = undefined;
+        animal.taunt = undefined;
+        animal.mock = undefined;
+      }
+      this.mercyCooldown = 0;
     }
   }
 
@@ -765,6 +777,8 @@ export class Wildlife implements Updatable {
     animal.calfAttacker = null;
     animal.boundTo = null;
     animal.pounce = null;
+    animal.entrance = null;
+    animal.lungeLeft = 0;
     animal.rageLeft = 0;
     animal.roarLeft = 0;
     animal.roared = false;
@@ -780,7 +794,7 @@ export class Wildlife implements Updatable {
 
   /** 联机只结算伤害；单机额外处理击杀者，附近狼熊由死亡通知统一清场。 */
   private hitPlayer(animal: Animal, player: Player, damage: number, pounce = false): void {
-    if (!this.onPlayerHit(player, damage, pounce) || !this.soloDeathProtection) return;
+    if (!this.onPlayerHit(player, damage, pounce, () => this.tryBearTaunt(animal, player)) || !this.soloDeathProtection) return;
     if (animal.species === 'bison') {
       this.clearCombat(animal);
       animal.hp = animal.config.hp;
@@ -789,9 +803,84 @@ export class Wildlife implements Updatable {
     }
   }
 
+  /** 回调只在装备减伤后的致命一击调用；联机在此硬性禁用。 */
+  private tryBearTaunt(animal: Animal, player: Player): boolean {
+    if (animal.species !== 'bear' || !canBearSpare(this.soloDeathProtection, animal.hp, animal.config.hp, this.mercyCooldown)) return false;
+    if (!rollBearMercy()) return false;
+    this.mercyCooldown = BEAR_TAUNT_COOLDOWN;
+    this.lastTaunt = chooseTaunt(this.lastTaunt);
+    this.clearCombat(animal);
+    animal.retreat = undefined;
+    animal.taunt = {
+      player, elapsed: 0, variant: this.lastTaunt, round: -1,
+      x: animal.pos.x, z: animal.pos.z,
+      heading: Math.atan2(player.group.position.z - animal.pos.z, player.group.position.x - animal.pos.x),
+    };
+    for (const other of this.animals) {
+      if (other === animal || !other.alive || other.hidden || other.leash || other.taunt) continue;
+      if (Math.hypot(other.pos.x - player.group.position.x, other.pos.z - player.group.position.z) > 10) continue;
+      this.startDeathRetreat(other, player.group.position);
+      Object.assign(other.retreat!, { distance: 12, mercy: true, calmLeft: 10 });
+      other.mock = { elapsed: 0, delay: 0.2 + Math.random() * 0.4, round: -1, variant: Math.floor(Math.random() * TAUNT_SPECTATOR_GLYPHS.length) };
+    }
+    this.dogThreats.length = 0;
+    this.onTauntAudience(player.group.position);
+    return true;
+  }
+
+  private updateTaunt(animal: Animal, delta: number, elapsed: number): void {
+    const taunt = animal.taunt!;
+    taunt.elapsed += delta;
+    let moving = false;
+    if (taunt.elapsed < BEAR_TAUNT_SECONDS) {
+      const round = tauntRound(taunt.elapsed);
+      if (round !== taunt.round) {
+        taunt.round = round;
+        this.onTauntExpression(animal.model.group, BEAR_TAUNT_SCRIPTS[taunt.variant][round], 2.8);
+      }
+      if (taunt.elapsed >= 1 && taunt.elapsed < 3.7) {
+        const side = taunt.elapsed < 2.35 ? 1 : -1;
+        const angle = taunt.heading + Math.PI / 2;
+        const x = taunt.x + Math.cos(angle) * side * 1.3;
+        const z = taunt.z + Math.sin(angle) * side * 1.3;
+        if (Math.hypot(x - animal.pos.x, z - animal.pos.z) > 0.15) {
+          moving = this.step(animal, Math.atan2(z - animal.pos.z, x - animal.pos.x), 1.6, delta);
+        }
+      }
+      if (!moving) animal.heading = Math.atan2(taunt.player.group.position.z - animal.pos.z, taunt.player.group.position.x - animal.pos.x);
+    } else {
+      if (!animal.retreat) {
+        this.startDeathRetreat(animal, taunt.player.group.position);
+        Object.assign(animal.retreat!, { mercy: true, calmLeft: 10 });
+        this.onTauntExpression(animal.model.group, ['wave', 'laugh'], 2.8);
+      }
+      const retreat = animal.retreat!;
+      // 玩家走动后重新选撤离路线，不能只离开最初的触发位置。
+      const p = this.players().includes(taunt.player) ? taunt.player.group.position : retreat.origin;
+      const routeOrigin = retreat.routeOrigin ?? retreat.origin;
+      if (Math.hypot(p.x - routeOrigin.x, p.z - routeOrigin.z) > 2) {
+        retreat.origin = { x: p.x, z: p.z };
+        retreat.path = [];
+        retreat.retryLeft = 0;
+      }
+      if (Math.hypot(animal.pos.x - p.x, animal.pos.z - p.z) > DEATH_RETREAT_DISTANCE) {
+        retreat.origin = { x: p.x, z: p.z };
+        retreat.arrived = true;
+        retreat.path = [];
+        animal.taunt = undefined;
+      } else {
+        // 未离开真实玩家 30 米前不得因旧路线终点提前解除无敌。
+        retreat.origin = { x: p.x, z: p.z };
+        moving = this.updateRetreat(animal, delta);
+        retreat.arrived = false;
+      }
+    }
+    this.animate(animal, delta, elapsed, moving, taunt.elapsed >= BEAR_TAUNT_SECONDS);
+  }
+
   private updateRetreat(animal: Animal, delta: number): boolean {
     const retreat = animal.retreat!;
-    if (Math.hypot(animal.pos.x - retreat.origin.x, animal.pos.z - retreat.origin.z) >= DEATH_RETREAT_DISTANCE) {
+    if (Math.hypot(animal.pos.x - retreat.origin.x, animal.pos.z - retreat.origin.z) > (retreat.distance ?? DEATH_RETREAT_DISTANCE)) {
       retreat.arrived = true;
       retreat.path = [];
       animal.target.copy(animal.pos);
@@ -799,7 +888,8 @@ export class Wildlife implements Updatable {
     }
     retreat.retryLeft = Math.max(0, retreat.retryLeft - delta);
     if (!retreat.path.length && retreat.retryLeft === 0) {
-      retreat.path = findRetreatPath(animal.pos, retreat.origin, (x, z) => this.canStand(animal, x, z));
+      retreat.routeOrigin = { ...retreat.origin };
+      retreat.path = findRetreatPath(animal.pos, retreat.origin, (x, z) => this.canStand(animal, x, z), retreat.distance, retreat.mercy);
       retreat.retryLeft = 2;
     }
     const next = retreat.path[0];
@@ -824,12 +914,39 @@ export class Wildlife implements Updatable {
   }
 
   update(delta: number, elapsed: number, calendar = this.lifecycle.now): void {
+    this.mercyCooldown = Math.max(0, this.mercyCooldown - delta);
     this.dogThreats.length = 0;
     this.creatureFx.update(delta);
     this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      if (animal.taunt) {
+        this.updateTaunt(animal, delta, elapsed);
+        continue;
+      }
+      if (animal.mock) {
+        const mock = animal.mock;
+        mock.elapsed += delta;
+        const round = Math.floor((mock.elapsed - mock.delay) / 0.9);
+        if (round >= 0 && round < 2 && round !== mock.round) {
+          mock.round = round;
+          this.onTauntExpression(animal.model.group, TAUNT_SPECTATOR_GLYPHS[(mock.variant + round) % TAUNT_SPECTATOR_GLYPHS.length], animal.species === 'bear' ? 2.8 : 1.8);
+        }
+        if (round >= 2) animal.mock = undefined;
+        if (mock.elapsed < mock.delay + 0.5) {
+          this.animate(animal, delta, elapsed, false, false);
+          continue;
+        }
+      }
+      if (animal.retreat?.arrived && animal.retreat.calmLeft !== undefined) {
+        animal.retreat.calmLeft -= delta;
+        if (animal.retreat.calmLeft <= 0) animal.retreat = undefined;
+        else {
+          this.animate(animal, delta, elapsed, false, false);
+          continue;
+        }
+      }
       if (animal.retreat && !animal.retreat.arrived) {
         animal.lungeLeft = Math.max(0, animal.lungeLeft - delta);
         const moving = this.updateRetreat(animal, delta);
@@ -1604,6 +1721,7 @@ export class Wildlife implements Updatable {
   }
 
   private applyDamage(animal: Animal, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
+    if (animal.taunt) return null;
     if (!Number.isFinite(damage) || damage <= 0) return null;
     if (attacker && animal.species === 'bison' && animal.bornAt !== null) {
       for (const adult of this.animals) {

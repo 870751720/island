@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { EMOJI_ICONS } from '../social/EmojiIcons';
 import { DOG_EMOJI_SVG } from '../../ui/icons/DogEmojiIcons';
+import { TAUNT_ICONS } from '../social/TauntIcons';
+import type { TauntGlyph } from '../entities/BearTaunt';
 
 const SHOW_SECONDS = 3;
 const POP_SECONDS = 0.22;
@@ -13,6 +15,10 @@ interface Bubble {
   target: THREE.Object3D;
   elapsed: number;
   heart?: boolean;
+  taunt?: boolean;
+  headY?: number;
+  duration?: number;
+  count?: number;
 }
 
 /** 屏幕矢量气泡：每帧投影头顶坐标，独立于 WebGL 渲染分辨率。 */
@@ -56,6 +62,33 @@ export class EmojiBubbles {
     this.active.set(target, { element, target, elapsed: 0 });
   }
 
+  /** 一组最多三枚自绘表情，逐个弹出；不经过系统字体回退。 */
+  showTaunt(target: THREE.Object3D, glyphs: readonly TauntGlyph[], headY = 2.8): void {
+    this.show(target, '');
+    const bubble = this.active.get(target)!;
+    bubble.taunt = true;
+    bubble.headY = headY;
+    bubble.duration = 1.35;
+    bubble.count = glyphs.length;
+    for (const [index, glyph] of glyphs.entries()) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 64 64');
+      svg.style.width = `${80 / glyphs.length}%`;
+      svg.style.height = '80%';
+      svg.innerHTML = TAUNT_ICONS[glyph];
+      svg.animate?.([
+        { transform: 'scale(0)', opacity: 0 },
+        { transform: 'scale(1.12)', opacity: 1, offset: 0.75 },
+        { transform: 'scale(1)', opacity: 1 },
+      ], { duration: 220, delay: index * 90, fill: 'backwards' });
+      bubble.element.appendChild(svg);
+    }
+  }
+
+  clearTaunts(): void {
+    for (const bubble of this.active.values()) if (bubble.taunt) this.remove(bubble.target);
+  }
+
   /** 复用薯条爱心 SVG 和头顶屏幕投影；房主状态决定开始/结束，无白底。 */
   syncHearts(targets: readonly THREE.Object3D[]): void {
     const wanted = new Set(targets);
@@ -85,25 +118,26 @@ export class EmojiBubbles {
     const size = emojiBubbleHeight(height, this.camera);
     for (const bubble of this.active.values()) {
       bubble.elapsed += delta;
-      if ((!bubble.heart && bubble.elapsed >= SHOW_SECONDS) || !bubble.target.parent) {
+      const duration = bubble.duration ?? SHOW_SECONDS;
+      if ((!bubble.heart && bubble.elapsed >= duration) || !bubble.target.parent || !bubble.target.visible) {
         this.remove(bubble.target);
         continue;
       }
       bubble.target.getWorldPosition(this.anchor);
-      this.anchor.y += bubble.heart ? 1.65 : HEAD_Y;
+      this.anchor.y += bubble.headY ?? (bubble.heart ? 1.65 : HEAD_Y);
       this.anchor.project(this.camera);
       const style = bubble.element.style;
       style.display = this.anchor.z < -1 || this.anchor.z > 1 ? 'none' : 'flex';
       const pop = Math.min(1, bubble.elapsed / POP_SECONDS);
       const backOut = 1 + 2.7 * Math.pow(pop - 1, 3) + 1.7 * Math.pow(pop - 1, 2);
-      const bubbleHeight = size * backOut;
-      style.width = `${bubbleHeight * ASPECT}px`;
+      const bubbleHeight = (bubble.taunt ? Math.max(32, Math.min(56, size)) : size) * backOut;
+      style.width = `${bubbleHeight * (bubble.count ? bubble.count * 0.8 + 0.35 : ASPECT)}px`;
       style.height = `${bubbleHeight}px`;
       style.fontSize = `${bubbleHeight * 0.59375}px`;
       const x = Math.round((this.anchor.x + 1) * width / 2);
       const y = Math.round((1 - this.anchor.y) * height / 2);
       style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-      style.opacity = bubble.heart ? '1' : String(Math.min(1, (SHOW_SECONDS - bubble.elapsed) / FADE_SECONDS));
+      style.opacity = bubble.heart ? '1' : String(Math.min(1, (duration - bubble.elapsed) / FADE_SECONDS));
     }
   }
 
