@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PondMaterial } from './PondMaterial';
 import { findMainlandSpawn } from './SpawnPoint';
 import { getEnclosedPondWaterLevel } from './PondPlacement';
+import { getPondBasinHeight } from './PondBasin';
 import { getSnowAmount, patchSeasonMaterial } from './SeasonVisuals';
 
 /** 简单可复现的 2D 值噪声(伪随机格点 + 平滑插值) */
@@ -243,17 +244,15 @@ export class IslandTerrain {
 
     // 岛屿高度:噪声地形 + 水域 carve
     this.heightAt = (x: number, z: number) => {
-      let carve = 0;
-      for (const w of this.waterAreas) {
-        const d = this.pondDist(w, x, z);
-        if (d < 1) carve += w.depth * (1 - d * d);
-      }
       // 草地微起伏:±10cm 高频噪声打破大平面;该函数的采样结果即渲染顶点高度,视觉与玩法天然一致
       const micro = (noise(x * (100 / width) + 801, z * (100 / width) + 409) - 0.5) * 0.2;
-      const ground = baseHeight(x, z) + micro;
-      // 挖深只消耗海面以上的土层,不把原本更低的沙滩抬高;carve 归零时连续接回原地形。
-      const availableDepth = Math.max(0, ground - (this.seaLevel + 0.1));
-      return ground - Math.min(carve, availableDepth);
+      let ground = baseHeight(x, z) + micro;
+      for (const w of this.waterAreas) {
+        ground = getPondBasinHeight(
+          ground, this.pondDist(w, x, z), w.waterY, w.depth, this.seaLevel + 0.1,
+        );
+      }
+      return ground;
     };
 
     // 顶点间距约 1.8,大岛保持低面数(flatShading 下视觉无损)
