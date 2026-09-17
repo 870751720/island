@@ -2,6 +2,7 @@
  * 生效判定不在这里:各 buff 由对应系统(神像/玩家减速)驱动,这里只承载
  * 展示用的名称、图标与说明,以及 HUD 快照的序列化结构。 */
 export type BuffId =
+  | 'steadyPlacement'
   | 'gravelPath'
   | 'plankPath'
   | 'poseidon'
@@ -25,6 +26,10 @@ export type BuffDef = {
 };
 
 export const BUFFS: Record<BuffId, BuffDef> = {
+  steadyPlacement: {
+    id: 'steadyPlacement', name: '稳稳安放', icon: '🏠',
+    description: '捧稳手中的设施，放慢脚步找准位置。移动速度降低 30%，收起或用完后恢复。', good: false,
+  },
   plankPath: {
     id: 'plankPath', name: '步履轻快', icon: '🪵',
     description: '踩着木板小路，脚步也轻快起来。在路上移动速度提升 10%，离开后恢复。', good: true,

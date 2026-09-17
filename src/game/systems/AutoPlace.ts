@@ -93,6 +93,12 @@ export class AutoPlaceSystem {
     return kind && kind !== 'soil' ? actor.inventory.count(kind) : 0;
   }
 
+  /** 实际持有背包设施才减速；锄头开土等零消耗作业不计入。 */
+  isCarryingFacility(actor: PlayerSession): boolean {
+    const kind = this.heldKind(actor);
+    return kind !== null && !this.defs.get(kind)!.free;
+  }
+
   /** 手持设施工具时选中的道具(未选中/已耗尽/工具不对为 null);
    * 工具驱动的零消耗设施(如锄头→土壤)直接按当前手持工具推导 */
   heldKind(actor: PlayerSession): FacilityKind | null {

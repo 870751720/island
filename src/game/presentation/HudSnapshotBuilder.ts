@@ -143,6 +143,9 @@ export class HudSnapshotBuilder {
 
   private buffsFor(session: PlayerSession): HudBuff[] {
     const list: HudBuff[] = [];
+    if (!session.survival.state.dead && this.systems.autoPlace.isCarryingFacility(session)) {
+      list.push({ ...BUFFS.steadyPlacement, remain: null });
+    }
     if (session.player.roadKind && !session.player.isSwimming) list.push({ ...BUFFS[session.player.roadKind], remain: null });
     const shrines = this.systems.shrines;
     if (shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });

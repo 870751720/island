@@ -1093,6 +1093,7 @@ export class Game {
         const simDelta = singlePlayer && this.cameraController.photoActive ? 0 : delta;
         this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
         for (const session of this.sessions) {
+          session.player.carryingFacility = this.autoPlace.isCarryingFacility(session);
           session.player.roadKind = this.gravelPaths.contains(session.player.group.position) ? 'gravelPath'
             : this.plankPaths.contains(session.player.group.position) ? 'plankPath' : null;
           session.player.update(simDelta, elapsed);

@@ -12,6 +12,14 @@ export const VITAL_SVG = {
  thirst: claySvg(drop),
 };
 export const BUFF_SVG: Record<BuffId,string> = {
+ steadyPlacement: claySvg(
+  path('M19 25H45V43Q32 48 19 43Z','#dfbb83') +
+  path('M12 27L30 10Q32 8 34 10L52 27Q53 30 49 30H15Q11 30 12 27Z','#a97657') +
+  line('M21 23L32 15L42 23','#e9bd91',3) +
+  path('M28 43V32Q32 29 36 32V43Z','#806851') +
+  path('M7 35Q11 32 15 38L22 43L29 44Q34 46 31 50L22 53Q16 54 12 49L5 41Z','#dca783') +
+  path('M57 35Q53 32 49 38L42 43L35 44Q30 46 33 50L42 53Q48 54 52 49L59 41Z','#dca783') +
+  line('M15 41L23 47M49 41L41 47','#f6d3ae',3)),
  gravelPath: FACILITY_SVG.gravelPath,
  plankPath: FACILITY_SVG.plankPath,
  poseidon: FACILITY_SVG.poseidonBlessing,
