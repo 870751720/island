@@ -8,7 +8,6 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, foodVerb } from '@/game/systems/Food';
-import { FOOD_EATER_LABELS } from '@/game/systems/AnimalFood';
 import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
@@ -460,11 +459,6 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                       </div>
                       <div style={{ fontSize: 13, color: gameTheme.ink, lineHeight: 1.5 }}>
                         {selectedDef.description}
-                        {selectedFood && <div style={{ marginTop: 6, fontSize: 12 }}>
-                          {selectedFood.eaters.length
-                            ? `可喂：${selectedFood.eaters.map(e => FOOD_EATER_LABELS[e]).join('、')} · 每份 +${selectedFood.hunger}`
-                            : '不适合喂给动物'}
-                        </div>}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {isUsable(selectedDef.kind) &&

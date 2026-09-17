@@ -86,7 +86,7 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 }
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
-  cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，生命+5、饥饿+10、饥渴+25，也可酿成奶酒。' },
+  cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚，也可酿成奶酒。' },
   wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，用于三级床和狗窝。' },
   shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '永久工具。手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
   feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和薯条会走近取食，只能存放可喂食的食物。' },
@@ -169,7 +169,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'colaZero',
     name: '无糖可乐',
     icon: '🥤',
-    description: '无糖版本,喝了个寂寞但至少不渴了。',
+    description: '无糖版本的可乐,细密的气泡在舌尖跳动。',
   },
   bottle: {
     kind: 'bottle',
@@ -187,7 +187,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'milk',
     name: '羊奶',
     icon: '🥛',
-    description: '从成年驯养绵羊身上挤出的鲜奶,温热香浓,直接喝最滋补。',
+    description: '从成年驯养绵羊身上挤出的鲜奶,温热香浓。',
   },
   sardine: {
     kind: 'sardine',
@@ -259,7 +259,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'grouper',
     name: '石斑鱼',
     icon: '🐠',
-    description: '体型敦实的大鱼,花纹斑驳,极其滋补。',
+    description: '体型敦实的大鱼,花纹斑驳,肉质细嫩。',
   },
   catfish: {
     kind: 'catfish',
@@ -421,7 +421,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledBerry',
     name: '煮浆果',
     icon: '🫐',
-    description: '小火煮软的浆果,酸甜的果汤润喉又开胃。',
+    description: '小火煮软的浆果,浸在酸甜的果汤里。',
   },
   boiledSmallFish: {
     kind: 'boiledSmallFish',
@@ -433,13 +433,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledBigFish',
     name: '大鱼汤',
     icon: '🍲',
-    description: '炖得浓白的大鱼汤,一锅顶半天。',
+    description: '炖得浓白的大鱼汤,鱼肉鲜嫩,汤香浓郁。',
   },
   boiledGoldenFish: {
     kind: 'boiledGoldenFish',
     name: '黄金鱼汤',
     icon: '✨',
-    description: '金光在汤面流转的传说之汤,喝完满血复活。',
+    description: '金光在汤面流转的传说之汤,鲜香四溢。',
   },
   boiledCrabMeat: {
     kind: 'boiledCrabMeat',
@@ -457,7 +457,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledGameMeat',
     name: '兽肉汤',
     icon: '🍲',
-    description: '咕嘟咕嘟炖了半天的兽肉浓汤,大补。',
+    description: '咕嘟咕嘟炖了半天的兽肉浓汤,肉香浓厚。',
   },
   cookedCarrot: {
     kind: 'cookedCarrot',
@@ -469,13 +469,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledCarrot',
     name: '胡萝卜汤',
     icon: '🍲',
-    description: '慢煮出来的胡萝卜汤,暖胃又解渴。',
+    description: '慢煮出来的胡萝卜汤,汤色橙亮,清甜细腻。',
   },
   bread: {
     kind: 'bread',
     name: '烤面包',
     icon: '🍞',
-    description: '麦穗烤得金黄喷香的粗粮面包,管饱。',
+    description: '麦穗烤得金黄喷香的粗粮面包,外皮酥脆。',
   },
   arrow: {
     kind: 'arrow',
@@ -686,7 +686,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledPotato',
     name: '土豆汤',
     icon: '🥣',
-    description: '炖得沙沙面面的土豆汤,暖胃管饱。',
+    description: '炖得沙沙面面的土豆汤,绵密浓稠。',
   },
   cookedSweetPotato: {
     kind: 'cookedSweetPotato',
@@ -722,7 +722,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledSoybean',
     name: '豆汤',
     icon: '🥣',
-    description: '熬出豆香的浓汤,喝完浑身舒坦。',
+    description: '熬出豆香的浓汤,香醇细滑。',
   },
   cookedTomato: {
     kind: 'cookedTomato',
@@ -734,7 +734,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledTomato',
     name: '番茄汤',
     icon: '🥣',
-    description: '酸爽开胃的番茄热汤。',
+    description: '酸甜浓郁的番茄热汤。',
   },
   cookedPepper: {
     kind: 'cookedPepper',
@@ -746,7 +746,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledPepper',
     name: '辣椒汤',
     icon: '🍲',
-    description: '又辣又烫的一碗汤,喝完整个人都精神了。',
+    description: '又辣又烫的一碗汤,鲜红的汤面冒着热气。',
   },
   cookedEggplant: {
     kind: 'cookedEggplant',
@@ -794,7 +794,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'boiledPumpkin',
     name: '南瓜浓汤',
     icon: '🍲',
-    description: '绵密顺滑的南瓜浓汤,一碗下去元气满满。',
+    description: '绵密顺滑的南瓜浓汤,满是南瓜的清甜。',
   },
   axe: {
     kind: 'axe',
@@ -939,7 +939,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'wineBerry',
     name: '浆果酒',
     icon: '🍷',
-    description: '浆果酿的果酒,喝一口浑身舒爽。',
+    description: '浆果酿的果酒,酒色深红,果香浓郁。',
   },
   wineFruit: {
     kind: 'wineFruit',
@@ -951,13 +951,13 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'wineMilk',
     name: '奶酒',
     icon: '🥛',
-    description: '羊奶或牛奶酿的奶酒,顺口又养人。',
+    description: '羊奶或牛奶酿的奶酒,奶香柔和,口感醇厚。',
   },
   wineGolden: {
     kind: 'wineGolden',
     name: '黄金酒',
     icon: '✨',
-    description: '黄金鱼酿的传世名酿,喝下如坠云端。',
+    description: '黄金鱼酿的传世名酿,酒液泛着细碎金光。',
   },
   doghouse: {
     kind: 'doghouse',
