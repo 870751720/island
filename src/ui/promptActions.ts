@@ -30,7 +30,7 @@ export function topHandRecipe(hud: HudSnapshot, dismissedRecipes?: ReadonlySet<s
       recipeVisible(r, counts, ownedTools, hud.equipped, hud.slots, {
         workbenchPlaced: hud.workbenchCrafted,
         campfirePlaced: hud.campfirePlaced,
-      })
+      }, questRecipePriority(hud, r.id) > 0)
   );
   if (candidates.length === 0) return null;
   candidates.sort((a,b)=>questRecipePriority(hud,b.id)-questRecipePriority(hud,a.id));
