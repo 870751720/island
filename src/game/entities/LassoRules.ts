@@ -6,10 +6,10 @@ export const isLassoPredator = (species: AnimalSpecies): boolean => species === 
 export type EscapeProgress = { elapsed: number; attempts: number };
 
 /** 五次独立判定的累计成功率为 1 - (1 - p)^5。仅权威端推进。 */
-export function advanceLassoEscape(species: AnimalSpecies, progress: EscapeProgress, delta: number, random = Math.random): boolean {
+export function advanceLassoEscape(species: AnimalSpecies, progress: EscapeProgress, delta: number, random = Math.random, cumulative = species === 'wolf' ? 0.95 : 0.99): boolean {
   if (!isLassoPredator(species) || progress.attempts >= 5) return false;
   const interval = species === 'wolf' ? 5 : 3;
-  const chance = 1 - Math.pow(species === 'wolf' ? 0.05 : 0.01, 1 / 5);
+  const chance = 1 - Math.pow(1 - cumulative, 1 / 5);
   progress.elapsed += delta;
   while (progress.elapsed >= interval && progress.attempts < 5) {
     progress.elapsed -= interval;

@@ -41,12 +41,12 @@ export function restoreHusbandry(value: Partial<HusbandryState> | undefined, spe
 }
 
 /** 返回本帧是否失去驯养。所有计时只在房主运行秒数上推进。 */
-export function advanceHusbandry(state: HusbandryState, species: TameSpecies, adult: boolean, delta: number): boolean {
+export function advanceHusbandry(state: HusbandryState, species: TameSpecies, adult: boolean, delta: number, decaySpeed = 1, productionSpeed = 1): boolean {
   if (delta <= 0) return false;
   state.cooldown = Math.max(0, state.cooldown - delta);
   state.eating = Math.max(0, state.eating - delta);
   if (!state.tamed) return false;
-  state.heart = Math.max(0, state.heart - HEART_MAX[species] * delta / 1800);
+  state.heart = Math.max(0, state.heart - HEART_MAX[species] * delta * decaySpeed / 1800);
   if (state.heart <= 0) {
     const shorn = state.shorn;
     Object.assign(state, newHusbandry(), { shorn });
@@ -54,9 +54,9 @@ export function advanceHusbandry(state: HusbandryState, species: TameSpecies, ad
   }
   if (state.heart < HEART_MAX[species] * 0.7) state.seeking = true;
   if (adult && (species === 'sheep' || species === 'bison')) {
-    if (!state.milk) { state.milkLeft = Math.max(0, state.milkLeft - delta); state.milk = state.milkLeft === 0; }
+    if (!state.milk) { state.milkLeft = Math.max(0, state.milkLeft - delta * productionSpeed); state.milk = state.milkLeft === 0; }
     if (species === 'sheep' && !state.wool) {
-      state.woolLeft = Math.max(0, state.woolLeft - delta);
+      state.woolLeft = Math.max(0, state.woolLeft - delta * productionSpeed);
       if (state.woolLeft === 0) { state.wool = true; state.shorn = false; }
     }
   }

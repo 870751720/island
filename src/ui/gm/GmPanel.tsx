@@ -14,6 +14,7 @@ import { WorldTab } from './WorldTab';
 import { FishingTab } from './FishingTab';
 import { ItemsTab } from './ItemsTab';
 import { AnimalsTab } from './AnimalsTab';
+import { HusbandryTab } from './HusbandryTab';
 import { DogTab } from './DogTab';
 import { MusicTab } from './MusicTab';
 import { EventsTab } from './EventsTab';
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'fishing', label: '钓鱼' },
   { id: 'items', label: '物品' },
   { id: 'animals', label: '动物' },
+  { id: 'husbandry', label: '驯养' },
   { id: 'dog', label: '薯条' },
   { id: 'events', label: '特殊事件' },
 ] as const;
@@ -73,6 +75,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'music' && <MusicTab getGame={actions.getGame} />}
         {tab === 'items' && <ItemsTab onGiveItem={actions.giveItem} onGiveTool={actions.giveTool} />}
+        {tab === 'husbandry' && <HusbandryTab actions={actions} />}
         {tab === 'dog' && <DogTab getGame={actions.getGame} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
         {tab === 'events' && (

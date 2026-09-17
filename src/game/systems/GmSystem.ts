@@ -4,6 +4,10 @@ import { validLandmarkChances } from '../world/landmarks/LandmarkDefinitions';
 /** GM 调试开关；地点开局概率单独保存在本机，其余为运行时内存态。 */
 export const GmSystem = {
   landmarkChances: loadLandmarkChances(),
+  wolfEscapeChance: 0.95,
+  bearEscapeChance: 0.99,
+  husbandryDecaySpeed: 1,
+  husbandryProductionSpeed: 1,
   /** 是否允许死亡;关闭后生命耗尽也不会死 */
   allowDeath: true,
   /** 无敌模式:饥饿/口渴不掉、生命与体力回满 */
@@ -35,6 +39,10 @@ export type GmConfig = typeof GmSystem;
 export function gmSnapshot(): GmConfig {
   return {
     landmarkChances: [...GmSystem.landmarkChances],
+    wolfEscapeChance: GmSystem.wolfEscapeChance,
+    bearEscapeChance: GmSystem.bearEscapeChance,
+    husbandryDecaySpeed: GmSystem.husbandryDecaySpeed,
+    husbandryProductionSpeed: GmSystem.husbandryProductionSpeed,
     allowDeath: GmSystem.allowDeath,
     godMode: GmSystem.godMode,
     lockTime: GmSystem.lockTime,
@@ -51,6 +59,12 @@ export function gmSnapshot(): GmConfig {
 
 /** 按 snapshot 覆盖 GM 配置(字段级校验,非法值忽略) */
 export function gmApply(config: Partial<GmConfig>): void {
+  for (const key of ['wolfEscapeChance', 'bearEscapeChance', 'husbandryDecaySpeed', 'husbandryProductionSpeed'] as const) {
+    const value = config[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      GmSystem[key] = Math.max(0, Math.min(key.endsWith('Chance') ? 1 : 120, value));
+    }
+  }
   if (validLandmarkChances(config.landmarkChances)) {
     GmSystem.landmarkChances = [...config.landmarkChances];
     saveLandmarkChances(GmSystem.landmarkChances);

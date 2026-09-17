@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import * as THREE from 'three';
 
-const modules: Record<string, any> = { three: THREE };
+const modules: Record<string, any> = { three: THREE, '../systems/GmSystem': { GmSystem: { wolfEscapeChance: 0.95, bearEscapeChance: 0.99, husbandryDecaySpeed: 1, husbandryProductionSpeed: 1 } } };
 function load(file: string): any {
   const source = fs.readFileSync(path.resolve('src/game', `${file}.ts`), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -190,3 +190,13 @@ assert.equal(changes.length, 2, '食料桶扣除通过容器增量同步');
 assert.equal(crates.snapshot()[0].slots.length, 20);
 
 console.log('Husbandry: decay, feeding thresholds, cooldown, production, old saves, combat, leash centers, harvest, food competition and crate deltas passed.');
+
+{
+  const state = newHusbandry(); feedAnimal(state, 'sheep', 60);
+  advanceHusbandry(state, 'sheep', true, 10, 0, 60);
+  assert.equal(state.heart, 60, 'GM 可冻结爱心');
+  assert.equal(state.milk, true); assert.equal(state.wool, true);
+  assert.equal(state.cooldown, 0, '生产倍率不改变进食冷却');
+  advanceHusbandry(state, 'sheep', true, 30, 60, 1);
+  assert.equal(state.tamed, false, 'GM 衰减加速仍走失养清理');
+}

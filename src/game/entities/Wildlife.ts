@@ -1,3 +1,4 @@
+import { GmSystem } from '../systems/GmSystem';
 import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
 import { AnimalForaging, clearFoodPath } from '../systems/AnimalForaging';
 import type { AnimalFoodSource } from '../systems/AnimalFood';
@@ -969,7 +970,7 @@ export class Wildlife implements Updatable {
     for (const animal of this.animals) {
       if (!animal.alive) continue;
       if (!animal.husbandry.tamed && animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
-        const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta);
+        const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta, Math.random, animal.species === 'wolf' ? GmSystem.wolfEscapeChance : GmSystem.bearEscapeChance);
         if (escaped || animal.leashEscape.attempts === 5) {
           const leash = animal.leash;
           const anchor = 'anchor' in leash ? leash.anchor : null;
@@ -987,7 +988,7 @@ export class Wildlife implements Updatable {
         }
       }
       if (canLasso(animal.species)) {
-        if (advanceHusbandry(animal.husbandry, animal.species as TameSpecies, animal.bornAt === null, delta)) {
+        if (advanceHusbandry(animal.husbandry, animal.species as TameSpecies, animal.bornAt === null, delta, GmSystem.husbandryDecaySpeed, GmSystem.husbandryProductionSpeed)) {
           this.clearTameCombat(animal);
           animal.foraging.reset();
           animal.target.copy(animal.pos);

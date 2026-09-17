@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import * as THREE from 'three';
 
-const modules: Record<string, any> = { three: THREE };
+const modules: Record<string, any> = { three: THREE, '../systems/GmSystem': { GmSystem: { wolfEscapeChance: 0.95, bearEscapeChance: 0.99, husbandryDecaySpeed: 1, husbandryProductionSpeed: 1 } } };
 function load(file: string) {
   const source = fs.readFileSync(new URL(`../src/game/entities/${file}.ts`, import.meta.url), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -145,3 +145,8 @@ assert.equal(scene.children[0].children.length, 2);
 late.dispose();
 assert.equal(scene.children.length, 0);
 console.log('Rope break separation, recoil, fade, snapshot ordering and cleanup checks passed.');
+
+for (const species of ['wolf', 'bear']) {
+  assert.equal(rules.advanceLassoEscape(species, { elapsed: 0, attempts: 0 }, 25, () => 0, 0), false);
+  assert.equal(rules.advanceLassoEscape(species, { elapsed: 0, attempts: 0 }, 5, () => 0.999999, 1), true);
+}
