@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ArrivalDiagnosticPanel } from './ArrivalDiagnosticPanel';
 import { IslandScene } from './IslandScene';
 import { MenuIcon } from './MenuIcon';
 import { islandArrivalCss } from './arrivalStyles';
@@ -46,6 +47,7 @@ export function IslandArrival({ ready, multiplayer }: { ready: boolean; multipla
           <button type="button" className="arrival-next" disabled={ready} onClick={() => setTip((tip + 1) % tips.length)}>
             <span>换个小提示</span><span className="arrival-count">{tip + 1} / {tips.length}</span><MenuIcon name="arrow" />
           </button>
+          {!ready && <ArrivalDiagnosticPanel />}
         </div>
       </div>
     </div>

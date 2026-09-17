@@ -25,6 +25,7 @@ ${islandSceneCss}
 .arrival-next:active{transform:translateY(2px) scale(.98);box-shadow:inset 0 2px 4px #61795722}
 .arrival-next:focus-visible{outline:3px solid #416b86;outline-offset:4px}
 .island-arrival[data-ready=true] .arrival-track span{animation:none;width:100%;transition:width .2s ease}
+.arrival-diagnostics{margin-top:12px}.arrival-diagnostics p{font-size:12px;line-height:1.6;color:var(--muted)}.arrival-diagnostics textarea{width:100%;height:140px;margin-top:8px;padding:8px;font-size:12px;user-select:text;-webkit-user-select:text;touch-action:auto}
 @keyframes arrival-drift{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
 @keyframes arrival-tip-in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-height:700px) and (orientation:portrait){.arrival-heading .menu-island{height:160px}.arrival-caption{margin-bottom:16px}.arrival-panel{padding-top:18px}.arrival-layout{padding-top:calc(16px + env(safe-area-inset-top))}}
