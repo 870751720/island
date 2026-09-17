@@ -109,6 +109,7 @@ import type { DeathReport } from './systems/RunStats';
 import { SurvivalSystem } from './systems/SurvivalSystem';
 import { GmSystem, gmApply, gmSnapshot, type GmConfig } from './systems/GmSystem';
 import { IslandTerrain } from './world/IslandTerrain';
+import { createIslandWorld } from './world/StarterPond';
 import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { Clouds } from './world/Clouds';
@@ -455,7 +456,10 @@ export class Game {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    const terrain = new IslandTerrain(200, 1000, this.terrainSeed);
+    const world = createIslandWorld(this.terrainSeed, save);
+    const terrain = world.terrain;
+    this.terrainSeed = world.seed;
+    if (this.hostRef) this.hostRef.terrainSeed = world.seed;
     this.terrain = terrain;
     this.scene.add(terrain.mesh);
     this.oceanDepth = new OceanDepth(terrain);
@@ -2150,6 +2154,7 @@ export class Game {
       version: SAVE_VERSION,
       gameMode: this.gameMode,
       terrainSeed: this.terrainSeed,
+      starterPond: this.terrain.starterPond ? { ...this.terrain.starterPond } : undefined,
       ...snapshotWorld(this.worldSaveSystems),
       poseidonGraceUsed: this.poseidonGraceUsed,
       dayEvent: this.dayEvents.snapshot(),

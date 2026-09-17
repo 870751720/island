@@ -88,7 +88,7 @@ export class IslandTerrain {
   private heightAt: (x: number, z: number) => number;
   private spawnPoint: THREE.Vector3 | null = null;
 
-  constructor(width = 200, length = 1000, seed = Math.random() * 1000) {
+  constructor(width = 200, length = 1000, seed = Math.random() * 1000, readonly starterPond?: WaterArea) {
     this.width = width;
     this.length = length;
     const hw = width / 2;
@@ -241,6 +241,8 @@ export class IslandTerrain {
         freezable: rng(i + 950) < 0.6,
       });
     }
+
+    if (starterPond) addWater({ ...starterPond });
 
     // 岛屿高度:噪声地形 + 水域 carve
     this.heightAt = (x: number, z: number) => {

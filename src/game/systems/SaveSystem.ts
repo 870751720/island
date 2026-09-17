@@ -79,6 +79,8 @@ export type SaveData = {
   name: string;
   gender: PlayerGender;
   terrainSeed: number;
+  /** 新档出生点北侧的固定淡水洼;旧档缺省时不补刷。 */
+  starterPond?: import('../world/IslandTerrain').WaterArea;
   player: { x: number; y: number; z: number };
   survival: { hunger: number; thirst: number; health: number; stamina: number };
   slots: InventorySlot[];
