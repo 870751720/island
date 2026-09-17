@@ -334,7 +334,6 @@ export function GameplayUI({
       )}
       {!photoMode && (
         <Backpack
-        onSettings={() => { setBackpackOpen(false); setSettingsOpen(true); }}
         showCompanion={!net?.guest}
         open={backpackOpen}
         onToggle={() => setBackpackOpen((v) => !v)}

@@ -77,7 +77,7 @@ export class HudSnapshotBuilder {
       hasFishingrod: !!session.tools.fishingrod,
       hasBow: !!session.tools.bow,
       hasSword: !!session.tools.sword,
-      hasShears: session.inventory.count('shears') > 0,
+      hasShears: session.tools.shears > 0,
       hasLasso: session.inventory.count('lasso') > 0 || leading,
       lassoCount: session.inventory.count('lasso'),
       leading,

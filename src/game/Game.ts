@@ -1939,7 +1939,7 @@ export class Game {
   harvestAnimal(actor: PlayerSession, animalId: number, wool: boolean): boolean {
     if (this.guestNet) return this.guestNet.action('harvestAnimal', [animalId, wool]);
     if (actor.survival.state.dead || actor.player.isMoving || actor.player.isSwimming || this.isSessionBusy(actor, 'milk')) return false;
-    if (wool !== (actor.player.currentTool === 'shears') || (wool && actor.inventory.count('shears') <= 0)) return false;
+    if (wool !== (actor.player.currentTool === 'shears') || (wool && actor.tools.shears <= 0)) return false;
     const result = this.wildlife.takeProduce(animalId, actor.player.group.position, wool);
     if (!result) return false;
     this.giveItem(result.kind, 1, actor);
@@ -2403,7 +2403,7 @@ export class Game {
   /** 切换某会话的手持工具(房主权威端共用入口):牵着羊时锁死套索不响应切换,图标不会被场景/自动切换抢走;
    * 可放置道具经 placeKind 选中具体一种(围栏区分木/石) */
   setToolFor(s: PlayerSession, tool: HandTool, placeKind?: ResourceKind): void {
-    if (tool === 'shears' && s.inventory.count('shears') <= 0) return;
+    if (tool === 'shears' && s.tools.shears <= 0) return;
     if (tool !== 'lasso' && this.wildlife.leashedBy(s.player)) return;
     s.player.setTool(tool);
     if (placeKind && this.autoPlace.supports(placeKind)) {
@@ -2671,7 +2671,7 @@ export class Game {
       return;
     }
 
-    actor.tools[tool] = Math.max(actor.tools[tool], tier);
+    actor.tools[tool] = Math.max(actor.tools[tool], tool === 'shears' ? 1 : tier);
     this.syncToolTiers(actor);
   }
 
@@ -2683,6 +2683,11 @@ export class Game {
   /** 产物入账:弹药(箭/鱼饵)进独立弹药存储,其余进背包,背包放不下的部分掉在玩家身旁地上 */
   giveItem(kind: ResourceKind, count: number, actor: Actor = this.local): number {
     if (kind === 'arrow' || kind === 'bait') return actor.ammo.add(kind, count);
+    if (kind === 'shears' && count > 0) {
+      actor.tools.shears = 1;
+      this.syncToolTiers(actor);
+      return count;
+    }
     const added = actor.inventory.add(kind, count);
     const overflow = count - added;
     if (overflow > 0) this.drops.dropOverflow(kind, overflow, actor);
@@ -3748,7 +3753,6 @@ export class Game {
 
   /** 手上是否还持有该工具(套索额外把「正牵着羊」也算持有,绳子还在手里);可放置道具不经此判定,由循环条目按背包展开 */
   private hasToolFor(s: PlayerSession, tool: Exclude<HandTool, 'hand'>): boolean {
-    if (tool === 'shears') return s.inventory.count('shears') > 0;
     if (tool === 'lasso')
       return s.inventory.count('lasso') > 0 || this.wildlife.leashedBy(s.player) !== null;
     if (tool === 'fence' || tool === 'fenceGate' || tool === 'place') return false;

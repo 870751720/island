@@ -28,6 +28,12 @@ export function restoreSession(session: PlayerSession, data: SessionSave, hooks:
   for (const [id, tier] of Object.entries(data.tools)) {
     if (tier > 0) session.tools[id as ToolId] = tier;
   }
+  // 保留旧档剪刀的拥有状态，并释放原先占用的物品格。
+  const shearsCount = session.inventory.count('shears');
+  if (shearsCount > 0) {
+    session.tools.shears = 1;
+    session.inventory.remove('shears', shearsCount);
+  }
   session.craftedIds.clear();
   for (const id of data.crafted) session.craftedIds.add(id);
   session.stats.kills = data.stats.kills;

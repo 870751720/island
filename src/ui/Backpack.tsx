@@ -40,7 +40,6 @@ type Props = {
   onMoveItem: (from: number, to: number) => void;
   /** 整理背包:同类合并并按分类排序 */
   onSort: () => void;
-  onSettings: () => void;
 };
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
@@ -89,6 +88,7 @@ function isUsable(kind: ResourceKind): boolean {
 }
 
 const SLOT_SIZE = 52;
+const SLOT_HEIGHT = 84;
 const SLOT_GAP = 8;
 const COLUMNS = 5;
 const TAB_LABELS: Record<Tab, string> = { items: '物品', craft: '制作', tools: '工具', char: '角色' };
@@ -109,8 +109,12 @@ const DETAIL_AREA_STYLE: React.CSSProperties = {
 
 function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
   return {
-    width: SLOT_SIZE,
-    height: SLOT_SIZE,
+    width: '100%',
+    minWidth: 44,
+    height: SLOT_HEIGHT,
+    flexDirection: 'column',
+    padding: '16px 3px 3px',
+    gap: 3,
     borderRadius: 10,
     border: selected ? gameTheme.selectionBorder : gameTheme.line,
     background: filled ? gameTheme.surface : gameTheme.inset,
@@ -131,7 +135,11 @@ function countBadge(count: number): React.ReactNode {
       style={{
         position: 'absolute',
         right: 3,
-        bottom: 1,
+        top: 2,
+        maxWidth: 'calc(100% - 6px)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
         fontSize: 11,
         fontWeight: 700,
         color: gameTheme.ink,
@@ -221,7 +229,7 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
 /** 背包面板:顶部固定 物品/制作/工具/角色 四个 tab;
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
-export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort, onSettings }: Props) {
+export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */
@@ -258,16 +266,15 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
     setTip(null);
   };
 
-  /** 由指针屏幕坐标换算命中的格子下标(格子尺寸/间距固定,按网格几何计算,触屏指针捕获时依然有效) */
+  /** 由指针屏幕坐标换算命中的格子下标(按实际格子矩形计算,触屏指针捕获时依然有效) */
   const slotIndexAt = (clientX: number, clientY: number): number | null => {
-    const rect = gridRef.current?.getBoundingClientRect();
-    if (!rect) return null;
-    const pitch = SLOT_SIZE + SLOT_GAP;
-    const col = Math.floor((clientX - rect.left - SLOT_GAP / 2) / pitch);
-    const row = Math.floor((clientY - rect.top - SLOT_GAP / 2) / pitch);
-    if (col < 0 || col >= COLUMNS || row < 0) return null;
-    const index = row * COLUMNS + col;
-    return index < hud.capacity ? index : null;
+    const cells = gridRef.current?.children;
+    if (!cells) return null;
+    for (let index = 0; index < cells.length; index++) {
+      const rect = cells[index].getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) return index;
+    }
+    return null;
   };
 
   const cancelDrag = () => {
@@ -313,6 +320,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
               // 面板上方预留空间，内容增多时在面板内滚动。
               marginTop: 'max(12px, calc(50vh - 260px))',
               width: `min(88vw, ${COLUMNS * (SLOT_SIZE + SLOT_GAP) + 2 * SLOT_GAP + 24}px)`,
+              boxSizing: 'border-box',
               maxHeight: '80vh',
               overflowY: 'auto',
               padding: '12px',
@@ -326,7 +334,6 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
           >
             {/* 固定在面板顶部的 tab 栏 */}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button {...pressAction(onSettings)} aria-label="设置" style={{ ...gameButtonStyle, width: 44, flexShrink: 0 }}><HudIcon name="settings" size={20} /></button>
               {TABS.map((t) => (
                 <button
                   key={t}
@@ -381,7 +388,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                   ref={gridRef}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: `repeat(${COLUMNS}, ${SLOT_SIZE}px)`,
+                    gridTemplateColumns: `repeat(${COLUMNS}, minmax(44px, 1fr))`,
                     gap: SLOT_GAP,
                     justifyContent: 'center',
                   }}
@@ -391,6 +398,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                     return (
                       <div
                         key={i}
+                        aria-label={slot ? `${ITEMS[slot.kind].name}，数量 ${slot.count}` : '空格'}
                         onPointerDown={(e) => {
                           e.preventDefault();
                           if (!slot) return;
@@ -455,6 +463,9 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                           <>
                             <span style={drag?.from === i ? { opacity: 0.3 } : undefined}>
                               <ItemIcon kind={slot.kind} size={26} />
+                            </span>
+                            <span style={{ fontSize: 11, lineHeight: '14px', height: 28, width: '100%', color: gameTheme.ink, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', pointerEvents: 'none' }}>
+                              {ITEMS[slot.kind].name}
                             </span>
                             {countBadge(slot.count)}
                           </>
@@ -586,6 +597,8 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                         alignItems: 'center',
                         gap: 8,
                         padding: '6px 4px',
+                        minHeight: 44,
+                        boxSizing: 'border-box',
                         opacity: owned ? 1 : 0.45,
                         touchAction: 'none',
                         userSelect: 'none',

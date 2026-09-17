@@ -3,13 +3,14 @@ import { EQUIPMENT, SLOT_ORDER, isEquipKind, type EquipKind, type EquipSlot, typ
 import { ITEM_CATEGORIES, itemCategory, type ItemCategory } from './Items';
 
 /** 可拥有的工具 */
-export type ToolId = 'axe' | 'pickaxe' | 'shovel' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
+export type UpgradeableToolId = 'axe' | 'pickaxe' | 'shovel' | 'hoe' | 'fishingrod' | 'bow' | 'sword';
+export type ToolId = UpgradeableToolId | 'shears';
 
 /** 二级工具配方 id(refined- 前缀区分基础工具) */
-export type RefinedToolId = `refined-${ToolId}`;
+export type RefinedToolId = `refined-${UpgradeableToolId}`;
 
 /** 三级铁制工具配方 id */
-export type IronToolId = `iron-${ToolId}`;
+export type IronToolId = `iron-${UpgradeableToolId}`;
 
 /** 工具等级:0 未拥有、1 基础、2 二级(二级工作台升级)、3 三级(三级工作台铁制) */
 export type Tools = Record<ToolId, number>;
@@ -21,7 +22,6 @@ export type CraftId =
   | IronToolId
   | 'rope'
   | 'lasso'
-  | 'shears'
   | 'feedBarrel'
   | 'arrow'
   | 'crate'
@@ -79,6 +79,7 @@ const TOOL_NAMES: Record<ToolId, [string, string, string]> = {
   fishingrod: ['树枝鱼竿', '木鱼竿', '铁鱼竿'],
   bow: ['树枝弓', '木弓', '铁弓'],
   sword: ['木剑', '石剑', '铁剑'],
+  shears: ['剪刀', '剪刀', '剪刀'],
 };
 
 export function toolName(tool: ToolId, tier: number): string {
@@ -86,7 +87,7 @@ export function toolName(tool: ToolId, tier: number): string {
 }
 
 /** 全部工具(工具 tab 展示顺序) */
-export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'];
+export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'shears'];
 
 /** 配方图标对应的道具(工具类即工具本身,材料/装备类为产物) */
 export function recipeIconKind(recipe: Recipe): ResourceKind {
@@ -95,7 +96,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
 
 /** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
 const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
-  'feedBarrel', 'shears', 'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
+  'feedBarrel', 'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'cookingStation',
   'workbench1', 'campfire',
 ]);
 
@@ -171,7 +172,7 @@ export const RECIPES: Recipe[] = [
     output: 'rope',
   },
   {
-    id: 'shears', name: '剪刀', cost: { ironIngot: 2, wood: 1 }, station: 'workbench', output: 'shears', minBenchLevel: 3,
+    id: 'shears', name: '剪刀', cost: { ironIngot: 2, wood: 1 }, station: 'workbench', tool: 'shears', minBenchLevel: 3,
   },
   {
     id: 'feedBarrel', name: '食料桶', cost: { ironIngot: 3, wood: 3, adventureBook: 1 }, station: 'workbench', output: 'feedBarrel', minBenchLevel: 4,

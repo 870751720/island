@@ -69,18 +69,18 @@ export function ItemsTab({
         {tools.map((id) => (
           <div key={id} style={rowStyle}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <ItemIcon kind={id} size={20} /> {toolName(id, 1)} / {toolName(id, 2)} / {toolName(id, 3)}
+              <ItemIcon kind={id} size={20} /> {id === 'shears' ? toolName(id, 1) : `${toolName(id, 1)} / ${toolName(id, 2)} / ${toolName(id, 3)}`}
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => onGiveTool(id, 1)} style={giveStyle}>
                 基础
               </button>
-              <button onClick={() => onGiveTool(id, 2)} style={giveStyle}>
+              {id !== 'shears' && <><button onClick={() => onGiveTool(id, 2)} style={giveStyle}>
                 二级
               </button>
               <button onClick={() => onGiveTool(id, 3)} style={giveStyle}>
                 三级
-              </button>
+              </button></>}
             </span>
           </div>
         ))}

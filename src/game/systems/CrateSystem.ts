@@ -273,12 +273,17 @@ export class CrateSystem {
     const crate = this.nearby(actor);
     const n = Math.min(crate ? crate.storage.count(kind) : 0, count);
     if (!crate || n <= 0) return 'empty';
-    if (!actor.inventory.canFit(kind)) return 'full';
+    if (kind !== 'shears' && !actor.inventory.canFit(kind)) return 'full';
     const before = crate.storage.snapshot();
     crate.storage.remove(kind, n);
     crate.updateIcon();
     this.emitSlotChanges(crate, before);
-    actor.inventory.add(kind, n);
+    if (kind === 'shears') {
+      actor.tools.shears = 1;
+      actor.player.setToolTier('shears', 1);
+    } else {
+      actor.inventory.add(kind, n);
+    }
     return 'ok';
   }
 

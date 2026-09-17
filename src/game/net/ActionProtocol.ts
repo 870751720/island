@@ -148,7 +148,7 @@ const HAND_TOOLS: ReadonlySet<string> = new Set([
 ]);
 const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack']);
 const ANIMAL_SPECIES: ReadonlySet<string> = new Set(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile']);
-const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword']);
+const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'shears']);
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
