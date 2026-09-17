@@ -3,6 +3,8 @@
 import { gameTheme } from './gameTheme';
 
 import { ItemIcon } from './ItemIcon';
+import { SlotItemName } from './SlotItemName';
+import { SlotItemCount } from './SlotItemCount';
 import { useEffect, useState } from 'react';
 import { ITEMS } from '@/game/systems/Items';
 import { BAIT_YIELD } from '@/game/systems/Food';
@@ -60,7 +62,7 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
           <ItemIcon kind="baitBarrel" size={20} /> 饵料桶
         </div>
         <div style={{ fontSize: 13, color: gameTheme.muted, marginBottom: 12 }}>
-          每 {BAIT_CONVERT_INTERVAL} 秒发酵 1 个食物,按角标兑换鱼饵
+          每 {BAIT_CONVERT_INTERVAL} 秒发酵 1 个食物,下方投料列表显示每个食物的鱼饵产量
         </div>
 
         <div style={{ ...convertRowStyle, marginBottom: 14 }}>
@@ -71,33 +73,12 @@ export function BaitBarrelPanel({ hud, onFeed, onCollect, onTakeFoods, onClose }
                   {info.foods.map((food, i) => (
                     <div
                       key={`${food.kind}-${i}`}
-                      style={{ position: 'relative', width: 36, height: 36 }}
+                      aria-label={`${ITEMS[food.kind].name}，数量 ${food.count}，每个产出 ${BAIT_YIELD[food.kind]} 鱼饵`}
+                      style={{ position: 'relative', width: 36, height: 36, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: gameTheme.ink }}
                     >
-                      <ItemIcon kind={food.kind} size={26} />
-                      <span
-                        style={{
-                          position: 'absolute',
-                          right: -2,
-                          bottom: -2,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: gameTheme.ink,
-                        }}
-                      >
-                        ×{food.count}
-                      </span>
-                      <span
-                        style={{
-                          position: 'absolute',
-                          left: -2,
-                          top: -2,
-                          fontSize: 10,
-                          color: ACTION_COLOR,
-                          fontWeight: 700,
-                        }}
-                      >
-                        <ItemIcon kind="bait" size={13} />{BAIT_YIELD[food.kind]}
-                      </span>
+                      <ItemIcon kind={food.kind} size={20} />
+                      <SlotItemName name={ITEMS[food.kind].name} />
+                      <SlotItemCount count={food.count} />
                     </div>
                   ))}
                 </div>

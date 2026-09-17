@@ -8,6 +8,7 @@ import './PlacePicker.css';
 import type { ReactNode } from 'react';
 import type { EmojiDef } from '../game/social/Emojis';
 import { EmojiFaceIcon } from './icons/EmojiFaceIcon';
+import { SlotItemName } from './SlotItemName';
 
 /** 手持项选择面板:长按工具按钮弹出,顶部为快捷表情区(点选在头顶冒气泡),
  * 下方平铺所有可切换的手持项(普通工具 + 可放置道具,图标+名称+数量角标),
@@ -145,6 +146,9 @@ export function PlacePicker<T extends PickerItem>({
                 background: item.active
                   ? gameTheme.selected
                   : gameTheme.surface,
+                paddingBottom: 14,
+                boxSizing: 'border-box',
+                color: gameTheme.ink,
                 fontSize: 26,
                 lineHeight: '34px',
                 touchAction: 'pan-y',
@@ -152,18 +156,7 @@ export function PlacePicker<T extends PickerItem>({
               }}
             >
               {item.icon}
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: 10,
-                  lineHeight: '14px',
-                  color: gameTheme.ink,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                }}
-              >
-                {item.name}
-              </span>
+              <SlotItemName name={item.name} />
               {item.count !== undefined && (
                 <span
                   style={{

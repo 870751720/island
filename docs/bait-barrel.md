@@ -16,6 +16,10 @@
 
 ## 设计方案
 
+### 物品格名称显示
+
+桶内食物队列保持 36×36px 占位，底部显示名称，溢出时复用 SlotItemName 缓慢往返滚动，数量显示在右上角。鱼饵兑换量仍完整显示在下方各食物的投料行，避免小格内同时挤入名称、数量和兑换量。
+
 - 道具与配方:`baitBarrel` 加入 `ResourceKind`/`ITEMS`;配方 `station: 'workbench' + minBenchLevel: 2`。删除 `baitCrab/baitBird/baitGame` 配方与 `baitPrompt` 字段(连同 CraftPrompt 的弹出条件)。
 - 实体 `entities/BaitBarrel.ts`:程序化木桶模型(桶身 + 两道桶箍 + 桶口发光鱼饵团);桶状态为 `foods`(投喂队列,同种合并)、`bait`、`tickLeft`;`update(elapsed)` 只驱动表现。
 - 系统 `systems/BaitBarrelSystem.ts`:完全对齐木箱 `CrateSystem` 的模式——摆放校验(干地、无资源点/桶重叠)、铲子站定自动挖走(整桶 + 桶内食物 + 鱼饵发放/掉落)、`nearby` 靠近判定、`snapshot/restore/netApply` 存档与网络重放、`EntityChangeSink` 增量上报。发酵计时只在权威端结算(`update(delta, elapsed, authority)`),客人端本地倒数只做进度表现,状态由 `baitBarrels` 世界增量回流。收取的鱼饵经 `Game.giveItem` 进入独立弹药存储(`PlayerSession.ammo`,鱼饵不进背包,见 `docs/bow.md` 的弹药存储说明)。

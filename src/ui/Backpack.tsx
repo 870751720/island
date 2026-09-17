@@ -16,6 +16,7 @@ import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
+import { SlotItemCount } from './SlotItemCount';
 import { fadeStyle } from './fade';
 import { pressAction } from './pressAction';
 import { HudIcon } from './hud/HudIcon';
@@ -126,31 +127,7 @@ function slotStyle(filled: boolean, selected: boolean): React.CSSProperties {
   };
 }
 
-function countBadge(count: number): React.ReactNode {
-  return (
-    <span
-      style={{
-        position: 'absolute',
-        right: 3,
-        top: 2,
-        maxWidth: 'calc(100% - 6px)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        fontSize: 10,
-        lineHeight: '12px',
-        background: gameTheme.surface,
-        borderRadius: 3,
-        padding: '0 1px',
-        fontWeight: 700,
-        color: gameTheme.ink,
-        fontFamily: gameTheme.font,
-      }}
-    >
-      ×{count}
-    </span>
-  );
-}
+
 
 function actionButton(disabled: boolean, label: string, color: string, onPress: () => void): React.ReactNode {
   return (
@@ -466,7 +443,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                               <ItemIcon kind={slot.kind} size={26} />
                             </span>
                             <SlotItemName name={ITEMS[slot.kind].name} />
-                            {countBadge(slot.count)}
+                            <SlotItemCount count={slot.count} />
                           </>
                         )}
                       </div>

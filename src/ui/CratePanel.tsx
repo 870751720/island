@@ -5,6 +5,8 @@ import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
 import { useRef } from 'react';
 import { ItemIcon } from './ItemIcon';
+import { SlotItemCount } from './SlotItemCount';
+import { SlotItemName } from './SlotItemName';
 import type { HudSnapshot } from '@/game/GameContracts';
 import type { InventorySlot, ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
@@ -29,6 +31,7 @@ function slotStyle(filled: boolean): React.CSSProperties {
   return {
     width: SLOT_SIZE,
     height: SLOT_SIZE,
+    paddingBottom: 14,
     borderRadius: 10,
     border: gameTheme.line,
     background: filled ? gameTheme.surface : gameTheme.inset,
@@ -43,23 +46,7 @@ function slotStyle(filled: boolean): React.CSSProperties {
   };
 }
 
-function countBadge(count: number): React.ReactNode {
-  return (
-    <span
-      style={{
-        position: 'absolute',
-        right: 3,
-        bottom: 1,
-        fontSize: 11,
-        fontWeight: 700,
-        color: gameTheme.ink,
-        fontFamily: gameTheme.font,
-      }}
-    >
-      ×{count}
-    </span>
-  );
-}
+
 
 /** 木箱储物面板:上半为木箱 10 格,下半为背包;点按格子整格转移,长按连发步进转移(越按越快) */
 export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
@@ -90,6 +77,7 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
         return (
           <div
             key={i}
+            aria-label={slot ? `${ITEMS[slot.kind].name}，数量 ${slot.count}${allowed ? "" : "，不可存入"}` : "空格"}
             onPointerDown={(e) => {
               e.preventDefault();
               if (!slot || !allowed) return;
@@ -106,7 +94,8 @@ export function CratePanel({ hud, onStore, onTake, onClose }: Props) {
             {slot && (
               <>
                 <ItemIcon kind={slot.kind} size={26} />
-                {countBadge(slot.count)}
+                <SlotItemName name={ITEMS[slot.kind].name} />
+                <SlotItemCount count={slot.count} />
               </>
             )}
           </div>
