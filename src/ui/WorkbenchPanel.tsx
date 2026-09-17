@@ -18,7 +18,6 @@ import {
   maxCraftCount,
   recipeIconKind,
   recipeIconLevel,
-  recipeVisible,
   workbenchUpgradeCost,
   isSingleCraft,
   recipeCategoryOrder,
@@ -28,7 +27,7 @@ import {
 } from '@/game/systems/Crafting';
 import { RecipeBook } from './RecipeBook';
 import { StepButton } from './StepButton';
-import { costLabel, recipeCostLabel } from './materials';
+import { MaterialRequirements } from './MaterialRequirements';
 
 /** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
 export function WorkbenchPanel({
@@ -44,28 +43,24 @@ export function WorkbenchPanel({
 }) {
   // 材料数统一从背包格子快照统计(身上穿戴的装备也计为材料),新增道具无需在 HUD 快照加计数字段
   const materials = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
-  // 列出当前能制作的配方(材料齐、工具未拥有、装备评分高于身上这件、工作台等级足够),
-  // 另外未制作过的配方即使材料不足也列出(按钮置灰提示),制作过的做不出则不再占位
   const crafted = new Set(hud.craftedIds);
-  const visible = (r: Recipe) =>
-    recipeVisible(r, materials, toolsOf(hud), hud.equipped, hud.slots);
-  // 可制作的排在前面,其次按分类排序(材料→工具→装备→设施),同组保持配方表顺序
+  const [onlyReady, setOnlyReady] = useState(false);
+  const ready = (r: Recipe) => maxCount(r, materials, hud) > 0;
+  // 可重复制作的配方始终可查;已完成的永久工具不再占位。
   const recipes = RECIPES.filter(
-    (r) =>
-      r.station === 'workbench' &&
+    (r) => r.station === 'workbench' &&
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      (visible(r) || !crafted.has(r.id) || questRecipePriority(hud,r.id) > 0)
-  ).sort(
-    (a, b) =>
-      questRecipePriority(hud,b.id) - questRecipePriority(hud,a.id) || Number(visible(b)) - Number(visible(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
+      (!r.tool || hud.toolTiers[r.tool] < (r.tier ?? 1) || !crafted.has(r.id) || questRecipePriority(hud, r.id) > 0)
+  ).sort((a, b) =>
+    questRecipePriority(hud, b.id) - questRecipePriority(hud, a.id) ||
+    Number(ready(b)) - Number(ready(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
   );
+  const shownRecipes = onlyReady ? recipes.filter(ready) : recipes;
   const [bookOpen, setBookOpen] = useState(false);
   // 升级到下一级的材料表与现有存量(材料不足时提示还缺什么)
   const upgradeCost = workbenchUpgradeCost(hud.workbenchLevel);
-  const upgradeCounts = materials;
   const questUpgrade = !!hud.quests?.enabled && !hud.quests.finished && QUESTS[hud.quests.active]?.id === 'upgrade' && hud.workbenchLevel === 1;
-  const upgradeReady = hasCost(upgradeCost, upgradeCounts);
-  const [upgradeHint, setUpgradeHint] = useState<string | null>(null);
+  const upgradeReady = hasCost(upgradeCost, materials);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(recipes.map((r) => [r.id, 1]))
   );
@@ -75,12 +70,12 @@ export function WorkbenchPanel({
     setCounts((prev) => {
       const next = { ...prev };
       for (const r of recipes) {
-        const max = maxCount(r, materials, hud);
+        const max = Math.max(1, maxCount(r, materials, hud));
         if ((next[r.id] ?? 1) > max) next[r.id] = max;
       }
       return next;
     });
-  }, [hud.slots, hud.hasFishingrod, hud.hasBow]);
+  }, [hud.slots, hud.equipped, hud.toolTiers, hud.workbenchLevel]);
 
   return (
     <div
@@ -105,100 +100,99 @@ export function WorkbenchPanel({
             <MenuIcon name="book" /> 合成图鉴
           </button>
         </div>
-        {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
-          <div style={{ ...rowStyle, marginBottom: 10, background: gameTheme.selected, ...(questUpgrade ? questRecipeStyle : {}) }}>
-            <MenuIcon name="upgrade" size={26} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div>升级到 Lv.{hud.workbenchLevel + 1} {questUpgrade && <small>当前任务</small>}</div>
-              <div style={{ fontSize: 12, color: upgradeHint ? gameTheme.danger : gameTheme.muted }}>
-                {upgradeHint ?? costLabel(upgradeCost)}
+        <div style={{ fontSize: 12, color: gameTheme.muted, marginBottom: 10 }}>
+          材料：已有 / 需要（含可消耗的穿戴装备）
+        </div>
+        <div style={listStyle}>
+          {hud.workbenchLevel > 0 && hud.workbenchLevel < 4 && (
+            <div style={{ ...rowStyle, background: gameTheme.selected, ...(questUpgrade ? questRecipeStyle : {}) }}>
+              <div style={titleStyle}>
+                <MenuIcon name="upgrade" size={26} />
+                <span>升级到 Lv.{hud.workbenchLevel + 1} {questUpgrade && <small>当前任务</small>}</span>
+              </div>
+              <MaterialRequirements cost={upgradeCost} available={materials} />
+              <div style={actionsStyle}>
+                <button
+                  style={craftButtonStyle(upgradeReady)}
+                  disabled={!upgradeReady}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    if (upgradeReady && onUpgrade()) onClose();
+                  }}
+                >
+                  {questUpgrade && upgradeReady && <QuestCraftParticles radius={12} />}
+                  {upgradeReady ? '升级' : '材料不足'}
+                </button>
               </div>
             </div>
-            <button
-              style={craftButtonStyle(upgradeReady)}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (upgradeReady) {
-                  if (onUpgrade()) onClose();
-                } else {
-                  setUpgradeHint(
-                    `还缺:${costLabel(
-                      Object.fromEntries(
-                        Object.entries(upgradeCost).map(([kind, n]) => [
-                          kind,
-                          Math.max((n ?? 0) - (upgradeCounts[kind as ResourceKind] ?? 0), 0),
-                        ])
-                      )
-                    )}`
-                  );
-                }
-              }}
-            >
-              {questUpgrade && upgradeReady && <QuestCraftParticles radius={12} />}
-              {upgradeReady ? '升级' : '材料不足'}
-            </button>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            {[false, true].map((value) => (
+              <button key={String(value)} aria-pressed={onlyReady === value}
+                style={{ ...gameButtonStyle, flex: 1, background: onlyReady === value ? gameTheme.selected : gameTheme.surface }}
+                onPointerDown={(e) => { e.preventDefault(); setOnlyReady(value); }}>
+                {value ? '可制作' : '全部'}
+              </button>
+            ))}
           </div>
-        )}
-        <div style={listStyle}>
-          {recipes.length === 0 && (
+          {shownRecipes.length === 0 && (
             <div style={{ fontSize: 13, color: gameTheme.muted, padding: '6px 0' }}>
-              材料还不够,先去收集吧
+              {onlyReady ? '暂无可制作配方，切换「全部」查看材料缺口' : '当前等级暂无配方'}
             </div>
           )}
-          {recipes.map((r) => {
+          {shownRecipes.map((r) => {
             const max = maxCount(r, materials, hud);
-            const count = isSingleCraft(r) ? 1 : Math.min(counts[r.id] ?? 1, max);
+            const count = isSingleCraft(r) ? 1 : Math.max(1, Math.min(counts[r.id] ?? 1, max));
             const ownedTools = toolsOf(hud);
             return (
               <div key={r.id} style={{...rowStyle,...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{})}}>
-                <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div>{r.name} {questRecipePriority(hud,r.id)>0 && <small style={{color:gameTheme.accent}}>当前任务</small>}</div>
-                  <div style={{ fontSize: 12, color: gameTheme.muted }}>
-                        {recipeCostLabel(r)}
-                        {r.output && count > 1 ? ` ×${count}` : ''}
-                  </div>
+                <div style={titleStyle}>
+                  <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
+                  <span>{r.name} {questRecipePriority(hud, r.id) > 0 && <small style={{ color: gameTheme.accent }}>当前任务</small>}</span>
                 </div>
-                {r.output && !isSingleCraft(r) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <StepButton
-                      step={-1}
-                      style={stepButtonStyle}
-                      disabled={count <= 1}
-                      onChange={(s) =>
-                        setCounts((c) => ({ ...c, [r.id]: Math.max(1, (c[r.id] ?? 1) + s) }))
-                      }
-                    />
-                    <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>
-                      {count}
-                    </span>
-                    <StepButton
-                      step={1}
-                      style={stepButtonStyle}
-                      disabled={count >= max}
-                      onChange={(s) =>
-                        setCounts((c) => ({ ...c, [r.id]: Math.min(max, (c[r.id] ?? 1) + s) }))
-                      }
-                    />
-                  </div>
-                )}
-                <button
-                  style={craftButtonStyle(max > 0)}
-                  disabled={max === 0}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    if (max > 0) onCraft(r.id, Math.max(1, count));
-                  }}
-                >
-                  {max > 0 && questRecipePriority(hud, r.id) > 0 && <QuestCraftParticles radius={12} />}
-                  {max === 0
-                    ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
-                      ? '已拥有'
-                      : r.tool && ownedTools[r.tool] < (r.tier ?? 1) - 1
-                        ? `需${toolName(r.tool, (r.tier ?? 1) - 1)}`
-                        : '材料不足'
-                    : '制作'}
-                </button>
+                <MaterialRequirements cost={r.cost} available={materials} count={count} recipe={r} tools={ownedTools} />
+                <div style={actionsStyle}>
+                  {r.output && !isSingleCraft(r) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto' }}>
+                      <StepButton
+                        step={-1}
+                        style={stepButtonStyle}
+                        disabled={count <= 1 || max === 0}
+                        onChange={(s) =>
+                          setCounts((c) => ({ ...c, [r.id]: Math.max(1, (c[r.id] ?? 1) + s) }))
+                        }
+                      />
+                      <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>
+                        {count} 份
+                      </span>
+                      <StepButton
+                        step={1}
+                        style={stepButtonStyle}
+                        disabled={count >= max}
+                        onChange={(s) =>
+                          setCounts((c) => ({ ...c, [r.id]: Math.max(1, Math.min(max, (c[r.id] ?? 1) + s)) }))
+                        }
+                      />
+                    </div>
+                  )}
+                  <button
+                    style={craftButtonStyle(max > 0)}
+                    disabled={max === 0}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      if (max > 0) onCraft(r.id, Math.max(1, count));
+                    }}
+                  >
+                    {max > 0 && questRecipePriority(hud, r.id) > 0 && <QuestCraftParticles radius={12} />}
+                    {max === 0
+                      ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
+                        ? '已拥有'
+                        : r.tool && ownedTools[r.tool] < (r.tier ?? 1) - 1
+                          ? `需${toolName(r.tool, (r.tier ?? 1) - 1)}`
+                          : '材料不足'
+                      : '制作'}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -237,7 +231,10 @@ const overlayStyle: CSSProperties = {
 };
 
 const panelStyle: CSSProperties = {
-  width: 'min(calc(100vw - 56px), 400px)',
+  width: 'min(calc(100vw - 24px), 420px)',
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
   padding: '16px 14px',
   ...gamePanelStyle,
   borderRadius: 22,
@@ -245,16 +242,16 @@ const panelStyle: CSSProperties = {
   fontSize: 15,
   color: gameTheme.ink,
   boxShadow: gameTheme.shadow,
-  maxHeight: '90vh',
-  overflowY: 'auto',
+  maxHeight: 'calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+  overflow: 'hidden',
 };
 
-// 配方列表内部滚动:高度上限按至少露出 6 行(约 60px/行 + 10px 间距)取值
+// 升级与配方共用滚动区，横屏时也为标题和关闭按钮保留空间。
 const listStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 10,
-  maxHeight: 'max(416px, 60vh)',
+  flex: 1,
   minHeight: 0,
   overflowY: 'auto',
   WebkitOverflowScrolling: 'touch',
@@ -262,7 +259,8 @@ const listStyle: CSSProperties = {
 
 const rowStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
+  flexDirection: 'column',
+  flexShrink: 0,
   gap: 10,
   padding: '8px 10px',
   borderRadius: 12,
@@ -270,9 +268,12 @@ const rowStyle: CSSProperties = {
   background: gameTheme.surface,
 };
 
+const titleStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 };
+const actionsStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 };
+
 const stepButtonStyle: CSSProperties = {
-  width: 34,
-  height: 34,
+  width: 44,
+  height: 44,
   borderRadius: '50%',
   ...gameButtonStyle,
   background: gameTheme.inset,
@@ -298,6 +299,7 @@ const craftButtonStyle = (enabled: boolean): CSSProperties => ({
 
 const closeButtonStyle: CSSProperties = {
   width: '100%',
+  flexShrink: 0,
   marginTop: 12,
   padding: '10px 0',
   borderRadius: 10,
