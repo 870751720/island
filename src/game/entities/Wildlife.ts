@@ -1,3 +1,4 @@
+import { CrocodileDeparture, CROC_CALM_TIME } from './CrocodileDeparture';
 import { GmSystem } from '../systems/GmSystem';
 import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
 import { AnimalForaging, clearFoodPath } from '../systems/AnimalForaging';
@@ -351,6 +352,8 @@ type Animal = LifeState & {
   pond: CrocPond | null;
   /** 出场扑咬进行中的状态(未出场时为 null) */
   entrance: CrocEntrance | null;
+  calmTime: number;
+  departure?: CrocodileDeparture;
   // —— 兔子专属状态(其他物种恒为初始值) ——
   /** 躲进洞里(模型隐藏,无法被攻击) */
   hidden: boolean;
@@ -429,7 +432,13 @@ export class Wildlife implements Updatable {
 
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeAnimal(animal: Animal): void {
-    this.animals.splice(this.animals.indexOf(animal), 1);
+    const index = this.animals.indexOf(animal);
+    if (index < 0) return;
+    this.animals.splice(index, 1);
+    if (animal.departure) {
+      this.creatureFx.reset(animal.model.group);
+      animal.departure.dispose();
+    }
     this.group.remove(animal.model.group);
   }
 
@@ -536,6 +545,7 @@ export class Wildlife implements Updatable {
       dustLeft: 0,
       pond: species === 'crocodile' ? this.nearestPond(spawn.x, spawn.z) : null,
       entrance: null,
+      calmTime: 0,
       hidden: false,
       hideCalm: 0,
       burrow: null,
@@ -963,6 +973,23 @@ export class Wildlife implements Updatable {
     this.mercyCooldown = Math.max(0, this.mercyCooldown - delta);
     this.dogThreats.length = 0;
     this.creatureFx.update(delta);
+    for (const animal of [...this.animals]) {
+      if (animal.departure) {
+        if (animal.departure.update(delta)) this.removeAnimal(animal);
+        continue;
+      }
+      if (!animal.alive || animal.species !== 'crocodile') continue;
+      const pond = animal.pond;
+      const threatened = !animal.retreat && !!pond && this.players().some(player =>
+        this.isPlayerVulnerable(player) && Math.hypot(player.group.position.x - pond.x, player.group.position.z - pond.z) <= pond.radius + CROC_LEASH);
+      animal.calmTime = threatened ? 0 : animal.calmTime + delta;
+      if (animal.calmTime >= CROC_CALM_TIME) {
+        animal.alive = false;
+        animal.alerted = false;
+        animal.entrance = null;
+        animal.departure = new CrocodileDeparture(animal.model);
+      }
+    }
     this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
     this.pursuit.begin(this.animals.filter(a => a.alive && !a.husbandry.tamed && !a.hidden && !a.taunt && !a.retreat
@@ -1870,6 +1897,7 @@ export class Wildlife implements Updatable {
   private applyDamage(animal: Animal, damage: number, attacker?: Player): { species: AnimalSpecies; juvenile: boolean } | 'hit' | null {
     if (animal.taunt) return null;
     if (animal.husbandry.tamed || !Number.isFinite(damage) || damage <= 0) return null;
+    if (animal.species === 'crocodile') animal.calmTime = 0;
     if (attacker && animal.species === 'bison' && animal.bornAt !== null) {
       for (const adult of this.animals) {
         if (!adult.alive || adult.husbandry.tamed || adult.hidden || adult.leash || adult.species !== 'bison' || adult.bornAt !== null) continue;
@@ -2050,6 +2078,7 @@ export class Wildlife implements Updatable {
         h: a.heading,
         alive: a.alive,
         hidden: a.hidden,
+        departure: a.departure?.elapsed,
         leash,
         milk: a.husbandry.milk,
         husbandry: { tamed: a.husbandry.tamed, heart: Math.round(a.husbandry.heart * 100) / 100, eating: a.husbandry.eating > 0,
@@ -2106,24 +2135,27 @@ export class Wildlife implements Updatable {
         a.heading = p.h;
         a.viewHeading = p.h;
       }
-      if (wasAlive && !p.alive && !a.hidden) {
+      if (p.departure !== undefined) {
+        a.departure ??= new CrocodileDeparture(a.model);
+        a.departure.elapsed = Math.max(a.departure.elapsed, p.departure);
+      }
+      if (wasAlive && !p.alive && !a.hidden && !a.departure) {
         // 房主权威判定死亡:本地立即播放倒地—停留—渐隐,而不是瞬间消失
         this.creatureFx.playDeath(a.model.group);
       }
       a.alive = p.alive;
-      a.model.group.visible = a.alive && !a.hidden;
+      a.model.group.visible = (a.alive || !!a.departure) && !a.hidden;
     }
     // 房主已移除的尸体(快照缺 id):本地死亡动画播完(模型已隐藏)后清理实体
     for (let i = this.animals.length - 1; i >= 0; i--) {
       const a = this.animals[i];
       if (!a.alive && !a.model.group.visible && !map.has(a.id)) {
-        this.animals.splice(i, 1);
-        this.group.remove(a.model.group);
+        this.removeAnimal(a);
       }
     }
     // 本地没有的 id:房主新生成的动物,按快照物种补建
     for (const p of poses) {
-      if (this.animals.some((a) => a.id === p.id) || !p.alive || !p.species) continue;
+      if (this.animals.some((a) => a.id === p.id) || (!p.alive && p.departure === undefined) || !p.species) continue;
       const animal = this.createAnimal(p.species, new THREE.Vector3(p.x, this.terrain.getHeight(p.x, p.z), p.z), p.h);
       animal.id = p.id;
       this.nextId = Math.max(this.nextId, p.id + 1);
@@ -2142,6 +2174,12 @@ export class Wildlife implements Updatable {
       animal.breeding = !!p.breeding;
       this.applyLifeScale(animal);
       animal.model.group.visible = !animal.hidden;
+      animal.alive = p.alive;
+      if (p.departure !== undefined) {
+        animal.departure = new CrocodileDeparture(animal.model);
+        animal.departure.elapsed = p.departure;
+        animal.departure.update(0);
+      }
     }
   }
 
@@ -2172,6 +2210,7 @@ export class Wildlife implements Updatable {
     this.creatureFx.update(delta);
     const k = 1 - Math.exp(-14 * delta);
     for (const a of this.animals) {
+      if (a.departure) { a.departure.update(delta); continue; }
       if (!a.alive || a.hidden) continue;
       a.lungeLeft = Math.max(0, a.lungeLeft - delta);
       a.husbandry.eating = Math.max(0, a.husbandry.eating - delta);
