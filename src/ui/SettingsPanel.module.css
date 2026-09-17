@@ -22,6 +22,13 @@
 .content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px; }
 .content > * { flex-shrink: 0; }
 .footer { flex-shrink: 0; }
+.modeHint { font-size: 13px; line-height: 1.65; margin: 8px 0; }
+ul.modeHint { padding-left: 20px; }
+.modeWarning { color: #9a542c; font-size: 14px; line-height: 1.6; }
+.modeActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.modeActions button, .modeEntry { min-height: 44px; padding: 10px 12px; border: 1px solid #789b7c; border-radius: 10px; background: #dce8d6; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.modeActions button { flex: 1 1 110px; }
+.modeActions button:disabled, .modeEntry:disabled { opacity: .45; cursor: default; }
 .adjustOverlay { position: absolute; inset: 0; z-index: 210; display: flex; align-items: flex-end; justify-content: center; }
 .adjustPanel { box-sizing: border-box; width: min(100%, 420px); padding: 14px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); border: 1px solid #fff8e9bb; border-radius: 20px 20px 0 0; background: #eef0df; color: #49665e; font-family: Arial,"PingFang SC","Microsoft YaHei",sans-serif; max-height: 50dvh; overflow-y: auto; }
 .adjustHint { font-size: 11px; line-height: 1.5; margin: 0 0 10px; }

@@ -1,6 +1,7 @@
 'use client';
 import { loadQuestGuide } from '@/game/quests/QuestSettings';
 import { MenuIcon } from './icons/MenuIcons';
+import { GameModeSettings } from './GameModeSettings';
 
 import { gameTheme, gameButtonStyle } from './gameTheme';
 
@@ -61,6 +62,7 @@ export function SettingsPanel({
   onClose,
   onEnterPhotoMode,
   multiplayer,
+  modeSettings,
 }: {
   onAdjustHud: () => void;
   /** 音量变化时热应用到 GameAudio 并持久化 */
@@ -72,6 +74,7 @@ export function SettingsPanel({
   onEnterPhotoMode: () => void;
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
+  modeSettings?: React.ComponentProps<typeof GameModeSettings>;
 }) {
   const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('game');
   const [guide, setGuide] = useState(loadQuestGuide);
@@ -174,6 +177,7 @@ export function SettingsPanel({
         </button>
         </>}
         {tab === 'game' && <>
+        {modeSettings && <GameModeSettings {...modeSettings} />}
         {multiplayer &&
           (multiplayer.roomCode ? (
             <div

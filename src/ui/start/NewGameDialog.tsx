@@ -18,7 +18,7 @@ export function NewGameDialog({ save, value, onChange, onConfirm, onCancel }: {
       <ModeSelector value={value} onChange={onChange} />
       <p className="abandon-text" aria-live="polite">{value === 'leisure'
         ? '死亡后可复活，会掉落部分随身物品；无法获得荒岛传承点。'
-        : '沿用原有求生规则，本局结束后可按生存天数获得荒岛传承点。'}<br />开局后无法切换模式。</p>
+        : '沿用原有求生规则，本局结束后可按生存天数获得荒岛传承点。'}<br />单机求生可在设置中永久转为悠然，悠然无法转回求生。</p>
       {save && <p className="abandon-text">原岛已生存 {save.day ?? 1} 天，岛上的进度与物品将被替换。<br />
         {points > 0 ? `原求生存档将结算 ${points} 荒岛传承点。` : '原存档本次不结算荒岛传承点。'}</p>}
       <div className="abandon-actions">

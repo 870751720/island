@@ -352,7 +352,8 @@ export class Game {
   private worldReplication: WorldReplicationController;
   private savedRemoteSessions: SessionSave[] = [];
   private readonly guestMode: boolean;
-  readonly gameMode: GameMode;
+  private currentGameMode: GameMode;
+  get gameMode(): GameMode { return this.currentGameMode; }
   /** 客人自己在房主侧的稳定玩家标识。 */
   private readonly youId: string | null;
   private activeNetActor: PlayerSession | null = null;
@@ -411,7 +412,7 @@ export class Game {
       : options.save !== undefined
         ? options.save
         : SaveSystem.load();
-    this.gameMode = save ? (save.gameMode ?? 'survival') : this.guestMode ? 'survival' : (options.gameMode ?? 'leisure');
+    this.currentGameMode = save ? (save.gameMode ?? 'survival') : this.guestMode ? 'survival' : (options.gameMode ?? 'leisure');
     FirstDeathBlessing.initialize(!!save || !!SaveSystem.load());
     // 在天气、地形与角色初始化前确定本局季节,避免沿用上一局状态。
     if (save) setSeason(save.season ?? 'spring', save.seasonStartDay ?? 1);
@@ -2211,6 +2212,19 @@ export class Game {
   setAudioSettings(settings: AudioSettings): void {
     this.audio.setVolumes(settings.music, settings.sfx);
     saveAudioSettings(settings);
+  }
+
+  /** 仅存活的单机玩家可永久转换；持久化成功后才改变运行时规则。 */
+  convertToLeisure(): string | null {
+    if (this.guestMode || this.hostRef) return '联机时无法转换模式。';
+    if (this.gameMode !== 'survival') return '当前已经是悠然模式。';
+    if (this.local.survival.state.dead) return '当前无法转换，请在角色存活时操作。';
+    if (!SaveSystem.save({ ...this.collectSave(), gameMode: 'leisure' })) {
+      return '保存失败，尚未转换。请检查设备存储空间后重试。';
+    }
+    this.currentGameMode = 'leisure';
+    this.notify('已转为悠然模式并保存，无法转回求生，本局不再获得传承点。');
+    return null;
   }
 
   /** 进入相机模式:以玩家当前位置为注视点,停掉移动输入(摇杆层已隐藏不会触发抬起) */

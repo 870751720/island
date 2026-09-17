@@ -170,11 +170,12 @@ export const SaveSystem = {
     }
   },
 
-  save(data: SaveData): void {
+  save(data: SaveData): boolean {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      return true;
     } catch {
-      // 存储不可用(隐私模式/已满)时静默放弃,不影响游玩
+      return false;
     }
   },
 
