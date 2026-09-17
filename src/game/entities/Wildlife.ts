@@ -851,36 +851,21 @@ export class Wildlife implements Updatable {
     } else {
       if (!animal.retreat) {
         this.startDeathRetreat(animal, taunt.player.group.position);
-        Object.assign(animal.retreat!, { mercy: true, calmLeft: 10 });
+        Object.assign(animal.retreat!, { mercy: true, calmLeft: 10, fixedDestination: true });
         this.onTauntExpression(animal.model.group, ['wave', 'laugh'], 2.8);
       }
       const retreat = animal.retreat!;
-      // 玩家走动后重新选撤离路线，不能只离开最初的触发位置。
-      const p = this.players().includes(taunt.player) ? taunt.player.group.position : retreat.origin;
-      const routeOrigin = retreat.routeOrigin ?? retreat.origin;
-      if (Math.hypot(p.x - routeOrigin.x, p.z - routeOrigin.z) > 2) {
-        retreat.origin = { x: p.x, z: p.z };
-        retreat.path = [];
-        retreat.retryLeft = 0;
-      }
-      if (Math.hypot(animal.pos.x - p.x, animal.pos.z - p.z) > DEATH_RETREAT_DISTANCE) {
-        retreat.origin = { x: p.x, z: p.z };
-        retreat.arrived = true;
-        retreat.path = [];
-        animal.taunt = undefined;
-      } else {
-        // 未离开真实玩家 30 米前不得因旧路线终点提前解除无敌。
-        retreat.origin = { x: p.x, z: p.z };
-        moving = this.updateRetreat(animal, delta);
-        retreat.arrived = false;
-      }
+      moving = this.updateRetreat(animal, delta);
+      if (retreat.arrived) animal.taunt = undefined;
     }
     this.animate(animal, delta, elapsed, moving, taunt.elapsed >= BEAR_TAUNT_SECONDS);
   }
 
   private updateRetreat(animal: Animal, delta: number): boolean {
     const retreat = animal.retreat!;
-    if (Math.hypot(animal.pos.x - retreat.origin.x, animal.pos.z - retreat.origin.z) > (retreat.distance ?? DEATH_RETREAT_DISTANCE)) {
+    if (retreat.fixedDestination
+      ? retreat.destination !== undefined && Math.hypot(animal.pos.x - retreat.destination.x, animal.pos.z - retreat.destination.z) < 0.01
+      : Math.hypot(animal.pos.x - retreat.origin.x, animal.pos.z - retreat.origin.z) > (retreat.distance ?? DEATH_RETREAT_DISTANCE)) {
       retreat.arrived = true;
       retreat.path = [];
       animal.target.copy(animal.pos);
@@ -888,8 +873,10 @@ export class Wildlife implements Updatable {
     }
     retreat.retryLeft = Math.max(0, retreat.retryLeft - delta);
     if (!retreat.path.length && retreat.retryLeft === 0) {
-      retreat.routeOrigin = { ...retreat.origin };
-      retreat.path = findRetreatPath(animal.pos, retreat.origin, (x, z) => this.canStand(animal, x, z), retreat.distance, retreat.mercy);
+      retreat.path = findRetreatPath(animal.pos, retreat.origin, (x, z) => this.canStand(animal, x, z), retreat.distance, retreat.mercy && !retreat.fixedDestination, retreat.destination);
+      if (retreat.fixedDestination && !retreat.destination && retreat.path.length) {
+        retreat.destination = { ...retreat.path[retreat.path.length - 1] };
+      }
       retreat.retryLeft = 2;
     }
     const next = retreat.path[0];

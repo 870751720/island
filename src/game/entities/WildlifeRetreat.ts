@@ -10,11 +10,12 @@ export type WildlifeRetreat = {
   distance?: number;
   mercy?: boolean;
   calmLeft?: number;
-  routeOrigin?: Point;
+  fixedDestination?: boolean;
+  destination?: Point;
 };
 
 /** 有界网格搜索，仅在击杀或道路失效时运行；逐段检查，避免穿过障碍。 */
-export function findRetreatPath(start: Point, origin: Point, canStand: (x: number, z: number) => boolean, distance = DEATH_RETREAT_DISTANCE, partial = false): Point[] {
+export function findRetreatPath(start: Point, origin: Point, canStand: (x: number, z: number) => boolean, distance = DEATH_RETREAT_DISTANCE, partial = false, destination?: Point): Point[] {
   const nodes = [{ x: start.x, z: start.z, parent: -1 }];
   const visited = new Set<string>(['0,0']);
   const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -28,7 +29,12 @@ export function findRetreatPath(start: Point, origin: Point, canStand: (x: numbe
     const node = nodes[head];
     const separation = Math.hypot(node.x - origin.x, node.z - origin.z);
     if (separation > Math.hypot(nodes[farthest].x - origin.x, nodes[farthest].z - origin.z)) farthest = head;
-    if (separation >= distance + 1) return pathTo(head);
+    if (destination) {
+      if (Math.hypot(node.x - destination.x, node.z - destination.z) <= 1 &&
+        [0.25, 0.5, 0.75, 1].every(t => canStand(node.x + (destination.x - node.x) * t, node.z + (destination.z - node.z) * t))) {
+        return [...pathTo(head), { ...destination }];
+      }
+    } else if (separation >= distance + 1) return head === 0 ? [{ x: node.x, z: node.z }] : pathTo(head);
     for (const [dx, dz] of directions) {
       const x = node.x + dx;
       const z = node.z + dz;
