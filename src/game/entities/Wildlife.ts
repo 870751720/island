@@ -2,6 +2,7 @@ import { canLasso, isLassoPredator, advanceLassoEscape, type EscapeProgress, typ
 import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
+import { WildlifePursuit } from './WildlifePursuit';
 import type { WildlifeSave } from './WildlifeSave';
 import { HabitatPopulation, type HabitatSlot } from '../world/HabitatPopulation';
 import { landCells, latitude } from '../world/SpawnLayout';
@@ -383,6 +384,7 @@ export class Wildlife implements Updatable {
 
   readonly group = new THREE.Group();
   private animals: Animal[] = [];
+  private pursuit = new WildlifePursuit();
   private soloDeathProtection = false;
   private mercyCooldown = 0;
   private lastTaunt = -1;
@@ -753,6 +755,27 @@ export class Wildlife implements Updatable {
     return false;
   }
 
+  private pursuitRadius(animal: Animal): number {
+    return animal.species === 'bear' || animal.species === 'bison' ? 0.7
+      : animal.species === 'crocodile' ? 0.6 : 0.45;
+  }
+
+  private pursue(animal: Animal, player: Player, range: number, speed: number, delta: number, settling = false): boolean {
+    const steering = this.pursuit.steer({ id: animal.id, pos: animal.pos, radius: this.pursuitRadius(animal) },
+      player, player.group.position, range, (x, z) => this.canStand(animal, x, z), settling);
+    if (settling) {
+      if (steering.strength < 0.025) return false;
+      const travel = Math.min(0.8, speed) * steering.strength * delta;
+      const x = animal.pos.x + Math.cos(steering.angle) * travel;
+      const z = animal.pos.z + Math.sin(steering.angle) * travel;
+      // 近身只柔和挪开，不沿障碍强行绕行，也不打断面向玩家的攻击。
+      if (!this.canStand(animal, x, z)) return false;
+      animal.pos.set(x, this.terrain.getHeight(x, z), z);
+      return true;
+    }
+    return this.step(animal, steering.angle, speed, delta);
+  }
+
   /** 中途开房时也立即清除单机遗留的撤离与禁入区域。 */
   setSoloDeathProtection(enabled: boolean): void {
     if (this.soloDeathProtection === enabled) return;
@@ -915,6 +938,8 @@ export class Wildlife implements Updatable {
     this.creatureFx.update(delta);
     this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random));
+    this.pursuit.begin(this.animals.filter(a => a.alive && !a.hidden && !a.taunt && !a.retreat
+      && (a.config.damage > 0 || a.provoked)).map(a => ({ id: a.id, pos: a.pos, radius: this.pursuitRadius(a) })), delta);
     for (const animal of this.animals) {
       if (!animal.alive) continue;
       if (animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
@@ -1114,6 +1139,9 @@ export class Wildlife implements Updatable {
           this.onAttack(animal.id);
           this.hitPlayer(animal, target!, combat.damage);
         }
+        if (!animal.retreat && !animal.taunt && this.isPlayerVulnerable(target!)) {
+          moving = this.pursue(animal, target!, combat.attackRange, animal.config.rushSpeed, delta, true);
+        }
       } else if (rushed) {
         // 逃跑(草食)/追击(狼、熊):清掉游荡目标,平息后重新选路
         animal.target.copy(animal.pos);
@@ -1157,10 +1185,12 @@ export class Wildlife implements Updatable {
               if (animal.tiredLeft <= 0) animal.stamina = BEAR_SPRINT_TIME;
               speed = BEAR_TIRED_SPEED;
             }
-            moving = this.step(animal, angle, speed, delta);
+            moving = this.pursue(animal, target!, combat.attackRange, speed, delta);
           }
         } else {
-          moving = this.step(animal, angle, speed, delta);
+          moving = hostile
+            ? this.pursue(animal, target!, combat.attackRange, speed, delta)
+            : this.step(animal, angle, speed, delta);
         }
       } else {
         animal.stamina = Math.min(BEAR_SPRINT_TIME, animal.stamina + delta * BEAR_STAMINA_REGEN);
