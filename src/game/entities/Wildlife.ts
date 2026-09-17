@@ -9,6 +9,7 @@ import type { AimTarget } from '../systems/AutoAim';
 import * as THREE from 'three';
 import { WildlifeLifecycle, isFamilySpecies, type LifeState } from './WildlifeLifecycle';
 import { WildlifePursuit } from './WildlifePursuit';
+import { WildlifeMovement } from './WildlifeMovement';
 import type { WildlifeSave } from './WildlifeSave';
 import { HabitatPopulation, type HabitatSlot } from '../world/HabitatPopulation';
 import { landCells, latitude } from '../world/SpawnLayout';
@@ -406,6 +407,7 @@ export class Wildlife implements Updatable {
   }
 
   private pursuit = new WildlifePursuit();
+  private movement = new WildlifeMovement();
   private soloDeathProtection = false;
   private mercyCooldown = 0;
   private lastTaunt = -1;
@@ -775,11 +777,7 @@ export class Wildlife implements Updatable {
       animal.heading = a;
       return true;
     };
-    if (tryDir(angle)) return true;
-    for (const da of [Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2]) {
-      if (tryDir(angle + da)) return true;
-    }
-    return false;
+    return this.movement.step(animal, animal.pos, angle, delta, tryDir);
   }
 
   private pursuitRadius(animal: Animal): number {
@@ -788,6 +786,7 @@ export class Wildlife implements Updatable {
   }
 
   private pursue(animal: Animal, player: Player, range: number, speed: number, delta: number, settling = false): boolean {
+    if (!settling && this.movement.waiting(animal)) return false;
     const steering = this.pursuit.steer({ id: animal.id, pos: animal.pos, radius: this.pursuitRadius(animal) },
       player, player.group.position, range, (x, z) => this.canStand(animal, x, z), settling);
     if (settling) {
@@ -960,6 +959,7 @@ export class Wildlife implements Updatable {
   }
 
   update(delta: number, elapsed: number, calendar = this.lifecycle.now): void {
+    this.movement.advance(delta);
     this.mercyCooldown = Math.max(0, this.mercyCooldown - delta);
     this.dogThreats.length = 0;
     this.creatureFx.update(delta);
@@ -1199,7 +1199,9 @@ export class Wildlife implements Updatable {
         }
         let speed = animal.config.rushSpeed;
         if (bear) {
-          if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
+          if (this.movement.waiting(animal)) {
+            moving = false;
+          } else if (dist <= BEAR_POUNCE_MAX && animal.attackLeft <= 0 && animal.stamina > 1) {
             // 扑击窗口:中距离人立蓄力后腾跃,用短低吼预警而不重复完整咆哮
             animal.attackLeft = animal.config.attackCooldown;
             animal.pounce = { phase: 'windup', left: BEAR_POUNCE_WINDUP, dir: 0 };
