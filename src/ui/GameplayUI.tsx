@@ -45,6 +45,7 @@ import { DeathScreen } from './DeathScreen';
 import { GmPanel } from './gm/GmPanel';
 import { BottleMessage } from './BottleMessage';
 import { SettingsPanel } from './SettingsPanel';
+import { WikiPanel } from './wiki/WikiPanel';
 import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
 import { fadeStyle } from './fade';
@@ -116,6 +117,8 @@ export function GameplayUI({
   const [gmOpen, setGmOpen] = useState(false);
   // 游戏内设置面板(音乐音量/返回主界面)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 游戏图鉴:由设置面板进入,叠在设置之上,关闭后回到设置
+  const [wikiOpen, setWikiOpen] = useState(false);
   const [adjustHud, setAdjustHud] = useState(false);
   const { topOffset, setTopOffset } = useHudLayout();
   const topControls = useHudInteraction(hud.busy, adjustHud || settingsOpen);
@@ -307,6 +310,7 @@ export function GameplayUI({
           onExit={onExit}
           onClose={() => setSettingsOpen(false)}
           onEnterPhotoMode={enterPhotoMode}
+          onOpenWiki={() => setWikiOpen(true)}
           multiplayer={
             !multiplayerEnabled || net?.guest
               ? undefined
@@ -319,6 +323,7 @@ export function GameplayUI({
           }
         />
       )}
+      {wikiOpen && <WikiPanel onClose={() => setWikiOpen(false)} />}
       {gmOpen && (
         <GmPanel
           gender={hud.gender}

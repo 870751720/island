@@ -62,6 +62,7 @@ export function SettingsPanel({
   onExit,
   onClose,
   onEnterPhotoMode,
+  onOpenWiki,
   multiplayer,
   modeSettings,
 }: {
@@ -73,6 +74,8 @@ export function SettingsPanel({
   onClose: () => void;
   /** 进入相机模式(拍照模式):隐藏玩法 UI 自由取景 */
   onEnterPhotoMode: () => void;
+  /** 打开游戏图鉴弹层(关闭图鉴后回到设置) */
+  onOpenWiki: () => void;
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
   modeSettings?: React.ComponentProps<typeof GameModeSettings>;
@@ -179,6 +182,21 @@ export function SettingsPanel({
         </button>
         </>}
         {tab === 'game' && <>
+        <button
+          onClick={onOpenWiki}
+          style={{
+            padding: '12px 0',
+            fontSize: 15,
+            fontWeight: 600,
+            color: gameTheme.ink,
+            background: gameTheme.action,
+            ...gameButtonStyle,
+            borderRadius: 10,
+            cursor: 'pointer',
+          }}
+        >
+          <MenuIcon name="book" /> 游戏图鉴
+        </button>
         {modeSettings && <GameModeSettings {...modeSettings} />}
         {multiplayer &&
           (multiplayer.roomCode ? (
