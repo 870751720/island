@@ -724,6 +724,25 @@ export function recipeUniqueSuppressed(
   return false;
 }
 
+/** 装备配方已满足:身上或背包里已有同栏位评分不低于该产物的装备(再做出来也用不上) */
+export function equipRecipeOwned(
+  recipe: Recipe,
+  equipped: EquippedMap,
+  slots: (InventorySlot | null)[] = []
+): boolean {
+  if (!recipe.output || !isEquipKind(recipe.output)) return false;
+  const def = EQUIPMENT[recipe.output];
+  const current = equipped[def.slot];
+  if (current && isEquipKind(current) && EQUIPMENT[current].score >= def.score) return true;
+  return slots.some(
+    (slot) =>
+      slot &&
+      isEquipKind(slot.kind) &&
+      EQUIPMENT[slot.kind].slot === def.slot &&
+      EQUIPMENT[slot.kind].score >= def.score
+  );
+}
+
 /**
  * 配方卡片是否展示:材料足够且工具未拥有;装备类还须比身上穿的与背包里存的同栏位装备都更好
  * (否则做出来也用不上)。slots 为背包格子快照。
@@ -740,19 +759,7 @@ export function recipeVisible(
   ignoreUnique = false
 ): boolean {
   if (!ignoreUnique && recipeUniqueSuppressed(recipe, slots, world)) return false;
-  if (recipe.output && isEquipKind(recipe.output)) {
-    const def = EQUIPMENT[recipe.output];
-    const current = equipped[def.slot];
-    if (current && isEquipKind(current) && EQUIPMENT[current].score >= def.score) return false;
-    const stored = slots.some(
-      (slot) =>
-        slot &&
-        isEquipKind(slot.kind) &&
-        EQUIPMENT[slot.kind].slot === def.slot &&
-        EQUIPMENT[slot.kind].score >= def.score
-    );
-    if (stored) return false;
-  }
+  if (equipRecipeOwned(recipe, equipped, slots)) return false;
   return maxCraftCount(recipe, counts, tools) > 0;
 }
 

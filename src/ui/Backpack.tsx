@@ -228,12 +228,10 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
   const selectedFood = selected ? FOODS.find((food) => food.kind === selected.kind) : undefined;
   const tools = hud.toolTiers;
   const materials = countsFromSlots(hud.slots);
-  // 可制作沿用配方可见性判定(材料齐、工具未拥有、装备评分更高、设施未重复持有)
+  // 可制作沿用配方可见性判定(材料齐、工具未拥有、装备评分更高);
+  // 火堆/工作台道具可重复制作,跳过已放置/已持有的抑制
   const canCraft = (r: Recipe) =>
-    recipeVisible(r, materials, tools, hud.equipped, hud.slots, {
-      workbenchPlaced: hud.workbenchCrafted,
-      campfirePlaced: hud.campfirePlaced,
-    });
+    recipeVisible(r, materials, tools, hud.equipped, hud.slots, {}, true);
   // 手搓列表:配方全量展示,仅已拥有的手搓工具(木斧/木镐)不再列出;
   // 排序:可制作在前 → 当前任务置顶 → 手搓进程(promptPriority 越小越靠前)
   const craftables = RECIPES.filter(

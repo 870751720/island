@@ -14,11 +14,11 @@ import { countsFromSlots, type ResourceKind } from '@/game/systems/Inventory';
 import {
   RECIPES,
   countsWithEquipped,
+  equipRecipeOwned,
   hasCost,
   maxCraftCount,
   recipeIconKind,
   recipeIconLevel,
-  recipeUniqueSuppressed,
   workbenchUpgradeCost,
   isSingleCraft,
   recipeCategoryOrder,
@@ -47,18 +47,17 @@ export function WorkbenchPanel({
   const materials = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const crafted = new Set(hud.craftedIds);
   const ready = (r: Recipe) => maxCount(r, materials, hud) > 0;
+  // 装备类配方已满足(身上或背包有同栏位不低于它的装备)时显示「已拥有」并排到列表末尾
+  const owned = (r: Recipe) => equipRecipeOwned(r, hud.equipped, hud.slots);
   // 可重复制作的配方始终可查(含手搓配方,靠近工作台即一个入口做所有制作);
-  // 已完成的永久工具不再占位,工作台/火堆全局唯一已持有或已放置时不再列出。
+  // 已完成的永久工具不再占位。
   const recipes = RECIPES.filter(
     (r) =>
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      (!r.tool || hud.toolTiers[r.tool] < (r.tier ?? 1) || !crafted.has(r.id) || questRecipePriority(hud, r.id) > 0) &&
-      !recipeUniqueSuppressed(r, hud.slots, {
-        workbenchPlaced: hud.workbenchCrafted,
-        campfirePlaced: hud.campfirePlaced,
-      })
+      (!r.tool || hud.toolTiers[r.tool] < (r.tier ?? 1) || !crafted.has(r.id) || questRecipePriority(hud, r.id) > 0)
   ).sort((a, b) =>
     questRecipePriority(hud, b.id) - questRecipePriority(hud, a.id) ||
+    Number(owned(a)) - Number(owned(b)) ||
     Number(ready(b)) - Number(ready(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)
   );
   const [bookOpen, setBookOpen] = useState(false);
@@ -137,6 +136,7 @@ export function WorkbenchPanel({
             const max = maxCount(r, materials, hud);
             const count = isSingleCraft(r) ? 1 : Math.max(1, Math.min(counts[r.id] ?? 1, max));
             const ownedTools = toolsOf(hud);
+            const craftable = max > 0 && !owned(r);
             return (
               <div key={r.id} style={{...rowStyle,...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{})}}>
                 <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={26} />
@@ -170,21 +170,23 @@ export function WorkbenchPanel({
                   </div>
                 )}
                 <button
-                  style={craftButtonStyle(max > 0)}
-                  disabled={max === 0}
+                  style={craftButtonStyle(craftable)}
+                  disabled={!craftable}
                   onPointerDown={(e) => {
                     e.preventDefault();
-                    if (max > 0) onCraft(r.id, Math.max(1, count));
+                    if (craftable) onCraft(r.id, Math.max(1, count));
                   }}
                 >
-                  {max > 0 && questRecipePriority(hud, r.id) > 0 && <QuestCraftParticles radius={12} />}
-                  {max === 0
-                    ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
-                      ? '已拥有'
-                      : r.tool && ownedTools[r.tool] < (r.tier ?? 1) - 1
-                        ? `需${toolName(r.tool, (r.tier ?? 1) - 1)}`
-                        : '材料不足'
-                    : '制作'}
+                  {craftable && questRecipePriority(hud, r.id) > 0 && <QuestCraftParticles radius={12} />}
+                  {owned(r)
+                    ? '已拥有'
+                    : max === 0
+                      ? r.tool && ownedTools[r.tool] >= (r.tier ?? 1)
+                        ? '已拥有'
+                        : r.tool && ownedTools[r.tool] < (r.tier ?? 1) - 1
+                          ? `需${toolName(r.tool, (r.tier ?? 1) - 1)}`
+                          : '材料不足'
+                      : '制作'}
                 </button>
               </div>
             );
