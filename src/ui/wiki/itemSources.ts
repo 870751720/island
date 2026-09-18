@@ -118,7 +118,7 @@ for (const config of Object.values(SPECIES)) {
   }
 }
 
-const RARE_KILL_LOOT: readonly { species: AnimalSpecies; kind: ResourceKind; note: string }[] = [
+export const RARE_KILL_LOOT: readonly { species: AnimalSpecies; kind: ResourceKind; note: string }[] = [
   { species: 'wolf', kind: 'adventureBook', note: '30% 概率' },
   { species: 'bear', kind: 'adventureBook', note: '必掉 ×3' },
   { species: 'bison', kind: 'cornSeed', note: '3% 概率' },

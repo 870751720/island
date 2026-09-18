@@ -4,6 +4,7 @@ import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS } from './itemWiki';
 import { ITEMS, itemCategory, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ItemIcon } from '../ItemIcon';
+import { ItemChip } from './ItemChip';
 import { pressAction } from '../pressAction';
 import { swallowTrailingClick, useScrollAreaTap } from './wikiTaps';
 import styles from './WikiPanel.module.css';
@@ -22,24 +23,19 @@ function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }
   );
 }
 
-/** 可点击的道具芯片:获得方式里的配方材料用它跳转到对应详情 */
-function ItemChip({ kind, count, onOpen }: { kind: ResourceKind; count?: number; onOpen: (kind: ResourceKind) => void }) {
-  const tap = useScrollAreaTap(() => onOpen(kind));
-  const item = ITEMS[kind];
-  return (
-    <button className={styles.chip} {...tap} aria-label={`查看${item.name}`}>
-      <ItemIcon kind={kind} size={18} />
-      <span className={styles.chipName}>{item.name}</span>
-      {count !== undefined && count > 1 && <span className={styles.chipCount}>×{count}</span>}
-    </button>
-  );
-}
-
 /** 物品分类:按游戏内分类浏览物品网格,点开进入单品详情,可上一件/下一件连续翻阅 */
-export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boolean) => void }) {
+export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
+  onDetailChange: (inDetail: boolean) => void;
+  initialKind?: ResourceKind;
+  onExit?: () => void;
+}) {
   const [category, setCategory] = useState<ItemCategory>('材料');
   const [query, setQuery] = useState('');
-  const [trail, setTrail] = useState<DetailPosition[]>([]);
+  const [trail, setTrail] = useState<DetailPosition[]>(() => {
+    if (!initialKind) return [];
+    const kinds = ITEM_WIKI_GROUPS.find((group) => group.category === itemCategory(initialKind))!.entries.map((entry) => entry.kind);
+    return [{ kinds, index: kinds.indexOf(initialKind) }];
+  });
 
   const keyword = query.trim();
   const searchGroups = useMemo(() => {
@@ -69,6 +65,7 @@ export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boole
   // 返回会把手指下方换回上一个视图的控件,吞掉尾随 click 避免误触。
   const backFromDetail = () => {
     swallowTrailingClick();
+    if (trail.length === 1 && onExit) { onExit(); return; }
     setTrail((t) => t.slice(0, -1));
   };
 
@@ -83,7 +80,7 @@ export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boole
     return (
       <div className={styles.root}>
         <button className={styles.back} {...pressAction(backFromDetail)}>
-          {trail.length > 1 ? '‹ 返回上一件' : '‹ 返回列表'}
+          {trail.length > 1 ? '‹ 返回上一件' : onExit ? '‹ 返回生物详情' : '‹ 返回列表'}
         </button>
         <div className={`hud-panel-enter ${styles.scroll}`} key={kind}>
           <div className={styles.detailHead}>

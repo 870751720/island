@@ -200,6 +200,44 @@
   text-align: center;
 }
 
+.creatureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.creatureIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.creatureIcon svg {
+  width: 100%;
+  height: 100%;
+}
+.creatureTags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.creatureTags span {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #58786112;
+  color: #697b6b;
+}
+.relatedItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.relatedNote {
+  font-size: 11px;
+  color: #697b6b;
+  text-align: center;
+}
+
 .empty {
   padding: 26px 0;
   color: #697b6b;
