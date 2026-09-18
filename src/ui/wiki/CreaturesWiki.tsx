@@ -80,18 +80,18 @@ export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: b
             <span className={styles.tagRow}>{entry.tags.map((tag) => <span className={styles.detailTag} key={tag}>{tag}</span>)}</span>
           </span>
         </div>
+        {entry.stats.length > 0 && <dl className={styles.creatureStats} aria-label="基础属性">
+          {entry.stats.map((stat) => <div className={styles.creatureStat} key={stat.label}>
+            <dt aria-label={stat.label} title={stat.label}>{stat.shortLabel}</dt>
+            <dd>{stat.value}</dd>
+          </div>)}
+        </dl>}
         <p className={styles.desc}><WikiText value={entry.description} onOpen={openItem} /></p>
         <TextSection title="出没地点" text={entry.habitat} onOpen={openItem} />
         <TextSection title="习性与应对" text={entry.behavior} onOpen={openItem} />
         <TextSection title="互动方式" text={entry.interaction} onOpen={openItem} />
         <RelatedItems title={entry.id === 'cat' ? '伙伴觅食' : '驯养产出'} items={entry.produce} note={entry.productionNote} onOpen={openItem} />
         <RelatedItems title="击杀掉落" items={entry.drops} note={entry.dropNote} onOpen={openItem} />
-        {entry.stats.length > 0 && <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>基础属性</h4>
-          <div className={styles.stats}>{entry.stats.map((stat) => <div className={styles.statRow} key={stat.label}>
-            <span className={styles.statLabel}>{stat.label}</span><span className={styles.statValue}>{stat.value}</span>
-          </div>)}</div>
-        </section>}
         <RelatedItems title="可投喂食物" items={entry.foods} onOpen={openItem} />
       </div>
       <div className={styles.pager}>

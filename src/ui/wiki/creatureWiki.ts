@@ -17,7 +17,7 @@ export type CreatureEntry = {
   habitat: WikiTextValue;
   behavior: WikiTextValue;
   interaction: WikiTextValue;
-  stats: { label: string; value: string }[];
+  stats: { label: string; shortLabel: string; value: string }[];
   foods: RelatedItem[];
   drops: RelatedItem[];
   dropNote?: string;
@@ -60,10 +60,9 @@ function foodsFor(eater: FoodEater): RelatedItem[] {
 function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
   const config = SPECIES[id];
   const tame = canLasso(id);
-  const stats = [{ label: '基础生命', value: String(config.hp) }];
-  if (config.damage > 0) stats.push({ label: '基础攻击伤害', value: String(config.damage) });
-  if (id === 'bison') stats.push({ label: '攻击特点', value: '激怒或护幼时反击' });
-  if (tame) stats.push({ label: '驯养所需爱心', value: String(HEART_MAX[id as TameSpecies]) });
+  const stats = [{ label: '基础生命', shortLabel: '生命', value: String(config.hp) }];
+  if (config.damage > 0) stats.push({ label: '基础攻击伤害', shortLabel: '攻击', value: String(config.damage) });
+  if (tame) stats.push({ label: '驯养所需爱心', shortLabel: '驯养', value: String(HEART_MAX[id as TameSpecies]) });
   const produce: RelatedItem[] = id === 'sheep' ? [{ kind: 'milk', count: 1 }, { kind: 'wool', count: 1 }]
     : id === 'bison' ? [{ kind: 'cowMilk', count: 1 }] : [];
   return {
