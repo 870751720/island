@@ -24,4 +24,8 @@
 
 修改 → 类型检查与存档专项测试 → H5 打包、ZIP 完整性/结构/Deflate 校验 → 清空并解压固定验证目录 → 本地 commit → 交付验证入口 → 用户明确确认验证通过 → `npm run check` → `npm run deploy` → 等待完整验收。
 
-固定验证入口为 `dist/local-preview/latest/island/index.html`。新服务首次上线前，云端上传下载尚不可用；本地入口可验证存档码和菜单交互。完整云端运行验收在获准发布后进行，不能将尚未上线的后端描述为可用。
+固定验证入口为 `dist/local-preview/latest/island/index.html`。首次前端验证需要可用的云存档后端：可先从已提交代码准备 `bootstrap/<SHA>/`，仅启用 API、HTTPS 代理和证书续期，不推送仓库、不发布游戏前端。该阶段验证 `/api/health`、本地文件来源的 CORS 预检，以及独立测试码的上传/下载；测试后只删除该测试码记录。前端运行时仍由用户在固定入口验证，确认后按标准流程推送发布。
+
+## 后端联调环境
+
+后端联调与正式发布共用 Compose 项目 `island` 和 `/opt/island/shared/` 持久数据，首次联调的前端目录为空。后续 Actions 发布会使用正式 release 目录接管服务，保留已有云档、服务端密钥及 HTTPS 证书。后端联调成功不等于前端正式发布成功，也不替代用户本地验证确认。
