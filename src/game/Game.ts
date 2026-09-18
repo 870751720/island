@@ -1,4 +1,5 @@
 import { ResearchTableSystem } from './systems/ResearchTableSystem';
+import { HIDDEN_RECIPES } from './systems/HiddenRecipes';
 import { loadRecipeDiscoveries, rememberRecipes } from './meta/RecipeDiscoveries';
 import { registerFacilities } from './systems/FacilityRegistration';
 import { HusbandryIndicators } from './ui3d/HusbandryIndicators';
@@ -3231,6 +3232,14 @@ export class Game {
   syncRecipeDiscoveries(kinds: ResourceKind[], actor: PlayerSession = this.local): boolean {
     if (this.guestNet) return this.guestNet.action('syncRecipeDiscoveries', [kinds]);
     for (const kind of kinds) actor.discoverRecipe(kind);
+    return true;
+  }
+
+  /** 个人收藏由房主确认，客人收到 HUD 后再持久化；不发放成品。 */
+  gmUnlockDiscoveries(actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('gmUnlockDiscoveries', []);
+    for (const recipe of HIDDEN_RECIPES) actor.discoverRecipe(recipe.kind);
+    this.notify(`已解锁全部 ${HIDDEN_RECIPES.length} 份隐藏配方与全部图鉴，收藏永久保留`, actor);
     return true;
   }
 

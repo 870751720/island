@@ -1,4 +1,4 @@
-import { validResearch, hiddenRecipe } from '../systems/HiddenRecipes';
+import { validResearch, hiddenRecipe, HIDDEN_RECIPES } from '../systems/HiddenRecipes';
 import { DOG_GM_COMMANDS, type DogGmCommand } from '../systems/DogGrowth';
 import { isLandmarkChoice, type LandmarkChoice } from '../world/landmarks/LandmarkDefinitions';
 import type { HandTool } from '../entities/Player';
@@ -71,6 +71,7 @@ export interface NetActionArgs {
   gmSpawnAnimal: [species: AnimalSpecies, juvenile?: boolean];
   gmSpawnLandmark: [choice: LandmarkChoice];
   gmTriggerCrocodile: [];
+  gmUnlockDiscoveries: [];
   gmGiveItem: [kind: ResourceKind, count: number];
   gmGiveTool: [tool: ToolId, tier: 1 | 2 | 3];
   gmSetDay: [day: number];
@@ -141,6 +142,7 @@ const NET_ACTION_ARG_COUNTS = {
   gmSpawnAnimal: [1, 2],
   gmSpawnLandmark: [1],
   gmTriggerCrocodile: [0],
+  gmUnlockDiscoveries: [0],
   gmGiveItem: [2],
   gmGiveTool: [2],
   gmSetDay: [1],
@@ -175,7 +177,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
 
   switch (name) {
     case 'researchStart': return validResearch(first);
-    case 'syncRecipeDiscoveries': return Array.isArray(first) && first.length <= 3 && first.every(k => typeof k === 'string' && hiddenRecipe(k));
+    case 'syncRecipeDiscoveries': return Array.isArray(first) && first.length <= HIDDEN_RECIPES.length && first.every(k => typeof k === 'string' && hiddenRecipe(k));
     case 'startFishing':
     case 'hookFish':
     case 'claimTreasure':
@@ -199,6 +201,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'lassoStake':
     case 'lassoUntie':
     case 'gmTriggerCrocodile':
+    case 'gmUnlockDiscoveries':
       return true;
     case 'questScreen':
       return first === null || (Array.isArray(first) && first.length === 16 && first.every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 10000));

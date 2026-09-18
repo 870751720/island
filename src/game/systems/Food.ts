@@ -1,5 +1,6 @@
 import type { ActionType } from '../entities/Player';
 import type { InventorySlot, ResourceKind } from './Inventory';
+import { HIDDEN_RECIPES } from './HiddenRecipeCatalog';
 
 export type FoodEater = 'rabbit' | 'sheep' | 'bison' | 'wolf' | 'bear' | 'dog' | 'cat';
 
@@ -19,9 +20,11 @@ export type Food = {
 
 /** 可食用食物表:每种食物的名称、进食动画与特效色 */
 export const FOODS: Food[] = [
-  { kind: 'strawberryCake', eaters: [], name: '草莓奶糕', consumeType: 'eat', action: 'eat_berry', fxColor: '#e995a4', hunger: 42, thirst: 12, health: 15 },
-  { kind: 'applePie', eaters: [], name: '苹果派', consumeType: 'eat', action: 'eat_berry', fxColor: '#d9a441', hunger: 35, thirst: 8, health: 10 },
-  { kind: 'meatPie', eaters: [], name: '鲜肉馅饼', consumeType: 'eat', action: 'eat_berry', fxColor: '#bd813f', hunger: 65, thirst: 5, health: 25 },
+  ...HIDDEN_RECIPES.map((r): Food => ({
+    kind: r.kind, name: r.name, eaters: [],
+    consumeType: r.visual.shape === 'soup' ? 'drink' : 'eat', action: 'eat_berry',
+    fxColor: r.visual.color, hunger: r.hunger, thirst: r.thirst, health: r.health,
+  })),
   { kind: 'berry', eaters: ['rabbit', 'sheep', 'bison', 'bear', 'dog'], name: '浆果', consumeType: 'eat', action: 'eat_berry', fxColor: '#c0392b', hunger: 3, thirst: 2, health: 0 },
   { kind: 'oakFruit', eaters: ['sheep', 'bison', 'bear'], name: '橡果', consumeType: 'eat', action: 'eat_berry', fxColor: '#b5813f', hunger: 1, thirst: 0, health: 0 },
   { kind: 'pineFruit', eaters: [], name: '松果', consumeType: 'eat', action: 'eat_berry', fxColor: '#8a6b45', hunger: 1, thirst: 0, health: 0 },

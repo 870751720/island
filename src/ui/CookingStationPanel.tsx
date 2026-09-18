@@ -3,12 +3,13 @@
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
 
 import { ItemIcon } from './ItemIcon';
+import { RecipeListFilters } from './RecipeListFilters';
 import { StepButton } from './StepButton';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { ITEMS } from '@/game/systems/Items';
-import { HIDDEN_RECIPES, cookingCost, hiddenRecipe } from '@/game/systems/HiddenRecipes';
+import { cookingCost, hiddenRecipe, isHiddenFood } from '@/game/systems/HiddenRecipes';
 import { FOODS, COOKABLE, BOILABLE } from '@/game/systems/Food';
 import { convertListStyle } from './ConvertRow';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -36,6 +37,8 @@ export function CookingStationPanel({
   const count = (kind: ResourceKind) => itemCount(hud.slots, kind);
   const [roastCounts, setRoastCounts] = useState<Record<string, number>>({});
   const [boilCounts, setBoilCounts] = useState<Record<string, number>>({});
+  const [query, setQuery] = useState('');
+  const [availableOnly, setAvailableOnly] = useState(false);
   const info = hud.cookingStationInfo;
 
   // 背包里可投入烹饪台的可燃物
@@ -44,8 +47,9 @@ export function CookingStationPanel({
   );
   // 背包里可烤/可煮的生食
   const roastables = FOODS.filter((f) => COOKABLE[f.kind] && count(f.kind) > 0);
-  const boilables = FOODS.filter(f => (BOILABLE[f.kind] && count(f.kind) > 0) || HIDDEN_RECIPES.some(r => r.kind === f.kind && hud.discoveredRecipes.includes(r.kind)));
+  const boilables = FOODS.filter(f => (BOILABLE[f.kind] && count(f.kind) > 0) || (isHiddenFood(f.kind) && hud.discoveredRecipes.includes(f.kind)));
   const maxBoil = (kind: ResourceKind) => Math.min(...Object.entries(cookingCost(kind)).map(([k, n]) => Math.floor(count(k as ResourceKind) / n!)));
+  const visibleBoilables = boilables.filter(f => f.name.includes(query.trim()) && (!availableOnly || maxBoil(f.kind) > 0));
 
   // 食材数量变化后把选份数收回上限,且默认选满
   const roastKey = roastables.map((f) => count(f.kind)).join(',');
@@ -76,8 +80,7 @@ export function CookingStationPanel({
     <div
       style={overlayStyle}
       onPointerDown={(e) => {
-        e.preventDefault();
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) { e.preventDefault(); onClose(); }
       }}
     >
       <div style={panelStyle}>
@@ -109,6 +112,7 @@ export function CookingStationPanel({
         </div>
 
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>烹饪（每 5 秒完成 1 份）</div>
+        {!boiling && boilables.length > 0 && <RecipeListFilters query={query} onQuery={setQuery} availableOnly={availableOnly} onAvailableOnly={setAvailableOnly} />}
         {boiling ? (
           <div style={{ ...rowStyle, marginBottom: 14 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -164,16 +168,17 @@ export function CookingStationPanel({
             {boilables.length === 0 && (
               <span style={{ fontSize: 13, color: gameTheme.muted }}>暂无可烹饪食材；发现隐藏食谱后也会在这里显示。</span>
             )}
-            {boilables.map((food) => {
+            {boilables.length > 0 && visibleBoilables.length === 0 && <p>没有符合条件的料理，试试其他名称或切换「全部」。</p>}
+            {visibleBoilables.map((food) => {
               const recipe = hiddenRecipe(food.kind);
               const soup = ITEMS[recipe?.kind ?? BOILABLE[food.kind]!];
               const max = maxBoil(food.kind);
               const n = Math.max(1, Math.min(boilCounts[food.kind] ?? 1, max));
               return (
-                <div key={food.kind} style={rowStyle}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                <div key={food.kind} style={{ ...rowStyle, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 100%', minWidth: 0 }}>
                     <div style={{ fontSize: 14 }}>
-                      <ItemIcon kind={food.kind} size={18} /> {food.name}{recipe ? '' : ` ×${max}`}
+                      <ItemIcon kind={food.kind} size={36} /> {food.name}{recipe ? '' : ` ×${max}`}
                     </div>
                     <div style={{ fontSize: 11, color: gameTheme.warning }}>
                       {recipe ? Object.entries(recipe.cost).map(([k, amount]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', marginRight: 6, color: count(k as ResourceKind) < amount! * n ? gameTheme.danger : gameTheme.muted }}><ItemIcon kind={k as ResourceKind} size={16} />{ITEMS[k as ResourceKind].name} {count(k as ResourceKind)}/{amount! * n}</span>) : <>→ <ItemIcon kind={soup.kind} size={18} /> {soup.name}</>}
@@ -300,7 +305,7 @@ const overlayStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   background: gameTheme.overlay,
-  touchAction: 'none',
+  touchAction: 'pan-y',
   zIndex: 30,
 };
 
@@ -345,8 +350,8 @@ const rowStyle: CSSProperties = {
 };
 
 const stepButtonStyle: CSSProperties = {
-  width: 34,
-  height: 34,
+  width: 44,
+  height: 44,
   borderRadius: '50%',
   ...gameButtonStyle,
   background: gameTheme.inset,

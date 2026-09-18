@@ -15,6 +15,7 @@
 .backpack{display:flex;flex-direction:column;flex:1;min-height:44px;min-width:0}
 .caption{flex:none;margin:4px 0 8px}
 .cards{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.knownBody{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}.clueNavigation{display:flex;gap:6px;flex-shrink:0}
 .recipeRow{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 6px;border-bottom:1px solid #58786120}
 .recipeRow>svg,.recipeRow>span:first-child{flex-shrink:0}
 .recipeName{flex:none;font-size:12px;white-space:nowrap}

@@ -206,6 +206,7 @@ addSource('ironIngot', { group: '加工', label: '冶炼', station: 'smelter', i
 for (const recipe of HIDDEN_RECIPES) {
   addSource(recipe.kind, { group: '加工', label: '料理研究', station: 'researchTable', inputs: recipe.research.map(kind => ({ kind, count: 1 })), note: '研究两秒，正确组合必定成功，获得一份成品并永久解锁食谱。' });
   addSource(recipe.kind, { group: '加工', label: '烹饪', station: 'cookingStation', inputs: Object.entries(recipe.cost).map(([kind, count]) => ({ kind: kind as ResourceKind, count: count! })), note: '需先研究或获得成品解锁；添柴后每五秒做出一份。' });
+  addSource(recipe.kind, { group: '赠礼', label: '岛友赠送', note: '实际获得成品后，解锁自己的永久食谱与图鉴；共享烹饪台成品同理。' });
 }
 addSource('flour', { group: '加工', label: '磨粉', station: 'mill', inputs: [{ kind: 'wheat', count: 1 }], note: '每 6 秒产出 2 份面粉，无需燃料' });
 addSource('cloth', { group: '加工', label: '纺织', station: 'loom', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });

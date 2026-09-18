@@ -1,4 +1,5 @@
 import type { ResourceKind } from './Inventory';
+import { HIDDEN_RECIPES, hiddenRecipeRecord } from './HiddenRecipeCatalog';
 
 /** 道具静态定义:名称、图标与描述(背包点击道具时展示) */
 export type ItemDef = {
@@ -43,7 +44,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'cookedTomato', 'boiledTomato', 'cookedPepper', 'boiledPepper',
     'cookedEggplant', 'boiledEggplant', 'cookedStrawberry', 'boiledStrawberry',
     'cookedCabbage', 'boiledCabbage', 'cookedPumpkin', 'boiledPumpkin',
-    'cookedCarrot', 'boiledCarrot', 'bread', 'flour', 'strawberryCake', 'applePie', 'meatPie',
+    'cookedCarrot', 'boiledCarrot', 'bread', 'flour', ...HIDDEN_RECIPES.map(r => r.kind),
   ],
   设施: [
     'oakSeed', 'pineSeed', 'fruitSeed',
@@ -87,9 +88,10 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
   researchTable: { kind: 'researchTable', name: '料理研究台', icon: '🥣', description: '投入最多四种食材，每种一份，尝试发现新料理。成功获得成品并永久解锁食谱；失败消耗材料，等待五秒可再试。' },
-  strawberryCake: { kind: 'strawberryCake', name: '草莓奶糕', icon: '🍰', description: '草莓与羊奶融入柔软的面糕。研究发现或获得成品后，可在烹饪台制作。' },
-  applePie: { kind: 'applePie', name: '苹果派', icon: '🥧', description: '面皮包裹香甜苹果的果香点心。研究发现或获得成品后，可在烹饪台制作。' },
-  meatPie: { kind: 'meatPie', name: '鲜肉馅饼', icon: '🫓', description: '加入胡萝卜和辣椒的鲜肉面饼。研究发现或获得成品后，可在烹饪台制作。' },
+  ...hiddenRecipeRecord<ItemDef>(r => ({
+    kind: r.kind, name: r.name, icon: r.visual.shape === 'soup' ? '🥣' : '🍽️',
+    description: `${r.clue}研究发现或获得成品后，可在烹饪台制作。`,
+  })),
 
   cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚。' },
   wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，蓬松又保暖。' },

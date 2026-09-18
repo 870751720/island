@@ -28,6 +28,7 @@ export type GmActions = {
   giveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
   spawnAnimal: (species: AnimalSpecies, juvenile?: boolean) => void;
   triggerCrocodile: () => void;
+  unlockDiscoveries: () => void;
 };
 
 const TABS = [
@@ -76,7 +77,7 @@ export function GmPanel({ onClose, actions }: { onClose: () => void; actions: Gm
         {tab === 'dog' && <DogTab getGame={actions.getGame} />}
         {tab === 'animals' && <AnimalsTab onSpawn={actions.spawnAnimal} />}
         {tab === 'events' && (
-          <EventsTab onTriggerCrocodile={actions.triggerCrocodile} onSetConfig={actions.setConfig} />
+          <EventsTab onTriggerCrocodile={actions.triggerCrocodile} onUnlockDiscoveries={actions.unlockDiscoveries} onSetConfig={actions.setConfig} />
         )}
         <button onClick={onClose} style={closeStyle}>
           关闭

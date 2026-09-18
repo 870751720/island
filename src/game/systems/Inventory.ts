@@ -1,5 +1,7 @@
+import type { HiddenFood } from './HiddenRecipeCatalog';
+
 export type ResourceKind =
-  | 'researchTable' | 'strawberryCake' | 'applePie' | 'meatPie'
+  | 'researchTable' | HiddenFood
   | 'branch'
   | 'wood'
   | 'stone'

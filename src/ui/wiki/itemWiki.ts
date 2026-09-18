@@ -82,6 +82,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
     if (food.hunger > 0) stats.push({ label: '饱食', value: `+${food.hunger}` });
     if (food.thirst !== 0) stats.push({ label: '水分', value: `${food.thirst > 0 ? '+' : ''}${food.thirst}` });
     if (food.health > 0) stats.push({ label: '生命', value: `+${food.health}` });
+    if (hiddenRecipe(kind)) stats.push({ label: '喂食', value: '不可喂动物' });
   }
   const tiers = TOOL_TIER_NAMES.get(kind);
   if (tiers) stats.push({ label: '等级', value: tiers.length > 1 ? tiers.join(' → ') : '无' });

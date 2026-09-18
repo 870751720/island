@@ -327,6 +327,7 @@ export function GameplayUI({
             giveTool: (tool, tier) => gameRef.current?.gmGiveTool(tool, tier),
             spawnAnimal: (species, juvenile) => gameRef.current?.gmSpawnAnimal(species, juvenile),
             triggerCrocodile: () => gameRef.current?.gmTriggerCrocodile(),
+            unlockDiscoveries: () => gameRef.current?.gmUnlockDiscoveries(),
           }}
         />
       )}

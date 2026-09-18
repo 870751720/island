@@ -27,7 +27,7 @@ function load(file: string): any {
 const THREE = require('three');
 const { Inventory } = load('src/game/systems/Inventory');
 const { ResearchTableSystem, emptyResearch } = load('src/game/systems/ResearchTableSystem');
-const { HIDDEN_RECIPES, matchResearch } = load('src/game/systems/HiddenRecipes');
+const { HIDDEN_RECIPES, matchResearch, validResearch } = load('src/game/systems/HiddenRecipes');
 const { CookingStationSystem } = load('src/game/systems/CookingStationSystem');
 const { PlaceOccupancy } = load('src/game/systems/PlaceOccupancy');
 const { hasValidNetActionArgs } = load('src/game/net/ActionProtocol');
@@ -35,6 +35,10 @@ const discoveries = load('src/game/meta/RecipeDiscoveries');
 const { wikiItemHidden, wikiItemName, wikiItemSearchText } = load('src/ui/wiki/itemWiki');
 const { FOODS } = load('src/game/systems/Food');
 const { RECIPES } = load('src/game/systems/Crafting');
+const { ITEMS, itemCategory } = load('src/game/systems/Items');
+const { RESEARCH_SVG } = load('src/ui/icons/ResearchIcons');
+const { makeHiddenFoodModel } = load('src/game/entities/HiddenFoodModel');
+const { itemSourcesOf } = load('src/ui/wiki/itemSources');
 const scene = new THREE.Scene();
 const terrain = { getHeight: () => 1, isNearWater: () => false };
 const props = { occupant: () => null };
@@ -60,11 +64,42 @@ assert.equal(hasValidNetActionArgs('researchStart', [['flour', 'milk', 'berry', 
 assert.equal(hasValidNetActionArgs('researchStart', [['flour', 'fruitFruit']]), true);
 assert.equal(hasValidNetActionArgs('syncRecipeDiscoveries', [['wood']]), false);
 assert.equal(hasValidNetActionArgs('syncRecipeDiscoveries', [['applePie']]), true);
-assert.ok(RECIPES.some((r: any) => r.id === 'researchTable' && r.minBenchLevel === 3));
+assert.ok(RECIPES.some((r: any) => r.id === 'researchTable' && r.minBenchLevel === 4));
+assert.equal(HIDDEN_RECIPES.length, 43);
+assert.equal(new Set(HIDDEN_RECIPES.map((r: any) => r.kind)).size, 43);
+assert.equal(new Set(HIDDEN_RECIPES.map((r: any) => [...r.research].sort().join('|'))).size, 43);
+const allKinds = HIDDEN_RECIPES.map((r: any) => r.kind);
+assert.equal(hasValidNetActionArgs('syncRecipeDiscoveries', [allKinds.slice(0, 4)]), true);
+assert.equal(hasValidNetActionArgs('syncRecipeDiscoveries', [allKinds]), true);
+assert.equal(hasValidNetActionArgs('syncRecipeDiscoveries', [[...allKinds, 'applePie']]), false);
+assert.equal(hasValidNetActionArgs('gmUnlockDiscoveries', []), true);
+assert.equal(hasValidNetActionArgs('gmUnlockDiscoveries', [allKinds]), false);
+assert.equal(new Set(allKinds.map((kind: string) => RESEARCH_SVG[kind])).size, 43, '每道料理具有独立图标');
 for (const recipe of HIDDEN_RECIPES) {
+  assert.equal(validResearch(recipe.research), true);
+  assert.ok(Object.values(recipe.cost).every(n => Number.isSafeInteger(n) && Number(n) > 0));
+  assert.equal(Object.keys(recipe.cost).sort().join('|'), [...recipe.research].sort().join('|'));
   assert.equal(matchResearch([...recipe.research].reverse())?.kind, recipe.kind);
   assert.equal(matchResearch([...recipe.research, 'berry']), undefined);
-  assert.ok(FOODS.find((f: any) => f.kind === recipe.kind));
+  const food = FOODS.find((f: any) => f.kind === recipe.kind);
+  assert.equal(food.name, ITEMS[recipe.kind].name);
+  assert.equal(food.eaters.length, 0, '隐藏料理不可喂动物');
+  assert.equal(itemCategory(recipe.kind), '食物');
+  assert.equal(wikiItemHidden(recipe.kind), true, '未发现名称不泄露');
+  assert.ok(RESEARCH_SVG[recipe.kind].includes('viewBox="0 0 64 64"'));
+  assert.ok(!/undefined|NaN/.test(RESEARCH_SVG[recipe.kind]));
+  const model = makeHiddenFoodModel(recipe.kind);
+  let draws = 0, triangles = 0;
+  model.traverse((mesh: any) => {
+    if (!mesh.isMesh) return;
+    draws++;
+    triangles += (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+    assert.ok(Array.from(mesh.geometry.attributes.position.array).every(Number.isFinite));
+    mesh.geometry.dispose(); mesh.material.dispose();
+  });
+  assert.equal(draws, 1, '静态料理合并为一次绘制');
+  assert.ok(triangles < 1000, '手机低面数预算');
+  assert.ok(itemSourcesOf(recipe.kind).some((s: any) => s.station === 'cookingStation' && s.inputs.length === recipe.research.length));
   const tester = actor();
   for (const kind of recipe.research) tester.inventory.add(kind, 1);
   assert.equal(research.start(tester, [...recipe.research].reverse()), true);
@@ -72,6 +107,21 @@ for (const recipe of HIDDEN_RECIPES) {
   assert.equal(tester.inventory.count(recipe.kind), 1);
   assert.equal(tester.discoveredRecipes.has(recipe.kind), true);
   for (const kind of recipe.research) assert.equal(tester.inventory.count(kind), 0);
+
+  const pot = new CookingStationSystem(new THREE.Scene(), terrain, props, fx, audio, give, new PlaceOccupancy());
+  pot.restore([{ x: 0, y: 1, z: 0, fuel: 100, boilQueue: 0, tickLeft: 5, outCount: 0 }]);
+  const chef = actor();
+  for (const [kind, n] of Object.entries(recipe.cost)) chef.inventory.add(kind, Number(n) * 2);
+  assert.equal(pot.startBoil(chef, recipe.kind, 2), 'invalid', '任何新料理均需先发现');
+  chef.discoverRecipe(recipe.kind);
+  assert.equal(pot.startBoil(chef, recipe.kind, 2), 'ok');
+  assert.equal(pot.startBoil(chef, recipe.kind, 2), 'invalid', '重复请求不额外扣料');
+  pot.update(5, 5, true);
+  assert.equal(pot.nearbyInfo(chef).outKind, recipe.kind);
+  assert.equal(pot.takeBoil(chef), true);
+  for (const [kind, n] of Object.entries(recipe.cost)) assert.equal(chef.inventory.count(kind), n, '退回一份未完成料理的全部材料');
+  assert.equal(pot.collect(chef), 'ok');
+  assert.equal(chef.inventory.count(recipe.kind), 1);
 }
 a.inventory.add('flour', 5); a.inventory.add('fruitFruit', 5);
 assert.equal(research.start(a, ['fruitFruit', 'flour']), true);
@@ -147,4 +197,59 @@ const backup = captureBundle();
 assert.equal(backup.entries['island.recipe-discoveries.v1'], storage.getItem('island.recipe-discoveries.v1'));
 delete backup.entries['island.recipe-discoveries.v1'];
 assert.equal(decodeBundle(JSON.stringify(backup)).entries['island.recipe-discoveries.v1'], null, '旧云备份缺省兼容');
+
+// 执行实际 GM 方法，隔离渲染器构造；动作分发仍使用正式注册表。
+const gameSource = ts.createSourceFile('Game.ts', fs.readFileSync('src/game/Game.ts', 'utf8'), ts.ScriptTarget.Latest, true);
+const gameClass = gameSource.statements.find(ts.isClassDeclaration)!;
+const gmMethod = gameClass.members.find(m => m.name?.getText(gameSource) === 'gmUnlockDiscoveries')!;
+const gmCode = ts.transpileModule(`module.exports = class { ${gmMethod.getText(gameSource)} }`, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText;
+const gmModule = { exports: {} as any };
+vm.runInNewContext(gmCode, { module: gmModule, HIDDEN_RECIPES });
+const host = actor(), guest = actor();
+const notices: any[] = [];
+const gmGame: any = { local: host, guestNet: null, notify: (...args: any[]) => notices.push(args), gmUnlockDiscoveries: gmModule.exports.prototype.gmUnlockDiscoveries };
+const { dispatchNetAction } = load('src/game/net/Actions');
+assert.equal(dispatchNetAction(gmGame, guest, 'gmUnlockDiscoveries', []), true);
+assert.equal(guest.discoveredRecipes.size, 43);
+assert.equal(host.discoveredRecipes.size, 0, '客人 GM 不修改房主收藏');
+assert.equal(notices[0][1], guest);
+assert.equal(guest.inventory.snapshot().filter(Boolean).length, 0, 'GM 不发放物品');
+assert.equal(dispatchNetAction(gmGame, guest, 'gmUnlockDiscoveries', []), true);
+assert.equal(guest.discoveredRecipes.size, 43, '重复解锁幂等');
+const sent: any[] = [];
+gmGame.guestNet = { action: (...args: any[]) => { sent.push(args); return true; } };
+assert.equal(gmGame.gmUnlockDiscoveries(), true);
+assert.equal(sent[0][0], 'gmUnlockDiscoveries');
+assert.equal(host.discoveredRecipes.size, 0, '客人发送时不抢先解锁');
+gmGame.guestNet.action = () => false;
+assert.equal(gmGame.gmUnlockDiscoveries(), false);
+assert.equal(host.discoveredRecipes.size, 0, '断线发送失败也不本地解锁');
+
+discoveries.rememberRecipes([...guest.discoveredRecipes]);
+assert.equal(discoveries.loadRecipeDiscoveries().length, 43);
+assert.equal(Object.keys(ITEMS).some(wikiItemHidden), false, 'GM 后全部图鉴条目可见');
+cache.delete(path.resolve('src/game/meta/RecipeDiscoveries.ts'));
+assert.equal(load('src/game/meta/RecipeDiscoveries').loadRecipeDiscoveries().length, 43, '全部收藏跨会话保留');
+const fullBackup = captureBundle();
+assert.equal(JSON.parse(fullBackup.entries['island.recipe-discoveries.v1']).length, 43);
+
+const fullActor = actor();
+const lastRecipe = HIDDEN_RECIPES[42];
+fullActor.inventory.load(lastRecipe.research.map((kind: string) => ({ kind, count: 2 })), 4);
+const drops: string[] = [];
+const fullResearch = new ResearchTableSystem({ ...deps, give: (kind: string, n: number, target: any) => {
+  const packed = target.inventory.add(kind, n);
+  if (!packed) drops.push(kind);
+  return packed;
+} }, () => {});
+fullResearch.restore([{ kind: 'researchTable', x: 0, y: 1, z: 0 }]);
+assert.equal(fullResearch.start(fullActor, lastRecipe.research), true);
+fullActor.research = JSON.parse(JSON.stringify(fullActor.research));
+fullResearch.advance(fullActor, 2);
+fullResearch.advance(fullActor, 2);
+assert.equal(drops.join(','), lastRecipe.kind, '满包研究与读档恢复只结算一次掉落');
+assert.equal(fullActor.discoveredRecipes.has(lastRecipe.kind), true);
 console.log('PASS: research timing, costs, cooldown, known combinations, independent discoveries, world sync, cooking refunds, host authority and global wiki discovery');
+console.log('PASS: 43 recipes, mobile model budget, unique icons, GM actor isolation, protocol limits, full collections and full-bag recovery');
