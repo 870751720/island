@@ -342,25 +342,52 @@
   outline-offset: 2px;
 }
 
-/* 生物属性置顶为一行信息带，文字行为说明留在习性中。 */
+/* 生物属性使用名称右侧空位，与标题共用第一排。 */
+.creatureHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.creaturePortrait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #fffaf0d9;
+  box-shadow: inset 0 0 0 1px #fffaf0;
+}
+.creatureHeading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.creatureTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.creatureTitleRow > strong {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
 .creatureStats {
   display: flex;
   align-items: center;
-  margin: 0;
-  padding: 9px 2px;
-  border: 1px solid #fffaf0b3;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #fffaf0b8, #dce8d691);
-  box-shadow: inset 0 1px 0 #ffffff66;
+  flex-shrink: 0;
+  margin: 0 0 0 auto;
 }
 .creatureStat {
-  flex: 1;
   min-width: 0;
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 5px;
-  padding: 0 4px;
+  gap: 3px;
+  padding: 0 3px;
   white-space: nowrap;
 }
 .creatureStat + .creatureStat {
@@ -368,13 +395,13 @@
 }
 .creatureStat dt {
   color: #697b6b;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.4;
 }
 .creatureStat dd {
   margin: 0;
   color: #385f50;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;

@@ -73,19 +73,21 @@ export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: b
     return <div className={styles.root}>
       <button className={styles.back} {...pressAction(() => { swallowTrailingClick(); setDetail(null); })}>‹ 返回列表</button>
       <div className={`hud-panel-enter ${styles.scroll}`} ref={scroll} key={entry.id}>
-        <div className={styles.detailHead}>
-          <span className={styles.detailIcon}><CreatureIcon id={entry.id} size={44} /></span>
-          <span className={styles.detailTitle}>
-            <strong>{entry.name}</strong>
+        <div className={styles.creatureHead}>
+          <span className={styles.creaturePortrait}><CreatureIcon id={entry.id} size={40} /></span>
+          <div className={styles.creatureHeading}>
+            <div className={styles.creatureTitleRow}>
+              <strong>{entry.name}</strong>
+              {entry.stats.length > 0 && <dl className={styles.creatureStats} aria-label="基础属性">
+                {entry.stats.map((stat) => <div className={styles.creatureStat} key={stat.label}>
+                  <dt aria-label={stat.label} title={stat.label}>{stat.shortLabel}</dt>
+                  <dd>{stat.value}</dd>
+                </div>)}
+              </dl>}
+            </div>
             <span className={styles.tagRow}>{entry.tags.map((tag) => <span className={styles.detailTag} key={tag}>{tag}</span>)}</span>
-          </span>
+          </div>
         </div>
-        {entry.stats.length > 0 && <dl className={styles.creatureStats} aria-label="基础属性">
-          {entry.stats.map((stat) => <div className={styles.creatureStat} key={stat.label}>
-            <dt aria-label={stat.label} title={stat.label}>{stat.shortLabel}</dt>
-            <dd>{stat.value}</dd>
-          </div>)}
-        </dl>}
         <p className={styles.desc}><WikiText value={entry.description} onOpen={openItem} /></p>
         <TextSection title="出没地点" text={entry.habitat} onOpen={openItem} />
         <TextSection title="习性与应对" text={entry.behavior} onOpen={openItem} />
