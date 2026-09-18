@@ -4,9 +4,8 @@ import type { Inventory } from './Inventory';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
 import type { SurvivalSystem } from './SurvivalSystem';
-import { EAT_TIME } from './EatingTiming';
+import { EAT_TIME, EAT_TICK } from './EatingTiming';
 
-const EAT_TICK = 0.5; // 进食特效间隔(秒)
 
 /** 定时进食:播放该食物的进食动画与特效,进度走头顶交互圆环;移动/游泳中断,完成才消耗并恢复数值 */
 export class EatingSystem {

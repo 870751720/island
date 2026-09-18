@@ -8,7 +8,7 @@ import { FOODS, foodSound } from '../systems/Food';
 import type { FishTier } from '../systems/FishTable';
 import type { InventorySlot, ResourceKind } from '../systems/Inventory';
 import { SLOT_ORDER } from '../systems/Equipment';
-import { EAT_TIME } from '../systems/EatingTiming';
+import { EAT_TIME, EAT_TICK } from '../systems/EatingTiming';
 
 const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> => {
   const counts = new Map<ResourceKind, number>();
@@ -93,7 +93,7 @@ export class GuestHudSynchronizer {
 
   private replayEating(snapshot: HudSnapshot): void {
     const food = snapshot.eatName ? FOODS.find((candidate) => candidate.name === snapshot.eatName) : null;
-    const tick = Math.floor(snapshot.eatProgress * 3);
+    const tick = Math.floor(snapshot.eatProgress * EAT_TIME / EAT_TICK);
     const finished = !food || snapshot.dead || snapshot.eatProgress >= 1;
     if (finished || this.eatingName !== food?.name || snapshot.eatProgress < this.eatingProgress) {
       if (this.eatingSound) this.audio.stop(this.eatingSound);
