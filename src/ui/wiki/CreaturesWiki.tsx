@@ -27,12 +27,12 @@ function TextSection({ title, text, onOpen }: { title: string; text: WikiTextVal
 }
 
 function RelatedItems({ title, items, note, onOpen }: {
-  title: string; items: CreatureEntry['foods']; note?: string; onOpen: (kind: ResourceKind) => void;
+  title: string; items: CreatureEntry['foods']; note?: WikiTextValue; onOpen: (kind: ResourceKind) => void;
 }) {
   if (!items.length) return null;
   return <section className={styles.section}>
     <h4 className={styles.sectionTitle}>{title}</h4>
-    {note && <p className={styles.desc}>{note}</p>}
+    {note && <p className={styles.desc}><WikiText value={note} onOpen={onOpen} /></p>}
     <div className={styles.chips}>
       {items.map((item) => <div className={styles.relatedItem} key={item.kind}>
         <ItemChip kind={item.kind} count={item.count} onOpen={onOpen} />
@@ -80,7 +80,7 @@ export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: b
             <span className={styles.tagRow}>{entry.tags.map((tag) => <span className={styles.detailTag} key={tag}>{tag}</span>)}</span>
           </span>
         </div>
-        <p className={styles.desc}>{entry.description}</p>
+        <p className={styles.desc}><WikiText value={entry.description} onOpen={openItem} /></p>
         <TextSection title="出没地点" text={entry.habitat} onOpen={openItem} />
         <TextSection title="习性与应对" text={entry.behavior} onOpen={openItem} />
         <TextSection title="互动方式" text={entry.interaction} onOpen={openItem} />

@@ -13,16 +13,16 @@ export type CreatureEntry = {
   id: CreatureId;
   name: string;
   tags: readonly string[];
-  description: string;
-  habitat: string;
+  description: WikiTextValue;
+  habitat: WikiTextValue;
   behavior: WikiTextValue;
-  interaction: string;
+  interaction: WikiTextValue;
   stats: { label: string; value: string }[];
   foods: RelatedItem[];
   drops: RelatedItem[];
   dropNote?: string;
   produce: RelatedItem[];
-  productionNote?: string;
+  productionNote?: WikiTextValue;
 };
 
 type WildlifeGuide = Pick<CreatureEntry, 'tags' | 'description' | 'habitat' | 'behavior'>;
@@ -32,11 +32,11 @@ const WILDLIFE_GUIDES: Record<AnimalSpecies, WildlifeGuide> = {
     behavior: ['靠近或攻击会让它逃跑，有洞可躲时优先钻洞。藏在洞内时无法直接攻击；可以用', { kind: 'shovel', label: '铲子' }, '挖开洞口。'],
   },
   sheep: {
-    tags: ['温顺', '可驯养'], description: '胆小的食草动物，成年驯养后能提供羊奶和羊毛。', habitat: '岛屿中南部草地。',
+    tags: ['温顺', '可驯养'], description: ['胆小的食草动物，成年驯养后能提供', { kind: 'milk', label: '羊奶' }, '和', { kind: 'wool', label: '羊毛' }, '。'], habitat: '岛屿中南部草地。',
     behavior: '玩家靠近或受到攻击时会逃离。幼羊可以驯养，长大后才会产奶、产毛；驯养后不再繁殖。',
   },
   bison: {
-    tags: ['护幼反击', '可驯养'], description: '体格结实的草地动物，成年驯养后能提供牛奶。', habitat: '岛屿中部至北部草地。',
+    tags: ['护幼反击', '可驯养'], description: ['体格结实的草地动物，成年驯养后能提供', { kind: 'cowMilk', label: '牛奶' }, '。'], habitat: '岛屿中部至北部草地。',
     behavior: '平时会避开玩家，但成年野牛受击降至半血会被激怒，也会保护受攻击的幼崽。反击时要及时拉开距离。',
   },
   wolf: {
@@ -69,24 +69,28 @@ function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
   return {
     id, name: ANIMAL_LABELS[id], ...WILDLIFE_GUIDES[id], stats,
     interaction: tame
-      ? `${isLassoPredator(id) ? '用套索抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '用套索抓住后即可开始投喂。'}主动丢下适合的食物，落地至少四秒后供它进食，填满爱心即可驯养。驯养后全队共享，需持续供食；爱心归零会恢复野生。`
-      : '不能使用套索或驯养。可以用武器击杀，也可以远离水洼脱战。',
+      ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，填满爱心即可驯养。驯养后全队共享，需持续供食；爱心归零会恢复野生。']
+      : ['不能使用', { kind: 'lasso', label: '套索' }, '或驯养。可以用武器击杀，也可以远离水洼脱战。'],
     foods: tame ? foodsFor(id as TameSpecies) : [],
     drops: [...config.loot, ...RARE_KILL_LOOT.filter((drop) => drop.species === id)],
     dropNote: '展示成年个体的基础掉落，幼崽、天气恩泽与传承加成可能影响实际产出。',
     produce,
-    productionNote: produce.length ? `成年且保持驯养时，每 ${PRODUCTION_SECONDS / 60} 分钟各准备一份，未领取不累计。靠近可自动挤奶${id === 'sheep' ? '；手持剪刀时改为剪毛' : ''}。幼崽不生产。时间为默认速度下的游戏运行时间。` : undefined,
+    productionNote: produce.length ? [
+      `成年且保持驯养时，每 ${PRODUCTION_SECONDS / 60} 分钟各准备一份，未领取不累计。靠近可自动挤奶`,
+      ...(id === 'sheep' ? ['；手持', { kind: 'shears' as const, label: '剪刀' }, '时改为剪毛'] : []),
+      '。幼崽不生产。时间为默认速度下的游戏运行时间。',
+    ] : undefined,
   };
 }
 
-const COMPANION_INTERACTION = '新建岛屿时选择，本局固定，联机时全队共享。可以投喂适合的食物，也能从食料桶进食；同行、投喂和完整回窝睡眠有助于成长。';
+const COMPANION_INTERACTION: WikiTextValue = ['新建岛屿时选择，本局固定，联机时全队共享。可以投喂适合的食物，也能从', { kind: 'feedBarrel', label: '食料桶' }, '进食；同行、投喂和完整回窝睡眠有助于成长。'];
 
 /** 仅收录参与场景玩法的 11 种生物；蝴蝶与可钓获水产不列入本图鉴。 */
 export const CREATURE_ENTRIES: readonly CreatureEntry[] = [
   ...(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile'] as const).map(wildlifeEntry),
   {
     id: 'dog', name: COMPANIONS.dog.name, tags: ['同行伙伴', '护主'], description: COMPANIONS.dog.description,
-    habitat: '跟随岛上玩家，也会回宠物窝休息。', behavior: '遇到威胁时扑咬护主，成长后获得更强的伙伴能力。',
+    habitat: ['跟随岛上玩家，也会回', { kind: 'doghouse', label: '宠物窝' }, '休息。'], behavior: '遇到威胁时扑咬护主，成长后获得更强的伙伴能力。',
     interaction: COMPANION_INTERACTION, stats: [], foods: foodsFor('dog'), drops: [], produce: [],
   },
   {
@@ -99,12 +103,12 @@ export const CREATURE_ENTRIES: readonly CreatureEntry[] = [
   {
     id: 'bird', name: '鸟', tags: ['会飞', '可狩猎'], description: '在岛上盘旋、滑翔，偶尔落地觅食的小鸟。',
     habitat: '岛屿上空与地面落脚处。', behavior: '靠近地面觅食的鸟会将它惊飞，之后重新回到空中巡航。',
-    interaction: '可以用弓箭猎取，射落后获得鸟肉。不能套索或驯养。', stats: [], foods: [], drops: [{ kind: 'birdMeat' }], produce: [],
+    interaction: ['可以用', { kind: 'bow', label: '弓箭' }, '猎取，射落后获得', { kind: 'birdMeat', label: '鸟肉' }, '。不能使用', { kind: 'lasso', label: '套索' }, '或驯养。'], stats: [], foods: [], drops: [{ kind: 'birdMeat' }], produce: [],
   },
   {
-    id: 'crab', name: '螃蟹', tags: ['沙滩出没', '胆小'], description: '在沙滩上横着走的小生物，是蟹肉的来源之一。',
+    id: 'crab', name: '螃蟹', tags: ['沙滩出没', '胆小'], description: ['在沙滩上横着走的小生物，是', { kind: 'crabMeat', label: '蟹肉' }, '的来源之一。'],
     habitat: '沿岛分布的沙滩。', behavior: '玩家靠近时会横向逃离，不会主动攻击。',
-    interaction: '可以猎取获得蟹肉，不能套索或驯养。', stats: [], foods: [], drops: [{ kind: 'crabMeat' }], produce: [],
+    interaction: ['可以猎取获得', { kind: 'crabMeat', label: '蟹肉' }, '，不能使用', { kind: 'lasso', label: '套索' }, '或驯养。'], stats: [], foods: [], drops: [{ kind: 'crabMeat' }], produce: [],
   },
   {
     id: 'seaPredator', name: '海中巨影', tags: ['海中威胁', '无法猎杀'], description: '从深处浮现的掠食巨影，警告玩家不要在海里停留太久。',

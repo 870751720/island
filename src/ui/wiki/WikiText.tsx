@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
+import { ItemIcon } from '../ItemIcon';
 import { useScrollAreaTap } from './wikiTaps';
 import styles from './WikiPanel.module.css';
 
@@ -7,7 +8,10 @@ export type WikiTextValue = string | readonly (string | { kind: ResourceKind; la
 
 function ItemWord({ kind, label, onOpen }: { kind: ResourceKind; label: string; onOpen: (kind: ResourceKind) => void }) {
   const tap = useScrollAreaTap(() => onOpen(kind));
-  return <button type="button" className={styles.itemWord} {...tap} aria-label={`查看${label}的物品详情`}>{label}</button>;
+  return <button type="button" className={styles.itemWord} {...tap} aria-label={`查看${label}的物品详情`}>
+    <ItemIcon kind={kind} size={18} />
+    <span>{label}</span>
+  </button>;
 }
 
 /** 文案中的物品引用显式登记，避免同名词语被误识别为链接。 */

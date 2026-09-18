@@ -311,6 +311,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
   box-sizing: border-box;
   min-width: 44px;
   min-height: 44px;
@@ -331,6 +333,9 @@
 }
 .itemWord:active {
   background: #cddfc7;
+}
+.itemWord > * {
+  pointer-events: none;
 }
 .itemWord:focus-visible {
   outline: 2px solid #609e91;
