@@ -71,6 +71,12 @@ export const gameDarkButtonStyle: CSSProperties = {
   WebkitTapHighlightColor: 'transparent',
 };
 
+/** 深色界面的滚动条覆盖:通过 CSS 变量把全局滚动条换成奶油色细圆条 */
+export const gameDarkScrollVars = {
+  '--scroll-thumb': '#f2ecdc59',
+  '--scroll-thumb-hover': '#f2ecdc8c',
+} as CSSProperties;
+
 export const gameThemeCss = `
 .gameplay-ui button:focus-visible{outline:2px solid #609e91;outline-offset:3px}
 .gameplay-ui button:disabled{opacity:.48;cursor:default}

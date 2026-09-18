@@ -2,7 +2,7 @@
 import { gamePoint } from '@/platform/displayCoordinates';
 
 
-import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
+import { gameTheme, gameDarkTheme, gameDarkButtonStyle, gameDarkScrollVars } from './gameTheme';
 
 import { useEffect, useRef, useState } from 'react';
 import type { Game } from '@/game/Game';
@@ -250,6 +250,7 @@ export function PhotoMode({ game, day, onClose }: { game: Game; day: number; onC
             justifyContent: 'center',
             gap: 16,
             padding: 20,
+            ...gameDarkScrollVars,
           }}
         >
           <img

@@ -9,6 +9,27 @@ body {
   user-select: none;
 }
 
+/* 全局滚动条:奶油面板上的鼠尾草细圆条;深色界面用 --scroll-thumb 覆盖为奶油色 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb, #789b7c99) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scroll-thumb, #789b7c99);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover, #587861cc);
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* 拾取飘字:入包时从玩家头顶向上飘并渐隐 */
 .pickup-toast {
   position: absolute;

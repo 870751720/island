@@ -5,7 +5,7 @@ import type { DeathLootSummary } from '@/game/systems/DeathLoot';
 import { ItemIcon } from './ItemIcon';
 import { MenuIcon } from './icons/MenuIcons';
 
-import { gameTheme, gameDarkTheme, gameDarkButtonStyle } from './gameTheme';
+import { gameTheme, gameDarkTheme, gameDarkButtonStyle, gameDarkScrollVars } from './gameTheme';
 
 import { useState } from 'react';
 import type { DeathReport } from '@/game/systems/RunStats';
@@ -31,6 +31,7 @@ function CardFallback({ url, report, onClose }: { url: string; report: DeathRepo
         padding: '16px',
         boxSizing: 'border-box',
         animation: 'death-fade 0.3s ease',
+        ...gameDarkScrollVars,
       }}
       onClick={onClose}
     >
@@ -121,6 +122,7 @@ export function DeathScreen({
         padding: '16px',
         boxSizing: 'border-box',
         animation: 'death-fade 0.6s ease',
+        ...gameDarkScrollVars,
       }}
     >
       <style>{`
