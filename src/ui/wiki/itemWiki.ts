@@ -8,10 +8,29 @@ import { itemSourceGroups, itemSourcesOf, type ItemSource, type SourceGroup } fr
 /** 详情页的属性行:标签 + 展示值 */
 export type ItemWikiStat = { label: string; value: string };
 
+/** 回收方式行:工具 + 动作说明;target 为挖回的其他道具,note 补充时机 */
+export type ItemRecycle = { label: string; target?: ResourceKind; note?: string };
+
+/** 铲子可整件挖回道具的设施(与各放置系统的挖掘结算一致),默认整件挖回本道具 */
+const DIG_BACK: ItemRecycle = { label: '整件挖回' };
+const RECYCLE_BY_KIND: Partial<Record<ResourceKind, ItemRecycle>> = {
+  poseidonBlessing: DIG_BACK, beehiveShrine: DIG_BACK, healCrystal: DIG_BACK, rainAltar: DIG_BACK, crocIncense: DIG_BACK, torch: DIG_BACK,
+  crate: DIG_BACK, ironCrate: DIG_BACK, fishKeep: DIG_BACK, feedBarrel: DIG_BACK,
+  baitBarrel: DIG_BACK, brewBarrel: DIG_BACK, doghouse: DIG_BACK, waterPurifier: DIG_BACK, smelter: DIG_BACK, loom: DIG_BACK,
+  deadCampfire: { label: '整座挖回' },
+  campfire: { label: '整座挖回', target: 'deadCampfire', note: '需燃尽熄灭' },
+  cookingStation: DIG_BACK,
+  fenceWood: DIG_BACK, fenceStone: DIG_BACK, fenceGate: DIG_BACK, stoneGate: DIG_BACK, gravelPath: DIG_BACK, plankPath: DIG_BACK,
+  bed1: DIG_BACK, bed2: DIG_BACK, bed3: DIG_BACK,
+  workbench1: DIG_BACK, workbench2: DIG_BACK, workbench3: DIG_BACK, workbench4: DIG_BACK,
+  berryBush: { label: '整棵挖回' }, shrubBush: { label: '整棵挖回' }, grassTuft: { label: '整棵挖回' }, wormNest: { label: '整棵挖回' },
+};
+
 export type ItemWikiEntry = {
   kind: ResourceKind;
   category: ItemCategory;
   stats: readonly ItemWikiStat[];
+  recycle?: ItemRecycle;
   sourceGroups: readonly SourceGroup[];
   sources: readonly ItemSource[];
 };
@@ -69,6 +88,7 @@ function toEntry(kind: ResourceKind): ItemWikiEntry {
     kind,
     category: itemCategory(kind),
     stats: buildStats(kind),
+    recycle: RECYCLE_BY_KIND[kind],
     sourceGroups: itemSourceGroups(kind),
     sources: itemSourcesOf(kind),
   };

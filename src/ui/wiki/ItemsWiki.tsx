@@ -124,6 +124,17 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
               ))}
             </section>
           )}
+          {entry.recycle && (
+            <section className={styles.section}>
+              <h4 className={styles.sectionTitle}>回收方式</h4>
+              <div className={styles.sourceCard}>
+                <ItemChip kind="shovel" name={wikiItemName('shovel')} onOpen={openKind} />
+                <span className={styles.sourceLabel}>{entry.recycle.label}</span>
+                {entry.recycle.target && <ItemChip kind={entry.recycle.target} onOpen={openKind} />}
+                {entry.recycle.note && <span className={styles.sourceNote}>{entry.recycle.note}</span>}
+              </div>
+            </section>
+          )}
         </div>
         <div className={styles.pager}>
           <button {...pressAction(() => stepDetail(-1))} disabled={!multi} aria-label="上一件物品">‹ 上一件</button>
