@@ -1,7 +1,7 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
-import type { LightPool } from '../world/LightPool';
+import type { FlameLight, LightPool } from '../world/LightPool';
 
 const FULL_FUEL = 210; // 火焰达到满簇满尺寸/满亮度的参考燃料秒数
 const LOW_FUEL = 12; // 剩余低于该秒数算濒熄:火苗缩小、剧烈闪烁
@@ -30,7 +30,7 @@ export class Campfire {
   private flames: THREE.Mesh[] = [];
   private fireRoot: THREE.Group;
   private smoke: { mesh: THREE.Mesh; offset: number }[] = [];
-  private light: THREE.PointLight | null = null;
+  private light: FlameLight | null = null;
   private logs: THREE.Group;
   private logMat: THREE.MeshStandardMaterial;
   private charredMat: THREE.MeshStandardMaterial;

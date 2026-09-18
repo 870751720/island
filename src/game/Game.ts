@@ -466,6 +466,7 @@ export class Game {
     this.terrainSeed = world.seed;
     if (this.hostRef) this.hostRef.terrainSeed = world.seed;
     this.terrain = terrain;
+    this.flameLights.setGround(this.scene, terrain);
     this.scene.add(terrain.mesh);
     this.oceanDepth = new OceanDepth(terrain);
     this.ocean = new Ocean(terrain.seaLevel, this.oceanDepth);
@@ -1382,6 +1383,7 @@ export class Game {
         const showDig = this.player.currentTool === 'shovel' && !this.player.isMoving && !this.player.isSwimming
           && !this.survival.state.dead && !this.cameraController.photoActive;
         this.digHighlight.update(showDig ? this.digTargets.resolve(digTarget) : null, elapsed);
+        this.flameLights.update(this.camera, this.player.group.position, delta);
         this.renderer.render(this.scene, this.camera);
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
@@ -3784,6 +3786,7 @@ export class Game {
     this.rain.dispose();
     this.snow.dispose();
     this.clouds.dispose();
+    this.flameLights.dispose();
     this.windFx.dispose();
     this.footprints.dispose();
     this.seaThreat.dispose();

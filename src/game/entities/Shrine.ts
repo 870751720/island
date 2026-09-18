@@ -1,6 +1,6 @@
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import * as THREE from 'three';
-import type { LightPool } from '../world/LightPool';
+import type { FlameLight, LightPool } from '../world/LightPool';
 import { clayMaterial } from '../world/ClayMaterial';
 
 /** 火把火光参数(向光源池领取) */
@@ -231,8 +231,8 @@ export class Shrine {
   private gem: THREE.Mesh;
   private gemY: number;
   private customUpdate?: NonNullable<ShrineMesh['update']>;
-  /** 火把的火光(从光源池领取;池满或预览场景则无) */
-  private light: THREE.PointLight | null = null;
+  /** 火把的逻辑火源，预览场景不注册 */
+  private light: FlameLight | null = null;
   private lights?: LightPool;
 
   constructor(scene: THREE.Scene, position: THREE.Vector3, kind: ShrineKind, lights?: LightPool) {
@@ -248,7 +248,7 @@ export class Shrine {
     this.gemY = built.gemY;
     this.customUpdate = built.update;
     if (kind === 'torch') {
-      this.light = lights?.claim(this.group.position, 0.7, TORCH_LIGHT_SPEC) ?? null;
+      this.light = lights?.claim(this.group.position, 0.7, TORCH_LIGHT_SPEC, true) ?? null;
     }
   }
 

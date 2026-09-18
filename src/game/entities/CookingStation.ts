@@ -3,7 +3,7 @@ import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
 import { FOODS, BOILABLE } from '../systems/Food';
 import type { ResourceKind } from '../systems/Inventory';
-import type { LightPool } from '../world/LightPool';
+import type { FlameLight, LightPool } from '../world/LightPool';
 
 /** 火焰达到满簇满亮度的参考燃料秒数(表现用,与火堆同档) */
 const FULL_FUEL = 210;
@@ -32,7 +32,7 @@ export class CookingStation {
   private flames: THREE.Mesh[] = [];
   private fireRoot: THREE.Group;
   private steam: { mesh: THREE.Mesh; offset: number }[] = [];
-  private light: THREE.PointLight | null = null;
+  private light: FlameLight | null = null;
   private pot: THREE.Group;
   private soupMat: THREE.MeshStandardMaterial;
   /** 剩余燃烧秒数,> 0 即在燃烧 */

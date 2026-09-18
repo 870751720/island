@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clayMaterial } from '../world/ClayMaterial';
 import { sinkModel } from '../core/sinkModel';
-import type { LightPool } from '../world/LightPool';
+import type { FlameLight, LightPool } from '../world/LightPool';
 
 /** 炼出 1 块铁锭消耗的铁矿石数 */
 export const SMELT_ORE_PER_INGOT = 3;
@@ -72,7 +72,7 @@ export class Smelter {
   private fire: THREE.Object3D | null = null;
   private flames: THREE.Mesh[] = [];
   private fireRoot: THREE.Group;
-  private light: THREE.PointLight | null = null;
+  private light: FlameLight | null = null;
 
   constructor(
     scene: THREE.Scene,

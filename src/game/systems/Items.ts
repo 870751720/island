@@ -348,7 +348,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'torch',
     name: '火把',
     icon: '🕯️',
-    description: '树枝缠布做成的火把,暖暖的火光永不熄灭。',
+    description: '树枝缠布做成的火把，插地后在周围地面留下暖色光晕，火苗永不熄灭。',
   },
   crabMeat: {
     kind: 'crabMeat',
