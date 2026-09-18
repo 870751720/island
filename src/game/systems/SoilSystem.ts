@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import { StaticMeshBatch } from '../core/StaticMeshBatch';
 import { groundSurfaceMaterial, type GroundNeighbors } from '../world/GroundSurface';
 import type { ResourceKind } from './Inventory';
@@ -34,7 +35,7 @@ type PlayerSessionState = {
  * 土壤占格(同格已被占/在水里即不可开),铲子靠近站定可挖掉还原,无掉落。
  * 后续种植系统在土壤格上播种。
  */
-export class SoilSystem {
+export class SoilSystem implements FacilityInteractionSource {
   private soils: Soil[] = [];
   private readonly instances: ModelInstances;
   private readonly surfaces: StaticMeshBatch;
@@ -295,4 +296,8 @@ export class SoilSystem {
       this.add(value);
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, { name: this.isDiggingCrop(actor) ? '作物' : '土壤' }, this.isDiggingCrop(actor) ? '铲' : '挖');
+  }
+
 }

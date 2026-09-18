@@ -10,7 +10,7 @@ import type { PropKind } from '../world/Props';
 import type { TreeSpecies, TreeStage } from '../world/TreeSpecies';
 import type { HandTool } from '../entities/Player';
 import type { DropEntry } from './DropSystem';
-import type { ShrineSave } from './ShrineSystem';
+import type { AmbientFacilitySave } from './AmbientFacilitySystem';
 import type { RoadSave } from '../entities/RoadModel';
 import type { SoilSave } from '../entities/Soil';
 import type { CropSave } from '../entities/Crop';
@@ -112,8 +112,8 @@ export type SaveData = {
   workbenchCrafted: boolean;
   /** 场上所有床(落点与等级;可放置多个) */
   beds: (PlacementSave & { level: number })[];
-  /** 场上所有神龛(种类与落点;可放置多个) */
-  shrines: ShrineSave[];
+  /** 火把与神龛设施(保留 shrines 存档字段，种类与落点不变) */
+  shrines: AmbientFacilitySave[];
   /** 场上所有土壤(落点;手持锄头开出,可放置多个;旧档缺省视为无) */
   soils: SoilSave[];
   gravelPaths?: RoadSave[];

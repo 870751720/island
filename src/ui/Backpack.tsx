@@ -1,6 +1,7 @@
 'use client';
 import { gameViewportSize, gameRect, gamePoint } from '@/platform/displayCoordinates';
 
+import { isBackpackItemUsable } from './backpackItemActions';
 import { DogCompanionCard } from './DogCompanionCard';
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from './gameTheme';
@@ -10,12 +11,9 @@ import type { HudSnapshot } from '@/game/GameContracts';
 import { countsFromSlots, type InventorySlot, type ResourceKind } from '@/game/systems/Inventory';
 import { ITEMS } from '@/game/systems/Items';
 import { FOODS, foodVerb } from '@/game/systems/Food';
-import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
 import { RECIPES, TOOL_IDS, maxCraftCount, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId, type Recipe } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
-import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
-import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
 import { MaterialRequirements } from './MaterialRequirements';
 import { SlotItemCount } from './SlotItemCount';
@@ -48,49 +46,6 @@ type Props = {
 };
 
 type Tab = 'items' | 'craft' | 'tools' | 'char';
-
-/** 可「使用」的道具:食物(进食)、漂流瓶(读瓶中信)、海神的信(读信)、其余可安放道具进入手持安放模式 */
-function isUsable(kind: ResourceKind): boolean {
-  return (
-    FOODS.some((f) => f.kind === kind) ||
-    kind === 'bottle' ||
-    kind === 'letter' ||
-    kind === 'berryBush' ||
-    kind === 'oakSeed' ||
-    kind === 'pineSeed' ||
-    kind === 'fruitSeed' ||
-    kind === 'shrubBush' ||
-    kind === 'grassTuft' ||
-    kind === 'wormNest' ||
-    // 作物种子:使用后进入手持安放模式
-    kind in CROP_OF_SEED ||
-    kind === 'crate' ||
-    kind === 'ironCrate' ||
-    kind === 'fishKeep' ||
-    kind === 'feedBarrel' ||
-    kind === 'baitBarrel' ||
-    kind === 'brewBarrel' ||
-    kind === 'doghouse' ||
-    kind === 'waterPurifier' ||
-    kind === 'smelter' ||
-    kind === 'cookingStation' ||
-    kind === 'loom' ||
-    kind === 'deadCampfire' ||
-    kind === 'campfire' ||
-    kind === 'fenceWood' ||
-    kind === 'fenceStone' ||
-    kind === 'fenceGate' ||
-    kind === 'stoneGate' ||
-    workbenchItemLevel(kind) !== null ||
-    bedItemLevel(kind) !== null ||
-    kind === 'poseidonBlessing' ||
-    kind === 'beehiveShrine' ||
-    kind === 'healCrystal' ||
-    kind === 'rainAltar' ||
-    kind === 'crocIncense' ||
-    kind === 'torch'
-  );
-}
 
 const SLOT_SIZE = 52;
 const SLOT_GAP = 8;
@@ -211,6 +166,10 @@ function Tip({ tip, onClose }: { tip: TipState; onClose: () => void }) {
  * 物品页 = 格子背包 + 选中道具详情(单击选中,双击直接使用/装备),
  * 制作页独占整页;工具/角色页为行式列表,点击行首图标弹出对应物品 tip */
 export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDropItem, onCraft, onEquip, onUnequip, onMoveItem, onSort }: Props) {
+  // 与手持选择面板共用由设施注册表生成的清单；不再维护第二份设施名单。
+  const isUsable = (kind: ResourceKind): boolean =>
+    isBackpackItemUsable(kind, hud.placeables);
+
   const [tab, setTab] = useState<Tab>('items');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   /** 待丢弃数量:选中道具时重置为 1 */

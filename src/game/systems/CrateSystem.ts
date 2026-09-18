@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { animalFood, animalFoodHeart, isAnimalFood, type FoodTarget } from './AnimalFood';
 import type { FoodEater } from './Food';
@@ -43,7 +44,7 @@ export type CrateSave = {
  * - 手持铲子靠近木箱站定自动把整箱挖走(变回木箱道具,箱内物品回到背包/掉在身旁)。
  * 木箱自带 10 格、铁箱 20 格收纳,靠近后可整格存入背包物品或取回。
  */
-export class CrateSystem {
+export class CrateSystem implements FacilityInteractionSource {
   private crates: Crate[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<Crate>('crate');
@@ -364,4 +365,8 @@ export class CrateSystem {
       crate.updateIcon();
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, this.diggingKind(actor));
+  }
+
 }

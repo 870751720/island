@@ -13,7 +13,7 @@ import type { FenceSystem } from './FenceSystem';
 import type { LoomSystem } from './LoomSystem';
 import type { RabbitBurrowSystem } from './RabbitBurrowSystem';
 import type { SaveData } from './SaveSystem';
-import type { ShrineSystem } from './ShrineSystem';
+import type { AmbientFacilitySystem } from './AmbientFacilitySystem';
 import { setSeason, getSeason, getSeasonStartDay } from './SeasonSystem';
 import type { RoadSystem } from './RoadSystem';
 import type { SoilSystem } from './SoilSystem';
@@ -40,7 +40,7 @@ export type WorldSaveSystems = {
   looms: LoomSystem;
   fences: FenceSystem;
   beds: BedSystem;
-  shrines: ShrineSystem;
+  shrines: AmbientFacilitySystem;
   soils: SoilSystem;
   gravelPaths: RoadSystem;
   plankPaths: RoadSystem;

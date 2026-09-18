@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -51,7 +52,7 @@ export type LoomInfo = {
  * - 手持铲子靠近站定自动整机挖走(变回纺织机道具,机内绳线与布料一并回到背包/掉落)。
  * 织布计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
-export class LoomSystem {
+export class LoomSystem implements FacilityInteractionSource {
   private looms: Loom[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<Loom>('loom');
@@ -339,4 +340,8 @@ export class LoomSystem {
       loom.tickLeft = value.tickLeft;
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'loom');
+  }
+
 }

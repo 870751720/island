@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -53,7 +54,7 @@ type PlayerSessionState = {
  * - 已放置的工作台可花费石头升级(最高 4 级),操作目标为身旁最近的一台;
  * - 手持铲子靠近工作台站定可整台挖走,变成对应等级的工作台道具。
  */
-export class WorkbenchSystem {
+export class WorkbenchSystem implements FacilityInteractionSource {
   private benches: Workbench[] = [];
   /** 本局是否已放置过工作台(制作卡片只在这局从未放置过时出现) */
   private crafted = false;
@@ -371,4 +372,9 @@ export class WorkbenchSystem {
       } else while (bench.level < value.level) bench.upgrade();
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    const target = this.states.get(actor)?.digTarget;
+    return recoveryInteraction(this, actor, target ? BENCH_ITEM[target.level] : null);
+  }
+
 }

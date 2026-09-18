@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -79,7 +80,7 @@ type PlayerSessionState = {
  * - 手持铲子靠近站定自动整台挖走(变回烹饪台道具,锅里剩余食材与煮好的汤一并回包)。
  * 燃料消耗与煮制计时只在权威端(单机/房主)结算,客人端由世界增量回流 + 本地倒数表现。
  */
-export class CookingStationSystem {
+export class CookingStationSystem implements FacilityInteractionSource {
   private stations: CookingStation[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<CookingStation>('cook');
@@ -575,4 +576,8 @@ export class CookingStationSystem {
       },
     });
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'cookingStation');
+  }
+
 }

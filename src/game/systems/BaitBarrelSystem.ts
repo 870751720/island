@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -55,7 +56,7 @@ export type BaitBarrelInfo = {
  * - 手持铲子靠近站定自动整桶挖走(变回饵料桶道具,桶内食物与鱼饵一并回到背包/掉落)。
  * 发酵计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
-export class BaitBarrelSystem {
+export class BaitBarrelSystem implements FacilityInteractionSource {
   private barrels: BaitBarrel[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<BaitBarrel>('baitBarrel');
@@ -350,4 +351,8 @@ export class BaitBarrelSystem {
       barrel.tickLeft = value.tickLeft;
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'baitBarrel');
+  }
+
 }

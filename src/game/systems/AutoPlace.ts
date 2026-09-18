@@ -1,3 +1,4 @@
+import { FacilityInteractions } from './FacilityInteraction';
 import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -54,6 +55,7 @@ type SessionState = {
  * 放置结算统一经 settle 回调走 Game 的权威入口(联机时自动上行房主),预览与进度两端各自本地驱动。
  */
 export class AutoPlaceSystem {
+  readonly interactions = new FacilityInteractions();
   private defs = new Map<FacilityKind, FacilityDef>();
   private states = new Map<PlayerSession, SessionState>();
   private okMat = previewGhostMaterial(PREVIEW_OK);
@@ -70,7 +72,9 @@ export class AutoPlaceSystem {
 
   /** 注册一种可放置设施 */
   register(kind: FacilityKind, def: FacilityDef): void {
+    if (this.defs.has(kind)) throw new Error(`设施重复注册: ${kind}`);
     this.defs.set(kind, def);
+    if (def.recovery) this.interactions.register(def.recovery);
   }
 
   /** 该道具是否为已注册设施 */

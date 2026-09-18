@@ -1,43 +1,22 @@
-import type { DoghouseSystem } from '../systems/DoghouseSystem';
+import type { FacilityInteractions } from '../systems/FacilityInteraction';
+import type { BedSystem } from '../systems/BedSystem';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { HudSnapshot } from '../GameContracts';
 import { AUTO_EQUIP_DELAY } from '../GameConfig';
 import type { AutoPlaceSystem } from '../systems/AutoPlace';
-import type { BaitBarrelSystem } from '../systems/BaitBarrelSystem';
-import type { BedSystem } from '../systems/BedSystem';
-import type { BrewBarrelSystem } from '../systems/BrewBarrelSystem';
 import type { CampfireSystem } from '../systems/CampfireSystem';
 import type { CookingStationSystem } from '../systems/CookingStationSystem';
-import type { CrateSystem } from '../systems/CrateSystem';
-import type { FenceSystem } from '../systems/FenceSystem';
-import type { LoomSystem } from '../systems/LoomSystem';
-import type { RabbitBurrowSystem } from '../systems/RabbitBurrowSystem';
-import type { ShrineSystem } from '../systems/ShrineSystem';
-import type { RoadSystem } from '../systems/RoadSystem';
-import type { SoilSystem } from '../systems/SoilSystem';
 import type { CropSystem } from '../systems/CropSystem';
-import type { SmelterSystem } from '../systems/SmelterSystem';
 import type { WorkbenchSystem } from '../systems/WorkbenchSystem';
 import { ITEMS } from '../systems/Items';
 import { foodVerb } from '../systems/Food';
 
 type IndicatorSystems = {
-  doghouses: DoghouseSystem;
-  workbench: WorkbenchSystem;
-  crates: CrateSystem;
-  baitBarrels: BaitBarrelSystem;
-  brewBarrels: BrewBarrelSystem;
-  burrows: RabbitBurrowSystem;
-  smelters: SmelterSystem;
-  cookingStations: CookingStationSystem;
-  looms: LoomSystem;
-  autoPlace: AutoPlaceSystem;
-  fences: FenceSystem;
+  recovery: FacilityInteractions;
   beds: BedSystem;
-  shrines: ShrineSystem;
-  soils: SoilSystem;
-  gravelPaths: RoadSystem;
-  plankPaths: RoadSystem;
+  workbench: WorkbenchSystem;
+  cookingStations: CookingStationSystem;
+  autoPlace: AutoPlaceSystem;
   crops: CropSystem;
   campfire: CampfireSystem;
 };
@@ -49,6 +28,7 @@ export class InteractionIndicatorBuilder {
   build(session: PlayerSession, isLocal: boolean, autoEquipTimer: number): HudSnapshot['indicator'] {
     const systems = this.systems;
     const nearby = session.collect.getNearby();
+    const recovery = systems.recovery.current(session);
     let label: string | null = null;
     let progress: number | null = null;
     let color: string | undefined;
@@ -64,31 +44,14 @@ export class InteractionIndicatorBuilder {
       progress = session.crafting.getProgress();
     } else if (systems.workbench.isUpgrading(session)) {
       label = '升级中:工作台'; progress = systems.workbench.getProgress(session);
-    } else if (systems.workbench.isDigging(session)) {
-      label = '挖工作台…'; progress = systems.workbench.getDigProgress(session);
-    } else if (systems.crates.isDigging(session)) {
-      label = `挖${ITEMS[systems.crates.diggingKind(session) ?? 'crate'].name}…`;
-      progress = systems.crates.getDigProgress(session);
-    } else if (systems.baitBarrels.isDigging(session)) {
-      label = '挖饵料桶…'; progress = systems.baitBarrels.getDigProgress(session);
-    } else if (systems.brewBarrels.isDigging(session)) {
-      label = '挖酿酒桶…'; progress = systems.brewBarrels.getDigProgress(session);
-    } else if (systems.doghouses.isDigging(session)) {
-      label = '挖宠物窝…'; progress = systems.doghouses.getDigProgress(session);
-    } else if (systems.burrows.isDigging(session)) {
-      label = '挖兔子洞…'; progress = systems.burrows.getDigProgress(session);
-    } else if (systems.smelters.isDigging(session)) {
-      label = '挖冶炼炉…'; progress = systems.smelters.getDigProgress(session);
-    } else if (systems.cookingStations.isDigging(session)) {
-      label = '挖烹饪台…'; progress = systems.cookingStations.getDigProgress(session);
+    } else if (recovery) {
+      label = recovery.label; progress = recovery.progress;
     } else if (systems.cookingStations.isRoasting(session)) {
       const { total, current } = systems.cookingStations.roastInfo(session);
       itemKind = systems.cookingStations.roastingKind(session)!;
       const food = ITEMS[itemKind];
       label = `烤制中:${food.name} ${current}/${total}`;
       progress = systems.cookingStations.getProgress(session);
-    } else if (systems.looms.isDigging(session)) {
-      label = '挖纺织机…'; progress = systems.looms.getDigProgress(session);
     } else if (systems.autoPlace.isPlacing(session)) {
       const kind = systems.autoPlace.heldKind(session);
       const def = kind ? systems.autoPlace.defOf(kind) : undefined;
@@ -96,25 +59,10 @@ export class InteractionIndicatorBuilder {
       progress = systems.autoPlace.getPlaceProgress(session);
     } else if (systems.autoPlace.heldKind(session) !== null) {
       label = systems.autoPlace.placeReason(session);
-    } else if (systems.fences.isDigging(session)) {
-      label = '拆围栏…'; progress = systems.fences.getDigProgress(session);
     } else if (systems.beds.isSleeping(session)) {
       label = '睡觉中…'; progress = systems.beds.getSleepProgress(session);
-    } else if (systems.beds.isDigging(session)) {
-      label = '挖床…'; progress = systems.beds.getDigProgress(session);
-    } else if (systems.shrines.isDigging(session)) {
-      label = '拆神像…'; progress = systems.shrines.getDigProgress(session);
-    } else if (systems.plankPaths.isDigging(session)) {
-      label = '拆木板路…'; progress = systems.plankPaths.getDigProgress(session);
-    } else if (systems.gravelPaths.isDigging(session)) {
-      label = '拆碎石路…'; progress = systems.gravelPaths.getDigProgress(session);
-    } else if (systems.soils.isDigging(session)) {
-      label = systems.soils.isDiggingCrop(session) ? '铲作物…' : '挖土壤…';
-      progress = systems.soils.getDigProgress(session);
     } else if (systems.crops.isHarvesting(session)) {
       label = '采收作物…'; progress = systems.crops.getHarvestProgress(session);
-    } else if (systems.campfire.isDigging(session)) {
-      label = '挖火堆…'; progress = systems.campfire.getDigProgress(session);
     } else if (systems.campfire.isCooking(session)) {
       const { total, current } = systems.campfire.cookInfo(session);
       itemKind = systems.campfire.cookingKind(session)!;

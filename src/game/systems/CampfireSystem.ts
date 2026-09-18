@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -54,7 +55,7 @@ type PlayerSessionState = {
  * 手持铲子可把熄灭的火堆整座挖掉(变成「熄灭的火堆」道具回收)。烹饪在燃烧的火堆上批量进行,
  * 一次烤完背包里同种食材,主角在火堆旁翻炒,走开或熄火则退回剩余食材。
  */
-export class CampfireSystem {
+export class CampfireSystem implements FacilityInteractionSource {
   private fires: Campfire[] = [];
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
@@ -436,4 +437,8 @@ export class CampfireSystem {
       this.fires.push(fire);
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'deadCampfire');
+  }
+
 }

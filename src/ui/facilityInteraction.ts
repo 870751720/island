@@ -4,6 +4,7 @@ type FacilityProximity = Pick<
   HudSnapshot,
   | 'nearWorkbench'
   | 'nearCampfire'
+  | 'campfireInfo'
   | 'nearCrate'
   | 'nearBaitBarrel'
   | 'nearBrewBarrel'
@@ -13,7 +14,7 @@ type FacilityProximity = Pick<
   | 'nearBed'
 >;
 
-type FacilityKey = keyof FacilityProximity;
+type FacilityKey = Exclude<keyof FacilityProximity, 'campfireInfo'>;
 
 /** 顺序同时定义多个设施重叠时的交互优先级。 */
 const FACILITY_PRIORITY: readonly { key: FacilityKey; diggable: boolean }[] = [
@@ -28,7 +29,9 @@ const FACILITY_PRIORITY: readonly { key: FacilityKey; diggable: boolean }[] = [
   { key: 'nearBed', diggable: true },
 ];
 
-/** 面前劫持按钮的设施是否可被铲子挖走；火堆目前不可挖。 */
+/** 面前设施是否让出铲子按钮；火堆仅在熄灭后允许回收。 */
 export function isNearbyFacilityDiggable(proximity: FacilityProximity): boolean {
-  return FACILITY_PRIORITY.find(({ key }) => proximity[key])?.diggable ?? false;
+  const facility = FACILITY_PRIORITY.find(({ key }) => proximity[key]);
+  if (facility?.key === 'nearCampfire') return proximity.campfireInfo?.lit === false;
+  return facility?.diggable ?? false;
 }

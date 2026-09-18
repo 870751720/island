@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { Doghouse } from '../entities/Doghouse';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -20,7 +21,7 @@ type DigState = { target: Doghouse | null; hits: number; timer: number; hold: Ac
 const distance = (a: THREE.Vector3, b: THREE.Vector3) => Math.hypot(a.x - b.x, a.z - b.z);
 
 /** 房主维护安放与回收，客人按稳定 ID 应用世界快照。 */
-export class DoghouseSystem {
+export class DoghouseSystem implements FacilityInteractionSource {
   private houses: Doghouse[] = [];
   private ids = new WorldEntityIds<Doghouse>('doghouse');
   private sink?: EntityChangeSink;
@@ -116,4 +117,8 @@ export class DoghouseSystem {
     const existing = new Set(this.houses.map(h => this.ids.get(h)));
     this.restore(list.filter(item => !item.id || !existing.has(item.id)));
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'doghouse');
+  }
+
 }

@@ -64,6 +64,7 @@ export function wikiItemSearchText(kind: ResourceKind): string {
 function buildStats(kind: ResourceKind): ItemWikiStat[] {
   const stats: ItemWikiStat[] = [];
   const def = ITEMS[kind];
+  if (itemCategory(kind) === '设施') stats.push({ label: '安放', value: '背包使用或手持选择，在有效位置站定放置' });
   if (def.burnTime) stats.push({ label: '可燃', value: `投入火堆 +${def.burnTime} 秒` });
   const food = FOOD_BY_KIND.get(kind);
   if (food) {

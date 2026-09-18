@@ -13,7 +13,7 @@ import type { DayNightSystem } from '../systems/DayNightSystem';
 import type { DropSystem } from '../systems/DropSystem';
 import type { LoomSystem } from '../systems/LoomSystem';
 import type { ResourceKind } from '../systems/Inventory';
-import type { ShrineSystem } from '../systems/ShrineSystem';
+import type { AmbientFacilitySystem } from '../systems/AmbientFacilitySystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
 import type { WeatherSystem } from '../systems/WeatherSystem';
 import { getSeason } from '../systems/SeasonSystem';
@@ -32,7 +32,7 @@ type HudSystems = {
   beds: BedSystem;
   workbench: WorkbenchSystem;
   campfire: CampfireSystem;
-  shrines: ShrineSystem;
+  shrines: AmbientFacilitySystem;
   drops: DropSystem;
   dayNight: DayNightSystem;
   weather: WeatherSystem;
@@ -147,7 +147,7 @@ export class HudSnapshotBuilder {
       list.push({ ...BUFFS.steadyPlacement, remain: null });
     }
     if (session.player.roadKind && !session.player.isSwimming) list.push({ ...BUFFS[session.player.roadKind], remain: null });
-    const shrines = this.systems.shrines;
+    const shrines = this.systems.shrines.blessings;
     if (shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
     if (shrines.berryBlessed) list.push({ ...BUFFS.beehive, remain: null });
     const position = session.player.group.position;

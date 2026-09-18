@@ -5,15 +5,14 @@
 - 手搓配方:1 树枝 + 1 燧石,无需工作台。
 - 背包里点击「使用」进入手持安放，站定后放置(详见 autoplace.md);不能在水里,格内不能被其他资源点/摆件占住。
 - 放置后在小范围(约 4.5 米)发出暖色火光,火苗摇曳,永不熄灭、无燃料与耐久。
-- 手持铲子靠近站定可挖走,整支变回火把道具入包(精致铲 1 次,普通铲 2 次)。
+- 手持铲子靠近站定可挖走,整支变回火把道具入包(命中次数随铲子等级降低)。
 ## 设计方案
-火把完全复用神龛(Shrine)体系,只是无祝福效果:
-- `Inventory.ts` 新增 `ResourceKind: 'torch'`;`Items.ts` 注册道具(🔥)。
-- `Crafting.ts` 新增手搓配方 `{ wood: 1, flint: 1 }`,`hidePrompt` 避免与常见材料频繁弹出快捷卡片(与石铲同策略)。
-- `entities/Shrine.ts`:`ShrineKind` 加 `'torch'`,`BUILDERS` 注册 `makeTorchMesh()`(木杆 + 浸油布头 + 自发光火苗 + 逻辑火源);`ShrineMesh.update` 支持覆盖默认宝石表现,火把用它做火苗缩放/抖动与光强闪烁。
-- 放置、铲子挖掘回收、存档(`shrines` 快照带 kind)、联机同步(放置走既有手持安放动作、增删走 `shrines` 世界增量快照)全部沿用 `ShrineSystem`,零新增协议。
-- `DropModels.ts` 补火把掉落物造型(横躺树枝 + 布头),`Backpack.tsx`/`GameplayUI.tsx` 加入可使用神龛道具列表。
-- 存档兼容:沿用 `shrines` 数组与缺省 kind 解释规则,`SAVE_VERSION` 不变。
+- `entities/Facility.ts` 是设施实体基类，管理物品身份、场景节点和生命周期。`Torch` 与 `Shrine` 平级，火把不属于神龛类型。
+- `entities/Torch.ts` 独立负责木杆、布头、火苗动画，以及领取和释放逻辑光源；预览实体不领取世界光源。
+- `systems/FacilitySystem.ts` 负责可整件回收设施的占格、权威安放、按玩家推进回收、存档和增量同步。`AmbientFacilitySystem` 装配火把与神龛工厂，`ShrineEffects` 单独读取神龛祝福，不参与火把照明。
+- 手搓配方为 `{ branch: 1, flint: 1 }`。安放通过统一设施注册表，背包直接读取注册结果生成的 `HudSnapshot.placeables`，不维护神龛或火把白名单。
+- 回收提示取当前目标物品名，火把显示「拆火把…」；铲子命中次数沿用 `shovelHits`。
+- 存档与网络仍保留 `shrines` 数组、`shrine_` 实体 ID 前缀及原有 `kind/x/y/z/id` 结构。旧档里的火把由工厂恢复成 `Torch`，不修改持久化 ID、`SAVE_VERSION` 或协议版本。
 
 ### 大量火把的照明与性能
 - 不设六支火把的放置上限。每支已放置火把始终保留火苗与半径 2.4 米的柔边暖色地面光晕，光晕是视觉模拟，不照亮人物或建筑。

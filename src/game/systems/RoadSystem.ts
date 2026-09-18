@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { GravelPath } from '../entities/GravelPath';
 import { PlankPath, plankMaterial } from '../entities/PlankPath';
@@ -19,7 +20,7 @@ import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 type DigState = { target: RoadModel | null; elapsed: number; hold: ActionHold };
 
 /** 世界共享路面；放置与回收仅在权威端结算，两端都可按脚下格查询加速。 */
-export class RoadSystem {
+export class RoadSystem implements FacilityInteractionSource {
   private paths = new Map<string, RoadModel>();
   private states = new Map<PlayerSession, DigState>();
   private ids: WorldEntityIds<RoadModel>;
@@ -167,4 +168,8 @@ export class RoadSystem {
     this.surfaces.dispose();
     this.dirty.clear();
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, this.kind, '拆');
+  }
+
 }

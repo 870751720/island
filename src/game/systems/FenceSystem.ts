@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import { ModelInstances } from '../core/ModelInstances';
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
@@ -124,7 +125,7 @@ export function makeGateGhost(kind: GateKind = 'fenceGate'): THREE.Group {
  * - 手持铲子靠近站定自动把围栏/门挖回道具。
  * 手持放置的落点选择/预览/站定自动放置统一走 AutoPlaceSystem,经 FacilityDef 委托到本系统。
  */
-export class FenceSystem implements ObstacleSolver {
+export class FenceSystem implements ObstacleSolver, FacilityInteractionSource {
   private readonly instances: ModelInstances;
   private fences = new Map<string, Fence>();
   private gates = new Map<string, FenceGate>();
@@ -826,4 +827,13 @@ export class FenceSystem implements ObstacleSolver {
     for (const gate of this.gates.values()) gate.rebuildRails(this.gateConns(gate));
     this.rebuildSegments();
   }
+  recoveryInteraction(actor: PlayerSession) {
+    const target = this.states.get(actor)?.digTarget;
+    if (!target) return null;
+    const entity = target.kind === 'gate' ? this.gates.get(target.key) : this.fences.get(target.key);
+    if (!entity) return null;
+    const kind = entity.kind === 'branch' ? 'fenceWood' : entity.kind === 'stone' ? 'fenceStone' : entity.kind;
+    return recoveryInteraction(this, actor, kind, '拆');
+  }
+
 }

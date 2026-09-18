@@ -22,6 +22,14 @@
 
 ## 设计方案
 
+### 设施公共接口
+- 全部设施定义集中在 `systems/FacilityRegistration.ts`，由 `Game` 注入世界系统和树木、资源丛放置回调。背包与手持选择都读取注册表生成的 `HudSnapshot.placeables`；木板路、碎石小路和其他设施共用同一入口，不另建可使用名单。
+- `FacilityDef.recovery` 是必填的回收提示来源，注册时自动去重收集；多种物品可复用同一系统。由资源采集负责的树木、资源丛明确传 `null`，作物回收交给土壤系统。野生兔子洞没有背包入口，只注册交互来源。
+- `FacilityInteractionSource` 由拥有回收状态的系统实现，统一提供真实目标名称和进度。HUD 不再逐种判断设施，也不手写设施名称。火把、门、分级床/工作台、净化器和道路均从实际目标构建提示。
+- 火把与神龛共用设施基类和可回收设施生命周期，照明和祝福分别实现；床、收纳、加工、围栏、道路、土壤保留各自特有结算。详见 [设施公共架构](facilities.md)。
+- 火堆只有燃尽后可以挖回；持铲时熄灭火堆让出工具按钮，燃烧中的火堆继续显示面板入口。
+
+
 ### 物品格名称显示
 
 长按工具按钮的选择面板保持 60×60px 物品格，名称复用 SlotItemName：短名称静止，长名称缓慢往返、两端停留。名称区域不拦截指针，滑动松手选择、数量角标和当前手持高亮保持不变。
@@ -30,7 +38,7 @@
 
 - **选择面板触屏事件**:长按展开后，开菜单的触点相对最初按下位置移动超过 12px 才进入滑选，轻微抖动或原地松手保留菜单；滑到物品或表情上显示高亮与候选名称，松手命中时提交一次选择，空白处松手保持展开。只追踪开菜单的 pointerId，通过屏幕坐标命中检测绕过按钮 pointer capture；贴近面板上下 30px 边缘时按帧自动滚动。松手、取消、捕获丢失、失焦、隐藏及卸载停止跟踪。后续点选和关闭由 `usePickerTap.ts` 配对新的 pointerdown/pointerup：按钮内部图标不参与命中，捕获到稳定节点，移动超过 12px 或原生滚动取消触点时不选择；按下与松手都在同一选项或遮罩空白才执行。指针合成 click 不再执行选项或关闭，零点击计数的键盘/辅助技术激活仍可用。松手后的尾随 click 保护跨菜单卸载保留一次，下一次按下或 800ms 超时解除，避免穿透。关闭菜单清空开菜单触点，避免键盘重开复用旧手势。列表保留原生纵向滚动，动画遵循 prefers-reduced-motion。滑选逻辑在 `usePickerDrag.ts`，视觉样式在 `PlacePicker.css`。
 
-- **设施注册表** `src/game/systems/Facilities.ts` + `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → FacilityDef` 注册表,`FacilityDef = { tool, valid?, target?, buildPreview, handModel?, onPreview?, place(actor, at), holdTime?, failText? }`。所有可放置道具(建筑/神龛/丛/围栏木/石/围栏门)注册一份定义即获得全套行为:工具循环与长按选择面板入口、手持模型、绿/红落点预览、站定自动放置与背包「使用」就近放置。
+- **设施注册表** `src/game/systems/Facilities.ts` + `src/game/systems/AutoPlace.ts`:`AutoPlaceSystem` 持有 `ResourceKind → FacilityDef` 注册表,`FacilityDef = { recovery, tool, valid?, target?, buildPreview, handModel?, onPreview?, place(actor, at), holdTime?, failText? }`。所有可放置道具(建筑/神龛/丛/围栏木/石/围栏门)注册一份定义即获得全套行为:工具循环与长按选择面板入口、手持模型、绿/红落点预览、站定自动放置与背包「使用」就近放置。
 - **统一结算**:`Game.settleFacility(kind, actor, cell?)` 为唯一权威结算(失败提示、铲子收起等外围处理集中于此);`Game.pickPlaceItem(kind)` 是背包「使用」和手持选择面板的入口。`AutoPlaceSystem` 构造时注入该 settle 回调,站定自动放置走满后带已选格回调。
 - **落点**:`snapAheadCell(actor)` 取面前 0.9 处吸附格中心;默认在面前 3x3 格内取最近可放格;围栏/门提供自定义 `target`(接线优先打分),预览的横杆显隐与门朝向经 `onPreview` 委托 `FenceSystem`。
 - **注册**:`Game.registerFacilities()` 集中注册全部设施;预览模型经 `buildGhost` 复用实体构造器或 Props 建模函数构建,统一接管材质。

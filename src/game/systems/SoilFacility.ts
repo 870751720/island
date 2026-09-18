@@ -9,6 +9,7 @@ import { hoePlaceTime } from './ToolTiers';
 export function soilFacility(system: SoilSystem, terrain: IslandTerrain): FacilityDef {
   const models = new WeakMap<THREE.Object3D, { soil: Soil; stamp: string }>();
   return {
+    recovery: system,
     tool: 'hoe', free: true, name: '土壤', placingLabel: '锄地开垦…',
     valid: (actor, x, z) => system.canPlaceAt(actor, x, z),
     buildPreview: () => {

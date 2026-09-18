@@ -1,3 +1,4 @@
+import type { FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
@@ -36,6 +37,8 @@ export type FacilityKind = ResourceKind | 'soil';
  * 默认落点为面前 3x3 格内最近的可放格;需要特殊打分(围栏优先接线)时提供 target 覆盖。
  */
 export interface FacilityDef {
+  /** 回收提示随设施一起注册；资源采集等外部系统负责时明确传 null。 */
+  recovery: FacilityInteractionSource | null;
   tool: FacilityTool;
   /** 位置校验(吸附格中心,返回 null=可放/否则为原因),默认落点搜索用 */
   valid?: (actor: PlayerSession, x: number, z: number) => string | null;

@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -36,7 +37,7 @@ type DigState = { hold: ActionHold; swingTimer: number; hits: number; digTarget:
  * - 玩家靠近净化器站定后自动喝水(恢复口渴,由各端 WaterSystem 复用喝水动作);
  * - 手持铲子靠近站定自动挖走(变回净化器道具)。
  */
-export class WaterPurifierSystem {
+export class WaterPurifierSystem implements FacilityInteractionSource {
   private purifiers: WaterPurifier[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<WaterPurifier>('waterPurifier');
@@ -229,4 +230,8 @@ export class WaterPurifierSystem {
       this.purifiers.push(purifier);
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'waterPurifier');
+  }
+
 }

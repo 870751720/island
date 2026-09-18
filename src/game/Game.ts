@@ -1,3 +1,4 @@
+import { registerFacilities } from './systems/FacilityRegistration';
 import { HusbandryIndicators } from './ui3d/HusbandryIndicators';
 import type { LassoResult } from './entities/LassoRules';
 import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
@@ -37,40 +38,25 @@ import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
 import { CrateSystem } from './systems/CrateSystem';
-import { Crate } from './entities/Crate';
 import { BaitBarrelSystem, type BaitBarrelInfo } from './systems/BaitBarrelSystem';
 import { wineOf, TIPSY_DURATION } from './systems/Wine';
 import { BrewBarrelSystem, type BrewBarrelInfo } from './systems/BrewBarrelSystem';
 import { DoghouseSystem } from './systems/DoghouseSystem';
-import { Doghouse } from './entities/Doghouse';
 import { WaterPurifierSystem } from './systems/WaterPurifierSystem';
 import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { CookingStationSystem, type CookingStationInfo } from './systems/CookingStationSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
-import { FenceSystem, makeFenceHandModel, makeFenceGateHandModel, makeFenceGhost, makeGateGhost } from './systems/FenceSystem';
+import { FenceSystem } from './systems/FenceSystem';
 import { BedSystem } from './systems/BedSystem';
-import { Bed } from './entities/Bed';
-import { Workbench } from './entities/Workbench';
-import { BaitBarrel } from './entities/BaitBarrel';
-import { BrewBarrel } from './entities/BrewBarrel';
-import { WaterPurifier } from './entities/WaterPurifier';
-import { Smelter } from './entities/Smelter';
-import { Loom } from './entities/Loom';
-import { CookingStation } from './entities/CookingStation';
-import { Campfire } from './entities/Campfire';
-import { AutoPlaceSystem, buildGhost, miniHeldModel, snapAheadCell } from './systems/AutoPlace';
-import { dryCellReason, type FacilityDef, type FacilityKind } from './systems/Facilities';
+import { AutoPlaceSystem, miniHeldModel } from './systems/AutoPlace';
+import { dryCellReason, type FacilityKind } from './systems/Facilities';
 import { PlaceOccupancy } from './systems/PlaceOccupancy';
 import { LightPool } from './world/LightPool';
-import { ShrineSystem } from './systems/ShrineSystem';
-import { Shrine } from './entities/Shrine';
+import { AmbientFacilitySystem } from './systems/AmbientFacilitySystem';
 import { RoadSystem } from './systems/RoadSystem';
-import { roadFacility } from './systems/RoadFacility';
 import { SoilSystem } from './systems/SoilSystem';
-import { soilFacility } from './systems/SoilFacility';
 import { CropSystem } from './systems/CropSystem';
-import { CROP_SPECS, makeCropSproutPreview } from './entities/Crop';
 import { MeteorSystem } from './systems/MeteorSystem';
 import { CampfireSystem, type CampfireInfo } from './systems/CampfireSystem';
 import { EatingSystem } from './systems/EatingSystem';
@@ -114,9 +100,9 @@ import { createIslandWorld } from './world/StarterPond';
 import { Ocean } from './world/Ocean';
 import { OceanDepth } from './world/OceanDepth';
 import { Clouds } from './world/Clouds';
-import { Props, makeTreeSproutPreview, makeBerryBush, makeGrassTuft, makeShrub, makeWormNest } from './world/Props';
+import { Props } from './world/Props';
 import { resetSeasonVisuals, updateSeasonVisuals } from './world/SeasonVisuals';
-import { SEED_OF, TREE_SPECIES, type TreeSpecies } from './world/TreeSpecies';
+import { SEED_OF, type TreeSpecies } from './world/TreeSpecies';
 import { openBottle } from './systems/BottleMessages';
 import { FirstDeathBlessing, POSEIDON_GRACE_DAYS, POSEIDON_GRACE_CHANCE, POSEIDON_GIFT_KINDS, openLetter } from './systems/PoseidonGrace';
 import { MetaDaily } from './meta/MetaDaily';
@@ -283,7 +269,7 @@ export class Game {
   private autoPlace: AutoPlaceSystem;
   private stakes: StakeSystem;
   private beds: BedSystem;
-  private shrines: ShrineSystem;
+  private ambientFacilities: AmbientFacilitySystem;
   private soils: SoilSystem;
   private gravelPaths: RoadSystem;
   private plankPaths: RoadSystem;
@@ -872,21 +858,12 @@ export class Game {
       (actor) => this.asleepFor(actor),
       (text, actor) => this.notify(text, actor)
     );
-    this.shrines = new ShrineSystem(
-      this.scene,
-      this.terrain,
-      this.props,
-      this.fx,
-      this.audio,
-      // 挖走神像时道具入包,背包放不下的部分掉在玩家身旁
-      (kind, count, actor) => this.giveItem(kind, count, actor),
-      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
-      this.placeOccupancy,
-      // 其他占用双手的行为进行中时挖掘让位
-      (actor) => this.isSessionBusy(actor, 'shrines'),
-      // 火把火光的光源池
-      this.flameLights
-    );
+    this.ambientFacilities = new AmbientFacilitySystem({
+      scene: this.scene, terrain: this.terrain, props: this.props, fx: this.fx, audio: this.audio,
+      give: (kind, count, actor) => this.giveItem(kind, count, actor),
+      occupancy: this.placeOccupancy,
+      isOtherBusy: (actor) => this.isSessionBusy(actor, 'shrines'),
+    }, this.flameLights);
     this.gravelPaths = new RoadSystem(
       'gravelPath', this.scene, this.terrain, this.props, this.placeOccupancy, this.fx, this.audio,
       (actor) => { this.giveItem('gravelPath', 1, actor); },
@@ -931,7 +908,7 @@ export class Game {
       () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.shrines, this.soils, this.gravelPaths, this.plankPaths]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.ambientFacilities, this.soils, this.gravelPaths, this.plankPaths]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -942,7 +919,30 @@ export class Game {
       (actor) => this.isSessionBusy(actor, 'autoPlace'),
       (kind, actor, cell) => this.settleFacility(kind, actor, cell)
     );
-    this.registerFacilities();
+    registerFacilities({
+      autoPlace: this.autoPlace, terrain: this.terrain,
+      baitBarrels: this.baitBarrels,
+      beds: this.beds,
+      brewBarrels: this.brewBarrels,
+      burrows: this.burrows,
+      campfire: this.campfire,
+      cookingStations: this.cookingStations,
+      crates: this.crates,
+      crops: this.crops,
+      doghouses: this.doghouses,
+      fences: this.fences,
+      gravelPaths: this.gravelPaths,
+      looms: this.looms,
+      plankPaths: this.plankPaths,
+      shrines: this.ambientFacilities,
+      smelters: this.smelters,
+      soils: this.soils,
+      waterPurifiers: this.waterPurifiers,
+      workbench: this.workbench,
+      bushCellOk: (actor, x, z) => this.bushCellOk(actor, x, z),
+      placeTree: (species, at, actor) => this.placeTree(species, at, actor),
+      placeBush: (kind, at, actor) => this.placeBush(kind, at, actor),
+    });
     this.drops = new DropSystem(this.scene, this.terrain, this.fx, this.audio, !this.guestMode);
     this.wildlife.setFoodSources(this.drops, this.crates, this.props);
     this.playerCommands = new PlayerCommandController(
@@ -983,7 +983,7 @@ export class Game {
       looms: this.looms,
       fences: this.fences,
       beds: this.beds,
-      shrines: this.shrines,
+      shrines: this.ambientFacilities,
       soils: this.soils,
       gravelPaths: this.gravelPaths,
       plankPaths: this.plankPaths,
@@ -999,22 +999,11 @@ export class Game {
       this.guestNet
     );
     this.interactionIndicatorBuilder = new InteractionIndicatorBuilder({
-      doghouses: this.doghouses,
+      recovery: this.autoPlace.interactions,
       workbench: this.workbench,
-      crates: this.crates,
-      baitBarrels: this.baitBarrels,
-      brewBarrels: this.brewBarrels,
-      burrows: this.burrows,
-      smelters: this.smelters,
       cookingStations: this.cookingStations,
-      looms: this.looms,
       autoPlace: this.autoPlace,
-      fences: this.fences,
       beds: this.beds,
-      shrines: this.shrines,
-      soils: this.soils,
-      gravelPaths: this.gravelPaths,
-      plankPaths: this.plankPaths,
       crops: this.crops,
       campfire: this.campfire,
     });
@@ -1035,7 +1024,7 @@ export class Game {
       looms: this.looms,
       fences: this.fences,
       beds: this.beds,
-      shrines: this.shrines,
+      shrines: this.ambientFacilities,
       soils: {
         getDigTarget: actor => this.soils.isDiggingCrop(actor) ? null : this.soils.getDigTarget(actor),
         findDigVisual: (x, z) => this.soils.findDigVisual(x, z),
@@ -1065,7 +1054,7 @@ export class Game {
         beds: this.beds,
         workbench: this.workbench,
         campfire: this.campfire,
-        shrines: this.shrines,
+        shrines: this.ambientFacilities,
         drops: this.drops,
         dayNight: this.dayNight,
         weather: this.weather,
@@ -1180,7 +1169,7 @@ export class Game {
           // 交互音效只给发起者本人听:远程会话的模拟音效本地静音,只广播给对应客人补播
           this.audio.silent = s !== this.local;
           // 雨神祭坛光环内口渴值冻结(口渴速率归零,饥饿不受影响)
-          const rainAltar = this.shrines.inAura('rainAltar', s.player.group.position);
+          const rainAltar = this.ambientFacilities.blessings.inAura('rainAltar', s.player.group.position);
           s.survival.drainMultiplier = (resting ? 0 : 1) * (this.dayNight.day <= 15 ? 0.6 : 1) * (this.dayNight.isNight ? 1.5 : 1) * this.weather.hungerDrainMultiplier;
           s.survival.thirstDrainMultiplier =
             this.weather.thirstDrainMultiplier * s.equipment.thirstMultiplier() * (rainAltar ? 0 : 1);
@@ -1196,7 +1185,7 @@ export class Game {
           // 治愈水晶光环内每 10 秒回复 1 血(与生存结算同源,数值随玩家快照回流客人)
           if (
             !s.survival.state.dead &&
-            this.shrines.inAura('healCrystal', s.player.group.position)
+            this.ambientFacilities.blessings.inAura('healCrystal', s.player.group.position)
           ) {
             s.healTick += simDelta;
             if (s.healTick >= 10) {
@@ -1272,7 +1261,7 @@ export class Game {
           this.autoPlace.updateActor(s, simDelta);
           this.refreshHandModels();
           this.beds.updateActor(s, simDelta);
-          this.shrines.updateActor(s, simDelta);
+          this.ambientFacilities.updateActor(s, simDelta);
           this.soils.updateActor(s, simDelta);
           this.gravelPaths.updateActor(s, simDelta);
           this.plankPaths.updateActor(s, simDelta);
@@ -1301,7 +1290,7 @@ export class Game {
         }
         this.fences.update(simDelta, [...this.sessions.map((s) => s.player.group.position), this.dog.position]);
         this.campfire.update(simDelta, elapsed, this.weather.rainIntensity);
-        this.shrines.update(simDelta, elapsed);
+        this.ambientFacilities.update(simDelta, elapsed);
         this.crops.update(simDelta, elapsed, this.weather.rainIntensity);
         this.baitBarrels.update(simDelta, elapsed, !this.guestMode);
         this.brewBarrels.update(simDelta, elapsed, !this.guestMode);
@@ -3004,137 +2993,6 @@ export class Game {
     return dryCellReason(actor, x, z, this.terrain, this.placeOccupancy, this.props);
   }
 
-  /** 注册全部设施:每种可放置道具一份 FacilityDef——位置校验沿用各系统规则,预览复用实体/资源点建模,放置直达对应系统 */
-  private registerFacilities(): void {
-    const def = (kind: FacilityKind, facility: FacilityDef): void => {
-      this.autoPlace.register(kind, facility);
-    };
-    const ghost = (build: (scene: THREE.Scene) => THREE.Object3D): (() => THREE.Object3D) =>
-      () => buildGhost(build);
-    // 木箱/铁箱
-    def('crate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'crate').group), place: (a, at) => this.crates.use(a, 'crate', at) });
-    def('feedBarrel', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'feedBarrel').group), place: (a, at) => this.crates.use(a, 'feedBarrel', at) });
-    def('ironCrate', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'ironCrate').group), place: (a, at) => this.crates.use(a, 'ironCrate', at) });
-    def('fishKeep', { tool: 'place', valid: (a, x, z) => this.crates.canPlaceAt(a, x, z, 'fishKeep'), buildPreview: ghost((sc) => new Crate(sc, new THREE.Vector3(), 'fishKeep').group), place: (a, at) => this.crates.use(a, 'fishKeep', at) });
-    // 饵料桶/酿酒桶/净水器/冶炼炉/纺织机/烹饪台
-    def('baitBarrel', { tool: 'place', valid: (a, x, z) => this.baitBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BaitBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.baitBarrels.use(a, at) });
-    def('brewBarrel', { tool: 'place', valid: (a, x, z) => this.brewBarrels.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new BrewBarrel(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.brewBarrels.use(a, at) });
-    def('doghouse', {
-      tool: 'place',
-      valid: (a, x, z) => this.doghouses.canPlaceAt(a, x, z),
-      buildPreview: ghost((sc) => new Doghouse(sc, new THREE.Vector3()).group),
-      place: (a, at) => this.doghouses.use(a, at),
-    });
-    def('waterPurifier', {
-      tool: 'place',
-      valid: (a, x, z) => this.waterPurifiers.canPlaceAt(a, x, z),
-      buildPreview: ghost((sc) => new WaterPurifier(sc, new THREE.Vector3(), 0).group),
-      place: (a, at) => this.waterPurifiers.use(a, at),
-      failText: () => '净化器只能放在海边湿沙滩上,去浅滩试试',
-    });
-    def('smelter', { tool: 'place', valid: (a, x, z) => this.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.smelters.use(a, at) });
-    def('loom', { tool: 'place', valid: (a, x, z) => this.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.looms.use(a, at) });
-    def('gravelPath', roadFacility(this.gravelPaths, this.terrain));
-    def('plankPath', roadFacility(this.plankPaths, this.terrain));
-    def('cookingStation', { tool: 'place', valid: (a, x, z) => this.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => this.cookingStations.use(a, at) });
-    // 火堆(放下即引燃)/熄灭的火堆
-    def('campfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 60).group), place: (a, at) => this.campfire.place(a, 'campfire', at) });
-    def('deadCampfire', { tool: 'place', valid: (a, x, z) => this.campfire.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Campfire(sc, new THREE.Vector3(), 0).group), place: (a, at) => this.campfire.place(a, 'deadCampfire', at) });
-    // 神龛类(含火把,同一放置入口)
-    for (const kind of ['poseidonBlessing', 'beehiveShrine', 'healCrystal', 'rainAltar', 'crocIncense', 'torch'] as const) {
-      def(kind, {
-        tool: 'place',
-        valid: (a, x, z) => this.shrines.canPlaceAt(a, x, z),
-        buildPreview: ghost((sc) => new Shrine(sc, new THREE.Vector3(), kind).group),
-        place: (a, at) => this.shrines.place(a, kind, at),
-      });
-    }
-    // 床/工作台(各等级道具共用对应等级模型)
-    const bedLevels: Partial<Record<ResourceKind, number>> = { bed1: 1, bed2: 2, bed3: 3 };
-    for (const [kind, level] of Object.entries(bedLevels) as [ResourceKind, number][]) {
-      def(kind, {
-        tool: 'place',
-        valid: (a, x, z) => this.beds.canPlaceAt(a, x, z),
-        buildPreview: ghost((sc) => new Bed(sc, new THREE.Vector3(), level).group),
-        place: (a, at) => this.beds.place(a, level, at),
-      });
-    }
-    const benchLevels: Partial<Record<ResourceKind, number>> = { workbench1: 1, workbench2: 2, workbench3: 3, workbench4: 4 };
-    for (const [kind, level] of Object.entries(benchLevels) as [ResourceKind, number][]) {
-      def(kind, {
-        tool: 'place',
-        valid: (a, x, z) => this.workbench.canPlaceAt(a, x, z),
-        buildPreview: ghost((sc) => new Workbench(sc, new THREE.Vector3(), level).group),
-        place: (a, at) => this.workbench.placeItem(a, level, at),
-      });
-    }
-    // 挖来的丛/蚯蚓窝
-    def('berryBush', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeBerryBush().group, place: (a, at) => this.placeBush('berryBush', at, a) });
-    def('shrubBush', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeShrub(), place: (a, at) => this.placeBush('shrubBush', at, a) });
-    def('grassTuft', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeGrassTuft(), place: (a, at) => this.placeBush('grassTuft', at, a) });
-    def('wormNest', { tool: 'place', valid: (a, x, z) => this.bushCellOk(a, x, z), buildPreview: () => makeWormNest().group, place: (a, at) => this.placeBush('wormNest', at, a) });
-    // 土壤:手持锄头即触发的零消耗设施,站定自动开出一格土壤(高等级锄头更快),铲子可挖掉还原
-    def('soil', soilFacility(this.soils, this.terrain));
-    // 树木种子共用设施网格与干地占位规则,预览为真实发芽模型。
-    for (const species of TREE_SPECIES) {
-      const kind = SEED_OF[species];
-      def(kind, {
-        tool: 'place',
-        valid: (a, x, z) => this.bushCellOk(a, x, z),
-        buildPreview: makeTreeSproutPreview,
-        place: (a, at) => this.placeTree(species, at, a),
-        placingLabel: `播种:${ITEMS[kind].name}…`,
-      });
-    }
-    // 作物种子:只能种在没有作物的土壤格上,预览为幼苗造型,站定 2 秒播下
-    for (const spec of Object.values(CROP_SPECS)) {
-      def(spec.seed, {
-        tool: 'place',
-        valid: (a, x, z) => this.crops.canPlantAt(a, x, z),
-        buildPreview: () => makeCropSproutPreview(spec.kind),
-        place: (a, at) => this.crops.plant(a, spec.seed, at),
-        placingLabel: `播种:${spec.name}…`,
-        failText: () => '种子只能种在空的土壤上,先用锄头开垦',
-      });
-    }
-    // 围栏木/石:落点优先接上现有围栏线,预览横杆按邻居显隐
-    for (const [kind, fenceKind] of [['fenceWood', 'branch'], ['fenceStone', 'stone']] as const) {
-      def(kind, {
-        tool: 'fence',
-        target: (a) => {
-          const t = this.fences.vertexTarget(a);
-          return t ? { x: t.gx, z: t.gz, reason: null } : { ...snapAheadCell(a), reason: '附近没有能立围栏柱的格点,挪个位置再试' };
-        },
-        buildPreview: () => makeFenceGhost(fenceKind),
-        handModel: () => makeFenceHandModel(fenceKind),
-        onPreview: (preview, _a, x, z) => {
-          // 实物围栏不旋转,预览固定朝向,横杆显隐方向才与实际连接一致
-          preview.rotation.y = 0;
-          this.fences.applyGhost(preview, x, z);
-        },
-        onPreviewHide: () => this.fences.clearPreviewLinks(),
-        place: (a) => this.fences.useFence(a, fenceKind),
-        failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
-      });
-    }
-    // 围栏门:占一条两格边,落点优先嵌进围栏线缺口,站定自动放置耗时更长
-    for (const kind of ['fenceGate', 'stoneGate'] as const) def(kind, {
-      tool: 'fenceGate',
-      holdTime: 5,
-      target: (a) => {
-        const t = this.fences.gateTarget(a);
-        if (!t) return { ...snapAheadCell(a), reason: '附近没有能放门的位置,挪个位置再试' };
-        return { x: t.gx + (t.dir === 'x' ? 1 : 0), z: t.gz + (t.dir === 'z' ? 1 : 0), reason: null };
-      },
-      buildPreview: () => makeGateGhost(kind),
-      handModel: () => makeFenceGateHandModel(kind),
-      onPreview: (preview, a) => this.fences.applyGateGhost(preview, a),
-      onPreviewHide: () => this.fences.clearPreviewLinks(),
-      place: (a) => this.fences.useGate(a, kind),
-      failText: () => '这里放不下,找块没东西的干地正对着要围的方向试试',
-    });
-  }
-
   /** 拔开漂流瓶:消耗瓶子并返回瓶中信内容,没有瓶子返回 null */
   useBottle(actor: PlayerSession = this.local): string | null {
     if (this.guestNet) {
@@ -3437,7 +3295,7 @@ export class Game {
     this.fences.detach(session);
     this.autoPlace.detach(session);
     this.beds.detach(session);
-    this.shrines.detach(session);
+    this.ambientFacilities.detach(session);
     this.soils.detach(session);
     this.gravelPaths.detach(session);
     this.plankPaths.detach(session);
@@ -3483,7 +3341,7 @@ export class Game {
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
     if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
-    if (exclude !== 'shrines' && this.shrines.isDigging(s)) return true;
+    if (exclude !== 'shrines' && this.ambientFacilities.isDigging(s)) return true;
     if (exclude !== 'plankPaths' && this.plankPaths.isDigging(s)) return true;
     if (exclude !== 'gravelPaths' && this.gravelPaths.isDigging(s)) return true;
     if (exclude !== 'soils' && this.soils.isDigging(s)) return true;
@@ -3541,7 +3399,7 @@ export class Game {
         this.pickupPresentation.markOrigin(position, s);
       },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
-      () => this.shrines.berryBlessed,
+      () => this.ambientFacilities.blessings.berryBlessed,
       // 刮风天(风之加护)碎石堆/草丛/浆果丛有概率多掉 1 份主产出
       () => this.weather.windy,
       // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现
@@ -3604,7 +3462,7 @@ export class Game {
       // 记录鱼获的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => this.pickupPresentation.markOrigin(position, s),
       // 波塞冬神像放置期间杂物概率降低
-      () => this.shrines.junkCut,
+      () => this.ambientFacilities.blessings.junkCut,
       // 珍宝保底:共享的已抽珍宝集合
       () => this.drawnTreasures,
       // 四档保底:共享的有饵连续未出珍宝计数
@@ -3725,7 +3583,7 @@ export class Game {
   /** 某玩家喝完一轮水:0.5% 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */
   private onDrinkRound(session: PlayerSession): void {
     if (this.guestMode) return;
-    if (this.shrines.inAura('crocIncense', session.player.group.position)) return;
+    if (this.ambientFacilities.blessings.inAura('crocIncense', session.player.group.position)) return;
     if (Math.random() >= 0.005) return;
     this.spawnCrocodileNear(session);
   }

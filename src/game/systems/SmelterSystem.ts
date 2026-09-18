@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -60,7 +61,7 @@ export type SmelterInfo = {
  * - 手持铲子靠近站定自动整炉挖走(变回冶炼炉道具,炉内矿石与铁锭一并回到背包/掉落)。
  * 冶炼计时只在权威端(单机/房主)推进,客人端由世界增量回流并本地倒数做表现。
  */
-export class SmelterSystem {
+export class SmelterSystem implements FacilityInteractionSource {
   private smelters: Smelter[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<Smelter>('smelter');
@@ -382,4 +383,8 @@ export class SmelterSystem {
       this.emitState(smelter);
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, 'smelter');
+  }
+
 }

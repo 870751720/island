@@ -19,6 +19,7 @@ export function roadFacility(system: RoadSystem, terrain: IslandTerrain): Facili
     return path.group;
   };
   return {
+    recovery: system,
     tool: 'place',
     valid: (actor, x, z) => system.canPlaceAt(actor, x, z),
     buildPreview: build,

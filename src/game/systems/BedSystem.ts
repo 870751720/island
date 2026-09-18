@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -49,7 +50,7 @@ type PlayerSessionState = {
  * - 手持铲子靠近床站定可整张挖走,变成对应等级的床道具;
  * - 靠近床点工具按钮发起睡觉,过渡片刻后一觉跳到第二天清晨(结算由回调交给外层)。
  */
-export class BedSystem {
+export class BedSystem implements FacilityInteractionSource {
   private beds: Bed[] = [];
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState>();
@@ -302,4 +303,9 @@ export class BedSystem {
       this.beds.push(bed);
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    const target = this.states.get(actor)?.digTarget;
+    return recoveryInteraction(this, actor, target ? BED_ITEM[target.level] : null);
+  }
+
 }

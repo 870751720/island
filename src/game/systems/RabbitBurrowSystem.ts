@@ -1,3 +1,4 @@
+import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
 import { RabbitBurrow } from '../entities/RabbitBurrow';
@@ -45,7 +46,7 @@ type BurrowRecord = {
  * - 手持铲子靠近完好洞站定自动挖掘,挖开后藏在内的兔子被塌方压死,
  *   洞变废弃不再提供庇护,过 1~2 个昼夜在附近重新塌出一个新洞。
  */
-export class RabbitBurrowSystem {
+export class RabbitBurrowSystem implements FacilityInteractionSource {
   private records: BurrowRecord[] = [];
   private scratch = new THREE.Vector3();
   private ids = new WorldEntityIds<RabbitBurrow>('rabbitBurrow');
@@ -300,4 +301,8 @@ export class RabbitBurrowSystem {
       this.records.push({ burrow, home: { x: value.x, z: value.z }, respawnLeft: 0 });
     }
   }
+  recoveryInteraction(actor: PlayerSession) {
+    return recoveryInteraction(this, actor, { name: '兔子洞' });
+  }
+
 }
