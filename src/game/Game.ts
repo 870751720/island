@@ -593,9 +593,8 @@ export class Game {
       // 挡玩家的物件也挡动物:围栏圈得住,成树/树桩/大石绕着走
       (x, z) => this.isGroundBlocked(x, z),
       Math.random,
-      // 营地判定:篝火 6 米内不刷新动物,新个体不在玩家的营地出现
-      // (Wildlife 先于 CampfireSystem 构造,初始生成时篝火尚未建立)
-      (x, z) => this.campfire?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 6) ?? false,
+      // 所有工作台周围 45 米禁止生成动物；开局时工作台尚未建立。
+      (x, z) => this.workbench?.positions.some((c) => Math.hypot(c.x - x, c.z - z) < 45) ?? false,
       // 局外养成「捕猎·猎手」剥取:击杀战利品在掉落前按等级加成改写
       (species, loot) => this.applyHuntLootMeta(species, loot)
     );

@@ -430,6 +430,7 @@ export class Wildlife implements Updatable {
   onPlayerThreat?: (player: Player) => void;
   private creatureFx = new CreatureFx();
   private lifecycle = new WildlifeLifecycle<Animal>();
+  private habitatCells: { x: number; z: number }[] = [];
   private population = new HabitatPopulation<AnimalSpecies>();
   private safeSpawn: THREE.Vector3;
   /** 兔子洞(受惊寻路回家的目标);由 RabbitBurrowSystem 在构造后注入 */
@@ -481,7 +482,7 @@ export class Wildlife implements Updatable {
     private lootMeta: (species: AnimalSpecies, loot: AnimalLoot) => AnimalLoot = (_species, loot) => loot
   ) {
     this.safeSpawn = terrain.findSpawnPoint();
-    const cells = landCells(terrain, 8);
+    const cells = this.habitatCells = landCells(terrain, 8);
     const hostileHomes: { x: number; z: number }[] = [];
     for (const species of Object.keys(SPECIES) as AnimalSpecies[]) {
       const config = SPECIES[species];
@@ -616,6 +617,31 @@ export class Wildlife implements Updatable {
     return best;
   }
 
+  /** Move vacant slots only; existing animals keep their home and position. */
+  private relocateHabitat(slot: HabitatSlot<AnimalSpecies>): boolean {
+    if (!this.lifecycle.canReplenish(this.animals, slot)) return false;
+    const config = SPECIES[slot.kind];
+    for (let attempt = 0; attempt < 120 && this.habitatCells.length; attempt++) {
+      const point = this.habitatCells[Math.floor(Math.random() * this.habitatCells.length)];
+      const t = latitude(this.terrain, point.z);
+      if (t < (config.zoneFrom ?? 0) || t > config.zoneTo || !this.isGrass(point.x, point.z) || this.nearCamp(point.x, point.z)) continue;
+      if (Math.hypot(point.x - slot.home.x, point.z - slot.home.z) < 35) continue;
+      if (this.players().some(p => Math.hypot(point.x - p.group.position.x, point.z - p.group.position.z) < 45)) continue;
+      if (config.damage > 0 && (Math.hypot(point.x - this.safeSpawn.x, point.z - this.safeSpawn.z) <= 85
+        || Math.abs(point.x - Math.sin(point.z / 55) * 9) <= 16)) continue;
+      if (this.population.slots.some(other => other !== slot &&
+        ((other.kind === slot.kind && Math.hypot(point.x - other.home.x, point.z - other.home.z) < 35)
+          || (config.damage > 0 && SPECIES[other.kind].damage > 0 && Math.hypot(point.x - other.home.x, point.z - other.home.z) < 45)))) continue;
+      const oldHome = slot.home;
+      const newHome = { ...point };
+      for (const sibling of this.population.slots) {
+        if (sibling.kind === slot.kind && sibling.home === oldHome && !sibling.occupied) sibling.home = newHome;
+      }
+      return true;
+    }
+    return false;
+  }
+
   private spawnResident(slot: HabitatSlot<AnimalSpecies>, rng: () => number, initial = false): boolean {
     if (!this.lifecycle.canReplenish(this.animals, slot)) return false;
     for (let i = 0; i < 60; i++) {
@@ -681,6 +707,7 @@ export class Wildlife implements Updatable {
           hp: a.hp, bornAt: a.bornAt, readyAt: a.readyAt,
           slot: index >= 0 ? index : homeIndex,
           extra: !!a.habitat && index < 0,
+          habitatHome: a.habitat && index < 0 ? { ...a.habitat.home } : undefined,
           provoked: a.provoked,
           stake: a.leash && 'anchor' in a.leash ? { ...a.leash.anchor } : undefined,
           husbandry: { ...a.husbandry, eating: 0,
@@ -689,7 +716,7 @@ export class Wildlife implements Updatable {
           leashEscape: a.leashEscape ? { ...a.leashEscape } : undefined,
         };
       }),
-      slots: this.population.slots.flatMap((s, index) => isFamilySpecies(s.kind) ? [{ index, cooldown: s.cooldown }] : []),
+      slots: this.population.slots.flatMap((s, index) => isFamilySpecies(s.kind) ? [{ index, cooldown: s.cooldown, home: { ...s.home } }] : []),
     };
   }
 
@@ -705,9 +732,17 @@ export class Wildlife implements Updatable {
     }
     for (const a of [...this.animals]) if (isFamilySpecies(a.species)) this.removeAnimal(a);
     for (const slot of this.population.slots) if (isFamilySpecies(slot.kind)) slot.occupied = false;
+    const restoredHomes = new Map<string, { x: number; z: number }>();
     for (const entry of save.slots) {
       const slot = this.population.slots[entry.index];
-      if (slot && isFamilySpecies(slot.kind)) slot.cooldown = entry.cooldown;
+      if (slot && isFamilySpecies(slot.kind)) {
+        slot.cooldown = entry.cooldown;
+        if (entry.home && Number.isFinite(entry.home.x) && Number.isFinite(entry.home.z)) {
+          const key = `${slot.kind}:${entry.home.x}:${entry.home.z}`;
+          if (!restoredHomes.has(key)) restoredHomes.set(key, { ...entry.home });
+          slot.home = restoredHomes.get(key)!;
+        }
+      }
     }
     for (const entry of save.animals) {
       if (!isFamilySpecies(entry.species) && !(canLasso(entry.species) && (entry.stake || entry.husbandry?.tamed))) continue;
@@ -722,9 +757,16 @@ export class Wildlife implements Updatable {
         if (isLassoPredator(a.species)) a.leashEscape = { ...(entry.leashEscape ?? { elapsed: 0, attempts: 0 }) };
       }
       const home = entry.slot === undefined ? undefined : this.population.slots[entry.slot];
-      if (!a.husbandry.tamed && isFamilySpecies(entry.species) && home && home.kind === entry.species) {
-        a.habitat = entry.extra ? { ...home } : home;
-        a.habitat.occupied = true;
+      if (!a.husbandry.tamed && isFamilySpecies(entry.species)) {
+        if (entry.extra && entry.habitatHome && Number.isFinite(entry.habitatHome.x) && Number.isFinite(entry.habitatHome.z)) {
+          const key = `${entry.species}:${entry.habitatHome.x}:${entry.habitatHome.z}`;
+          if (!restoredHomes.has(key)) restoredHomes.set(key, { ...entry.habitatHome });
+          a.habitat = { kind: entry.species, home: restoredHomes.get(key)!, radius: 20,
+            occupied: true, cooldown: 0, recovery: SPECIES[entry.species].recovery };
+        } else if (home && home.kind === entry.species) {
+          a.habitat = entry.extra ? { ...home } : home;
+          a.habitat.occupied = true;
+        }
       }
       this.applyLifeScale(a);
     }
@@ -1001,7 +1043,7 @@ export class Wildlife implements Updatable {
       }
     }
     this.lifecycle.now = calendar;
-    this.population.update(delta, slot => this.spawnResident(slot, Math.random));
+    this.population.update(delta, slot => this.spawnResident(slot, Math.random), slot => this.relocateHabitat(slot));
     this.pursuit.begin(this.animals.filter(a => a.alive && !a.husbandry.tamed && !a.hidden && !a.taunt && !a.retreat
       && (a.config.damage > 0 || a.provoked)).map(a => ({ id: a.id, pos: a.pos, radius: this.pursuitRadius(a) })), delta);
     for (const animal of this.animals) {
@@ -1993,7 +2035,7 @@ export class Wildlife implements Updatable {
   }
 
   /**
-   * 天数事件的袭击者生成:在锚点玩家视线外的草地上(约 24-36 米环带)生成一只指定掠食者。
+   * 天数事件的袭击者生成:在锚点玩家周围的草地上(约 24-36 米环带)，避开工作台禁刷圈生成一只指定掠食者。
    * 传入 boundTo 时当晚强制追击该玩家(天亮解除);不传则为普通野生个体。
    */
   spawnRaider(species: AnimalSpecies, anchor: Player, boundTo?: Player): boolean {
