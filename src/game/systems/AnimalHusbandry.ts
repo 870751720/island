@@ -4,7 +4,14 @@ import type { ResourceKind } from './Inventory';
 export type TameSpecies = Exclude<FoodEater, 'dog' | 'cat'>;
 export const HEART_MAX: Record<TameSpecies, number> = { rabbit: 30, sheep: 60, bison: 100, wolf: 150, bear: 200 };
 export const PRODUCTION_SECONDS = 600;
-export const HOME_RADIUS = 15;
+export const HOME_RADIUS = 30;
+export const HEART_DURATION: Record<TameSpecies, number> = { rabbit: 1800, sheep: 1800, bison: 1800, wolf: 3600, bear: 3600 };
+export const FORAGE_THRESHOLD = 0.7;
+export const STORED_FOOD_THRESHOLD = 0.5;
+
+export function mayEatStoredFood(state: Pick<HusbandryState, 'tamed' | 'heart'>, species: TameSpecies): boolean {
+  return !state.tamed || state.heart < HEART_MAX[species] * STORED_FOOD_THRESHOLD;
+}
 /** 畜牧产出表:驯养成年动物定时产出的奶,绵羊额外长毛(持剪刀收取);结算、生物图鉴与物品来源共用 */
 export const LIVESTOCK_PRODUCE: Readonly<Partial<Record<TameSpecies, { milk: ResourceKind; wool?: ResourceKind }>>> = {
   sheep: { milk: 'milk', wool: 'wool' },
@@ -60,13 +67,13 @@ export function advanceHusbandry(state: HusbandryState, species: TameSpecies, ad
   state.cooldown = Math.max(0, state.cooldown - delta);
   state.eating = Math.max(0, state.eating - delta);
   if (!state.tamed) return false;
-  state.heart = Math.max(0, state.heart - HEART_MAX[species] * delta * decaySpeed / 1800);
+  state.heart = Math.max(0, state.heart - HEART_MAX[species] * delta * decaySpeed / HEART_DURATION[species]);
   if (state.heart <= 0) {
     const shorn = state.shorn;
     Object.assign(state, newHusbandry(), { shorn });
     return true;
   }
-  if (state.heart < HEART_MAX[species] * 0.7) state.seeking = true;
+  if (state.heart < HEART_MAX[species] * FORAGE_THRESHOLD) state.seeking = true;
   readyExistingWool(state, species, adult);
   const produce = LIVESTOCK_PRODUCE[species];
   if (adult && produce) {

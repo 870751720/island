@@ -1,7 +1,8 @@
 import { ANIMAL_LABELS, RARE_LOOT, SPECIES, type AnimalSpecies } from '@/game/entities/Wildlife';
 import { canLasso, isLassoPredator } from '@/game/entities/LassoRules';
-import { HEART_MAX, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type TameSpecies } from '@/game/systems/AnimalHusbandry';
+import { HEART_MAX, HEART_DURATION, HOME_RADIUS, FORAGE_THRESHOLD, STORED_FOOD_THRESHOLD, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type TameSpecies } from '@/game/systems/AnimalHusbandry';
 import { FOODS, type FoodEater } from '@/game/systems/Food';
+import { animalFoodHeart } from '@/game/systems/AnimalFood';
 import { CAT_FINDS, COMPANIONS } from '@/game/companions/CompanionDefinition';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { rareLootNote } from './itemSources';
@@ -54,7 +55,9 @@ const WILDLIFE_GUIDES: Record<AnimalSpecies, WildlifeGuide> = {
 };
 
 function foodsFor(eater: FoodEater): RelatedItem[] {
-  return FOODS.filter((food) => food.hunger > 0 && food.eaters.includes(eater)).map((food) => ({ kind: food.kind }));
+  return FOODS.filter((food) => food.hunger > 0 && food.eaters.includes(eater)).map((food) => ({ kind: food.kind,
+    ...(eater !== 'dog' && eater !== 'cat' ? { note: `首次驯养 +${food.hunger} / 日常 +${animalFoodHeart(food.kind, eater, true)} 爱心` } : {}),
+  }));
 }
 
 function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
@@ -70,7 +73,11 @@ function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
   return {
     id, name: ANIMAL_LABELS[id], ...WILDLIFE_GUIDES[id], stats,
     interaction: tame
-      ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，也可从食料桶取食，实际爱心达到上限即可驯养（成功前填充最多显示九成）。驯养后全队共享，需持续供食；爱心归零会恢复野生。']
+      ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，也可从食料桶取食，实际爱心达到上限即可驯养（成功前填充最多显示九成）。驯养后全队共享；爱心归零会恢复野生。',
+        `解绳后在活动中心半径 ${HOME_RADIUS} 米内活动。满心无食物可维持 ${HEART_DURATION[id as TameSpecies] / 60} 分钟；低于 ${FORAGE_THRESHOLD * 100}% 优先寻找自然食物，低于 ${STORED_FOOD_THRESHOLD * 100}% 才自动取食桶内或地上食物，每口恢复达到 ${STORED_FOOD_THRESHOLD * 100}% 后停止取用储粮。`,
+        id === 'wolf' ? `狼只吃适配鱼肉，不吃植物；日常一份烤兽肉约抵消 ${Math.round(animalFoodHeart('cookedGameMeat', id, true) / HEART_MAX[id] * HEART_DURATION[id] / 60)} 分钟消耗。`
+          : id === 'bear' ? `熊会自行吃浆果丛，也接受适配果蔬和鱼肉；日常一份烤兽肉约抵消 ${Math.round(animalFoodHeart('cookedGameMeat', id, true) / HEART_MAX[id] * HEART_DURATION[id] / 60)} 分钟消耗。`
+          : `每只${ANIMAL_LABELS[id]}配 ${id === 'rabbit' ? 1 : id === 'sheep' ? 2 : 3} 个可到达、未被采集或争食的草丛，可长期维持驯养，不必额外投粮。多只动物按数量累加。`]
       : ['不能使用', { kind: 'lasso', label: '套索' }, '或驯养。可以用武器击杀，也可以远离水洼脱战。'],
     foods: tame ? foodsFor(id as TameSpecies) : [],
     drops: [

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { animalFood, isAnimalFood, type FoodTarget } from './AnimalFood';
+import { animalFood, animalFoodHeart, isAnimalFood, type FoodTarget } from './AnimalFood';
 import type { FoodEater } from './Food';
 import { PlaceOccupancy } from './PlaceOccupancy';
 import { shovelHits } from './ToolTiers';
@@ -287,7 +287,7 @@ export class CrateSystem {
     return 'ok';
   }
 
-  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number): FoodTarget[] {
+  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number, tamed = false): FoodTarget[] {
     return this.crates.filter(crate => crate.kind === 'feedBarrel'
       && Math.hypot(crate.group.position.x - origin.x, crate.group.position.z - origin.z) <= range
       && crate.storage.snapshot().some(slot => slot && animalFood(slot.kind, eater)))
@@ -299,7 +299,7 @@ export class CrateSystem {
         crate.storage.remove(slot.kind, 1);
         crate.updateIcon();
         this.emitSlotChanges(crate, before);
-        return animalFood(slot.kind, eater)!.hunger;
+        return animalFoodHeart(slot.kind, eater, tamed);
       } }));
   }
 

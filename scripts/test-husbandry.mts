@@ -14,8 +14,11 @@ function load(file: string): any {
   return context.exports;
 }
 const husbandry = load('systems/AnimalHusbandry');
-const { newHusbandry, feedAnimal, advanceHusbandry, restoreHusbandry, HEART_MAX } = husbandry;
+const { newHusbandry, feedAnimal, advanceHusbandry, restoreHusbandry, HEART_MAX, HEART_DURATION, mayEatStoredFood } = husbandry;
 modules['../systems/AnimalHusbandry'] = husbandry;
+modules['./AnimalHusbandry'] = husbandry;
+modules['./HusbandryFood'] = load('systems/HusbandryFood');
+modules['./AnimalFoodPath'] = load('systems/AnimalFoodPath');
 modules['./Food'] = load('systems/Food');
 modules['./AnimalFood'] = load('systems/AnimalFood');
 modules['../systems/AnimalForaging'] = load('systems/AnimalForaging');
@@ -33,12 +36,13 @@ for (const species of Object.keys(HEART_MAX)) {
   advanceHusbandry(state, species, true, 5);
   assert.equal(feedAnimal(state, species, 1000), true);
   assert.equal(state.heart, HEART_MAX[species]);
-  advanceHusbandry(state, species, true, 539);
+  const seekAt = HEART_DURATION[species] * 0.3;
+  advanceHusbandry(state, species, true, seekAt - 1);
   assert.equal(state.seeking, false);
   advanceHusbandry(state, species, true, 2);
   assert.equal(state.seeking, true, '低于70%启动寻食');
-  advanceHusbandry(state, species, true, 1259);
-  assert.equal(state.tamed, false, '半小时失去驯养');
+  advanceHusbandry(state, species, true, HEART_DURATION[species] - seekAt - 1);
+  assert.equal(state.tamed, false, '各物种满心耗尽后失去驯养');
   assert.equal(state.heart, 0);
   assert.equal(state.home, null);
   assert.equal(state.milk, false);
@@ -103,7 +107,7 @@ let targets: any[] = []; w.collectAimTargets(a.pos, 3, targets); assert.equal(ta
 w.collectAimTargets(a.pos, 3, targets, true); assert.equal(targets.length, 1, '驯养动物仍可被套索瞄准');
 assert.equal(w.lassoAnimal(1, player), true); assert.equal(a.leashEscape.attempts, 5);
 w.releaseLeash(1, { x: 4, z: 5 }); assert.equal(a.husbandry.home.x, 4);
-assert.equal(w.canStand(a, 19, 5), true); assert.equal(w.canStand(a, 19.1, 5), false);
+assert.equal(w.canStand(a, 34, 5), true); assert.equal(w.canStand(a, 34.1, 5), false);
 const saved = w.snapshotFamilies().animals[0]; assert.equal(saved.husbandry.tamed, true, '未拴桩的狼也要存档');
 const home = { ...a.husbandry.home };
 w.lassoAnimal(1, player); w.releaseLeash(1); assert.equal(a.husbandry.home.x, home.x, '被动释放不刷新中心');
@@ -244,3 +248,38 @@ console.log('Husbandry: decay, feeding thresholds, cooldown, production, old sav
   assert.equal(world.takeProduce(1, player.group.position, true), null);
 }
 console.log('Immediate wool, regrowth, old saves, taming barrel and guest sync passed.');
+
+{
+  crate.storage.add('berry', 3);
+  const sheep = animal(), world = harness(sheep);
+  sheep.husbandry = restoreHusbandry({ tamed: true, heart: 29, seeking: true, home: { x: 0, z: 0 } }, 'sheep');
+  world.foodDrops = { foodTargets: () => [] }; world.foodBarrels = crates;
+  world.updateHusbandry(sheep, 0.1);
+  assert.equal(sheep.husbandry.heart, 47, '真实桶消费采用日常浆果恢复量');
+  assert.equal(crate.storage.count('berry'), 2);
+  advanceHusbandry(sheep.husbandry, 'sheep', true, 5);
+  world.updateHusbandry(sheep, 0.1);
+  assert.equal(crate.storage.count('berry'), 2, '恢复到50%以上不继续消耗储粮');
+  const guestSheep = animal(), guestWorld = harness(guestSheep);
+  guestWorld.applyLifeScale = () => {};
+  guestWorld.netApply(world.netPoses());
+  assert.ok(Math.abs(guestSheep.husbandry.heart - sheep.husbandry.heart) <= 0.005, '日常喂养后的爱心按原快照两位小数精度回流');
+  assert.equal(guestSheep.husbandry.tamed, true);
+  assert.equal(world.canStand(sheep, 30, 0), true);
+  assert.equal(world.canStand(sheep, 30.01, 0), false);
+  world.lassoAnimal(1, player); world.stakeAnimal(1, 0, 0);
+  assert.equal(world.canStand(sheep, 3.01, 0), false, '活动范围扩大不绕过桩绳');
+  assert.equal(crates.foodTargets('sheep', origin, 5)[0].consume(), 3, '首次驯养仍是3点浆果');
+  const first = crates.foodTargets('sheep', origin, 5, true)[0];
+  const competing = crates.foodTargets('bear', origin, 5, true)[0];
+  assert.equal(first.consume(), 18); assert.equal(competing.consume(), 0, '日常恢复不重复扣除共享库存');
+}
+{
+  const freshDrop = { kind: 'berry', count: 3, source: 'discarded', age: 5, mesh: new THREE.Group(), id: 'care-food' };
+  drops.drops = [freshDrop];
+  assert.equal(drops.foodTargets('sheep', origin, 5)[0].consume(), 3);
+  assert.equal(drops.foodTargets('sheep', origin, 5, true)[0].consume(), 18);
+  assert.equal(drops.foodTargets('dog', origin, 5)[0].consume(), 3, '伙伴恢复量不变');
+  assert.equal(drops.drops.length, 0);
+}
+console.log('Care barrel/drop settlement, storage threshold, guest snapshots, rope limit and competition passed.');

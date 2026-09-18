@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { animalFood, type FoodTarget } from './AnimalFood';
+import { animalFood, animalFoodHeart, type FoodTarget } from './AnimalFood';
 import type { FoodEater } from './Food';
 import { DropHighlight } from '../fx/DropHighlight';
 import type { ResourceKind } from './Inventory';
@@ -216,7 +216,7 @@ export class DropSystem {
     return false;
   }
 
-  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number): FoodTarget[] {
+  foodTargets(eater: FoodEater, origin: THREE.Vector3, range: number, tamed = false): FoodTarget[] {
     return this.drops.filter(drop => drop.source === 'discarded' && drop.age >= DOG_EAT_DELAY
       && animalFood(drop.kind, eater) && Math.hypot(drop.mesh.position.x - origin.x, drop.mesh.position.z - origin.z) <= range)
       .map(drop => ({ position: drop.mesh.position.clone(), consume: () => {
@@ -227,7 +227,7 @@ export class DropSystem {
         drop.count--;
         if (!drop.count) this.remove(index);
         else this.onChanged?.({ op: 'set', id: drop.id, fields: { count: drop.count } });
-        return food.hunger;
+        return animalFoodHeart(drop.kind, eater, tamed);
       } }));
   }
 

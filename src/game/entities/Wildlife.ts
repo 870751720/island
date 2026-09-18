@@ -1,6 +1,6 @@
 import { CrocodileDeparture, CROC_CALM_TIME } from './CrocodileDeparture';
 import { GmSystem } from '../systems/GmSystem';
-import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
+import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, mayEatStoredFood, HEART_MAX, HOME_RADIUS, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
 import { AnimalForaging, clearFoodPath } from '../systems/AnimalForaging';
 import type { AnimalFoodSource } from '../systems/AnimalFood';
 import type { Props } from '../world/Props';
@@ -1336,6 +1336,7 @@ export class Wildlife implements Updatable {
     const state = animal.husbandry;
     if (!state.tamed && !this.canTame(animal)) return null;
     if (delta <= 0) return false;
+    if (state.tamed && !animal.leash) state.home ??= { x: animal.pos.x, z: animal.pos.z };
     if (state.tamed && !animal.leash && state.home
       && Math.hypot(animal.pos.x - state.home.x, animal.pos.z - state.home.z) > HOME_RADIUS) {
       animal.foraging.reset();
@@ -1345,7 +1346,7 @@ export class Wildlife implements Updatable {
     if (state.eating > 0) return false;
     if (state.cooldown <= 0 && (!state.tamed || state.seeking) && this.foodDrops) {
       const sources = this.foodBarrels ? [this.foodDrops, this.foodBarrels] : [this.foodDrops];
-      const allowed = (x: number, z: number) => this.canStand(animal, x, z)
+      const allowed = (x: number, z: number) => this.canStand(animal, x, z) && !this.isBlocked(x, z)
         && (!(animal.leash && 'holder' in animal.leash)
           || Math.hypot(x - animal.leash.holder.group.position.x, z - animal.leash.holder.group.position.z) <= STAKE_LEASH);
       const movement = animal.foraging.update(delta, animal.pos, animal.species as TameSpecies, state.tamed,
@@ -1361,7 +1362,7 @@ export class Wildlife implements Updatable {
             animal.habitat = undefined;
             animal.target.copy(animal.pos);
           }
-        });
+        }, mayEatStoredFood(state, animal.species as TameSpecies));
       if (movement !== null) return movement;
     }
     if (!state.tamed) return null;
