@@ -46,6 +46,15 @@ export const gameButtonStyle: CSSProperties = {
   WebkitTapHighlightColor: 'transparent',
 };
 
+/** 设置面板等处的整行操作按钮(图鉴、相机、多人、转模式等)统一外观 */
+export const gameRowButtonStyle: CSSProperties = {
+  padding: '12px 0',
+  fontSize: 15,
+  fontWeight: 600,
+  ...gameButtonStyle,
+  borderRadius: 10,
+};
+
 /** 暗场界面(拍照分享、死亡与复活结算)的深色主题:夜色松绿底 + 奶油文字,与浅色主题同源 */
 export const gameDarkTheme = {
   ink: '#f2ecdc',

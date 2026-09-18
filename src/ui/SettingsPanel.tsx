@@ -6,7 +6,7 @@ import { MobileDisplaySetting } from './display/MobileDisplay';
 import { pressAction } from './pressAction';
 import { swallowTrailingClick } from './wiki/wikiTaps';
 
-import { gameTheme, gameButtonStyle } from './gameTheme';
+import { gameTheme, gameButtonStyle, gameRowButtonStyle } from './gameTheme';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import styles from './SettingsPanel.module.css';
@@ -166,7 +166,7 @@ export function SettingsPanel({
         )}
         {tab === 'interface' && <>
         <MobileDisplaySetting />
-        <button style={gameButtonStyle} onClick={onAdjustHud}>调整顶部 UI 边距</button>
+        <button style={gameRowButtonStyle} onClick={onAdjustHud}>调整顶部 UI 边距</button>
         <div className={styles.section}>
           <label className={styles.guideRow}>
             <span className={styles.guideTitle}>显示任务指引</span>
@@ -184,16 +184,7 @@ export function SettingsPanel({
         </div>
         <button
           onClick={onEnterPhotoMode}
-          style={{
-            padding: '12px 0',
-            fontSize: 15,
-            fontWeight: 600,
-            color: gameTheme.ink,
-            background: gameTheme.action,
-            ...gameButtonStyle,
-            borderRadius: 10,
-            cursor: 'pointer',
-          }}
+          style={gameRowButtonStyle}
         >
           <MenuIcon name="camera" /> 相机模式
         </button>
@@ -205,16 +196,7 @@ export function SettingsPanel({
             swallowTrailingClick();
             onOpenWiki();
           })}
-          style={{
-            padding: '12px 0',
-            fontSize: 15,
-            fontWeight: 600,
-            color: gameTheme.ink,
-            background: gameTheme.action,
-            ...gameButtonStyle,
-            borderRadius: 10,
-            cursor: 'pointer',
-          }}
+          style={gameRowButtonStyle}
         >
           <MenuIcon name="book" /> 游戏图鉴
         </button>
@@ -264,16 +246,7 @@ export function SettingsPanel({
               <button
                 disabled={multiplayer.busy}
                 onClick={multiplayer.onEnable}
-                style={{
-                  padding: '12px 0',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: gameTheme.ink,
-                  background: multiplayer.busy ? gameTheme.disabled : gameTheme.action,
-                  ...gameButtonStyle,
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                }}
+                style={{ ...gameRowButtonStyle, background: multiplayer.busy ? gameTheme.disabled : gameTheme.action }}
               >
                 {multiplayer.busy ? '正在创建房间…' : '开启多人模式'}
               </button>
@@ -281,16 +254,7 @@ export function SettingsPanel({
           </>))}
         <button
           onClick={onExit}
-          style={{
-            padding: '12px 0',
-            fontSize: 15,
-            fontWeight: 600,
-            color: gameTheme.danger,
-            background: gameTheme.dangerSurface,
-            ...gameButtonStyle,
-            borderRadius: 10,
-            cursor: 'pointer',
-          }}
+          style={{ ...gameRowButtonStyle, color: gameTheme.danger, background: gameTheme.dangerSurface }}
         >
           返回主界面
         </button>

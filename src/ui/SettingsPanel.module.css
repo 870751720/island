@@ -28,9 +28,8 @@
 ul.modeHint { padding-left: 20px; }
 .modeWarning { color: #9a542c; font-size: 14px; line-height: 1.6; }
 .modeActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.modeActions button, .modeEntry { min-height: 44px; padding: 10px 12px; border: 1px solid #789b7c; border-radius: 10px; background: #dce8d6; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
-.modeActions button { flex: 1 1 110px; }
-.modeActions button:disabled, .modeEntry:disabled { opacity: .45; cursor: default; }
+.modeActions button { flex: 1 1 110px; min-height: 44px; padding: 10px 12px; border: 1px solid #789b7c; border-radius: 10px; background: #dce8d6; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.modeActions button:disabled { opacity: .45; cursor: default; }
 .adjustOverlay { position: absolute; inset: 0; z-index: 210; display: flex; align-items: flex-end; justify-content: center; }
 .adjustPanel { box-sizing: border-box; width: min(100%, 420px); padding: 14px max(16px,var(--game-safe-right)) max(12px,var(--game-safe-bottom)) max(16px,var(--game-safe-left)); border: 1px solid #fff8e9bb; border-radius: 20px 20px 0 0; background: #eef0df; color: #49665e; font-family: Arial,"PingFang SC","Microsoft YaHei",sans-serif; max-height: calc(50 * var(--game-vh)); overflow-y: auto; }
 .adjustHint { font-size: 11px; line-height: 1.5; margin: 0 0 10px; }
@@ -80,7 +79,7 @@ ul.modeHint { padding-left: 20px; }
 .range::-moz-range-progress { height: 5px; border-radius: 8px; background: #789b7c; }
 .range::-moz-range-thumb { width: 15px; height: 15px; border: 2px solid #789b7c; border-radius: 50%; background: #fffaf0; box-shadow: 0 2px 4px #314c3e20; }
 .range:focus-visible { outline: 2px solid #609e91; outline-offset: 2px; border-radius: 8px; }
-.guideRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.guideRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .guideText { display: flex; flex-direction: column; gap: 5px; }
 .guideTitle { color: #49665e; font-size: 14px; font-weight: 600; }
 .guideHint { color: #697b6b; font-size: 11px; line-height: 1.5; }

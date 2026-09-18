@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameMode } from '@/game/GameMode';
+import { gameRowButtonStyle } from './gameTheme';
 import styles from './SettingsPanel.module.css';
 
 /** 设置「游戏」页的转模式入口:仅求生存档显示,收起时只有按钮,点击后展开说明与确认;当前模式由设置底部「继续游戏」按钮展示。 */
@@ -13,7 +14,7 @@ export function GameModeSettings({ mode, dead, onConvert }: {
   const [error, setError] = useState('');
   if (mode === 'leisure') return null;
   // 收起时仅显示入口按钮,点击后才展开说明与确认。
-  if (!confirming) return <button className={styles.modeEntry} disabled={dead} onClick={() => setConfirming(true)}>转为悠然模式</button>;
+  if (!confirming) return <button style={gameRowButtonStyle} disabled={dead} onClick={() => setConfirming(true)}>转为悠然模式</button>;
   return <section className={styles.section} aria-label="确认转换模式">
     <strong className={styles.modeWarning}>转换后，本存档永久为悠然模式</strong>
     <ul className={styles.modeHint}>
