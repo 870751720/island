@@ -99,8 +99,8 @@ const ACTIONS: NetActionRegistry = {
   // 客人空手挤奶:房主权威取走羊奶入客人背包(羊奶状态随姿态快照回流)
   harvestAnimal: (g, a, [animalId, wool]) => g.harvestAnimal(a, animalId, wool),
   gmDog: (g, a, [command, value]) => { g.gmDog(command, value, a); return true; },
-  gmSpawnAnimal: (g, a, [species]) => {
-    g.gmSpawnAnimalFor(species, a);
+  gmSpawnAnimal: (g, a, [species, juvenile]) => {
+    g.gmSpawnAnimalFor(species, a, juvenile === true);
     return true;
   },
   gmSpawnLandmark: (g, a, [choice]) => { g.gmSpawnLandmark(choice, a); return true; },

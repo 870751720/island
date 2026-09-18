@@ -62,7 +62,7 @@ export interface NetActionArgs {
   lassoUntie: [];
   harvestAnimal: [animalId: number, wool: boolean];
   gmDog: [command: DogGmCommand, value: number];
-  gmSpawnAnimal: [species: AnimalSpecies];
+  gmSpawnAnimal: [species: AnimalSpecies, juvenile?: boolean];
   gmSpawnLandmark: [choice: LandmarkChoice];
   gmTriggerCrocodile: [];
   gmGiveItem: [kind: ResourceKind, count: number];
@@ -127,7 +127,7 @@ const NET_ACTION_ARG_COUNTS = {
   lassoUntie: [0],
   harvestAnimal: [2],
   gmDog: [2],
-  gmSpawnAnimal: [1],
+  gmSpawnAnimal: [1, 2],
   gmSpawnLandmark: [1],
   gmTriggerCrocodile: [0],
   gmGiveItem: [2],
@@ -233,7 +233,8 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'harvestAnimal':
       return isSafeInteger(first) && typeof second === 'boolean';
     case 'gmSpawnAnimal':
-      return isString(first) && ANIMAL_SPECIES.has(first);
+      return isString(first) && ANIMAL_SPECIES.has(first)
+        && (second === undefined || typeof second === 'boolean');
     case 'gmSpawnLandmark':
       return isLandmarkChoice(first);
     case 'gmGiveTool':

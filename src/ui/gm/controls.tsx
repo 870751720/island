@@ -64,29 +64,34 @@ export function ActionButton({
   );
 }
 
-/** 数值步进行:左标签、右 − 值 + */
+/** 数值步进行:左标签、右 − 值 +;值落在 step 的整数倍网格上,数值槽固定宽度保证各行对齐 */
 export function StepperRow({
   label,
   value,
   step = 5,
   min = 0,
+  max,
   onChange,
 }: {
   label: ReactNode;
   value: number;
   step?: number;
   min?: number;
+  max?: number;
   onChange: (v: number) => void;
 }) {
+  // 上下都吸附到最近的 step 网格点,避免从 1 以步长 5 走出 6、11 这类错位点
+  const gridDown = Math.round((Math.ceil(value / step - 1e-9) - 1) * step * 1e6) / 1e6;
+  const gridUp = Math.round((Math.floor(value / step + 1e-9) + 1) * step * 1e6) / 1e6;
   return (
     <div style={{ ...rowStyle, cursor: 'default' }}>
       <span>{label}</span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button onClick={() => onChange(Math.max(min, value - step))} style={stepButtonStyle}>
+        <button onClick={() => onChange(Math.max(min, gridDown))} style={stepButtonStyle}>
           −
         </button>
-        <span style={{ minWidth: 34, textAlign: 'center', fontWeight: 600 }}>{value}</span>
-        <button onClick={() => onChange(value + step)} style={stepButtonStyle}>
+        <span style={valueStyle}>{value}</span>
+        <button onClick={() => onChange(Math.min(max ?? Infinity, gridUp))} style={stepButtonStyle}>
           +
         </button>
       </span>
@@ -183,6 +188,14 @@ const stepButtonStyle = {
   fontSize: 18,
   fontWeight: 700,
   cursor: 'pointer',
+} as const;
+
+const valueStyle = {
+  width: 56,
+  flexShrink: 0,
+  textAlign: 'center',
+  fontWeight: 600,
+  fontVariantNumeric: 'tabular-nums',
 } as const;
 
 const optionStyle = {

@@ -2823,21 +2823,21 @@ export class Game {
     this.notify(kind ? `已在附近生成${LANDMARKS.find(d => d.kind === kind)?.name}` : '附近没有足够的干燥空地，请移到开阔处再试', actor);
   }
 
-  /** GM 在玩家附近的草地上生成一只指定动物;客人端上行房主权威结算 */
-  gmSpawnAnimal(species: AnimalSpecies): void {
+  /** GM 在玩家附近的草地上生成一只指定动物,绵羊/野牛可生成为幼崽;客人端上行房主权威结算 */
+  gmSpawnAnimal(species: AnimalSpecies, juvenile = false): void {
     if (this.guestNet) {
-      this.guestNet.action('gmSpawnAnimal', [species]);
+      this.guestNet.action('gmSpawnAnimal', [species, juvenile]);
       return;
     }
-    this.gmSpawnAnimalFor(species, this.local);
+    this.gmSpawnAnimalFor(species, this.local, juvenile);
   }
 
   /** GM 生成落点:在该玩家附近的草地上生成指定动物并提示 */
-  gmSpawnAnimalFor(species: AnimalSpecies, actor: PlayerSession = this.local): void {
+  gmSpawnAnimalFor(species: AnimalSpecies, actor: PlayerSession = this.local, juvenile = false): void {
     const p = actor.player.group.position;
     this.notify(
-      this.wildlife.gmSpawnNear(species, p.x, p.z)
-        ? `已在附近生成${ANIMAL_LABELS[species]}`
+      this.wildlife.gmSpawnNear(species, p.x, p.z, juvenile)
+        ? `已在附近生成${juvenile ? '小' : ''}${ANIMAL_LABELS[species]}`
         : '附近没有合适的草地,挪个位置再试',
       actor
     );

@@ -2016,8 +2016,8 @@ export class Wildlife implements Updatable {
     return false;
   }
 
-  /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物;鳄鱼改为在最近水洼里带出场扑咬生成 */
-  gmSpawnNear(species: AnimalSpecies, x: number, z: number): boolean {
+  /** GM 生成:在 (x,z) 附近找一块草地生成一只指定动物,绵羊/野牛可生成为幼崽;鳄鱼改为在最近水洼里带出场扑咬生成 */
+  gmSpawnNear(species: AnimalSpecies, x: number, z: number, juvenile = false): boolean {
     if (species === 'crocodile') {
       const pond = this.nearestPond(x, z);
       const target = this.nearestPlayer(x, z);
@@ -2031,7 +2031,12 @@ export class Wildlife implements Updatable {
       const px = x + Math.cos(a) * d;
       const pz = z + Math.sin(a) * d;
       if (!this.isGrass(px, pz)) continue;
-      this.createAnimal(species, new THREE.Vector3(px, this.terrain.getHeight(px, pz), pz), a + Math.PI);
+      const animal = this.createAnimal(species, new THREE.Vector3(px, this.terrain.getHeight(px, pz), pz), a + Math.PI);
+      if (juvenile && isFamilySpecies(species)) {
+        animal.bornAt = this.lifecycle.now;
+        animal.hp = animal.config.hp * 0.5;
+        this.applyLifeScale(animal);
+      }
       return true;
     }
     return false;

@@ -35,6 +35,7 @@ export function PlayerTab({ onSetConfig }: { onSetConfig: (patch: Partial<GmConf
         label="攻击力倍率"
         value={attackMultiplier}
         min={0}
+        max={1000}
         onChange={(v) => {
           onSetConfig({ attackMultiplier: v });
           setAttackMultiplier(v);
@@ -44,6 +45,7 @@ export function PlayerTab({ onSetConfig }: { onSetConfig: (patch: Partial<GmConf
         label="移动速度倍率"
         value={speedMultiplier}
         min={0.1}
+        max={10}
         step={0.5}
         onChange={(v) => {
           onSetConfig({ speedMultiplier: v });
@@ -55,6 +57,7 @@ export function PlayerTab({ onSetConfig }: { onSetConfig: (patch: Partial<GmConf
         value={metaPoints}
         step={10}
         min={0}
+        max={999999}
         onChange={(v) => {
           MetaProgress.setPoints(v);
           setMetaPoints(v);

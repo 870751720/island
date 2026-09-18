@@ -31,6 +31,7 @@ export function FishingTab({
           key={name}
           label={`${name}权重`}
           value={weights[i]}
+          max={100}
           onChange={(v) => setWeight(i, v)}
         />
       ))}

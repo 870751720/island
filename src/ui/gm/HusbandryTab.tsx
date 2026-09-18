@@ -29,16 +29,16 @@ export function HusbandryTab({ actions }: { actions: GmActions }) {
       label={`生成${ANIMAL_LABELS[species]} · 爱心上限 ${HEART_MAX[species]}`}
       onClick={() => actions.spawnAnimal(species)} />)}
     <div style={{ fontSize: 13, lineHeight: 1.7 }}>狼每 5 秒、熊每 3 秒挣扎一次，最多 5 次。下方是整轮累计挣脱概率，单次概率按 1 − (1 − 总概率)^(1/5) 换算。修改影响后续判定，已发生的次数不重置。</div>
-    <StepperRow label="狼总概率 %" value={Math.round(config.wolfEscapeChance * 100)} step={5}
+    <StepperRow label="狼总概率 %" value={Math.round(config.wolfEscapeChance * 100)} step={5} max={100}
       onChange={v => change({ wolfEscapeChance: Math.min(100, v) / 100 })} />
-    <StepperRow label="熊总概率 %" value={Math.round(config.bearEscapeChance * 100)} step={5}
+    <StepperRow label="熊总概率 %" value={Math.round(config.bearEscapeChance * 100)} step={5} max={100}
       onChange={v => change({ bearEscapeChance: Math.min(100, v) / 100 })} />
     <ActionButton label="均设 0%：稳定测试驯养" onClick={() => change({ wolfEscapeChance: 0, bearEscapeChance: 0 })} />
     <ActionButton label="均设 100%：下一次挣扎必脱" onClick={() => change({ wolfEscapeChance: 1, bearEscapeChance: 1 })} />
-    <StepperRow label="爱心衰减倍率" value={config.husbandryDecaySpeed} step={1}
+    <StepperRow label="爱心衰减倍率" value={config.husbandryDecaySpeed} step={1} max={120}
       onChange={v => change({ husbandryDecaySpeed: Math.min(120, v) })} />
     <ActionButton label="衰减 ×60：满心 30 秒耗尽" onClick={() => change({ husbandryDecaySpeed: 60 })} />
-    <StepperRow label="奶毛生产倍率" value={config.husbandryProductionSpeed} step={1}
+    <StepperRow label="奶毛生产倍率" value={config.husbandryProductionSpeed} step={1} max={120}
       onChange={v => change({ husbandryProductionSpeed: Math.min(120, v) })} />
     <ActionButton label="生产 ×60：每 10 秒成熟" onClick={() => change({ husbandryProductionSpeed: 60 })} />
     <ActionButton label="恢复驯养 GM 默认值" onClick={() => change({ wolfEscapeChance: 0.95, bearEscapeChance: 0.99, husbandryDecaySpeed: 1, husbandryProductionSpeed: 1 })} />

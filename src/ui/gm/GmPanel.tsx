@@ -26,7 +26,7 @@ export type GmActions = {
   setConfig: (patch: Partial<GmConfig>) => void;
   giveItem: (kind: ResourceKind, count: number) => void;
   giveTool: (tool: ToolId, tier: 1 | 2 | 3) => void;
-  spawnAnimal: (species: AnimalSpecies) => void;
+  spawnAnimal: (species: AnimalSpecies, juvenile?: boolean) => void;
   triggerCrocodile: () => void;
 };
 

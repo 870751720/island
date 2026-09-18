@@ -323,7 +323,7 @@ export function GameplayUI({
             setConfig: (patch) => gameRef.current?.gmSetConfig(patch),
             giveItem: (kind, count) => gameRef.current?.gmGiveItem(kind, count),
             giveTool: (tool, tier) => gameRef.current?.gmGiveTool(tool, tier),
-            spawnAnimal: (species) => gameRef.current?.gmSpawnAnimal(species),
+            spawnAnimal: (species, juvenile) => gameRef.current?.gmSpawnAnimal(species, juvenile),
             triggerCrocodile: () => gameRef.current?.gmTriggerCrocodile(),
           }}
         />
