@@ -119,7 +119,6 @@ export class CrateSystem implements FacilityInteractionSource {
     this.crates.push(crate);
     const cp = crate.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(crate), value: { id: this.ids.get(crate), x: cp.x, y: cp.y, z: cp.z, rotY: crate.group.rotation.y, kind: crate.kind, slots: crate.storage.snapshot() } });
-    this.audio.play('success');
     const fxPos = cp.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, crate.color, 10);

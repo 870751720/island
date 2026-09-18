@@ -8,7 +8,6 @@ import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import { wetBeachCellReason } from './Facilities';
 import type { Particles } from '../fx/Particles';
-import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { cardinalRotY } from '../core/Facing';
@@ -53,7 +52,6 @@ export class WaterPurifierSystem implements FacilityInteractionSource {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio,
     /** 挖回的道具入包(背包放不下的部分由该函数掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 统一安放占格判定:同格已被任何已放置实体占据时不可放 */
@@ -113,7 +111,6 @@ export class WaterPurifierSystem implements FacilityInteractionSource {
     this.purifiers.push(purifier);
     const pp = purifier.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(purifier), value: { id: this.ids.get(purifier), x: pp.x, y: pp.y, z: pp.z, rotY: purifier.group.rotation.y } });
-    this.audio.play('success');
     const fxPos = pp.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#9aa3ab', 10);

@@ -7,7 +7,6 @@ import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
-import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
 import { ActionHold } from './ActionHold';
@@ -26,7 +25,6 @@ export type FacilityDependencies = {
   terrain: IslandTerrain;
   props: Props;
   fx: Particles;
-  audio: GameAudio;
   give: (kind: ResourceKind, count: number, actor: PlayerSession) => number;
   occupancy: PlaceOccupancy;
   isOtherBusy?: (actor: PlayerSession) => boolean;
@@ -87,7 +85,6 @@ export class FacilitySystem<K extends ResourceKind> implements FacilityInteracti
     const sp = facility.group.position;
     const id = this.ids.get(facility);
     this.onChanged?.({ op: 'add', id, value: { id, kind, x: sp.x, y: sp.y, z: sp.z } });
-    this.dependencies.audio.play('success');
     const fxPos = sp.clone();
     fxPos.y += 0.8;
     this.dependencies.fx.burst(fxPos, this.factory.color(kind), 14);

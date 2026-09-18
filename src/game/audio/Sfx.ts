@@ -1,8 +1,11 @@
 import { GameplaySampleAudio } from './GameplaySampleAudio';
+import { PlacementSound } from './PlacementSound';
 import { midiToFreq, noiseBurst, tone, pianoTone } from './synth';
 
 /** 玩法音效种类:按动作语义命名 */
 export type SfxName =
+  | 'place' // 设施落地
+  | 'plant' // 轻柔播种
   | 'chop' // 砍树命中
   | 'mine' // 采石命中
   | 'pick' // 采集草果枝命中
@@ -34,6 +37,8 @@ export type SfxName =
   | 'treasureWin'; // 珍宝转盘转中定格的奖励号角
 
 const VOL: Record<SfxName, number> = {
+  place: 1,
+  plant: 0.45,
   chop: 0.5,
   mine: 0.45,
   pick: 0.5,
@@ -71,9 +76,11 @@ export class Sfx {
   private cuts = new Map<SfxName, GainNode>();
 
   private samples: GameplaySampleAudio;
+  private placement: PlacementSound;
 
   constructor(private ctx: AudioContext, private dest: AudioNode) {
     this.samples = new GameplaySampleAudio(ctx);
+    this.placement = new PlacementSound(ctx, dest);
   }
 
   get eatFinishDuration(): number {
@@ -103,6 +110,10 @@ export class Sfx {
   play(name: SfxName, gainScale = 1): void {
     const t = this.ctx.currentTime + 0.01;
     const v = VOL[name] * gainScale;
+    if (name === 'place' || name === 'plant') {
+      this.placement.play(name === 'plant', v);
+      return;
+    }
     if (this.samples.play(name, this.dest, v)) return;
     const detune = (pitch: number) => pitch * (0.92 + Math.random() * 0.16);
 

@@ -160,7 +160,6 @@ export class BedSystem implements FacilityInteractionSource {
     this.beds.push(bed);
     const bp = bed.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(bed), value: { id: this.ids.get(bed), x: bp.x, y: bp.y, z: bp.z, rotY: bed.group.rotation.y, level } });
-    this.audio.play('success');
     const fxPos = bp.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#c9a15c', 10);

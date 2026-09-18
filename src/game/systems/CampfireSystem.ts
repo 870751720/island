@@ -187,7 +187,6 @@ export class CampfireSystem implements FacilityInteractionSource {
     this.fires.push(fire);
     const firePos = fire.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(fire), value: { id: this.ids.get(fire), x: firePos.x, y: firePos.y, z: firePos.z, fuel } });
-    this.audio.play('success');
     const fxPos = firePos.clone();
     fxPos.y += 0.8;
     this.fx.burst(fxPos, FX_COLOR, 10);

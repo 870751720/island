@@ -64,6 +64,8 @@ export interface FacilityDef {
   holdTime?: number | ((actor: PlayerSession) => number);
   /** 成功后立即允许下一格安放，无需移动重新触发。失败仍暂停至移动。 */
   repeatOnSuccess?: boolean;
+  /** 播种采用轻量落土声；普通背包设施默认用放置声。 */
+  placementSound?: 'plant';
   /** 落点可放但结算仍失败时的提示(缺省「这里放不下…」) */
   failText?: (actor: PlayerSession) => string;
 }

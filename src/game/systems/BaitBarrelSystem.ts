@@ -127,7 +127,6 @@ export class BaitBarrelSystem implements FacilityInteractionSource {
     if (actor.inventory.count('baitBarrel') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('baitBarrel', 1);
     const barrel = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
-    this.audio.play('success');
     const fxPos = barrel.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#9a6b3f', 10);

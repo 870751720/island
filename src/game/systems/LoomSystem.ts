@@ -128,7 +128,6 @@ export class LoomSystem implements FacilityInteractionSource {
     if (actor.inventory.count('loom') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('loom', 1);
     const loom = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
-    this.audio.play('success');
     const fxPos = loom.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#8a6239', 10);

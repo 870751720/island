@@ -10,7 +10,6 @@ import type { ResourceKind } from './Inventory';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
-import type { GameAudio } from '../audio/GameAudio';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { ActionHold } from './ActionHold';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
@@ -146,7 +145,6 @@ export class FenceSystem implements ObstacleSolver, FacilityInteractionSource {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio,
     /** 挖走围栏时道具入包(背包放不下的部分由该函数掉到地上) */
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     /** 其他占用双手的行为(如合成/采集中),为真时挖掘让位 */
@@ -332,7 +330,6 @@ export class FenceSystem implements ObstacleSolver, FacilityInteractionSource {
     this.onFenceChanged?.({ op: 'add', id: this.fenceIds.get(fence), value: { id: this.fenceIds.get(fence), x: gx, z: gz, kind } });
     this.refreshAround(gx, gz);
     this.rebuildSegments();
-    this.audio.play('success');
     const fxPos = new THREE.Vector3(gx, y + 0.5, gz);
     this.fx.burst(fxPos, kind === 'branch' ? '#a97b48' : '#9a9a9a', 10);
     return true;
@@ -407,7 +404,6 @@ export class FenceSystem implements ObstacleSolver, FacilityInteractionSource {
     this.refreshAround(gx, gz);
     this.refreshAround(gate.endX, gate.endZ);
     this.rebuildSegments();
-    this.audio.play('success');
     this.fx.burst(new THREE.Vector3(gate.centerX, this.terrain.getHeight(gate.centerX, gate.centerZ) + 0.5, gate.centerZ), '#8a6239', 12);
     return true;
   }

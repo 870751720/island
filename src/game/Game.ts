@@ -509,7 +509,6 @@ export class Game {
       this.terrain,
       this.props,
       this.fx,
-      this.audio,
       // 挖走围栏/门时道具入包,背包放不下的部分掉在玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
       // 其他占用双手的行为进行中时放置/挖掘让位
@@ -753,7 +752,7 @@ export class Game {
       (actor) => this.isSessionBusy(actor, 'brewBarrels')
     );
     this.doghouses = new DoghouseSystem(
-      this.scene, this.terrain, this.props, this.fx, this.audio,
+      this.scene, this.terrain, this.props, this.fx,
       (kind, count, actor) => this.giveItem(kind, count, actor),
       this.placeOccupancy, (actor) => this.isSessionBusy(actor, 'doghouses')
     );
@@ -763,7 +762,6 @@ export class Game {
       this.terrain,
       this.props,
       this.fx,
-      this.audio,
       // 挖回净化器入包,背包放不下的部分掉到玩家身旁
       (kind, count, actor) => this.giveItem(kind, count, actor),
       // 统一安放占格判定:同格已被任何已放置实体占据时不可放
@@ -859,7 +857,7 @@ export class Game {
       (text, actor) => this.notify(text, actor)
     );
     this.ambientFacilities = new AmbientFacilitySystem({
-      scene: this.scene, terrain: this.terrain, props: this.props, fx: this.fx, audio: this.audio,
+      scene: this.scene, terrain: this.terrain, props: this.props, fx: this.fx,
       give: (kind, count, actor) => this.giveItem(kind, count, actor),
       occupancy: this.placeOccupancy,
       isOtherBusy: (actor) => this.isSessionBusy(actor, 'shrines'),
@@ -2898,6 +2896,8 @@ export class Game {
     return actor.player.isSleeping;
   }
 
+  private lastPlantSound = new WeakMap<PlayerSession, number>();
+
   /** 设施的权威结算:cell 由站定自动放置选好,客人上行房主结算;失败给出具体提示 */
   private settleFacility(kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number }): boolean {
     const def = this.autoPlace.defOf(kind);
@@ -2908,6 +2908,14 @@ export class Game {
       return false;
     }
     this.afterPlaceDiggable(actor);
+    if (!def.free) {
+      const sound = def.placementSound ?? 'place';
+      const now = performance.now();
+      if (sound !== 'plant' || now - (this.lastPlantSound.get(actor) ?? -Infinity) >= 120) {
+        if (sound === 'plant') this.lastPlantSound.set(actor, now);
+        this.audio.play(sound);
+      }
+    }
     return true;
   }
 
@@ -3015,7 +3023,6 @@ export class Game {
     if (this.bushCellOk(actor, at.x, at.z) !== null) return false;
     if (!actor.inventory.remove(SEED_OF[species], 1)) return false;
     this.props.plant(species, at.x, at.z);
-    this.audio.play('success');
     const fxPos = at.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#7fae55', 10);
@@ -3033,7 +3040,6 @@ export class Game {
       this.props.placeBush(bushKind, cell.x, cell.z);
       if (kind === 'berryBush' && nearTransplantCamp(cell, this.campfire.snapshot())) actor.quests.transplantAction('place');
     }
-    this.audio.play('success');
     const fxPos = new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z) + 0.5, cell.z);
     this.fx.burst(fxPos, kind === 'berryBush' ? '#5d8a3a' : kind === 'grassTuft' ? '#a4c46a' : kind === 'wormNest' ? '#6f5a44' : '#6b8f4e', 10);
     return true;

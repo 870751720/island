@@ -94,7 +94,6 @@ export class CropSystem {
     if (this.canPlantAt(actor, at.x, at.z) !== null) return false;
     if (!actor.inventory.remove(seed, 1)) return false;
     this.spawn(CROP_OF_SEED[seed]!, at, 0);
-    this.audio.play('success');
     const fxPos = at.clone();
     fxPos.y += 0.3;
     this.fx.burst(fxPos, '#7fae55', 8);

@@ -124,7 +124,6 @@ export class BrewBarrelSystem implements FacilityInteractionSource {
     if (actor.inventory.count('brewBarrel') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('brewBarrel', 1);
     const barrel = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
-    this.audio.play('success');
     const fxPos = barrel.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#6b4a2e', 10);

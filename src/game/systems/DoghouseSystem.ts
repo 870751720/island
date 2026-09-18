@@ -5,7 +5,6 @@ import type { PlayerSession } from '../mp/PlayerSession';
 import type { IslandTerrain } from '../world/IslandTerrain';
 import type { Props } from '../world/Props';
 import type { Particles } from '../fx/Particles';
-import type { GameAudio } from '../audio/GameAudio';
 import type { ResourceKind } from './Inventory';
 import type { PlaceOccupancy } from './PlaceOccupancy';
 import { dryCellReason } from './Facilities';
@@ -32,7 +31,6 @@ export class DoghouseSystem implements FacilityInteractionSource {
     private terrain: IslandTerrain,
     private props: Props,
     private fx: Particles,
-    private audio: GameAudio,
     private give: (kind: ResourceKind, count: number, actor: PlayerSession) => number,
     private occupancy: PlaceOccupancy,
     private busy: (actor: PlayerSession) => boolean,
@@ -58,7 +56,6 @@ export class DoghouseSystem implements FacilityInteractionSource {
     const house = new Doghouse(this.scene, at, cardinalRotY(actor.player.group.rotation.y));
     this.houses.push(house);
     this.sink?.({ op: 'add', id: this.ids.get(house), value: this.save(house) });
-    this.audio.play('success');
     this.fx.burst(at, '#d2b77c', 10);
     return true;
   }

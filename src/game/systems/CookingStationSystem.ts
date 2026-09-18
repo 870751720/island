@@ -182,7 +182,6 @@ export class CookingStationSystem implements FacilityInteractionSource {
     if (actor.inventory.count('cookingStation') <= 0 || this.canPlaceAt(actor, at.x, at.z) !== null) return false;
     actor.inventory.remove('cookingStation', 1);
     const station = this.placeAt(at, cardinalRotY(actor.player.group.rotation.y));
-    this.audio.play('success');
     const fxPos = station.group.position.clone();
     fxPos.y += 0.5;
     this.fx.burst(fxPos, '#5c5f66', 10);

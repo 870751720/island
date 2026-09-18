@@ -309,7 +309,6 @@ export class WorkbenchSystem implements FacilityInteractionSource {
     this.crafted = true;
     const bp = bench.group.position;
     this.onChanged?.({ op: 'add', id: this.ids.get(bench), value: { id: this.ids.get(bench), x: bp.x, y: bp.y, z: bp.z, rotY: bench.group.rotation.y, level } });
-    this.audio.play('success');
     const p = bp.clone();
     p.y += 0.8;
     this.fx.burst(p, '#8a6239', 10);
