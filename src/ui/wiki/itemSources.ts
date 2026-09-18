@@ -34,12 +34,43 @@ const sourceMap = new Map<ResourceKind, ItemSource[]>();
 
 function addSource(kind: ResourceKind, source: ItemSource): void {
   const list = sourceMap.get(kind);
-  if (list) {
-    if (list.some((s) => s.group === source.group && s.label === source.label && s.note === source.note)) return;
-    list.push(source);
-  } else {
+  if (!list) {
     sourceMap.set(kind, [source]);
+    return;
   }
+  const existing = list.find(
+    (s) =>
+      s.group === source.group &&
+      s.label === source.label &&
+      s.station === source.station &&
+      s.target === source.target &&
+      s.note === source.note
+  );
+  if (existing) {
+    // 同一途径再次登记时合并原料芯片(如多种鱼烤成同一道菜),而不是丢弃
+    if (source.inputs?.length) {
+      const merged = [...(existing.inputs ?? [])];
+      for (const input of source.inputs) {
+        const dup = merged.find((i) => i.kind === input.kind);
+        if (dup) dup.count = Math.max(dup.count, input.count);
+        else merged.push({ ...input });
+      }
+      existing.inputs = merged;
+    }
+  } else {
+    list.push(source);
+  }
+}
+
+/** 把「原料→成品」映射反转为「成品→原料芯片」,多种原料产出同一成品时并列展示 */
+function inputsByOutput(map: Partial<Record<ResourceKind, ResourceKind>>): Map<ResourceKind, SourceInput[]> {
+  const byOutput = new Map<ResourceKind, SourceInput[]>();
+  for (const [raw, cooked] of Object.entries(map) as [ResourceKind, ResourceKind][]) {
+    const inputs = byOutput.get(cooked) ?? [];
+    inputs.push({ kind: raw, count: 1 });
+    byOutput.set(cooked, inputs);
+  }
+  return byOutput;
 }
 
 function costInputs(cost: Partial<Record<ResourceKind, number>>): SourceInput[] {
@@ -146,11 +177,23 @@ for (const spec of Object.values(CROP_SPECS)) {
 }
 
 // —— 加工:烤/煮/酿/冶炼/纺织的输入输出映射(设施名由 station 芯片表达) ——
-for (const [raw, cooked] of Object.entries(COOKABLE) as [ResourceKind, ResourceKind][]) {
-  addSource(cooked, { group: '加工', label: '烤制', station: 'campfire', inputs: [{ kind: raw, count: 1 }] });
+for (const [cooked, inputs] of inputsByOutput(COOKABLE)) {
+  addSource(cooked, {
+    group: '加工',
+    label: '烤制',
+    station: 'campfire',
+    inputs,
+    note: inputs.length > 1 ? '任选一种原料' : undefined,
+  });
 }
-for (const [raw, boiled] of Object.entries(BOILABLE) as [ResourceKind, ResourceKind][]) {
-  addSource(boiled, { group: '加工', label: '煮汤', station: 'cookingStation', inputs: [{ kind: raw, count: 1 }] });
+for (const [boiled, inputs] of inputsByOutput(BOILABLE)) {
+  addSource(boiled, {
+    group: '加工',
+    label: '煮汤',
+    station: 'cookingStation',
+    inputs,
+    note: inputs.length > 1 ? '任选一种原料' : undefined,
+  });
 }
 for (const [raw, wine] of Object.entries(BREWABLE) as [ResourceKind, ResourceKind][]) {
   addSource(wine, { group: '加工', label: '酿造', station: 'brewBarrel', inputs: [{ kind: raw, count: BREW_COST }] });
