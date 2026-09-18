@@ -22,7 +22,7 @@ function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }
   );
 }
 
-/** 可点击的道具芯片:配方材料与用途产物都用它跳转到对应详情 */
+/** 可点击的道具芯片:获得方式里的配方材料用它跳转到对应详情 */
 function ItemChip({ kind, count, onOpen }: { kind: ResourceKind; count?: number; onOpen: (kind: ResourceKind) => void }) {
   const tap = useScrollAreaTap(() => onOpen(kind));
   const item = ITEMS[kind];
@@ -53,7 +53,7 @@ export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boole
   }, [keyword]);
 
   const openDetail = (kinds: readonly ResourceKind[], index: number) => setTrail((t) => [...t, { kinds, index }]);
-  // 从配方材料/用途产物跳转:在目标所属分类的完整列表中打开,便于沿该分类连续翻阅
+  // 从配方材料跳转:在目标所属分类的完整列表中打开,便于沿该分类连续翻阅
   const openKind = (kind: ResourceKind) => {
     const group = ITEM_WIKI_GROUPS.find((g) => g.category === itemCategory(kind));
     const index = group ? group.entries.findIndex((entry) => entry.kind === kind) : -1;
@@ -125,20 +125,6 @@ export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boole
                       ))}
                     </div>
                   )}
-                </div>
-              ))}
-            </section>
-          )}
-          {entry.uses.length > 0 && (
-            <section className={styles.section}>
-              <h4 className={styles.sectionTitle}>用于合成</h4>
-              {entry.uses.map((use) => (
-                <div className={styles.useRow} key={`${use.label}:${use.target}`}>
-                  <span className={styles.useLabel}>
-                    {use.label}{use.count > 1 ? ` ×${use.count}` : ''}
-                  </span>
-                  <span className={styles.useArrow}>→</span>
-                  <ItemChip kind={use.target} count={use.outputCount} onOpen={openKind} />
                 </div>
               ))}
             </section>

@@ -370,23 +370,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 用途行:途径 + 消耗数 → 产物芯片 */
-.useRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px;
-}
-.useLabel {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-}
-.useArrow {
-  flex: none;
-  color: #697b6b;
-}
-
 /* 上一件/下一件翻阅 */
 .pager {
   flex-shrink: 0;
