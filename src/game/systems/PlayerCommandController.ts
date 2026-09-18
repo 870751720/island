@@ -58,8 +58,8 @@ export class PlayerCommandController {
     if (this.guest) return this.guest.action('craftAtWorkbench', [id, count]);
     if (this.asleep(actor) || this.workbench.isUpgrading(actor) || this.workbench.isDigging(actor) || !this.workbench.isNear(actor)) return false;
     const recipe = RECIPES.find((candidate) => candidate.id === id);
+    // 靠近工作台即可制作面板里的全部配方:工作台专属配方受等级门槛,手搓配方无等级要求
     return !!recipe &&
-      recipe.station === 'workbench' &&
       (recipe.minBenchLevel ?? 1) <= this.workbench.level(actor) &&
       actor.crafting.start(recipe, count);
   }

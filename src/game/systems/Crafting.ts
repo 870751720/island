@@ -706,6 +706,24 @@ export function maxCraftCount(
   );
 }
 
+/** 唯一设施配方抑制:工作台/火堆已在场上或背包里已有同类道具时不再显示制作入口 */
+export function recipeUniqueSuppressed(
+  recipe: Recipe,
+  slots: (InventorySlot | null)[],
+  world: { workbenchPlaced?: boolean; campfirePlaced?: boolean } = {}
+): boolean {
+  // 工作台全局唯一:已放置或背包里已有任意等级工作台道具时不再显示配方
+  if (recipe.id === 'workbench') {
+    return !!world.workbenchPlaced || slots.some((slot) => slot && /^workbench[1-4]$/.test(slot.kind));
+  }
+  // 火堆:背包里已有火堆/熄灭的火堆/烹饪台,或场上已存在火堆/烹饪台时不再显示配方(避免反复弹卡)
+  if (recipe.id === 'campfire') {
+    const owned = new Set(slots.filter(Boolean).map((slot) => slot!.kind));
+    return owned.has('campfire') || owned.has('deadCampfire') || owned.has('cookingStation') || !!world.campfirePlaced;
+  }
+  return false;
+}
+
 /**
  * 配方卡片是否展示:材料足够且工具未拥有;装备类还须比身上穿的与背包里存的同栏位装备都更好
  * (否则做出来也用不上)。slots 为背包格子快照。
@@ -721,17 +739,7 @@ export function recipeVisible(
   /** 跳过工作台/火堆的「已有就不再显示」抑制(背包制作页始终列出,仅卡片提示遵守抑制) */
   ignoreUnique = false
 ): boolean {
-  // 工作台全局唯一:已放置或背包里已有任意等级工作台道具时不再显示配方
-  if (!ignoreUnique && recipe.id === 'workbench') {
-    if (world.workbenchPlaced) return false;
-    if (slots.some((slot) => slot && /^workbench[1-4]$/.test(slot.kind))) return false;
-  }
-  // 火堆:背包里已有火堆/熄灭的火堆/烹饪台,或场上已存在火堆/烹饪台时不再显示配方(避免反复弹卡)
-  if (!ignoreUnique && recipe.id === 'campfire') {
-    const owned = new Set(slots.filter(Boolean).map((slot) => slot!.kind));
-    if (owned.has('campfire') || owned.has('deadCampfire') || owned.has('cookingStation')) return false;
-    if (world.campfirePlaced) return false;
-  }
+  if (!ignoreUnique && recipeUniqueSuppressed(recipe, slots, world)) return false;
   if (recipe.output && isEquipKind(recipe.output)) {
     const def = EQUIPMENT[recipe.output];
     const current = equipped[def.slot];

@@ -18,6 +18,7 @@ import {
   maxCraftCount,
   recipeIconKind,
   recipeIconLevel,
+  recipeUniqueSuppressed,
   workbenchUpgradeCost,
   isSingleCraft,
   recipeCategoryOrder,
@@ -30,7 +31,7 @@ import { StepButton } from './StepButton';
 import { MaterialRequirements } from './MaterialRequirements';
 import { OverflowMarquee } from './OverflowMarquee';
 
-/** 工作台制作面板:列出所有工作台配方,可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
+/** 工作台制作面板:列出全部配方(工作台专属与手搓),可调数量,确认后关闭面板并开始排队制作;材料够时可升级工作台 */
 export function WorkbenchPanel({
   hud,
   onCraft,
@@ -46,11 +47,16 @@ export function WorkbenchPanel({
   const materials = countsWithEquipped(countsFromSlots(hud.slots), hud.equipped);
   const crafted = new Set(hud.craftedIds);
   const ready = (r: Recipe) => maxCount(r, materials, hud) > 0;
-  // 可重复制作的配方始终可查;已完成的永久工具不再占位。
+  // 可重复制作的配方始终可查(含手搓配方,靠近工作台即一个入口做所有制作);
+  // 已完成的永久工具不再占位,工作台/火堆全局唯一已持有或已放置时不再列出。
   const recipes = RECIPES.filter(
-    (r) => r.station === 'workbench' &&
+    (r) =>
       (r.minBenchLevel ?? 1) <= hud.workbenchLevel &&
-      (!r.tool || hud.toolTiers[r.tool] < (r.tier ?? 1) || !crafted.has(r.id) || questRecipePriority(hud, r.id) > 0)
+      (!r.tool || hud.toolTiers[r.tool] < (r.tier ?? 1) || !crafted.has(r.id) || questRecipePriority(hud, r.id) > 0) &&
+      !recipeUniqueSuppressed(r, hud.slots, {
+        workbenchPlaced: hud.workbenchCrafted,
+        campfirePlaced: hud.campfirePlaced,
+      })
   ).sort((a, b) =>
     questRecipePriority(hud, b.id) - questRecipePriority(hud, a.id) ||
     Number(ready(b)) - Number(ready(a)) || recipeCategoryOrder(a) - recipeCategoryOrder(b)

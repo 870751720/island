@@ -18,7 +18,7 @@ export const GUIDE_ENTRIES: readonly GuideEntry[] = [
     id: 'crafting', title: '采集与制作', summary: '从基础工具到工作台，建立制作路线。',
     sections: [
       { title: '准备工具', text: ['采集基础材料后制作', item('axe', '斧'), '和', item('pickaxe', '镐'), '，分别用于伐木和采矿。采集草丛得到的', item('fiber', '植物纤维'), '可以加工成', item('rope', '绳线'), '，用于更多工具与设施。'] },
-      { title: '使用工作台', text: ['制作并放下', item('workbench1', '一级工作台'), '，靠近后点右侧工作台按钮，选择配方与份数。制作时保持站定，移动或离开范围会中断；升级工作台可解锁更多配方。'] },
+      { title: '使用工作台', text: ['制作并放下', item('workbench1', '一级工作台'), '，靠近后点右侧工作台按钮，面板同时列出工作台配方与手搓配方，选择配方与份数。制作时保持站定，移动或离开范围会中断；升级工作台可解锁更多配方。'] },
       { title: '进阶加工', text: ['用', item('smelter', '冶炼炉'), '加工', item('ironOre', '铁矿石'), '获得', item('ironIngot', '铁锭'), '，用', item('loom', '纺织机'), '制作', item('cloth', '布料'), '。点击材料或设施名称，可以查看获得方式与所需工作台等级。'] },
     ],
   },

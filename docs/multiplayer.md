@@ -319,6 +319,8 @@ HUD 的 `indicator.itemKind` 为可选资源 ID，由房主的交互提示构建
 
 2026-09-09(迭代):删除 `craftWorkbench`/`craftCampfire` 动作——工作台/火堆改为普通手搓配方(走既有 `craftTool` 上行),产出入包后「自动拿在手上」由房主端 `CraftingSystem.onOutput` 回调切换该会话工具,经既有姿态快照回流给客人;新道具「火堆」(`campfire`)放下走 `useFacility`。存档与协议字段不变。
 
+2026-09-19(迭代):工作台面板纳入手搓配方。`craftAtWorkbench` 房主端校验放宽——靠近工作台即可结算任意配方(仍要求未在升级/挖掘中、`minBenchLevel` 满足,手搓配方无等级门槛),面板过滤不再限定 `station === 'workbench'`;`craftTool` 手搓路径不变。不新增网络动作,客人沿用既有 `craftAtWorkbench` 上行,协议字段与存档不变。
+
 2026-09-09(代码健康):新增 `NetActionArgs` 作为客人动作名与参数元组的统一静态契约,由 `NetGuest.action` 和房主 `ACTIONS` 注册表共同使用;线上仍保持 `{ t: 'action', name, args }` 结构,不调整协议版本、权威结算或同步时序。
 
 2026-09-09(代码健康):房主按 `NetActionArgs` 对应的参数数量表校验动作消息,缺参、多参或未知动作在分发前直接忽略;`eatFood`/`eatUntilFull` 保留零个或一个参数的兼容形式。消息结构、协议版本与合法动作行为不变。
