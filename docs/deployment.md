@@ -1,25 +1,27 @@
-# 部署流程
+# 自有服务器部署
 
 ## 背景
 
-部署到 GitHub Pages 需要同时确认本次提交的 Actions 成功和线上 HTTP 200，统一脚本避免手工漏验收。
+正式网站与云存档 API 部署到 `43.110.116.98`，通过 GitHub Actions 自动发布。原 GitHub Pages 工作流被替换，不再更新旧站。
 
 ## 需求描述
 
-执行 `npm run deploy` 完成推送和部署验收，任何失败或超时均返回非零退出码。提交代码前自行完成类型检查或构建；脚本不自动提交。
+保留「本地提交 → 用户明确确认验证通过 → 正式构建检查 → 推送部署」流程。仅配置 GitHub 参数或构建成功不代表部署完成；必须等对应 SHA 的 Actions 成功、HTTPS 网站返回 200、云存档 API 的 revision 匹配后才能宣布成功。
 
 ## 设计方案
 
-- 使用 Node 22.18+、Git 和 curl；从仓库根目录 `githubtoken.txt` 读取凭证，不输出凭证、不写入 Git 配置。
-- 仅允许干净的 `main` 工作区，检查 `origin` 属于本仓库且凭证文件未被跟踪。
-- 记录 HEAD SHA，经 HTTPS 推送该 SHA 到 `origin main`，不强制推送；推送最多等待 60 秒。
-- 按 SHA、push 事件和 `deploy.yml` 工作流查找 Actions；找到后仅轮询该 run。每 10 秒检查，最多等待 5 分钟，API 单次最多等待 20 秒。
-- 只有 `conclusion=success` 后才使用 curl 检查线上返回 200（最多 30 秒），两项通过才输出部署成功。
-- 网络异常、推送失败、Actions 失败或超时、站点非 200 均停止并返回非零退出码。推送后的错误不回滚远端；可查看输出的 Actions 链接，或重新执行命令验收同一提交。
-- HTTP 200 表示站点可访问；游戏运行时验收仍由用户完成。
+- GitHub Variables：`DEPLOY_HOST=43.110.116.98`、`DEPLOY_PORT=22`、`DEPLOY_USER=root`、`DEPLOY_PATH=/opt/island`、`SITE_URL=https://43.110.116.98`。
+- GitHub Secrets：`DEPLOY_SSH_KEY` 为专用部署私钥，`DEPLOY_KNOWN_HOSTS` 来自本机已信任的主机记录；Actions 强制校验主机身份。不使用或上传日常 SSH 私钥。
+- 工作流 `deploy.yml` 的 `production` 环境串行部署，禁止中途取消；使用 Node 22、`npm ci`、类型检查和 `SERVER_EXPORT=1` 的正式静态构建，产物网站在根路径。
+- 发布包仅包含 `out/`、`server/`、`shared/`，通过 SSH 上传到 `/opt/island/releases/<SHA>/`。不上传仓库 token、开发依赖或本地 SSH 文件。
+- 临时管理容器执行 `server/deploy.ts`，初始化服务端密钥、数据库目录和 HTTPS IP 证书，然后构建 API 镜像并启动 Compose 服务。首次发证需 80 端口空闲，公网安全组允许 80/443。
+- 公网页面和 API 检查成功后记录 active revision 并更新 `current`；失败时尽可能恢复上次成功版本，工作流仍以失败结束。首次部署没有可回滚的旧版本，失败需排查后重试。
+- SQLite、服务端密钥和证书独立放在 `shared/`，不随发布删除。不能删除该目录，也不能在正常升级中重新生成服务端密钥。
+- `npm run deploy` 只允许干净的 main 工作区，从 `githubtoken.txt` 读取凭证并推送本次 SHA，按 SHA 等待 Actions（最多 25 分钟），再验收 HTTPS 200 和 API revision。凭证不写入 Git 配置，不输出日志。
+- `npm run check` 检查面向服务器的根路径正式构建；普通 `npm run build` 仍支持旧的 `/island` 静态路径，H5、小红书发行流程保持各自规则。
 
 ## 使用
 
-完成修改 → `npm run typecheck` → `npm run build:h5` → 校验 ZIP 完整性、入口结构及 Deflate 压缩 → 清空并解压到固定目录 `dist/local-preview/latest/` → 交付固定验证入口 `dist/local-preview/latest/island/index.html` → 等用户明确确认本地验证通过 → `npm run check` → `git add` / `git commit` → `npm run deploy`。
+修改 → 类型检查与存档专项测试 → H5 打包、ZIP 完整性/结构/Deflate 校验 → 清空并解压固定验证目录 → 本地 commit → 交付验证入口 → 用户明确确认验证通过 → `npm run check` → `npm run deploy` → 等待完整验收。
 
-本地验证入口固定为 `dist/local-preview/latest/island/index.html`，用户在浏览器保存该地址即可。每次修复后重新打包，删除并重建该固定目录再解压，用户刷新浏览器即可预览最新构建；用户未回复不视为通过。运行时测试由用户完成，ZCode 不启动开发服务器或进行浏览器冒烟测试。
+固定验证入口为 `dist/local-preview/latest/island/index.html`。新服务首次上线前，云端上传下载尚不可用；本地入口可验证存档码和菜单交互。完整云端运行验收在获准发布后进行，不能将尚未上线的后端描述为可用。

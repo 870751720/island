@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to Island Server
 
 on:
   push:
@@ -7,54 +7,63 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: island-production
+  cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      SITE_URL: ${{ vars.SITE_URL }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build (if package.json exists)
-        if: hashFiles('package.json') != ''
-        run: |
-          npm ci || npm install
-          npm run build --if-present
-
-      - name: Prepare publish directory
-        run: |
-          if [ -f package.json ] && [ -d dist ]; then
-            cp -r dist _site
-          elif [ -f package.json ] && [ -d build ]; then
-            cp -r build _site
-          elif [ -f package.json ] && [ -d out ]; then
-            cp -r out _site
-          else
-            mkdir -p _site
-            cp -r *.html *.md *.css *.js assets images 2>/dev/null || true
-          fi
-          # 保证 Pages 有入口页
-          if [ ! -f _site/index.html ]; then
-            printf '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Island</title></head><body><h1>Island</h1><p>暂无构建产物,后续将部署游戏页面。</p></body></html>' > _site/index.html
-          fi
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/setup-node@v4
         with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node scripts/test-cloud-save.mts
+      - run: npm run build
+        env:
+          SERVER_EXPORT: '1'
+          NEXT_PUBLIC_CLOUD_API_URL: ${{ vars.SITE_URL }}
+      - name: Prepare release
+        run: |
+          test -f out/index.html
+          tar -czf release.tar.gz out server shared
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/island
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          [[ "$DEPLOY_HOST" =~ ^[0-9.]+$ ]]
+          [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DEPLOY_PATH" =~ ^/opt/[a-z0-9-]+$ ]]
+      - name: Upload and deploy
+        run: |
+          ssh -i ~/.ssh/island -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/releases/$GITHUB_SHA'"
+          scp -i ~/.ssh/island -P "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$GITHUB_SHA/release.tar.gz"
+          ssh -i ~/.ssh/island -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "cd '$DEPLOY_PATH/releases/$GITHUB_SHA' && tar -xzf release.tar.gz && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$DEPLOY_PATH:$DEPLOY_PATH' -w '$DEPLOY_PATH/releases/$GITHUB_SHA' -e ISLAND_ROOT='$DEPLOY_PATH' -e REVISION='$GITHUB_SHA' node:22-alpine sh -c 'apk add --no-cache docker-cli docker-cli-compose >/dev/null && node --experimental-strip-types server/deploy.ts'"
+      - name: Verify public release
+        run: |
+          test "$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "$SITE_URL/")" = 200
+          curl --fail --silent --show-error --max-time 30 "$SITE_URL/api/health" | jq -e --arg sha "$GITHUB_SHA" '.ok == true and .revision == $sha'
+      - name: Remove runner key
+        if: always()
+        run: rm -f ~/.ssh/island

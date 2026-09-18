@@ -6,14 +6,13 @@ const isContainerExport = isH5Export || isXiaohongshuExport;
 const nextConfig = {
   output: 'export',
   distDir: isXiaohongshuExport ? '.next-xiaohongshu' : isH5Export ? '.next-h5' : '.next',
-  // GitHub Pages is hosted under /island, while TapTap mounts the H5 package
-  // beneath a package directory. Relative assets keep scripts available in both
-  // file-like and container launch environments.
-  basePath: isContainerExport ? '' : '/island',
+  // Server builds use the site root; legacy static builds retain /island.
+  // Container packages use relative assets for file and H5 launch environments.
+  basePath: isContainerExport || process.env.SERVER_EXPORT === '1' ? '' : '/island',
   assetPrefix: isContainerExport ? './' : undefined,
   env: {
     NEXT_PUBLIC_XHS_EXPORT: isXiaohongshuExport ? '1' : '0',
-    NEXT_PUBLIC_TAPTAP_H5: isH5Export && !isXiaohongshuExport ? '1' : '0',
+    NEXT_PUBLIC_CLOUD_API_URL: process.env.NEXT_PUBLIC_CLOUD_API_URL || 'https://43.110.116.98',
   },
 };
 

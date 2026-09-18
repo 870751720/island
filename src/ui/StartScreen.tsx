@@ -22,8 +22,8 @@ import { MetaPanel } from './MetaPanel';
 import { ProfileSetup } from './ProfileSetup';
 import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
 
-const TapTapSaveControls = process.env.NEXT_PUBLIC_TAPTAP_H5 === '1'
-  ? dynamic(() => import('./taptap/TapTapSaveControls'), { ssr: false })
+const CloudSaveControls = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1'
+  ? dynamic(() => import('./cloud/CloudSaveControls'), { ssr: false })
   : null;
 
 /** 开始方式:继续 = 恢复存档,新档 = 清掉旧存档从头开始 */
@@ -126,7 +126,7 @@ export function StartScreen({
                 <button className="profile-chip" onClick={() => { setPendingStart(null); setShowSetup(true); }}><MenuIcon name="user" />设置形象</button>
                 {hasSave && <button className="new-game-button" data-ui-sound="manual" onClick={startNew}>开新档</button>}
                 {legacy && <button className="legacy-button" onClick={() => setShowMeta(true)}>荒岛传承</button>}
-                {TapTapSaveControls && <TapTapSaveControls onModalChange={setShowCloudSave} />}
+                {CloudSaveControls && <CloudSaveControls onModalChange={setShowCloudSave} />}
               </div>
             </> : <p className="start-loading" role="status">正在寻找你的岛…</p>}
           </section>

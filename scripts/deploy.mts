@@ -5,7 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const repository = '870751720/island';
-const site = 'https://870751720.github.io/island/';
+const site = 'https://43.110.116.98/';
 const remote = `https://github.com/${repository}.git`;
 
 function git(args: string[], env = process.env): string {
@@ -27,7 +27,7 @@ interface WorkflowRun {
 }
 
 async function waitForDeployment(sha: string, token: string): Promise<void> {
-  const deadline = Date.now() + 300_000;
+  const deadline = Date.now() + 1_500_000;
   const api = `https://api.github.com/repos/${repository}/actions`;
   let runId: number | undefined;
   let previousStatus = '';
@@ -65,7 +65,7 @@ async function waitForDeployment(sha: string, token: string): Promise<void> {
     }
     await sleep(Math.max(0, Math.min(10_000, deadline - Date.now())));
   }
-  throw new Error(`等待提交 ${sha} 部署超时（5 分钟），请查看 Actions；不能确认部署成功。`);
+  throw new Error(`等待提交 ${sha} 部署超时（25 分钟），请查看 Actions；不能确认部署成功。`);
 }
 
 async function main(): Promise<void> {
@@ -101,6 +101,9 @@ async function main(): Promise<void> {
   if (result.error || result.status !== 0 || result.stdout !== '200') {
     throw new Error(`Actions 已成功，但站点验证未通过（HTTP ${result.stdout || '未知'}）。`);
   }
+  const healthResponse = await fetch(`${site}api/health`, { signal: AbortSignal.timeout(30_000) });
+  const health = await healthResponse.json() as { ok?: boolean; revision?: string };
+  if (!healthResponse.ok || !health.ok || health.revision !== sha) throw new Error('云存档 API 版本验收失败。');
   console.log(`部署成功：${site}（HTTP 200，提交 ${sha}）`);
 }
 

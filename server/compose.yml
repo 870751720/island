@@ -1,0 +1,42 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    image: island-api:${REVISION}
+    restart: unless-stopped
+    env_file: ${ISLAND_ROOT}/shared/runtime.env
+    environment:
+      REVISION: ${REVISION}
+    volumes:
+      - ${ISLAND_ROOT}/shared/data:/data
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  web:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ../out:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${ISLAND_ROOT}/shared/letsencrypt:/etc/letsencrypt:ro
+      - ${ISLAND_ROOT}/shared/acme:/var/www/acme:ro
+    # Reload renewed IP certificates without stopping connections.
+    command: [/bin/sh, -c, 'nginx; while sleep 3600; do nginx -s reload; done']
+  certbot:
+    image: certbot/certbot:v5.4.0
+    restart: unless-stopped
+    depends_on:
+      - web
+    volumes:
+      - ${ISLAND_ROOT}/shared/letsencrypt:/etc/letsencrypt
+      - ${ISLAND_ROOT}/shared/acme:/var/www/acme
+    entrypoint: [/bin/sh, -c, 'while sleep 43200; do certbot renew --webroot -w /var/www/acme --quiet; done']
