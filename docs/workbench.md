@@ -57,7 +57,7 @@
 ### 制作改为产出道具拿在手上(2026-09-09 迭代)
 
 - 工作台不再「原地搭建直接放置」:改为普通手搓配方(2 石头 + 1 树枝 → `workbench1` 道具),制作完成后自动拿在手上,走与其他设施一致的站定自动放置流程放下;`WorkbenchSystem` 删除搭建模式,只保留升级/挖掘/放回(`placeItem`),首次放置工作台时设置本局已制作标记(原 `workbenchCrafted` 存档字段语义不变)。
-- 配方可见性:工作台全局唯一——已放置或背包里已有任意等级工作台道具时隐藏配方;HUD 用 `workbenchCrafted` 替代原 `canCraftWorkbench/workbenchCrafting` 特殊卡片字段,手搓卡片与背包制作页都按普通配方渲染。联机删 `craftWorkbench` 动作(制作走 `craftTool`)。
+- 配方可见性:工作台全局唯一——已放置或背包里已有任意等级工作台道具时,场景手搓卡片不再弹出(2026-09-18 起背包制作页改为置灰「已拥有」展示,不再隐藏,见 `inventory-grid.md`);HUD 用 `workbenchCrafted` 替代原 `canCraftWorkbench/workbenchCrafting` 特殊卡片字段,手搓卡片与背包制作页都按普通配方渲染。联机删 `craftWorkbench` 动作(制作走 `craftTool`)。
 - 同批:火堆同样道具化(新道具「火堆」放下即引燃),详见 `docs/autoplace.md` 迭代记录。
 
 ### 制作完成手持范围收窄(2026-09-11 迭代)

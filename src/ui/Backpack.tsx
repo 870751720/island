@@ -12,11 +12,12 @@ import { ITEMS } from '@/game/systems/Items';
 import { FOODS, foodVerb } from '@/game/systems/Food';
 import { CROP_OF_SEED } from '@/game/entities/Crop';
 import { questRecipePriority, questRecipeStyle } from './questRecipe';
-import { RECIPES, TOOL_IDS, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId } from '@/game/systems/Crafting';
+import { RECIPES, TOOL_IDS, maxCraftCount, recipeIconKind, recipeIconLevel, recipeVisible, toolName, type CraftId, type Recipe } from '@/game/systems/Crafting';
 import { EQUIPMENT, SLOT_NAMES, SLOT_ORDER, isEquipKind, type EquipSlot } from '@/game/systems/Equipment';
 import { workbenchItemLevel } from '@/game/systems/WorkbenchSystem';
 import { bedItemLevel } from '@/game/systems/BedSystem';
 import { ItemIcon } from './ItemIcon';
+import { MaterialRequirements } from './MaterialRequirements';
 import { SlotItemCount } from './SlotItemCount';
 import { fadeStyle } from './fade';
 import { pressAction } from './pressAction';
@@ -226,12 +227,23 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
   const selectedDef = selected ? ITEMS[selected.kind] : null;
   const selectedFood = selected ? FOODS.find((food) => food.kind === selected.kind) : undefined;
   const tools = hud.toolTiers;
-  // 手搓配方:只显示当前能做的(材料齐、工具未拥有、装备评分高于身上这件)
+  const materials = countsFromSlots(hud.slots);
+  // 可制作沿用配方可见性判定(材料齐、工具未拥有、装备评分更高、设施未重复持有)
+  const canCraft = (r: Recipe) =>
+    recipeVisible(r, materials, tools, hud.equipped, hud.slots, {
+      workbenchPlaced: hud.workbenchCrafted,
+      campfirePlaced: hud.campfirePlaced,
+    });
+  // 手搓列表:配方全量展示,仅已拥有的手搓工具(木斧/木镐)不再列出;
+  // 排序:可制作在前 → 当前任务置顶 → 手搓进程(promptPriority 越小越靠前)
   const craftables = RECIPES.filter(
-    (r) =>
-      r.station === 'hand' &&
-      recipeVisible(r, countsFromSlots(hud.slots), tools, hud.equipped, hud.slots, undefined, true)
-  ).sort((a,b)=>questRecipePriority(hud,b.id)-questRecipePriority(hud,a.id));
+    (r) => r.station === 'hand' && !(r.tool && tools[r.tool] > 0)
+  ).sort(
+    (a, b) =>
+      Number(canCraft(b)) - Number(canCraft(a)) ||
+      questRecipePriority(hud, b.id) - questRecipePriority(hud, a.id) ||
+      (a.promptPriority ?? 99) - (b.promptPriority ?? 99)
+  );
 
   /** 记录图标点击位置用于定位 tip(优先弹在图标上方) */
   const openTip = (e: React.PointerEvent, content: React.ReactNode) => {
@@ -517,26 +529,20 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
               </>
             ) : tab === 'craft' ? (
               <div style={CONTENT_STYLE}>
-                {craftables.length === 0 && (
-                  <div style={{ fontSize: 13, color: gameTheme.muted, textAlign: 'center', padding: '14px 0' }}>
-                    暂时没有能手搓的东西
-                  </div>
-                )}
-                {craftables.map((r) => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 10, ...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{}) }}>
-                    <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={22} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div>{r.name} {questRecipePriority(hud,r.id)>0 && <small style={{color:gameTheme.accent}}>当前任务</small>}</div>
-                      <div style={{ fontSize: 12, color: gameTheme.muted }}>
-                        {Object.entries(r.cost)
-                          .filter(([, n]) => !!n)
-                          .map(([k, n]) => `${n}${ITEMS[k as ResourceKind].name}`)
-                          .join(' + ')}
+                {craftables.map((r) => {
+                  const ready = canCraft(r);
+                  const label = ready ? '制作' : maxCraftCount(r, materials, tools) > 0 ? '已拥有' : '材料不足';
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 10, ...(questRecipePriority(hud,r.id)>0?questRecipeStyle:{}) }}>
+                      <ItemIcon kind={recipeIconKind(r)} level={recipeIconLevel(r)} size={22} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div>{r.name} {questRecipePriority(hud,r.id)>0 && <small style={{color:gameTheme.accent}}>当前任务</small>}</div>
+                        <MaterialRequirements cost={r.cost} available={materials} />
                       </div>
+                      {actionButton(!ready, label, gameTheme.accent, () => onCraft(r.id))}
                     </div>
-                    {actionButton(false, '制作', gameTheme.accent, () => onCraft(r.id))}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : tab === 'tools' ? (
               <div style={CONTENT_STYLE}>
