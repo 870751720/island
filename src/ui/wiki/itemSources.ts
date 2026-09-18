@@ -21,6 +21,8 @@ export type SourceInput = { kind: ResourceKind; count: number };
 export type ItemSource = {
   group: SourceGroup;
   label: string;
+  /** 途径所在的设施(工作台/冶炼炉/火堆等);详情页渲染为可点击的图标+名称组合,跳转设施详情 */
+  station?: ResourceKind;
   inputs?: readonly SourceInput[];
   note?: string;
 };
@@ -41,9 +43,10 @@ function costInputs(cost: Partial<Record<ResourceKind, number>>): SourceInput[] 
   return Object.entries(cost).map(([kind, count]) => ({ kind: kind as ResourceKind, count: count ?? 0 }));
 }
 
-function craftLabel(recipe: { station: 'hand' | 'workbench'; minBenchLevel?: number }): string {
-  if (recipe.station === 'hand') return '徒手制作';
-  return recipe.minBenchLevel && recipe.minBenchLevel > 1 ? `工作台 ${recipe.minBenchLevel} 级` : '工作台';
+/** 配方途径的制作设施;需要等级时取对应等级的工作台,等级要求由芯片名称自然表达 */
+function craftStation(station: 'hand' | 'workbench', minBenchLevel?: number): ResourceKind | undefined {
+  if (station === 'hand') return undefined;
+  return `workbench${minBenchLevel ?? 1}` as ResourceKind;
 }
 
 // —— 合成:配方产物与工作台升级 ——
@@ -57,10 +60,19 @@ for (const recipe of RECIPES) {
   ]
     .filter(Boolean)
     .join(' · ');
-  // 工具类同一道具有多级配方,补上配方名区分木斧/石斧/铁斧等
+  // 设施名由 station 芯片表达,标签只留配方名(工具多级配方靠它区分)或制作动作
+  const label =
+    recipe.station === 'hand'
+      ? recipe.tool
+        ? `${recipe.name} · 徒手制作`
+        : '徒手制作'
+      : recipe.tool
+        ? recipe.name
+        : '制作';
   addSource(kind, {
     group: '合成',
-    label: recipe.tool ? `${recipe.name} · ${craftLabel(recipe)}` : craftLabel(recipe),
+    label,
+    station: craftStation(recipe.station, recipe.minBenchLevel),
     inputs,
     note: note || undefined,
   });
@@ -71,9 +83,9 @@ for (const [level, kind] of [
   [3, 'workbench3'],
   [4, 'workbench4'],
 ] as const) {
-  const label = `工作台升至 ${level} 级`;
   const inputs = costInputs(WORKBENCH_UPGRADE_COST[level] ?? {});
-  addSource(kind, { group: '合成', label, inputs });
+  // 升级在当前等级的工作台上进行,产物是下一级工作台
+  addSource(kind, { group: '合成', label: `升至 ${level} 级`, station: `workbench${level - 1}` as ResourceKind, inputs });
 }
 
 // —— 采集:镜像 CollectSystem 各资源点产出与铲子挖掘(产出写在闭包里无法遍历,新增产出时同步更新此表) ——
@@ -151,20 +163,20 @@ for (const spec of Object.values(CROP_SPECS)) {
   addSource(spec.seed, { group: '种植', label: `种植${spec.name}`, note: '成熟收获时返还' });
 }
 
-// —— 加工:烤/煮/酿/冶炼/纺织的输入输出映射 ——
+// —— 加工:烤/煮/酿/冶炼/纺织的输入输出映射(设施名由 station 芯片表达) ——
 for (const [raw, cooked] of Object.entries(COOKABLE) as [ResourceKind, ResourceKind][]) {
-  addSource(cooked, { group: '加工', label: '火堆烤制', inputs: [{ kind: raw, count: 1 }] });
+  addSource(cooked, { group: '加工', label: '烤制', station: 'campfire', inputs: [{ kind: raw, count: 1 }] });
 }
 for (const [raw, boiled] of Object.entries(BOILABLE) as [ResourceKind, ResourceKind][]) {
-  addSource(boiled, { group: '加工', label: '烹饪台煮汤', inputs: [{ kind: raw, count: 1 }] });
+  addSource(boiled, { group: '加工', label: '煮汤', station: 'cookingStation', inputs: [{ kind: raw, count: 1 }] });
 }
 for (const [raw, wine] of Object.entries(BREWABLE) as [ResourceKind, ResourceKind][]) {
-  addSource(wine, { group: '加工', label: '酿酒桶酿造', inputs: [{ kind: raw, count: BREW_COST }] });
+  addSource(wine, { group: '加工', label: '酿造', station: 'brewBarrel', inputs: [{ kind: raw, count: BREW_COST }] });
 }
-addSource('bait', { group: '加工', label: '饵料桶发酵', note: '投放食物发酵产出' });
-addSource('ironIngot', { group: '加工', label: '冶炼炉冶炼', inputs: [{ kind: 'ironOre', count: SMELT_ORE_PER_INGOT }] });
-addSource('cloth', { group: '加工', label: '纺织机纺织', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });
-addSource('deadCampfire', { group: '加工', label: '火堆燃尽后遗留' });
+addSource('bait', { group: '加工', label: '发酵', station: 'baitBarrel', note: '投放食物发酵产出' });
+addSource('ironIngot', { group: '加工', label: '冶炼', station: 'smelter', inputs: [{ kind: 'ironOre', count: SMELT_ORE_PER_INGOT }] });
+addSource('cloth', { group: '加工', label: '纺织', station: 'loom', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });
+addSource('deadCampfire', { group: '加工', label: '燃尽后遗留', station: 'campfire' });
 
 // —— 畜牧:驯养成年动物定时产出 ——
 addSource('milk', { group: '畜牧', label: '挤绵羊奶', note: '驯养成羊定时产出' });
