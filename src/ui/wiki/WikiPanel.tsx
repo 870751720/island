@@ -7,13 +7,17 @@ import { swallowTrailingClick } from './wikiTaps';
 import { ItemsWiki } from './ItemsWiki';
 
 /** 图鉴顶层分类;后续新分类在此登记,导航与内容切换自动生效 */
-const WIKI_CATEGORIES: readonly { id: string; label: string; component: ComponentType }[] = [
+const WIKI_CATEGORIES: readonly { id: string; label: string; component: ComponentType<CategoryContentProps> }[] = [
   { id: 'items', label: '物品', component: ItemsWiki },
 ];
+
+/** 分类内容的通用入参:进入/退出详情阅读时上报,外层据此收起顶层分类导航 */
+type CategoryContentProps = { onDetailChange: (inDetail: boolean) => void };
 
 /** 游戏图鉴:从设置面板进入的全屏弹层,分类浏览游戏内容;当前提供「物品」分类 */
 export function WikiPanel({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState(WIKI_CATEGORIES[0]!.id);
+  const [contentInDetail, setContentInDetail] = useState(false);
   const active = WIKI_CATEGORIES.find((c) => c.id === category) ?? WIKI_CATEGORIES[0]!;
   const Content = active.component;
   // 关闭会让手指下方变回设置面板,吞掉尾随 click 避免误触(如同样在右上角的关闭按钮)。
@@ -37,13 +41,15 @@ export function WikiPanel({ onClose }: { onClose: () => void }) {
           <strong><MenuIcon name="book" /> 游戏图鉴</strong>
           <button className={styles.close} {...pressAction(close)} aria-label="关闭图鉴">×</button>
         </div>
-        <nav className={styles.categories} aria-label="图鉴分类">
-          {WIKI_CATEGORIES.map((c) => (
-            <button key={c.id} aria-pressed={category === c.id} {...pressAction(() => setCategory(c.id))}>{c.label}</button>
-          ))}
-        </nav>
+        {contentInDetail || (
+          <nav className={styles.categories} aria-label="图鉴分类">
+            {WIKI_CATEGORIES.map((c) => (
+              <button key={c.id} aria-pressed={category === c.id} {...pressAction(() => setCategory(c.id))}>{c.label}</button>
+            ))}
+          </nav>
+        )}
         <div className={styles.content} key={active.id}>
-          <Content />
+          <Content onDetailChange={setContentInDetail} />
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS } from './itemWiki';
 import { ITEMS, itemCategory, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -36,7 +36,7 @@ function ItemChip({ kind, count, onOpen }: { kind: ResourceKind; count?: number;
 }
 
 /** 物品分类:按游戏内分类浏览物品网格,点开进入单品详情,可上一件/下一件连续翻阅 */
-export function ItemsWiki() {
+export function ItemsWiki({ onDetailChange }: { onDetailChange: (inDetail: boolean) => void }) {
   const [category, setCategory] = useState<ItemCategory>('材料');
   const [query, setQuery] = useState('');
   const [trail, setTrail] = useState<DetailPosition[]>([]);
@@ -73,6 +73,8 @@ export function ItemsWiki() {
   };
 
   const detail = trail[trail.length - 1] ?? null;
+  // 进入/退出详情时上报外层收起/恢复顶层分类导航;layout 阶段同步,导航不残留一帧
+  useLayoutEffect(() => { onDetailChange(detail !== null); }, [detail, onDetailChange]);
   if (detail) {
     const kind = detail.kinds[detail.index]!;
     const entry = ITEM_WIKI_ENTRIES.get(kind)!;
