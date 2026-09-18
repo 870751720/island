@@ -119,13 +119,13 @@ export function registerFacilities(context: FacilityRegistrationContext): void {
       valid: (a, x, z) => context.bushCellOk(a, x, z),
       buildPreview: makeTreeSproutPreview,
       placementSound: 'plant',
-      holdTime: 0,
+      holdTime: 0.5,
       repeatOnSuccess: true,
       place: (a, at) => context.placeTree(species, at, a),
       placingLabel: `播种:${ITEMS[kind].name}…`,
     });
   }
-  // 作物种子:空土壤格连续播种，结算后下一帧重新寻找可用格。
+  // 作物种子:空土壤格连续播种，每颗 0.5 秒，完成后接着播下一格。
   for (const spec of Object.values(CROP_SPECS)) {
     def(spec.seed, {
       recovery: context.soils,
@@ -133,7 +133,7 @@ export function registerFacilities(context: FacilityRegistrationContext): void {
       valid: (a, x, z) => context.crops.canPlantAt(a, x, z),
       buildPreview: () => makeCropSproutPreview(spec.kind),
       placementSound: 'plant',
-      holdTime: 0,
+      holdTime: 0.5,
       repeatOnSuccess: true,
       place: (a, at) => context.crops.plant(a, spec.seed, at),
       placingLabel: `播种:${spec.name}…`,

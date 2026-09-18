@@ -70,7 +70,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
   const stats: ItemWikiStat[] = [];
   const def = ITEMS[kind];
   if (itemCategory(kind) === '设施') stats.push({ label: '安放', value: '背包使用或手持选择，在有效位置站定放置' });
-  if (PLANTABLE_SEEDS.has(kind)) stats.push({ label: '播种', value: '站定连续播下附近有效格，无需等待或移动重触发；移动、无空位或种子耗尽时停止' });
+  if (PLANTABLE_SEEDS.has(kind)) stats.push({ label: '播种', value: '站定连续播下附近有效格，每颗 0.5 秒，无需移动重触发；移动、无空位或种子耗尽时停止' });
   if (def.burnTime) stats.push({ label: '可燃', value: `投入火堆 +${def.burnTime} 秒` });
   const food = FOOD_BY_KIND.get(kind);
   if (food) {
