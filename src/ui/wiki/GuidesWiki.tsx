@@ -39,6 +39,15 @@ export function GuidesWiki({ onDetailChange }: { onDetailChange: (inDetail: bool
     if (scroll.current) scroll.current.scrollTop = entry ? detailTop.current : listTop.current;
   }, [entry, target]);
 
+  const keyword = query.trim();
+  const entries = GUIDE_ENTRIES.filter((guide) => guideSearchText(guide).includes(keyword));
+  const entryIndex = entries.findIndex((guide) => guide.id === entry?.id);
+  const step = (delta: number) => {
+    if (entryIndex < 0 || entries.length < 2) return;
+    detailTop.current = 0;
+    setEntry(entries[(entryIndex + delta + entries.length) % entries.length]!);
+  };
+
   const openLink = (link: GuideLink) => {
     detailTop.current = scroll.current?.scrollTop ?? 0;
     swallowTrailingClick();
@@ -60,10 +69,13 @@ export function GuidesWiki({ onDetailChange }: { onDetailChange: (inDetail: bool
           : <GuideWord key={partIndex} link={part} onOpen={openLink} />)}</p>
       </section>)}
     </div>
+    <div className={styles.pager}>
+      <button {...pressAction(() => step(-1))} disabled={entries.length < 2}>‹ 上一篇</button>
+      <span className={styles.pagerPos}>{entryIndex + 1}/{entries.length}</span>
+      <button {...pressAction(() => step(1))} disabled={entries.length < 2}>下一篇 ›</button>
+    </div>
   </div>;
 
-  const keyword = query.trim();
-  const entries = GUIDE_ENTRIES.filter((guide) => guideSearchText(guide).includes(keyword));
   return <div className={styles.root}>
     <div className={styles.controls}>
       <input className={styles.search} value={query} onChange={(event) => {
