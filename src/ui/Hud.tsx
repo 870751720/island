@@ -100,7 +100,7 @@ export function Hud({ hud, rightReserve, onQuestNavigate, idleHidden = false }: 
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <StatusIcon markup={BUFF_SVG[tip.buff.id]} size={24} />
-              <span style={{ fontWeight: 700, flex: 1 }}>{tip.buff.name}</span>
+              <span style={{ fontWeight: 700, flex: 1 }}>{tip.buff.name}{tip.buff.stacks !== undefined ? ` · ${tip.buff.stacks} 层` : ''}</span>
               <span
                 style={{
                   fontSize: 12,

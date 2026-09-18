@@ -23,7 +23,7 @@ export function BuffButton({ buff, expanded, disabled, onActivate }: {
       className={`hud-buff${buff.good ? '' : ' is-bad'}`}
       data-ui-sound="manual"
       data-buff-id={buff.id}
-      aria-label={`${buff.name}，${buff.good ? '增益' : '减益'}`}
+      aria-label={`${buff.name}${buff.stacks ? `，${buff.stacks} 层` : ''}，${buff.good ? '增益' : '减益'}`}
       aria-expanded={expanded}
       disabled={disabled}
       onPointerDown={(event) => {
@@ -36,6 +36,7 @@ export function BuffButton({ buff, expanded, disabled, onActivate }: {
       }}
     >
       <StatusIcon markup={BUFF_SVG[buff.id]} />
+      {buff.stacks !== undefined && <span className="hud-buff-time">{buff.stacks}</span>}
       {buff.remain !== null && <span className="hud-buff-time">{buff.remain}</span>}
     </button>
   );

@@ -148,10 +148,13 @@ export class HudSnapshotBuilder {
     }
     if (session.player.roadKind && !session.player.isSwimming) list.push({ ...BUFFS[session.player.roadKind], remain: null });
     const shrines = this.systems.shrines.blessings;
-    if (shrines.blessed) list.push({ ...BUFFS.poseidon, remain: null });
-    if (shrines.berryBlessed) list.push({ ...BUFFS.beehive, remain: null });
     const position = session.player.group.position;
-    if (shrines.inAura('healCrystal', position)) list.push({ ...BUFFS.healCrystal, remain: null });
+    const poseidon = shrines.stacks('poseidonBlessing');
+    const beehive = shrines.stacks('beehiveShrine');
+    const healing = shrines.stacks('healCrystal', position);
+    if (poseidon) list.push({ ...BUFFS.poseidon, stacks: poseidon, remain: null });
+    if (beehive) list.push({ ...BUFFS.beehive, stacks: beehive, remain: null });
+    if (healing) list.push({ ...BUFFS.healCrystal, stacks: healing, remain: null });
     if (shrines.inAura('rainAltar', position)) list.push({ ...BUFFS.rainAltar, remain: null });
     if (this.systems.weather.rainIntensity > 0.5) list.push({ ...BUFFS.rainBlessing, remain: null });
     if (this.systems.weather.windy) list.push({ ...BUFFS.windBlessing, remain: null });

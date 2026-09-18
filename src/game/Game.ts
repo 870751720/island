@@ -1180,15 +1180,16 @@ export class Game {
           }
           s.survival.swimming = s.player.isSwimming;
           s.survival.sleeping = s.player.isSleeping;
-          // 治愈水晶光环内每 10 秒回复 1 血(与生存结算同源,数值随玩家快照回流客人)
+          // 治愈水晶按覆盖层数每 10 秒回血，由权威端结算并随玩家快照回流。
+          const healStacks = this.ambientFacilities.blessings.stacks('healCrystal', s.player.group.position);
           if (
             !s.survival.state.dead &&
-            this.ambientFacilities.blessings.inAura('healCrystal', s.player.group.position)
+            healStacks > 0
           ) {
             s.healTick += simDelta;
             if (s.healTick >= 10) {
               s.healTick -= 10;
-              s.survival.state.health = Math.min(100, s.survival.state.health + 1);
+              s.survival.state.health = Math.min(100, s.survival.state.health + healStacks);
             }
           } else {
             s.healTick = 0;
@@ -3405,7 +3406,7 @@ export class Game {
         this.pickupPresentation.markOrigin(position, s);
       },
       // 蜂巢神龛在岛上时,采集浆果丛有概率多掉 1 颗
-      () => this.ambientFacilities.blessings.berryBlessed,
+      () => this.ambientFacilities.blessings.berryBonusChance,
       // 刮风天(风之加护)碎石堆/草丛/浆果丛有概率多掉 1 份主产出
       () => this.weather.windy,
       // 砍树自然补种时避开所有在场玩家,树苗不在任何人面前凭空出现

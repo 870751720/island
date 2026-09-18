@@ -302,21 +302,21 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     name: '波塞冬的祝福',
     icon: '🔱',
     description:
-      '海神赐福的三叉戟石像。放置期间全岛所有人钓鱼钓到杂物的概率降低 1%。',
+      '海神赐福的三叉戟石像。放置期间全岛所有人每层降低 1 个百分点的钓鱼杂物概率，最多叠加 10 层。',
   },
   beehiveShrine: {
     kind: 'beehiveShrine',
     name: '蜂巢神龛',
     icon: '🍯',
     description:
-      '浸满蜂蜜的神龛。放置期间全岛所有人采集浆果丛时有 10% 概率多掉 1 颗浆果。',
+      '浸满蜂蜜的神龛。放置期间全岛所有人采集浆果丛时每层增加 10% 的概率多掉 1 颗浆果，最多叠加 10 层（100% 额外掉落 1 颗）。',
   },
   healCrystal: {
     kind: 'healCrystal',
     name: '治愈水晶',
     icon: '💗',
     description:
-      '散发着暖光的粉晶。放置期间 30 米内的所有玩家每 10 秒回复 1 点生命。',
+      '散发着暖光的粉晶。放置期间 30 米内的所有玩家每层每 10 秒回复 1 点生命，重叠光环最多叠加 3 层。',
   },
   rainAltar: {
     kind: 'rainAltar',

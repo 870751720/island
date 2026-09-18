@@ -74,7 +74,7 @@ export class PlayerSession implements Actor {
   deathLoot: DeathLootSummary | null = null;
   /** 权威端的放箭动画剩余时长(客人射箭由客人本地判定,房主只补动作快照) */
   shotAnimLeft = 0;
-  /** 治愈水晶光环的回血累计(满 10 秒结算 1 血) */
+  /** 治愈水晶光环的回血累计(满 10 秒按当前覆盖层数回血) */
   healTick = 0;
   /** 权威端累计的连续闲置时长:满 IDLE_HIDE_DELAY 后该玩家的 HUD 淡出(本地与远程会话各自计时) */
   hudIdleTime = 0;

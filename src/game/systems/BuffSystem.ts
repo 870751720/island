@@ -42,21 +42,21 @@ export const BUFFS: Record<BuffId, BuffDef> = {
     id: 'poseidon',
     name: '波塞冬的祝福',
     icon: '🔱',
-    description: '岛上放置着波塞冬的祝福,全岛钓鱼钓到杂物的概率降低 1%。',
+    description: '岛上放置着波塞冬的祝福,全岛每层降低 1 个百分点的钓鱼杂物概率，最多叠加 10 层。',
     good: true,
   },
   beehive: {
     id: 'beehive',
     name: '蜂巢神龛',
     icon: '🍯',
-    description: '岛上放置着蜂巢神龛,全岛采集浆果丛时有 10% 概率多掉 1 颗浆果。',
+    description: '岛上放置着蜂巢神龛,全岛采集浆果丛时每层增加 10% 的概率多掉 1 颗浆果，最多叠加 10 层（100% 额外掉落 1 颗）。',
     good: true,
   },
   healCrystal: {
     id: 'healCrystal',
     name: '治愈水晶',
     icon: '💗',
-    description: '身处治愈水晶 30 米光环内,每 10 秒回复 1 点生命。',
+    description: '身处治愈水晶 30 米光环内,每层每 10 秒回复 1 点生命，重叠光环最多叠加 3 层。',
     good: true,
   },
   rainAltar: {
@@ -111,4 +111,4 @@ export const BUFFS: Record<BuffId, BuffDef> = {
 };
 
 /** HUD 快照里的一条 buff;remain 为剩余秒数,永久/非限时 buff 为 null */
-export type HudBuff = BuffDef & { remain: number | null };
+export type HudBuff = BuffDef & { remain: number | null; stacks?: number };

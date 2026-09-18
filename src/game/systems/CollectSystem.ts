@@ -19,8 +19,6 @@ import {
 
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
-/** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
-const BERRY_BONUS_CHANCE = 0.1;
 /** 刮风天(风之加护)采集碎石堆/草丛/浆果丛多掉 1 份主产出的概率 */
 const WIND_BONUS_CHANCE = 0.1;
 /** 风之加护覆盖的资源点及其额外产出 */
@@ -68,8 +66,8 @@ export class CollectSystem {
     private onFx: (position: Vector3, color: string, count: number) => void = () => {},
     /** 资源点产出入包时上报飞行起点(本地玩家的入包飞行表现用) */
     private onYield: (position: Vector3) => void = () => {},
-    /** 蜂巢神龛是否在场(浆果丛产量祝福,全岛生效) */
-    private berryBlessed: () => boolean = () => false,
+    /** 蜂巢神龛叠层后的额外浆果概率(全岛生效) */
+    private berryBonusChance: () => number = () => 0,
     /** 刮风天是否生效(风之加护:碎石堆/草丛/浆果丛概率额外 +1) */
     private windBlessed: () => boolean = () => false,
     /** 自然补种选点时需要避开的玩家位置(防树苗在玩家面前凭空出现穿帮) */
@@ -240,7 +238,7 @@ export class CollectSystem {
       const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';
       this.props.harvest(prop);
       this.giveDrops(giveYield, prop, config.drops);
-      if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
+      if (prop.kind === 'berry' && Math.random() < this.berryBonusChance()) {
         this.give('berry', 1);
       }
       // 风之加护:碎石堆/草丛/浆果丛按概率多掉 1 份主产出
