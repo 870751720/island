@@ -27,14 +27,14 @@
   - 浏览视图：搜索框 + 物品分类 tab（材料/工具/装备/食物/设施/道具，复用 `ITEM_CATEGORIES`）+ 物品网格（图标 + 名称的方块入口）；
   - 搜索时跨全部分类匹配名称，结果按分类分组展示，空结果显示友好提示；
   - 详情视图：大图标、名称、标签行（分类 + 来源分组标签）、物品描述（`ITEMS.description`）、属性行、「获得方式」区块（每条途径单行排列：设施芯片 + 材料芯片（带数量）+ 动作文字，一行读完「用什么设施、用什么材料做什么」；芯片可点击跳转对应图鉴详情，等级要求用对应等级工作台的芯片表达），底部「上一件 / 下一件」在当前列表内循环翻阅，「‹ 返回」逐层退回浏览轨迹。
-- `itemSources.ts`：获得途径的数据推导模块。正向索引（kind → 获得方式）在模块加载时从各系统既有数据表推导，避免手抄漂移：
+- `itemSources.ts`：获得途径的数据推导模块。正向索引（kind → 获得方式）在模块加载时从各系统既有数据表推导，不保留手抄镜像表：
   - 合成：`Crafting.ts` `RECIPES`（材料/站点/工作台等级/产物数，工具多级配方以配方名区分）、`WORKBENCH_UPGRADE_COST`（工作台升级）；
-  - 采集：镜像 `CollectSystem.ts` `HARVEST_CONFIG` 与铲子挖掘产出的静态表 `HARVEST_DROPS`（产出写在闭包里无法遍历，新增资源点产出时需同步更新该表），树种种子/果实来自 `TreeSpecies.ts`；
-  - 击杀：`Wildlife.ts` `SPECIES` 战利品 + `lootOf` 概率掉落（冒险家的经验书、作物种子）+ 弓箭射鸟；
+  - 采集：`HarvestTable.ts` `HARVEST_CONFIG`（各资源点的产出声明表，结算与图鉴共用同一张表）与 `DIG_YIELD`（铲子整棵挖走），树种种子/果实经 `expandHarvestDrop` 展开，概率产出直接显示具体百分比；
+  - 击杀：`Wildlife.ts` `SPECIES` 战利品 + `RARE_LOOT` 稀有掉落表（冒险家的经验书、作物种子，结算 `lootOf` 与图鉴共用）+ 弓箭射鸟；
   - 钓鱼：`FishTable.ts` `JUNK_LOOT`/`SEA_FISH`/`POND_FISH`/`TREASURE_LOOT`（珍宝池同时来自局外「碎石成金」挖陨石）；
   - 种植：`Crop.ts` `CROP_SPECS`（收获产物与返还种子）；
   - 加工：`Food.ts` `COOKABLE`/`BOILABLE`、`Wine.ts` `BREWABLE` 与 `BREW_COST`、`BAIT_YIELD`（饵料桶）、`Smelter.ts` 冶炼、`LoomSystem.ts` 纺织、火堆燃尽遗留熄灭的火堆；
-  - 畜牧 / 伙伴 / 赠礼：挤奶、剪羊毛（`AnimalHusbandry.ts` 产出规则）、`CompanionDefinition.ts` `CAT_FINDS`、`PoseidonGrace.ts` `POSEIDON_GIFT_KINDS`，以小型静态表登记。
+  - 畜牧 / 伙伴 / 赠礼：`AnimalHusbandry.ts` `LIVESTOCK_PRODUCE`（物种 → 奶/毛产出表，定时产出结算、生物图鉴与物品来源共用）、`CompanionDefinition.ts` `CAT_FINDS`、`PoseidonGrace.ts` `POSEIDON_GIFT_KINDS`。
 - 详情跳转采用浏览轨迹栈（`trail`）：从网格或搜索进入压入首层，点击配方材料时在目标所属分类的完整列表中打开（便于上一件/下一件连续翻阅），返回按钮逐层退回，退空回到浏览视图。
 - `itemWiki.ts`：图鉴数据准备。以 `ITEMS` 为基础（名称、图标、描述），按 `itemCategory` 分组、`itemSortIndex` 排序（与背包整理同序），并从既有系统汇总属性行：
   - `Food.ts` `FOODS` → 饱食/水分/生命回复；
@@ -48,7 +48,7 @@
 - `CreaturesWiki.tsx`：搜索框下直接展示三列生物卡片，不设子分类、分组标题或标签筛选栏。每张卡片显示静态图标、名称与两个特性标签；搜索匹配名称或标签，输入完整标签时优先精确匹配，避免「可驯养」误命中「不可驯养」，空结果给出提示。
 - 生物详情首排左侧为头像和名称，基础属性利用名称右侧空位就地展示，标签位于名称下方；随后展示简介、出没地点、习性与应对、互动方式、驯养产出或伙伴觅食、击杀掉落、可投喂食物。没有数据的区块不展示。战斗数值为基础配置，掉落标明成年基础产出，概率掉落单独注记。
 - 生物基础属性与名称共用第一排，不单独增加属性行、底色卡片或标题。48px 头像旁的内容区中，16px 名称左对齐，属性靠右，用 10px 短标签「生命 / 攻击 / 驯养」、14px 加粗等宽数值和细分隔线紧凑横排，并保留完整辅助名称。野牛的护幼和激怒反击在习性中说明，属性区只放数值；无属性的生物不留空白。样式限定生物详情，不影响物品属性布局。
-- `creatureWiki.ts`：单一生物登记表与玩法介绍；物种名称和基础数值读取 `Wildlife`，套索能力读取 `LassoRules`，食谱按 `FOODS.eaters` 与饱食值推导，爱心与生产时间读取 `AnimalHusbandry`，伙伴名称与觅食产物读取 `CompanionDefinition`。额外掉落复用 `itemSources.RARE_KILL_LOOT`，不另抄一套概率表；基础习性与场景生物介绍按对应玩法维护。
+- `creatureWiki.ts`：单一生物登记表与玩法介绍；物种名称和基础数值读取 `Wildlife`，套索能力读取 `LassoRules`，食谱按 `FOODS.eaters` 与饱食值推导，爱心与生产时间读取 `AnimalHusbandry`，驯养产出读取 `LIVESTOCK_PRODUCE`（与玩法结算共用），伙伴名称与觅食产物读取 `CompanionDefinition`。额外掉落读取 `Wildlife.RARE_LOOT`（与 `lootOf` 结算共用，备注经 `rareLootNote` 从概率数字推导），不另抄一套概率表；基础习性与场景生物介绍按对应玩法维护。
 - `CreatureIcon.tsx`：复用现有 SVG 笔触绘制动物图标，薯条、可乐复用伙伴头像；不引入贴图、外部模型或额外 WebGL 上下文。
 - 兔子头像使用完整露出的修长双耳、浅色圆脸与小鼻口；绵羊头像使用奶油色卷毛轮廓、侧耳和深色窄脸，保持小尺寸下的物种辨识度。
 - `WikiText.tsx`：生物正文支持显式物品引用，原位显示「18px 物品图标＋文字」按钮，触控区至少 44px，图标与文字整体点击，使用滚动容差手势；点击进入对应物品详情，逐层返回后恢复生物详情的滚动位置。文案与持久化物品 ID 分开，不按名称自动识别链接。
@@ -80,3 +80,4 @@
 - 2026-09-18(五):详情页去掉「用于合成」区块,反向用途索引(`itemUsesOf`)与相关死代码一并移除;「垂钓杂物」获得方式标注「概率获得」。
 - 2026-09-18(六):获得方式的设施途径改为可点击的设施芯片(图标+名称,复用 `ItemChip`),点击跳转设施详情;`ItemSource` 新增 `station` 字段,合成/加工途径的标签只留配方名或动作(冶炼/烤制/酿造/纺织等),设施名与等级要求由芯片表达(如「二级工作台」芯片 +「石斧」)。
 - 2026-09-18(七):来源卡改为单行语义——设施芯片、材料芯片(带数量)、动作文字一行排完,备注靠行尾,替代原先「标签行 + 材料行」的两行结构。
+- 2026-09-18(八):消灭获得方式的手抄镜像表,改为与玩法结算共用的数据源——采集产出从 `CollectSystem` 闭包抽为 `HarvestTable.ts` `HARVEST_CONFIG` 产出声明表(掷点执行器在 `CollectSystem` 结算),稀有击杀掉落抽为 `Wildlife.RARE_LOOT`,畜牧产出抽为 `AnimalHusbandry.LIVESTOCK_PRODUCE`(定时产出结算、`harvestableNear` 产物种类、生物图鉴产出与物品来源四处共用)。采集与稀有掉落的概率备注由数字推导显示具体百分比(如「25% 概率」「必掉 ×3」),替代原先笼统的「概率获得」。纯静态数据重构,联机协议与存档版本不变。

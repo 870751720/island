@@ -1,13 +1,7 @@
 import type { Vector3 } from 'three';
 import type { Player, ActionType } from '../entities/Player';
 import type { Prop, Props } from '../world/Props';
-import {
-  FRUIT_DROP_CHANCE,
-  FRUIT_OF,
-  SEED_DROP_CHANCE,
-  SEED_OF,
-  fruitPickCount,
-} from '../world/TreeSpecies';
+import { FRUIT_OF, SEED_OF } from '../world/TreeSpecies';
 import type { CollectMeta } from '../meta/MetaHooks';
 import { NO_COLLECT_META } from '../meta/MetaHooks';
 import { Inventory, countsFromSlots, type ResourceKind } from './Inventory';
@@ -15,14 +9,16 @@ import type { Tools } from './Crafting';
 import { axeHits, shovelHits, pickaxeHits, pickaxeUnlocked } from './ToolTiers';
 import type { Particles } from '../fx/Particles';
 import type { GameAudio } from '../audio/GameAudio';
+import {
+  DIG_YIELD,
+  HARVEST_CONFIG,
+  rollHarvestCount,
+  type HarvestDrop,
+  type HarvestKind,
+} from './HarvestTable';
 
 const COLLECT_RANGE = 1.6;
 const SWING_TIME = 0.6; // 每次作业动作时长(秒)
-const FLINT_CHANCE = 0.25; // 采集石类资源点时额外蹦出燧石的概率
-/** 采草丛/灌木时掉落作物种子的概率(两种种子随机其一) */
-const GRASS_SEED_CHANCE = 0.2;
-const SHRUB_SEED_CHANCE = 0.15;
-const CROP_SEEDS = ['carrotSeed', 'wheatSeed'] as const;
 /** 蜂巢神龛在场时,采集浆果丛多掉 1 颗的概率 */
 const BERRY_BONUS_CHANCE = 0.1;
 /** 刮风天(风之加护)采集碎石堆/草丛/浆果丛多掉 1 份主产出的概率 */
@@ -33,18 +29,6 @@ const WIND_BONUS_YIELD: Partial<Record<'gravel' | 'grass' | 'berry', 'stone' | '
   grass: 'fiber',
   berry: 'berry',
 };
-/** 铲子挖走的丛/窝对应的道具 */
-const DIG_YIELD: Partial<
-  Record<'berry' | 'shrub' | 'grass' | 'wormNest', 'berryBush' | 'shrubBush' | 'grassTuft' | 'wormNest'>
-> = {
-  berry: 'berryBush',
-  shrub: 'shrubBush',
-  grass: 'grassTuft',
-  wormNest: 'wormNest',
-};
-
-/** 作业对象种类:树桩是成树的第二段,空手摘果的果树单独配置;未成树(发芽/小树)不可砍 */
-type HarvestKind = Prop['kind'] | 'stump' | 'fruitTree';
 
 /** 挂果中的果树(成树、未砍、持斧以外的状态靠近即摘果,持斧则正常砍树) */
 function isFruitedTree(prop: Prop): boolean {
@@ -56,126 +40,6 @@ function isFruitedTree(prop: Prop): boolean {
     prop.fruited !== false
   );
 }
-
-/** 各资源点:作业动画、命中次数、命中特效色、产出 */
-const HARVEST_CONFIG: Record<
-  HarvestKind,
-  {
-    action: ActionType;
-    hits: number;
-    fxColor: string;
-    yield: (inventory: Pick<Inventory, 'add'>, prop: Prop) => void;
-  }
-> = {
-  fruitTree: {
-    // 空手摘果:一次大概率 1 个、小概率 2 个、极小概率 3 个,树保留并进入挂果再生
-    action: 'pick',
-    hits: 1,
-    fxColor: '#c0392b',
-    yield: (inv) => {
-      inv.add(FRUIT_OF.fruit, fruitPickCount());
-      // 摘果时果树上偶尔缠着番茄藤,顺手捎回种子
-      if (Math.random() < 0.01) inv.add('tomatoSeed', 1);
-    },
-  },
-  tree: {
-    action: 'chop',
-    hits: 3,
-    fxColor: '#4f9440',
-    yield: (inv, prop) => {
-      inv.add('branch', 2);
-      inv.add('wood', 1);
-      // 第一阶段砍倒树冠时,按树种概率掉落种子与可食用果实
-      const species = prop.species ?? 'oak';
-      if (Math.random() < SEED_DROP_CHANCE) inv.add(SEED_OF[species], 1);
-      if (Math.random() < FRUIT_DROP_CHANCE) inv.add(FRUIT_OF[species], 1);
-      // 林下偶有野生大豆,砍树时小概率捎回豆种
-      if (Math.random() < 0.01) inv.add('soybeanSeed', 1);
-    },
-  },
-  stump: {
-    action: 'chop',
-    hits: 2,
-    fxColor: '#8a6239',
-    yield: (inv) => {
-      inv.add('branch', 1);
-      inv.add('wood', 2);
-    },
-  },
-  rock: {
-    action: 'mine',
-    hits: 5,
-    fxColor: '#9a9a9a',
-    yield: (inv) => {
-      inv.add('stone', 2);
-      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
-    },
-  },
-  iron: {
-    action: 'mine',
-    hits: 5,
-    fxColor: '#b0714f',
-    yield: (inv) => {
-      inv.add('stone', 2);
-      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
-      inv.add('ironOre', 2 + Math.floor(Math.random() * 3));
-    },
-  },
-  meteor: {
-    action: 'mine',
-    hits: 5,
-    fxColor: '#e8703a',
-    yield: (inv) => {
-      inv.add('stone', 2);
-      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
-      inv.add('ironOre', 2 + Math.floor(Math.random() * 3));
-    },
-  },
-  gravel: {
-    action: 'pick',
-    hits: 1,
-    fxColor: '#b5b0a8',
-    yield: (inv) => {
-      inv.add('stone', 2);
-      if (Math.random() < FLINT_CHANCE) inv.add('flint', 1);
-    },
-  },
-  berry: {
-    action: 'pick',
-    hits: 1,
-    fxColor: '#c0392b',
-    yield: (inv) => inv.add('berry', 1),
-  },
-  shrub: {
-    action: 'pick',
-    hits: 2,
-    fxColor: '#6b8f4e',
-    yield: (inv) => {
-      inv.add('branch', 1);
-      if (Math.random() < SHRUB_SEED_CHANCE) inv.add(CROP_SEEDS[Math.floor(Math.random() * CROP_SEEDS.length)], 1);
-    },
-  },
-  grass: {
-    action: 'pick',
-    hits: 1,
-    fxColor: '#a4c46a',
-    yield: (inv) => {
-      inv.add('fiber', 1);
-      if (Math.random() < GRASS_SEED_CHANCE) inv.add(CROP_SEEDS[Math.floor(Math.random() * CROP_SEEDS.length)], 1);
-    },
-  },
-  wormNest: {
-    // 捉蚯蚓:空手从窝里捉走蚯蚓,每次 1-3 只
-    action: 'pick',
-    hits: 1,
-    fxColor: '#d98a8a',
-    yield: (inv) => {
-      inv.add('worm', 1 + Math.floor(Math.random() * 3));
-      // 翻湿土偶尔带出一颗漏收的土豆
-      if (Math.random() < 0.02) inv.add('potatoSeed', 1);
-    },
-  },
-};
 
 export type HarvestInfo = { progress: number };
 
@@ -366,7 +230,7 @@ export class CollectSystem {
     if (this.isPickingFruit(prop)) {
       // 空手摘果:只摘走果子,树保留并进入挂果再生
       this.props.pickFruit(prop);
-      config.yield({ add: giveYield }, prop);
+      this.giveDrops(giveYield, prop, config.drops);
     } else if (this.isDigging(prop)) {
       // 铲子把整棵丛挖走,获得对应道具,资源点永久消失
       this.props.removeProp(prop);
@@ -375,7 +239,7 @@ export class CollectSystem {
     } else {
       const treeFelled = prop.kind === 'tree' && prop.stage !== 'stump';
       this.props.harvest(prop);
-      config.yield({ add: giveYield }, prop);
+      this.giveDrops(giveYield, prop, config.drops);
       if (prop.kind === 'berry' && this.berryBlessed() && Math.random() < BERRY_BONUS_CHANCE) {
         this.give('berry', 1);
       }
@@ -432,9 +296,24 @@ export class CollectSystem {
     if (seedline >= 1 && kind === 'tree') {
       this.give('wood', 1);
     }
-    // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次 yield)
+    // 拾穗满级:每天第一次采集,基础产出双倍(再结算一次产出表)
     if (gleaning >= 3 && !this.isDigging(prop) && this.meta.takeFirstCollect()) {
-      config.yield({ add: giveYield }, prop);
+      this.giveDrops(giveYield, prop, config.drops);
+    }
+  }
+
+  /** 掷点产出声明表,把结果入包:概率判定、随机取一、按树种映射与数量掷点都在这里结算 */
+  private giveDrops(add: (kind: ResourceKind, count: number) => number, prop: Prop, drops: readonly HarvestDrop[]): void {
+    const species = prop.species ?? 'oak';
+    for (const drop of drops) {
+      if (drop.chance !== undefined && drop.chance < 1 && Math.random() >= drop.chance) continue;
+      if ('bySpecies' in drop) {
+        add((drop.bySpecies === 'seed' ? SEED_OF : FRUIT_OF)[species], 1);
+      } else if ('oneOf' in drop) {
+        add(drop.oneOf[Math.floor(Math.random() * drop.oneOf.length)], 1);
+      } else {
+        add(drop.kind, rollHarvestCount(drop.count));
+      }
     }
   }
 }

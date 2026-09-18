@@ -1,9 +1,15 @@
 import type { FoodEater } from './Food';
+import type { ResourceKind } from './Inventory';
 
 export type TameSpecies = Exclude<FoodEater, 'dog' | 'cat'>;
 export const HEART_MAX: Record<TameSpecies, number> = { rabbit: 30, sheep: 60, bison: 100, wolf: 150, bear: 200 };
 export const PRODUCTION_SECONDS = 600;
 export const HOME_RADIUS = 15;
+/** 畜牧产出表:驯养成年动物定时产出的奶,绵羊额外长毛(持剪刀收取);结算、生物图鉴与物品来源共用 */
+export const LIVESTOCK_PRODUCE: Readonly<Partial<Record<TameSpecies, { milk: ResourceKind; wool?: ResourceKind }>>> = {
+  sheep: { milk: 'milk', wool: 'wool' },
+  bison: { milk: 'cowMilk' },
+};
 export type HusbandryState = {
   tamed: boolean;
   heart: number;
@@ -53,9 +59,10 @@ export function advanceHusbandry(state: HusbandryState, species: TameSpecies, ad
     return true;
   }
   if (state.heart < HEART_MAX[species] * 0.7) state.seeking = true;
-  if (adult && (species === 'sheep' || species === 'bison')) {
+  const produce = LIVESTOCK_PRODUCE[species];
+  if (adult && produce) {
     if (!state.milk) { state.milkLeft = Math.max(0, state.milkLeft - delta * productionSpeed); state.milk = state.milkLeft === 0; }
-    if (species === 'sheep' && !state.wool) {
+    if (produce.wool && !state.wool) {
       state.woolLeft = Math.max(0, state.woolLeft - delta * productionSpeed);
       if (state.woolLeft === 0) { state.wool = true; state.shorn = false; }
     }

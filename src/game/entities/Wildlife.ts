@@ -1,6 +1,6 @@
 import { CrocodileDeparture, CROC_CALM_TIME } from './CrocodileDeparture';
 import { GmSystem } from '../systems/GmSystem';
-import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
+import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, HEART_MAX, HOME_RADIUS, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
 import { AnimalForaging, clearFoodPath } from '../systems/AnimalForaging';
 import type { AnimalFoodSource } from '../systems/AnimalFood';
 import type { Props } from '../world/Props';
@@ -43,6 +43,16 @@ export const ANIMAL_LABELS: Record<AnimalSpecies, string> = {
 
 /** 击杀掉落的战利品(兽肉之外按物种附带不同材料) */
 export type AnimalLoot = { kind: ResourceKind; count: number }[];
+
+/** 稀有战利品:击杀特定物种时按概率或必掉的额外产出(结算与图鉴共用;局外养成剥取加成在 lootMeta 叠加) */
+export const RARE_LOOT: readonly { species: AnimalSpecies; kind: ResourceKind; count?: number; chance?: number }[] = [
+  { species: 'wolf', kind: 'adventureBook', chance: 0.3 },
+  { species: 'bear', kind: 'adventureBook', count: 3 },
+  // 作物种子战利品:野牛肚里的谷粒、兔子窝里偷藏的菜种、熊携带的莓果籽
+  { species: 'bison', kind: 'cornSeed', chance: 0.03 },
+  { species: 'rabbit', kind: 'cabbageSeed', chance: 0.1 },
+  { species: 'bear', kind: 'strawberrySeed', chance: 0.5 },
+];
 
 /** 草地高度带:高于沙滩带上限算草地,动物只在草地上活动 */
 const GRASS_MIN = 0.16;
@@ -1520,7 +1530,7 @@ export class Wildlife implements Updatable {
     return { id: best.id, anchor: anchor.anchor };
   }
 
-  harvestableNear(origin: THREE.Vector3, range: number, wool: boolean): { id: number; x: number; z: number; kind: 'milk' | 'cowMilk' | 'wool' } | null {
+  harvestableNear(origin: THREE.Vector3, range: number, wool: boolean): { id: number; x: number; z: number; kind: ResourceKind } | null {
     let best: Animal | null = null;
     let distance = range;
     for (const animal of this.animals) {
@@ -1529,7 +1539,10 @@ export class Wildlife implements Updatable {
       const d = Math.hypot(animal.pos.x - origin.x, animal.pos.z - origin.z);
       if (d < distance && clearFoodPath(origin, animal.pos, (x, z) => !this.isBlocked(x, z))) { best = animal; distance = d; }
     }
-    return best ? { id: best.id, x: best.pos.x, z: best.pos.z, kind: wool ? 'wool' : best.species === 'bison' ? 'cowMilk' : 'milk' } : null;
+    if (!best) return null;
+    // 产出种类由畜牧产出表决定;驯养状态已过滤无产出的物种,兜底仅作类型完备
+    const produce = LIVESTOCK_PRODUCE[best.species as TameSpecies];
+    return { id: best.id, x: best.pos.x, z: best.pos.z, kind: wool ? produce?.wool ?? 'wool' : produce?.milk ?? 'milk' };
   }
 
   takeProduce(id: number, origin: THREE.Vector3, wool: boolean): { kind: ResourceKind; position: THREE.Vector3 } | null {
@@ -1947,7 +1960,7 @@ export class Wildlife implements Updatable {
     return { species, juvenile: animal.bornAt !== null };
   }
 
-  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同;狼另有 30% 概率掉落冒险家的经验书);局外养成剥取加成最后改写 */
+  /** 击杀应掉落的战利品(按物种:兽肉份数不同,附带材料不同,另见 RARE_LOOT 稀有掉落);局外养成剥取加成最后改写 */
   lootOf(species: AnimalSpecies, juvenile = false): AnimalLoot {
     if (juvenile) return [{ kind: 'gameMeat', count: 1 }, { kind: 'fur', count: 1 }];
     const loot = SPECIES[species].loot.map((item) => ({ ...item }));
@@ -1957,12 +1970,12 @@ export class Wildlife implements Updatable {
         if (item.kind === 'gameMeat' || item.kind === 'fur') item.count += 1;
       }
     }
-    if (species === 'wolf' && Math.random() < 0.3) loot.push({ kind: 'adventureBook', count: 1 });
-    if (species === 'bear') loot.push({ kind: 'adventureBook', count: 3 });
-    // 作物种子战利品:野牛肚里的谷粒、兔子窝里偷藏的菜种、熊携带的莓果籽
-    if (species === 'bison' && Math.random() < 0.03) loot.push({ kind: 'cornSeed', count: 1 });
-    if (species === 'rabbit' && Math.random() < 0.1) loot.push({ kind: 'cabbageSeed', count: 1 });
-    if (species === 'bear' && Math.random() < 0.5) loot.push({ kind: 'strawberrySeed', count: 1 });
+    for (const rare of RARE_LOOT) {
+      if (rare.species !== species) continue;
+      if (rare.chance === undefined || Math.random() < rare.chance) {
+        loot.push({ kind: rare.kind, count: rare.count ?? 1 });
+      }
+    }
     return this.lootMeta(species, loot);
   }
 

@@ -1,10 +1,10 @@
-import { ANIMAL_LABELS, SPECIES, type AnimalSpecies } from '@/game/entities/Wildlife';
+import { ANIMAL_LABELS, RARE_LOOT, SPECIES, type AnimalSpecies } from '@/game/entities/Wildlife';
 import { canLasso, isLassoPredator } from '@/game/entities/LassoRules';
-import { HEART_MAX, PRODUCTION_SECONDS, type TameSpecies } from '@/game/systems/AnimalHusbandry';
+import { HEART_MAX, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type TameSpecies } from '@/game/systems/AnimalHusbandry';
 import { FOODS, type FoodEater } from '@/game/systems/Food';
 import { CAT_FINDS, COMPANIONS } from '@/game/companions/CompanionDefinition';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import { RARE_KILL_LOOT } from './itemSources';
+import { rareLootNote } from './itemSources';
 import type { WikiTextValue } from './WikiText';
 
 export type CreatureId = AnimalSpecies | 'dog' | 'cat' | 'bird' | 'crab' | 'seaPredator';
@@ -63,20 +63,25 @@ function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
   const stats = [{ label: '基础生命', shortLabel: '生命', value: String(config.hp) }];
   if (config.damage > 0) stats.push({ label: '基础攻击伤害', shortLabel: '攻击', value: String(config.damage) });
   if (tame) stats.push({ label: '驯养所需爱心', shortLabel: '驯养', value: String(HEART_MAX[id as TameSpecies]) });
-  const produce: RelatedItem[] = id === 'sheep' ? [{ kind: 'milk', count: 1 }, { kind: 'wool', count: 1 }]
-    : id === 'bison' ? [{ kind: 'cowMilk', count: 1 }] : [];
+  const produceSpec = LIVESTOCK_PRODUCE[id as TameSpecies];
+  const produce: RelatedItem[] = produceSpec
+    ? [{ kind: produceSpec.milk, count: 1 }, ...(produceSpec.wool ? [{ kind: produceSpec.wool, count: 1 }] : [])]
+    : [];
   return {
     id, name: ANIMAL_LABELS[id], ...WILDLIFE_GUIDES[id], stats,
     interaction: tame
       ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，填满爱心即可驯养。驯养后全队共享，需持续供食；爱心归零会恢复野生。']
       : ['不能使用', { kind: 'lasso', label: '套索' }, '或驯养。可以用武器击杀，也可以远离水洼脱战。'],
     foods: tame ? foodsFor(id as TameSpecies) : [],
-    drops: [...config.loot, ...RARE_KILL_LOOT.filter((drop) => drop.species === id)],
+    drops: [
+      ...config.loot,
+      ...RARE_LOOT.filter((drop) => drop.species === id).map((drop) => ({ kind: drop.kind, count: drop.count, note: rareLootNote(drop) })),
+    ],
     dropNote: '展示成年个体的基础掉落，幼崽、天气恩泽与传承加成可能影响实际产出。',
     produce,
     productionNote: produce.length ? [
       `成年且保持驯养时，每 ${PRODUCTION_SECONDS / 60} 分钟各准备一份，未领取不累计。靠近可自动挤奶`,
-      ...(id === 'sheep' ? ['；手持', { kind: 'shears' as const, label: '剪刀' }, '时改为剪毛'] : []),
+      ...(produceSpec?.wool ? ['；手持', { kind: 'shears' as const, label: '剪刀' }, '时改为剪毛'] : []),
       '。幼崽不生产。时间为默认速度下的游戏运行时间。',
     ] : undefined,
   };

@@ -3,8 +3,9 @@ import { BOILABLE, COOKABLE } from '@/game/systems/Food';
 import { BREWABLE, BREW_COST } from '@/game/systems/Wine';
 import { JUNK_LOOT, POND_FISH, SEA_FISH, TREASURE_LOOT } from '@/game/systems/FishTable';
 import { CROP_SPECS } from '@/game/entities/Crop';
-import { ANIMAL_LABELS, SPECIES, type AnimalSpecies } from '@/game/entities/Wildlife';
-import { FRUIT_OF, SEED_OF, TREE_SPECIES } from '@/game/world/TreeSpecies';
+import { ANIMAL_LABELS, RARE_LOOT, SPECIES } from '@/game/entities/Wildlife';
+import { LIVESTOCK_PRODUCE, type TameSpecies } from '@/game/systems/AnimalHusbandry';
+import { DIG_YIELD, HARVEST_CONFIG, expandHarvestDrop } from '@/game/systems/HarvestTable';
 import { CAT_FINDS } from '@/game/companions/CompanionDefinition';
 import { POSEIDON_GIFT_KINDS } from '@/game/systems/PoseidonGrace';
 import { SMELT_ORE_PER_INGOT } from '@/game/entities/Smelter';
@@ -88,38 +89,20 @@ for (const [level, kind] of [
   addSource(kind, { group: '合成', label: `升至 ${level} 级`, station: `workbench${level - 1}` as ResourceKind, inputs });
 }
 
-// —— 采集:镜像 CollectSystem 各资源点产出与铲子挖掘(产出写在闭包里无法遍历,新增产出时同步更新此表) ——
-const HARVEST_DROPS: readonly { label: string; drops: readonly { kind: ResourceKind; chance?: boolean }[] }[] = [
-  {
-    label: '砍树',
-    drops: [
-      { kind: 'branch' },
-      { kind: 'wood' },
-      ...TREE_SPECIES.map((species) => ({ kind: SEED_OF[species] })),
-      ...TREE_SPECIES.map((species) => ({ kind: FRUIT_OF[species], chance: true })),
-      { kind: 'soybeanSeed', chance: true },
-    ],
-  },
-  { label: '树桩', drops: [{ kind: 'branch' }, { kind: 'wood' }] },
-  { label: '空手摘果', drops: [{ kind: FRUIT_OF.fruit }, { kind: 'tomatoSeed', chance: true }] },
-  { label: '挖石头', drops: [{ kind: 'stone' }, { kind: 'flint', chance: true }] },
-  { label: '碎石堆', drops: [{ kind: 'stone' }, { kind: 'flint', chance: true }] },
-  { label: '铁矿', drops: [{ kind: 'stone' }, { kind: 'ironOre' }, { kind: 'flint', chance: true }] },
-  { label: '陨石', drops: [{ kind: 'stone' }, { kind: 'ironOre' }, { kind: 'flint', chance: true }] },
-  { label: '浆果丛', drops: [{ kind: 'berry' }] },
-  { label: '灌木丛', drops: [{ kind: 'branch' }, { kind: 'carrotSeed', chance: true }, { kind: 'wheatSeed', chance: true }] },
-  { label: '草丛', drops: [{ kind: 'fiber' }, { kind: 'carrotSeed', chance: true }, { kind: 'wheatSeed', chance: true }] },
-  { label: '蚯蚓窝', drops: [{ kind: 'worm' }, { kind: 'potatoSeed', chance: true }] },
-  { label: '铲子挖走整丛', drops: [{ kind: 'berryBush' }, { kind: 'shrubBush' }, { kind: 'grassTuft' }, { kind: 'wormNest' }] },
-];
-
-for (const { label, drops } of HARVEST_DROPS) {
-  for (const drop of drops) {
-    addSource(drop.kind, { group: '采集', label, note: drop.chance ? '概率获得' : undefined });
+// —— 采集:CollectSystem 共用的产出声明表与铲子挖掘,新增资源点产出自动进入图鉴 ——
+for (const config of Object.values(HARVEST_CONFIG)) {
+  for (const drop of config.drops) {
+    const note = drop.chance !== undefined && drop.chance < 1 ? `${Math.round(drop.chance * 100)}% 概率` : undefined;
+    for (const kind of expandHarvestDrop(drop)) {
+      addSource(kind, { group: '采集', label: config.label, note });
+    }
   }
 }
+for (const kind of Object.values(DIG_YIELD)) {
+  addSource(kind, { group: '采集', label: '铲子挖走整丛' });
+}
 
-// —— 击杀:物种战利品表 + lootOf 里的概率掉落 + 弓箭射鸟 ——
+// —— 击杀:物种战利品表 + RARE_LOOT 稀有掉落 + 弓箭射鸟 ——
 for (const config of Object.values(SPECIES)) {
   for (const loot of config.loot) {
     addSource(loot.kind, {
@@ -130,16 +113,13 @@ for (const config of Object.values(SPECIES)) {
   }
 }
 
-export const RARE_KILL_LOOT: readonly { species: AnimalSpecies; kind: ResourceKind; note: string }[] = [
-  { species: 'wolf', kind: 'adventureBook', note: '30% 概率' },
-  { species: 'bear', kind: 'adventureBook', note: '必掉 ×3' },
-  { species: 'bison', kind: 'cornSeed', note: '3% 概率' },
-  { species: 'rabbit', kind: 'cabbageSeed', note: '10% 概率' },
-  { species: 'bear', kind: 'strawberrySeed', note: '50% 概率' },
-];
+/** 稀有掉落的图鉴备注:概率或必掉份数 */
+export function rareLootNote(drop: { count?: number; chance?: number }): string {
+  return drop.chance !== undefined ? `${Math.round(drop.chance * 100)}% 概率` : `必掉 ×${drop.count ?? 1}`;
+}
 
-for (const rare of RARE_KILL_LOOT) {
-  addSource(rare.kind, { group: '击杀', label: `击杀${ANIMAL_LABELS[rare.species]}`, note: rare.note });
+for (const rare of RARE_LOOT) {
+  addSource(rare.kind, { group: '击杀', label: `击杀${ANIMAL_LABELS[rare.species]}`, note: rareLootNote(rare) });
 }
 addSource('birdMeat', { group: '击杀', label: '弓箭射落飞鸟' });
 
@@ -178,10 +158,11 @@ addSource('ironIngot', { group: '加工', label: '冶炼', station: 'smelter', i
 addSource('cloth', { group: '加工', label: '纺织', station: 'loom', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });
 addSource('deadCampfire', { group: '加工', label: '燃尽后遗留', station: 'campfire' });
 
-// —— 畜牧:驯养成年动物定时产出 ——
-addSource('milk', { group: '畜牧', label: '挤绵羊奶', note: '驯养成羊定时产出' });
-addSource('cowMilk', { group: '畜牧', label: '挤野牛奶', note: '驯养成牛定时产出' });
-addSource('wool', { group: '畜牧', label: '剪羊毛', note: '用剪刀剪驯养成羊' });
+// —— 畜牧:驯养成年动物的定时产出(奶/毛),物种与产出映射来自 LIVESTOCK_PRODUCE ——
+for (const [species, produce] of Object.entries(LIVESTOCK_PRODUCE) as [TameSpecies, { milk: ResourceKind; wool?: ResourceKind }][]) {
+  addSource(produce.milk, { group: '畜牧', label: `挤${ANIMAL_LABELS[species]}奶`, note: `驯养成年${ANIMAL_LABELS[species]}定时产出` });
+  if (produce.wool) addSource(produce.wool, { group: '畜牧', label: '剪羊毛', note: `驯养成年${ANIMAL_LABELS[species]}长毛后持剪刀收取` });
+}
 
 // —— 伙伴:猫咪可乐的觅食收获 ——
 for (const find of CAT_FINDS) {
