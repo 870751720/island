@@ -156,13 +156,6 @@
   letter-spacing: 0.12em;
 }
 
-.count {
-  margin: 0 2px -4px;
-  color: #697b6b;
-  font-size: 11px;
-  text-align: right;
-}
-
 /* 物品网格:图标 + 名称的方块入口 */
 .grid {
   display: grid;

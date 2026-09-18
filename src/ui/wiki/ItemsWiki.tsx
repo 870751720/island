@@ -190,14 +190,11 @@ export function ItemsWiki() {
             const group = ITEM_WIKI_GROUPS.find((g) => g.category === category)!;
             const kinds = group.entries.map((entry) => entry.kind);
             return (
-              <>
-                <span className={styles.count}>共 {kinds.length} 件</span>
-                <div className={styles.grid}>
-                  {kinds.map((kind, index) => (
-                    <ItemTile key={kind} kind={kind} onClick={() => openDetail(kinds, index)} />
-                  ))}
-                </div>
-              </>
+              <div className={styles.grid}>
+                {kinds.map((kind, index) => (
+                  <ItemTile key={kind} kind={kind} onClick={() => openDetail(kinds, index)} />
+                ))}
+              </div>
             );
           })()
         )}
