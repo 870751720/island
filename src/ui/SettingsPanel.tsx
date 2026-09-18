@@ -167,19 +167,14 @@ export function SettingsPanel({
         {tab === 'interface' && <>
         <MobileDisplaySetting />
         <button style={gameButtonStyle} onClick={onAdjustHud}>调整顶部 UI 边距</button>
-        <p className={styles.guideHint}>刘海或挖孔遮住内容时，可将顶部信息整体下移。调整时实时预览，自动记住本机设置。</p>
         <div className={styles.section}>
           <label className={styles.guideRow}>
-            <span className={styles.guideText}>
-              <span className={styles.guideTitle}>显示任务指引</span>
-              <span className={styles.guideHint} id="settings-guide-hint">关闭后仍会记录任务进度</span>
-            </span>
+            <span className={styles.guideTitle}>显示任务指引</span>
             <input
               type="checkbox"
               className={styles.checkbox}
               checked={guide}
               aria-label="显示任务指引"
-              aria-describedby="settings-guide-hint"
               onChange={(e) => {
                 setGuide(e.target.checked);
                 onQuestGuide(e.target.checked);
