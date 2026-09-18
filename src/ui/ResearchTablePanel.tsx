@@ -5,6 +5,7 @@ import type { ResourceKind } from '@/game/systems/Inventory';
 import { HIDDEN_RECIPES, RESEARCH_INGREDIENTS, matchResearch } from '@/game/systems/HiddenRecipes';
 import { ITEMS } from '@/game/systems/Items';
 import { ItemIcon } from './ItemIcon';
+import { OverflowMarquee } from './OverflowMarquee';
 import { itemCount } from './inventorySnapshot';
 import { gamePanelStyle, gameButtonStyle } from './gameTheme';
 import styles from './ResearchTablePanel.module.css';
@@ -31,23 +32,19 @@ export function ResearchTablePanel({ hud, onStart, onClose }: { hud: HudSnapshot
     const timer = setTimeout(() => { setPending(false); setError('尚未开始，请检查食材或连接后重试'); }, 3500);
     return () => clearTimeout(timer);
   }, [pending]);
-  const materials = (cost: Partial<Record<ResourceKind, number>>) => Object.entries(cost).map(([k, n]) => {
-    const kind = k as ResourceKind;
-    return <span key={kind} className={styles.material}><ItemIcon kind={kind} size={20} />{ITEMS[kind].name} ×{n}<small>持有 {count(kind)}</small></span>;
-  });
   return <div className={styles.overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-label="料理研究台" style={gamePanelStyle} className={styles.panel}>
+    <section role="dialog" aria-modal="true" aria-label="料理研究台" style={{ ...gamePanelStyle, maxHeight: 'none', overflow: 'hidden' }} className={styles.panel}>
       <header className={styles.header}><strong><ItemIcon kind="researchTable" size={26} /> 料理研究台</strong><button style={gameButtonStyle} onClick={onClose} aria-label="关闭料理研究台">×</button></header>
       <nav className={styles.tabs}><button style={gameButtonStyle} aria-pressed={tab === 'try'} onClick={() => setTab('try')}>尝试料理</button><button style={gameButtonStyle} aria-pressed={tab === 'known'} onClick={() => setTab('known')}>已发现 · {known.length}/{HIDDEN_RECIPES.length}</button></nav>
       {tab === 'known' ? <div className={styles.cards}>
         {known.length === 0 && <p>还没有发现新料理，跟着线索尝试一组食材吧。</p>}
-        {[...known].sort((a, b) => Number(b.kind === research.result) - Number(a.kind === research.result)).map(r => <article className={styles.card} key={r.kind}>
-          <h3><ItemIcon kind={r.kind} size={32} /> {ITEMS[r.kind].name} {research.result === r.kind && <small>新</small>}</h3>
-          <p>发现时的搭配 · 每种一份</p><div className={styles.materials}>{materials(Object.fromEntries(r.research.map(k => [k, 1])))}</div>
-          <p>烹饪所需 · 每份成品</p><div className={styles.materials}>{materials(r.cost)}</div><p>前往烹饪台，添柴后在「烹饪」中制作。</p>
+        {[...known].sort((a, b) => Number(b.kind === research.result) - Number(a.kind === research.result)).map(r => <article className={styles.recipeRow} key={r.kind}>
+          <ItemIcon kind={r.kind} size={28} />
+          <span className={styles.recipeName}>{ITEMS[r.kind].name}</span>
+          <div className={styles.recipeCost}><OverflowMarquee label={Object.entries(r.cost).map(([kind, amount]) => `${ITEMS[kind as ResourceKind].name} ×${amount}`).join(' + ')} /></div>
         </article>)}
-        {unknown.length > 0 && <p>还有 {unknown.length} 道料理等待发现</p>}
-      </div> : <>
+      </div> : <div className={styles.tryBody}>
+        <div className={styles.preparation}>
         <div className={styles.card}>
           {clue ? <><div className={styles.header}><strong>研究线索</strong><button style={gameButtonStyle} disabled={unknown.length < 2} onClick={() => { setClueIndex(n => n + 1); setMoreHint(false); }}>换一条</button></div><p>{moreHint ? clue.hint : clue.clue}</p>{research.failures >= 2 && !moreHint && <button style={gameButtonStyle} onClick={() => setMoreHint(true)}>查看进一步提示</button>}</> : <><strong>当前料理已全部发现</strong><p>打开「已发现」查看搭配与烹饪用量。</p></>}
         </div>
@@ -64,19 +61,23 @@ export function ResearchTablePanel({ hud, onStart, onClose }: { hud: HudSnapshot
           {running ? `正在尝试… ${research.remaining.toFixed(1)} 秒` : research.result === 'failed' ? '这次没有做成新料理，换个搭配试试。' : research.result ? <><ItemIcon kind={research.result} size={30} /> 发现新料理：{ITEMS[research.result].name}！<br />获得一份成品，已解锁烹饪配方。</> : '任选 1～4 种食材，每种一份，顺序不限。'}
         </div>
         {!running && research.result && research.result !== 'failed' && <button style={{ ...gameButtonStyle, width: '100%' }} onClick={() => setTab('known')}>查看新食谱与烹饪用量</button>}
+        </div>
+        <div className={styles.backpack}>
         <p className={styles.caption}>从背包选择 · 点选加入，点上方食材撤回</p>
         <div className={styles.ingredients}>
           {RESEARCH_INGREDIENTS.filter(k => count(k) > 0).map(kind => <button style={gameButtonStyle} key={kind} aria-pressed={selected.includes(kind)} disabled={running || pending || selected.includes(kind) || selected.length >= 4} onClick={() => { setError(''); setSelected(s => s.includes(kind) || s.length >= 4 ? s : [...s, kind]); }}><ItemIcon kind={kind} size={26} /><span>{ITEMS[kind].name}<small>持有 {count(kind)}</small></span></button>)}
-        </div>
         {!RESEARCH_INGREDIENTS.some(k => count(k) > 0) && <p>背包里没有可投入的食材，先采集一些吧。</p>}
+        </div>
+        </div>
         <div className={styles.footer}>
-          <p>{alreadyKnown ? `已发现：${ITEMS[matching!.kind].name}，可在烹饪台制作。` : '开始即消耗食材。成功获得一份成品；失败后等待 5 秒。'}{missing && ' 所选食材不足，请重新选择。'}</p>
+          {alreadyKnown && <p>已发现：{ITEMS[matching!.kind].name}，可在烹饪台制作。</p>}
+          {missing && <p>所选食材不足，请重新选择。</p>}
           {error && <p role="alert">{error}</p>}
           <button style={gameButtonStyle} disabled={running || pending || research.cooldown > 0 || !selected.length || missing || !!alreadyKnown || !unknown.length} onClick={() => { if (onStart(selected)) setPending(true); else setError('暂时无法研究，请确认在台旁且没有其他动作'); }}>
             {running ? '正在尝试…' : pending ? '等待开始…' : research.cooldown > 0 ? `整理台面中 · ${Math.ceil(research.cooldown)} 秒` : alreadyKnown ? '已发现此配方' : '尝试新料理'}
           </button>
         </div>
-      </>}
+      </div>}
     </section>
   </div>;
 }

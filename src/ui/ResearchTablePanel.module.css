@@ -1,5 +1,5 @@
-.overlay{position:fixed;inset:0;z-index:50;background:#20372f61;display:flex;align-items:center;justify-content:center;padding:12px;pointer-events:auto}
-.panel{width:min(440px,100%);padding:16px;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
+.overlay{position:fixed;inset:0;z-index:50;background:#20372f61;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;overflow:hidden;pointer-events:auto}
+.panel{height:calc(92 * var(--game-vh, 1dvh) - var(--game-safe-top, 0px) - var(--game-safe-bottom, 0px));display:flex;flex-direction:column;width:min(440px,100%);padding:16px;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
 .header{display:flex;align-items:center;justify-content:space-between;gap:8px}.header strong{display:flex;align-items:center;gap:6px}.header button{min-width:44px;padding:0 10px}
 .tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1}.tabs button[aria-pressed=true]{outline:2px solid #789b7c}
 .card{background:#fffaf0c9;border-radius:14px;padding:12px;margin:10px 0}.card p{font-size:13px;line-height:1.6;margin:8px 0}.card h3{display:flex;align-items:center;margin:0;gap:6px;font-size:16px}.card h3 small{color:#916329}
@@ -7,7 +7,18 @@
 .bounce{animation:mix .65s ease-in-out infinite;animation-delay:var(--delay)}@keyframes mix{0%,100%{transform:translateY(2px) rotate(-7deg)}50%{transform:translateY(-8px) rotate(7deg)}}
 .progress{height:9px;border-radius:10px;background:#58786120;overflow:hidden}.progress div{height:100%;background:#789b7c;transition:width .1s linear}
 .result{font-size:13px;line-height:1.7;text-align:center;min-height:24px;margin:8px 0;color:#446c57}.caption{font-size:12px;color:#697b6b}
-.ingredients{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.ingredients button{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 3px;min-width:0}.ingredients button>span{font-size:11px}.ingredients small{display:block;font-size:10px;color:#697b6b}
-.footer{position:sticky;bottom:-16px;background:#edf1df;padding:8px 0 12px;margin-top:10px}.footer p{font-size:12px;line-height:1.6;margin:4px 0 8px}.footer button{width:100%;font-size:15px;font-weight:bold}
-.materials{display:flex;flex-wrap:wrap;gap:8px}.material{display:flex;align-items:center;gap:3px;font-size:12px;flex-wrap:wrap}.material small{color:#697b6b}
+.ingredients{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;align-content:start;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.ingredients button{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 3px;min-width:0}.ingredients button>span{font-size:11px}.ingredients small{display:block;font-size:10px;color:#697b6b}
+.footer{flex:none;padding:8px 0 0}.footer p{font-size:12px;line-height:1.6;margin:4px 0 8px}.footer button{width:100%;font-size:15px;font-weight:bold}
+.panel>.header,.tabs{flex:none}
+.tryBody{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
+.preparation{flex:none;min-width:0}
+.backpack{display:flex;flex-direction:column;flex:1;min-height:44px;min-width:0}
+.caption{flex:none;margin:4px 0 8px}
+.cards{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.recipeRow{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 6px;border-bottom:1px solid #58786120}
+.recipeRow>svg,.recipeRow>span:first-child{flex-shrink:0}
+.recipeName{flex:none;font-size:12px;white-space:nowrap}
+.recipeCost{flex:1;min-width:0;font-size:11px;color:#697b6b}
+@media(max-height:740px){.panel{padding:10px}.tabs{margin:6px 0}.card{padding:8px;margin:0}.card p{margin:4px 0}.slots{margin:6px 0}.slots button{height:60px}.result{margin:4px 0;line-height:1.4}}
+@media(max-height:500px) and (orientation:landscape){.panel{width:min(760px,100%)}.tryBody{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr) auto;gap:8px}.preparation{overflow-y:auto;overscroll-behavior:contain}.footer{grid-column:1/-1}.backpack{min-height:0}}
 @media(prefers-reduced-motion:reduce){.bounce{animation:none}.progress div{transition:none}}
