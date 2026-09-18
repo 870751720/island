@@ -118,7 +118,20 @@ for (let i = 0; i < 60; i++) cat.update(.1, i / 10, drops, false, companions);
 assert.equal(bites, 0, '猫咪永不调用战斗伤害'); assert.equal(rewards, 1, '战斗不产出');
 assert.equal(cat.netPose().state, 'flee');
 let meshes = 0; cat.group.traverse(o => { if (o instanceof THREE.Mesh) meshes++; });
-assert.ok(meshes >= 7 && meshes <= 10, `可乐模型合并静态网格，当前 ${meshes} 个 drawcall`);
+assert.ok(meshes >= 7 && meshes <= 11, `可乐模型合并静态网格，当前 ${meshes} 个 drawcall`);
+const { makeColaModel } = require('../src/game/companions/ColaModel.ts') as typeof import('../src/game/companions/ColaModel');
+const appearance = makeColaModel();
+let triangles = 0;
+appearance.group.traverse(o => { if (o instanceof THREE.Mesh) triangles += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
+assert.ok(triangles < 2000, `可乐保持低面预算，当前 ${triangles} 个三角形`);
+for (const action of ['walk', 'sleep', 'swim', 'dig', 'groom', 'sniff', 'stretch', 'shake', 'idle']) {
+  appearance.update!(1.25, action);
+  const bounds = new THREE.Box3().setFromObject(appearance.group);
+  assert.ok([...bounds.min.toArray(), ...bounds.max.toArray()].every(Number.isFinite), `${action} 动作坐标有效`);
+}
+assert.equal(appearance.body.rotation.z, 0, '结束甩水后清除侧向旋转');
+assert.equal(appearance.body.scale.y, 1, '结束睡眠后恢复身体高度');
+disposeOwnedMeshes(appearance.group);
 const dog = new Companion(scene, terrain, player, fx, water);
 dog.restore(0, 0, { xp: 812, companionSeconds: 17, protectCooldown: 26 });
 assert.equal(dog.kind, 'dog'); assert.equal(dog.growth.config.stage, 4); assert.equal(dog.snapshot().xp, 812);

@@ -1,85 +1,103 @@
 import * as THREE from 'three';
-
 import type { CompanionModel } from './CompanionModel';
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 
-/** 可乐 A：灰白圆脸、金眼睛、白鼻梁与不对称嘴边花纹。 */
+
+/** Independent clay character rig: surface coat markings, tall legs and an expressive face. */
 export function makeColaModel(): CompanionModel {
-  const v = { head: .43, body: .43, length: .68, leg: .34, eyes: .077, segments: 12 };
-  const root = new THREE.Group();
-  const coat = new THREE.Group(); root.add(coat);
-  const materials = new Map<string, THREE.MeshStandardMaterial>();
-  const mat = (color: string) => {
-    if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({color, roughness: 1, flatShading: true}));
-    return materials.get(color)!;
-  };
-  const white = '#eee9dd', gray = '#686c70', dark = '#313537';
-  function ball(parent: THREE.Object3D, color: string, pos: number[], scale: number[]) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(1, v.segments, 8), mat(color));
-    m.position.set(pos[0], pos[1], pos[2]); m.scale.set(scale[0], scale[1], scale[2]);
-    m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
-  }
-  const bodyY = v.leg + .24;
-  ball(coat, white, [0, bodyY, -.08], [v.body, v.body, v.length]);
-  // Large grey saddle and rump, separated by a visible white band.
-  ball(coat, gray, [-.025, bodyY + .065, -.23], [v.body * 1.015, v.body * .96, v.length * .55]);
-  ball(coat, gray, [.01, bodyY + .025, -.57], [v.body * .83, v.body * .85, v.length * .31]);
-  ball(coat, white, [.025, bodyY + .09, -.43], [v.body * .99, v.body * .92, .075]);
-  const legs: THREE.Group[] = [];
-  for (const z of [.28, -.48]) for (const x of [-.25, .25]) {
-    const joint = new THREE.Group(); joint.position.set(x, v.leg + .1, z);
-    coat.add(joint); legs.push(joint);
-    ball(joint, white, [0, -v.leg / 2, 0], [.115, v.leg / 2 + .08, .12]);
-    ball(joint, white, [0, -v.leg + .015, .065], [.14, .09, .18]);
-  }
-  const head = new THREE.Group(); head.position.set(0, bodyY + .24, .43); coat.add(head);
-  ball(head, white, [0, 0, 0], [v.head, v.head * .91, v.head * .86]);
-  // Grey cap on both sides of the white blaze.
-  for (const side of [-1, 1]) {
-    ball(head, gray, [side * v.head * .43, .12, .02], [v.head * .57, v.head * .68, v.head * .85]);
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(v.head * .31, v.head * .66, 4), mat(gray));
-    ear.position.set(side * v.head * .67, v.head * .88, -.025); ear.rotation.z = -side * .19; head.add(ear);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(v.head * .18, v.head * .4, 3), mat('#b88788'));
-    inner.position.set(side * v.head * .68, v.head * .87, v.head * .16); inner.rotation.z = -side * .19; head.add(inner);
-  }
-  ball(head, white, [0, -.015, v.head * .65], [v.head * .24, v.head * .75, v.head * .29]);
-  for (const side of [-1, 1]) {
-    ball(head, white, [side * v.head * .41, -v.head * .29, v.head * .55], [v.head * .53, v.head * .43, v.head * .45]);
-    const x = side * v.head * .43, y = .02, z = v.head * .81;
-    ball(head, dark, [x, y, z], [v.eyes * 1.17, v.eyes * 1.16, .04]);
-    ball(head, '#c8a449', [x, y, z + .026], [v.eyes, v.eyes, .028]);
-    ball(head, '#182429', [x, y, z + .049], [v.eyes * .47, v.eyes * .8, .014]);
-    ball(head, '#fff9e8', [x - .022, y + .026, z + .062], [.018, .018, .009]);
-  }
-  // The asymmetric moustache markings are Cola's identifying feature.
-  ball(head, gray, [-.052, -.137, v.head * .95], [.064, .038, .018]);
-  ball(head, dark, [.065, -.142, v.head * .95], [.052, .034, .018]);
-  ball(head, gray, [.18, -.16, v.head * .81], [.08, .06, .025]);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(.047, .049, 3), mat('#3d393c'));
-  nose.rotation.z = Math.PI; nose.rotation.y = Math.PI; nose.position.set(0, -.092, v.head * 1.035); head.add(nose);
-  const tail = new THREE.Group(); tail.position.set(0, bodyY + .04, -.65); coat.add(tail);
-  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(.04,.15,-.2),new THREE.Vector3(.09,.47,-.25),new THREE.Vector3(.18,.68,-.2),new THREE.Vector3(.28,.7,-.12)]);
-  const tailMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, .068, 5, false), mat(gray)); tailMesh.castShadow = true; tail.add(tailMesh);
-  for (const joint of legs) mergeClayMeshes(joint);
-  mergeClayMeshes(head);
-  mergeClayMeshes(tail);
-  mergeClayMeshes(coat, [...legs, head, tail]);
+  const style = { head: [.47,.46,.35], body: [.29,.29,.61], eye: .126, ears: .32, gray: '#646b80', white: '#fff5e9' };
+  const root = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group(), tail = new THREE.Group();
+  root.add(body); body.add(head, tail);
   root.scale.setScalar(.48);
-  return { group: root, legs: [], head, tail, body: coat, update(t: number, action: string) {
-    const walk = action === 'walk' || action === 'flee', sleep = action === 'sleep';
-    const dig = action === 'dig', swim = action === 'swim';
-    coat.position.y = sleep ? -.17 : walk ? Math.sin(t * 10) * .018 : Math.sin(t * 2) * .009;
-    coat.scale.y = sleep ? .7 : 1;
-    head.rotation.x = sleep ? .23 : action === 'groom' ? .3 + Math.sin(t * 5) * .12 : Math.sin(t * 1.5) * .035;
-    head.rotation.z = action === 'groom' ? -.18 : Math.sin(t * .8) * .025;
-    tail.rotation.z = Math.sin(t * (walk ? 4 : 1.6)) * .13;
-    tail.rotation.x = sleep ? -.9 : 0;
-    tail.rotation.y = sleep ? 1.35 : 0;
-    coat.rotation.x = action === 'stretch' ? .13 : 0;
-    coat.rotation.z = action === 'shake' ? Math.sin(t * 32) * .13 : 0;
-    if (dig) head.rotation.x = .5;
-    if (action === 'sniff') head.rotation.x = .3;
-    if (swim) { head.rotation.x = -.2; coat.scale.y = 1; }
-    legs.forEach((l, i) => { l.rotation.x = swim ? Math.sin(t * 15 + i * Math.PI * .5) * .75 : dig && i < 2 ? Math.sin(t * 18 + i * Math.PI) * .8 : walk ? Math.sin(t * 9 + (i === 0 || i === 3 ? 0 : Math.PI)) * .48 : sleep ? -1 : action === 'groom' && i === 1 ? -1.6 + Math.sin(t * 5) * .12 : 0; });
+  const white = style.white, gray = style.gray, ink = '#292632', pink = '#e4a3ad';
+  const material = (color: string) => new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true });
+  function ellipsoid(parent: THREE.Object3D, color: string, position: number[], size: number[], segments = 7) {
+    const mesh = new THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>(new THREE.SphereGeometry(1, segments, 5), material(color));
+    mesh.position.set(position[0], position[1], position[2]);
+    mesh.scale.set(size[0], size[1], size[2]);
+    mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+  }
+  function stroke(parent: THREE.Object3D, color: string, points: number[][], radius: number) {
+    const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 6, radius, 4, false), material(color));
+    mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh);
+  }
+  // Color the existing surface instead of stacking gray spheres on a white face.
+  function coat(mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>, pattern: (x: number,y: number,z: number) => boolean) {
+    const geometry = mesh.geometry.toNonIndexed(); mesh.geometry.dispose();
+    const position = geometry.getAttribute('position');
+    const colors = new Float32Array(position.count * 3);
+    const a = new THREE.Color(white), b = new THREE.Color(gray);
+    for (let i=0;i<position.count;i+=3) {
+      const x=(position.getX(i)+position.getX(i+1)+position.getX(i+2))/3;
+      const y=(position.getY(i)+position.getY(i+1)+position.getY(i+2))/3;
+      const z=(position.getZ(i)+position.getZ(i+1)+position.getZ(i+2))/3;
+      const color=pattern(x,y,z)?b:a;
+      for(let j=0;j<3;j++) color.toArray(colors,(i+j)*3);
+    }
+    geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    mesh.geometry=geometry;
+    mesh.material.color.set('#ffffff'); mesh.material.vertexColors=true;
+  }
+  const torso=ellipsoid(body,white,[0,.73,-.12],style.body);
+  coat(torso,(x,y,z)=>y>.15 && (z<.25 || Math.abs(x)>.7) && !(x<-.1 && z>-.35 && z<-.08));
+  ellipsoid(body,white,[0,.79,.32],[.30,.32,.27]);
+  const legs: THREE.Group[]=[];
+  for(const z of [.29,-.49]) for(const x of [-.22,.22]) {
+    const joint=new THREE.Group();joint.position.set(x,.58,z);body.add(joint);legs.push(joint);
+    ellipsoid(joint,white,[0,-.23,0],[.094,.29,.105]);
+    ellipsoid(joint,white,[0,-.505,.055],[.125,.075,.155]);
+  }
+  const [hx,hy,hz]=style.head;
+  head.position.set(0,1.08,.44);
+  const face=ellipsoid(head,white,[0,0,0],style.head,8);
+  coat(face,(x,y,z)=>z<.05 || (y>-.16 && Math.abs(x)>.17+Math.max(0,.45-y)*.38));
+  // The face is one continuous silhouette, with shallow cheek pads and small triangular ears.
+  for(const side of [-1,1]) {
+    const ear=new THREE.Mesh(new THREE.ConeGeometry(.14,style.ears+.13,4),material(gray));
+    ear.position.set(side*hx*.65,hy*.67+style.ears*.35,0);ear.rotation.z=-side*.20;
+    ear.castShadow=true;ear.receiveShadow=true;head.add(ear);
+    const inner=new THREE.Mesh(new THREE.ConeGeometry(.078,style.ears*.68,3),material(pink));
+    inner.position.copy(ear.position);inner.position.z=.075;inner.rotation.z=ear.rotation.z;
+    inner.scale.z=.25;inner.castShadow=true;inner.receiveShadow=true;head.add(inner);
+    ellipsoid(head,white,[side*hx*.44,-hy*.39,hz*.68],[hx*.45,hy*.34,.095]);
+
+  }
+  const eyes: THREE.Group[]=[];
+  ellipsoid(head,white,[0,-hy*.40,hz*.83],[.16,.12,.095]);
+  for(const side of [-1,1]) {
+    const eye=new THREE.Group();eye.position.set(side*hx*.43,-.015,hz*.90);head.add(eye);eyes.push(eye);
+    const e=style.eye;
+    ellipsoid(eye,'#d5b367',[0,0,.024],[e,e*1.035,.021],6);
+    ellipsoid(eye,ink,[0,.012,.043],[e*.83,e*.91,.016]);
+    ellipsoid(eye,'#fffdf4',[-e*.29,e*.37,.059],[e*.26,e*.28,.009]);
+  }
+  ellipsoid(head,ink,[0,-hy*.33,hz+.033],[.043,.028,.022]);
+  ellipsoid(head,gray,[-.064,-hy*.45,hz+.008],[.049,.035,.013]);
+  ellipsoid(head,gray,[.077,-hy*.46,hz+.005],[.032,.041,.013]);
+  const mouthY=-hy*.51, mouthZ=hz+.025;
+  stroke(head,ink,[[0,-hy*.37,mouthZ],[0,mouthY,mouthZ]],.008);
+  ellipsoid(head,ink,[0,mouthY-.025,mouthZ],[.05,.041,.012]);
+  ellipsoid(head,pink,[0,mouthY-.046,mouthZ+.012],[.032,.020,.007]);
+  tail.position.set(0,.80,-.66);
+  stroke(tail,gray,[[0,0,0],[.04,.11,-.21],[.12,.44,-.30],[.24,.70,-.24],[.34,.73,-.12],[.36,.65,-.055]],.067);
+  ellipsoid(tail,gray,[.36,.65,-.055],[.069,.072,.069]);
+  // Preserve the surface-colored pieces and the independently animated eyes.
+  for(const leg of legs) mergeClayMeshes(leg);
+  for(const eye of eyes) mergeClayMeshes(eye);
+  mergeClayMeshes(head,[face,...eyes]);
+  mergeClayMeshes(tail);
+  mergeClayMeshes(body,[torso,head,tail,...legs]);
+  return {group:root,body,head,tail,legs:[],update(t,action){
+    const walk=action==='walk'||action==='flee', sleep=action==='sleep', dig=action==='dig', groom=action==='groom', swim=action==='swim';
+    body.position.y=sleep?-.24:walk?Math.sin(t*12)*.018:Math.sin(t*2.2)*.009;
+    body.scale.y=sleep?.72:1;
+    body.rotation.x=dig?.08:action==='stretch'?.13:0;
+    body.rotation.z=action==='shake'?Math.sin(t*32)*.13:0;
+    head.rotation.set(sleep?.22:swim?-.2:dig?.35:action==='sniff'?.3:groom?.22:Math.sin(t*1.6)*.045,Math.sin(t*.85)*.075,groom?-.24:Math.sin(t*1.1)*.055);
+    tail.rotation.set(sleep?-.8:Math.sin(t*1.8)*.06,sleep?1.1:Math.sin(t*1.9)*.20,Math.sin(t*2.4)*.09);
+    const blink=t%4.7;
+    for(const eye of eyes) eye.scale.y=sleep?.10:blink>4.48?Math.max(.10,Math.abs(blink-4.59)/.11):1;
+    legs.forEach((leg,i)=>leg.rotation.x=swim?Math.sin(t*15+i*Math.PI*.5)*.75:sleep?-1.1:dig&&i<2?Math.sin(t*16+i*Math.PI)*.65:groom&&i===1?-1.35:walk?Math.sin(t*10+(i===0||i===3?0:Math.PI))*.40:0);
   }};
 }
