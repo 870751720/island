@@ -6,7 +6,7 @@ const isContainerExport = isH5Export || isXiaohongshuExport;
 const nextConfig = {
   output: 'export',
   distDir: isXiaohongshuExport ? '.next-xiaohongshu' : isH5Export ? '.next-h5' : '.next',
-  // Server builds use the site root; legacy static builds retain /island.
+  // Server builds use the site root; GitHub Pages builds use /island.
   // Container packages use relative assets for file and H5 launch environments.
   basePath: isContainerExport || process.env.SERVER_EXPORT === '1' ? '' : '/island',
   assetPrefix: isContainerExport ? './' : undefined,

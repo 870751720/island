@@ -1,4 +1,4 @@
-name: Deploy to Island Server
+name: Deploy to Server and GitHub Pages
 
 on:
   push:
@@ -13,6 +13,60 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/configure-pages@v5
+      - run: npm ci
+      - run: npm run build
+        env:
+          SERVER_EXPORT: '0'
+          NEXT_PUBLIC_CLOUD_API_URL: ${{ vars.SITE_URL }}
+      - name: Stamp Pages release
+        run: |
+          test -f out/index.html
+          printf '%s\n' "$GITHUB_SHA" > out/revision.txt
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy-pages:
+    needs: [build-pages, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify Pages release
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          for attempt in $(seq 1 12); do
+            status=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' "$PAGES_URL") || status=000
+            revision=$(curl --fail --silent --show-error --max-time 20 "${PAGES_URL%/}/revision.txt?sha=$GITHUB_SHA") || revision=''
+            if [ "$status" = 200 ] && [ "$revision" = "$GITHUB_SHA" ]; then exit 0; fi
+            sleep 5
+          done
+          echo 'Pages release verification failed'
+          exit 1
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 25

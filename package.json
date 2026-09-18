@@ -10,7 +10,7 @@
     "build:h5": "node scripts/build-h5.mjs",
     "build:xiaohongshu": "node scripts/build-xiaohongshu.mjs",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && node scripts/check-server-build.mts",
+    "check": "npm run typecheck && node scripts/check-site-builds.mts",
     "start": "next start"
   },
   "dependencies": {

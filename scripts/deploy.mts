@@ -6,6 +6,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const repository = '870751720/island';
 const site = 'https://43.110.116.98/';
+const pages = 'https://870751720.github.io/island/';
 const remote = `https://github.com/${repository}.git`;
 
 function git(args: string[], env = process.env): string {
@@ -94,17 +95,21 @@ async function main(): Promise<void> {
   git(['push', 'origin', `${sha}:refs/heads/main`], env);
   console.log('推送完成，等待部署验收。');
   await waitForDeployment(sha, token);
-  const result = spawnSync(process.platform === 'win32' ? 'curl.exe' : 'curl', [
-    '--silent', '--max-time', '30', '--output', process.platform === 'win32' ? 'NUL' : '/dev/null',
-    '--write-out', '%{http_code}', site,
-  ], { encoding: 'utf8', timeout: 35_000 });
-  if (result.error || result.status !== 0 || result.stdout !== '200') {
-    throw new Error(`Actions 已成功，但站点验证未通过（HTTP ${result.stdout || '未知'}）。`);
+  for (const url of [site, pages]) {
+    const result = spawnSync(process.platform === 'win32' ? 'curl.exe' : 'curl', [
+      '--silent', '--max-time', '30', '--output', process.platform === 'win32' ? 'NUL' : '/dev/null',
+      '--write-out', '%{http_code}', url,
+    ], { encoding: 'utf8', timeout: 35_000 });
+    if (result.error || result.status !== 0 || result.stdout !== '200') {
+      throw new Error(`Actions 已成功，但 ${url} 验证未通过（HTTP ${result.stdout || '未知'}）。`);
+    }
   }
   const healthResponse = await fetch(`${site}api/health`, { signal: AbortSignal.timeout(30_000) });
   const health = await healthResponse.json() as { ok?: boolean; revision?: string };
   if (!healthResponse.ok || !health.ok || health.revision !== sha) throw new Error('云存档 API 版本验收失败。');
-  console.log(`部署成功：${site}（HTTP 200，提交 ${sha}）`);
+  const pagesResponse = await fetch(`${pages}revision.txt?sha=${sha}`, { signal: AbortSignal.timeout(30_000) });
+  if (!pagesResponse.ok || (await pagesResponse.text()).trim() !== sha) throw new Error('GitHub Pages 版本验收失败。');
+  console.log(`部署成功：${site} 和 ${pages}（均 HTTP 200，提交 ${sha}）`);
 }
 
 main().catch((error: unknown) => {
