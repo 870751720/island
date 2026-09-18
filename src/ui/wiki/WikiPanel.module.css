@@ -53,6 +53,7 @@
 /* 顶层分类导航:登记新分类后自动出现 */
 .categories {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   flex-shrink: 0;
 }
@@ -182,6 +183,26 @@
 }
 .tile:active {
   background: #f5edcf;
+}
+
+.guideCard {
+  align-items: stretch;
+  text-align: left;
+  padding: 14px;
+  min-height: 80px;
+}
+.guideCard strong {
+  font-size: 15px;
+}
+.guideCard > span {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #697b6b;
+}
+.guideSectionTitle {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #385f50;
 }
 
 /* 指针命中固定落在按钮自身:内部图标与文字不参与命中,HUD 快照高频重渲染下首击不丢目标 */

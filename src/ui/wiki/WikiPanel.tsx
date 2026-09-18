@@ -6,17 +6,19 @@ import { pressAction } from '../pressAction';
 import { swallowTrailingClick } from './wikiTaps';
 import { ItemsWiki } from './ItemsWiki';
 import { CreaturesWiki } from './CreaturesWiki';
+import { GuidesWiki } from './GuidesWiki';
 
 /** 图鉴顶层分类;后续新分类在此登记,导航与内容切换自动生效 */
 const WIKI_CATEGORIES: readonly { id: string; label: string; component: ComponentType<CategoryContentProps> }[] = [
   { id: 'items', label: '物品', component: ItemsWiki },
   { id: 'creatures', label: '生物', component: CreaturesWiki },
+  { id: 'guides', label: '玩法指南', component: GuidesWiki },
 ];
 
 /** 分类内容的通用入参:进入/退出详情阅读时上报,外层据此收起顶层分类导航 */
 type CategoryContentProps = { onDetailChange: (inDetail: boolean) => void };
 
-/** 游戏图鉴:从设置面板进入的全屏弹层，浏览物品与生物。 */
+/** 游戏图鉴:从设置面板进入的全屏弹层。 */
 export function WikiPanel({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState(WIKI_CATEGORIES[0]!.id);
   const [contentInDetail, setContentInDetail] = useState(false);

@@ -23,10 +23,11 @@ function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }
 }
 
 /** 物品分类:按游戏内分类浏览物品网格,点开进入单品详情,可上一件/下一件连续翻阅 */
-export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
+export function ItemsWiki({ onDetailChange, initialKind, onExit, exitLabel = '返回生物详情' }: {
   onDetailChange: (inDetail: boolean) => void;
   initialKind?: ResourceKind;
   onExit?: () => void;
+  exitLabel?: string;
 }) {
   const [category, setCategory] = useState<ItemCategory>('材料');
   const [query, setQuery] = useState('');
@@ -79,7 +80,7 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
     return (
       <div className={styles.root}>
         <button className={styles.back} {...pressAction(backFromDetail)}>
-          {trail.length > 1 ? '‹ 返回上一件' : onExit ? '‹ 返回生物详情' : '‹ 返回列表'}
+          {trail.length > 1 ? '‹ 返回上一件' : onExit ? `‹ ${exitLabel}` : '‹ 返回列表'}
         </button>
         <div className={`hud-panel-enter ${styles.scroll}`} key={kind}>
           <div className={styles.detailHead}>

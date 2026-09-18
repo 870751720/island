@@ -1,7 +1,7 @@
 'use client';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
-import { CREATURE_ENTRIES, type CreatureEntry } from './creatureWiki';
+import { CREATURE_ENTRIES, type CreatureEntry, type CreatureId } from './creatureWiki';
 import { CreatureIcon } from './CreatureIcon';
 import { ItemChip } from './ItemChip';
 import { ItemsWiki } from './ItemsWiki';
@@ -40,9 +40,16 @@ function RelatedItems({ title, items, note, onOpen }: {
 }
 
 /** 生物只有一层列表；标签说明特性，名称与标签都可搜索。 */
-export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: boolean) => void }) {
+export function CreaturesWiki({ onDetailChange, initialId, onExit }: {
+  onDetailChange: (inDetail: boolean) => void;
+  initialId?: CreatureId;
+  onExit?: () => void;
+}) {
   const [query, setQuery] = useState('');
-  const [detail, setDetail] = useState<{ entries: readonly CreatureEntry[]; index: number } | null>(null);
+  const [detail, setDetail] = useState<{ entries: readonly CreatureEntry[]; index: number } | null>(() => {
+    const index = CREATURE_ENTRIES.findIndex((entry) => entry.id === initialId);
+    return index < 0 ? null : { entries: CREATURE_ENTRIES, index };
+  });
   const [itemKind, setItemKind] = useState<ResourceKind | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const listTop = useRef(0);
@@ -68,7 +75,7 @@ export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: b
       setItemKind(kind);
     };
     return <div className={styles.root}>
-      <button className={styles.back} {...pressAction(() => { swallowTrailingClick(); setDetail(null); })}>‹ 返回列表</button>
+      <button className={styles.back} {...pressAction(() => { swallowTrailingClick(); if (onExit) onExit(); else setDetail(null); })}>{onExit ? '‹ 返回玩法指南' : '‹ 返回列表'}</button>
       <div className={`hud-panel-enter ${styles.scroll}`} ref={scroll} key={entry.id}>
         <div className={styles.creatureHead}>
           <span className={styles.creaturePortrait}><CreatureIcon id={entry.id} size={40} /></span>
