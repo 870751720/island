@@ -1,12 +1,8 @@
 import { useId } from 'react';
 import { BottleCanvas, type BottleLevels } from './BottleCanvas';
+import { VITAL_STYLES } from '../vitalStyles';
 
 const BOTTLE_PATH = 'M17 10H27V17Q33 22 33 28V36Q33 45 22 45Q11 45 11 36V28Q11 22 17 17Z';
-const BOTTLES = [
-  { label: '生命', warning: '危险', color: '#e94659' },
-  { label: '饱食', warning: '饥饿', color: '#eaaa29' },
-  { label: '水分', warning: '缺水', color: '#35b5dd' },
-] as const;
 
 /** 瓶身本身就是状态容器；SVG 同时提供 WebGL 不可用时的液位回退。 */
 export function VitalBottles({ health, hunger, thirst }: { health: number; hunger: number; thirst: number }) {
@@ -16,7 +12,7 @@ export function VitalBottles({ health, hunger, thirst }: { health: number; hunge
   return (
     <div className="hud-bottles">
       <BottleCanvas levels={levels} />
-      {BOTTLES.map((bottle, index) => {
+      {VITAL_STYLES.map((bottle, index) => {
         const level = levels[index];
         const low = level <= 0.2;
         return <div className={`hud-bottle${low ? ' is-low' : ''}`} key={bottle.label}>

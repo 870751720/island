@@ -24,6 +24,7 @@ import { pressAction } from './pressAction';
 import { HudIcon } from './hud/HudIcon';
 import { StepButton } from './StepButton';
 import { SlotItemName } from './SlotItemName';
+import { FoodRecoveryTags } from './FoodRecoveryTags';
 
 type Props = {
   open: boolean;
@@ -466,7 +467,10 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ItemIcon kind={selectedDef.kind} size={26} />
-                        <span style={{ fontWeight: 700, flex: 1 }}>{selectedDef.name}</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+                          <span style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{selectedDef.name}</span>
+                          {selectedFood && <FoodRecoveryTags food={selectedFood} />}
+                        </div>
                         <span style={{ color: gameTheme.muted }}>×{selected.count}</span>
                       </div>
                       <div style={{ fontSize: 13, color: gameTheme.ink, lineHeight: 1.5 }}>
