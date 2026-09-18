@@ -1,16 +1,18 @@
 import * as THREE from 'three';
-import { candidate, icon, variants } from './variants';
+import { variants } from './variants';
+import { candidate } from './model';
+import { icon } from './icons';
 import { makeColaModel } from '../../src/game/companions/ColaModel';
 import { makePomeranianModel } from '../../src/game/companions/PomeranianModel';
 import { COLA_ICON } from '../../src/ui/icons/ColaIcon';
 import { DOG_COMBAT_SVG } from '../../src/ui/icons/DogCombatIcons';
 
-document.body.innerHTML=`<main><header><small>COLA / DESIGN STUDY</small><h1>可乐，圆润一点，可爱一点。</h1><p>保留正常猫咪腿长、灰白花色、金色眼睛与嘴边花纹。参考薯条的画风，不照搬体型。</p></header><section class="layout"><div><div id="stage"></div><div class="controls"><button id="rotate" aria-pressed="true">自动旋转：开</button><button id="front">正面</button><button id="side">侧面</button><button id="back">背面</button><label>动作 <select id="action"><option value="idle">待机</option><option value="walk">走路</option><option value="dig">扒拉</option><option value="groom">舔毛</option><option value="sleep">睡觉</option></select></label></div><p class="hint">拖动查看角度 · 模型与图标可以自由搭配</p><div class="controls" id="models"></div></div><aside><h2>选择图标</h2><div id="icons"></div><div class="reference"><span>现有风格参考</span><div>${DOG_COMBAT_SVG['dog-companion']}${COLA_ICON}</div><p>薯条 / 现有可乐</p></div></aside></section><footer><strong id="choice"></strong><p>选好后把下面这句话发给我；应用完成后删除临时页面。</p><textarea id="result" readonly aria-label="选择结果"></textarea><button id="copy">复制选择</button><span id="message" role="status"></span></footer></main>`;
-let modelIndex=1,iconIndex=1, auto=true, angle=.55, action='idle';
+document.body.innerHTML=`<main><header><small>COLA / DESIGN STUDY</small><h1>可乐的三种可爱模样。</h1><p>全新造型：棉花糖包子脸、元气大耳猫、云朵毛绒猫。保留可乐的正常腿长和灰白花纹。</p></header><section class="layout"><div><div id="stage"></div><div class="controls"><button id="rotate" aria-pressed="false">自动旋转：关</button><button id="front">正面</button><button id="side">侧面</button><button id="back">背面</button><label>动作 <select id="action"><option value="idle">待机</option><option value="walk">走路</option><option value="dig">扒拉</option><option value="groom">舔毛</option><option value="sleep">睡觉</option></select></label></div><p class="hint">拖动查看角度 · 模型与图标可以自由搭配</p><div class="controls" id="models"></div></div><aside><h2>选择图标</h2><div id="icons"></div><div class="reference"><span>现有风格参考</span><div>${DOG_COMBAT_SVG['dog-companion']}${COLA_ICON}</div><p>薯条 / 现有可乐</p></div></aside></section><footer><strong id="choice"></strong><p>选好后把下面这句话发给我；应用完成后删除临时页面。</p><textarea id="result" readonly aria-label="选择结果"></textarea><button id="copy">复制选择</button><span id="message" role="status"></span></footer></main>`;
+let modelIndex=0,iconIndex=0, auto=false, angle=.25, action='idle';
 const stage=document.querySelector<HTMLDivElement>('#stage')!;
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#e6e8dd');
 const camera=new THREE.OrthographicCamera(-.8,.8,.75,-.55,.01,20);
-camera.position.set(1.5,1.1,2.7); camera.lookAt(0,.31,0);
+camera.position.set(1.5,1.1,2.7); camera.lookAt(0,.40,0);
 const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputColorSpace=THREE.SRGBColorSpace; stage.append(renderer.domElement);
 scene.add(new THREE.HemisphereLight('#fff7e8','#7e8879',2.7));
 const light=new THREE.DirectionalLight('#fff6e2',3); light.position.set(-2,4,3); scene.add(light);
@@ -27,9 +29,9 @@ function result(){
  document.querySelector<HTMLTextAreaElement>('#result')!.value=text;
  document.querySelectorAll<HTMLElement>('[data-model]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.model)===modelIndex)));
  document.querySelectorAll<HTMLElement>('[data-icon]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.icon)===iconIndex)));
- try{localStorage.setItem('cola-design-choice',JSON.stringify({modelIndex,iconIndex}));}catch{}
+ try{localStorage.setItem('cola-character-choice',JSON.stringify({modelIndex,iconIndex}));}catch{}
 }
-try{const saved=JSON.parse(localStorage.getItem('cola-design-choice')??'null');if(saved && Number.isInteger(saved.modelIndex)&&saved.modelIndex>=0&&saved.modelIndex<5&&Number.isInteger(saved.iconIndex)&&saved.iconIndex>=0&&saved.iconIndex<3){modelIndex=saved.modelIndex;iconIndex=saved.iconIndex;}}catch{}
+try{const saved=JSON.parse(localStorage.getItem('cola-character-choice')??'null');if(saved && Number.isInteger(saved.modelIndex)&&saved.modelIndex>=0&&saved.modelIndex<5&&Number.isInteger(saved.iconIndex)&&saved.iconIndex>=0&&saved.iconIndex<3){modelIndex=saved.modelIndex;iconIndex=saved.iconIndex;}}catch{}
 models.forEach((m,i)=>m.group.visible=i===modelIndex);result();
 document.querySelectorAll<HTMLElement>('[data-model]').forEach(b=>b.onclick=()=>{modelIndex=Number(b.dataset.model);models.forEach((m,i)=>m.group.visible=i===modelIndex);result();});
 document.querySelectorAll<HTMLElement>('[data-icon]').forEach(b=>b.onclick=()=>{iconIndex=Number(b.dataset.icon);result();});
@@ -42,6 +44,6 @@ renderer.domElement.onpointerdown=e=>{drag=e.clientX;renderer.domElement.setPoin
 renderer.domElement.onpointermove=e=>{if(drag!==null){angle+=(e.clientX-drag)*.012;drag=e.clientX;}};
 renderer.domElement.onpointerup=renderer.domElement.onpointercancel=()=>{drag=null;};
 document.querySelector<HTMLButtonElement>('#copy')!.onclick=async()=>{const field=document.querySelector<HTMLTextAreaElement>('#result')!;field.select();try{await navigator.clipboard.writeText(field.value);document.querySelector('#message')!.textContent=' 已复制';}catch{document.querySelector('#message')!.textContent=' 请复制已选中的文字';}};
-new ResizeObserver(()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.left=-.72*w/h;camera.right=.72*w/h;camera.top=1.03;camera.bottom=-.41;camera.updateProjectionMatrix();}).observe(stage);
+new ResizeObserver(()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.left=-.59*w/h;camera.right=.59*w/h;camera.top=.59;camera.bottom=-.59;camera.updateProjectionMatrix();}).observe(stage);
 let previous=0;
 renderer.setAnimationLoop((ms)=>{const dt=Math.min((ms-previous)/1000,.05);previous=ms;if(document.hidden)return;if(auto)angle+=dt*.3;const model=models[modelIndex];model.group.rotation.y=angle;model.update?.(ms/1000,action);if(!model.update){model.legs.forEach((leg,i)=>leg.rotation.x=action==='walk'?Math.sin(ms*.009+i*Math.PI)*.4:0);}renderer.render(scene,camera);});
