@@ -114,7 +114,11 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
                   {source.inputs?.map((input) => (
                     <ItemChip key={input.kind} kind={input.kind} count={input.count} onOpen={openKind} />
                   ))}
-                  <span className={styles.sourceLabel}>{source.label}</span>
+                  {source.target ? (
+                    <ItemChip kind={source.target} onOpen={openKind} />
+                  ) : (
+                    <span className={styles.sourceLabel}>{source.label}</span>
+                  )}
                   {source.note && <span className={styles.sourceNote}>{source.note}</span>}
                 </div>
               ))}

@@ -24,6 +24,8 @@ export type ItemSource = {
   label: string;
   /** 途径所在的设施(工作台/冶炼炉/火堆等);详情页渲染为可点击的图标+名称组合,跳转设施详情 */
   station?: ResourceKind;
+  /** 途径主体道具(种植的种子);详情页以可点击的图标+名称芯片替代动作文字,跳转该道具详情 */
+  target?: ResourceKind;
   inputs?: readonly SourceInput[];
   note?: string;
 };
@@ -137,9 +139,9 @@ for (const pool of FISH_POOLS) {
   }
 }
 
-// —— 种植:作物收获产物与返还的种子 ——
+// —— 种植:作物收获产物与返还的种子;产物途径的主体芯片指向种子,替代「种植X」文字 ——
 for (const spec of Object.values(CROP_SPECS)) {
-  addSource(spec.product, { group: '种植', label: `种植${spec.name}`, note: `每次收获 ×${spec.yieldCount}` });
+  addSource(spec.product, { group: '种植', label: `种植${spec.name}`, target: spec.seed, note: `每次收获 ×${spec.yieldCount}` });
   addSource(spec.seed, { group: '种植', label: `种植${spec.name}`, note: '成熟收获时返还' });
 }
 
@@ -169,8 +171,10 @@ for (const find of CAT_FINDS) {
   addSource(find.kind, { group: '伙伴', label: '伙伴「可乐」觅食', note: `伙伴 ${find.stage} 级起可寻获` });
 }
 
-// —— 赠礼:新手期死亡庇佑的波塞冬赠礼箱 ——
+// —— 赠礼:新手期死亡庇佑的波塞冬赠礼箱;皮套系列属于死亡补偿,不在图鉴中列为获得途径 ——
+const GIFT_WIKI_HIDDEN: readonly ResourceKind[] = ['furHat', 'furShirt', 'furPants', 'furBackpack'];
 for (const kind of POSEIDON_GIFT_KINDS) {
+  if (GIFT_WIKI_HIDDEN.includes(kind)) continue;
   addSource(kind, { group: '赠礼', label: '波塞冬的赠礼箱', note: '新手期死亡庇佑时获得' });
 }
 

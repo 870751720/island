@@ -860,7 +860,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'strawBackpack',
     name: '草包',
     icon: '🎒',
-    description: '草绳编的背包,背包 13 格。',
+    description: '草绳编的背包,背包增加 3 格。',
   },
   furShirt: {
     kind: 'furShirt',
@@ -884,7 +884,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'furBackpack',
     name: '皮包',
     icon: '🧺',
-    description: '皮料缝制的大背囊,背包 16 格。',
+    description: '皮料缝制的大背囊,背包增加 6 格。',
   },
   ironShirt: {
     kind: 'ironShirt',
@@ -908,7 +908,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'ironBackpack',
     name: '铁包',
     icon: '🧳',
-    description: '沙滩帆布背囊,背包 20 格。',
+    description: '沙滩帆布背囊,背包增加 10 格。',
   },
   crate: {
     kind: 'crate',
