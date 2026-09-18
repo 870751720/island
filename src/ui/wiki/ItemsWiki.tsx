@@ -111,20 +111,12 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
               <h4 className={styles.sectionTitle}>获得方式</h4>
               {entry.sources.map((source) => (
                 <div className={styles.sourceCard} key={`${source.group}:${source.station ?? ''}:${source.label}:${source.note ?? ''}`}>
-                  <div className={styles.sourceHead}>
-                    <span className={styles.sourceLabel}>
-                      {source.station && <ItemChip kind={source.station} onOpen={openKind} />}
-                      {source.label}
-                    </span>
-                    {source.note && <span className={styles.sourceNote}>{source.note}</span>}
-                  </div>
-                  {source.inputs && source.inputs.length > 0 && (
-                    <div className={styles.chips}>
-                      {source.inputs.map((input) => (
-                        <ItemChip key={input.kind} kind={input.kind} count={input.count} onOpen={openKind} />
-                      ))}
-                    </div>
-                  )}
+                  {source.station && <ItemChip kind={source.station} onOpen={openKind} />}
+                  {source.inputs?.map((input) => (
+                    <ItemChip key={input.kind} kind={input.kind} count={input.count} onOpen={openKind} />
+                  ))}
+                  <span className={styles.sourceLabel}>{source.label}</span>
+                  {source.note && <span className={styles.sourceNote}>{source.note}</span>}
                 </div>
               ))}
             </section>
