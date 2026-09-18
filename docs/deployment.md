@@ -20,6 +20,6 @@
 
 ## 使用
 
-完成修改 → `npm run typecheck` → `npm run build:h5` → 校验 ZIP 完整性、入口结构及 Deflate 压缩 → 解压到 `dist/local-preview/<本次唯一标识>/` → 交付本地包与入口链接 → 等用户明确确认本地验证通过 → `npm run check` → `git add` / `git commit` → `npm run deploy`。
+完成修改 → `npm run typecheck` → `npm run build:h5` → 校验 ZIP 完整性、入口结构及 Deflate 压缩 → 清空并解压到固定目录 `dist/local-preview/latest/` → 交付固定验证入口 `dist/local-preview/latest/island/index.html` → 等用户明确确认本地验证通过 → `npm run check` → `git add` / `git commit` → `npm run deploy`。
 
-本地验证通过前不提交、不推送、不触发部署。每次修复后重新打包并使用独立解压目录，重新交给用户验证；用户未回复不视为通过。运行时测试由用户完成，ZCode 不启动开发服务器或进行浏览器冒烟测试。
+本地验证入口固定为 `dist/local-preview/latest/island/index.html`，用户在浏览器保存该地址即可。每次修复后重新打包，删除并重建该固定目录再解压，用户刷新浏览器即可预览最新构建；用户未回复不视为通过。运行时测试由用户完成，ZCode 不启动开发服务器或进行浏览器冒烟测试。

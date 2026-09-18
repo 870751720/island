@@ -97,7 +97,7 @@
 - **标准部署命令**：本地提交已获用户明确确认验证通过，且正式站点构建检查通过后，在仓库根目录执行 `npm run deploy`。脚本检查干净的 `main` 工作区，读取 `githubtoken.txt`，推送本次 SHA，按 SHA 等待 `deploy.yml` 的 Actions 成功，再用 curl 验证线上 HTTP 200。后续会话统一使用此命令，不再临时拼接推送与轮询脚本。需 Node 22.18+、Git 和 curl；详见 `docs/deployment.md`。
 - 命令非零退出（推送、API、Actions、超时或 HTTP 验证失败）时停下排查，如实报告，不能宣布部署成功。
 - 提交信息使用简洁的中文或英文祈使句均可。
-- **部署前本地验证（必读）**：每次代码修改完成后，先执行 `npm run typecheck` 和 `npm run build:h5`，生成 `dist/island-h5.zip`；校验 ZIP 完整性、单一 `island/` 根目录、`island/index.html` 入口及 Deflate 压缩方式，然后解压到仓库内独立的 `dist/local-preview/<本次唯一标识>/` 目录，避免旧资源混入或覆盖用户正在验证的包。
+- **部署前本地验证（必读）**：每次代码修改完成后，先执行 `npm run typecheck` 和 `npm run build:h5`，生成 `dist/island-h5.zip`；校验 ZIP 完整性、单一 `island/` 根目录、`island/index.html` 入口及 Deflate 压缩方式，然后解压到**固定目录** `dist/local-preview/latest/`（每次解压前先删除该目录再重新解压，避免旧资源残留混入）。本地验证入口固定为 `dist/local-preview/latest/island/index.html`，用户在浏览器保存该地址，每次新构建后刷新即可预览最新版本。
 - 检查、打包、校验与解压通过后，先在本地提交本次改动，再交付本地验证入口。交付链接仅提供入口文件的绝对路径链接，标签使用「验证入口」；不列出 ZIP 链接、包大小或解压目录。可简要说明本次改动及检查结果，交由用户本地运行验证。**本地 commit 无需等待用户验证；必须等待用户明确确认本次验证通过，才能 push 或执行 `npm run deploy`；构建成功、解压成功或用户未回复都不代表验证通过。** 用户反馈问题后继续修复，重新检查、打包、校验、解压并创建本地提交，再交付验证入口；验证未通过期间不 push。
 - 用户确认后执行 `npm run check` 检查正式站点构建，通过后执行 `npm run deploy`，等待 Actions 成功与线上 HTTP 200 后才报告部署成功。若检查失败需修改代码，修复后重新走本地提交与用户验证流程。
 - **测试分工**：ZCode 负责类型检查、构建、ZIP 校验及解压，不起 dev 服务器、不做浏览器冒烟测试；用户负责本地运行时验证。完整流程：改码 → 类型检查 → 本地 H5 打包、校验与解压 → 本地提交（commit）→ 用户验证并明确确认 → 正式构建检查 → push / 部署并等待验收 → 交付线上链接。
