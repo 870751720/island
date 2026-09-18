@@ -70,6 +70,7 @@ const BEAR_TIRED_TIME = 1.6;
 const BEAR_STAMINA_REGEN = 1.5;
 /** 中箭后的暴怒时长与速度加成:远程偷袭会立刻招致反扑 */
 const BEAR_RAGE_TIME = 5;
+const BEAR_HURT_ROAR_COOLDOWN = 5;
 const BEAR_RAGE_BONUS = 0.5;
 /** 扑击窗口:玩家进入该距离内且冷却好则人立蓄力后腾跃扑击 */
 const BEAR_POUNCE_MAX = 3.4;
@@ -351,6 +352,8 @@ type Animal = LifeState & {
   rageLeft: number;
   /** 咆哮动画与音效的剩余时长(进入警戒/暴怒时触发) */
   roarLeft: number;
+  /** 受伤咆哮独立冷却，不影响警戒咆哮和扑击短吼。 */
+  hurtRoarCooldown: number;
   /** 是否已播放过本次警戒的咆哮(上升沿检测) */
   roared: boolean;
   /** 扑击进行中的状态(未扑击时为 null) */
@@ -551,6 +554,7 @@ export class Wildlife implements Updatable {
       tiredLeft: 0,
       rageLeft: 0,
       roarLeft: 0,
+      hurtRoarCooldown: 0,
       roared: false,
       pounce: null,
       dustLeft: 0,
@@ -1048,6 +1052,7 @@ export class Wildlife implements Updatable {
       && (a.config.damage > 0 || a.provoked)).map(a => ({ id: a.id, pos: a.pos, radius: this.pursuitRadius(a) })), delta);
     for (const animal of this.animals) {
       if (!animal.alive) continue;
+      animal.hurtRoarCooldown = Math.max(0, animal.hurtRoarCooldown - delta);
       if (!animal.husbandry.tamed && animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
         const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta, Math.random, animal.species === 'wolf' ? GmSystem.wolfEscapeChance : GmSystem.bearEscapeChance);
         if (escaped || animal.leashEscape.attempts === 5) {
@@ -1991,7 +1996,10 @@ export class Wildlife implements Updatable {
       }
       if (animal.species === 'bear') {
         animal.rageLeft = BEAR_RAGE_TIME;
-        this.roar(animal);
+        if (animal.hurtRoarCooldown <= 0) {
+          animal.hurtRoarCooldown = BEAR_HURT_ROAR_COOLDOWN;
+          this.roar(animal);
+        }
       }
       return 'hit';
     }
