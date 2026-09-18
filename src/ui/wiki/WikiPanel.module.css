@@ -307,6 +307,35 @@
   font-size: 14px;
   line-height: 1.7;
 }
+.itemWord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 7px;
+  margin: 0 2px;
+  border: 0;
+  border-radius: 8px;
+  background: #58786112;
+  color: #385f50;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  vertical-align: middle;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.itemWord:active {
+  background: #cddfc7;
+}
+.itemWord:focus-visible {
+  outline: 2px solid #609e91;
+  outline-offset: 2px;
+}
 
 .stats {
   display: flex;

@@ -5,6 +5,7 @@ import { CREATURE_ENTRIES, type CreatureEntry } from './creatureWiki';
 import { CreatureIcon } from './CreatureIcon';
 import { ItemChip } from './ItemChip';
 import { ItemsWiki } from './ItemsWiki';
+import { WikiText, type WikiTextValue } from './WikiText';
 import { pressAction } from '../pressAction';
 import { swallowTrailingClick, useScrollAreaTap } from './wikiTaps';
 import styles from './WikiPanel.module.css';
@@ -18,10 +19,10 @@ function CreatureTile({ entry, onOpen }: { entry: CreatureEntry; onOpen: () => v
   </button>;
 }
 
-function TextSection({ title, text }: { title: string; text: string }) {
+function TextSection({ title, text, onOpen }: { title: string; text: WikiTextValue; onOpen: (kind: ResourceKind) => void }) {
   return <section className={styles.section}>
     <h4 className={styles.sectionTitle}>{title}</h4>
-    <p className={styles.desc}>{text}</p>
+    <p className={styles.desc}><WikiText value={text} onOpen={onOpen} /></p>
   </section>;
 }
 
@@ -80,9 +81,9 @@ export function CreaturesWiki({ onDetailChange }: { onDetailChange: (inDetail: b
           </span>
         </div>
         <p className={styles.desc}>{entry.description}</p>
-        <TextSection title="出没地点" text={entry.habitat} />
-        <TextSection title="习性与应对" text={entry.behavior} />
-        <TextSection title="互动方式" text={entry.interaction} />
+        <TextSection title="出没地点" text={entry.habitat} onOpen={openItem} />
+        <TextSection title="习性与应对" text={entry.behavior} onOpen={openItem} />
+        <TextSection title="互动方式" text={entry.interaction} onOpen={openItem} />
         <RelatedItems title={entry.id === 'cat' ? '伙伴觅食' : '驯养产出'} items={entry.produce} note={entry.productionNote} onOpen={openItem} />
         <RelatedItems title="击杀掉落" items={entry.drops} note={entry.dropNote} onOpen={openItem} />
         {entry.stats.length > 0 && <section className={styles.section}>

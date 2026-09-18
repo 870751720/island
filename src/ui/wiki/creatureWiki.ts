@@ -5,6 +5,7 @@ import { FOODS, type FoodEater } from '@/game/systems/Food';
 import { CAT_FINDS, COMPANIONS } from '@/game/companions/CompanionDefinition';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { RARE_KILL_LOOT } from './itemSources';
+import type { WikiTextValue } from './WikiText';
 
 export type CreatureId = AnimalSpecies | 'dog' | 'cat' | 'bird' | 'crab' | 'seaPredator';
 type RelatedItem = { kind: ResourceKind; count?: number; note?: string };
@@ -14,7 +15,7 @@ export type CreatureEntry = {
   tags: readonly string[];
   description: string;
   habitat: string;
-  behavior: string;
+  behavior: WikiTextValue;
   interaction: string;
   stats: { label: string; value: string }[];
   foods: RelatedItem[];
@@ -28,7 +29,7 @@ type WildlifeGuide = Pick<CreatureEntry, 'tags' | 'description' | 'habitat' | 'b
 const WILDLIFE_GUIDES: Record<AnimalSpecies, WildlifeGuide> = {
   rabbit: {
     tags: ['胆小', '可驯养'], description: '轻巧机灵的草地居民，附近的兔子洞是它的避难所。', habitat: '岛屿南部至中部的草地与兔子洞附近。',
-    behavior: '靠近或攻击会让它逃跑，有洞可躲时优先钻洞。藏在洞内时无法直接攻击；可以用铲子挖开洞口。',
+    behavior: ['靠近或攻击会让它逃跑，有洞可躲时优先钻洞。藏在洞内时无法直接攻击；可以用', { kind: 'shovel', label: '铲子' }, '挖开洞口。'],
   },
   sheep: {
     tags: ['温顺', '可驯养'], description: '胆小的食草动物，成年驯养后能提供羊奶和羊毛。', habitat: '岛屿中南部草地。',
