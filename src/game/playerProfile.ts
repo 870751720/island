@@ -40,12 +40,6 @@ export function saveProfile(profile: PlayerProfile): void {
   } catch {}
 }
 
-/** 只改性别保留昵称(游戏内 GM 改性别时同步回个人档案)。 */
-export function saveProfileGender(gender: PlayerGender): void {
-  const profile = loadProfile();
-  if (profile) saveProfile({ ...profile, gender });
-}
-
 /** 旧版本把昵称存在 island.nickname,迁移为设置弹窗的默认昵称。 */
 export function legacyNickname(): string {
   if (typeof window === 'undefined') return '';

@@ -5,7 +5,7 @@ const KEYS = [
   'island.save.v1', 'island.profile.v1', 'island.meta.v1',
   'island.firstDeathBlessing.v1', 'island-game-mode', 'island.nickname',
   'island-audio-settings', 'island-menu-sound', 'island.quest-guide',
-  'island.gameplayZoom.v1', 'island.landmarkChances.v1',
+  'island.gameplayZoom.v1',
 ] as const;
 type SaveKey = typeof KEYS[number];
 export type SaveBundle = {
@@ -70,12 +70,6 @@ export function decodeBundle(text: string): SaveBundle {
   }
   if (entries['island.gameplayZoom.v1'] !== null && !Number.isFinite(Number(entries['island.gameplayZoom.v1']))) {
     throw new Error('画面缩放设置损坏，本地数据未改动。');
-  }
-  if (entries['island.landmarkChances.v1'] !== null) {
-    const chances = parse(entries['island.landmarkChances.v1']);
-    if (!Array.isArray(chances) || chances.length !== 3 || !chances.every(value => typeof value === 'number' && value >= 0 && value <= 100)) {
-      throw new Error('地标生成配置损坏，本地数据未改动。');
-    }
   }
   return data as SaveBundle;
 }

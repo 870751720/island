@@ -9,7 +9,6 @@ import { ITEMS } from './systems/Items';
 import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
 import type { DogStageNotice } from './entities/Companion';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
-import type { PlayerGender } from './entities/PlayerModel';
 import * as THREE from 'three';
 import { GameLoop } from './core/GameLoop';
 import { IdleRest } from './systems/IdleRest';
@@ -17,7 +16,7 @@ import { Player, type HandTool } from './entities/Player';
 import { PlayerSession } from './mp/PlayerSession';
 import type { NetHost } from './net/NetHost';
 import type { NetGuest } from './net/NetGuest';
-import { loadProfile, saveProfileGender } from './playerProfile';
+import { loadProfile } from './playerProfile';
 import type { AmbientState, AnimalPose, NetMsg, WorldPatch } from './net/Protocol';
 import type { NetEvent } from './net/Protocol';
 import type { Actor } from './mp/Actor';
@@ -156,7 +155,7 @@ import { GuestHudSynchronizer } from './net/GuestHudSynchronizer';
 import { buildPlayersState } from './net/PlayerSnapshotBuilder';
 import { restoreWorld, snapshotWorld, type WorldSaveSystems } from './systems/WorldSaveCodec';
 import { LandmarkSystem } from './world/landmarks/LandmarkSystem';
-import { LANDMARKS, isLandmarkChoice, type LandmarkChoice } from './world/landmarks/LandmarkDefinitions';
+import { LANDMARKS, DEFAULT_LANDMARK_CHANCES, isLandmarkChoice, type LandmarkChoice } from './world/landmarks/LandmarkDefinitions';
 import { diffWorld } from './net/WorldDelta';
 export type { HudSnapshot, MapSnapshot, PickupToast } from './GameContracts';
 export type { GameOptions } from './GameTypes';
@@ -1485,7 +1484,7 @@ export class Game {
 
     this.applySave(save);
     this.landmarks = new LandmarkSystem(this.terrain, this.worldSaveSystems);
-    if (!save && !this.guestMode) this.landmarks.generate(GmSystem.landmarkChances);
+    if (!save && !this.guestMode) this.landmarks.generate(DEFAULT_LANDMARK_CHANCES);
     this.local.quests.enabled = loadQuestGuide();
     this.guidanceLabel = new GuidanceLabel(this.container);
     this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
@@ -2721,32 +2720,6 @@ export class Game {
     const overflow = count - added;
     if (overflow > 0) this.drops.dropOverflow(kind, overflow, actor);
     return added;
-  }
-
-  /** GM 性别设置仅修改发起者；客人等待房主快照确认。 */
-  gmSetGender(gender: PlayerGender, actor: PlayerSession = this.local): void {
-    if (gender !== 'boy' && gender !== 'girl') return;
-    if (this.guestNet) {
-      if (actor === this.local) saveProfileGender(gender);
-      this.guestNet.action('gmSetGender', [gender]);
-      return;
-    }
-    actor.player.setGender(gender);
-    if (actor === this.local) saveProfileGender(gender);
-    SaveSystem.save(this.collectSave());
-  }
-
-  /** GM 生存状态回满并复活 */
-  gmRestoreStatus(actor: PlayerSession = this.local): void {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) {
-      this.guestNet.action('gmRestoreStatus', []);
-      return;
-    }
-
-    const s = actor.survival.state;
-    s.hunger = s.thirst = s.health = s.stamina = 100;
-    s.dead = false;
   }
 
   /** 死亡复活由单机或房主选点，客人沿用玩家位置快照。 */

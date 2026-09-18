@@ -1,9 +1,5 @@
-import { loadLandmarkChances, saveLandmarkChances } from '../world/landmarks/LandmarkSettings';
-import { validLandmarkChances } from '../world/landmarks/LandmarkDefinitions';
-
-/** GM 调试开关；地点开局概率单独保存在本机，其余为运行时内存态。 */
+/** GM 调试开关;均为运行时内存态,新对局重置为默认。 */
 export const GmSystem = {
-  landmarkChances: loadLandmarkChances(),
   wolfEscapeChance: 0.95,
   bearEscapeChance: 0.99,
   husbandryDecaySpeed: 1,
@@ -38,7 +34,6 @@ export type GmConfig = typeof GmSystem;
 /** 读取当前 GM 配置快照 */
 export function gmSnapshot(): GmConfig {
   return {
-    landmarkChances: [...GmSystem.landmarkChances],
     wolfEscapeChance: GmSystem.wolfEscapeChance,
     bearEscapeChance: GmSystem.bearEscapeChance,
     husbandryDecaySpeed: GmSystem.husbandryDecaySpeed,
@@ -64,10 +59,6 @@ export function gmApply(config: Partial<GmConfig>): void {
     if (typeof value === 'number' && Number.isFinite(value)) {
       GmSystem[key] = Math.max(0, Math.min(key.endsWith('Chance') ? 1 : 120, value));
     }
-  }
-  if (validLandmarkChances(config.landmarkChances)) {
-    GmSystem.landmarkChances = [...config.landmarkChances];
-    saveLandmarkChances(GmSystem.landmarkChances);
   }
   if (typeof config.allowDeath === 'boolean') GmSystem.allowDeath = config.allowDeath;
   if (typeof config.godMode === 'boolean') GmSystem.godMode = config.godMode;

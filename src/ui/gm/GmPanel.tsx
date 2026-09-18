@@ -2,7 +2,6 @@
 
 import { gameTheme, gamePanelStyle, gameButtonStyle } from '../gameTheme';
 
-import type { PlayerGender } from '@/game/entities/PlayerModel';
 import { useState } from 'react';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import type { ToolId } from '@/game/systems/Crafting';
@@ -22,8 +21,6 @@ import { EventsTab } from './EventsTab';
 /** GM 面板可对 Game 实例执行的动作,由 GameplayUI 通过回调注入 */
 export type GmActions = {
   getGame: () => Game | null;
-  restoreStatus: () => void;
-  setGender: (gender: PlayerGender) => void;
   setDay: (day: number) => void;
   setWeather: (type: 'sunny' | 'wind' | 'rain' | 'snow') => void;
   setConfig: (patch: Partial<GmConfig>) => void;
@@ -48,7 +45,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 /** GM 面板:分模块 tab 的调试工具弹窗 */
-export function GmPanel({ onClose, actions, gender }: { onClose: () => void; actions: GmActions; gender: PlayerGender }) {
+export function GmPanel({ onClose, actions }: { onClose: () => void; actions: GmActions }) {
   const [tab, setTab] = useState<TabId>('player');
 
   return (
@@ -70,7 +67,7 @@ export function GmPanel({ onClose, actions, gender }: { onClose: () => void; act
             </button>
           ))}
         </div>
-        {tab === 'player' && <PlayerTab gender={gender} onSetGender={actions.setGender} onRestoreStatus={actions.restoreStatus} onSetConfig={actions.setConfig} />}
+        {tab === 'player' && <PlayerTab onSetConfig={actions.setConfig} />}
         {tab === 'world' && <WorldTab getGame={actions.getGame} onSetDay={actions.setDay} onSetWeather={actions.setWeather} onSetConfig={actions.setConfig} />}
         {tab === 'fishing' && <FishingTab onGiveRod={() => actions.giveItem('fishingrod', 1)} onSetConfig={actions.setConfig} />}
         {tab === 'music' && <MusicTab getGame={actions.getGame} />}
@@ -101,7 +98,7 @@ const overlayStyle = {
 } as const;
 
 const cardStyle = {
-  width: 'min(320px, calc(86 * var(--game-vw)))',
+  width: 'min(370px, calc(94 * var(--game-vw)))',
   maxHeight: 'calc(85 * var(--game-vh))',
   overflowY: 'auto',
   padding: 20,

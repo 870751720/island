@@ -6,7 +6,7 @@ import { DOG_STAGES, type DogGmCommand } from '@/game/systems/DogGrowth';
 import { animalFood } from '@/game/systems/AnimalFood';
 import { CAT_STAGES, COMPANIONS } from '@/game/companions/CompanionDefinition';
 import { FOODS } from '@/game/systems/Food';
-import { ActionButton } from './controls';
+import { ActionButton, SelectRow } from './controls';
 import { gameTheme } from '../gameTheme';
 
 export function DogTab({ getGame }: { getGame: () => Game | null }) {
@@ -48,13 +48,13 @@ export function DogTab({ getGame }: { getGame: () => Game | null }) {
       <ActionButton label="召回身旁并跟随我" onClick={() => run('recall')} />
       <ActionButton label="放下喂食与拒食对照组" onClick={() => run('foods')} />
       <div style={{ fontSize: 12 }}>3 份烤兽肉 + 辣椒、酒、生肉；落地 4 秒后应只少 1 份烤肉，经验 +30。</div>
-      <label style={{ fontSize: 13 }}>
-        食物逐项测试（可喂 {FOODS.filter(f => edible(f.kind)).length} 种）
-        <select aria-label={`${name}测试食物`} value={kind} onChange={e => setKind(e.target.value)}
-          style={{ width: '100%', minHeight: 44, marginTop: 5, color: gameTheme.ink, background: gameTheme.inset, borderRadius: 8 }}>
-          {FOODS.map(f => <option key={f.kind} value={f.kind}>{f.name} · {!edible(f.kind) ? '拒食' : `+${f.hunger}经验`}</option>)}
-        </select>
-      </label>
+      <div style={{ fontSize: 13 }}>食物逐项测试（可喂 {FOODS.filter(f => edible(f.kind)).length} 种）</div>
+      <SelectRow
+        ariaLabel={`${name}测试食物`}
+        value={kind}
+        onChange={setKind}
+        options={FOODS.map(f => ({ value: f.kind, label: `${f.name} · ${!edible(f.kind) ? '拒食' : `+${f.hunger}经验`}` }))}
+      />
       <div style={{ fontSize: 12 }}>{rejection ?? `可喂，每份增加 ${selected.hunger} 经验；从背包丢弃喂食。`}</div>
       <ActionButton label="领取所选食物 ×3" onClick={() => getGame()?.gmGiveItem(selected.kind, 3)} />
       {!cat && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

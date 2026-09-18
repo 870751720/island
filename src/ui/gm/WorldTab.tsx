@@ -45,7 +45,6 @@ export function WorldTab({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <LandmarkControls getGame={getGame} onSetConfig={onSetConfig} />
       <ToggleRow
         label="显示帧率"
         value={showFps}
@@ -130,6 +129,7 @@ export function WorldTab({
           ))}
         </div>
       </div>
+      <LandmarkControls getGame={getGame} />
     </div>
   );
 }

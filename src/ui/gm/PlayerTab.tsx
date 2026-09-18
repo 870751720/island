@@ -1,25 +1,12 @@
 'use client';
 
-import { gameTheme, gameButtonStyle } from '../gameTheme';
-
-import type { PlayerGender } from '@/game/entities/PlayerModel';
 import { useState } from 'react';
 import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { MetaProgress } from '@/game/meta/MetaProgress';
-import { ActionButton, StepperRow, ToggleRow } from './controls';
+import { StepperRow, ToggleRow } from './controls';
 
-/** 玩家 tab:无敌/死亡开关、攻击倍率与状态回满 */
-export function PlayerTab({
-  gender,
-  onSetGender,
-  onRestoreStatus,
-  onSetConfig,
-}: {
-  gender: PlayerGender;
-  onSetGender: (gender: PlayerGender) => void;
-  onRestoreStatus: () => void;
-  onSetConfig: (patch: Partial<GmConfig>) => void;
-}) {
+/** 玩家 tab:无敌/死亡开关与攻击、移动、传承点倍率 */
+export function PlayerTab({ onSetConfig }: { onSetConfig: (patch: Partial<GmConfig>) => void }) {
   const [godMode, setGodMode] = useState(GmSystem.godMode);
   const [allowDeath, setAllowDeath] = useState(GmSystem.allowDeath);
   const [attackMultiplier, setAttackMultiplier] = useState(GmSystem.attackMultiplier);
@@ -28,23 +15,6 @@ export function PlayerTab({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div role="group" aria-label="玩家性别" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ marginRight: 'auto', color: gameTheme.ink }}>性别</span>
-        {(['boy', 'girl'] as const).map((value) => (
-          <button
-            key={value}
-            aria-pressed={gender === value}
-            onClick={() => onSetGender(value)}
-            style={{
-              minHeight: 44, minWidth: 76, ...gameButtonStyle, borderRadius: 10,
-              background: gender === value ? gameTheme.selected : gameTheme.inset,
-              color: gameTheme.ink, fontSize: 15,
-            }}
-          >
-            {value === 'boy' ? '男孩' : '女孩'}
-          </button>
-        ))}
-      </div>
       <ToggleRow
         label="无敌模式"
         value={godMode}
@@ -90,7 +60,6 @@ export function PlayerTab({
           setMetaPoints(v);
         }}
       />
-      <ActionButton label="状态回满(复活)" tone="primary" onClick={onRestoreStatus} />
     </div>
   );
 }

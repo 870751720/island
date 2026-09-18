@@ -116,16 +116,6 @@ const ACTIONS: NetActionRegistry = {
     g.gmGiveTool(tool, tier, a);
     return true;
   },
-  gmSetGender: (g, a, [gender]) => {
-    if (gender !== 'boy' && gender !== 'girl') return false;
-    g.gmSetGender(gender, a);
-    return true;
-  },
-
-  gmRestoreStatus: (g, a) => {
-    g.gmRestoreStatus(a);
-    return true;
-  },
   gmSetDay: (g, a, [day]) => {
     g.gmSetDay(day);
     return true;

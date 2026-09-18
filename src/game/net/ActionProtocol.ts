@@ -1,7 +1,6 @@
 import { DOG_GM_COMMANDS, type DogGmCommand } from '../systems/DogGrowth';
 import { isLandmarkChoice, type LandmarkChoice } from '../world/landmarks/LandmarkDefinitions';
 import type { HandTool } from '../entities/Player';
-import type { PlayerGender } from '../entities/PlayerModel';
 import type { AnimalSpecies } from '../entities/Wildlife';
 import type { CraftId, ToolId } from '../systems/Crafting';
 import type { EquipSlot } from '../systems/Equipment';
@@ -68,8 +67,6 @@ export interface NetActionArgs {
   gmTriggerCrocodile: [];
   gmGiveItem: [kind: ResourceKind, count: number];
   gmGiveTool: [tool: ToolId, tier: 1 | 2 | 3];
-  gmSetGender: [gender: PlayerGender];
-  gmRestoreStatus: [];
   gmSetDay: [day: number];
   gmSetWeather: [weather: 'sunny' | 'wind' | 'rain' | 'snow'];
   gmConfig: [config: GmConfig];
@@ -135,8 +132,6 @@ const NET_ACTION_ARG_COUNTS = {
   gmTriggerCrocodile: [0],
   gmGiveItem: [2],
   gmGiveTool: [2],
-  gmSetGender: [1],
-  gmRestoreStatus: [0],
   gmSetDay: [1],
   gmSetWeather: [1],
   gmConfig: [1],
@@ -189,7 +184,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'lassoStake':
     case 'lassoUntie':
     case 'gmTriggerCrocodile':
-    case 'gmRestoreStatus':
       return true;
     case 'questScreen':
       return first === null || (Array.isArray(first) && first.length === 16 && first.every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 10000));
@@ -244,8 +238,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isLandmarkChoice(first);
     case 'gmGiveTool':
       return isString(first) && TOOL_IDS.has(first) && (second === 1 || second === 2 || second === 3);
-    case 'gmSetGender':
-      return first === 'boy' || first === 'girl';
     case 'gmSetDay':
       return isSafeInteger(first);
     case 'gmSetWeather':

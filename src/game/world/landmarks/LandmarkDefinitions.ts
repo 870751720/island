@@ -30,11 +30,7 @@ export function rollLandmark(rng = Math.random): LandmarkKind {
   return LANDMARKS.find(d => (roll -= d.weight) < 0)?.kind ?? 'camp';
 }
 /** 互斥百分比，剩余部分为零处；不按权重归一化。 */
-export function validLandmarkChances(value: unknown): value is number[] {
-  return Array.isArray(value) && value.length === 3
-    && value.every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 100)
-    && value.reduce((a, b) => a + b, 0) <= 100;
-}
+export const DEFAULT_LANDMARK_CHANCES = [35, 10, 1] as const;
 export function rollLandmarkCount(chances: readonly number[], rng = Math.random): number {
   let roll = rng() * 100;
   for (let i = 0; i < 3; i++) if ((roll -= chances[i]) < 0) return i + 1;

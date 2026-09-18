@@ -315,12 +315,9 @@ export function GameplayUI({
       {wikiOpen && <WikiPanel onClose={() => setWikiOpen(false)} />}
       {gmOpen && (
         <GmPanel
-          gender={hud.gender}
           onClose={() => setGmOpen(false)}
           actions={{
             getGame: () => gameRef.current,
-            restoreStatus: () => gameRef.current?.gmRestoreStatus(),
-            setGender: (gender) => gameRef.current?.gmSetGender(gender),
             setDay: (day) => gameRef.current?.gmSetDay(day),
             setWeather: (type) => gameRef.current?.gmSetWeather(type),
             setConfig: (patch) => gameRef.current?.gmSetConfig(patch),
