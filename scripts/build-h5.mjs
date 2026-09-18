@@ -2,12 +2,14 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { writeZip } from './zip.mts';
+import { preparePackageBuild } from './prepare-package-build.mts';
 
 const root = process.cwd();
+preparePackageBuild(root, 'h5');
 const nextBin = path.join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
 const result = spawnSync(process.execPath, [nextBin, 'build'], {
   cwd: root,
-  env: { ...process.env, H5_EXPORT: '1' },
+  env: { ...process.env, H5_EXPORT: '1', XHS_EXPORT: '0' },
   stdio: 'inherit',
 });
 

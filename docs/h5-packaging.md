@@ -12,7 +12,7 @@ TapTap H5 包以压缩包内的 `index.html` 为入口，并要求解压后仅�
 
 - 默认 `npm run build` 保留 `/island` 基路径，用于 GitHub Pages 发布。
 - `npm run build:h5` 设置 `H5_EXPORT=1`，输出相对路径资源引用，适用于 H5 容器从包目录启动的场景。
-- H5 构建写入 `.next-h5/`，避免复用或干扰常规构建目录。
+- H5 静态导出写入 `.next-h5/`；Next 仍使用 `.next/` 作为构建中间目录。打包前通过 `scripts/prepare-package-build.mts` 清理这两个目录和旧 H5 ZIP，避免历史资源混入；各渠道构建须串行执行，不能与正式站点构建同时运行。
 - `npm run build:h5` 构建成功后自动生成 `dist/island-h5.zip`，与小红书共用 `scripts/zip.mts`，采用 Deflate 等级 6 压缩。构建环境使用 Node 22.18+。
 - `npm run build:packages` 依次构建 H5 和小红书包，前一渠道失败即停止。
 - 发布压缩包的根目录仅放置 `island/`，并包含 `island/index.html` 与完整 `_next/` 静态资源，符合 TapTap 对单一游戏根目录的要求。

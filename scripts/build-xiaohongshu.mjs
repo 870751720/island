@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { writeZip } from './zip.mts';
+import { preparePackageBuild } from './prepare-package-build.mts';
 
 const root = process.cwd();
 const exportDir = path.join(root, '.next-xiaohongshu');
@@ -27,7 +28,7 @@ function runNextBuild() {
   const nextBin = path.join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
   const result = spawnSync(process.execPath, [nextBin, 'build'], {
     cwd: root,
-    env: { ...process.env, XHS_EXPORT: '1' },
+    env: { ...process.env, XHS_EXPORT: '1', H5_EXPORT: '0' },
     stdio: 'inherit',
   });
   if (result.error) throw result.error;
@@ -98,8 +99,7 @@ function auditStage() {
   return failures;
 }
 
-fs.rmSync(stageDir, { recursive: true, force: true });
-fs.rmSync(packageFile, { force: true });
+preparePackageBuild(root, 'xiaohongshu');
 runNextBuild();
 fs.cpSync(exportDir, stageDir, { recursive: true });
 fs.rmSync(path.join(stageDir, '404.html'), { force: true });

@@ -13,7 +13,7 @@
 - 默认 `npm run build` 仍以 `/island` 为 GitHub Pages 基路径。
 - `npm run build:packages` 依次生成 H5 和小红书 ZIP；两者共用 `scripts/zip.mts` 压缩实现，构建环境使用 Node 22.18+。
 - `npm run build:h5` 改由 Node 包装器设置环境变量，修复 Windows `cmd.exe` 中 `H5_EXPORT=1` 无法执行的问题；其产物仍在 `.next-h5/`。
-- `npm run build:xiaohongshu` 设置 `XHS_EXPORT=1`，构建产物放在 `.next-xiaohongshu/`，不复用默认或 H5 构建目录。
+- `npm run build:xiaohongshu` 设置 `XHS_EXPORT=1`、`H5_EXPORT=0`，静态导出放在 `.next-xiaohongshu/`。Next 仍使用 `.next/` 作为构建中间目录；打包前通过 `scripts/prepare-package-build.mts` 清理中间目录、渠道导出目录、暂存目录和旧 ZIP，防止历史脚本混入。各渠道构建须串行执行，不能与正式站点构建同时运行。
 - 小红书流程把最终静态文件暂存到 `dist/xiaohongshu/`，保证 `index.html` 位于该目录根部；`dist/island-xiaohongshu.zip` 也以该目录内容作为根压缩，绝不额外包一层目录。
 - 打包脚本只允许 HTML、CSS、JS、图片、字体和 JSON；会删除 Next 导出的 `404.html`、`index.txt`，并把 Next 的内联启动脚本拆为 `assets/xhs-bootstrap-*.js`，满足容器的外置经典脚本 CSP。
 - `XHS_EXPORT=1` 会注入 `NEXT_PUBLIC_XHS_EXPORT` 渠道标记；开始界面只隐藏「创建房间 / 加入房间」两个联机按钮，游戏主界面、单机流程和现有 UI 保持不变。设置面板的「开启多人模式」入口也同步隐藏。
