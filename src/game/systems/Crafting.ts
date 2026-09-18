@@ -508,7 +508,7 @@ export const RECIPES: Recipe[] = [
     minBenchLevel: 3,
   },
   {
-    id: 'researchTable', name: '料理研究台', cost: { wood: 8, stone: 5, rope: 2 }, station: 'workbench', output: 'researchTable', minBenchLevel: 3,
+    id: 'researchTable', name: '料理研究台', cost: { adventureBook: 5, ironIngot: 5, wood: 10, stone: 5 }, station: 'workbench', output: 'researchTable', minBenchLevel: 4,
   },
   {
     id: 'mill',
