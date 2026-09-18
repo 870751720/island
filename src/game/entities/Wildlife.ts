@@ -1890,7 +1890,7 @@ export class Wildlife implements Updatable {
   }
 
   /** GM 护主场景：在可通行干地生成低血量狼，仍走正式 AI 与伤害链。 */
-  gmDogThreat(player: Player, health = 5): boolean {
+  gmDogThreat(player: Player, health: number): boolean {
     const p = player.group.position;
     for (let i = 0; i < 32; i++) {
       const angle = i * Math.PI / 8;

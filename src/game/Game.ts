@@ -2859,28 +2859,19 @@ export class Game {
     else if (command === 'emojiAlert') this.dog.previewBattleEmoji('dog-alert');
     else if (command === 'emojiBite') this.dog.previewBattleEmoji('dog-bite');
     else if (command === 'emojiGuard') this.dog.previewBattleEmoji('dog-guard');
-    else if (command === 'foods') {
-      this.dog.recall(actor.player);
-      this.dog.clearCooldowns();
-      this.drops.drop('cookedGameMeat', 3, actor);
-      for (const kind of ['pepper', 'wineBerry', 'crabMeat'] as const) this.drops.drop(kind, 1, actor);
-      this.notify('已放下 3 份烤兽肉及拒食对照，4 秒后只吃 1 份烤肉（+30 经验）', actor);
-      return;
-    } else if (command === 'threat' || command === 'rescue') {
+    else if (command === 'rescue') {
       if (actor.survival.state.dead || actor.player.isSwimming || actor.player.isSleeping) {
         this.notify('请在存活、清醒且上岸时测试护主', actor); return;
       }
-      if (!this.wildlife.gmDogThreat(actor.player, command === 'rescue' ? 15 : 5)) {
+      if (!this.wildlife.gmDogThreat(actor.player, 15)) {
         this.notify('附近没有可生成狼的草地，挪到草地再试', actor); return;
       }
       this.dog.recall(actor.player);
       this.dog.clearCooldowns();
-      if (command === 'rescue') {
-        this.dog.growth.setStage(5);
-        actor.survival.state.health = 30;
-        actor.player.setHealth(30);
-      }
-      this.notify(command === 'rescue' ? '五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌' : this.dog.kind === 'cat' ? '已生成 5 血狼，可乐会停止发掘并躲开' : '已生成 5 血狼，薯条将按当前阶段扑咬护主', actor);
+      this.dog.growth.setStage(5);
+      actor.survival.state.health = 30;
+      actor.player.setHealth(30);
+      this.notify('五阶段救场：生命设为 30，已生成 15 血狼；请关闭玩家无敌', actor);
       return;
     }
     const state = this.dog.debugState;
@@ -3730,11 +3721,11 @@ export class Game {
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s), () => s.quests.drank());
   }
 
-  /** 某玩家喝完一轮水:按 GM 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */
+  /** 某玩家喝完一轮水:0.5% 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */
   private onDrinkRound(session: PlayerSession): void {
     if (this.guestMode) return;
     if (this.shrines.inAura('crocIncense', session.player.group.position)) return;
-    if (Math.random() >= GmSystem.crocodileChance) return;
+    if (Math.random() >= 0.005) return;
     this.spawnCrocodileNear(session);
   }
 

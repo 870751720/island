@@ -20,8 +20,6 @@ export const GmSystem = {
   attackMultiplier: 1,
   /** 玩家移动速度倍率(赶路调试用,1 为正常) */
   speedMultiplier: 1,
-  /** 喝水触发鳄鱼袭击的概率(0~1,特殊事件调试用) */
-  crocodileChance: 0.005,
   /** 树生长判定间隔(秒,每次判定有 1/2 概率升阶;作用于房主侧生长判定) */
   treeGrowthInterval: 60,
   /** 季节视觉覆盖:auto=跟随真实季节(SeasonSystem),否则强制春/夏/秋/冬 */
@@ -46,7 +44,6 @@ export function gmSnapshot(): GmConfig {
     showTraffic: GmSystem.showTraffic,
     attackMultiplier: GmSystem.attackMultiplier,
     speedMultiplier: GmSystem.speedMultiplier,
-    crocodileChance: GmSystem.crocodileChance,
     treeGrowthInterval: GmSystem.treeGrowthInterval,
     season: GmSystem.season,
   };
@@ -77,9 +74,6 @@ export function gmApply(config: Partial<GmConfig>): void {
   }
   if (typeof config.speedMultiplier === 'number' && Number.isFinite(config.speedMultiplier)) {
     GmSystem.speedMultiplier = Math.min(10, Math.max(0.1, config.speedMultiplier));
-  }
-  if (typeof config.crocodileChance === 'number' && Number.isFinite(config.crocodileChance)) {
-    GmSystem.crocodileChance = Math.min(1, Math.max(0, config.crocodileChance));
   }
   if (typeof config.treeGrowthInterval === 'number' && Number.isFinite(config.treeGrowthInterval)) {
     GmSystem.treeGrowthInterval = Math.min(3600, Math.max(1, config.treeGrowthInterval));
