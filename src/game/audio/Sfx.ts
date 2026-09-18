@@ -1,4 +1,4 @@
-import { AnimalHurtAudio } from './AnimalHurtAudio';
+import { GameplaySampleAudio } from './GameplaySampleAudio';
 import { midiToFreq, noiseBurst, tone, pianoTone } from './synth';
 
 /** 玩法音效种类:按动作语义命名 */
@@ -65,19 +65,20 @@ const VOL: Record<SfxName, number> = {
   treasureWin: 0.55,
 };
 
-/** 程序化音效:全部用振荡器与噪声实时合成,每次播放带随机音高抖动避免机械感 */
+/** 玩法音效:录音采样与程序合成共用音效总线 */
 export class Sfx {
   /** 长音效的专属输出通道,交互中断时立即静音切断 */
   private cuts = new Map<SfxName, GainNode>();
 
-  private animalHurt: AnimalHurtAudio;
+  private samples: GameplaySampleAudio;
 
   constructor(private ctx: AudioContext, private dest: AudioNode) {
-    this.animalHurt = new AnimalHurtAudio(ctx);
+    this.samples = new GameplaySampleAudio(ctx);
   }
 
   /** 中途切断仍在播的长音效(喝水、进食等随交互持续的循环声) */
   stop(name: SfxName): void {
+    this.samples.stop(name);
     const cut = this.cuts.get(name);
     if (!cut) return;
     this.cuts.delete(name);
@@ -90,11 +91,12 @@ export class Sfx {
   play(name: SfxName, gainScale = 1): void {
     const t = this.ctx.currentTime + 0.01;
     const v = VOL[name] * gainScale;
+    if (this.samples.play(name, this.dest, v)) return;
     const detune = (pitch: number) => pitch * (0.92 + Math.random() * 0.16);
 
     // 随交互持续的长音效走独立通道,便于 stop 切断
     let dest = this.dest;
-    if (name === 'drink' || name === 'munch') {
+    if (name === 'munch') {
       this.stop(name);
       const cut = this.ctx.createGain();
       cut.connect(this.dest);
@@ -103,10 +105,6 @@ export class Sfx {
     }
 
     switch (name) {
-      case 'sheepHurt':
-      case 'bisonHurt':
-        this.animalHurt.play(name === 'sheepHurt', dest, v);
-        break;
       case 'chop':
         // 斧刃入木:又短又密的低频闷击,两层贴近的低音叠加避免单薄发空
         tone(this.ctx, dest, detune(130), t, { attack: 0.003, decay: 0.1, peak: v }, 'sine', 65);
@@ -169,17 +167,6 @@ export class Sfx {
           noiseBurst(this.ctx, dest, bt + 0.02, { attack: 0.02, decay: 0.08, peak: v * 0.35 }, 'bandpass', detune(1300), 600);
         }
         break;
-      case 'eatFinish':
-        // 吃完收尾:一声短促的喉部吞咽,不叠加奖励旋律或呼气
-        noiseBurst(this.ctx, dest, t, { attack: 0.012, decay: 0.1, peak: v * 0.32 }, 'bandpass', detune(760), 340, 1.4);
-        tone(this.ctx, dest, detune(480), t + 0.012, { attack: 0.01, decay: 0.2, peak: v * 0.5 }, 'sine', detune(270));
-        break;
-      case 'drink':
-        // 单口啜饮:柔和的液体摩擦与短吞咽,约 0.25 秒内收完,由交互节奏触发。
-        noiseBurst(this.ctx, dest, t, { attack: 0.025, decay: 0.13, peak: v * 0.42 }, 'bandpass', detune(1050), 720, 0.7);
-        noiseBurst(this.ctx, dest, t + 0.1, { attack: 0.015, decay: 0.08, peak: v * 0.3 }, 'bandpass', detune(520), 380, 0.9);
-        tone(this.ctx, dest, detune(260), t + 0.11, { attack: 0.012, decay: 0.075, peak: v * 0.12 }, 'sine', 210);
-        break;
       case 'whoosh':
         noiseBurst(this.ctx, dest, t, { attack: 0.05, decay: 0.25, peak: v }, 'bandpass', 600, 2400);
         break;
@@ -232,30 +219,11 @@ export class Sfx {
         tone(this.ctx, dest, detune(300), t, { attack: 0.003, decay: 0.18, peak: v }, 'sine', 90);
         noiseBurst(this.ctx, dest, t, { attack: 0.002, decay: 0.08, peak: v * 0.45 }, 'bandpass', 1200, 600);
         break;
-      case 'roar':
-        // 完整熊吼:用正弦/三角波的喉腔共鸣取代电子感明显的锯齿波,沙哑尾音缓慢下沉
-        tone(this.ctx, dest, detune(150), t, { attack: 0.11, decay: 0.95, peak: v * 0.9 }, 'triangle', 68);
-        tone(this.ctx, dest, detune(225), t + 0.04, { attack: 0.09, decay: 0.78, peak: v * 0.55 }, 'sine', 92);
-        noiseBurst(this.ctx, dest, t + 0.03, { attack: 0.13, decay: 0.85, peak: v * 0.72 }, 'bandpass', detune(520), 310, 1.2);
-        noiseBurst(this.ctx, dest, t + 0.36, { attack: 0.05, decay: 0.62, peak: v * 0.35 }, 'bandpass', detune(310), 180, 1.8);
-        break;
       case 'bearGrowl':
         // 扑击前短低吼:只做威胁预告,不重复播放一整段咆哮
         tone(this.ctx, dest, detune(175), t, { attack: 0.035, decay: 0.3, peak: v * 0.78 }, 'triangle', 92);
         noiseBurst(this.ctx, dest, t, { attack: 0.04, decay: 0.28, peak: v * 0.58 }, 'bandpass', detune(460), 260, 1.5);
         break;
-      case 'snore': {
-        // 打呼:低频正弦垫底 + 喉腔滚动的带通噪声(软腭颤动),一声「呼——噜」
-        // 缓起缓收,绝不用锯齿/方波,避免电子蚊鸣感
-        for (let i = 0; i < 2; i++) {
-          const st = t + i * 0.55;
-          const peak = v * (0.9 - i * 0.25);
-          tone(this.ctx, dest, detune(88 - i * 8), st, { attack: 0.18, decay: 0.55, peak }, 'sine', 56);
-          noiseBurst(this.ctx, dest, st, { attack: 0.16, decay: 0.5, peak: peak * 0.7 }, 'bandpass', 300 - i * 40, 130, 2.2);
-          noiseBurst(this.ctx, dest, st + 0.24, { attack: 0.05, decay: 0.3, peak: peak * 0.4 }, 'bandpass', 500, 220, 1.5);
-        }
-        break;
-      }
       case 'death':
         // 经典下行轮廓:音符逐个降低、间隔越来越短,像皮球弹跳到静止,末了一声低音落地
         [76, 72, 68, 64, 60].forEach((m, i) => {
