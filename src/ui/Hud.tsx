@@ -21,9 +21,8 @@ const SEASONS = {
 } as const;
 
 /** 本地玩家状态瓶与增益区；为展开的小地图预留宽度。 */
-export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden = false }: {
+export function Hud({ hud, rightReserve, onQuestNavigate, idleHidden = false }: {
   hud: HudSnapshot;
-  onHeartTap: () => void;
   onQuestNavigate: () => void;
   rightReserve: number;
   idleHidden?: boolean;
@@ -45,7 +44,7 @@ export function Hud({ hud, onHeartTap, rightReserve, onQuestNavigate, idleHidden
       style={{ ...fadeStyle(hidden), pointerEvents: 'none', '--hud-right-reserve': `${rightReserve}px` } as CSSProperties}>
       <div className="hud-status-stack">
       <div className="hud-status-card">
-      <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} onHeartTap={onHeartTap} />
+      <VitalBottles health={hud.health} hunger={hud.hunger} thirst={hud.thirst} />
       <div className="hud-day">
         <span>第 <strong>{hud.day}</strong> 天</span>
         <span className="hud-season" style={{ '--season-color': season.color } as CSSProperties}>

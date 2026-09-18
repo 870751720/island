@@ -25,8 +25,6 @@ ${hudControlStyles}
 .hud-bottle-meter,.hud-bottle-fallback{width:44px;height:48px;display:block}
 .hud-bottle-meter{margin-left:-4px}
 .hud-bottle-canvas.is-ready~.hud-bottle .hud-bottle-fallback{visibility:hidden}
-.hud-bottle-tap{position:absolute;top:0;left:-4px;width:44px;height:48px;border:0;border-radius:12px;background:transparent;pointer-events:auto;touch-action:manipulation;cursor:pointer}
-.hud-bottle-tap:active{background:#fff8e933}
 .hud-bottle-label{display:block;margin-top:-4px;font-size:8px;font-weight:600;line-height:11px;letter-spacing:.06em;color:#40594f;text-shadow:0 1px 2px #fffbeccc,0 0 3px #fffbeccc}
 .hud-bottle.is-low .hud-bottle-label{color:#a73d2e;animation:hud-low 1.8s ease-in-out infinite}
 .hud-day{display:flex;justify-content:center;align-items:center;gap:5px;width:108px;min-height:17px;flex-wrap:wrap;font-size:9px;white-space:nowrap;color:#496354}

@@ -96,7 +96,8 @@ const overlayStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  zIndex: 50,
+  // 210:叠在设置面板(200)之上,与图鉴一致,关闭后回到设置
+  zIndex: 210,
 } as const;
 
 const cardStyle = {

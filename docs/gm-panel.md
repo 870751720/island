@@ -6,7 +6,7 @@
 
 ## 需求描述
 
-- 连续点击 5 次左上角 HUD 的红心图标(2 秒内)弹出 GM 面板。
+- 连续点击 5 次设置面板标题「设置」文字(2 秒内)弹出 GM 面板;标题为纯文字热点,点击无任何按压、高亮或音效反馈。
 - 面板按模块划分 tab:
   - 玩家:性别选择（男孩/女孩，仅当前玩家）、无敌模式开关(饥饿/口渴不掉、生命与体力回满)、允许死亡开关、状态回满(复活)。
   - 世界:显示帧率/网络流量/本机性能诊断开关;锁定时刻(正午/黄昏/午夜/清晨四选一,点选即跳转并停在该时刻,再点一次解除);强制天气(晴/风/雨/雪);季节(跟随真实季节/强制春/夏/秋/冬覆盖,真实季节 18 天一季自动推进,详见 `seasons.md`)。
@@ -31,8 +31,8 @@
   - `GmPanel.tsx`:模态弹窗外壳与 tab 切换,导出 `GmActions` 回调接口,由 GameplayUI 注入并转发到 Game 实例。
   - `PlayerTab.tsx` / `WorldTab.tsx` / `FishingTab.tsx` / `ItemsTab.tsx`:各 tab 内容。
   - `controls.tsx`:可复用的 ToggleRow / ActionButton / StepperRow 控件。
-- `src/ui/Hud.tsx`:红心图标可点击,点击回调 `onHeartTap` 上抛。
-- `src/ui/GameplayUI.tsx`:维护 2 秒滑动窗口内的点击计数,满 5 次打开面板。
+- `src/ui/SettingsPanel.tsx`:标题「设置」为隐藏触发热点,维护 2 秒滑动窗口内的点击计数,满 5 次经 `onSecretGmTrigger` 上抛;热区用负边距抵消内边距扩大到约 44px 高且不改变布局,非按钮元素因此无点击音效,样式关闭点击高亮与文字选择。
+- `src/ui/GameplayUI.tsx`:接 `onSecretGmTrigger` 打开 GM 面板;GM 弹层 zIndex 210,叠在设置面板(200)之上,关闭后回到设置。
 
 ### 迭代 2026-09-07
 
@@ -45,6 +45,10 @@
 - 取消「性能」tab:本机性能诊断开关移到世界 tab「显示网络流量」下方;tab 内的说明文字、复制按钮与报告文本框删除,只保留开关 + 右上角实时报告浮层(组件更名 `PerformanceOverlay.tsx`)。
 - 移除「锁定白天/锁定夜晚」开关,「跳转时刻」改为「锁定时刻」:`GmSystem.lockDaytime/lockNighttime` 合并为 `lockTime: number | null`,四个时刻按钮点选即跳转并停在该时刻(再次点击解除),经 `gmConfig` 动作全房间同步,原 `gmSetTime` 动作链路删除。
 - 修复锁定白天/夜晚时场景可能逐渐变黑:`WeatherSystem.modulate` 每帧对 `sun.intensity`/`hemi.intensity` 做乘法调制,而锁定分支原先只在拉回时刻的瞬间调用 `apply()` 重置光强,之后逐帧复利衰减。现锁定分支每帧重放 `apply()` 重置基础光强后再由天气调制。
+
+## 迭代 2026-09-18
+
+- GM 触发入口由「连续点击 5 次左上角 HUD 红心」改为「连续点击 5 次设置面板标题『设置』文字」(仍为 2 秒内 5 次)。红心点击热区(`VitalBottles` 的 `hud-bottle-tap` 按钮与样式、`Hud`/`GameplayUI` 的 `onHeartTap` 链路)整体删除,状态瓶恢复为纯展示。新入口为纯文字热点,无按压态、无点击高亮、无音效;GM 弹层 zIndex 由 50 提升至 210 以叠在设置面板之上,关闭后回到设置。
 
 ## 本机性能诊断
 - GM 面板 → 世界 → 本机性能诊断开关。开启后右上角浮层实时显示报告，关闭开关停止采样。

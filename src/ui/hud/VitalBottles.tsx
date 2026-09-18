@@ -9,7 +9,7 @@ const BOTTLES = [
 ] as const;
 
 /** 瓶身本身就是状态容器；SVG 同时提供 WebGL 不可用时的液位回退。 */
-export function VitalBottles({ health, hunger, thirst, onHeartTap }: { health: number; hunger: number; thirst: number; onHeartTap: () => void }) {
+export function VitalBottles({ health, hunger, thirst }: { health: number; hunger: number; thirst: number }) {
   const id = useId().replace(/:/g, '');
   const normalize = (value: number) => Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0)) / 100;
   const levels: BottleLevels = [normalize(health), normalize(hunger), normalize(thirst)];
@@ -30,7 +30,6 @@ export function VitalBottles({ health, hunger, thirst, onHeartTap }: { health: n
               <rect x="16" y="5" width="12" height="7" rx="2" fill="#c8a16a" /><path d="M15 13h14" stroke="#e5edd4" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </div>
-          {index === 0 && <button className="hud-bottle-tap" aria-label="生命状态" onClick={onHeartTap} />}
           <span className="hud-bottle-label">{low ? bottle.warning : bottle.label}</span>
         </div>;
       })}

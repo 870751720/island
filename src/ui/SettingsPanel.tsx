@@ -8,7 +8,7 @@ import { swallowTrailingClick } from './wiki/wikiTaps';
 
 import { gameTheme, gameButtonStyle } from './gameTheme';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import styles from './SettingsPanel.module.css';
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSettings';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
@@ -65,6 +65,7 @@ export function SettingsPanel({
   onClose,
   onEnterPhotoMode,
   onOpenWiki,
+  onSecretGmTrigger,
   multiplayer,
   modeSettings,
 }: {
@@ -78,6 +79,8 @@ export function SettingsPanel({
   onEnterPhotoMode: () => void;
   /** 打开游戏图鉴弹层(关闭图鉴后回到设置) */
   onOpenWiki: () => void;
+  /** 连续点击标题「设置」5 次(2 秒内)触发 GM 面板;纯文字热点,不表现任何点击反馈 */
+  onSecretGmTrigger: () => void;
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
   modeSettings?: React.ComponentProps<typeof GameModeSettings>;
@@ -91,6 +94,18 @@ export function SettingsPanel({
   };
   const [qr, setQr] = useState('');
   const [shareTip, setShareTip] = useState('');
+  // 连续 5 次点击标题「设置」(2 秒内)触发 GM 面板
+  const gmTapsRef = useRef<number[]>([]);
+  const handleTitleTap = () => {
+    const now = performance.now();
+    const taps = gmTapsRef.current.filter((t) => now - t < 2000);
+    taps.push(now);
+    gmTapsRef.current = taps;
+    if (taps.length >= 5) {
+      gmTapsRef.current = [];
+      onSecretGmTrigger();
+    }
+  };
   const inviteUrl = multiplayer?.roomCode ? buildInviteUrl(multiplayer.roomCode) : '';
   useEffect(() => {
     setShareTip('');
@@ -123,7 +138,7 @@ export function SettingsPanel({
         role="dialog" aria-modal="true" aria-label="设置"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={styles.header}><strong>设置</strong><button className={styles.close} onClick={onClose} aria-label="关闭设置">×</button></div>
+        <div className={styles.header}><strong className={styles.title} onClick={handleTitleTap}>设置</strong><button className={styles.close} onClick={onClose} aria-label="关闭设置">×</button></div>
         <nav className={styles.tabs} aria-label="设置分类">
           {([['game', '游戏'], ['interface', '界面'], ['audio', '声音']] as const).map(([id, label]) =>
             <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}

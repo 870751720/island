@@ -9,7 +9,7 @@ import type { CraftId } from '@/game/systems/Crafting';
 
 import { ItemIcon } from './ItemIcon';
 import { ITEMS } from '@/game/systems/Items';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { NetGuest } from '@/game/net/NetGuest';
 import { QuestRewardFlight } from './QuestRewardFlight';
 import { CompanionRewardFlight } from './CompanionRewardFlight';
@@ -171,18 +171,6 @@ export function GameplayUI({
   });
   // 海神的信:拆开后弹出的信纸,关闭后清空
   const [letterMsg, setLetterMsg] = useState<string | null>(null);
-  // 连续 5 次点击红心(2 秒内)打开 GM 面板
-  const heartTapsRef = useRef<number[]>([]);
-  const handleHeartTap = () => {
-    const now = performance.now();
-    const taps = heartTapsRef.current.filter((t) => now - t < 2000);
-    taps.push(now);
-    heartTapsRef.current = taps;
-    if (taps.length >= 5) {
-      heartTapsRef.current = [];
-      setGmOpen(true);
-    }
-  };
   // 单机中途开启多人模式:创建房间并把已在运行的游戏挂接为房主权威端
   const [mpBusy, setMpBusy] = useState(false);
   const [mpError, setMpError] = useState('');
@@ -249,7 +237,6 @@ export function GameplayUI({
               <Hud
                 hud={hud}
                 idleHidden={hud.busy && !adjustHud && !settingsOpen && !hud.dead && !net?.host && !net?.guest}
-                onHeartTap={handleHeartTap}
                 onQuestNavigate={() => gameRef.current?.moveToQuest()}
                 rightReserve={mapOpen ? 190 : 100}
               />
@@ -311,6 +298,7 @@ export function GameplayUI({
           onClose={() => setSettingsOpen(false)}
           onEnterPhotoMode={enterPhotoMode}
           onOpenWiki={() => setWikiOpen(true)}
+          onSecretGmTrigger={() => setGmOpen(true)}
           multiplayer={
             !multiplayerEnabled || net?.guest
               ? undefined
