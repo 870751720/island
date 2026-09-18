@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import { variants } from './variants';
 import { candidate } from './model';
-import { icon } from './icons';
+import { icon, iconOptions } from './icons';
 import { mountZoom } from './zoom';
 import { makeColaModel } from '../../src/game/companions/ColaModel';
 import { makePomeranianModel } from '../../src/game/companions/PomeranianModel';
-import { COLA_ICON } from '../../src/ui/icons/ColaIcon';
 import { DOG_COMBAT_SVG } from '../../src/ui/icons/DogCombatIcons';
 
-document.body.innerHTML=`<main><header><small>COLA / DESIGN STUDY</small><h1>可乐的三种可爱模样。</h1><p>全新造型：棉花糖包子脸、元气大耳猫、云朵毛绒猫。保留可乐的正常腿长和灰白花纹。</p></header><section class="layout"><div><div id="stage"></div><div class="controls"><button id="rotate" aria-pressed="false">自动旋转：关</button><button id="front">正面</button><button id="side">侧面</button><button id="back">背面</button><label>动作 <select id="action"><option value="idle">待机</option><option value="walk">走路</option><option value="dig">扒拉</option><option value="groom">舔毛</option><option value="sleep">睡觉</option></select></label></div><p class="hint">拖动查看角度 · 模型与图标可以自由搭配</p><div class="controls" id="models"></div></div><aside><h2>选择图标</h2><div id="icons"></div><div class="reference"><span>现有风格参考</span><div>${DOG_COMBAT_SVG['dog-companion']}${COLA_ICON}</div><p>薯条 / 现有可乐</p></div></aside></section><footer><strong id="choice"></strong><p>选好后把下面这句话发给我；应用完成后删除临时页面。</p><textarea id="result" readonly aria-label="选择结果"></textarea><button id="copy">复制选择</button><span id="message" role="status"></span></footer></main>`;
-let modelIndex=0,iconIndex=0, auto=false, angle=.25, action='idle';
+document.body.innerHTML=`<main><header><small>COLA / DESIGN STUDY</small><h1>给可乐选一个配对头像。</h1><p>模型已选定：低面版「元气可乐」。三个头像都右倾、左侧爱心，与薯条配成一对。</p></header><section class="layout"><div><div id="stage"></div><div class="controls"><button id="rotate" aria-pressed="false">自动旋转：关</button><button id="front">正面</button><button id="side">侧面</button><button id="back">背面</button><label>动作 <select id="action"><option value="idle">待机</option><option value="walk">走路</option><option value="dig">扒拉</option><option value="groom">舔毛</option><option value="sleep">睡觉</option></select></label></div><p class="hint">拖动查看角度 · 元气可乐模型已选定，下方可切换旧版与薯条作参考</p><div class="controls" id="models"></div></div><aside><h2>选择图标</h2><div id="icons"></div><div class="reference"><span>配对效果 · 随图标选择更新</span><div id="paired-icons">${DOG_COMBAT_SVG['dog-companion']}${icon(0)}</div><p>薯条左倾、右侧爱心 / 可乐右倾、左侧爱心</p></div></aside></section><footer><strong id="choice"></strong><p>选好后把下面这句话发给我；应用完成后删除临时页面。</p><textarea id="result" readonly aria-label="选择结果"></textarea><button id="copy">复制选择</button><span id="message" role="status"></span></footer></main>`;
+let modelIndex=1,iconIndex=0, auto=false, angle=.25, action='idle';
 const stage=document.querySelector<HTMLDivElement>('#stage')!;
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#e6e8dd');
 const camera=new THREE.OrthographicCamera(-.8,.8,.75,-.55,.01,20);
@@ -23,17 +22,18 @@ const shadow=new THREE.Mesh(new THREE.CircleGeometry(.34,32),new THREE.MeshBasic
 const models=[...variants.map((_,i)=>candidate(i)),makeColaModel(),makePomeranianModel()];
 models.forEach((m,i)=>{scene.add(m.group);m.group.visible=i===modelIndex;});
 const names=[...variants.map(v=>v.name),'现有可乐','薯条参考'];
-document.querySelector('#models')!.innerHTML=names.map((name,i)=>`<button data-model="${i}" aria-pressed="${i===modelIndex}">${name}</button>`).join('');
-document.querySelector('#icons')!.innerHTML=variants.map((v,i)=>`<button class="icon-choice" data-icon="${i}" aria-pressed="${i===iconIndex}"><span class="big">${icon(i)}</span><span><b>${v.name}</b><small>${v.note}</small><span class="sizes"><span>${icon(i)}</span><span>${icon(i)}</span><span>${icon(i)}</span></span></span></button>`).join('');
+document.querySelector('#models')!.innerHTML=names.map((name,i)=>i===0||i===2?'':`<button data-model="${i}" aria-pressed="${i===modelIndex}">${name}</button>`).join('');
+document.querySelector('#icons')!.innerHTML=iconOptions.map((v,i)=>`<button class="icon-choice" data-icon="${i}" aria-pressed="${i===iconIndex}"><span class="big">${icon(i)}</span><span><b>${v.name}</b><small>${v.note}</small><span class="sizes"><span>${icon(i)}</span><span>${icon(i)}</span><span>${icon(i)}</span></span></span></button>`).join('');
 function result(){
- const text=`可乐建模选 ${modelIndex<3?'ABC'[modelIndex]:names[modelIndex]}，图标选 ${'ABC'[iconIndex]}。保留正常猫咪腿长；应用后删除临时选型页面。`;
- document.querySelector('#choice')!.textContent=`当前搭配：${names[modelIndex]} + 图标 ${'ABC'[iconIndex]}`;
+ const text=`可乐建模选 B（已选定的低面版元气可乐），图标选 ${'ABC'[iconIndex]}。保留正常猫咪腿长；应用后删除临时选型页面。`;
+ document.querySelector('#choice')!.textContent=`已选模型：元气可乐 + 图标 ${'ABC'[iconIndex]}`;
  document.querySelector<HTMLTextAreaElement>('#result')!.value=text;
+ document.querySelector('#paired-icons')!.innerHTML=DOG_COMBAT_SVG['dog-companion']+icon(iconIndex);
  document.querySelectorAll<HTMLElement>('[data-model]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.model)===modelIndex)));
  document.querySelectorAll<HTMLElement>('[data-icon]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.icon)===iconIndex)));
- try{localStorage.setItem('cola-character-choice',JSON.stringify({modelIndex,iconIndex}));}catch{}
+ try{localStorage.setItem('cola-paired-icon-choice',JSON.stringify({modelIndex,iconIndex}));}catch{}
 }
-try{const saved=JSON.parse(localStorage.getItem('cola-character-choice')??'null');if(saved && Number.isInteger(saved.modelIndex)&&saved.modelIndex>=0&&saved.modelIndex<5&&Number.isInteger(saved.iconIndex)&&saved.iconIndex>=0&&saved.iconIndex<3){modelIndex=saved.modelIndex;iconIndex=saved.iconIndex;}}catch{}
+try{const saved=JSON.parse(localStorage.getItem('cola-paired-icon-choice')??'null');if(saved && Number.isInteger(saved.iconIndex)&&saved.iconIndex>=0&&saved.iconIndex<3)iconIndex=saved.iconIndex;}catch{}
 models.forEach((m,i)=>m.group.visible=i===modelIndex);result();
 document.querySelectorAll<HTMLElement>('[data-model]').forEach(b=>b.onclick=()=>{modelIndex=Number(b.dataset.model);models.forEach((m,i)=>m.group.visible=i===modelIndex);result();});
 document.querySelectorAll<HTMLElement>('[data-icon]').forEach(b=>b.onclick=()=>{iconIndex=Number(b.dataset.icon);result();});
