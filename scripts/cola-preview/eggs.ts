@@ -4,9 +4,9 @@ import { IslandScene } from '../../src/ui/start/IslandScene';
 import { icon } from './icons';
 
 const choices = [
-  { name: 'A · 笑眯眯探头', note: '沿用已选 C 的弯眼笑脸和小爱心，轻轻探出来', face: 2, paws: false },
-  { name: 'B · 扒门打招呼', note: '同款甜笑，加两只白爪搭在帐篷门口', face: 2, paws: true },
-  { name: 'C · 好奇偷看', note: '睁开金色圆眼，好奇地歪头看你', face: 0, paws: false },
+  { name: 'A · 笑眯眯探头', note: '沿用已选 C 的弯眼笑脸，正头、无爱心地探出来', face: 2, paws: false },
+  { name: 'B · 扒门打招呼', note: '正头、无爱心的甜笑，加两只白爪搭在门口', face: 2, paws: true },
+  { name: 'C · 好奇偷看', note: '睁开金色圆眼，正头、无爱心地看着你', face: 0, paws: false },
 ];
 
 export function mountEggChoices(): void {
@@ -31,7 +31,7 @@ export function mountEggChoices(): void {
     scene.querySelectorAll('[tabindex]').forEach(node=>{node.removeAttribute('tabindex');node.removeAttribute('role');});
     const cat=scene.querySelector<SVGGElement>('[data-companion="cat"]')!;
     cat.removeAttribute('display');
-    const face=icon(choice.face).replace('<svg ',`<svg x="199" y="${choice.paws?142:144}" width="16" height="16" style="width:16px;height:16px" `);
+    const face=icon(choice.face, false).replace('<svg ',`<svg x="199" y="${choice.paws?142:144}" width="16" height="16" style="width:16px;height:16px" `);
     cat.innerHTML=face+(choice.paws?'<g fill="#fff4e5"><ellipse cx="202" cy="159" rx="2.4" ry="1.6"/><ellipse cx="213" cy="159" rx="2.4" ry="1.6"/></g>':'');
     const companion=scene.querySelector<SVGGElement>('.egg-companion')!;
     companion.setAttribute('opacity','1');companion.setAttribute('visibility','visible');
