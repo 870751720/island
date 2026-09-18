@@ -70,6 +70,15 @@ export class GameAudio {
   /** 静音标记:联机结算队友动作期间置真,交互音效只给发起者自己听(噪音通知仍照常发出) */
   silent = false;
 
+  get eatFinishDuration(): number {
+    return this.sfx?.eatFinishDuration ?? 0;
+  }
+
+  /** 本机进食表现按剩余时间对齐，不触发玩法噪音或网络补播。 */
+  scheduleEatFinish(remaining: number): boolean {
+    return !this.silent && (this.sfx?.scheduleEatFinish(remaining) ?? false);
+  }
+
   play(name: SfxName, gainScale = 1): void {
     this.onSfx?.(name);
     if (!this.silent) this.sfx?.play(name, gainScale);

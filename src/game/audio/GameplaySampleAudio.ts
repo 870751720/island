@@ -27,12 +27,17 @@ export class GameplaySampleAudio {
   }
 
   /** 返回是否由采样负责；尚未解码时跳过，不延迟补播过期交互。 */
-  play(name: string, dest: AudioNode, volume: number): boolean {
+  duration(name: GameplaySampleName): number {
+    return this.buffers.get(name)?.duration ?? 0;
+  }
+
+  play(name: string, dest: AudioNode, volume: number, endIn?: number): boolean {
     if (!Object.prototype.hasOwnProperty.call(gameplaySamples, name)) return false;
     const key = name as GameplaySampleName;
     const buffer = this.buffers.get(key);
-    if (!buffer || this.ctx.state === 'closed') return true;
-    const sustained = key === 'drink' || key === 'snore';
+    if (!buffer || this.ctx.state === 'closed') return endIn === undefined;
+    if (endIn !== undefined && endIn <= 0) return false;
+    const sustained = key === 'drink' || key === 'snore' || key === 'eatFinish';
     if (sustained && this.active.has(key)) return true;
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
@@ -46,7 +51,8 @@ export class GameplaySampleAudio {
       source.disconnect();
       gain.disconnect();
     };
-    source.start();
+    const remaining = endIn ?? buffer.duration;
+    source.start(this.ctx.currentTime + Math.max(0, remaining - buffer.duration), Math.max(0, buffer.duration - remaining));
     return true;
   }
 }

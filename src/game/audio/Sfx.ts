@@ -76,6 +76,14 @@ export class Sfx {
     this.samples = new GameplaySampleAudio(ctx);
   }
 
+  get eatFinishDuration(): number {
+    return this.samples.duration('eatFinish');
+  }
+
+  scheduleEatFinish(remaining: number): boolean {
+    return this.samples.play('eatFinish', this.dest, VOL.eatFinish, remaining);
+  }
+
   /** 中途切断仍在播的长音效(喝水、进食等随交互持续的循环声) */
   stop(name: SfxName): void {
     this.samples.stop(name);

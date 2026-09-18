@@ -8,6 +8,7 @@ import { FOODS, foodSound } from '../systems/Food';
 import type { FishTier } from '../systems/FishTable';
 import type { InventorySlot, ResourceKind } from '../systems/Inventory';
 import { SLOT_ORDER } from '../systems/Equipment';
+import { EAT_TIME } from '../systems/EatingTiming';
 
 const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> => {
   const counts = new Map<ResourceKind, number>();
@@ -24,6 +25,8 @@ export class GuestHudSynchronizer {
   private eatTick = 0;
   private eatingSound: ReturnType<typeof foodSound> | null = null;
   private eatingName: string | null = null;
+  private eatingProgress = 0;
+  private finishScheduled = false;
 
   constructor(
     private readonly local: PlayerSession,
@@ -92,19 +95,28 @@ export class GuestHudSynchronizer {
     const food = snapshot.eatName ? FOODS.find((candidate) => candidate.name === snapshot.eatName) : null;
     const tick = Math.floor(snapshot.eatProgress * 3);
     const finished = !food || snapshot.dead || snapshot.eatProgress >= 1;
-    if (finished || this.eatingName !== food?.name || tick < this.eatTick) {
+    if (finished || this.eatingName !== food?.name || snapshot.eatProgress < this.eatingProgress) {
       if (this.eatingSound) this.audio.stop(this.eatingSound);
+      this.audio.stop('eatFinish');
+      this.finishScheduled = false;
       this.eatingSound = null;
       this.eatingName = null;
       this.eatTick = 0;
     }
+    this.eatingProgress = snapshot.eatProgress;
     if (!food || finished) return;
     this.eatingName = food.name;
+    const remaining = (1 - snapshot.eatProgress) * EAT_TIME;
+    if (food.consumeType === 'eat' && !this.finishScheduled) {
+      this.finishScheduled = this.audio.scheduleEatFinish(remaining);
+    }
+    const swallowing = food.consumeType === 'eat' && remaining <= this.audio.eatFinishDuration;
+    if (swallowing) this.audio.stop('munch');
     if (tick === this.eatTick) return;
     this.eatTick = tick;
     if (tick < 1) return;
     this.eatingSound = foodSound(food);
-    this.audio.play(this.eatingSound);
+    if (!swallowing) this.audio.play(this.eatingSound);
     const position = this.local.player.group.position.clone();
     position.y += 2;
     if (food.consumeType === 'eat') this.fx.burst(position, food.fxColor, 3);
