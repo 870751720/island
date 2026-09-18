@@ -227,16 +227,6 @@
   background: #58786112;
   color: #697b6b;
 }
-.relatedItem {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.relatedNote {
-  font-size: 11px;
-  color: #697b6b;
-  text-align: center;
-}
 
 .empty {
   padding: 26px 0;
@@ -505,6 +495,24 @@
   color: #49665e;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.chipWithNote {
+  display: inline-grid;
+  grid-template-columns: 18px auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  padding: 6px 10px;
+}
+.chipNote {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: end;
+  color: #587164;
+  font-size: 10px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* 上一件/下一件翻阅 */

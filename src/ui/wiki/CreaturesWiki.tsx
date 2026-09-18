@@ -34,10 +34,7 @@ function RelatedItems({ title, items, note, onOpen }: {
     <h4 className={styles.sectionTitle}>{title}</h4>
     {note && <p className={styles.desc}><WikiText value={note} onOpen={onOpen} /></p>}
     <div className={styles.chips}>
-      {items.map((item) => <div className={styles.relatedItem} key={item.kind}>
-        <ItemChip kind={item.kind} count={item.count} onOpen={onOpen} />
-        {item.note && <span className={styles.relatedNote}>{item.note}</span>}
-      </div>)}
+      {items.map((item) => <ItemChip key={item.kind} kind={item.kind} count={item.count} note={item.note} onOpen={onOpen} />)}
     </div>
   </section>;
 }
