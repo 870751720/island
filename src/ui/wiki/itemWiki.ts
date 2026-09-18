@@ -3,6 +3,7 @@ import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { ITEMS, itemCategory, itemSortIndex, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import { TOOL_IDS, toolName } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
+import { itemSourceGroups, itemSourcesOf, itemUsesOf, type ItemSource, type ItemUse, type SourceGroup } from './itemSources';
 
 /** 详情页的属性行:标签 + 展示值 */
 export type ItemWikiStat = { label: string; value: string };
@@ -11,6 +12,9 @@ export type ItemWikiEntry = {
   kind: ResourceKind;
   category: ItemCategory;
   stats: readonly ItemWikiStat[];
+  sourceGroups: readonly SourceGroup[];
+  sources: readonly ItemSource[];
+  uses: readonly ItemUse[];
 };
 
 const FOOD_BY_KIND = new Map(FOODS.map((food) => [food.kind, food] as const));
@@ -47,7 +51,14 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
 }
 
 function toEntry(kind: ResourceKind): ItemWikiEntry {
-  return { kind, category: itemCategory(kind), stats: buildStats(kind) };
+  return {
+    kind,
+    category: itemCategory(kind),
+    stats: buildStats(kind),
+    sourceGroups: itemSourceGroups(kind),
+    sources: itemSourcesOf(kind),
+    uses: itemUsesOf(kind),
+  };
 }
 
 /** 物品图鉴数据:按分类分组,组内沿用背包整理的登记顺序 */

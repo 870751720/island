@@ -21,7 +21,7 @@ export type LootEntry = {
 };
 
 /** 杂物池(一档,海水与水洼共用) */
-const JUNK_LOOT: LootEntry[] = [
+export const JUNK_LOOT: LootEntry[] = [
   { kind: 'branch', weight: 4, size: 0.8, color: '#8a6239', shape: 'junk' },
   { kind: 'fiber', weight: 4, size: 0.7, color: '#7cb36a', shape: 'junk' },
   { kind: 'stone', weight: 4, size: 0.8, color: '#9a9a9a', shape: 'junk' },
@@ -32,7 +32,7 @@ const JUNK_LOOT: LootEntry[] = [
 ];
 
 /** 海水鱼池(二三档) */
-const SEA_FISH: Record<2 | 3, LootEntry[]> = {
+export const SEA_FISH: Record<2 | 3, LootEntry[]> = {
   2: [
     { kind: 'anchovy', weight: 4, size: 0.7, color: '#a9c3cc', shape: 'fish' },
     { kind: 'sardine', weight: 4, size: 0.85, color: '#b8cdd9', shape: 'fish' },
@@ -51,7 +51,7 @@ const SEA_FISH: Record<2 | 3, LootEntry[]> = {
 };
 
 /** 水洼(淡水)鱼池(二三档) */
-const POND_FISH: Record<2 | 3, LootEntry[]> = {
+export const POND_FISH: Record<2 | 3, LootEntry[]> = {
   2: [
     { kind: 'perch', weight: 3, size: 1.0, color: '#8fa87b', shape: 'fish' },
     { kind: 'shrimp', weight: 3, size: 0.8, color: '#e8927c', shape: 'fish' },

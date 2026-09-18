@@ -196,7 +196,8 @@
 .subtabs button > *,
 .categories button > *,
 .pager button > *,
-.back > * {
+.back > *,
+.chip > * {
   pointer-events: none;
 }
 .tileName {
@@ -263,6 +264,12 @@
   font-size: 11px;
   letter-spacing: 0.08em;
 }
+/* 分类 + 来源分组的标签行 */
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 
 .desc {
   margin: 0;
@@ -298,14 +305,102 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 获得方式与用途区块 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sectionTitle {
+  margin: 6px 2px -2px;
+  color: #697b6b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.sourceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #fffaf0;
+  border-radius: 12px;
+  background: #fffaf080;
+}
+.sourceHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sourceLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+.sourceNote {
+  color: #697b6b;
+  font-size: 11px;
+  text-align: right;
+}
+
+/* 材料与产物芯片:可点击跳转到对应道具详情 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #789b7c66;
+  border-radius: 11px;
+  background: #dce8d6;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.chip:active {
+  background: #cddfc7;
+}
+.chipName {
+  white-space: nowrap;
+}
+.chipCount {
+  color: #49665e;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 用途行:途径 + 消耗数 → 产物芯片 */
+.useRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+}
+.useLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+.useArrow {
+  flex: none;
+  color: #697b6b;
+}
+
 /* 上一件/下一件翻阅 */
 .pager {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.pager button {
+}.pager button {
   flex: 1;
   min-height: 44px;
   border: 1px solid #789b7c;
@@ -341,5 +436,12 @@
   }
   .tile {
     min-height: 64px;
+  }
+  .chip {
+    min-height: 38px;
+  }
+  .sourceCard {
+    gap: 6px;
+    padding: 7px 10px;
   }
 }

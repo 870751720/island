@@ -169,7 +169,7 @@ type SpeciesConfig = {
   loot: AnimalLoot;
 };
 
-const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
+export const SPECIES: Record<AnimalSpecies, SpeciesConfig> = {
   rabbit: {
     label: '兔子',
     count: 18,
