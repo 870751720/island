@@ -4,15 +4,18 @@ import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS } from './itemWiki';
 import { ITEMS, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ItemIcon } from '../ItemIcon';
+import { pressAction } from '../pressAction';
+import { swallowTrailingClick, useScrollAreaTap } from './wikiTaps';
 import styles from './WikiPanel.module.css';
 
 /** 当前在翻阅的列表与位置:kinds 是玩家此刻看到的有序物品(某个分类或搜索结果) */
 type DetailPosition = { kinds: readonly ResourceKind[]; index: number };
 
 function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }) {
+  const tap = useScrollAreaTap(onClick);
   const item = ITEMS[kind];
   return (
-    <button className={styles.tile} onClick={onClick} aria-label={`查看${item.name}`}>
+    <button className={styles.tile} {...tap} aria-label={`查看${item.name}`}>
       <ItemIcon kind={kind} size={30} />
       <span className={styles.tileName}>{item.name}</span>
     </button>
@@ -43,6 +46,11 @@ export function ItemsWiki() {
         ? { ...current, index: (current.index + delta + current.kinds.length) % current.kinds.length }
         : current
     );
+  // 返回列表会把手指下方换回搜索框等控件,吞掉尾随 click 避免误触。
+  const backToList = () => {
+    swallowTrailingClick();
+    setDetail(null);
+  };
 
   if (detail) {
     const kind = detail.kinds[detail.index]!;
@@ -51,7 +59,7 @@ export function ItemsWiki() {
     const multi = detail.kinds.length > 1;
     return (
       <div className={styles.root}>
-        <button className={styles.back} onClick={() => setDetail(null)}>‹ 返回列表</button>
+        <button className={styles.back} {...pressAction(backToList)}>‹ 返回列表</button>
         <div className={`hud-panel-enter ${styles.scroll}`} key={kind}>
           <div className={styles.detailHead}>
             <span className={styles.detailIcon}><ItemIcon kind={kind} size={34} /></span>
@@ -73,9 +81,9 @@ export function ItemsWiki() {
           )}
         </div>
         <div className={styles.pager}>
-          <button onClick={() => stepDetail(-1)} disabled={!multi} aria-label="上一件物品">‹ 上一件</button>
+          <button {...pressAction(() => stepDetail(-1))} disabled={!multi} aria-label="上一件物品">‹ 上一件</button>
           <span className={styles.pagerPos}>{multi ? `${detail.index + 1}/${detail.kinds.length}` : ''}</span>
-          <button onClick={() => stepDetail(1)} disabled={!multi} aria-label="下一件物品">下一件 ›</button>
+          <button {...pressAction(() => stepDetail(1))} disabled={!multi} aria-label="下一件物品">下一件 ›</button>
         </div>
       </div>
     );
@@ -94,7 +102,7 @@ export function ItemsWiki() {
         {!searchGroups && (
           <nav className={styles.subtabs} aria-label="物品分类">
             {ITEM_CATEGORIES.map((c) => (
-              <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>
+              <button key={c} aria-pressed={category === c} {...pressAction(() => setCategory(c))}>{c}</button>
             ))}
           </nav>
         )}

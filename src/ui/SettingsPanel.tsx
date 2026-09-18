@@ -3,6 +3,8 @@ import { loadQuestGuide } from '@/game/quests/QuestSettings';
 import { MenuIcon } from './icons/MenuIcons';
 import { GameModeSettings } from './GameModeSettings';
 import { MobileDisplaySetting } from './display/MobileDisplay';
+import { pressAction } from './pressAction';
+import { swallowTrailingClick } from './wiki/wikiTaps';
 
 import { gameTheme, gameButtonStyle } from './gameTheme';
 
@@ -183,7 +185,11 @@ export function SettingsPanel({
         </>}
         {tab === 'game' && <>
         <button
-          onClick={onOpenWiki}
+          {...pressAction(() => {
+            // 图鉴在按下瞬间打开,手指下方换成图鉴内容;吞掉尾随 click 避免误触其搜索框。
+            swallowTrailingClick();
+            onOpenWiki();
+          })}
           style={{
             padding: '12px 0',
             fontSize: 15,

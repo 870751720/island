@@ -184,10 +184,20 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 .tile:active {
   background: #f5edcf;
+}
+
+/* 指针命中固定落在按钮自身:内部图标与文字不参与命中,HUD 快照高频重渲染下首击不丢目标 */
+.tile > *,
+.subtabs button > *,
+.categories button > *,
+.pager button > *,
+.back > * {
+  pointer-events: none;
 }
 .tileName {
   max-width: 100%;
