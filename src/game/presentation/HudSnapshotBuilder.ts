@@ -1,3 +1,4 @@
+import type { ResearchTableSystem } from '../systems/ResearchTableSystem';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { HudSnapshot } from '../GameContracts';
 import { AUTO_EQUIP_DELAY, TETHER_RANGE } from '../GameConfig';
@@ -31,6 +32,7 @@ type HudSystems = {
   cookingStations: CookingStationSystem;
   looms: LoomSystem;
   mills: MillSystem;
+  researchTables: ResearchTableSystem;
   beds: BedSystem;
   workbench: WorkbenchSystem;
   campfire: CampfireSystem;
@@ -92,6 +94,9 @@ export class HudSnapshotBuilder {
       nearSmelter: !!s.smelters.nearby(session),
       nearLoom: !!s.looms.nearby(session),
       nearMill: !!s.mills.nearby(session),
+      nearResearchTable: s.researchTables.nearby(session),
+      research: { ...session.research, ingredients: [...session.research.ingredients] },
+      discoveredRecipes: [...session.discoveredRecipes],
       nearBed: !!s.beds.nearby(session),
       bedSleeping: s.beds.isSleeping(session),
       bedSleepProgress: s.beds.getSleepProgress(session) ?? 0,

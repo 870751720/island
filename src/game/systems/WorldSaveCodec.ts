@@ -1,3 +1,4 @@
+import type { ResearchTableSystem } from './ResearchTableSystem';
 import type { Wildlife } from '../entities/Wildlife';
 import type { Companion } from '../entities/Companion';
 import type { Props } from '../world/Props';
@@ -40,6 +41,7 @@ export type WorldSaveSystems = {
   cookingStations: CookingStationSystem;
   looms: LoomSystem;
   mills: MillSystem;
+  researchTables: ResearchTableSystem;
   fences: FenceSystem;
   beds: BedSystem;
   shrines: AmbientFacilitySystem;
@@ -70,6 +72,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.cookingStations.restore(save.cookingStations);
   s.looms.restore(save.looms);
   s.mills.restore(save.mills ?? []);
+  s.researchTables.restore(save.researchTables ?? []);
   s.fences.restore(save.fences, save.fenceGates);
   s.beds.restore(save.beds);
   s.shrines.restore(save.shrines);
@@ -106,6 +109,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     cookingStations: s.cookingStations.snapshot(),
     looms: s.looms.snapshot(),
     mills: s.mills.snapshot(),
+      researchTables: s.researchTables.snapshot(),
     fences: s.fences.snapshotFences(),
     fenceGates: s.fences.snapshotGates(),
     beds: s.beds.snapshot(),

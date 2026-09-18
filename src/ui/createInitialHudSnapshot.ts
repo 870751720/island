@@ -1,3 +1,4 @@
+import { emptyResearch } from '@/game/systems/ResearchTableSystem';
 import type { HudSnapshot } from '@/game/GameContracts';
 
 /** 为每次游戏 UI 挂载创建独立的初始 HUD 快照。 */
@@ -33,6 +34,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     nearCookingStation: false,
     nearLoom: false,
     nearMill: false,
+    nearResearchTable: false, research: emptyResearch(), discoveredRecipes: [],
     nearBed: false,
     bedSleeping: false,
     bedSleepProgress: 0,

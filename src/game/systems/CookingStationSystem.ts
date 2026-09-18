@@ -1,3 +1,4 @@
+import { cookingCost, hiddenRecipe } from './HiddenRecipes';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -233,13 +234,17 @@ export class CookingStationSystem implements FacilityInteractionSource {
   /** 发起煮汤:选一种食材和份数下锅,台上每 5 秒煮好 1 份;锅里已有食材或火未燃时失败 */
   startBoil(actor: PlayerSession, kind: ResourceKind, count: number): 'ok' | 'busy' | 'notLit' | 'invalid' {
     const station = this.nearby(actor);
-    const soup = BOILABLE[kind];
-    const owned = actor.inventory.count(kind);
+    const recipe = hiddenRecipe(kind);
+    if (recipe && !actor.discoveredRecipes.has(recipe.kind)) return 'invalid';
+    const soup = recipe?.kind ?? BOILABLE[kind];
+    const cost = Object.entries(cookingCost(kind)) as [ResourceKind, number][];
+    const owned = Math.min(...cost.map(([k, n]) => Math.floor(actor.inventory.count(k) / n)));
     if (!station || !soup || owned < 1 || count < 1) return 'invalid';
     if (!station.isLit) return 'notLit';
-    if (station.boilKind) return 'busy';
+    if (station.boilKind || (station.outCount > 0 && station.outKind !== soup)) return 'busy';
+    if (!Number.isSafeInteger(count)) return 'invalid';
     const n = Math.min(count, owned);
-    actor.inventory.remove(kind, n);
+    for (const [k, amount] of cost) actor.inventory.remove(k, amount * n);
     station.setBoiling(kind);
     station.boilQueue = n;
     station.tickLeft = BOIL_INTERVAL;
@@ -276,9 +281,13 @@ export class CookingStationSystem implements FacilityInteractionSource {
     station.boilQueue = 0;
     station.tickLeft = BOIL_INTERVAL;
     this.emitState(station);
-    this.give(kind, n, actor);
+    this.returnCookingMaterials(kind, n, actor);
     this.audio.play('pickup');
     return true;
+  }
+
+  private returnCookingMaterials(kind: ResourceKind, count: number, actor: PlayerSession): void {
+    for (const [k, amount] of Object.entries(cookingCost(kind))) this.give(k as ResourceKind, amount! * count, actor);
   }
 
   /** 是否正在烤制 */
@@ -301,7 +310,7 @@ export class CookingStationSystem implements FacilityInteractionSource {
         if (authority && station.tickLeft <= 0) {
           station.boilQueue -= 1;
           station.tickLeft += BOIL_INTERVAL;
-          const soup = station.boilKind ? BOILABLE[station.boilKind] : undefined;
+          const soup = station.boilKind ? hiddenRecipe(station.boilKind)?.kind ?? BOILABLE[station.boilKind] : undefined;
           if (soup) {
             station.setOutput(soup);
             station.outKind = soup;
@@ -450,7 +459,7 @@ export class CookingStationSystem implements FacilityInteractionSource {
     this.scene.remove(target.group);
     target.dispose();
     this.give('cookingStation', 1, actor);
-    if (target.boilKind && target.boilQueue > 0) this.give(target.boilKind, target.boilQueue, actor);
+    if (target.boilKind && target.boilQueue > 0) this.returnCookingMaterials(target.boilKind, target.boilQueue, actor);
     if (target.outKind && target.outCount > 0) this.give(target.outKind, target.outCount, actor);
     this.audio.play('pickup');
     this.fx.burst(target.group.position, '#5c5f66', 14);

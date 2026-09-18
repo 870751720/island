@@ -43,6 +43,7 @@ export type CraftId =
   | 'smelter'
   | 'loom'
   | 'mill'
+  | 'researchTable'
   | 'cookingStation'
   | 'torch'
   | 'workbench'
@@ -109,7 +110,7 @@ export function recipeIconKind(recipe: Recipe): ResourceKind {
 
 /** 单件制作的设施产物(床/饵料桶/冶炼炉/纺织机):一次只能做一个 */
 const SINGLE_OUTPUTS: ReadonlySet<ResourceKind> = new Set([
-  'feedBarrel', 'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'mill', 'cookingStation',
+  'feedBarrel', 'bed1', 'bed2', 'bed3', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'mill', 'cookingStation', 'researchTable',
   'workbench1', 'campfire',
 ]);
 
@@ -505,6 +506,9 @@ export const RECIPES: Recipe[] = [
     station: 'workbench',
     output: 'smelter',
     minBenchLevel: 3,
+  },
+  {
+    id: 'researchTable', name: '料理研究台', cost: { wood: 8, stone: 5, rope: 2 }, station: 'workbench', output: 'researchTable', minBenchLevel: 3,
   },
   {
     id: 'mill',

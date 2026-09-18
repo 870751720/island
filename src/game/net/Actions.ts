@@ -13,6 +13,8 @@ type NetAction<Name extends NetActionName> = (
 type NetActionRegistry = { [Name in NetActionName]: NetAction<Name> };
 
 const ACTIONS: NetActionRegistry = {
+  researchStart: (g, a, [kinds]) => g.researchStart(kinds, a),
+  syncRecipeDiscoveries: (g, a, [kinds]) => g.syncRecipeDiscoveries(kinds, a),
   questScreen: (g, a, [matrix]) => g.setQuestScreen(matrix, a),
   questGuide: (g, a, [enabled]) => g.setQuestGuide(enabled, a),
   tool: (g, a, [tool, placeKind]) => {

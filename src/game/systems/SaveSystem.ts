@@ -1,3 +1,6 @@
+import type { ResearchState } from './ResearchTableSystem';
+import type { HiddenFood } from './HiddenRecipes';
+import type { FacilitySave } from './FacilitySystem';
 import type { WildlifeSave } from '../entities/WildlifeSave';
 import type { DogSave } from './DogGrowth';
 import type { FirstDropSave } from './FirstDropGuarantee';
@@ -47,6 +50,8 @@ export type PropSave = {
 
 /** 一名玩家的会话进度(位置/生存/背包/工具/穿戴);联机时房主为每个远程玩家各存一份 */
 export type SessionSave = {
+  discoveredRecipes?: HiddenFood[];
+  research?: ResearchState;
   firstDrops?: FirstDropSave;
   quests?: QuestSave;
   id: string;
@@ -73,6 +78,8 @@ export type PlacementSave = { id?: string; x: number; y: number; z: number; rotY
 /** 完整存档:世界种子 + 玩家进度 */
 export type SaveData = {
   gameMode?: import('../GameMode').GameMode;
+  discoveredRecipes?: HiddenFood[];
+  research?: ResearchState;
   firstDrops?: FirstDropSave;
   quests?: QuestSave;
   version: number;
@@ -140,6 +147,7 @@ export type SaveData = {
   looms: LoomSave[];
   /** 磨坊及机内库存，旧档缺省为空。 */
   mills?: MillSave[];
+  researchTables?: FacilitySave<'researchTable'>[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */

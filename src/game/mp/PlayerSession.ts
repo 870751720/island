@@ -1,3 +1,5 @@
+import { emptyResearch } from '../systems/ResearchTableSystem';
+import { hiddenRecipe, type HiddenFood } from '../systems/HiddenRecipes';
 import { createUuid } from '@/platform/compat';
 import { FirstDropGuarantee } from '../systems/FirstDropGuarantee';
 import type { DeathLootSummary } from '../systems/DeathLoot';
@@ -28,6 +30,15 @@ export class PlayerSession implements Actor {
   /** 联机生命周期内稳定的玩家标识；不随其他玩家加入或离开而变化。 */
   readonly id: string;
   name: string;
+  readonly discoveredRecipes = new Set<HiddenFood>();
+  research = emptyResearch();
+  onRecipeDiscovery?: (kind: HiddenFood) => void;
+  discoverRecipe(kind: string): void {
+    const recipe = hiddenRecipe(kind);
+    if (!recipe || this.discoveredRecipes.has(recipe.kind)) return;
+    this.discoveredRecipes.add(recipe.kind);
+    this.onRecipeDiscovery?.(recipe.kind);
+  }
   dogView: { width: number; height: number } | null = null;
   readonly nameTag: PlayerNameTag;
   readonly player: Player;

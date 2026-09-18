@@ -1,3 +1,4 @@
+import { validResearch, hiddenRecipe } from '../systems/HiddenRecipes';
 import { DOG_GM_COMMANDS, type DogGmCommand } from '../systems/DogGrowth';
 import { isLandmarkChoice, type LandmarkChoice } from '../world/landmarks/LandmarkDefinitions';
 import type { HandTool } from '../entities/Player';
@@ -38,6 +39,8 @@ export interface NetActionArgs {
   cookingTakeBoil: [];
   loomFeed: [count: number];
   millFeed: [count: number];
+  researchStart: [kinds: ResourceKind[]];
+  syncRecipeDiscoveries: [kinds: ResourceKind[]];
   loomCollect: [];
   millCollect: [];
   loomTakeRope: [];
@@ -106,6 +109,8 @@ const NET_ACTION_ARG_COUNTS = {
   cookingTakeBoil: [0],
   loomFeed: [1],
   millFeed: [1],
+  researchStart: [1],
+  syncRecipeDiscoveries: [1],
   loomCollect: [0],
   millCollect: [0],
   loomTakeRope: [0],
@@ -169,6 +174,8 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
   const [first, second, third, fourth] = args;
 
   switch (name) {
+    case 'researchStart': return validResearch(first);
+    case 'syncRecipeDiscoveries': return Array.isArray(first) && first.length <= 3 && first.every(k => typeof k === 'string' && hiddenRecipe(k));
     case 'startFishing':
     case 'hookFish':
     case 'claimTreasure':

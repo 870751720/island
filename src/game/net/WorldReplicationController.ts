@@ -33,6 +33,7 @@ export class WorldReplicationController {
       cookingStations: s.cookingStations.snapshot(),
       looms: s.looms.snapshot(),
       mills: s.mills.snapshot(),
+      researchTables: s.researchTables.snapshot(),
       fences: s.fences.snapshotFences(),
       fenceGates: s.fences.snapshotGates(),
       beds: s.beds.snapshot(),
@@ -70,6 +71,7 @@ export class WorldReplicationController {
     s.cookingStations.setChangeSink(send('cookingStations'));
     s.looms.setChangeSink(send('looms'));
     s.mills.setChangeSink(send('mills'));
+    s.researchTables.setChangeSink(send('researchTables'));
     s.fences.setChangeSinks(send('fences'), send('fenceGates'));
     s.beds.setChangeSink(send('beds'));
     s.shrines.setChangeSink(send('shrines'));
@@ -132,6 +134,7 @@ export class WorldReplicationController {
     if (state.cookingStations) s.cookingStations.netApply(state.cookingStations);
     if (state.looms) s.looms.netApply(state.looms);
     if (state.mills) s.mills.netApply(state.mills);
+    if (state.researchTables) s.researchTables.netApply(state.researchTables);
     if (state.fences || state.fenceGates) s.fences.netApply(state.fences ?? [], state.fenceGates ?? []);
     if (state.beds) s.beds.netApply(state.beds);
     if (state.shrines) s.shrines.netApply(state.shrines);

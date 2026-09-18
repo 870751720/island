@@ -36,6 +36,7 @@ import { BrewBarrelPanel } from './BrewBarrelPanel';
 import { SmelterPanel } from './SmelterPanel';
 import { CookingStationPanel } from './CookingStationPanel';
 import { LoomPanel } from './LoomPanel';
+import { ResearchTablePanel } from './ResearchTablePanel';
 import { MillPanel } from './MillPanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
@@ -386,7 +387,7 @@ export function GameplayUI({
             hud.nearSmelter ||
             hud.nearCookingStation ||
             hud.nearLoom ||
-            hud.nearMill ||
+            hud.nearMill || hud.nearResearchTable ||
             hud.nearBed) && (
             <ToolButton
               crateKind={hud.crateKind ?? 'crate'}
@@ -459,6 +460,20 @@ export function GameplayUI({
                 hud.craftId === null &&
                 !digHijack
               }
+              researchTable={
+                hud.nearResearchTable &&
+                !hud.nearMill &&
+                !hud.nearLoom &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                !hud.nearBrewBarrel &&
+                !hud.nearSmelter &&
+                !hud.nearCookingStation &&
+                hud.craftId === null &&
+                !digHijack
+              }
               bed={
                 hud.nearBed &&
                 !hud.nearWorkbench &&
@@ -469,7 +484,7 @@ export function GameplayUI({
                 !hud.nearSmelter &&
                 !hud.nearCookingStation &&
                 !hud.nearLoom &&
-                !hud.nearMill &&
+                !hud.nearMill && !hud.nearResearchTable &&
                 hud.craftId === null &&
                 !hud.bedSleeping &&
                 !digHijack
@@ -486,7 +501,7 @@ export function GameplayUI({
                 !hud.nearSmelter &&
                 !hud.nearCookingStation &&
                 !hud.nearLoom &&
-                !hud.nearMill &&
+                !hud.nearMill && !hud.nearResearchTable &&
                 !hud.nearBed &&
                 hud.craftId === null
               }
@@ -509,6 +524,7 @@ export function GameplayUI({
               onCookingStation={() => openPanel('cookingStation')}
               onLoom={() => openPanel('loom')}
               onMill={() => openPanel('mill')}
+              onResearchTable={() => openPanel('researchTable')}
               onBed={() => gameRef.current?.sleep()}
               onStake={() => gameRef.current?.stakeLasso()}
               onUntie={() => gameRef.current?.untieLasso()}
@@ -612,6 +628,9 @@ export function GameplayUI({
               onTakeRope={() => gameRef.current?.loomTakeRope()}
               onClose={() => closePanel('loom')}
             />
+          )}
+          {facilityPanels.researchTable && hud.nearResearchTable && (
+            <ResearchTablePanel hud={hud} onStart={kinds => gameRef.current?.researchStart(kinds) ?? false} onClose={() => closePanel('researchTable')} />
           )}
           {facilityPanels.mill && hud.nearMill && (
             <MillPanel

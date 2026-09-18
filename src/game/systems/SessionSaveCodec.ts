@@ -10,6 +10,8 @@ type RestoreHooks = {
 
 /** 恢复单个玩家会话；世界设施与联机名单由 Game 编排。 */
 export function restoreSession(session: PlayerSession, data: SessionSave, hooks: RestoreHooks): void {
+  for (const kind of data.discoveredRecipes ?? []) session.discoverRecipe(kind);
+  if (data.research) session.research = { ...data.research, ingredients: [...data.research.ingredients] };
   session.quests.restore(data.quests);
   session.firstDrops.restore(data.firstDrops);
   session.player.setGender(data.gender);
@@ -21,6 +23,7 @@ export function restoreSession(session: PlayerSession, data: SessionSave, hooks:
   session.lastHealth = data.survival.health;
   session.survival.state.dead = false;
   session.inventory.load(data.slots, data.capacity);
+  for (const slot of session.inventory.snapshot()) if (slot) session.discoverRecipe(slot.kind);
   session.ammo.reset();
   session.ammo.arrow = data.ammo.arrow;
   session.ammo.bait = data.ammo.bait;
@@ -48,6 +51,8 @@ export function snapshotSession(session: PlayerSession): SessionSave {
   const p = session.player.group.position;
   const survival = session.survival.state;
   return {
+    discoveredRecipes: [...session.discoveredRecipes],
+    research: { ...session.research, ingredients: [...session.research.ingredients] },
     quests: session.quests.snapshot(),
     firstDrops: session.firstDrops.snapshot(),
     id: session.id,

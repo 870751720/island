@@ -42,6 +42,7 @@ export function ToolButton({
   cookingStation = false,
   loom = false,
   mill = false,
+  researchTable = false,
   bed = false,
   stake = false,
   untie = false,
@@ -64,6 +65,7 @@ export function ToolButton({
   onCookingStation,
   onLoom,
   onMill,
+  onResearchTable,
   onBed,
   onStake,
   onUntie,
@@ -90,6 +92,7 @@ export function ToolButton({
   loom?: boolean;
   /** 靠近磨坊时打开加工面板 */
   mill?: boolean;
+  researchTable?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
   bed?: boolean;
   /** 是否显示为打桩模式(牵着羊,点击在脚下打桩拴住) */
@@ -123,6 +126,7 @@ export function ToolButton({
   onCookingStation: () => void;
   onLoom: () => void;
   onMill: () => void;
+  onResearchTable: () => void;
   onBed: () => void;
   onStake: () => void;
   onUntie: () => void;
@@ -136,7 +140,7 @@ export function ToolButton({
   const contexts: [boolean, string][] = [
     [workbench, '工作台'], [campfire, '营火'], [crate, ITEMS[crateKind].name],
     [baitBarrel, '饵料桶'], [brewBarrel, '酿酒桶'], [smelter, '冶炼炉'],
-    [cookingStation, '烹饪台'], [loom, '纺织机'], [mill, '磨坊'], [bed, '睡觉'],
+    [cookingStation, '烹饪台'], [loom, '纺织机'], [mill, '磨坊'], [researchTable, '料理研究台'], [bed, '睡觉'],
     [stake, '打桩'], [untie, '解开套索'],
   ];
   const contextLabel = contexts.find(([active]) => active)?.[1];
@@ -201,6 +205,8 @@ export function ToolButton({
                   ? onCookingStation()
                   : loom
                     ? onLoom()
+                    : researchTable
+                      ? onResearchTable()
                     : mill
                       ? onMill()
                     : bed
@@ -292,6 +298,8 @@ export function ToolButton({
                     ? <ItemIcon kind="cookingStation" size={30} />
                     : loom
                       ? <ItemIcon kind="loom" size={30} />
+                      : researchTable
+                        ? <ItemIcon kind="researchTable" size={30} />
                       : mill
                         ? <ItemIcon kind="mill" size={30} />
                       : bed
@@ -315,6 +323,7 @@ export function ToolButton({
         !cookingStation &&
         !loom &&
         !mill &&
+        !researchTable &&
         !bed &&
         !stake &&
         !untie &&

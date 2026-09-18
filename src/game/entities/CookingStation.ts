@@ -1,3 +1,4 @@
+import { hiddenRecipe } from '../systems/HiddenRecipes';
 import { mergeClayMeshes } from '../core/mergeClayMeshes';
 import { sinkModel } from '../core/sinkModel';
 import * as THREE from 'three';
@@ -198,7 +199,7 @@ export class CookingStation {
   /** 开始煮制:记录食材并让汤面换成对应汤品颜色 */
   setBoiling(kind: ResourceKind): void {
     this.boilKind = kind;
-    const soupKind = BOILABLE[kind];
+    const soupKind = hiddenRecipe(kind)?.kind ?? BOILABLE[kind];
     const soup = soupKind ? FOODS.find((f) => f.kind === soupKind) : undefined;
     this.soupMat.color.set(soup?.fxColor ?? '#b5813f');
     this.soupMat.emissive.set(this.soupMat.color);

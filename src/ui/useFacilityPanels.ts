@@ -9,6 +9,7 @@ export type FacilityPanelKey =
   | 'brewBarrel'
   | 'smelter'
   | 'cookingStation'
+  | 'researchTable'
   | 'mill'
   | 'loom';
 
@@ -24,6 +25,7 @@ const CLOSED_PANELS: FacilityPanels = {
   cookingStation: false,
   loom: false,
   mill: false,
+  researchTable: false,
 };
 
 type FacilityProximity = Pick<
@@ -38,6 +40,7 @@ type FacilityProximity = Pick<
   | 'nearCookingStation'
   | 'nearLoom'
   | 'nearMill'
+  | 'nearResearchTable'
 >;
 
 /** 统一管理设施面板，并在玩家离开对应设施或死亡时清理打开状态。 */
@@ -64,6 +67,7 @@ export function useFacilityPanels(hud: FacilityProximity) {
         cookingStation: current.cookingStation && hud.nearCookingStation,
         loom: current.loom && hud.nearLoom,
         mill: current.mill && hud.nearMill,
+        researchTable: current.researchTable && hud.nearResearchTable,
       };
 
       if (hud.dead) return Object.values(current).some(Boolean) ? CLOSED_PANELS : current;
@@ -82,6 +86,7 @@ export function useFacilityPanels(hud: FacilityProximity) {
     hud.nearCookingStation,
     hud.nearLoom,
     hud.nearMill,
+    hud.nearResearchTable,
   ]);
 
   return { panels, openPanel, closePanel };

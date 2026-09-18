@@ -1,4 +1,5 @@
 export type ResourceKind =
+  | 'researchTable' | 'strawberryCake' | 'applePie' | 'meatPie'
   | 'branch'
   | 'wood'
   | 'stone'

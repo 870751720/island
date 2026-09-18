@@ -1,3 +1,5 @@
+import type { ResearchState } from './systems/ResearchTableSystem';
+import type { HiddenFood } from './systems/HiddenRecipes';
 import type { DeathLootSummary } from './systems/DeathLoot';
 import type { DigTargetSnapshot } from './presentation/DigTargetPresentation';
 import type { QuestView } from './quests/QuestDefinitions';
@@ -56,6 +58,9 @@ export type HudSnapshot = {
   nearSmelter: boolean;
   nearLoom: boolean;
   nearMill: boolean;
+  nearResearchTable: boolean;
+  research: ResearchState;
+  discoveredRecipes: HiddenFood[];
   nearBed: boolean;
   bedSleeping: boolean;
   bedSleepProgress: number;

@@ -1,3 +1,4 @@
+import { HIDDEN_RECIPES } from '@/game/systems/HiddenRecipes';
 import { RECIPES, WORKBENCH_UPGRADE_COST, toolName, toolUpgradeFrom } from '@/game/systems/Crafting';
 import { BOILABLE, COOKABLE } from '@/game/systems/Food';
 import { BREWABLE, BREW_COST } from '@/game/systems/Wine';
@@ -202,6 +203,10 @@ addSource('bait', { group: '加工', label: '发酵', station: 'baitBarrel', not
 // 堆肥彩蛋:南瓜种子唯一的种子源头,概率刻意不写明,文案保留神秘感
 addSource('pumpkinSeed', { group: '加工', label: '发酵', station: 'baitBarrel', note: '堆肥深处偶尔凭空冒出,来历成谜' });
 addSource('ironIngot', { group: '加工', label: '冶炼', station: 'smelter', inputs: [{ kind: 'ironOre', count: SMELT_ORE_PER_INGOT }] });
+for (const recipe of HIDDEN_RECIPES) {
+  addSource(recipe.kind, { group: '加工', label: '料理研究', station: 'researchTable', inputs: recipe.research.map(kind => ({ kind, count: 1 })), note: '研究两秒，正确组合必定成功，获得一份成品并永久解锁食谱。' });
+  addSource(recipe.kind, { group: '加工', label: '烹饪', station: 'cookingStation', inputs: Object.entries(recipe.cost).map(([kind, count]) => ({ kind: kind as ResourceKind, count: count! })), note: '需先研究或获得成品解锁；添柴后每五秒做出一份。' });
+}
 addSource('flour', { group: '加工', label: '磨粉', station: 'mill', inputs: [{ kind: 'wheat', count: 1 }], note: '每 6 秒产出 2 份面粉，无需燃料' });
 addSource('cloth', { group: '加工', label: '纺织', station: 'loom', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });
 addSource('deadCampfire', { group: '加工', label: '燃尽后遗留', station: 'campfire' });

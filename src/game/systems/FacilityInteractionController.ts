@@ -156,7 +156,7 @@ export class FacilityInteractionController {
     if (this.asleep(actor)) return false;
     const result = this.systems.cookingStations.startBoil(actor, kind, count);
     if (result === 'notLit') this.notify('火还没点着,先添柴引火吧', actor);
-    else if (result === 'busy') this.notify('锅里还在煮别的,等煮完再下锅', actor);
+    else if (result === 'busy') this.notify('台上还有其他料理，请先完成烹饪并收取成品', actor);
     return result === 'ok';
   }
 
@@ -165,7 +165,7 @@ export class FacilityInteractionController {
     if (this.asleep(actor)) return false;
     const result = this.systems.cookingStations.collect(actor);
     if (result === 'ok') return true;
-    this.notify(result === 'full' ? '背包满了,装不下更多东西' : '还没有煮好的汤', actor);
+    this.notify(result === 'full' ? '背包满了,装不下更多东西' : '还没有做好的料理', actor);
     return false;
   }
 

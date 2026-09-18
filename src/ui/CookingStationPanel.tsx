@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { HudSnapshot } from '@/game/GameContracts';
 import { ITEMS } from '@/game/systems/Items';
+import { HIDDEN_RECIPES, cookingCost, hiddenRecipe } from '@/game/systems/HiddenRecipes';
 import { FOODS, COOKABLE, BOILABLE } from '@/game/systems/Food';
 import { convertListStyle } from './ConvertRow';
 import type { ResourceKind } from '@/game/systems/Inventory';
@@ -43,11 +44,12 @@ export function CookingStationPanel({
   );
   // 背包里可烤/可煮的生食
   const roastables = FOODS.filter((f) => COOKABLE[f.kind] && count(f.kind) > 0);
-  const boilables = FOODS.filter((f) => BOILABLE[f.kind] && count(f.kind) > 0);
+  const boilables = FOODS.filter(f => (BOILABLE[f.kind] && count(f.kind) > 0) || HIDDEN_RECIPES.some(r => r.kind === f.kind && hud.discoveredRecipes.includes(r.kind)));
+  const maxBoil = (kind: ResourceKind) => Math.min(...Object.entries(cookingCost(kind)).map(([k, n]) => Math.floor(count(k as ResourceKind) / n!)));
 
   // 食材数量变化后把选份数收回上限,且默认选满
   const roastKey = roastables.map((f) => count(f.kind)).join(',');
-  const boilKey = boilables.map((f) => count(f.kind)).join(',');
+  const boilKey = boilables.map((f) => maxBoil(f.kind)).join(',');
   useEffect(() => {
     setRoastCounts((prev) => {
       const next = { ...prev };
@@ -59,7 +61,7 @@ export function CookingStationPanel({
   useEffect(() => {
     setBoilCounts((prev) => {
       const next = { ...prev };
-      for (const f of boilables) next[f.kind] = Math.min(prev[f.kind] ?? 1, count(f.kind));
+      for (const f of boilables) next[f.kind] = Math.max(1, Math.min(prev[f.kind] ?? 1, maxBoil(f.kind)));
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,7 +84,7 @@ export function CookingStationPanel({
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><ItemIcon kind="cookingStation" size={20} /> 烹饪台</div>
         <div style={{ fontSize: 13, color: lit ? gameTheme.warning : gameTheme.muted, marginBottom: 12 }}>
           {lit
-            ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,可以烤制或煮汤`
+            ? `燃烧中 · 剩余约 ${Math.ceil(info.fuel)} 秒,可以烧烤或烹饪`
             : '火还没点着,添柴引火;也可以用铲子挖走'}
         </div>
 
@@ -106,13 +108,13 @@ export function CookingStationPanel({
           ))}
         </div>
 
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>煮汤(每 5 秒煮好 1 份)</div>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>烹饪（每 5 秒完成 1 份）</div>
         {boiling ? (
           <div style={{ ...rowStyle, marginBottom: 14 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14 }}>
                 <ItemIcon kind={info.boilKind!} size={18} /> {ITEMS[info.boilKind!].name} ×
-                {info.boilLeft} 正在下锅
+                {info.boilLeft} 正在烹饪
               </div>
               <div style={barStyle}>
                 <div
@@ -160,20 +162,21 @@ export function CookingStationPanel({
               </button>
             )}
             {boilables.length === 0 && (
-              <span style={{ fontSize: 13, color: gameTheme.muted }}>背包里没有能煮的食材</span>
+              <span style={{ fontSize: 13, color: gameTheme.muted }}>暂无可烹饪食材；发现隐藏食谱后也会在这里显示。</span>
             )}
             {boilables.map((food) => {
-              const soup = ITEMS[BOILABLE[food.kind]!];
-              const max = count(food.kind);
-              const n = Math.min(boilCounts[food.kind] ?? 1, max);
+              const recipe = hiddenRecipe(food.kind);
+              const soup = ITEMS[recipe?.kind ?? BOILABLE[food.kind]!];
+              const max = maxBoil(food.kind);
+              const n = Math.max(1, Math.min(boilCounts[food.kind] ?? 1, max));
               return (
                 <div key={food.kind} style={rowStyle}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14 }}>
-                      <ItemIcon kind={food.kind} size={18} /> {food.name} ×{max}
+                      <ItemIcon kind={food.kind} size={18} /> {food.name}{recipe ? '' : ` ×${max}`}
                     </div>
                     <div style={{ fontSize: 11, color: gameTheme.warning }}>
-                      → <ItemIcon kind={soup.kind} size={18} /> {soup.name}
+                      {recipe ? Object.entries(recipe.cost).map(([k, amount]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', marginRight: 6, color: count(k as ResourceKind) < amount! * n ? gameTheme.danger : gameTheme.muted }}><ItemIcon kind={k as ResourceKind} size={16} />{ITEMS[k as ResourceKind].name} {count(k as ResourceKind)}/{amount! * n}</span>) : <>→ <ItemIcon kind={soup.kind} size={18} /> {soup.name}</>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -202,14 +205,14 @@ export function CookingStationPanel({
                     />
                   </div>
                   <button
-                    disabled={!lit}
+                    disabled={!lit || max < 1 || (!!info.outKind && info.outKind !== soup.kind && info.outCount > 0)}
                     onPointerDown={(e) => {
                       e.preventDefault();
                       onBoil(food.kind, n);
                     }}
                     style={{ ...boilButtonStyle, opacity: lit ? 1 : 0.45 }}
                   >
-                    煮
+                    烹饪
                   </button>
                 </div>
               );

@@ -5,7 +5,7 @@ const KEYS = [
   'island.save.v1', 'island.profile.v1', 'island.meta.v1',
   'island.firstDeathBlessing.v1', 'island-game-mode', 'island.nickname',
   'island-audio-settings', 'island-menu-sound', 'island.quest-guide',
-  'island.gameplayZoom.v1',
+  'island.gameplayZoom.v1', 'island.recipe-discoveries.v1',
 ] as const;
 type SaveKey = typeof KEYS[number];
 export type SaveBundle = {
@@ -31,6 +31,7 @@ export function decodeBundle(text: string): SaveBundle {
   if (!object(data) || data.format !== 'island-taptap-backup' || data.version !== 1
     || typeof data.savedAt !== 'number' || !Number.isFinite(data.savedAt) || data.savedAt <= 0
     || !object(data.entries)) throw new Error('云存档格式无法识别，本地数据未改动。');
+  if (data.entries['island.recipe-discoveries.v1'] === undefined) data.entries['island.recipe-discoveries.v1'] = null;
   for (const key of KEYS) {
     if (data.entries[key] !== null && typeof data.entries[key] !== 'string') {
       throw new Error('存档数据不完整，本地数据未改动。');

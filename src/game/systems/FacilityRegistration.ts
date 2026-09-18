@@ -1,3 +1,4 @@
+import { ResearchTable } from '../entities/ResearchTable';
 import * as THREE from 'three';
 import type { WorldSaveSystems } from './WorldSaveCodec';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -26,7 +27,7 @@ import { Campfire } from '../entities/Campfire';
 import { Bed } from '../entities/Bed';
 import { Workbench } from '../entities/Workbench';
 
-export type FacilityRegistrationContext = Pick<WorldSaveSystems, 'baitBarrels' | 'beds' | 'brewBarrels' | 'burrows' | 'campfire' | 'cookingStations' | 'crates' | 'crops' | 'doghouses' | 'fences' | 'gravelPaths' | 'looms' | 'mills' | 'plankPaths' | 'shrines' | 'smelters' | 'soils' | 'waterPurifiers' | 'workbench'> & {
+export type FacilityRegistrationContext = Pick<WorldSaveSystems, 'baitBarrels' | 'beds' | 'brewBarrels' | 'burrows' | 'campfire' | 'cookingStations' | 'crates' | 'crops' | 'doghouses' | 'fences' | 'gravelPaths' | 'looms' | 'mills' | 'researchTables' | 'plankPaths' | 'shrines' | 'smelters' | 'soils' | 'waterPurifiers' | 'workbench'> & {
   autoPlace: AutoPlaceSystem;
   terrain: IslandTerrain;
   bushCellOk: (actor: PlayerSession, x: number, z: number) => string | null;
@@ -67,6 +68,7 @@ export function registerFacilities(context: FacilityRegistrationContext): void {
   });
   def('smelter', { recovery: context.smelters, tool: 'place', valid: (a, x, z) => context.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.smelters.use(a, at) });
   def('loom', { recovery: context.looms, tool: 'place', valid: (a, x, z) => context.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.looms.use(a, at) });
+  def('researchTable', { recovery: context.researchTables, tool: 'place', valid: (a, x, z) => context.researchTables.canPlaceAt(a, x, z), buildPreview: ghost(sc => new ResearchTable(sc, new THREE.Vector3()).group), place: (a, at) => context.researchTables.place(a, 'researchTable', at) });
   def('mill', { recovery: context.mills, tool: 'place', valid: (a, x, z) => context.mills.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Mill(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.mills.use(a, at) });
   def('gravelPath', roadFacility(context.gravelPaths, context.terrain));
   def('plankPath', roadFacility(context.plankPaths, context.terrain));

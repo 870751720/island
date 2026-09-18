@@ -1,3 +1,4 @@
+import { rememberRecipes } from '../meta/RecipeDiscoveries';
 import * as THREE from 'three';
 import type { HudSnapshot } from '../GameContracts';
 import type { PlayerSession } from '../mp/PlayerSession';
@@ -39,6 +40,9 @@ export class GuestHudSynchronizer {
   ) {}
 
   apply(snapshot: HudSnapshot): void {
+    for (const kind of snapshot.discoveredRecipes) this.local.discoverRecipe(kind);
+    rememberRecipes(snapshot.discoveredRecipes);
+    this.local.research = { ...snapshot.research, ingredients: [...snapshot.research.ingredients] };
     const before = countSlots(this.local.inventory.snapshot());
     this.local.inventory.load(snapshot.slots, snapshot.capacity);
     for (const [kind, count] of countSlots(snapshot.slots)) {

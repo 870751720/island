@@ -1,3 +1,5 @@
+import { makeResearchTableModel } from '../entities/ResearchTable';
+import { makeHiddenFoodModel } from '../entities/HiddenFoodModel';
 import { makeFeedBarrelModel, makeShearsModel, makeWoolModel } from '../entities/HusbandryModels';
 import { makeMillModel } from '../entities/Mill';
 import { makeFishKeepModel } from '../entities/FishKeepModel';
@@ -95,6 +97,7 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   cookedCarrot: '#c96a2a',
   boiledCarrot: '#d98a4a',
   bread: '#d9a441',
+  researchTable: '#b68b58', strawberryCake: '#e995a4', applePie: '#d9a441', meatPie: '#bd813f',
   wheat: '#d9b45a',
   potatoSeed: '#c9a06a',
   sweetPotatoSeed: '#c96a3a',
@@ -1381,6 +1384,10 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   cookedCarrot: makeCookedCarrot,
   boiledCarrot: () => makeSoup(DROP_COLORS.boiledCarrot, 0.85),
   bread: makeBread,
+  researchTable: () => { const g = makeResearchTableModel(); g.scale.setScalar(0.32); return g; },
+  strawberryCake: () => makeHiddenFoodModel('strawberryCake'),
+  applePie: () => makeHiddenFoodModel('applePie'),
+  meatPie: () => makeHiddenFoodModel('meatPie'),
   cookedPotato: () => makeRoast(DROP_COLORS.cookedPotato, 0.9),
   boiledPotato: () => makeSoup(DROP_COLORS.boiledPotato, 0.85),
   cookedSweetPotato: () => makeRoast(DROP_COLORS.cookedSweetPotato, 0.9),

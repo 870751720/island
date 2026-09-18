@@ -1,3 +1,5 @@
+import { hiddenRecipe } from '@/game/systems/HiddenRecipes';
+import { hasRecipeDiscovery } from '@/game/meta/RecipeDiscoveries';
 import { FOODS } from '@/game/systems/Food';
 import { CROP_SPECS } from '@/game/entities/Crop';
 import { SEED_OF } from '@/game/world/TreeSpecies';
@@ -21,7 +23,7 @@ const RECYCLE_BY_KIND: Partial<Record<ResourceKind, ItemRecycle>> = {
   baitBarrel: DIG_BACK, brewBarrel: DIG_BACK, doghouse: DIG_BACK, waterPurifier: DIG_BACK, smelter: DIG_BACK, loom: DIG_BACK, mill: DIG_BACK,
   deadCampfire: { label: '整座挖回' },
   campfire: { label: '整座挖回', target: 'deadCampfire', note: '需燃尽熄灭' },
-  cookingStation: DIG_BACK,
+  cookingStation: DIG_BACK, researchTable: DIG_BACK,
   fenceWood: DIG_BACK, fenceStone: DIG_BACK, fenceGate: DIG_BACK, stoneGate: DIG_BACK, gravelPath: DIG_BACK, plankPath: DIG_BACK,
   bed1: DIG_BACK, bed2: DIG_BACK, bed3: DIG_BACK,
   workbench1: DIG_BACK, workbench2: DIG_BACK, workbench3: DIG_BACK, workbench4: DIG_BACK,
@@ -55,7 +57,10 @@ const TOOL_FAMILY_BY_KIND = new Map<ResourceKind, string>(
 );
 
 /** 图鉴展示名:工具条目代表整个等级族,用统一名(如「斧」),其余用道具名 */
+export function wikiItemHidden(kind: ResourceKind): boolean { return !!hiddenRecipe(kind) && !hasRecipeDiscovery(kind); }
+
 export function wikiItemName(kind: ResourceKind): string {
+  if (wikiItemHidden(kind)) return '待发现';
   return TOOL_FAMILY_BY_KIND.get(kind) ?? ITEMS[kind].name;
 }
 

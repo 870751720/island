@@ -1,6 +1,6 @@
 'use client';
-import { useLayoutEffect, useMemo, useState } from 'react';
-import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS, wikiItemName, wikiItemSearchText } from './itemWiki';
+import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS, wikiItemName, wikiItemSearchText, wikiItemHidden } from './itemWiki';
 import { ITEMS, itemCategory, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ItemIcon } from '../ItemIcon';
@@ -8,6 +8,7 @@ import { ItemChip } from './ItemChip';
 import { pressAction } from '../pressAction';
 import { swallowTrailingClick, useScrollAreaTap } from './wikiTaps';
 import styles from './WikiPanel.module.css';
+import { subscribeRecipes, recipeRevision } from '@/game/meta/RecipeDiscoveries';
 
 /** 正在翻阅的浏览轨迹:每次进入一件物品压栈,返回时逐层退回(列表 → 物品 → 配方材料 → …) */
 type DetailPosition = { kinds: readonly ResourceKind[]; index: number };
@@ -16,7 +17,7 @@ function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }
   const tap = useScrollAreaTap(onClick);
   return (
     <button className={styles.tile} {...tap} aria-label={`查看${wikiItemName(kind)}`}>
-      <ItemIcon kind={kind} size={30} />
+      {wikiItemHidden(kind) ? <span aria-hidden="true" style={{ fontSize: 30 }}>?</span> : <ItemIcon kind={kind} size={30} />}
       <span className={styles.tileName}>{wikiItemName(kind)}</span>
     </button>
   );
@@ -29,6 +30,7 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit, exitLabel = '�
   onExit?: () => void;
   exitLabel?: string;
 }) {
+  const discoveryRevision = useSyncExternalStore(subscribeRecipes, recipeRevision, () => 0);
   const [category, setCategory] = useState<ItemCategory>('材料');
   const [query, setQuery] = useState('');
   const [trail, setTrail] = useState<DetailPosition[]>(() => {
@@ -46,7 +48,7 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit, exitLabel = '�
         .filter((entry) => wikiItemSearchText(entry.kind).includes(keyword))
         .map((entry) => entry.kind),
     })).filter((group) => group.kinds.length > 0);
-  }, [keyword]);
+  }, [keyword, discoveryRevision]);
 
   const openDetail = (kinds: readonly ResourceKind[], index: number) => setTrail((t) => [...t, { kinds, index }]);
   // 从配方材料跳转:在目标所属分类的完整列表中打开,便于沿该分类连续翻阅
@@ -77,6 +79,11 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit, exitLabel = '�
     const entry = ITEM_WIKI_ENTRIES.get(kind)!;
     const item = ITEMS[kind];
     const multi = detail.kinds.length > 1;
+    if (wikiItemHidden(kind)) return <div className={styles.root}>
+      <button className={styles.back} {...pressAction(backFromDetail)}>‹ 返回</button>
+      <div className={styles.scroll}><div className={styles.detailHead}><span className={styles.detailIcon}>?</span><strong>待发现</strong></div><p className={styles.desc}>在料理研究台尝试搭配，或获得这道料理，即可永久解锁图鉴和烹饪食谱。</p></div>
+      <div className={styles.pager}><button {...pressAction(() => stepDetail(-1))} disabled={!multi}>‹ 上一件</button><button {...pressAction(() => stepDetail(1))} disabled={!multi}>下一件 ›</button></div>
+    </div>;
     return (
       <div className={styles.root}>
         <button className={styles.back} {...pressAction(backFromDetail)}>

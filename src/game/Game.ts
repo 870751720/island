@@ -1,3 +1,5 @@
+import { ResearchTableSystem } from './systems/ResearchTableSystem';
+import { loadRecipeDiscoveries, rememberRecipes } from './meta/RecipeDiscoveries';
 import { registerFacilities } from './systems/FacilityRegistration';
 import { HusbandryIndicators } from './ui3d/HusbandryIndicators';
 import type { LassoResult } from './entities/LassoRules';
@@ -262,6 +264,9 @@ export class Game {
   private cookingStations: CookingStationSystem;
   private looms: LoomSystem;
   private mills: MillSystem;
+  private researchTables: ResearchTableSystem;
+  private recipesUploaded = false;
+  private researchSoundLeft = 0;
   private facilityInteractions: FacilityInteractionController;
   private fences: FenceSystem;
   /** 全场已放置实体的统一占格判定(各安放系统注册共享) */
@@ -497,6 +502,8 @@ export class Game {
       this.youId ?? undefined,
       this.guestMode ? '我' : this.hostRef ? (loadProfile()?.name || '房主') : '我'
     );
+    this.local.onRecipeDiscovery = kind => rememberRecipes([kind]);
+    for (const kind of loadRecipeDiscoveries()) this.local.discoverRecipe(kind);
     this.cameraController = new GameCameraController(
       this.renderer,
       this.scene,
@@ -878,6 +885,11 @@ export class Game {
       occupancy: this.placeOccupancy,
       isOtherBusy: (actor) => this.isSessionBusy(actor, 'shrines'),
     }, this.flameLights);
+    this.researchTables = new ResearchTableSystem({
+      scene: this.scene, terrain: this.terrain, props: this.props, fx: this.fx,
+      give: (kind, count, actor) => this.giveItem(kind, count, actor), occupancy: this.placeOccupancy,
+      isOtherBusy: actor => this.isSessionBusy(actor, 'researchTables'),
+    }, (text, actor) => this.notify(text, actor));
     this.gravelPaths = new RoadSystem(
       'gravelPath', this.scene, this.terrain, this.props, this.placeOccupancy, this.fx, this.audio,
       (actor) => { this.giveItem('gravelPath', 1, actor); },
@@ -922,7 +934,7 @@ export class Game {
       () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.mills, this.beds, this.campfire, this.ambientFacilities, this.soils, this.gravelPaths, this.plankPaths]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.mills, this.researchTables, this.beds, this.campfire, this.ambientFacilities, this.soils, this.gravelPaths, this.plankPaths]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -948,6 +960,7 @@ export class Game {
       gravelPaths: this.gravelPaths,
       looms: this.looms,
       mills: this.mills,
+      researchTables: this.researchTables,
       plankPaths: this.plankPaths,
       shrines: this.ambientFacilities,
       smelters: this.smelters,
@@ -973,7 +986,10 @@ export class Game {
       this.audio,
       this.fx,
       () => this.syncToolTiers(this.local),
-      (snapshot) => this.presentHud(snapshot),
+      (snapshot) => {
+        if (!this.recipesUploaded) { this.recipesUploaded = true; this.syncRecipeDiscoveries(loadRecipeDiscoveries()); }
+        this.presentHud(snapshot);
+      },
       () => ({
         autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
         notice: this.notice,
@@ -997,6 +1013,7 @@ export class Game {
       cookingStations: this.cookingStations,
       looms: this.looms,
       mills: this.mills,
+      researchTables: this.researchTables,
       fences: this.fences,
       beds: this.beds,
       shrines: this.ambientFacilities,
@@ -1039,6 +1056,7 @@ export class Game {
       cookingStations: this.cookingStations,
       looms: this.looms,
       mills: this.mills,
+      researchTables: this.researchTables,
       fences: this.fences,
       beds: this.beds,
       shrines: this.ambientFacilities,
@@ -1069,6 +1087,7 @@ export class Game {
         cookingStations: this.cookingStations,
         looms: this.looms,
         mills: this.mills,
+        researchTables: this.researchTables,
         beds: this.beds,
         workbench: this.workbench,
         campfire: this.campfire,
@@ -1277,6 +1296,7 @@ export class Game {
           this.cookingStations.updateActor(s, simDelta);
           this.looms.updateActor(s, simDelta);
           this.mills.updateActor(s, simDelta);
+          this.researchTables.updateActor(s, simDelta);
           this.fences.updateActor(s, simDelta);
           this.autoPlace.updateActor(s, simDelta);
           this.refreshHandModels();
@@ -1316,10 +1336,15 @@ export class Game {
         this.brewBarrels.update(simDelta, elapsed, !this.guestMode);
         this.waterPurifiers.update(simDelta, elapsed);
         this.burrows.update(simDelta, !this.guestMode);
-    this.smelters.update(simDelta, elapsed, !this.guestMode);
+        this.smelters.update(simDelta, elapsed, !this.guestMode);
         this.cookingStations.update(simDelta, elapsed, !this.guestMode, this.weather.rainIntensity);
-    this.looms.update(simDelta, elapsed, !this.guestMode);
-    this.mills.update(simDelta, elapsed, !this.guestMode);
+        this.looms.update(simDelta, elapsed, !this.guestMode);
+        this.mills.update(simDelta, elapsed, !this.guestMode);
+        if (!this.guestMode) for (const s of this.sessions) this.researchTables.advance(s, simDelta);
+        if (this.local.research.remaining > 0) {
+          this.researchSoundLeft -= simDelta;
+          if (this.researchSoundLeft <= 0) { this.audio.play('sizzle'); this.researchSoundLeft = 0.8; }
+        } else this.researchSoundLeft = 0;
         this.thirstGuidance.update(delta, this.local, this.cameraController.photoActive);
         this.mumbles.update(delta, {
           nearDrinkPoint: this.thirstGuidance.nearDrinkPoint,
@@ -3197,6 +3222,18 @@ export class Game {
     return this.facilityInteractions.loomCollect(actor);
   }
 
+  researchStart(kinds: ResourceKind[], actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('researchStart', [kinds]);
+    if (this.isSessionBusy(actor) || this.beds.isSleeping(actor)) return false;
+    return this.researchTables.start(actor, kinds);
+  }
+
+  syncRecipeDiscoveries(kinds: ResourceKind[], actor: PlayerSession = this.local): boolean {
+    if (this.guestNet) return this.guestNet.action('syncRecipeDiscoveries', [kinds]);
+    for (const kind of kinds) actor.discoverRecipe(kind);
+    return true;
+  }
+
   millFeed(count = 0, actor: PlayerSession = this.local): boolean {
     return this.facilityInteractions.millFeed(count, actor);
   }
@@ -3334,6 +3371,7 @@ export class Game {
     this.cookingStations.detach(session);
     this.looms.detach(session);
     this.mills.detach(session);
+    this.researchTables.detach(session);
     this.fences.detach(session);
     this.autoPlace.detach(session);
     this.beds.detach(session);
@@ -3381,6 +3419,7 @@ export class Game {
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'cookingStations' && this.cookingStations.isBusy(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
+    if (exclude !== 'researchTables' && this.researchTables?.isDigging(s)) return true;
     if (exclude !== 'mills' && this.mills.isDigging(s)) return true;
     if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
@@ -3398,6 +3437,7 @@ export class Game {
     const s = session;
     // 拾取提示只飘在本地玩家头顶;房主广播入包飞行事件,让其他玩家也看得到该玩家的入包表现
     s.inventory.onAdd = (kind, count) => {
+      s.discoverRecipe(kind);
       if (s === this.local) this.pickupPresentation.emit(kind, count);
       this.broadcastItemFly(s, kind, count);
     };
@@ -3678,6 +3718,7 @@ export class Game {
     this.damageScreenFlash.dispose();
     this.drops.dispose();
     this.leashLines.dispose();
+    this.researchTables.clear();
     this.props.dispose();
     this.fences.dispose();
     this.soils.dispose();

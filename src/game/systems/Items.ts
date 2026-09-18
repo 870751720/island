@@ -43,14 +43,14 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'cookedTomato', 'boiledTomato', 'cookedPepper', 'boiledPepper',
     'cookedEggplant', 'boiledEggplant', 'cookedStrawberry', 'boiledStrawberry',
     'cookedCabbage', 'boiledCabbage', 'cookedPumpkin', 'boiledPumpkin',
-    'cookedCarrot', 'boiledCarrot', 'bread', 'flour',
+    'cookedCarrot', 'boiledCarrot', 'bread', 'flour', 'strawberryCake', 'applePie', 'meatPie',
   ],
   设施: [
     'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
     'crate', 'ironCrate', 'fishKeep', 'feedBarrel', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'mill',
-    'deadCampfire', 'campfire', 'cookingStation',
+    'deadCampfire', 'campfire', 'cookingStation', 'researchTable',
     'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
     'workbench1', 'workbench2', 'workbench3', 'workbench4',
@@ -86,6 +86,11 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 }
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
+  researchTable: { kind: 'researchTable', name: '料理研究台', icon: '🥣', description: '投入最多四种食材，每种一份，尝试发现新料理。成功获得成品并永久解锁食谱；失败消耗材料，等待五秒可再试。' },
+  strawberryCake: { kind: 'strawberryCake', name: '草莓奶糕', icon: '🍰', description: '草莓与羊奶融入柔软的面糕。研究发现或获得成品后，可在烹饪台制作。' },
+  applePie: { kind: 'applePie', name: '苹果派', icon: '🥧', description: '面皮包裹香甜苹果的果香点心。研究发现或获得成品后，可在烹饪台制作。' },
+  meatPie: { kind: 'meatPie', name: '鲜肉馅饼', icon: '🫓', description: '加入胡萝卜和辣椒的鲜肉面饼。研究发现或获得成品后，可在烹饪台制作。' },
+
   cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚。' },
   wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，蓬松又保暖。' },
   shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
@@ -978,7 +983,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     description: '石块垒成的冶炼炉,能把铁矿石炼成铁锭。',
   },
   mill: { kind: 'mill', name: '磨坊', icon: '⚙️', description: '石磨将小麦磨成面粉，每 6 秒消耗 1 份小麦，产出 2 份面粉，无需燃料。' },
-  flour: { kind: 'flour', name: '面粉', icon: '🥡', description: '小麦磨成的细粉，可在火堆烤成面包；直接食用有些干口。' },
+  flour: { kind: 'flour', name: '面粉', icon: '🥡', description: '小麦磨成的细粉，可烤成面包，也能投入料理研究台探索面点食谱；直接食用有些干口。' },
   loom: {
     kind: 'loom',
     name: '纺织机',
@@ -1001,7 +1006,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'cookingStation',
     name: '烹饪台',
     icon: '🍳',
-    description: '架着铁锅的灶台,能添柴、烤制,还能把食材炖成滋补的汤品。',
+    description: '架着铁锅的灶台，可添柴、烧烤和烹饪；除了汤品，还能按已发现的食谱制作面点。',
   },
   fenceWood: {
     kind: 'fenceWood',

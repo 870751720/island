@@ -40,7 +40,7 @@ const terrain = { getHeight: () => 1, isNearWater: () => false };
 const placement = new AutoPlaceSystem(new THREE.Scene(), terrain);
 const context: any = { autoPlace: placement, terrain, bushCellOk: () => null, placeTree: () => true, placeBush: () => true };
 for (const key of ['baitBarrels', 'beds', 'brewBarrels', 'burrows', 'campfire', 'cookingStations', 'crates', 'crops',
-  'doghouses', 'fences', 'gravelPaths', 'looms', 'mills', 'plankPaths', 'shrines', 'smelters', 'soils', 'waterPurifiers', 'workbench']) {
+  'doghouses', 'fences', 'gravelPaths', 'looms', 'mills', 'researchTables', 'plankPaths', 'shrines', 'smelters', 'soils', 'waterPurifiers', 'workbench']) {
   context[key] = { recoveryInteraction: () => null };
 }
 context.gravelPaths.kind = 'gravelPath';
