@@ -20,12 +20,13 @@ import { Doghouse } from '../entities/Doghouse';
 import { WaterPurifier } from '../entities/WaterPurifier';
 import { Smelter } from '../entities/Smelter';
 import { Loom } from '../entities/Loom';
+import { Mill } from '../entities/Mill';
 import { CookingStation } from '../entities/CookingStation';
 import { Campfire } from '../entities/Campfire';
 import { Bed } from '../entities/Bed';
 import { Workbench } from '../entities/Workbench';
 
-export type FacilityRegistrationContext = Pick<WorldSaveSystems, 'baitBarrels' | 'beds' | 'brewBarrels' | 'burrows' | 'campfire' | 'cookingStations' | 'crates' | 'crops' | 'doghouses' | 'fences' | 'gravelPaths' | 'looms' | 'plankPaths' | 'shrines' | 'smelters' | 'soils' | 'waterPurifiers' | 'workbench'> & {
+export type FacilityRegistrationContext = Pick<WorldSaveSystems, 'baitBarrels' | 'beds' | 'brewBarrels' | 'burrows' | 'campfire' | 'cookingStations' | 'crates' | 'crops' | 'doghouses' | 'fences' | 'gravelPaths' | 'looms' | 'mills' | 'plankPaths' | 'shrines' | 'smelters' | 'soils' | 'waterPurifiers' | 'workbench'> & {
   autoPlace: AutoPlaceSystem;
   terrain: IslandTerrain;
   bushCellOk: (actor: PlayerSession, x: number, z: number) => string | null;
@@ -66,6 +67,7 @@ export function registerFacilities(context: FacilityRegistrationContext): void {
   });
   def('smelter', { recovery: context.smelters, tool: 'place', valid: (a, x, z) => context.smelters.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Smelter(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.smelters.use(a, at) });
   def('loom', { recovery: context.looms, tool: 'place', valid: (a, x, z) => context.looms.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Loom(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.looms.use(a, at) });
+  def('mill', { recovery: context.mills, tool: 'place', valid: (a, x, z) => context.mills.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new Mill(sc, new THREE.Vector3(), 0).group), place: (a, at) => context.mills.use(a, at) });
   def('gravelPath', roadFacility(context.gravelPaths, context.terrain));
   def('plankPath', roadFacility(context.plankPaths, context.terrain));
   def('cookingStation', { recovery: context.cookingStations, tool: 'place', valid: (a, x, z) => context.cookingStations.canPlaceAt(a, x, z), buildPreview: ghost((sc) => new CookingStation(sc, new THREE.Vector3(), 0, 0).group), place: (a, at) => context.cookingStations.use(a, at) });

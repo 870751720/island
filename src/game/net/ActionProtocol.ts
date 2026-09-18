@@ -37,8 +37,11 @@ export interface NetActionArgs {
   cookingCollect: [];
   cookingTakeBoil: [];
   loomFeed: [count: number];
+  millFeed: [count: number];
   loomCollect: [];
+  millCollect: [];
   loomTakeRope: [];
+  millTakeWheat: [];
   useBottle: [];
   pickupDrop: [];
   crateStore: [kind: ResourceKind, count: number | null];
@@ -102,8 +105,11 @@ const NET_ACTION_ARG_COUNTS = {
   cookingCollect: [0],
   cookingTakeBoil: [0],
   loomFeed: [1],
+  millFeed: [1],
   loomCollect: [0],
+  millCollect: [0],
   loomTakeRope: [0],
+  millTakeWheat: [0],
   useBottle: [0],
   pickupDrop: [0],
   crateStore: [2],
@@ -176,7 +182,9 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'cookingCollect':
     case 'cookingTakeBoil':
     case 'loomCollect':
+    case 'millCollect':
     case 'loomTakeRope':
+    case 'millTakeWheat':
     case 'useBottle':
     case 'pickupDrop':
     case 'sortInventory':
@@ -215,6 +223,7 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
       return isCraftId(first) && isSafeInteger(second);
     case 'smelterFeed':
     case 'loomFeed':
+    case 'millFeed':
     case 'swordHit':
       return isSafeInteger(first);
     case 'crateStore':

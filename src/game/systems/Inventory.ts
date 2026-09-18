@@ -154,6 +154,8 @@ export type ResourceKind =
   | 'waterPurifier'
   | 'smelter'
   | 'loom'
+  | 'mill'
+  | 'flour'
   | 'deadCampfire'
   | 'campfire'
   | 'cookingStation'

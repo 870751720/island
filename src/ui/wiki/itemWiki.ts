@@ -18,7 +18,7 @@ const DIG_BACK: ItemRecycle = { label: '整件挖回' };
 const RECYCLE_BY_KIND: Partial<Record<ResourceKind, ItemRecycle>> = {
   poseidonBlessing: DIG_BACK, beehiveShrine: DIG_BACK, healCrystal: DIG_BACK, rainAltar: DIG_BACK, crocIncense: DIG_BACK, torch: DIG_BACK,
   crate: DIG_BACK, ironCrate: DIG_BACK, fishKeep: DIG_BACK, feedBarrel: DIG_BACK,
-  baitBarrel: DIG_BACK, brewBarrel: DIG_BACK, doghouse: DIG_BACK, waterPurifier: DIG_BACK, smelter: DIG_BACK, loom: DIG_BACK,
+  baitBarrel: DIG_BACK, brewBarrel: DIG_BACK, doghouse: DIG_BACK, waterPurifier: DIG_BACK, smelter: DIG_BACK, loom: DIG_BACK, mill: DIG_BACK,
   deadCampfire: { label: '整座挖回' },
   campfire: { label: '整座挖回', target: 'deadCampfire', note: '需燃尽熄灭' },
   cookingStation: DIG_BACK,
@@ -75,7 +75,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
   const food = FOOD_BY_KIND.get(kind);
   if (food) {
     if (food.hunger > 0) stats.push({ label: '饱食', value: `+${food.hunger}` });
-    if (food.thirst > 0) stats.push({ label: '水分', value: `+${food.thirst}` });
+    if (food.thirst !== 0) stats.push({ label: '水分', value: `${food.thirst > 0 ? '+' : ''}${food.thirst}` });
     if (food.health > 0) stats.push({ label: '生命', value: `+${food.health}` });
   }
   const tiers = TOOL_TIER_NAMES.get(kind);

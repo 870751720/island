@@ -43,13 +43,13 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
     'cookedTomato', 'boiledTomato', 'cookedPepper', 'boiledPepper',
     'cookedEggplant', 'boiledEggplant', 'cookedStrawberry', 'boiledStrawberry',
     'cookedCabbage', 'boiledCabbage', 'cookedPumpkin', 'boiledPumpkin',
-    'cookedCarrot', 'boiledCarrot', 'bread',
+    'cookedCarrot', 'boiledCarrot', 'bread', 'flour',
   ],
   设施: [
     'oakSeed', 'pineSeed', 'fruitSeed',
     'poseidonBlessing', 'beehiveShrine', 'healCrystal',
     'rainAltar', 'crocIncense',
-    'crate', 'ironCrate', 'fishKeep', 'feedBarrel', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom',
+    'crate', 'ironCrate', 'fishKeep', 'feedBarrel', 'baitBarrel', 'brewBarrel', 'doghouse', 'waterPurifier', 'smelter', 'loom', 'mill',
     'deadCampfire', 'campfire', 'cookingStation',
     'fenceWood', 'fenceStone', 'fenceGate', 'stoneGate', 'gravelPath', 'plankPath',
     'bed1', 'bed2', 'bed3',
@@ -475,7 +475,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'bread',
     name: '烤面包',
     icon: '🍞',
-    description: '麦穗烤得金黄喷香的粗粮面包,外皮酥脆。',
+    description: '面粉烤得金黄喷香的粗粮面包,外皮酥脆。',
   },
   arrow: {
     kind: 'arrow',
@@ -977,6 +977,8 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '🏭',
     description: '石块垒成的冶炼炉,能把铁矿石炼成铁锭。',
   },
+  mill: { kind: 'mill', name: '磨坊', icon: '⚙️', description: '石磨将小麦磨成面粉，每 6 秒消耗 1 份小麦，产出 2 份面粉，无需燃料。' },
+  flour: { kind: 'flour', name: '面粉', icon: '🥡', description: '小麦磨成的细粉，可在火堆烤成面包；直接食用有些干口。' },
   loom: {
     kind: 'loom',
     name: '纺织机',

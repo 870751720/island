@@ -19,6 +19,7 @@ export function buildDeathReport(
     save.smelters.length +
     save.cookingStations.length +
     save.looms.length +
+    (save.mills?.length ?? 0) +
     save.fences.length +
     save.fenceGates.length +
     save.beds.length +

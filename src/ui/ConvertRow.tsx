@@ -132,6 +132,7 @@ export function ConvertRow({
   actionColor,
   onAction,
   disabled = false,
+  stacked = false,
 }: {
   kind: ResourceKind;
   to?: ResourceKind;
@@ -144,10 +145,12 @@ export function ConvertRow({
   actionColor: string;
   onAction: () => void;
   disabled?: boolean;
+  /** 小屏分行布局，数量步进与动作按钮采用 44px 触控尺寸。 */
+  stacked?: boolean;
 }) {
   return (
-    <div style={convertRowStyle}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ ...convertRowStyle, flexWrap: stacked ? 'wrap' : undefined }}>
+      <div style={{ flex: stacked ? '1 0 100%' : 1, minWidth: 0 }}>
         <div style={{ fontSize: 14 }}>
           <ItemIcon kind={kind} size={18} /> {ITEMS[kind].name} ×{max}
         </div>
@@ -164,14 +167,14 @@ export function ConvertRow({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <StepButton
           step={-1}
-          style={convertStepButtonStyle}
+          style={{ ...convertStepButtonStyle, ...(stacked ? { width: 44, height: 44 } : {}) }}
           disabled={value <= 1}
           onChange={(s) => onDelta(s)}
         />
         <span style={{ minWidth: 18, textAlign: 'center', fontWeight: 700 }}>{value}</span>
         <StepButton
           step={1}
-          style={convertStepButtonStyle}
+          style={{ ...convertStepButtonStyle, ...(stacked ? { width: 44, height: 44 } : {}) }}
           disabled={value >= max}
           onChange={(s) => onDelta(s)}
         />
@@ -182,7 +185,7 @@ export function ConvertRow({
           e.preventDefault();
           onAction();
         }}
-        style={{ ...convertActionButtonStyle, opacity: disabled ? 0.45 : 1 }}
+        style={{ ...convertActionButtonStyle, ...(stacked ? { minHeight: 44, marginLeft: 'auto' } : {}), opacity: disabled ? 0.45 : 1 }}
       >
         {actionLabel}
       </button>

@@ -3,7 +3,7 @@ import { VITAL_STYLES } from './vitalStyles';
 
 /** 展示单份食物的基础恢复量；每个标签作为整体参与标题换行。 */
 export function FoodRecoveryTags({ food }: { food: Food }) {
-  return VITAL_STYLES.filter(({ key }) => food[key] > 0).map(({ key, label, color, textColor }) => (
+  return VITAL_STYLES.filter(({ key }) => food[key] !== 0).map(({ key, label, color, textColor }) => (
     <span key={key} style={{
       background: `${color}16`,
       color: textColor,
@@ -14,7 +14,7 @@ export function FoodRecoveryTags({ food }: { food: Food }) {
       lineHeight: '14px',
       whiteSpace: 'nowrap',
     }}>
-      {label}+{food[key]}
+      {label}{food[key] > 0 ? '+' : ''}{food[key]}
     </span>
   ));
 }

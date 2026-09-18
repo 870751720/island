@@ -22,6 +22,7 @@ import type { RabbitBurrowSave } from './RabbitBurrowSystem';
 import type { SmelterSave } from './SmelterSystem';
 import type { CookingStationSave } from './CookingStationSystem';
 import type { LoomSave } from './LoomSystem';
+import type { MillSave } from './MillSystem';
 import type { StakeSave } from '../entities/Stake';
 import type { RunStats } from './RunStats';
 import type { CrateSave } from './CrateSystem';
@@ -137,6 +138,8 @@ export type SaveData = {
   cookingStations: CookingStationSave[];
   /** 场上所有纺织机(落点与机内绳线/布料) */
   looms: LoomSave[];
+  /** 磨坊及机内库存，旧档缺省为空。 */
+  mills?: MillSave[];
   /** 场上所有围栏柱(格点坐标与种类),相邻柱自动连接 */
   fences: { id?: string; x: number; z: number; kind: 'branch' | 'stone' }[];
   /** 场上所有围栏门(所占格点边的起点与方向) */

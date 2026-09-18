@@ -47,6 +47,7 @@ import { RabbitBurrowSystem } from './systems/RabbitBurrowSystem';
 import { SmelterSystem, type SmelterInfo } from './systems/SmelterSystem';
 import { CookingStationSystem, type CookingStationInfo } from './systems/CookingStationSystem';
 import { LoomSystem, type LoomInfo } from './systems/LoomSystem';
+import { MillSystem, type MillInfo } from './systems/MillSystem';
 import { FenceSystem } from './systems/FenceSystem';
 import { BedSystem } from './systems/BedSystem';
 import { AutoPlaceSystem, miniHeldModel } from './systems/AutoPlace';
@@ -260,6 +261,7 @@ export class Game {
   private smelters: SmelterSystem;
   private cookingStations: CookingStationSystem;
   private looms: LoomSystem;
+  private mills: MillSystem;
   private facilityInteractions: FacilityInteractionController;
   private fences: FenceSystem;
   /** 全场已放置实体的统一占格判定(各安放系统注册共享) */
@@ -812,6 +814,19 @@ export class Game {
       // 其他占用双手的行为进行中时挖掘让位
       (actor) => this.isSessionBusy(actor, 'looms')
     );
+    this.mills = new MillSystem(
+      this.scene,
+      this.terrain,
+      this.props,
+      this.fx,
+      this.audio,
+      // 收取面粉/回收磨坊与剩余小麦入包，溢出掉落到玩家身旁。
+      (kind, count, actor) => this.giveItem(kind, count, actor),
+      // 统一安放占格判定:同格已被任何已放置实体占据时不可放
+      this.placeOccupancy,
+      // 其他占用双手的行为进行中时挖掘让位
+      (actor) => this.isSessionBusy(actor, 'mills')
+    );
     this.beds = new BedSystem(
       this.scene,
       this.terrain,
@@ -849,6 +864,7 @@ export class Game {
         baitBarrels: this.baitBarrels,
         smelters: this.smelters,
         looms: this.looms,
+        mills: this.mills,
         campfire: this.campfire,
         cookingStations: this.cookingStations,
       },
@@ -906,7 +922,7 @@ export class Game {
       () => this.metaLevel('seedline')
     );
     // 各安放系统注册进统一占格判定:预览与结算共用同一份"同格被占即不可放"
-    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.beds, this.campfire, this.ambientFacilities, this.soils, this.gravelPaths, this.plankPaths]) {
+    for (const occupant of [this.workbench, this.crates, this.baitBarrels, this.brewBarrels, this.doghouses, this.waterPurifiers, this.smelters, this.cookingStations, this.looms, this.mills, this.beds, this.campfire, this.ambientFacilities, this.soils, this.gravelPaths, this.plankPaths]) {
       this.placeOccupancy.register(occupant);
     }
     // 统一设施安放:全部可放置道具(建筑/神龛/丛/围栏/门)注册一份 FacilityDef,
@@ -931,6 +947,7 @@ export class Game {
       fences: this.fences,
       gravelPaths: this.gravelPaths,
       looms: this.looms,
+      mills: this.mills,
       plankPaths: this.plankPaths,
       shrines: this.ambientFacilities,
       smelters: this.smelters,
@@ -979,6 +996,7 @@ export class Game {
       smelters: this.smelters,
       cookingStations: this.cookingStations,
       looms: this.looms,
+      mills: this.mills,
       fences: this.fences,
       beds: this.beds,
       shrines: this.ambientFacilities,
@@ -1020,6 +1038,7 @@ export class Game {
       smelters: this.smelters,
       cookingStations: this.cookingStations,
       looms: this.looms,
+      mills: this.mills,
       fences: this.fences,
       beds: this.beds,
       shrines: this.ambientFacilities,
@@ -1049,6 +1068,7 @@ export class Game {
         smelters: this.smelters,
         cookingStations: this.cookingStations,
         looms: this.looms,
+        mills: this.mills,
         beds: this.beds,
         workbench: this.workbench,
         campfire: this.campfire,
@@ -1256,6 +1276,7 @@ export class Game {
           this.smelters.updateActor(s, simDelta);
           this.cookingStations.updateActor(s, simDelta);
           this.looms.updateActor(s, simDelta);
+          this.mills.updateActor(s, simDelta);
           this.fences.updateActor(s, simDelta);
           this.autoPlace.updateActor(s, simDelta);
           this.refreshHandModels();
@@ -1298,6 +1319,7 @@ export class Game {
     this.smelters.update(simDelta, elapsed, !this.guestMode);
         this.cookingStations.update(simDelta, elapsed, !this.guestMode, this.weather.rainIntensity);
     this.looms.update(simDelta, elapsed, !this.guestMode);
+    this.mills.update(simDelta, elapsed, !this.guestMode);
         this.thirstGuidance.update(delta, this.local, this.cameraController.photoActive);
         this.mumbles.update(delta, {
           nearDrinkPoint: this.thirstGuidance.nearDrinkPoint,
@@ -3175,6 +3197,18 @@ export class Game {
     return this.facilityInteractions.loomCollect(actor);
   }
 
+  millFeed(count = 0, actor: PlayerSession = this.local): boolean {
+    return this.facilityInteractions.millFeed(count, actor);
+  }
+
+  millTakeWheat(actor: PlayerSession = this.local): boolean {
+    return this.facilityInteractions.millTakeWheat(actor);
+  }
+
+  millCollect(actor: PlayerSession = this.local): boolean {
+    return this.facilityInteractions.millCollect(actor);
+  }
+
   /** 向身旁火堆添加 1 个可燃物,返回是否成功 */
   campfireAddFuel(kind: ResourceKind, actor: PlayerSession = this.local): boolean {
     return this.facilityInteractions.campfireAddFuel(kind, actor);
@@ -3299,6 +3333,7 @@ export class Game {
     this.smelters.detach(session);
     this.cookingStations.detach(session);
     this.looms.detach(session);
+    this.mills.detach(session);
     this.fences.detach(session);
     this.autoPlace.detach(session);
     this.beds.detach(session);
@@ -3346,6 +3381,7 @@ export class Game {
     if (exclude !== 'smelters' && this.smelters.isDigging(s)) return true;
     if (exclude !== 'cookingStations' && this.cookingStations.isBusy(s)) return true;
     if (exclude !== 'looms' && this.looms.isDigging(s)) return true;
+    if (exclude !== 'mills' && this.mills.isDigging(s)) return true;
     if (exclude !== 'fences' && this.fences.isDigging(s)) return true;
     if (exclude !== 'beds' && this.beds.isBusy(s)) return true;
     if (exclude !== 'shrines' && this.ambientFacilities.isDigging(s)) return true;

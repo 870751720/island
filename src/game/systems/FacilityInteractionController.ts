@@ -7,6 +7,7 @@ import type { BrewBarrelSystem } from './BrewBarrelSystem';
 import type { BaitBarrelSystem } from './BaitBarrelSystem';
 import type { SmelterSystem } from './SmelterSystem';
 import type { LoomSystem } from './LoomSystem';
+import type { MillSystem } from './MillSystem';
 import type { CampfireSystem } from './CampfireSystem';
 import type { CookingStationSystem } from './CookingStationSystem';
 
@@ -16,6 +17,7 @@ interface FacilitySystems {
   baitBarrels: BaitBarrelSystem;
   smelters: SmelterSystem;
   looms: LoomSystem;
+  mills: MillSystem;
   campfire: CampfireSystem;
   cookingStations: CookingStationSystem;
 }
@@ -118,6 +120,22 @@ export class FacilityInteractionController {
     return this.take('loomCollect', actor, () => this.systems.looms.collect(actor));
   }
 
+  millFeed(count: number, actor: PlayerSession): boolean {
+    if (this.guest) return this.guest.action('millFeed', [count]);
+    if (this.asleep(actor)) return false;
+    if (this.systems.mills.feed(actor, count)) return true;
+    this.notify('磨坊无法投入小麦', actor);
+    return false;
+  }
+
+  millTakeWheat(actor: PlayerSession): boolean {
+    return this.take('millTakeWheat', actor, () => this.systems.mills.takeWheat(actor));
+  }
+
+  millCollect(actor: PlayerSession): boolean {
+    return this.take('millCollect', actor, () => this.systems.mills.collect(actor));
+  }
+
   campfireAddFuel(kind: ResourceKind, actor: PlayerSession): boolean {
     if (this.guest) return this.guest.action('campfireAddFuel', [kind]);
     return !this.asleep(actor) && this.systems.campfire.addFuel(actor, kind) > 0;
@@ -160,7 +178,7 @@ export class FacilityInteractionController {
     return !this.asleep(actor) && this.systems.campfire.startCooking(actor, kind, count);
   }
 
-  private take(action: 'brewBarrelTakeRaw' | 'brewBarrelCollect' | 'baitBarrelTakeFoods' | 'baitBarrelCollect' | 'smelterTakeOre' | 'smelterCollect' | 'loomTakeRope' | 'loomCollect' | 'cookingTakeBoil', actor: PlayerSession, operation: () => boolean): boolean {
+  private take(action: 'brewBarrelTakeRaw' | 'brewBarrelCollect' | 'baitBarrelTakeFoods' | 'baitBarrelCollect' | 'smelterTakeOre' | 'smelterCollect' | 'loomTakeRope' | 'loomCollect' | 'millTakeWheat' | 'millCollect' | 'cookingTakeBoil', actor: PlayerSession, operation: () => boolean): boolean {
     if (this.guest) return this.guest.action(action, []);
     if (this.asleep(actor)) return false;
     if (operation()) return true;

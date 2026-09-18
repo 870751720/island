@@ -11,6 +11,7 @@ import type { DayNightSystem } from './DayNightSystem';
 import type { DropSystem } from './DropSystem';
 import type { FenceSystem } from './FenceSystem';
 import type { LoomSystem } from './LoomSystem';
+import type { MillSystem } from './MillSystem';
 import type { RabbitBurrowSystem } from './RabbitBurrowSystem';
 import type { SaveData } from './SaveSystem';
 import type { AmbientFacilitySystem } from './AmbientFacilitySystem';
@@ -38,6 +39,7 @@ export type WorldSaveSystems = {
   smelters: SmelterSystem;
   cookingStations: CookingStationSystem;
   looms: LoomSystem;
+  mills: MillSystem;
   fences: FenceSystem;
   beds: BedSystem;
   shrines: AmbientFacilitySystem;
@@ -67,6 +69,7 @@ export function restoreWorld(s: WorldSaveSystems, save: SaveData, guestMode: boo
   s.smelters.restore(save.smelters);
   s.cookingStations.restore(save.cookingStations);
   s.looms.restore(save.looms);
+  s.mills.restore(save.mills ?? []);
   s.fences.restore(save.fences, save.fenceGates);
   s.beds.restore(save.beds);
   s.shrines.restore(save.shrines);
@@ -102,6 +105,7 @@ export function snapshotWorld(s: WorldSaveSystems) {
     smelters: s.smelters.snapshot(),
     cookingStations: s.cookingStations.snapshot(),
     looms: s.looms.snapshot(),
+    mills: s.mills.snapshot(),
     fences: s.fences.snapshotFences(),
     fenceGates: s.fences.snapshotGates(),
     beds: s.beds.snapshot(),

@@ -90,8 +90,12 @@ export class Loom {
   readonly group: THREE.Group;
   /** 机内待织的绳线数 */
   rope = 0;
+  get input(): number { return this.rope; }
+  set input(value: number) { this.rope = value; }
   /** 已织好待收取的布料数 */
   cloth = 0;
+  get output(): number { return this.cloth; }
+  set output(value: number) { this.cloth = value; }
   /** 距离下一次出布的剩余秒数(无绳线时为满值) */
   tickLeft = 0;
   private shuttle: THREE.Object3D | null = null;

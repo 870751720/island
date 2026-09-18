@@ -41,6 +41,7 @@ export function ToolButton({
   smelter = false,
   cookingStation = false,
   loom = false,
+  mill = false,
   bed = false,
   stake = false,
   untie = false,
@@ -62,6 +63,7 @@ export function ToolButton({
   onSmelter,
   onCookingStation,
   onLoom,
+  onMill,
   onBed,
   onStake,
   onUntie,
@@ -86,6 +88,8 @@ export function ToolButton({
   cookingStation?: boolean;
   /** 是否显示为纺织机模式(靠近纺织机) */
   loom?: boolean;
+  /** 靠近磨坊时打开加工面板 */
+  mill?: boolean;
   /** 是否显示为床模式(靠近床,点击开始睡觉) */
   bed?: boolean;
   /** 是否显示为打桩模式(牵着羊,点击在脚下打桩拴住) */
@@ -118,6 +122,7 @@ export function ToolButton({
   onSmelter: () => void;
   onCookingStation: () => void;
   onLoom: () => void;
+  onMill: () => void;
   onBed: () => void;
   onStake: () => void;
   onUntie: () => void;
@@ -131,7 +136,7 @@ export function ToolButton({
   const contexts: [boolean, string][] = [
     [workbench, '工作台'], [campfire, '营火'], [crate, ITEMS[crateKind].name],
     [baitBarrel, '饵料桶'], [brewBarrel, '酿酒桶'], [smelter, '冶炼炉'],
-    [cookingStation, '烹饪台'], [loom, '纺织机'], [bed, '睡觉'],
+    [cookingStation, '烹饪台'], [loom, '纺织机'], [mill, '磨坊'], [bed, '睡觉'],
     [stake, '打桩'], [untie, '解开套索'],
   ];
   const contextLabel = contexts.find(([active]) => active)?.[1];
@@ -196,6 +201,8 @@ export function ToolButton({
                   ? onCookingStation()
                   : loom
                     ? onLoom()
+                    : mill
+                      ? onMill()
                     : bed
                       ? onBed()
                       : stake
@@ -285,6 +292,8 @@ export function ToolButton({
                     ? <ItemIcon kind="cookingStation" size={30} />
                     : loom
                       ? <ItemIcon kind="loom" size={30} />
+                      : mill
+                        ? <ItemIcon kind="mill" size={30} />
                       : bed
                         ? <ItemIcon kind="bed1" level={null} size={30} />
                         : stake || untie
@@ -305,6 +314,7 @@ export function ToolButton({
         !smelter &&
         !cookingStation &&
         !loom &&
+        !mill &&
         !bed &&
         !stake &&
         !untie &&

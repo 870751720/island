@@ -11,6 +11,7 @@ type FacilityProximity = Pick<
   | 'nearSmelter'
   | 'nearCookingStation'
   | 'nearLoom'
+  | 'nearMill'
   | 'nearBed'
 >;
 
@@ -26,6 +27,7 @@ const FACILITY_PRIORITY: readonly { key: FacilityKey; diggable: boolean }[] = [
   { key: 'nearSmelter', diggable: true },
   { key: 'nearCookingStation', diggable: true },
   { key: 'nearLoom', diggable: true },
+  { key: 'nearMill', diggable: true },
   { key: 'nearBed', diggable: true },
 ];
 

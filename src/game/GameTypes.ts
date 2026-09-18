@@ -24,4 +24,4 @@ export type InteractionKind =
   | 'collect' | 'milk' | 'crafting' | 'eating' | 'fishing' | 'archery' | 'sword'
   | 'lasso' | 'water' | 'workbench' | 'campfire' | 'crates' | 'baitBarrels'
   | 'brewBarrels' | 'waterPurifiers' | 'doghouses' | 'burrows' | 'smelters' | 'cookingStations'
-  | 'looms' | 'fences' | 'beds' | 'shrines' | 'plankPaths' | 'gravelPaths' | 'soils' | 'crops' | 'autoPlace';
+  | 'looms' | 'mills' | 'fences' | 'beds' | 'shrines' | 'plankPaths' | 'gravelPaths' | 'soils' | 'crops' | 'autoPlace';

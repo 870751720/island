@@ -12,6 +12,7 @@ import type { CrateSystem } from '../systems/CrateSystem';
 import type { DayNightSystem } from '../systems/DayNightSystem';
 import type { DropSystem } from '../systems/DropSystem';
 import type { LoomSystem } from '../systems/LoomSystem';
+import type { MillSystem } from '../systems/MillSystem';
 import type { ResourceKind } from '../systems/Inventory';
 import type { AmbientFacilitySystem } from '../systems/AmbientFacilitySystem';
 import type { SmelterSystem } from '../systems/SmelterSystem';
@@ -29,6 +30,7 @@ type HudSystems = {
   smelters: SmelterSystem;
   cookingStations: CookingStationSystem;
   looms: LoomSystem;
+  mills: MillSystem;
   beds: BedSystem;
   workbench: WorkbenchSystem;
   campfire: CampfireSystem;
@@ -89,6 +91,7 @@ export class HudSnapshotBuilder {
       nearBrewBarrel: !!s.brewBarrels.nearby(session),
       nearSmelter: !!s.smelters.nearby(session),
       nearLoom: !!s.looms.nearby(session),
+      nearMill: !!s.mills.nearby(session),
       nearBed: !!s.beds.nearby(session),
       bedSleeping: s.beds.isSleeping(session),
       bedSleepProgress: s.beds.getSleepProgress(session) ?? 0,
@@ -100,7 +103,8 @@ export class HudSnapshotBuilder {
       smelterInfo: s.smelters.nearbyInfo(session),
       nearCookingStation: !!s.cookingStations.nearby(session),
       cookingStationInfo: s.cookingStations.nearbyInfo(session),
-      loomInfo: s.looms.nearbyInfo(session),
+      loomInfo: s.looms.info(session),
+      millInfo: s.mills.info(session),
       equipped: session.equipment.snapshot(),
       gender: session.player.currentGender,
       tool: session.player.currentTool,

@@ -36,6 +36,7 @@ import { BrewBarrelPanel } from './BrewBarrelPanel';
 import { SmelterPanel } from './SmelterPanel';
 import { CookingStationPanel } from './CookingStationPanel';
 import { LoomPanel } from './LoomPanel';
+import { MillPanel } from './MillPanel';
 import { EatPrompt } from './EatPrompt';
 import { FishingControls } from './FishingControls';
 import { TreasureWheel } from './TreasureWheel';
@@ -385,6 +386,7 @@ export function GameplayUI({
             hud.nearSmelter ||
             hud.nearCookingStation ||
             hud.nearLoom ||
+            hud.nearMill ||
             hud.nearBed) && (
             <ToolButton
               crateKind={hud.crateKind ?? 'crate'}
@@ -444,6 +446,19 @@ export function GameplayUI({
                 hud.craftId === null &&
                 !digHijack
               }
+              mill={
+                hud.nearMill &&
+                !hud.nearLoom &&
+                !hud.nearWorkbench &&
+                !hud.nearCampfire &&
+                !hud.nearCrate &&
+                !hud.nearBaitBarrel &&
+                !hud.nearBrewBarrel &&
+                !hud.nearSmelter &&
+                !hud.nearCookingStation &&
+                hud.craftId === null &&
+                !digHijack
+              }
               bed={
                 hud.nearBed &&
                 !hud.nearWorkbench &&
@@ -454,6 +469,7 @@ export function GameplayUI({
                 !hud.nearSmelter &&
                 !hud.nearCookingStation &&
                 !hud.nearLoom &&
+                !hud.nearMill &&
                 hud.craftId === null &&
                 !hud.bedSleeping &&
                 !digHijack
@@ -470,6 +486,7 @@ export function GameplayUI({
                 !hud.nearSmelter &&
                 !hud.nearCookingStation &&
                 !hud.nearLoom &&
+                !hud.nearMill &&
                 !hud.nearBed &&
                 hud.craftId === null
               }
@@ -491,6 +508,7 @@ export function GameplayUI({
               onSmelter={() => openPanel('smelter')}
               onCookingStation={() => openPanel('cookingStation')}
               onLoom={() => openPanel('loom')}
+              onMill={() => openPanel('mill')}
               onBed={() => gameRef.current?.sleep()}
               onStake={() => gameRef.current?.stakeLasso()}
               onUntie={() => gameRef.current?.untieLasso()}
@@ -593,6 +611,15 @@ export function GameplayUI({
               onCollect={() => gameRef.current?.loomCollect()}
               onTakeRope={() => gameRef.current?.loomTakeRope()}
               onClose={() => closePanel('loom')}
+            />
+          )}
+          {facilityPanels.mill && hud.nearMill && (
+            <MillPanel
+              hud={hud}
+              onFeed={(count) => gameRef.current?.millFeed(count)}
+              onCollect={() => gameRef.current?.millCollect()}
+              onTakeWheat={() => gameRef.current?.millTakeWheat()}
+              onClose={() => closePanel('mill')}
             />
           )}
           <CraftPrompt

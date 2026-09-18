@@ -23,6 +23,8 @@ export const FACILITY_SVG = {
  doghouse:svg(r(9,48,46,7,2,wood)+r(13,24,4,26,1,dark)+r(47,24,4,26,1,dark)+r(17,34,30,4,1,wood)+e(32,46,12,5,cream)+p('M5 27L32 8L59 27L51 32L32 17L13 32Z','#9b9f62')+l('M15 25L30 13M27 25L33 16M40 20L49 27','#c7bd7e',2)+r(12,40,6,4,1,metal)+r(46,40,6,4,1,metal)),
  waterPurifier:svg(r(14,12,5,43,2,dark)+r(45,12,5,43,2,dark)+p('M10 16H54L45 32H19Z',metal)+e(32,16,22,5,cream)+e(32,16,17,2,'#b5d5d3')+p('M32 33Q23 44 32 45Q41 44 32 33','#79b7cc')+p('M19 46H45L42 55H22Z',metal)),
  smelter:svg(p('M11 53V30L21 18V8H41V18L53 30V53Z','#a5ada2')+r(22,8,20,8,2,'#d0d5bf')+p('M20 51V36Q32 24 44 36V51Z',dark)+g('translate(12 23) scale(.6)',flame())+l('M13 28H22M42 27H48M13 38H17',cream,3)),
+ mill:svg(r(13,39,6,17,2,wood)+r(45,39,6,17,2,wood)+r(9,37,46,7,2,dark)+r(13,25,38,12,3,'#92958a')+e(32,25,19,7,'#c8c8b4')+e(32,22,7,3,dark)+p('M23 8H41L36 20H28Z',wood)+l('M39 25H52V16',dark,4)),
+ flour:svg(p('M21 18H43L49 49Q32 59 15 49Z','#c3aa7b')+e(32,18,11,5,cream)+p('M22 17Q31 7 42 17Z','#fff3d8')+l('M22 23Q32 28 43 23',dark,2)+p('M30 32H34V46H30Z',cream)+l('M32 36L26 32M32 40L38 35',cream,2)),
  loom:svg(r(12,9,5,47,2,dark)+r(47,9,5,47,2,dark)+r(9,13,46,6,2,wood)+r(9,46,46,6,2,wood)+[22,27,32,37,42].map(x=>l(`M${x} 20V46`,cream,2)).join('')+r(20,29,24,15,2,green)+l('M21 34H43M21 39H43',cream,1)+p('M20 24L44 20L46 24L22 28Z',wood)),
  deadCampfire:svg(l('M16 50L47 39M17 39L48 51','#78675b',7)+e(32,50,9,3,'#aca89a')),
  campfire:svg(l('M16 51L48 42M17 42L47 53',dark,7)+flame()),

@@ -1,4 +1,5 @@
 import { makeFeedBarrelModel, makeShearsModel, makeWoolModel } from '../entities/HusbandryModels';
+import { makeMillModel } from '../entities/Mill';
 import { makeFishKeepModel } from '../entities/FishKeepModel';
 import { makeDoghouseModel } from '../entities/Doghouse';
 import * as THREE from 'three';
@@ -19,6 +20,8 @@ export const DROP_COLORS: Record<ResourceKind, string> = {
   ironIngot: '#c9ccd1',
   smelter: '#7d8288',
   loom: '#8a6239',
+  mill: '#a2a095',
+  flour: '#f3e7ce',
   deadCampfire: '#3a332c',
   campfire: '#a4622d',
   cookingStation: '#5c5f66',
@@ -1306,6 +1309,18 @@ const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
   ironIngot: makeIronIngot,
   smelter: makeSmelterDrop,
   loom: makeLoomDrop,
+  mill: () => { const g = makeMillModel(); g.scale.setScalar(0.32); return g; },
+  flour: () => {
+    const g = new THREE.Group();
+    const sack = mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.2, 7), clay('#c3aa7b'));
+    sack.position.y = 0.1;
+    g.add(sack);
+    const powder = mesh(new THREE.SphereGeometry(0.09, 7, 4), clay(DROP_COLORS.flour));
+    powder.scale.y = 0.35;
+    powder.position.y = 0.2;
+    g.add(powder);
+    return g;
+  },
   deadCampfire: makeDeadCampfireDrop,
   campfire: makeCampfireDrop,
   cookingStation: makeCookingStationDrop,

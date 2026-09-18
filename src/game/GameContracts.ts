@@ -15,6 +15,7 @@ import type { FacilityKind } from './systems/Facilities';
 import type { HudBuff } from './systems/BuffSystem';
 import type { InventorySlot, ResourceKind } from './systems/Inventory';
 import type { LoomInfo } from './systems/LoomSystem';
+import type { MillInfo } from './systems/MillSystem';
 import type { SmelterInfo } from './systems/SmelterSystem';
 import type { DayPhase } from './systems/DayNightSystem';
 
@@ -54,6 +55,7 @@ export type HudSnapshot = {
   nearBrewBarrel: boolean;
   nearSmelter: boolean;
   nearLoom: boolean;
+  nearMill: boolean;
   nearBed: boolean;
   bedSleeping: boolean;
   bedSleepProgress: number;
@@ -66,6 +68,7 @@ export type HudSnapshot = {
   nearCookingStation: boolean;
   cookingStationInfo: CookingStationInfo | null;
   loomInfo: LoomInfo | null;
+  millInfo: MillInfo | null;
   equipped: Record<EquipSlot, EquipKind | null>;
   gender: PlayerGender;
   tool: HandTool;

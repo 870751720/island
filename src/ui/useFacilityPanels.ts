@@ -9,6 +9,7 @@ export type FacilityPanelKey =
   | 'brewBarrel'
   | 'smelter'
   | 'cookingStation'
+  | 'mill'
   | 'loom';
 
 type FacilityPanels = Record<FacilityPanelKey, boolean>;
@@ -22,6 +23,7 @@ const CLOSED_PANELS: FacilityPanels = {
   smelter: false,
   cookingStation: false,
   loom: false,
+  mill: false,
 };
 
 type FacilityProximity = Pick<
@@ -35,6 +37,7 @@ type FacilityProximity = Pick<
   | 'nearSmelter'
   | 'nearCookingStation'
   | 'nearLoom'
+  | 'nearMill'
 >;
 
 /** 统一管理设施面板，并在玩家离开对应设施或死亡时清理打开状态。 */
@@ -60,6 +63,7 @@ export function useFacilityPanels(hud: FacilityProximity) {
         smelter: current.smelter && hud.nearSmelter,
         cookingStation: current.cookingStation && hud.nearCookingStation,
         loom: current.loom && hud.nearLoom,
+        mill: current.mill && hud.nearMill,
       };
 
       if (hud.dead) return Object.values(current).some(Boolean) ? CLOSED_PANELS : current;
@@ -77,6 +81,7 @@ export function useFacilityPanels(hud: FacilityProximity) {
     hud.nearSmelter,
     hud.nearCookingStation,
     hud.nearLoom,
+    hud.nearMill,
   ]);
 
   return { panels, openPanel, closePanel };

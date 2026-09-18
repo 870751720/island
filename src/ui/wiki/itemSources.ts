@@ -202,6 +202,7 @@ addSource('bait', { group: '加工', label: '发酵', station: 'baitBarrel', not
 // 堆肥彩蛋:南瓜种子唯一的种子源头,概率刻意不写明,文案保留神秘感
 addSource('pumpkinSeed', { group: '加工', label: '发酵', station: 'baitBarrel', note: '堆肥深处偶尔凭空冒出,来历成谜' });
 addSource('ironIngot', { group: '加工', label: '冶炼', station: 'smelter', inputs: [{ kind: 'ironOre', count: SMELT_ORE_PER_INGOT }] });
+addSource('flour', { group: '加工', label: '磨粉', station: 'mill', inputs: [{ kind: 'wheat', count: 1 }], note: '每 6 秒产出 2 份面粉，无需燃料' });
 addSource('cloth', { group: '加工', label: '纺织', station: 'loom', inputs: [{ kind: 'rope', count: LOOM_ROPE_PER_CLOTH }] });
 addSource('deadCampfire', { group: '加工', label: '燃尽后遗留', station: 'campfire' });
 
