@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
+import type { GameMode } from '@/game/GameMode';
 import styles from './SettingsPanel.module.css';
 
+/** 设置「游戏」页的转模式入口:仅求生存档显示;当前模式改由设置底部「继续游戏」按钮展示。 */
 export function GameModeSettings({ mode, dead, onConvert }: {
   mode: GameMode;
   dead: boolean;
@@ -10,10 +11,9 @@ export function GameModeSettings({ mode, dead, onConvert }: {
   const [confirming, setConfirming] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState('');
-  return <section className={styles.section} aria-label="游戏模式">
-    <h3 className={styles.guideTitle}>当前模式 · {GAME_MODE_LABELS[mode]}</h3>
-    {mode === 'leisure' ? <p className={styles.modeHint} role="status">悠然模式下死亡后可复活，会掉落部分随身物品。本存档无法转为求生，也无法获得荒岛传承点。</p>
-      : confirming ? <div aria-label="确认转换模式">
+  if (mode === 'leisure') return null;
+  return <section className={styles.section} aria-label="转为悠然模式">
+    {confirming ? <div aria-label="确认转换模式">
         <strong className={styles.modeWarning}>转换后，本存档永久为悠然模式</strong>
         <ul className={styles.modeHint}>
           <li>无法转回求生，退出或重新进入也不会恢复。</li>

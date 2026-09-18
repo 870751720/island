@@ -286,6 +286,7 @@ export function GameplayUI({
       {adjustHud && !hud.dead && <HudLayoutAdjuster value={topOffset} onChange={setTopOffset} onClose={() => { setAdjustHud(false); setSettingsOpen(true); }} />}
       {settingsOpen && (
         <SettingsPanel
+          mode={gameRef.current?.gameMode ?? 'survival'}
           modeSettings={mpBusy || net?.host || net?.guest ? undefined : {
             mode: gameRef.current?.gameMode ?? 'survival',
             dead: hud.dead,

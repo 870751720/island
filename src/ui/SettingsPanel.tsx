@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import styles from './SettingsPanel.module.css';
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSettings';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
+import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
 
 /** 滑杆行:名称 + range input + 百分比 */
 function SliderRow({
@@ -56,6 +57,7 @@ export type MultiplayerSection = {
  * 游戏内设置面板:音乐/音效音量(拖动即热应用并持久化)、
  * 联机(单机中途开启多人模式或查看房间码邀请朋友),
  * 以及「返回主界面」(由外层卸载游戏回到开始界面)。
+ * 底部「继续游戏」按钮同时展示当前游戏模式。
  */
 export function SettingsPanel({
   onAdjustHud,
@@ -68,6 +70,7 @@ export function SettingsPanel({
   onSecretGmTrigger,
   multiplayer,
   modeSettings,
+  mode,
 }: {
   onAdjustHud: () => void;
   /** 音量变化时热应用到 GameAudio 并持久化 */
@@ -84,6 +87,8 @@ export function SettingsPanel({
   /** 联机区;客人端不传 */
   multiplayer?: MultiplayerSection;
   modeSettings?: React.ComponentProps<typeof GameModeSettings>;
+  /** 当前游戏模式,展示在「继续游戏」按钮上 */
+  mode: GameMode;
 }) {
   const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('game');
   const [guide, setGuide] = useState(loadQuestGuide);
@@ -260,18 +265,7 @@ export function SettingsPanel({
               </button>
               {shareTip && <span style={{ fontSize: 12, color: '#9a6018' }}>{shareTip}</span>}
             </div>
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-                padding: '12px 0',
-                borderTop: gameTheme.line,
-                borderBottom: gameTheme.line,
-              }}
-            >
-              <span style={{ fontSize: 13, color: gameTheme.ink }}>多人游戏:让朋友中途加入当前这座岛</span>
+          ) : (<>
               <button
                 disabled={multiplayer.busy}
                 onClick={multiplayer.onEnable}
@@ -289,8 +283,7 @@ export function SettingsPanel({
                 {multiplayer.busy ? '正在创建房间…' : '开启多人模式'}
               </button>
               {multiplayer.error && <span style={{ fontSize: 12, color: gameTheme.danger }}>{multiplayer.error}</span>}
-            </div>
-          ))}
+          </>))}
         <button
           onClick={onExit}
           style={{
@@ -320,7 +313,7 @@ export function SettingsPanel({
             cursor: 'pointer',
           }}
         >
-          继续游戏
+          继续游戏: {GAME_MODE_LABELS[mode]}模式
         </button>
       </div>
     </div>
