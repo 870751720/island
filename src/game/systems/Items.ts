@@ -86,9 +86,9 @@ export function itemCategory(kind: ResourceKind): ItemCategory {
 }
 
 export const ITEMS: Record<ResourceKind, ItemDef> = {
-  cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚，也可酿成奶酒。' },
-  wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，用于三级床和宠物窝。' },
-  shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '永久工具。手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
+  cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚。' },
+  wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，蓬松又保暖。' },
+  shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
   feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和同行伙伴会走近取食，只能存放可喂食的食物。' },
   branch: {
     kind: 'branch',
@@ -138,7 +138,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'fiber',
     name: '植物纤维',
     icon: '🌾',
-    description: '坚韧的植物纤维,可以搓成绳线。',
+    description: '坚韧的植物纤维,手感粗糙却结实。',
   },
   rope: {
     kind: 'rope',
@@ -987,7 +987,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     kind: 'deadCampfire',
     name: '熄灭的火堆',
     icon: '🕯️',
-    description: '挖下来的残火堆,柴堆烧得焦黑,正好用来改造成烹饪台。',
+    description: '挖下来的残火堆,柴堆烧得焦黑。',
   },
   campfire: {
     kind: 'campfire',

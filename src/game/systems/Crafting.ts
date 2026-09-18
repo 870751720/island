@@ -86,6 +86,18 @@ export function toolName(tool: ToolId, tier: number): string {
   return TOOL_NAMES[tool][Math.min(tier, 3) - 1] ?? TOOL_NAMES[tool][0];
 }
 
+/** 工具统一名:一个条目代表整个等级族时展示(图鉴用「斧」,不偏指一级的「木斧」) */
+export const TOOL_FAMILY_NAMES: Record<ToolId, string> = {
+  axe: '斧',
+  pickaxe: '镐',
+  shovel: '铲',
+  hoe: '锄',
+  fishingrod: '鱼竿',
+  bow: '弓',
+  sword: '剑',
+  shears: '剪刀',
+};
+
 /** 全部工具(工具 tab 展示顺序) */
 export const TOOL_IDS: ToolId[] = ['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'shears'];
 

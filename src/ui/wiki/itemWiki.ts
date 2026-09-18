@@ -1,7 +1,7 @@
 import { FOODS } from '@/game/systems/Food';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { ITEMS, itemCategory, itemSortIndex, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
-import { TOOL_IDS, toolName } from '@/game/systems/Crafting';
+import { TOOL_FAMILY_NAMES, TOOL_IDS, toolName } from '@/game/systems/Crafting';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { itemSourceGroups, itemSourcesOf, type ItemSource, type SourceGroup } from './itemSources';
 
@@ -18,13 +18,28 @@ export type ItemWikiEntry = {
 
 const FOOD_BY_KIND = new Map(FOODS.map((food) => [food.kind, food] as const));
 
-/** 工具的等级名(剪刀无等级,去重后只留一个) */
+/** 工具的等级名(去重后逐级列出;只剩一个说明该工具无升级) */
 const TOOL_TIER_NAMES = new Map<ResourceKind, readonly string[]>(
   TOOL_IDS.map((id) => {
     const tiers = [toolName(id, 1), toolName(id, 2), toolName(id, 3)];
     return [id as ResourceKind, [...new Set(tiers)]] as const;
   })
 );
+
+const TOOL_FAMILY_BY_KIND = new Map<ResourceKind, string>(
+  TOOL_IDS.map((id) => [id as ResourceKind, TOOL_FAMILY_NAMES[id]] as const)
+);
+
+/** 图鉴展示名:工具条目代表整个等级族,用统一名(如「斧」),其余用道具名 */
+export function wikiItemName(kind: ResourceKind): string {
+  return TOOL_FAMILY_BY_KIND.get(kind) ?? ITEMS[kind].name;
+}
+
+/** 搜索匹配文本:统一名之外拼上各等级名,搜「铁斧」也能命中「斧」 */
+export function wikiItemSearchText(kind: ResourceKind): string {
+  const tiers = TOOL_TIER_NAMES.get(kind);
+  return tiers ? [wikiItemName(kind), ...tiers].join('') : wikiItemName(kind);
+}
 
 /** 汇总单件物品的玩法属性:进食回复、燃烧时长、工具等级、装备加成 */
 function buildStats(kind: ResourceKind): ItemWikiStat[] {
@@ -38,7 +53,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
     if (food.health > 0) stats.push({ label: '生命', value: `+${food.health}` });
   }
   const tiers = TOOL_TIER_NAMES.get(kind);
-  if (tiers) stats.push({ label: '等级', value: tiers.join(' → ') });
+  if (tiers) stats.push({ label: '等级', value: tiers.length > 1 ? tiers.join(' → ') : '无' });
   if (isEquipKind(kind)) {
     const equip = EQUIPMENT[kind];
     if (equip.capacity) stats.push({ label: '背包', value: `${equip.capacity} 格` });

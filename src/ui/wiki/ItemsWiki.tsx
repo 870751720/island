@@ -1,6 +1,6 @@
 'use client';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS } from './itemWiki';
+import { ITEM_WIKI_ENTRIES, ITEM_WIKI_GROUPS, wikiItemName, wikiItemSearchText } from './itemWiki';
 import { ITEMS, itemCategory, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import type { ResourceKind } from '@/game/systems/Inventory';
 import { ItemIcon } from '../ItemIcon';
@@ -14,11 +14,10 @@ type DetailPosition = { kinds: readonly ResourceKind[]; index: number };
 
 function ItemTile({ kind, onClick }: { kind: ResourceKind; onClick: () => void }) {
   const tap = useScrollAreaTap(onClick);
-  const item = ITEMS[kind];
   return (
-    <button className={styles.tile} {...tap} aria-label={`查看${item.name}`}>
+    <button className={styles.tile} {...tap} aria-label={`查看${wikiItemName(kind)}`}>
       <ItemIcon kind={kind} size={30} />
-      <span className={styles.tileName}>{item.name}</span>
+      <span className={styles.tileName}>{wikiItemName(kind)}</span>
     </button>
   );
 }
@@ -43,7 +42,7 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
     return ITEM_WIKI_GROUPS.map((group) => ({
       category: group.category,
       kinds: group.entries
-        .filter((entry) => ITEMS[entry.kind].name.includes(keyword))
+        .filter((entry) => wikiItemSearchText(entry.kind).includes(keyword))
         .map((entry) => entry.kind),
     })).filter((group) => group.kinds.length > 0);
   }, [keyword]);
@@ -86,7 +85,7 @@ export function ItemsWiki({ onDetailChange, initialKind, onExit }: {
           <div className={styles.detailHead}>
             <span className={styles.detailIcon}><ItemIcon kind={kind} size={34} /></span>
             <span className={styles.detailTitle}>
-              <strong>{item.name}</strong>
+              <strong>{wikiItemName(kind)}</strong>
               <span className={styles.tagRow}>
                 <span className={styles.detailTag}>{entry.category}</span>
                 {entry.sourceGroups.map((group) => (
