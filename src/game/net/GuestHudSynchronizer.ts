@@ -26,7 +26,7 @@ export class GuestHudSynchronizer {
   private eatingSound: ReturnType<typeof foodSound> | null = null;
   private eatingName: string | null = null;
   private eatingProgress = 0;
-  private finishScheduled = false;
+  private consumptionScheduled = false;
 
   constructor(
     private readonly local: PlayerSession,
@@ -98,7 +98,7 @@ export class GuestHudSynchronizer {
     if (finished || this.eatingName !== food?.name || snapshot.eatProgress < this.eatingProgress) {
       if (this.eatingSound) this.audio.stop(this.eatingSound);
       this.audio.stop('eatFinish');
-      this.finishScheduled = false;
+      this.consumptionScheduled = false;
       this.eatingSound = null;
       this.eatingName = null;
       this.eatTick = 0;
@@ -106,17 +106,19 @@ export class GuestHudSynchronizer {
     this.eatingProgress = snapshot.eatProgress;
     if (!food || finished) return;
     this.eatingName = food.name;
+    this.eatingSound = foodSound(food);
     const remaining = (1 - snapshot.eatProgress) * EAT_TIME;
-    if (food.consumeType === 'eat' && !this.finishScheduled) {
-      this.finishScheduled = this.audio.scheduleEatFinish(remaining);
+    if (!this.consumptionScheduled) {
+      this.consumptionScheduled = food.consumeType === 'eat'
+        ? this.audio.scheduleEatFinish(remaining)
+        : this.audio.scheduleDrink(remaining, EAT_TIME);
     }
     const swallowing = food.consumeType === 'eat' && remaining <= this.audio.eatFinishDuration;
     if (swallowing) this.audio.stop('munch');
     if (tick === this.eatTick) return;
     this.eatTick = tick;
     if (tick < 1) return;
-    this.eatingSound = foodSound(food);
-    if (!swallowing) this.audio.play(this.eatingSound);
+    if (food.consumeType === 'eat' && !swallowing) this.audio.play(this.eatingSound);
     const position = this.local.player.group.position.clone();
     position.y += 2;
     if (food.consumeType === 'eat') this.fx.burst(position, food.fxColor, 3);

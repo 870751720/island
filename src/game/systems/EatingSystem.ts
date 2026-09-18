@@ -12,7 +12,7 @@ export class EatingSystem {
   private food: Food | null = null;
   private timer = 0;
   private tickTimer = 0;
-  private finishScheduled = false;
+  private consumptionScheduled = false;
   /** 「吃饱」模式:吃完一份后饥饿未满且还有存货则自动继续 */
   private untilFull = false;
 
@@ -31,7 +31,7 @@ export class EatingSystem {
     this.food = food;
     this.timer = 0;
     this.tickTimer = 0;
-    this.finishScheduled = false;
+    this.consumptionScheduled = false;
     this.untilFull = false;
     return true;
   }
@@ -48,7 +48,7 @@ export class EatingSystem {
     if (!food) return;
     if (this.player.isMoving || this.player.isSwimming) {
       // 中断时切断该食物的使用音效
-      this.audio.stop(foodSound(food));
+      if (!this.audio.silent) this.audio.stop(foodSound(food));
       if (!this.audio.silent) this.audio.stop('eatFinish');
       this.food = null;
       this.untilFull = false;
@@ -60,20 +60,22 @@ export class EatingSystem {
     this.tickTimer += delta;
     const remaining = EAT_TIME - this.timer;
     const swallowing = food.consumeType === 'eat' && remaining <= this.audio.eatFinishDuration;
-    if (food.consumeType === 'eat' && !this.finishScheduled && remaining > 0) {
-      this.finishScheduled = this.audio.scheduleEatFinish(remaining);
+    if (!this.consumptionScheduled && remaining > 0) {
+      this.consumptionScheduled = food.consumeType === 'eat'
+        ? this.audio.scheduleEatFinish(remaining)
+        : this.audio.scheduleDrink(remaining, EAT_TIME);
     }
     if (swallowing && !this.audio.silent) this.audio.stop('munch');
     if (this.tickTimer >= EAT_TICK && this.timer < EAT_TIME) {
       this.tickTimer -= EAT_TICK;
-      if (!swallowing) this.audio.play(foodSound(food));
+      if (food.consumeType === 'eat' && !swallowing) this.audio.play(foodSound(food));
       // 嘴边掉渣特效
       const p = this.player.group.position.clone();
       p.y += 2;
       if (food.consumeType === 'eat') this.fx.burst(p, food.fxColor, 3);
     }
     if (this.timer >= EAT_TIME) {
-      this.audio.stop(foodSound(food));
+      if (!this.audio.silent) this.audio.stop(foodSound(food));
       this.player.releaseAction(foodAction(food));
       if (this.inventory.remove(food.kind)) {
         this.survival.eat(food);
@@ -82,7 +84,7 @@ export class EatingSystem {
       if (this.untilFull && this.survival.state.hunger < 100 && this.inventory.count(food.kind) > 0) {
         this.timer = 0;
         this.tickTimer = 0;
-        this.finishScheduled = false;
+        this.consumptionScheduled = false;
         return;
       }
       this.food = null;

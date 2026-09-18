@@ -79,6 +79,11 @@ export class GameAudio {
     return !this.silent && (this.sfx?.scheduleEatFinish(remaining) ?? false);
   }
 
+  /** 背包饮品在本次使用时长内喝两口，仅由本人本地排程。 */
+  scheduleDrink(remaining: number, total: number): boolean {
+    return !this.silent && (this.sfx?.scheduleDrink(remaining, total) ?? false);
+  }
+
   play(name: SfxName, gainScale = 1): void {
     this.onSfx?.(name);
     if (!this.silent) this.sfx?.play(name, gainScale);

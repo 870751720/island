@@ -84,6 +84,10 @@ export class Sfx {
     return this.samples.play('eatFinish', this.dest, VOL.eatFinish, remaining);
   }
 
+  scheduleDrink(remaining: number, total: number): boolean {
+    return this.samples.play('drink', this.dest, VOL.drink, remaining, { total, count: 2 });
+  }
+
   /** 中途切断仍在播的长音效(喝水、进食等随交互持续的循环声) */
   stop(name: SfxName): void {
     this.samples.stop(name);
