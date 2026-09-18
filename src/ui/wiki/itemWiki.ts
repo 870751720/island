@@ -1,4 +1,6 @@
 import { FOODS } from '@/game/systems/Food';
+import { CROP_SPECS } from '@/game/entities/Crop';
+import { SEED_OF } from '@/game/world/TreeSpecies';
 import { EQUIPMENT, isEquipKind } from '@/game/systems/Equipment';
 import { ITEMS, itemCategory, itemSortIndex, ITEM_CATEGORIES, type ItemCategory } from '@/game/systems/Items';
 import { TOOL_FAMILY_NAMES, TOOL_IDS, toolName } from '@/game/systems/Crafting';
@@ -36,6 +38,9 @@ export type ItemWikiEntry = {
 };
 
 const FOOD_BY_KIND = new Map(FOODS.map((food) => [food.kind, food] as const));
+const PLANTABLE_SEEDS = new Set<ResourceKind>([
+  ...Object.values(SEED_OF), ...Object.values(CROP_SPECS).map((crop) => crop.seed),
+]);
 
 /** 工具的等级名(去重后逐级列出;只剩一个说明该工具无升级) */
 const TOOL_TIER_NAMES = new Map<ResourceKind, readonly string[]>(
@@ -65,6 +70,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
   const stats: ItemWikiStat[] = [];
   const def = ITEMS[kind];
   if (itemCategory(kind) === '设施') stats.push({ label: '安放', value: '背包使用或手持选择，在有效位置站定放置' });
+  if (PLANTABLE_SEEDS.has(kind)) stats.push({ label: '播种', value: '站定连续播下附近有效格，无需等待或移动重触发；移动、无空位或种子耗尽时停止' });
   if (def.burnTime) stats.push({ label: '可燃', value: `投入火堆 +${def.burnTime} 秒` });
   const food = FOOD_BY_KIND.get(kind);
   if (food) {

@@ -162,7 +162,7 @@ export class AutoPlaceSystem {
 
   /** 某设施对该玩家的站定放置时长(动态值按发起者取,缺省 2 秒) */
   private holdTimeOf(def: FacilityDef | undefined, actor: PlayerSession): number {
-    if (!def?.holdTime) return AUTO_PLACE_TIME;
+    if (def?.holdTime === undefined) return AUTO_PLACE_TIME;
     return typeof def.holdTime === 'function' ? def.holdTime(actor) : def.holdTime;
   }
 
@@ -186,7 +186,13 @@ export class AutoPlaceSystem {
 
   /** 工具循环切入某个设施道具(手动选中,不再取背包排最前的) */
   select(actor: PlayerSession, kind: ResourceKind): void {
-    if (this.defs.has(kind)) this.st(actor).selectedKind = kind;
+    if (!this.defs.has(kind)) return;
+    const st = this.st(actor);
+    if (st.selectedKind !== kind) {
+      st.placeTimer = 0;
+      if (this.defs.get(kind)?.repeatOnSuccess) st.lastPlaceX = null;
+    }
+    st.selectedKind = kind;
   }
 
   /** 正在安放放置中 */
@@ -200,7 +206,7 @@ export class AutoPlaceSystem {
     if (!st || st.placeTimer <= 0) return null;
     const kind = this.heldKind(actor);
     const need = kind ? this.holdTimeOf(this.defs.get(kind), actor) : AUTO_PLACE_TIME;
-    return Math.min(st.placeTimer / need, 1);
+    return need > 0 ? Math.min(st.placeTimer / need, 1) : null;
   }
 
   /** 当前落点不可放的原因(可放或未手持为 null),红色预览时头顶显示 */
@@ -227,7 +233,7 @@ export class AutoPlaceSystem {
   }
 
   private updateAutoPlace(actor: PlayerSession, st: SessionState, delta: number): void {
-    // 移动即恢复自动放置资格(原地只放一次;挪过步再回来也能放)
+    // 移动恢复放置资格；连续播种另在成功结算后恢复。
     if (actor.player.isMoving) st.lastPlaceX = null;
     const kind = this.heldKind(actor);
     const def = kind ? this.defs.get(kind) : undefined;
@@ -252,7 +258,8 @@ export class AutoPlaceSystem {
     st.placeTimer = 0;
     // 失败也记位,避免同一位置反复弹出失败提示;移动一下即恢复
     st.lastPlaceX = actor.player.group.position.x;
-    this.settle(kind, actor, { x: target.x, z: target.z });
+    const placed = this.settle(kind, actor, { x: target.x, z: target.z });
+    if (placed && def.repeatOnSuccess) st.lastPlaceX = null;
   }
 
   private updatePreview(actor: PlayerSession, st: SessionState): void {

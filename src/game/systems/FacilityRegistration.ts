@@ -118,17 +118,21 @@ export function registerFacilities(context: FacilityRegistrationContext): void {
       tool: 'place',
       valid: (a, x, z) => context.bushCellOk(a, x, z),
       buildPreview: makeTreeSproutPreview,
+      holdTime: 0,
+      repeatOnSuccess: true,
       place: (a, at) => context.placeTree(species, at, a),
       placingLabel: `播种:${ITEMS[kind].name}…`,
     });
   }
-  // 作物种子:只能种在没有作物的土壤格上,预览为幼苗造型,站定 2 秒播下
+  // 作物种子:空土壤格连续播种，结算后下一帧重新寻找可用格。
   for (const spec of Object.values(CROP_SPECS)) {
     def(spec.seed, {
       recovery: context.soils,
       tool: 'place',
       valid: (a, x, z) => context.crops.canPlantAt(a, x, z),
       buildPreview: () => makeCropSproutPreview(spec.kind),
+      holdTime: 0,
+      repeatOnSuccess: true,
       place: (a, at) => context.crops.plant(a, spec.seed, at),
       placingLabel: `播种:${spec.name}…`,
       failText: () => '种子只能种在空的土壤上,先用锄头开垦',

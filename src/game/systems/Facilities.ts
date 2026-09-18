@@ -62,6 +62,8 @@ export interface FacilityDef {
   placingLabel?: string;
   /** 站定自动放置的时长(秒,缺省 2;围栏门 5;可按发起者动态,如锄头等级越高越快) */
   holdTime?: number | ((actor: PlayerSession) => number);
+  /** 成功后立即允许下一格安放，无需移动重新触发。失败仍暂停至移动。 */
+  repeatOnSuccess?: boolean;
   /** 落点可放但结算仍失败时的提示(缺省「这里放不下…」) */
   failText?: (actor: PlayerSession) => string;
 }
