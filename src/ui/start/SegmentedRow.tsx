@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 
-/** 左标签 + 右胶囊选项的分段选择行，游戏模式与同行伙伴共用同一套样式。 */
-export function SegmentedRow<T extends string>({ label, options, value, onChange, disabled = false }: {
-  label: string;
+/** 左侧引导内容 + 右侧胶囊选项的分段选择行，游戏模式与同行伙伴共用同一套样式。 */
+export function SegmentedRow<T extends string>({ ariaLabel, label, lead, options, value, onChange, disabled = false }: {
+  ariaLabel: string;
+  label?: string;
+  lead?: ReactNode;
   options: readonly { value: T; content: ReactNode }[];
   value: T;
   onChange: (value: T) => void;
@@ -10,8 +12,8 @@ export function SegmentedRow<T extends string>({ label, options, value, onChange
 }) {
   return <div className="segment-row">
     <style>{segmentedRowCss}</style>
-    <span className="segment-label">{label}</span>
-    <div className="segment-options" role="group" aria-label={label}>
+    {lead ?? (label !== undefined && <span className="segment-label">{label}</span>)}
+    <div className="segment-options" role="group" aria-label={ariaLabel}>
       {options.map(option => <button key={option.value} type="button"
         disabled={disabled} className="segment-option" aria-pressed={value === option.value}
         onClick={() => onChange(option.value)}>{option.content}</button>)}
