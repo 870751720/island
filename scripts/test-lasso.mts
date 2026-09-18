@@ -16,6 +16,7 @@ const rules = load('LassoRules');
 modules['./LassoRules'] = rules;
 modules['./WildlifeLifecycle'] = load('WildlifeLifecycle');
 modules['./WildlifePursuit'] = load('WildlifePursuit');
+modules['./WildlifeMovement'] = load('WildlifeMovement');
 modules['../systems/AnimalHusbandry'] = load('../systems/AnimalHusbandry');
 modules['../systems/AnimalForaging'] = load('../systems/AnimalForaging');
 const { Wildlife } = load('Wildlife');
@@ -48,6 +49,7 @@ function animal(species: string) {
 function harness(a: ReturnType<typeof animal>) {
   return Object.assign(Object.create(Wildlife.prototype), { animals: [a], mercyCooldown: 0, dogThreats: [],
     pursuit: new modules['./WildlifePursuit'].WildlifePursuit(),
+    movement: new modules['./WildlifeMovement'].WildlifeMovement(),
     creatureFx: { update() {} }, lifecycle: { now: 1, cancel() {}, update() {} }, population: { slots: [], update() {} },
     players: () => [player], isPlayerVulnerable: () => true, animate() {}, onAttack() {}, hitPlayer() {},
     nearestPlayer: () => player, isGrass: () => true, isBlocked: () => false, terrain: { getHeight: () => 0 }, onLassoEscape() {}, onLassoResult() {},

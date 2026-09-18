@@ -70,7 +70,7 @@ function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
   return {
     id, name: ANIMAL_LABELS[id], ...WILDLIFE_GUIDES[id], stats,
     interaction: tame
-      ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，填满爱心即可驯养。驯养后全队共享，需持续供食；爱心归零会恢复野生。']
+      ? ['用', { kind: 'lasso', label: '套索' }, isLassoPredator(id) ? '抓住后，必须等待五次挣脱判定全部失败，才能开始投喂；驯养成功前仍会攻击。' : '抓住后即可开始投喂。', '主动丢下适合的食物，落地至少四秒后供它进食，也可从食料桶取食，实际爱心达到上限即可驯养（成功前填充最多显示九成）。驯养后全队共享，需持续供食；爱心归零会恢复野生。']
       : ['不能使用', { kind: 'lasso', label: '套索' }, '或驯养。可以用武器击杀，也可以远离水洼脱战。'],
     foods: tame ? foodsFor(id as TameSpecies) : [],
     drops: [
@@ -81,7 +81,7 @@ function wildlifeEntry(id: AnimalSpecies): CreatureEntry {
     produce,
     productionNote: produce.length ? [
       `成年且保持驯养时，每 ${PRODUCTION_SECONDS / 60} 分钟各准备一份，未领取不累计。靠近可自动挤奶`,
-      ...(produceSpec?.wool ? ['；手持', { kind: 'shears' as const, label: '剪刀' }, '时改为剪毛'] : []),
+      ...(produceSpec?.wool ? ['；手持', { kind: 'shears' as const, label: '剪刀' }, '时改为剪毛；有完整羊毛的成年羊驯养成功即可剪，剪后十分钟重新长好'] : []),
       '。幼崽不生产。时间为默认速度下的游戏运行时间。',
     ] : undefined,
   };

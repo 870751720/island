@@ -89,7 +89,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
   cowMilk: { kind: 'cowMilk', name: '牛奶', icon: '🥛', description: '成年驯养野牛的鲜奶，奶香醇厚。' },
   wool: { kind: 'wool', name: '羊毛', icon: '🧶', description: '用剪刀从成年驯养羊身上剪下的柔软羊毛，蓬松又保暖。' },
   shears: { kind: 'shears', name: '剪刀', icon: '✂️', description: '手持并站在有羊毛的成年驯养羊旁，可以剪下羊毛。' },
-  feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养动物和同行伙伴会走近取食，只能存放可喂食的食物。' },
+  feedBarrel: { kind: 'feedBarrel', name: '食料桶', icon: '🪣', description: '20格食物收纳设施。驯养阶段的动物、已驯养动物和同行伙伴会走近取食，只能存放可喂食的食物。' },
   branch: {
     kind: 'branch',
     name: '树枝',

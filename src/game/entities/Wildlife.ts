@@ -1344,7 +1344,7 @@ export class Wildlife implements Updatable {
     }
     if (state.eating > 0) return false;
     if (state.cooldown <= 0 && (!state.tamed || state.seeking) && this.foodDrops) {
-      const sources = state.tamed && this.foodBarrels ? [this.foodDrops, this.foodBarrels] : [this.foodDrops];
+      const sources = this.foodBarrels ? [this.foodDrops, this.foodBarrels] : [this.foodDrops];
       const allowed = (x: number, z: number) => this.canStand(animal, x, z)
         && (!(animal.leash && 'holder' in animal.leash)
           || Math.hypot(x - animal.leash.holder.group.position.x, z - animal.leash.holder.group.position.z) <= STAKE_LEASH);
@@ -1354,7 +1354,7 @@ export class Wildlife implements Updatable {
           Math.min(2, Math.hypot(target.x - animal.pos.x, target.z - animal.pos.z) / Math.max(delta, 0.001)), delta),
         hunger => {
           this.onAnimalEat(animal.id);
-          if (feedAnimal(state, animal.species as TameSpecies, hunger)) {
+          if (feedAnimal(state, animal.species as TameSpecies, hunger, animal.bornAt === null)) {
             this.lifecycle.cancel(animal);
             this.clearTameCombat(animal);
             this.population.release(animal.habitat);

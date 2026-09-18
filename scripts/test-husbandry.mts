@@ -202,3 +202,45 @@ console.log('Husbandry: decay, feeding thresholds, cooldown, production, old sav
   advanceHusbandry(state, 'sheep', true, 30, 60, 1);
   assert.equal(state.tamed, false, 'GM 衰减加速仍走失养清理');
 }
+
+{
+  const state = newHusbandry();
+  feedAnimal(state, 'sheep', 60, true);
+  assert.equal(state.wool, true, '成年长毛羊驯养成功即可剪毛');
+  assert.equal(state.milk, false, '首次驯养不提前产奶');
+  state.wool = false; state.shorn = true; state.woolLeft = 600;
+  advanceHusbandry(state, 'sheep', true, 599, 0);
+  assert.equal(state.wool, false, '剪后必须等满十分钟');
+  advanceHusbandry(state, 'sheep', true, 1, 0);
+  assert.equal(state.wool, true); assert.equal(state.shorn, false);
+  const shorn = newHusbandry(); shorn.shorn = true;
+  feedAnimal(shorn, 'sheep', 60, true);
+  assert.equal(shorn.wool, false, '短毛羊重新驯养不会立即产毛');
+  const calf = newHusbandry(); feedAnimal(calf, 'sheep', 60, false);
+  assert.equal(calf.wool, false, '幼羊驯养后不可剪毛');
+  advanceHusbandry(calf, 'sheep', true, 0.1, 0);
+  assert.equal(calf.wool, true, '成年后可剪现有完整羊毛');
+  const old = restoreHusbandry({ tamed: true, heart: 60, shorn: false }, 'sheep');
+  advanceHusbandry(old, 'sheep', true, 0.1, 0);
+  assert.equal(old.wool, true, '旧档长毛成年驯养羊可直接剪毛');
+}
+{
+  const sheep = animal(), world = harness(sheep);
+  world.foodDrops = { foodTargets: () => [] };
+  let portions = 2;
+  world.foodBarrels = { foodTargets: () => [{ position: new THREE.Vector3(), consume: () => portions > 0 ? (portions--, 60) : 0 }] };
+  world.updateHusbandry(sheep, 0.1);
+  assert.equal(portions, 2, '未套住的野生动物不能吃桶内食物');
+  world.lassoAnimal(1, player);
+  world.updateHusbandry(sheep, 0.1);
+  assert.equal(portions, 1, '首次驯养可从食料桶取一份');
+  assert.equal(sheep.husbandry.tamed, true);
+  assert.equal(sheep.husbandry.wool, true);
+  const guestSheep = animal(), guestWorld = harness(guestSheep);
+  guestWorld.applyLifeScale = () => {};
+  guestWorld.netApply(world.netPoses());
+  assert.equal(guestSheep.husbandry.wool, true, '立即可剪状态同步到客人');
+  assert.equal(world.takeProduce(1, player.group.position, true).kind, 'wool');
+  assert.equal(world.takeProduce(1, player.group.position, true), null);
+}
+console.log('Immediate wool, regrowth, old saves, taming barrel and guest sync passed.');

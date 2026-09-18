@@ -46,6 +46,14 @@ export function restoreHusbandry(value: Partial<HusbandryState> | undefined, spe
   return state;
 }
 
+/** 完整毛皮在成年且驯养后即可收取，剪过的羊仍需等待重新长毛。 */
+function readyExistingWool(state: HusbandryState, species: TameSpecies, adult: boolean): void {
+  if (state.tamed && adult && LIVESTOCK_PRODUCE[species]?.wool && !state.shorn) {
+    state.wool = true;
+    state.woolLeft = 0;
+  }
+}
+
 /** 返回本帧是否失去驯养。所有计时只在房主运行秒数上推进。 */
 export function advanceHusbandry(state: HusbandryState, species: TameSpecies, adult: boolean, delta: number, decaySpeed = 1, productionSpeed = 1): boolean {
   if (delta <= 0) return false;
@@ -59,6 +67,7 @@ export function advanceHusbandry(state: HusbandryState, species: TameSpecies, ad
     return true;
   }
   if (state.heart < HEART_MAX[species] * 0.7) state.seeking = true;
+  readyExistingWool(state, species, adult);
   const produce = LIVESTOCK_PRODUCE[species];
   if (adult && produce) {
     if (!state.milk) { state.milkLeft = Math.max(0, state.milkLeft - delta * productionSpeed); state.milk = state.milkLeft === 0; }
@@ -71,12 +80,13 @@ export function advanceHusbandry(state: HusbandryState, species: TameSpecies, ad
 }
 
 /** 返回是否首次填满，调用方负责清理战斗与繁殖状态。 */
-export function feedAnimal(state: HusbandryState, species: TameSpecies, hunger: number): boolean {
+export function feedAnimal(state: HusbandryState, species: TameSpecies, hunger: number, adult = false): boolean {
   if (state.cooldown > 0 || hunger <= 0) return false;
   const before = state.tamed;
   state.heart = Math.min(HEART_MAX[species], state.heart + hunger);
   state.cooldown = 5;
   state.eating = 1.6;
   if (state.heart >= HEART_MAX[species]) { state.tamed = true; state.seeking = false; }
+  readyExistingWool(state, species, adult);
   return !before && state.tamed;
 }

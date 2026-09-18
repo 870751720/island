@@ -31,7 +31,7 @@ export class HusbandryIndicators {
         Object.assign(element.style, { position: 'absolute', left: '0', top: '0', display: 'flex', alignItems: 'center', gap: '2px' });
         const heart = document.createElement('span');
         Object.assign(heart.style, { position: 'relative', display: 'block', width: '100%', height: '100%', flexShrink: '0' });
-        heart.innerHTML = `<svg viewBox="0 0 64 64" width="100%" height="100%"><path d="${heartPath}" fill="#fff5e9" stroke="#825853" stroke-width="4"/></svg>`;
+        heart.innerHTML = `<svg viewBox="0 0 64 64" width="100%" height="100%"><path d="${heartPath}" fill="none" stroke="#825853" stroke-width="4"/></svg>`;
         const fill = document.createElement('span');
         Object.assign(fill.style, { position: 'absolute', inset: '0', clipPath: 'inset(100% 0 0 0)' });
         fill.innerHTML = `<svg viewBox="0 0 64 64" width="100%" height="100%"><path d="${heartPath}" fill="#db7d8a" stroke="#825853" stroke-width="4"/></svg>`;
@@ -43,7 +43,9 @@ export class HusbandryIndicators {
         entry = { element, heart, floating, fill, eating, wool, amount: state.heart }; this.entries.set(state.id, entry);
       }
       entry.amount += (state.heart - entry.amount) * (1 - Math.exp(-8 * delta));
-      entry.fill.style.clipPath = `inset(${100 * (1 - Math.max(0, Math.min(1, entry.amount)))}% 0 0 0)`;
+      const amount = Math.max(0, Math.min(state.tamed ? 1 : 0.9, entry.amount));
+      // 按心形实际高度裁切，避免 SVG 顶部留白让九成进度看起来已填满。
+      entry.fill.style.clipPath = `inset(${(56 - 46 * amount) / 64 * 100}% 0 0 0)`;
       this.point.set(0, state.height, 0).applyMatrix4(state.target.matrixWorld);
       this.point.project(this.camera);
       const visible = Math.abs(this.point.x) <= 1.1 && Math.abs(this.point.y) <= 1.1 && Math.abs(this.point.z) <= 1;
