@@ -30,6 +30,7 @@
   - `GmPanel.tsx`:模态弹窗外壳与 tab 切换,导出 `GmActions` 回调接口,由 GameplayUI 注入并转发到 Game 实例。
   - `PlayerTab.tsx` / `WorldTab.tsx` / `FishingTab.tsx` / `ItemsTab.tsx`:各 tab 内容。
   - `controls.tsx`:可复用的 ToggleRow / ActionButton / StepperRow / SelectRow 控件。
+  - 通栏控件统一使用 `border-box` 计算宽度,让步进行的 `div` 与普通 `button` 外沿对齐,避免 `100%` 宽度再叠加内边距和边框造成横向溢出及中间多余留白。步进加减按钮为 44×44px 且不收缩,数值槽固定宽度;窄屏长标签允许换行。该布局在单机、房主和客人端共用,不改变 GM 动作、权威结算或状态同步,不涉及图鉴内容。
 - `src/ui/SettingsPanel.tsx`:标题「设置」为隐藏触发热点,维护 2 秒滑动窗口内的点击计数,满 5 次经 `onSecretGmTrigger` 上抛;热区用负边距抵消内边距扩大到约 44px 高且不改变布局,非按钮元素因此无点击音效,样式关闭点击高亮与文字选择。
 - `src/ui/GameplayUI.tsx`:接 `onSecretGmTrigger` 打开 GM 面板;GM 弹层 zIndex 210,叠在设置面板(200)之上,关闭后回到设置。
 

@@ -85,8 +85,8 @@ export function StepperRow({
   const gridUp = Math.round((Math.floor(value / step + 1e-9) + 1) * step * 1e6) / 1e6;
   return (
     <div style={{ ...rowStyle, cursor: 'default' }}>
-      <span>{label}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <button onClick={() => onChange(Math.max(min, gridDown))} style={stepButtonStyle}>
           −
         </button>
@@ -170,6 +170,7 @@ const rowStyle = {
   minHeight: 48,
   padding: '10px 14px',
   ...gameButtonStyle,
+  boxSizing: 'border-box',
   borderRadius: 10,
   background: gameTheme.inset,
   fontFamily: gameTheme.font,
@@ -179,9 +180,11 @@ const rowStyle = {
 } as const;
 
 const stepButtonStyle = {
-  width: 36,
-  height: 36,
+  width: 44,
+  height: 44,
   ...gameButtonStyle,
+  boxSizing: 'border-box',
+  flexShrink: 0,
   borderRadius: 8,
   background: gameTheme.action,
   color: gameTheme.ink,
