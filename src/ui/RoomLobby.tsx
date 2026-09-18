@@ -150,7 +150,7 @@ export function RoomLobby({
                 </label>
               )}
               {!resume && <CompanionSelector value={pet} onChange={setPet} disabled={busy} />}
-              {!resume && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">{gameMode === 'leisure' ? '悠然模式无法获得荒岛传承点。' : '求生模式可按生存天数获得荒岛传承点。'}开局后无法切换。</p></>}
+              {!resume && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">开局后无法切换。</p></>}
               <button className="room-button" data-ui-sound="manual" disabled={busy} onClick={createRoom}>
                 {busy ? '正在创建…' : '创建免费房间'}
               </button>
