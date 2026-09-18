@@ -2,6 +2,10 @@ import { MAX_BYTES, normalizeCode } from '../../../shared/cloudSave';
 
 const endpoint = `${(process.env.NEXT_PUBLIC_CLOUD_API_URL || 'https://43.110.116.98').replace(/\/$/, '')}/api/save`;
 
+export class CloudSaveMissingError extends Error {
+  constructor() { super('该存档码还没有云档，请检查存档码，或先在有进度的设备上传。'); }
+}
+
 async function request(code: string, body?: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
@@ -13,7 +17,7 @@ async function request(code: string, body?: string): Promise<string> {
       redirect: 'error',
     });
     if (!response.ok) {
-      if (response.status === 404) throw new Error('该存档码还没有云档，请检查存档码，或先在有进度的设备上传。');
+      if (response.status === 404) throw new CloudSaveMissingError();
       if (response.status === 429) throw new Error('操作太频繁，请稍后重试。');
       if (response.status === 413) throw new Error('存档超过 10 MiB，上传未完成。');
       throw new Error('云存档服务暂时不可用，请稍后重试。');

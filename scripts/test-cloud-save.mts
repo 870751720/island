@@ -42,6 +42,51 @@ assert.deepEqual(JSON.parse(JSON.stringify(storage)), JSON.parse(before));
 assert.throws(() => context.exports.restoreBundle({ ...bundle, entries: { ...entries, 'island.save.v1': '{' } }));
 assert.deepEqual(JSON.parse(JSON.stringify(storage)), JSON.parse(before));
 
+// Exercise the actual startup flow helpers: never treat a network failure as an empty slot,
+// and restoring the cloud selection must not issue an upload or preserve stale local keys.
+function cloudModule(name: string, modules: Record<string, unknown>, globals: Record<string, unknown> = {}) {
+  const source = readFileSync(new URL(`../src/game/cloud/${name}.ts`, import.meta.url), 'utf8');
+  const scope = vm.createContext({ exports: {}, localStorage: storage, TextEncoder, TextDecoder, Uint8Array,
+    AbortController, setTimeout, clearTimeout, process: { env: {} }, require: (key: string) => modules[key], ...globals });
+  vm.runInContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, scope);
+  return scope.exports;
+}
+let responseStatus = 200;
+let responseText = JSON.stringify(bundle);
+let uploadCalls = 0;
+const api = cloudModule('CloudApi', { '../../../shared/cloudSave': format }, { fetch: async (_url: string, options: { method: string }) => {
+  if (options.method === 'PUT') uploadCalls++;
+  return new Response(responseText, { status: responseStatus });
+} });
+const codes = cloudModule('CloudCode', { '../../../shared/cloudSave': format });
+const startup = cloudModule('StartCloudSave', { '../../../shared/cloudSave': format, './CloudApi': api, './CloudCode': codes, './SaveBundle': context.exports });
+assert.equal(codes.loadCloudCode(), code);
+delete storage[format.CLOUD_CODE_KEY];
+assert.equal(codes.loadCloudCode(), '', 'Cleared local storage must prompt again');
+codes.rememberCloudCode(code);
+responseStatus = 404;
+assert.equal(await startup.findStartingCloudSave(code), null);
+responseStatus = 503;
+await assert.rejects(startup.findStartingCloudSave(code));
+responseStatus = 200;
+responseText = '{invalid';
+await assert.rejects(startup.findStartingCloudSave(code));
+responseText = JSON.stringify(bundle);
+const found = await startup.findStartingCloudSave(code);
+assert.ok(found);
+assert.throws(() => startup.restoreStartingCloudSave('wrong-code', found));
+startup.restoreStartingCloudSave(code, found);
+assert.equal(storage['island.old'], undefined);
+assert.equal(uploadCalls, 0, 'Using the cloud version must never upload');
+const worldSave = { version: 32, props: [], slots: [], player: {}, survival: {}, terrainSeed: 123, day: 1 };
+const initial = JSON.parse(startup.captureStartingCloudSave(code, worldSave));
+assert.deepEqual(JSON.parse(initial.entries['island.save.v1']), worldSave);
+assert.equal(storage['island.save.v1'], undefined, 'Initial backup must not change normal local saving');
+const guestInitial = JSON.parse(startup.captureStartingCloudSave(code));
+assert.equal(guestInitial.entries['island.save.v1'], undefined, 'Guest must not upload the remote world');
+await api.uploadCloud(code, JSON.stringify(initial));
+assert.equal(uploadCalls, 1);
+
 const directory = mkdtempSync(join(tmpdir(), 'island-cloud-test-'));
 const filename = join(directory, 'saves.sqlite');
 let store = new SaveStore(filename, 'test-only-secret-'.repeat(4));
@@ -74,7 +119,7 @@ try {
   store.close();
   store = new SaveStore(filename, 'test-only-secret-'.repeat(4));
   assert.deepEqual(JSON.parse(store.get(code)!), replacement);
-  console.log('Cloud save: full restore, rollback, code validation, API isolation/overwrite, CORS, limits and restart persistence passed.');
+  console.log('Cloud save: startup selection/no-upload restore, initial snapshots, rollback, code validation, API isolation/overwrite, CORS, limits and restart persistence passed.');
 } finally {
   if (server.listening) await new Promise<void>(resolve => server.close(() => resolve()));
   store.close();

@@ -68,6 +68,10 @@ import { HudLayoutAdjuster } from './hud/HudLayoutAdjuster';
 import { useHudLayout } from './hud/useHudLayout';
 import type { CSSProperties } from 'react';
 import { IslandArrival } from './start/IslandArrival';
+import dynamic from 'next/dynamic';
+
+const InitialCloudBackup = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1'
+  ? dynamic(() => import('./cloud/InitialCloudBackup'), { ssr: false }) : null;
 
 /**
  * 游戏进行中的完整 UI 与 Game 实例生命周期:
@@ -81,6 +85,7 @@ export function GameplayUI({
   onExit,
   onBecomeHost,
   multiplayerEnabled = true,
+  initialBackupCode,
 }: {
   /** 联机会话(房主或客人);缺省为单机 */
   net?: { host?: NetHost; guest?: NetGuest };
@@ -93,6 +98,8 @@ export function GameplayUI({
   onBecomeHost: (host: NetHost) => void;
   /** 小红书离线渠道不展示设置内的多人入口。 */
   multiplayerEnabled?: boolean;
+  /** 首次填写存档码并明确同意后，仅为本次入场上传一次。 */
+  initialBackupCode?: string;
 }) {
   const {
     gameRef,
@@ -224,6 +231,7 @@ export function GameplayUI({
     >
       <style>{hudStyles + gameThemeCss}</style>
       <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
+      {InitialCloudBackup && initialBackupCode && <InitialCloudBackup code={initialBackupCode} ready={worldReady} gameRef={gameRef} guest={!!net?.guest} />}
       {!hud.dead && !photoMode && (
         <VirtualJoystick
           onChange={(x, z) => gameRef.current?.setJoystick(x, z)}

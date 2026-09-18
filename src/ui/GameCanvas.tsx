@@ -12,8 +12,14 @@ import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
 import { MobileDisplay } from './display/MobileDisplay';
+import dynamic from 'next/dynamic';
+
+const CloudStartGate = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1'
+  ? dynamic(() => import('./cloud/CloudStartGate'), { ssr: false }) : null;
 
 type Phase = 'start' | 'host' | 'guest' | 'playing';
+type Entry = { kind: 'single'; mode: StartMode; gameMode: GameMode; pet: CompanionKind }
+  | { kind: 'host' | 'guest'; gameMode: GameMode };
 
 /** 阶段路由:开始界面 / 联机大厅 / 游戏进行中(含死亡弹窗)的切换。 */
 export function GameCanvas() {
@@ -32,13 +38,15 @@ function GamePhases() {
   const [invitedRoom, setInvitedRoom] = useState('');
   /** 单机启动时锁定的存档选择:null=明确新档,SaveData=明确继续,避免 Game 构造时二次读取产生竞态 */
   const [singlePlayerSave, setSinglePlayerSave] = useState<SaveData | null>(null);
+  const [pendingEntry, setPendingEntry] = useState<Entry | null>(null);
+  const [initialBackupCode, setInitialBackupCode] = useState<string>();
 
   useEffect(() => {
     if (!multiplayerEnabled) return;
     const room = new URLSearchParams(window.location.search).get('room');
     if (!room) return;
     setInvitedRoom(room);
-    setPhase('guest');
+    requestEntry({ kind: 'guest', gameMode });
   }, []);
 
   const start = (mode: StartMode, selectedMode: GameMode, pet: CompanionKind) => {
@@ -56,12 +64,29 @@ function GamePhases() {
     setPhase('playing');
   };
 
+  const enter = (entry: Entry, code?: string, useExistingLocal = false) => {
+    setPendingEntry(null);
+    setInitialBackupCode(code);
+    if (entry.kind === 'single') {
+      start(useExistingLocal ? 'continue' : entry.mode, entry.gameMode, entry.pet);
+    } else {
+      setGameMode(entry.gameMode);
+      setNotice('');
+      setPhase(entry.kind);
+    }
+  };
+  const requestEntry = (entry: Entry) => {
+    if (CloudStartGate) setPendingEntry(entry);
+    else enter(entry);
+  };
+
   const exit = () => {
     // 退出时一并断开联机会话(房主与客人都会回到开始界面)
     host?.dispose();
     guest?.dispose();
     setHost(null);
     setGuest(null);
+    setInitialBackupCode(undefined);
     setPhase('start');
   };
 
@@ -69,11 +94,16 @@ function GamePhases() {
     // 断线不清席位:回到加入页,房间码与昵称自动带出,重新点「加入房间」即可恢复原角色
     guest?.dispose();
     setGuest(null);
+    setInitialBackupCode(undefined);
     setNotice('连接已断开。重新加入上次的房间即可恢复角色（席位保留 5 分钟）');
     setDisconnectNotice('连接已断开。直接点「加入房间」即可恢复角色（席位保留 5 分钟）');
     setPhase('guest');
   };
 
+  if (pendingEntry && CloudStartGate) return <CloudStartGate
+    onContinue={(code, useLocal) => enter(pendingEntry, code, useLocal)}
+    onCancel={() => { setPendingEntry(null); setInitialBackupCode(undefined); setPhase('start'); }}
+  />;
   if (phase === 'playing') {
     return (
       <GameplayUI
@@ -84,6 +114,7 @@ function GamePhases() {
         onExit={exit}
         onBecomeHost={setHost}
         multiplayerEnabled={multiplayerEnabled}
+        initialBackupCode={initialBackupCode}
       />
     );
   }
@@ -96,7 +127,7 @@ function GamePhases() {
           setHost(net as NetHost);
           setPhase('playing');
         }}
-        onBack={() => setPhase('start')}
+        onBack={() => { setInitialBackupCode(undefined); setPhase('start'); }}
       />
     );
   }
@@ -115,6 +146,7 @@ function GamePhases() {
         }}
         onBack={() => {
           setDisconnectNotice('');
+          setInitialBackupCode(undefined);
           setPhase('start');
         }}
       />
@@ -122,12 +154,10 @@ function GamePhases() {
   }
   return (
     <StartScreen
-      onStart={start}
+      onStart={(mode, gameMode, pet) => requestEntry({ kind: 'single', mode, gameMode, pet })}
       onMultiplayer={(role: MultiplayerRole, selectedMode: GameMode) => {
-        setGameMode(selectedMode);
         if (!multiplayerEnabled) return;
-        setNotice('');
-        setPhase(role);
+        requestEntry({ kind: role, gameMode: selectedMode });
       }}
       notice={notice}
       multiplayerEnabled={multiplayerEnabled}
