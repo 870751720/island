@@ -1,4 +1,21 @@
 services:
+  relay:
+    build:
+      context: ..
+      dockerfile: relay/Dockerfile
+    image: island-relay:${REVISION}
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      REVISION: ${REVISION}
+      RELAY_MAX_ROOMS: ${RELAY_MAX_ROOMS:-2}
+      RELAY_MAX_PLAYERS: ${RELAY_MAX_PLAYERS:-4}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/relay/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
   signaling:
     image: eclipse-mosquitto:2.0.22
     restart: unless-stopped
@@ -32,6 +49,8 @@ services:
     image: nginx:stable-alpine
     restart: unless-stopped
     depends_on:
+      relay:
+        condition: service_healthy
       signaling:
         condition: service_healthy
       api:

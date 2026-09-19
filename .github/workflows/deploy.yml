@@ -89,6 +89,7 @@ jobs:
       - run: npm run typecheck
       - run: node scripts/test-cloud-save.mts
       - run: node scripts/test-multiplayer-connection.mts
+      - run: node scripts/test-relay.mts
       - run: npm run build
         env:
           SERVER_EXPORT: '1'
@@ -96,7 +97,7 @@ jobs:
       - name: Prepare release
         run: |
           test -f out/index.html
-          tar -czf release.tar.gz out server shared signaling
+          tar --exclude='relay/node_modules' -czf release.tar.gz out server shared signaling relay
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}

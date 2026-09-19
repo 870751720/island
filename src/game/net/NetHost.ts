@@ -4,6 +4,9 @@ import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { SaveData, SessionSave } from '../systems/SaveSystem';
 import { PeerNet } from './PeerNet';
+import type { GameConnection } from './GameConnection';
+import type { ConnectionMode } from './ConnectionMode';
+import { RelayRoom } from './RelayRoom';
 import { HostSignal } from './Signaling';
 import { dispatchNetAction, isNetActionName } from './Actions';
 import { NET_PROTOCOL_VERSION, type NetEvent, type NetMsg } from './Protocol';
@@ -25,7 +28,7 @@ const RECOVERY_MS = 5000;
 /** 一名已接入的客人 */
 type Guest = {
   peer: string;
-  net: PeerNet;
+  net: GameConnection;
   session: PlayerSession | null;
   name: string;
   joined: boolean;
@@ -47,7 +50,7 @@ type Guest = {
 
 type Resumable = { save: SessionSave; name: string; expires: number };
 
-/** 房主侧联机会话总管:管理多条 DataChannel、接入/断线、输入写入、动作分发与快照广播 */
+/** 房主侧联机会话总管：管理消息连接、接入/断线、输入写入、动作分发与快照广播。 */
 export class NetHost {
   terrainSeed: number;
   initialSave: SaveData | null = null;
@@ -62,12 +65,16 @@ export class NetHost {
   private worldRevision = 0;
   private resumable = new Map<string, Resumable>();
   private signal: HostSignal | null = null;
+  private relay: RelayRoom | null = null;
+  connectionMode: ConnectionMode = 'direct';
+  maxPlayers: number | null = null;
   private roomAttempt = 0;
   roomCode = '';
 
   onGuestJoined: (name: string) => void = () => {};
   onGuestLeft: (name: string) => void = () => {};
   onGuestConnectionFailed: () => void = () => {};
+  onRoomClosed: (reason: string) => void = () => {};
 
   constructor() {
     this.terrainSeed = Math.random() * 1000;
@@ -87,9 +94,35 @@ export class NetHost {
   }
 
   /** 创建五位数字码房间；之后加入者由信令服务自动接入。 */
-  async createRoom(): Promise<string> {
+  async createRoom(mode: ConnectionMode = 'direct'): Promise<string> {
+    if (this.roomCode) return this.roomCode;
     const attempt = ++this.roomAttempt;
+    this.connectionMode = mode;
     this.purgeResumable();
+    if (mode === 'relay') {
+      const relay = new RelayRoom('host');
+      this.relay?.close();
+      this.relay = relay;
+      relay.onPeer = (peer, net) => { this.registerPeer(peer, net); };
+      relay.onClosed = reason => {
+        if (this.relay !== relay) return;
+        this.roomCode = '';
+        for (const guest of [...this.guests]) this.dropGuest(guest);
+        this.onRoomClosed(reason);
+      };
+      try {
+        const code = await relay.connect();
+        if (attempt !== this.roomAttempt) throw new Error('已取消创建房间');
+        this.maxPlayers = relay.capacity?.maxPlayers ?? null;
+        this.roomCode = code;
+        return code;
+      } catch (error) {
+        relay.close();
+        if (this.relay === relay) this.relay = null;
+        throw error;
+      }
+    }
+    this.maxPlayers = null;
     const room = await HostSignal.create();
     if (attempt !== this.roomAttempt) {
       room.signal.close();
@@ -100,15 +133,24 @@ export class NetHost {
     room.signal.onPeerJoined = (peer) => void this.addPeer(peer);
     room.signal.onSignal = (peer, data) => {
       const guest = this.guests.find((item) => item.peer === peer);
-      if (guest) void guest.net.receiveSignal(data).catch(() => this.dropGuest(guest));
+      if (guest?.net instanceof PeerNet) void guest.net.receiveSignal(data).catch(() => this.dropGuest(guest));
     };
     return room.roomCode;
   }
 
   private async addPeer(peer: string): Promise<void> {
     if (!this.signal || this.guests.some((guest) => guest.peer === peer)) return;
-    this.purgeResumable();
     const net = new PeerNet('host', (data) => this.signal?.send(peer, data));
+    const guest = this.registerPeer(peer, net);
+    try {
+      await net.start();
+    } catch {
+      this.dropGuest(guest);
+    }
+  }
+
+  private registerPeer(peer: string, net: GameConnection): Guest {
+    this.purgeResumable();
     const guest: Guest = {
       peer,
       net,
@@ -126,11 +168,7 @@ export class NetHost {
     net.onOpen = () => { guest.lastSeen = performance.now(); };
     net.onMessage = (msg) => this.onMessage(guest, msg as NetMsg);
     net.onClose = () => this.dropGuest(guest);
-    try {
-      await net.start();
-    } catch {
-      this.dropGuest(guest);
-    }
+    return guest;
   }
 
   /** 游戏创建后挂接:为已连客人建会话并发欢迎包,开始按帧广播 */
@@ -153,10 +191,13 @@ export class NetHost {
   dispose(): void {
     this.roomAttempt++;
     this.detach();
+    this.relay?.close();
+    this.relay = null;
     for (const guest of this.guests) guest.net.close();
     this.guests = [];
     this.signal?.close();
     this.signal = null;
+    this.roomCode = '';
   }
 
   private onMessage(guest: Guest, msg: NetMsg): void {

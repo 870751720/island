@@ -1,4 +1,7 @@
 import { PeerNet } from './PeerNet';
+import type { GameConnection } from './GameConnection';
+import { parseConnectionMode, type ConnectionMode } from './ConnectionMode';
+import { RelayRoom } from './RelayRoom';
 import { GuestSignal, normalizeRoomCode } from './Signaling';
 import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { WorldDeltaOp } from './WorldDelta';
@@ -13,28 +16,30 @@ const INPUT_HZ = 20; // 摇杆上行频率
 const RESUME_KEY = 'island.multiplayer.resume';
 const LAST_ROOM_KEY = 'island.multiplayer.lastRoom';
 
-/** 记住最近加入的房间(码+昵称):断线后回到加入页自动带出,一键重进 */
-export function saveLastRoom(code: string, name: string): void {
+/** 记住最近加入的房间码、昵称和连接方式，断线后回到加入页自动带出。 */
+export function saveLastRoom(code: string, name: string, mode: ConnectionMode = 'direct'): void {
   try {
-    window.localStorage.setItem(LAST_ROOM_KEY, JSON.stringify({ code: normalizeRoomCode(code), name }));
+    window.localStorage.setItem(LAST_ROOM_KEY, JSON.stringify({ code: normalizeRoomCode(code), name, mode }));
   } catch {}
 }
 
-export function loadLastRoom(): { code: string; name: string } | null {
+export function loadLastRoom(): { code: string; name: string; mode: ConnectionMode } | null {
   try {
     const raw = window.localStorage.getItem(LAST_ROOM_KEY);
     if (!raw) return null;
-    const saved = JSON.parse(raw) as { code?: string; name?: string };
+    const saved = JSON.parse(raw) as { code?: string; name?: string; mode?: string };
     if (!saved.code) return null;
-    return { code: saved.code, name: saved.name ?? '' };
+    return { code: saved.code, name: saved.name ?? '', mode: parseConnectionMode(saved.mode) };
   } catch {
     return null;
   }
 }
 
-/** 客人侧联机会话:单条 DataChannel,上行摇杆/动作,下行世界与快照交给 Game 的 guest 模式应用 */
+/** 客人侧联机会话：上行摇杆/动作，下行世界与快照交给 Game 的 guest 模式应用。 */
 export class NetGuest {
-  private net: PeerNet | null = null;
+  private net: GameConnection | null = null;
+  private relay: RelayRoom | null = null;
+  connectionMode: ConnectionMode = 'direct';
   private signal: GuestSignal | null = null;
   dogView = { width: 0, height: 0 };
   private sentDogView = "";
@@ -61,7 +66,7 @@ export class NetGuest {
     null;
 
   onStarted: () => void = () => {};
-  onClosed: () => void = () => {};
+  onClosed: (reason?: string) => void = () => {};
   onRejected: (reason: string) => void = () => {};
   onConnectionStatus: (status: string) => void = () => {};
   /** 由 Game(guest 模式)注册的数据应用回调 */
@@ -75,13 +80,15 @@ export class NetGuest {
   /** 输入包实际入队时通知 Game，供权威快照对账保留本地预测轨迹。 */
   onInputSent: (seq: number) => void = () => {};
 
-  /** 输入五位数字房间码，信令服务会自动完成 WebRTC 握手。 */
-  async join(code: string, name: string, gender?: PlayerGender): Promise<void> {
+  /** 输入五位数字房间码，按房主选择的连接方式加入。 */
+  async join(code: string, name: string, gender?: PlayerGender, mode: ConnectionMode = 'direct'): Promise<void> {
     this.dispose();
     this.disposed = false;
     this.pending = [];
     this.welcome = null;
     this.ready = false;
+    this.connectionMode = mode;
+    if (mode === 'relay') return this.joinRelay(code, name, gender);
     const signal = new GuestSignal();
     const net = new PeerNet('guest', (data) => signal.send(data));
     this.signal = signal;
@@ -115,15 +122,51 @@ export class NetGuest {
     signal.onClose = () => {
       if (!net.connected) net.onClose();
     };
-    let resumeToken: string | undefined;
-    try {
-      resumeToken = localStorage.getItem(RESUME_KEY) || undefined;
-    } catch {}
-    net.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken, gender });
+    this.sendHello(name, gender);
     saveLastRoom(code, name);
     try {
       await signal.connect(normalizeRoomCode(code));
     } catch (error) {
+      if (this.net !== net || this.disposed) return;
+      this.dispose();
+      throw error;
+    }
+  }
+
+  private sendHello(name: string, gender?: PlayerGender): void {
+    let resumeToken: string | undefined;
+    try { resumeToken = localStorage.getItem(RESUME_KEY) || undefined; } catch {}
+    this.net?.send({ t: 'hello', name, protocol: NET_PROTOCOL_VERSION, resumeToken, gender });
+  }
+
+  private async joinRelay(code: string, name: string, gender?: PlayerGender): Promise<void> {
+    const relay = new RelayRoom('guest');
+    const net = relay.guestPeer();
+    this.relay = relay;
+    this.net = net;
+    net.onMessage = raw => {
+      if (this.net === net && !this.disposed) this.onMessage(raw as NetMsg);
+    };
+    net.onOpen = () => {
+      if (this.net !== net || this.disposed) return;
+      this.sendHello(name, gender);
+      this.startInput();
+      this.onConnectionStatus('连接成功，等待房主开始游戏');
+    };
+    relay.onClosed = reason => {
+      if (this.relay !== relay || this.disposed) return;
+      this.dispose();
+      this.onClosed(reason);
+    };
+    net.onClose = () => {
+      if (this.net !== net || this.disposed) return;
+      this.dispose();
+      this.onClosed('与房主的连接已结束，请重新加入');
+    };
+    saveLastRoom(code, name, 'relay');
+    this.onConnectionStatus('正在通过服务器连接房主…');
+    try { await relay.connect(normalizeRoomCode(code)); }
+    catch (error) {
       if (this.net !== net || this.disposed) return;
       this.dispose();
       throw error;
@@ -144,6 +187,8 @@ export class NetGuest {
     this.signal?.close();
     this.net = null;
     this.signal = null;
+    this.relay?.close();
+    this.relay = null;
   }
 
   private onMessage(msg: NetMsg): void {

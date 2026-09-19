@@ -5,14 +5,14 @@ export type TrafficDirection = 'up' | 'down';
 export type TrafficBreakdown = { direction: TrafficDirection; channel: TrafficChannel; type: string; bytes: number };
 
 /**
- * 网络流量统计:由 PeerNet 在收发统一入口累加字节数,并汇总各条通道的往返延迟。
+ * 网络流量统计:由 PeerNet / RelayPeer 累加游戏载荷字节数,并汇总到对端的往返延迟。
  * GM 流量浮层按秒采样差值得到每秒上下行速率;单机时无数据,恒为 0。
  */
 export const NetTraffic = {
   sentBytes: 0,
   recvBytes: 0,
   breakdown: new Map<string, TrafficBreakdown>(),
-  /** JSON 的 UTF-8 字节数（不含 SCTP/DTLS 开销）。 */
+  /** JSON 的 UTF-8 字节数（不含传输封装与中转路由开销）。 */
   byteLength(value: string): number {
     return utf8Encoder.encode(value).byteLength;
   },

@@ -1,0 +1,11 @@
+{
+  "name": "island-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node main.ts"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  }
+}

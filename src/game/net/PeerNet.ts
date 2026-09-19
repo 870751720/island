@@ -1,4 +1,5 @@
 import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
+import type { GameConnection } from './GameConnection';
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [{ urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'] }],
@@ -23,7 +24,7 @@ export type PeerSignal =
   | { candidate: RTCIceCandidateInit };
 
 /** 关键消息走可靠有序通道；可淘汰的实时状态走无序、不重传通道。 */
-export class PeerNet {
+export class PeerNet implements GameConnection {
   private readonly pc = new RTCPeerConnection(RTC_CONFIG);
   private controlChannel?: RTCDataChannel;
   private stateChannel?: RTCDataChannel;

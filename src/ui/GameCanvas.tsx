@@ -11,6 +11,7 @@ import { SaveSystem } from '@/game/systems/SaveSystem';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
+import { parseConnectionMode, type ConnectionMode } from '@/game/net/ConnectionMode';
 import { MobileDisplay } from './display/MobileDisplay';
 import dynamic from 'next/dynamic';
 
@@ -36,6 +37,7 @@ function GamePhases() {
   const [notice, setNotice] = useState('');
   const [disconnectNotice, setDisconnectNotice] = useState('');
   const [invitedRoom, setInvitedRoom] = useState('');
+  const [invitedConnection, setInvitedConnection] = useState<ConnectionMode>();
   /** 单机启动时锁定的存档选择:null=明确新档,SaveData=明确继续,避免 Game 构造时二次读取产生竞态 */
   const [singlePlayerSave, setSinglePlayerSave] = useState<SaveData | null>(null);
   const [pendingEntry, setPendingEntry] = useState<Entry | null>(null);
@@ -46,6 +48,7 @@ function GamePhases() {
     const room = new URLSearchParams(window.location.search).get('room');
     if (!room) return;
     setInvitedRoom(room);
+    setInvitedConnection(parseConnectionMode(new URLSearchParams(window.location.search).get('connection')));
     requestEntry({ kind: 'guest', gameMode });
   }, []);
 
@@ -90,13 +93,14 @@ function GamePhases() {
     setPhase('start');
   };
 
-  const guestDisconnected = () => {
-    // 断线不清席位:回到加入页,房间码与昵称自动带出,重新点「加入房间」即可恢复原角色
+  const guestDisconnected = (reason?: string) => {
+    // 保留房主端角色恢复记录，回到加入页带出房间码和方式；在线人数名额已释放。
     guest?.dispose();
     setGuest(null);
     setInitialBackupCode(undefined);
-    setNotice('连接已断开。重新加入上次的房间即可恢复角色（席位保留 5 分钟）');
-    setDisconnectNotice('连接已断开。直接点「加入房间」即可恢复角色（席位保留 5 分钟）');
+    const message = `${reason || '连接已断开'}。房主仍在线且房间有空位时，可在 5 分钟内重新加入恢复角色。`;
+    setNotice(message);
+    setDisconnectNotice(message);
     setPhase('guest');
   };
 
@@ -136,15 +140,20 @@ function GamePhases() {
       <RoomLobby
         mode="guest"
         initialRoomCode={invitedRoom}
+        initialConnectionMode={invitedConnection}
         initialStatus={disconnectNotice}
         onBegin={(net) => {
           const nextGuest = net as NetGuest;
           nextGuest.onClosed = guestDisconnected;
           setGuest(nextGuest);
+          setInvitedRoom('');
+          setInvitedConnection(undefined);
           setDisconnectNotice('');
           setPhase('playing');
         }}
         onBack={() => {
+          setInvitedRoom('');
+          setInvitedConnection(undefined);
           setDisconnectNotice('');
           setInitialBackupCode(undefined);
           setPhase('start');

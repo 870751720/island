@@ -1629,6 +1629,7 @@ export class Game {
 
   /** 房主侧:客人加入/离开时向所有玩家广播全局提示 */
   private hookHostNotices(host: NetHost): void {
+    host.onRoomClosed = reason => this.sysNotify(`${reason}。可在设置中重新开房，岛屿进度保留。`);
     host.onGuestJoined = (name) => this.sysNotify(`${name} 加入了游戏`);
     host.onGuestLeft = (name) => this.sysNotify(`${name} 离开了游戏`);
     host.onGuestConnectionFailed = () => this.sysNotify('有玩家尝试加入，但连接未完成，请让对方重试或切换网络');

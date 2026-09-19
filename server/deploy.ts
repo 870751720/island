@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, chownSync, renameSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { verifySignaling } from '../signaling/verify.ts';
+import { verifyRelay } from '../relay/verify.ts';
 
 const root = process.env.ISLAND_ROOT ?? '';
 const revision = process.env.REVISION ?? '';
@@ -44,7 +45,7 @@ function activate(sha: string): void {
   renameSync(pending, previousFile);
 }
 try {
-  compose(revision, ['build', 'api']);
+  compose(revision, ['build', 'api', 'relay']);
   compose(revision, ['up', '-d', '--wait', '--wait-timeout', '120', '--force-recreate']);
   // Also recover a certificate that expired while the machine was stopped.
   compose(revision, ['run', '--rm', '--no-deps', '--entrypoint', 'certbot', 'certbot', 'renew', '--webroot', '-w', '/var/www/acme', '--quiet']);
@@ -57,6 +58,7 @@ try {
       const health = await response.json() as { ok?: boolean; revision?: string };
       if (page.status === 200 && response.ok && health.ok && health.revision === revision) {
         await verifySignaling();
+        await verifyRelay(site, revision);
         healthy = true;
         break;
       }

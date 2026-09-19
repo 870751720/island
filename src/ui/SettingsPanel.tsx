@@ -13,6 +13,9 @@ import styles from './SettingsPanel.module.css';
 import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSettings';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
+import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
+import { ConnectionSelector } from './ConnectionSelector';
+import { useRelayAvailability } from './useRelayAvailability';
 
 /** 滑杆行:名称 + range input + 百分比 */
 function SliderRow({
@@ -50,7 +53,10 @@ export type MultiplayerSection = {
   roomCode: string;
   busy: boolean;
   error: string;
-  onEnable: () => void;
+  mode: ConnectionMode;
+  maxPlayers: number | null;
+  players: number;
+  onEnable: (mode: ConnectionMode) => void;
 };
 
 /**
@@ -91,6 +97,8 @@ export function SettingsPanel({
   mode: GameMode;
 }) {
   const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('game');
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(multiplayer?.mode ?? 'direct');
+  const availability = useRelayAvailability(connectionMode, !!multiplayer && !multiplayer.roomCode && !multiplayer.busy && tab === 'game');
   const [guide, setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
@@ -111,11 +119,14 @@ export function SettingsPanel({
       onSecretGmTrigger();
     }
   };
-  const inviteUrl = multiplayer?.roomCode ? buildInviteUrl(multiplayer.roomCode) : '';
+  const inviteUrl = multiplayer?.roomCode ? buildInviteUrl(multiplayer.roomCode, multiplayer.mode) : '';
   useEffect(() => {
     setShareTip('');
     if (!inviteUrl) return setQr('');
-    void buildInviteQr(inviteUrl).then(setQr);
+    let active = true;
+    setQr('');
+    void buildInviteQr(inviteUrl).then(value => { if (active) setQr(value); }).catch(() => {});
+    return () => { active = false; };
   }, [inviteUrl]);
   const share = async () => {
     if (!multiplayer?.roomCode) return;
@@ -214,7 +225,7 @@ export function SettingsPanel({
                 borderBottom: gameTheme.line,
               }}
             >
-              <span style={{ fontSize: 13, color: gameTheme.ink }}>多人游戏 · 房间码</span>
+              <span style={{ fontSize: 13, color: gameTheme.ink }}>{CONNECTION_LABELS[multiplayer.mode]} · {multiplayer.players}{multiplayer.maxPlayers ? ` / ${multiplayer.maxPlayers}` : ''} 人 · 房间码</span>
               <strong style={{ fontSize: 28, letterSpacing: '.18em', fontFamily: 'monospace', color: gameTheme.accent }}>
                 {multiplayer.roomCode}
               </strong>
@@ -243,12 +254,13 @@ export function SettingsPanel({
               {shareTip && <span style={{ fontSize: 12, color: '#9a6018' }}>{shareTip}</span>}
             </div>
           ) : (<>
+              <ConnectionSelector value={connectionMode} onChange={setConnectionMode} disabled={multiplayer.busy} availability={availability} />
               <button
-                disabled={multiplayer.busy}
-                onClick={multiplayer.onEnable}
+                disabled={multiplayer.busy || (connectionMode === 'relay' && availability.full)}
+                onClick={() => multiplayer.onEnable(connectionMode)}
                 style={{ ...gameRowButtonStyle, background: multiplayer.busy ? gameTheme.disabled : gameTheme.action }}
               >
-                {multiplayer.busy ? '正在创建房间…' : '开启多人模式'}
+                {multiplayer.busy ? '正在创建房间…' : connectionMode === 'relay' && availability.full ? '中转房间已满' : '开启多人模式'}
               </button>
               {multiplayer.error && <span style={{ fontSize: 12, color: gameTheme.danger }}>{multiplayer.error}</span>}
           </>))}

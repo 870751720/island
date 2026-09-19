@@ -50,6 +50,7 @@ import { SettingsPanel } from './SettingsPanel';
 import { WikiPanel } from './wiki/WikiPanel';
 import { PhotoMode } from './PhotoMode';
 import { NetHost } from '@/game/net/NetHost';
+import type { ConnectionMode } from '@/game/net/ConnectionMode';
 import { fadeStyle } from './fade';
 import { pressAction } from './pressAction';
 import { useHudInteraction } from './useHudInteraction';
@@ -183,18 +184,19 @@ export function GameplayUI({
   // 单机中途开启多人模式:创建房间并把已在运行的游戏挂接为房主权威端
   const [mpBusy, setMpBusy] = useState(false);
   const [mpError, setMpError] = useState('');
-  const enableMultiplayer = async () => {
+  const enableMultiplayer = async (mode: ConnectionMode) => {
     const game = gameRef.current;
     if (!game || mpBusy) return;
     setMpBusy(true);
     setMpError('');
-    const host = new NetHost();
+    const host = net?.host ?? new NetHost();
     try {
-      await host.createRoom();
-      game.bindHost(host);
+      await host.createRoom(mode);
+      if (gameRef.current !== game) { host.dispose(); return; }
+      if (!net?.host) game.bindHost(host);
       onBecomeHost(host);
     } catch (error) {
-      host.dispose();
+      if (!net?.host) host.dispose();
       setMpError(error instanceof Error ? error.message : '创建房间失败，请重试');
     } finally {
       setMpBusy(false);
@@ -317,7 +319,10 @@ export function GameplayUI({
                   roomCode: net?.host?.roomCode ?? '',
                   busy: mpBusy,
                   error: mpError,
-                  onEnable: () => void enableMultiplayer(),
+                  mode: net?.host?.connectionMode ?? 'direct',
+                  maxPlayers: net?.host?.maxPlayers ?? null,
+                  players: (net?.host?.guestNames.length ?? 0) + 1,
+                  onEnable: mode => void enableMultiplayer(mode),
                 }
           }
         />

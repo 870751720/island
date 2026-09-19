@@ -16,13 +16,17 @@ import { loadGameMode, rememberGameMode, GAME_MODE_LABELS, type GameMode } from 
 import { CompanionSelector } from './start/CompanionSelector';
 import { ModeSelector } from './start/ModeSelector';
 import { SaveSystem } from '@/game/systems/SaveSystem';
+import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
+import { ConnectionSelector } from './ConnectionSelector';
+import { useRelayAvailability } from './useRelayAvailability';
 
-/** 自动信令大厅：房主分享五位数字码或二维码，客人输入昵称即可直接连接。 */
+/** 联机大厅：选择连接方式，房主分享房间码或二维码，客人用个人档案加入。 */
 export function RoomLobby({
   mode,
   initialGameMode,
   initialRoomCode = '',
   initialStatus = '',
+  initialConnectionMode,
   onBegin,
   onBack,
 }: {
@@ -30,6 +34,7 @@ export function RoomLobby({
   initialRoomCode?: string;
   initialGameMode?: GameMode;
   initialStatus?: string;
+  initialConnectionMode?: ConnectionMode;
   onBegin: (net: NetHost | NetGuest) => void;
   onBack: () => void;
 }) {
@@ -48,19 +53,25 @@ export function RoomLobby({
   const [busy, setBusy] = useState(false);
   const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
   const [qr, setQr] = useState('');
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(() => initialConnectionMode ?? (mode === 'guest' ? loadLastRoom()?.mode : undefined) ?? 'direct');
+  const availability = useRelayAvailability(connectionMode, mode === 'guest' ? !busy : !roomCode);
 
   // 昵称与性别统一来自个人档案(开始界面设置);水合后读取,未设置时先引导设置
   useEffect(() => setProfile(loadProfile()), []);
 
-  const inviteUrl = useMemo(() => (roomCode && typeof window !== 'undefined' ? buildInviteUrl(roomCode) : ''), [roomCode]);
+  const inviteUrl = useMemo(() => (roomCode && typeof window !== 'undefined' ? buildInviteUrl(roomCode, connectionMode) : ''), [roomCode, connectionMode]);
 
   useEffect(() => {
     if (!inviteUrl || mode !== 'host') return setQr('');
-    void buildInviteQr(inviteUrl).then(setQr);
+    let active = true;
+    setQr('');
+    void buildInviteQr(inviteUrl).then(value => { if (active) setQr(value); }).catch(() => {});
+    return () => { active = false; };
   }, [inviteUrl, mode]);
 
   useEffect(() => {
     if (!host) return;
+    host.onRoomClosed = reason => { setRoomCode(''); setBusy(false); setStatus(reason); availability.refresh(); };
     const timer = window.setInterval(() => setPlayers([...host.guestNames]), 300);
     return () => window.clearInterval(timer);
   }, [host]);
@@ -69,9 +80,9 @@ export function RoomLobby({
     if (!guest) return;
     guest.onStarted = () => onBegin(guest);
     guest.onConnectionStatus = setStatus;
-    guest.onClosed = () => {
+    guest.onClosed = (reason) => {
       setBusy(false);
-      setStatus('当前网络暂时无法连接房主，可能与运营商网络限制有关。请确认房主在线，或切换 Wi-Fi / 其他网络后重试。');
+      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，或切换服务器中转后重试。');
     };
     guest.onRejected = (reason) => {
       setBusy(false);
@@ -86,7 +97,7 @@ export function RoomLobby({
   };
 
   const createRoom = async () => {
-    if (!host || busy) return;
+    if (!host || busy || (connectionMode === 'relay' && availability.full)) return;
     playUiSound('confirm');
     setBusy(true);
     setStatus('正在创建房间…');
@@ -94,10 +105,11 @@ export function RoomLobby({
       host.gameMode = gameMode;
       host.companionKind = pet;
       host.useSavedWorld(resume ? SaveSystem.load() : null);
-      setRoomCode(await host.createRoom());
+      setRoomCode(await host.createRoom(connectionMode));
       setStatus('房间已创建，朋友扫码或输入房间码即可加入');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '创建房间失败，请重试');
+      availability.refresh();
     } finally {
       setBusy(false);
     }
@@ -109,7 +121,7 @@ export function RoomLobby({
     setBusy(true);
     setStatus('正在连接房间…');
     try {
-      await guest.join(roomCode, (profile?.name ?? '').trim(), profile?.gender);
+      await guest.join(roomCode, (profile?.name ?? '').trim(), profile?.gender, connectionMode);
     } catch (error) {
       setBusy(false);
       setStatus(error instanceof Error ? error.message : '房间不存在或连接失败');
@@ -140,32 +152,35 @@ export function RoomLobby({
           {mode === 'host' ? '生起营火，等朋友一起靠岸' : '输入房主分享的五位数字房间码'}
         </p>
 
+        {(mode === 'guest' || !roomCode) && <ConnectionSelector value={connectionMode} disabled={busy} joining={mode === 'guest'}
+          availability={availability} onChange={value => { setConnectionMode(value); setStatus(''); }} />}
+
         {mode === 'host' ? (
           !roomCode ? (
             <>
               {SaveSystem.load() && (
                 <label className="room-resume">
-                  <input type="checkbox" checked={resume} onChange={(event) => setResume(event.target.checked)} />
+                  <input type="checkbox" disabled={busy} checked={resume} onChange={(event) => setResume(event.target.checked)} />
                   <span>继续上次保存的岛和队友进度</span>
                 </label>
               )}
               {!resume && <CompanionSelector value={pet} onChange={setPet} disabled={busy} />}
               {!resume && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">开局后无法切换。</p></>}
-              <button className="room-button" data-ui-sound="manual" disabled={busy} onClick={createRoom}>
-                {busy ? '正在创建…' : '创建免费房间'}
+              <button className="room-button" data-ui-sound="manual" disabled={busy || (connectionMode === 'relay' && availability.full)} onClick={createRoom}>
+                {busy ? '正在创建…' : connectionMode === 'relay' ? (availability.full ? '中转房间已满' : '创建中转房间') : '创建免费房间'}
               </button>
             </>
           ) : (
             <>
               <div className="room-code-card">
-                <span className="form-eyebrow">登岛口令 · {GAME_MODE_LABELS[host?.gameMode ?? gameMode]} · 房间码</span>
+                <span className="form-eyebrow">{CONNECTION_LABELS[connectionMode]} · {GAME_MODE_LABELS[host?.gameMode ?? gameMode]} · 房间码</span>
                 <strong>{roomCode}</strong>
                 {qr && <img className="room-qr" src={qr} alt={`房间 ${roomCode} 的邀请二维码`} />}
-                <small>朋友扫码后输入昵称即可加入</small>
+                <small>扫码自动选择连接方式，手输房间码请选择{CONNECTION_LABELS[connectionMode]}</small>
               </div>
               <button className="room-button" onClick={shareRoom}>分享邀请</button>
               <div className="room-players">
-                <span className="form-eyebrow">已靠岸 · {players.length + 1} 人</span>
+                <span className="form-eyebrow">已靠岸 · {players.length + 1}{host?.maxPlayers ? ` / ${host.maxPlayers}` : ''} 人{host?.maxPlayers && players.length + 1 >= host.maxPlayers ? ' · 已满员' : ''}</span>
                 <p className="connected">● {profile?.name || '房主'}（你）</p>
                 {players.map((player) => <p className="connected" key={player}>● {player}</p>)}
                 {!players.length && <p className="waiting"><span /> 等待朋友加入…</p>}
@@ -191,11 +206,13 @@ export function RoomLobby({
               placeholder="例如 73821"
               maxLength={5}
               value={roomCode}
+              disabled={busy}
               onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
             />
             <label className="room-label" htmlFor="player-name">你的昵称</label>
             <button
               id="player-name"
+              disabled={busy}
               className={`room-name-row ${profile ? '' : 'unset'}`}
               onClick={() => setShowSetup(true)}
             >
@@ -209,6 +226,7 @@ export function RoomLobby({
             >
               {busy ? '正在加入…' : '加入房间'}
             </button>
+            {busy && <button className="room-back" onClick={() => { guest?.dispose(); setBusy(false); setStatus('已取消连接，可重新选择连接方式'); }}>取消连接</button>}
           </>
         )}
 
