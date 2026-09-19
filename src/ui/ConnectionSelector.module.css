@@ -7,8 +7,6 @@
 .choice.selected{border-color:#739bb1;background:linear-gradient(115deg,#e2eff3,#f6faf1);box-shadow:inset 0 0 0 1px #739bb1}
 .choice:disabled{cursor:default;opacity:.55}
 .choice.selected:disabled{opacity:.85}
-.icon{display:grid;place-items:center;flex-shrink:0;width:30px;height:30px;border-radius:10px;background:#e5ece4;color:#567d94;font-size:20px}
-.selected .icon{background:#cddfe7}
 .copy{min-width:0}.copy strong{font-size:13px;white-space:nowrap}
 .badge{margin-left:auto;font-size:10px;white-space:nowrap;color:#71818a}.selected .badge{color:#456f89;font-weight:700}.badge.full{color:#a4552f;font-weight:700}
 .fullNote{color:#a4552f;font-weight:600}

@@ -228,7 +228,7 @@ export function RoomLobby({
           </>
         )}
 
-        {status === DIRECT_UNAVAILABLE && <WebMultiplayerGuide roomCode={mode === 'guest' ? roomCode : ''} />}
+        {mode === 'guest' && status === DIRECT_UNAVAILABLE && <WebMultiplayerGuide roomCode={roomCode} />}
         {status && <p className="room-status" role="status">{status}</p>}
         <button className="room-back" onClick={back}>← 返回海岛首页</button>
       </main>
