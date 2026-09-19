@@ -48,7 +48,8 @@ export function foodPath(origin: THREE.Vector3, goal: THREE.Vector3, allowed: (x
     if (!node) break;
     if (node.cost !== costs.get(`${node.x},${node.z}`)) continue;
     const at = new THREE.Vector3(origin.x + node.x * step, origin.y, origin.z + node.z * step);
-    if (clearFoodPath(at, goal, allowed)) {
+    // 初始直线失败后只在接近目标时尝试接通，避免每个节点重复扫描几十米长的路径。
+    if (Math.hypot(at.x - goal.x, at.z - goal.z) < step * 2 && clearFoodPath(at, goal, allowed)) {
       const path = [goal];
       for (let n: Node | null = node; n?.parent; n = n.parent) {
         path.unshift(new THREE.Vector3(origin.x + n.x * step, origin.y, origin.z + n.z * step));
