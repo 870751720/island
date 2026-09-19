@@ -15,17 +15,15 @@ export function ConnectionSelector({ value, onChange, disabled, availability, jo
     <div className={styles.heading}><strong>连接方式</strong><span>{joining ? '与房主选择相同方式' : '开房后固定本次连接方式'}</span></div>
     <div className={styles.choices}>
       {([
-        { id: 'direct', title: '好友直连', detail: '不设人数上限', badge: '默认', icon: '↔' },
-        { id: 'relay', title: '服务器中转', detail: '跨网络也能连', badge: '免费限量', icon: '⇄' },
+        { id: 'direct', title: '好友直连', badge: '默认', icon: '↔' },
+        { id: 'relay', title: '服务器中转', badge: '免费限量', icon: '⇄' },
       ] as const).map(choice => <button key={choice.id} type="button"
         className={`${styles.choice} ${value === choice.id ? styles.selected : ''}`}
         disabled={disabled} aria-pressed={value === choice.id}
         onClick={() => onChange(choice.id)}>
-        <span className={styles.top}>
-          <span className={styles.icon} aria-hidden="true">{choice.icon}</span>
-          <span className={styles.badge}>{value === choice.id ? '已选' : choice.badge}</span>
-        </span>
-        <span className={styles.copy}><strong>{choice.title}</strong><small>{choice.detail}</small></span>
+        <span className={styles.icon} aria-hidden="true">{choice.icon}</span>
+        <span className={styles.copy}><strong>{choice.title}</strong></span>
+        <span className={styles.badge}>{value === choice.id ? '已选' : choice.badge}</span>
       </button>)}
     </div>
     <div className={styles.status} role="status">
