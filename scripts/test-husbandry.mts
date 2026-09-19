@@ -19,8 +19,12 @@ modules['../systems/AnimalHusbandry'] = husbandry;
 modules['./AnimalHusbandry'] = husbandry;
 modules['./HusbandryFood'] = load('systems/HusbandryFood');
 modules['./AnimalFoodPath'] = load('systems/AnimalFoodPath');
+modules['./ResearchIngredients'] = load('systems/ResearchIngredients');
+modules['./HiddenRecipeCatalog'] = load('systems/HiddenRecipeCatalog');
 modules['./Food'] = load('systems/Food');
 modules['./AnimalFood'] = load('systems/AnimalFood');
+modules['./ForagingSearchQueue'] = modules['../systems/ForagingSearchQueue'] = load('systems/ForagingSearchQueue');
+const searches = new modules['./ForagingSearchQueue'].ForagingSearchQueue(() => 0);
 modules['../systems/AnimalForaging'] = load('systems/AnimalForaging');
 modules['./WildlifePursuit'] = load('entities/WildlifePursuit');
 modules['./WildlifeMovement'] = load('entities/WildlifeMovement');
@@ -82,13 +86,13 @@ const player = { group: new THREE.Group() };
 function animal(species = 'sheep'): any {
   return { id: 1, species, alive: true, hidden: false, leash: null, netLeash: null, pos: new THREE.Vector3(), target: new THREE.Vector3(),
     config: { damage: species === 'wolf' ? 10 : 0, attackRange: 2, attackCooldown: 1, senseRange: 10, deaggroRange: 15, hp: 100, walkSpeed: 1 }, hp: 100,
-    bornAt: null, readyAt: 0, husbandry: newHusbandry(), foraging: new modules['../systems/AnimalForaging'].AnimalForaging(),
+    bornAt: null, readyAt: 0, husbandry: newHusbandry(), foraging: new modules['../systems/AnimalForaging'].AnimalForaging(searches),
     attackLeft: 0, hitFleeLeft: 0, lungeLeft: 0, rageLeft: 0, roarLeft: 0, calfAttacker: null, boundTo: null,
     idleTime: 0, walkTime: 0, stamina: 10, roared: true, pounce: null, heading: 0,
     model: { group: new THREE.Group() }, netPos: new THREE.Vector3(), netHeading: 0 };
 }
 function harness(a: any): any {
-  return Object.assign(Object.create(Wildlife.prototype), { animals: [a], mercyCooldown: 0, dogThreats: [],
+  return Object.assign(Object.create(Wildlife.prototype), { animals: [a], foragingSearches: searches, mercyCooldown: 0, dogThreats: [],
     movement: new modules['./WildlifeMovement'].WildlifeMovement(),
     creatureFx: { update() {} }, lifecycle: { now: 1, cancel() {}, update() {}, reset() {} }, population: { slots: [], update() {}, release() {} },
     pursuit: new modules['./WildlifePursuit'].WildlifePursuit(), players: () => [player], isPlayerVulnerable: () => true, animate() {}, onAttack() {}, hitPlayer() {},
@@ -140,6 +144,7 @@ feedingWolf.leashEscape.attempts = 5;
 let available = 2;
 feedingWorld.foodDrops = { foodTargets: () => [{ position: feedingWolf.pos.clone(), consume: () => available > 0 ? (available--, 150) : 0 }] };
 feedingWorld.update(0.1, 0.1, 1);
+feedingWorld.update(0.1, 0.2, 1);
 assert.equal(feedingWolf.husbandry.tamed, true, '真实动物循环可以通过掉落食物驯养');
 assert.equal(available, 1);
 feedingWorld.update(0.1, 0.2, 1);
@@ -161,13 +166,13 @@ assert.equal(sw.takeProduce(1, player.group.position, false), null, '幼崽不�
 const { AnimalForaging } = modules['../systems/AnimalForaging'];
 let portions = 3, eaten = 0;
 const source = { foodTargets: () => [{ position: new THREE.Vector3(1, 0, 0), consume: () => { if (!portions) return 0; portions--; return 8; } }] };
-const foraging = new AnimalForaging(), origin = new THREE.Vector3();
-for (let i = 0; i < 80 && !eaten; i++) foraging.update(0.1, origin, 'rabbit', true, [source], null,
-  () => true, (target: THREE.Vector3) => { origin.lerp(target, 0.3); return true; }, (hunger: number) => eaten += hunger);
+const foraging = new AnimalForaging(searches), origin = new THREE.Vector3();
+for (let i = 0; i < 80 && !eaten; i++) { searches.update(); foraging.update(0.1, origin, 'rabbit', true, [source], null,
+  () => true, (target: THREE.Vector3) => { origin.lerp(target, 0.3); return true; }, (hunger: number) => eaten += hunger); }
 assert.equal(portions, 2); assert.equal(eaten, 8, '每次只消耗一份');
 origin.set(0, 0, 0); foraging.reset(); eaten = 0;
-for (let i = 0; i < 15; i++) foraging.update(0.1, origin, 'rabbit', true, [source], null,
-  (x: number) => x < 0.3, () => { throw Error('不能穿过封闭围栏'); }, () => eaten++);
+for (let i = 0; i < 15; i++) { searches.update(); foraging.update(0.1, origin, 'rabbit', true, [source], null,
+  (x: number) => x < 0.3, () => { throw Error('不能穿过封闭围栏'); }, () => eaten++); }
 assert.equal(eaten, 0);
 
 const { DropSystem } = load('systems/DropSystem');
@@ -234,8 +239,12 @@ console.log('Husbandry: decay, feeding thresholds, cooldown, production, old sav
   let portions = 2;
   world.foodBarrels = { foodTargets: () => [{ position: new THREE.Vector3(), consume: () => portions > 0 ? (portions--, 60) : 0 }] };
   world.updateHusbandry(sheep, 0.1);
+  while (searches.pending) searches.update();
+  world.updateHusbandry(sheep, 0.1);
   assert.equal(portions, 2, '未套住的野生动物不能吃桶内食物');
   world.lassoAnimal(1, player);
+  world.updateHusbandry(sheep, 0.1);
+  while (searches.pending) searches.update();
   world.updateHusbandry(sheep, 0.1);
   assert.equal(portions, 1, '首次驯养可从食料桶取一份');
   assert.equal(sheep.husbandry.tamed, true);
@@ -255,9 +264,13 @@ console.log('Immediate wool, regrowth, old saves, taming barrel and guest sync p
   sheep.husbandry = restoreHusbandry({ tamed: true, heart: 29, seeking: true, home: { x: 0, z: 0 } }, 'sheep');
   world.foodDrops = { foodTargets: () => [] }; world.foodBarrels = crates;
   world.updateHusbandry(sheep, 0.1);
+  while (searches.pending) searches.update();
+  world.updateHusbandry(sheep, 0.1);
   assert.equal(sheep.husbandry.heart, 47, '真实桶消费采用日常浆果恢复量');
   assert.equal(crate.storage.count('berry'), 2);
   advanceHusbandry(sheep.husbandry, 'sheep', true, 5);
+  world.updateHusbandry(sheep, 0.1);
+  while (searches.pending) searches.update();
   world.updateHusbandry(sheep, 0.1);
   assert.equal(crate.storage.count('berry'), 2, '恢复到50%以上不继续消耗储粮');
   const guestSheep = animal(), guestWorld = harness(guestSheep);

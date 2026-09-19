@@ -13,7 +13,21 @@ require.extensions['.ts'] = (module, filename) => {
   (module as NodeJS.Module & { _compile(code: string, filename: string): void })._compile(code, filename);
 };
 const { Vector3, Group } = require('three') as typeof import('three');
-const { AnimalForaging } = require('../src/game/systems/AnimalForaging.ts') as typeof import('../src/game/systems/AnimalForaging');
+const { AnimalForaging: BudgetedForaging } = require('../src/game/systems/AnimalForaging.ts') as typeof import('../src/game/systems/AnimalForaging');
+const { ForagingSearchQueue } = require('../src/game/systems/ForagingSearchQueue.ts') as typeof import('../src/game/systems/ForagingSearchQueue');
+// 长时间数值模拟在两次行为调用间推进全部搜索；逐帧预算由独立压力测试覆盖。
+class AnimalForaging extends BudgetedForaging {
+  private queue: InstanceType<typeof ForagingSearchQueue>;
+  constructor() { const queue = new ForagingSearchQueue(() => 0); super(queue); this.queue = queue; }
+  override update(...args: Parameters<InstanceType<typeof BudgetedForaging>['update']>): boolean | null {
+    const result = super.update(...args);
+    if (!this.queue.pending) return result;
+    let frames = 0;
+    while (this.queue.pending) { this.queue.update(); assert.ok(++frames < 10000); }
+    const [, ...rest] = args;
+    return super.update(0, ...rest);
+  }
+}
 const { foodPath, clearFoodPath } = require('../src/game/systems/AnimalFoodPath.ts') as typeof import('../src/game/systems/AnimalFoodPath');
 const { newHusbandry, feedAnimal, advanceHusbandry, mayEatStoredFood, HEART_MAX, HEART_DURATION } = require('../src/game/systems/AnimalHusbandry.ts') as typeof import('../src/game/systems/AnimalHusbandry');
 const { animalFoodHeart } = require('../src/game/systems/AnimalFood.ts') as typeof import('../src/game/systems/AnimalFood');
@@ -35,7 +49,7 @@ for (const food of FOODS) for (const eater of food.eaters) {
 
 function plants(count: number, kind = 'grass') {
   const list = Array.from({ length: count }, (_, i) => {
-    const group = new Group(); group.position.set(count === 1 ? -28 : -28 + i * 56 / (count - 1), 0, 0);
+    const group = new Group(); group.position.set(count === 1 ? -6 : -6 + i * 12 / (count - 1), 0, 0);
     return { kind, group, ready: true, regrowLeft: 0 };
   });
   let grazes = 0;
@@ -43,10 +57,10 @@ function plants(count: number, kind = 'grass') {
   return { props, list, grazes: () => grazes };
 }
 
-// 活动区两端相距 56 米；连跑六小时，验证可持续供给而非只测一次恢复量。
+// 食物布置在 15 米搜索半径内，两端相距 12 米；连跑六小时，验证可持续供给而非只测一次恢复量。
 for (const [species, count] of [['rabbit', 1], ['sheep', 2], ['bison', 3]] as const) {
   const state = newHusbandry(); feedAnimal(state, species, HEART_MAX[species], true);
-  const farm = plants(count), origin = new Vector3(28, 0, 0), foraging = new AnimalForaging();
+  const farm = plants(count), origin = new Vector3(6, 0, 0), foraging = new AnimalForaging();
   let stored = 0, lowest = 1;
   const source = { foodTargets: () => [{ position: origin.clone(), consume: () => { stored++; return 18; } }] };
   for (let second = 0; second < 6 * 3600; second++) {

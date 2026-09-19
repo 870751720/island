@@ -1,3 +1,4 @@
+import { ForagingSearchQueue } from '../systems/ForagingSearchQueue';
 import { CrocodileDeparture, CROC_CALM_TIME } from './CrocodileDeparture';
 import { GmSystem } from '../systems/GmSystem';
 import { newHusbandry, restoreHusbandry, advanceHusbandry, feedAnimal, mayEatStoredFood, HEART_MAX, HOME_RADIUS, LIVESTOCK_PRODUCE, PRODUCTION_SECONDS, type HusbandryState, type TameSpecies } from '../systems/AnimalHusbandry';
@@ -393,6 +394,9 @@ type Animal = LifeState & {
  * 都可用弓箭猎捕,倒下后掉落兽肉,隔段时间在岛上别处重新刷新。
  */
 export class Wildlife implements Updatable {
+  private readonly foragingSearches = new ForagingSearchQueue();
+  performanceMark?: (name: string) => void;
+
   /** 权威伤害结算后的数字反馈，包含致命一击。 */
   onDamage: (amount: number, position: THREE.Vector3, id: number) => void = () => {};
 
@@ -446,6 +450,7 @@ export class Wildlife implements Updatable {
 
   /** 尸体渐隐结束后移除实体与模型(死亡个体不再复用) */
   private removeAnimal(animal: Animal): void {
+    animal.foraging.reset();
     const index = this.animals.indexOf(animal);
     if (index < 0) return;
     this.animals.splice(index, 1);
@@ -568,7 +573,7 @@ export class Wildlife implements Updatable {
       netLeash: null,
       netReady: false,
       husbandry: newHusbandry(),
-      foraging: new AnimalForaging(),
+      foraging: new AnimalForaging(this.foragingSearches),
       milkIcon: null,
     };
     if (species === 'sheep' || species === 'bison') {
@@ -1048,10 +1053,13 @@ export class Wildlife implements Updatable {
     }
     this.lifecycle.now = calendar;
     this.population.update(delta, slot => this.spawnResident(slot, Math.random), slot => this.relocateHabitat(slot));
+    this.performanceMark?.('动物补刷与生命周期准备');
     this.pursuit.begin(this.animals.filter(a => a.alive && !a.husbandry.tamed && !a.hidden && !a.taunt && !a.retreat
       && (a.config.damage > 0 || a.provoked)).map(a => ({ id: a.id, pos: a.pos, radius: this.pursuitRadius(a) })), delta);
+    this.performanceMark?.('动物追击准备');
     for (const animal of this.animals) {
-      if (!animal.alive) continue;
+      this.performanceMark?.('动物移动战斗与动画');
+      if (!animal.alive) { animal.foraging.cancelSearch(); continue; }
       animal.hurtRoarCooldown = Math.max(0, animal.hurtRoarCooldown - delta);
       if (!animal.husbandry.tamed && animal.leash && animal.leashEscape && animal.leashEscape.attempts < 5) {
         const escaped = advanceLassoEscape(animal.species, animal.leashEscape, delta, Math.random, animal.species === 'wolf' ? GmSystem.wolfEscapeChance : GmSystem.bearEscapeChance);
@@ -1072,12 +1080,14 @@ export class Wildlife implements Updatable {
         }
       }
       if (canLasso(animal.species)) {
+        this.performanceMark?.('动物移动战斗与动画');
         if (advanceHusbandry(animal.husbandry, animal.species as TameSpecies, animal.bornAt === null, delta, GmSystem.husbandryDecaySpeed, GmSystem.husbandryProductionSpeed)) {
           this.clearTameCombat(animal);
           animal.foraging.reset();
           animal.target.copy(animal.pos);
         }
         const handled = this.updateHusbandry(animal, delta);
+        this.performanceMark?.('动物觅食移动与驯养');
         if (handled !== null) { this.animate(animal, delta, elapsed, handled, false); continue; }
       }
       if (animal.taunt) {
@@ -1335,10 +1345,14 @@ export class Wildlife implements Updatable {
 
       this.animate(animal, delta, elapsed, moving, rushed);
     }
+    this.performanceMark?.('动物移动战斗与动画');
+    if (delta > 0) this.foragingSearches.update();
+    this.performanceMark?.('动物觅食搜索队列');
     this.lifecycle.update(delta, calendar, this.animals, parent => this.birthNear(parent), animal => {
       animal.hp = Math.min(animal.config.hp, animal.hp * 2);
       this.applyLifeScale(animal);
     });
+    this.performanceMark?.('动物繁殖');
   }
 
   lassoExpressionAnchor(id: number): { target: THREE.Object3D; height: number } | null {
@@ -1381,7 +1395,7 @@ export class Wildlife implements Updatable {
 
   private updateHusbandry(animal: Animal, delta: number): boolean | null {
     const state = animal.husbandry;
-    if (!state.tamed && !this.canTame(animal)) return null;
+    if (!state.tamed && !this.canTame(animal)) { animal.foraging.reset(); return null; }
     if (delta <= 0) return false;
     if (state.tamed && !animal.leash) state.home ??= { x: animal.pos.x, z: animal.pos.z };
     if (state.tamed && !animal.leash && state.home
@@ -1390,10 +1404,10 @@ export class Wildlife implements Updatable {
       animal.target.set(state.home.x, animal.pos.y, state.home.z);
       return this.step(animal, Math.atan2(state.home.z - animal.pos.z, state.home.x - animal.pos.x), animal.config.walkSpeed, delta);
     }
-    if (state.eating > 0) return false;
+    if (state.eating > 0) { animal.foraging.cancelSearch(); return false; }
     if (state.cooldown <= 0 && (!state.tamed || state.seeking) && this.foodDrops) {
       const sources = this.foodBarrels ? [this.foodDrops, this.foodBarrels] : [this.foodDrops];
-      const allowed = (x: number, z: number) => this.canStand(animal, x, z) && !this.isBlocked(x, z)
+      const allowed = (x: number, z: number) => this.canStand(animal, x, z)
         && (!(animal.leash && 'holder' in animal.leash)
           || Math.hypot(x - animal.leash.holder.group.position.x, z - animal.leash.holder.group.position.z) <= STAKE_LEASH);
       const movement = animal.foraging.update(delta, animal.pos, animal.species as TameSpecies, state.tamed,
@@ -1410,8 +1424,11 @@ export class Wildlife implements Updatable {
             animal.target.copy(animal.pos);
           }
         }, mayEatStoredFood(state, animal.species as TameSpecies));
+      // 等待搜索期间仍响应玩家牵引；位置变化会在下一帧取消旧起点任务。
+      if (animal.foraging.searching && animal.leash && 'holder' in animal.leash) return this.updateLeashed(animal, delta);
       if (movement !== null) return movement;
     }
+    animal.foraging.cancelSearch();
     if (!state.tamed) return null;
     if (animal.leash) return this.updateLeashed(animal, delta);
     state.home ??= { x: animal.pos.x, z: animal.pos.z };

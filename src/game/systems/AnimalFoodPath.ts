@@ -8,6 +8,16 @@ export function clearFoodPath(from: THREE.Vector3, to: THREE.Vector3, allowed: (
 
 type Node = { x: number; z: number; cost: number; score: number; parent: Node | null };
 
+/** 长线检测可暂停；不能把一条几十米的射线藏在单次任务步进里。 */
+export function* clearFoodPathSteps(from: THREE.Vector3, to: THREE.Vector3, allowed: (x: number, z: number) => boolean): Generator<void, boolean> {
+  const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / 0.15));
+  for (let i = 1; i <= steps; i++) {
+    yield;
+    if (!allowed(from.x + (to.x - from.x) * i / steps, from.z + (to.z - from.z) * i / steps)) return false;
+  }
+  return true;
+}
+
 /** 有界最小堆，远距离目标仍保持每次寻路最多 900 个节点的手机预算。 */
 class Frontier {
   private nodes: Node[] = [];
@@ -37,21 +47,23 @@ class Frontier {
 }
 
 /** A* 仅在换目标时运行，路径每一段均校验地形与围栏。 */
-export function foodPath(origin: THREE.Vector3, goal: THREE.Vector3, allowed: (x: number, z: number) => boolean, range: number): THREE.Vector3[] | null {
-  if (clearFoodPath(origin, goal, allowed)) return [goal];
+export function* foodPathSteps(origin: THREE.Vector3, goal: THREE.Vector3, allowed: (x: number, z: number) => boolean, range: number): Generator<void, THREE.Vector3[] | null> {
+  if (yield* clearFoodPathSteps(origin, goal, allowed)) return [goal];
   const step = 0.75;
   const frontier = new Frontier();
   const costs = new Map<string, number>([['0,0', 0]]);
   frontier.push({ x: 0, z: 0, cost: 0, score: origin.distanceTo(goal), parent: null });
   for (let expanded = 0; expanded < 900; expanded++) {
+    yield;
     const node = frontier.pop();
     if (!node) break;
     if (node.cost !== costs.get(`${node.x},${node.z}`)) continue;
     const at = new THREE.Vector3(origin.x + node.x * step, origin.y, origin.z + node.z * step);
     // 初始直线失败后只在接近目标时尝试接通，避免每个节点重复扫描几十米长的路径。
-    if (Math.hypot(at.x - goal.x, at.z - goal.z) < step * 2 && clearFoodPath(at, goal, allowed)) {
+    if (Math.hypot(at.x - goal.x, at.z - goal.z) < step * 2 && (yield* clearFoodPathSteps(at, goal, allowed))) {
       const path = [goal];
       for (let n: Node | null = node; n?.parent; n = n.parent) {
+        yield;
         path.unshift(new THREE.Vector3(origin.x + n.x * step, origin.y, origin.z + n.z * step));
       }
       return path;
@@ -60,10 +72,18 @@ export function foodPath(origin: THREE.Vector3, goal: THREE.Vector3, allowed: (x
       const x = node.x + dx, z = node.z + dz, key = `${x},${z}`, cost = node.cost + step;
       if (Math.hypot(x, z) * step > range || cost >= (costs.get(key) ?? Infinity)) continue;
       const next = new THREE.Vector3(origin.x + x * step, origin.y, origin.z + z * step);
-      if (!clearFoodPath(at, next, allowed)) continue;
+      if (!(yield* clearFoodPathSteps(at, next, allowed))) continue;
       costs.set(key, cost);
       frontier.push({ x, z, cost, score: cost + Math.hypot(next.x - goal.x, next.z - goal.z), parent: node });
     }
   }
   return null;
+}
+
+/** 离线逻辑验证入口，与分帧运行共用同一算法。 */
+export function foodPath(origin: THREE.Vector3, goal: THREE.Vector3, allowed: (x: number, z: number) => boolean, range: number): THREE.Vector3[] | null {
+  const work = foodPathSteps(origin, goal, allowed, range);
+  let result = work.next();
+  while (!result.done) result = work.next();
+  return result.value;
 }

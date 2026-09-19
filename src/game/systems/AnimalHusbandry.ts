@@ -5,6 +5,7 @@ export type TameSpecies = Exclude<FoodEater, 'dog' | 'cat'>;
 export const HEART_MAX: Record<TameSpecies, number> = { rabbit: 30, sheep: 60, bison: 100, wolf: 150, bear: 200 };
 export const PRODUCTION_SECONDS = 600;
 export const HOME_RADIUS = 30;
+export const FOOD_SEARCH_RADIUS = 15;
 export const HEART_DURATION: Record<TameSpecies, number> = { rabbit: 1800, sheep: 1800, bison: 1800, wolf: 3600, bear: 3600 };
 export const FORAGE_THRESHOLD = 0.7;
 export const STORED_FOOD_THRESHOLD = 0.5;

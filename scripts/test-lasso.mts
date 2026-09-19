@@ -46,11 +46,11 @@ const player = { group: new THREE.Group() };
 function animal(species: string) {
   return { id: 1, species, alive: true, hidden: false, leash: null, netLeash: null, pos: new THREE.Vector3(), target: new THREE.Vector3(),
     config: { damage: 10, attackRange: 2, attackCooldown: 1, senseRange: 10, deaggroRange: 15, hp: 100 }, hp: 100,
-    bornAt: null, readyAt: 0, husbandry: modules['../systems/AnimalHusbandry'].newHusbandry(), foraging: { reset() {} }, attackLeft: 0, hitFleeLeft: 0, lungeLeft: 0, rageLeft: 0, roarLeft: 0,
+    bornAt: null, readyAt: 0, husbandry: modules['../systems/AnimalHusbandry'].newHusbandry(), foraging: { reset() {}, cancelSearch() {} }, attackLeft: 0, hitFleeLeft: 0, lungeLeft: 0, rageLeft: 0, roarLeft: 0,
     idleTime: 0, leashEscape: undefined as { elapsed: number; attempts: number } | undefined, walkTime: 0, stamina: 10, roared: true, pounce: null };
 }
 function harness(a: ReturnType<typeof animal>) {
-  return Object.assign(Object.create(Wildlife.prototype), { animals: [a], mercyCooldown: 0, dogThreats: [],
+  return Object.assign(Object.create(Wildlife.prototype), { animals: [a], foragingSearches: { update() {} }, mercyCooldown: 0, dogThreats: [],
     pursuit: new modules['./WildlifePursuit'].WildlifePursuit(),
     movement: new modules['./WildlifeMovement'].WildlifeMovement(),
     creatureFx: { update() {} }, lifecycle: { now: 1, cancel() {}, update() {} }, population: { slots: [], update() {} },

@@ -1206,6 +1206,7 @@ export class Game {
           this.birds.update(simDelta, elapsed);
           this.dayEvents.update();
           this.frameDiagnostics.mark('其他生物与日事件');
+          this.wildlife.performanceMark = this.frameDiagnostics.active ? name => this.frameDiagnostics.mark(name) : undefined;
           this.wildlife.setSoloDeathProtection(!this.hostRef);
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
           this.frameDiagnostics.mark('动物AI含觅食寻路');
