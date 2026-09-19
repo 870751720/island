@@ -80,7 +80,10 @@ jobs:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       SITE_URL: ${{ vars.SITE_URL }}
     steps:
+      # Full history: release verification diffs the running backend revision against this commit.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -97,6 +100,7 @@ jobs:
       - name: Prepare release
         run: |
           test -f out/index.html
+          printf '%s\n' "$GITHUB_SHA" > out/revision.txt
           tar --exclude='relay/node_modules' -czf release.tar.gz out server shared signaling relay
       - name: Configure SSH
         env:
@@ -119,7 +123,12 @@ jobs:
       - name: Verify public release
         run: |
           test "$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "$SITE_URL/")" = 200
-          curl --fail --silent --show-error --max-time 30 "$SITE_URL/api/health" | jq -e --arg sha "$GITHUB_SHA" '.ok == true and .revision == $sha'
+          test "$(curl --fail --silent --show-error --max-time 30 "$SITE_URL/revision.txt?sha=$GITHUB_SHA")" = "$GITHUB_SHA"
+          api_revision=$(curl --fail --silent --show-error --max-time 30 "$SITE_URL/api/health" \
+            | jq -e -r 'if .ok == true and (.revision | type == "string") then .revision else error("api unhealthy") end')
+          [[ "$api_revision" =~ ^[0-9a-f]{40}$ ]]
+          # The running backend code must match this commit; frontend-only releases keep the previous backend revision.
+          git diff --quiet "$api_revision" "$GITHUB_SHA" -- server shared signaling relay
           node scripts/test-signaling-service.mts
       - name: Remove runner key
         if: always()

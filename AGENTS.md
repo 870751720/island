@@ -93,9 +93,9 @@
 - 主分支为 `main`。改完代码后执行下述检查、打包、校验与解压流程，先在本地提交（commit），再交由用户本地运行验证。只有用户明确确认本次验证通过后，才能通过 `npm run deploy` push 到 `origin main`，触发 GitHub Actions 同时部署到自有服务器和 GitHub Pages；验证未通过时保留本地提交，不 push。
 - **严禁只触发部署就向用户报告「部署成功」**:push 只是开始部署,必须在同一个命令/流程里真正等完整个部署过程并验证通过后才能说成功。完整验收标准(缺一不可):
   1. 等待本次 push 对应的 Actions run 结束并确认 `conclusion=success`(失败则停下排查并报告,不得谎称成功);
-  2. 用 curl 确认 https://43.110.116.98/ 和 https://870751720.github.io/island/ 均返回 200，并核对 API revision 与 Pages revision.txt 为本次提交。
+  2. 用 curl 确认 https://43.110.116.98/ 和 https://870751720.github.io/island/ 均返回 200，并核对主站与 Pages 的 `revision.txt` 为本次提交、`/api/health` 的后端版本到本次提交之间后端目录（`server/`、`shared/`、`signaling/`、`relay/`）无差异（纯前端发布零重启，API revision 保持上次后端发布的 SHA）。
   两步全部通过后,才把该链接连同本次变更摘要一起交给用户。若超时或任一步失败,如实报告当前状态。
-- **标准部署命令**：本地提交已获用户明确确认验证通过，且正式站点构建检查通过后，在仓库根目录执行 `npm run deploy`。脚本检查干净的 `main` 工作区，读取 `githubtoken.txt`，推送本次 SHA，按 SHA 等待 `deploy.yml` 的 Actions 成功，再用 curl 验证线上 HTTP 200，并确认 `/api/health` 的 revision 和 Pages `revision.txt` 与本次提交一致。后续会话统一使用此命令，不再临时拼接推送与轮询脚本。需 Node 22.18+、Git 和 curl；详见 `docs/deployment.md`。
+- **标准部署命令**：本地提交已获用户明确确认验证通过，且正式站点构建检查通过后，在仓库根目录执行 `npm run deploy`。脚本检查干净的 `main` 工作区，读取 `githubtoken.txt`，推送本次 SHA，按 SHA 等待 `deploy.yml` 的 Actions 成功，再验证线上 HTTP 200、主站与 Pages 的 `revision.txt` 为本次提交，并用本地 `git diff` 校验后端不变式（`/api/health` 版本到本次提交之间后端目录无差异）。后续会话统一使用此命令，不再临时拼接推送与轮询脚本。需 Node 22.18+、Git 和 curl；详见 `docs/deployment.md`。
 - 命令非零退出（推送、API、Actions、超时或 HTTP 验证失败）时停下排查，如实报告，不能宣布部署成功。
 - 提交信息使用简洁的中文或英文祈使句均可。
 - **部署前本地验证（必读）**：每次代码修改完成后，先执行 `npm run typecheck` 和 `npm run build:h5`，生成 `dist/island-h5.zip`；校验 ZIP 完整性、单一 `island/` 根目录、`island/index.html` 入口及 Deflate 压缩方式，然后解压到**固定目录** `dist/local-preview/latest/`（每次解压前先删除该目录再重新解压，避免旧资源残留混入）。本地验证入口固定为 `dist/local-preview/latest/island/index.html`，用户在浏览器保存该地址，每次新构建后刷新即可预览最新版本。

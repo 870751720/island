@@ -6,7 +6,9 @@
 
 ## 需求描述
 
-保留「本地提交 → 用户明确确认验证通过 → 正式构建检查 → 推送部署」流程。仅配置 GitHub 参数或构建成功不代表部署完成；必须等对应 SHA 的 Actions 成功、两个 HTTPS 网站均返回 200、云存档 API 和 Pages `revision.txt` 均与提交 SHA 匹配后才能宣布成功。
+保留「本地提交 → 用户明确确认验证通过 → 正式构建检查 → 推送部署」流程。仅配置 GitHub 参数或构建成功不代表部署完成；必须等对应 SHA 的 Actions 成功、两个 HTTPS 网站均返回 200、主站与 Pages 的 `revision.txt` 均为本次提交、云存档 API 满足后端不变式（线上后端代码与本提交的后端目录无差异）后才能宣布成功。
+
+发布分为两条路径，由服务端自动判定：仅前端变化的提交零重启发布，不触碰任何服务容器；后端目录（`server/`、`signaling/`、`relay/`、`shared/`）有变化的提交才全量重建服务。
 
 ## 设计方案
 
@@ -15,11 +17,12 @@
 - 工作流 `deploy.yml` 的 `production` 环境串行部署，禁止中途取消；使用 Node 22、`npm ci`、类型检查和 `SERVER_EXPORT=1` 的正式静态构建，产物网站在根路径。
 - Pages 构建作业独立使用 `SERVER_EXPORT=0`，输出 `/island` 资源路径，通过官方 configure/upload/deploy Pages actions 发布（参见 [GitHub 文档](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)）。Pages 发布等待服务器部署和自身构建都成功，使用 `github-pages` 环境，权限限于该发布作业的 `pages:write` 与 `id-token:write`。两份构建都显式使用 `SITE_URL` 作为云存档 API 来源，Pages 不承载数据库或 API。
 - Pages 发布包携带本次 SHA 的 `revision.txt`，发布后短暂重试检查 HTTP 200 和版本文件，防止把旧缓存页面误认为发布成功。任一站点验收失败都使整体部署失败；双站不是跨平台原子切换，失败时如实报告各站状态。
-- 发布包仅包含 `out/`、`server/`、`shared/`、`signaling/`、`relay/`（排除 `relay/node_modules`），通过 SSH 上传到 `/opt/island/releases/<SHA>/`。不上传仓库 token、开发依赖或本地 SSH 文件。
-- 临时管理容器执行 `server/deploy.ts`，初始化服务端密钥、数据库目录和 HTTPS IP 证书，然后构建 API、中转镜像并启动 Compose 服务。首次发证需 80 端口空闲，公网安全组允许 80/443。
-- 公网页面、API、信令 WSS 的 MQTT CONNACK、中转状态 revision 和 WSS 心跳检查成功后记录 active revision 并更新 `current`；中转探针不占玩家房间。失败时尽可能恢复上次成功版本，工作流仍以失败结束。首次部署没有可回滚的旧版本，失败需排查后重试。
-- SQLite、服务端密钥和证书独立放在 `shared/`，不随发布删除。不能删除该目录，也不能在正常升级中重新生成服务端密钥。
-- `npm run deploy` 只允许干净的 main 工作区，从 `githubtoken.txt` 读取凭证并推送本次 SHA，按 SHA 等待 Actions（最多 25 分钟），再验收两个站点的 HTTPS 200、API revision 和 Pages revision.txt。凭证不写入 Git 配置，不输出日志。
+- 发布包仅包含 `out/`、`server/`、`shared/`、`signaling/`、`relay/`（排除 `relay/node_modules`），通过 SSH 上传到 `/opt/island/releases/<SHA>/`。不上传仓库 token、开发依赖或本地 SSH 文件。服务器构建在 `out/revision.txt` 盖章本次提交，主站点据此验证前端版本。
+- 临时管理容器执行 `server/deploy.ts`，初始化服务端密钥、数据库目录、稳定 webroot（`shared/web/roots/`）和 HTTPS IP 证书，然后判定发布路径：逐字节比较上一发布与本次发布的服务端目录，**一致则走前端路径**——仅把 `out/` 复制进 `shared/web/roots/<SHA>/` 并原子切换相对软链 `shared/web/current`，Nginx 按请求解析软链立即生效，不重启、不断连任何容器（云存档 API、联机 WSS 均无感知）；**不一致则走后端路径**——构建 API、中转镜像并全量重建 Compose 服务。首次发证需 80 端口空闲，公网安全组允许 80/443。
+- 前端 webroot 持久保留当前与上一版本，`shared/backend-revision` 记录后端实际运行版本；纯前端发布后该文件不变，API 与中转继续上报该版本。
+- 公网页面、API、信令 WSS 的 MQTT CONNACK、中转状态 revision 和 WSS 心跳检查成功后记录 active revision 并更新 `current`；中转探针不占玩家房间。验收时前端路径要求 `revision.txt` 等于本次提交、API/中转 revision 等于 `backend-revision`；后端路径两者均等于本次提交。失败时按发布路径恢复上一版本（前端路径软链秒级切回，后端路径全量回滚并复原 `backend-revision`），工作流仍以失败结束。首次部署没有可回滚的旧版本，失败需排查后重试。
+- SQLite、服务端密钥、证书和前端 webroot 独立放在 `shared/`，不随发布删除。不能删除该目录，也不能在正常升级中重新生成服务端密钥。
+- `npm run deploy` 只允许干净的 main 工作区，从 `githubtoken.txt` 读取凭证并推送本次 SHA，按 SHA 等待 Actions（最多 25 分钟），再验收两个站点的 HTTPS 200、主站与 Pages 的 `revision.txt`，并用本地 `git diff` 校验后端不变式：`/api/health` 报告的后端版本到本次提交之间，`server/`、`shared/`、`signaling/`、`relay/` 无差异。凭证不写入 Git 配置，不输出日志。
 - `npm run check` 依次检查服务器根路径构建和 GitHub Pages `/island` 构建，并检查导出 HTML 的脚本路径；普通 `npm run build` 默认构建 Pages，H5、小红书发行流程保持各自规则。
 
 ## 使用
@@ -42,4 +45,12 @@
 
 ## 自有游戏数据中转
 
-`relay/` 为独立 Node WebSocket 服务，Nginx 代理 `/relay` 与 `/relay/status`。默认最多 150 房、每房 4 人（含房主），与直连 MQTT 信令分离；中转不承担权威游戏计算。Compose 容器重建会解散现有中转房间，玩家可由房主重新开房；存档不受影响。可在部署环境配置 `RELAY_MAX_ROOMS` 与 `RELAY_MAX_PLAYERS`，详见 [中转设计与验证](relay.md)。首次发布前本地 H5 的中转服务不可用提示属于服务尚未上线，不能将本地构建通过等同于公网互联验证通过。
+`relay/` 为独立 Node WebSocket 服务，Nginx 代理 `/relay` 与 `/relay/status`。默认最多 150 房、每房 4 人（含房主），与直连 MQTT 信令分离；中转不承担权威游戏计算。后端发布（或后端目录变化）触发 Compose 容器重建，会解散现有中转房间，玩家可由房主重新开房；纯前端发布零重启，不影响房间与云存档服务。可在部署环境配置 `RELAY_MAX_ROOMS` 与 `RELAY_MAX_PLAYERS`，详见 [中转设计与验证](relay.md)。首次发布前本地 H5 的中转服务不可用提示属于服务尚未上线，不能将本地构建通过等同于公网互联验证通过。
+
+## 迭代记录
+
+### 前端零重启发布与前后端部署分离
+
+以往每次发布都 `--force-recreate` 全部容器，游戏纯前端更新也会重启云存档 API、中转和信令，并断开联机 WSS 连接。本次引入双路径发布：服务端目录（`server/`、`signaling/`、`relay/`、`shared/`）逐字节比对无差异时走前端路径，仅切换稳定 webroot（`shared/web/roots/<SHA>/` + 原子软链 `shared/web/current`），Nginx 按请求解析软链热生效，所有服务容器零重启、零断连；有差异时维持原全量重建。
+
+配套变更：主站构建盖章 `revision.txt`；验收从「API revision == 本次提交」改为后端不变式（API 上报版本到本次提交的后端目录 `git diff` 无差异），`deploy.yml` 与 `npm run deploy` 同步；新增 `shared/backend-revision` 记录后端运行版本。验收语义详见上文「设计方案」。

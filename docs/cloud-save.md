@@ -31,7 +31,7 @@ API 默认 `https://43.110.116.98/api/save`，可通过构建变量 `NEXT_PUBLIC
 
 独立 `server/` 目录，Node 22.18+ 原生 HTTP 与 SQLite，无游戏模拟。每个存档码经服务端 HMAC 映射到一条记录，SQLite 单语句原子覆盖、WAL 与 FULL 同步提供持久化。完整备份内容包含用户输入的存档码，因此数据库、密钥和备份都属于私密数据。
 
-- `GET /api/health`：健康状态和发布 SHA。
+- `GET /api/health`：健康状态和后端发布 SHA（纯前端发布不重启 API，该值保持上次后端发布的版本）。
 - `GET /api/save`：获取当前码的存档，不存在返回 404。
 - `PUT /api/save`：校验格式、大小和备份内存档码后覆盖；无历史槽位。
 - 认证头为 `SaveCode <URI 编码的码>`，服务端验证长度，单 IP 每分钟最多 30 次存档请求；nginx 覆盖真实 IP 头，API 不发布宿主机端口。

@@ -104,12 +104,18 @@ async function main(): Promise<void> {
       throw new Error(`Actions 已成功，但 ${url} 验证未通过（HTTP ${result.stdout || '未知'}）。`);
     }
   }
+  const siteRevisionResponse = await fetch(`${site}revision.txt?sha=${sha}`, { signal: AbortSignal.timeout(30_000) });
+  if (!siteRevisionResponse.ok || (await siteRevisionResponse.text()).trim() !== sha) throw new Error('主站前端版本验收失败。');
   const healthResponse = await fetch(`${site}api/health`, { signal: AbortSignal.timeout(30_000) });
   const health = await healthResponse.json() as { ok?: boolean; revision?: string };
-  if (!healthResponse.ok || !health.ok || health.revision !== sha) throw new Error('云存档 API 版本验收失败。');
+  if (!healthResponse.ok || !health.ok || !/^[a-f0-9]{40}$/.test(health.revision ?? '')) throw new Error('云存档 API 健康验收失败。');
+  // 线上后端代码须与本提交一致；纯前端发布的 API revision 保持上次后端发布版本。
+  const backendRevision = health.revision as string;
+  const backendDrift = git(['diff', '--name-only', backendRevision, sha, '--', 'server', 'shared', 'signaling', 'relay']);
+  if (backendDrift) throw new Error(`云存档 API 后端代码与本次提交不一致（线上 ${backendRevision}）。`);
   const pagesResponse = await fetch(`${pages}revision.txt?sha=${sha}`, { signal: AbortSignal.timeout(30_000) });
   if (!pagesResponse.ok || (await pagesResponse.text()).trim() !== sha) throw new Error('GitHub Pages 版本验收失败。');
-  console.log(`部署成功：${site} 和 ${pages}（均 HTTP 200，提交 ${sha}）`);
+  console.log(`部署成功：${site} 和 ${pages}（均 HTTP 200，提交 ${sha}，后端 ${backendRevision}）`);
 }
 
 main().catch((error: unknown) => {
