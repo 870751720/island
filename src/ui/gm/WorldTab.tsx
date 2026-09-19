@@ -9,6 +9,7 @@ import { GmSystem, type GmConfig } from '@/game/systems/GmSystem';
 import { ActionButton, ToggleRow } from './controls';
 import { usePerformanceReport } from './PerformanceOverlay';
 import { LandmarkControls } from './LandmarkControls';
+import { DiagnosticCapture } from './DiagnosticCapture';
 
 /** 季节五态标签:auto=跟随真实季节(默认),其余为强制覆盖 */
 const SEASON_LABELS = { auto: '跟随', spring: '春', summer: '夏', autumn: '秋', winter: '冬' } as const;
@@ -66,6 +67,7 @@ export function WorldTab({
         value={perf.enabled}
         onChange={(v) => getGame()?.gmPerformance(v)}
       />
+      <DiagnosticCapture getGame={getGame} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontSize: 13, color: '#8a7a5a', padding: '0 4px' }}>季节(跟随真实季节 / 强制覆盖)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
