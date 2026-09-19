@@ -442,7 +442,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                             onUseItem(selectedDef.kind);
                           })}
                         {isEquipKind(selectedDef.kind) &&
-                          actionButton(false, `装备(评分${EQUIPMENT[selectedDef.kind].score})`, gameTheme.accent, () => {
+                          actionButton(false, EQUIPMENT[selectedDef.kind].slot === 'mount' ? '乘骑' : `装备(评分${EQUIPMENT[selectedDef.kind].score})`, gameTheme.accent, () => {
                             onEquip(selectedDef.kind);
                             setSelectedIndex(null);
                           })}
@@ -617,7 +617,7 @@ export function Backpack({ showCompanion, open, onToggle, hud, onUseItem, onDrop
                           </div>
                         </div>
                       </div>
-                      {kind && actionButton(false, '卸下', gameTheme.warning, () => onUnequip(slot))}
+                      {kind && actionButton(false, slot === 'mount' ? '下骑' : '卸下', gameTheme.warning, () => onUnequip(slot))}
                     </div>
                   );
                 })}

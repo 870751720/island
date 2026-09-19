@@ -22,6 +22,7 @@ const CATEGORY_MEMBERS: Record<ItemCategory, readonly ResourceKind[]> = {
   ],
   工具: ['shears', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword'],
   装备: [
+    'skateboard',
     'grassShirt', 'grassPants', 'strawHat', 'strawBackpack',
     'furShirt', 'furPants', 'furHat', 'furBackpack',
     'ironShirt', 'ironPants', 'ironHat', 'ironBackpack',
@@ -863,6 +864,7 @@ export const ITEMS: Record<ResourceKind, ItemDef> = {
     icon: '👒',
     description: '干草编的宽檐帽,减伤 10%,口渴速度 -5%。',
   },
+  skateboard: { kind: 'skateboard', name: '滑板', icon: '🛹', description: '坐骑：一级工作台用木头×6、石头×4、绳子×2制作。装备后陆地移动速度增加100%，自动切换平衡、压低重心和舒展滑行姿态。入水、作业、搬运、睡眠和死亡时暂时收起，恢复后自动乘骑；可在角色坐骑栏卸下。' },
   strawBackpack: {
     kind: 'strawBackpack',
     name: '草包',

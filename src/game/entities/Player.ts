@@ -12,6 +12,8 @@ import { GmSystem } from '../systems/GmSystem';
 import { InjuryFx } from '../fx/InjuryFx';
 import { createPlayerModel, type PlayerGender } from './PlayerModel';
 import { SwordTrail } from '../fx/SwordTrail';
+import { createSkateboard, disposeSkateboard } from './Skateboard';
+import { EQUIPMENT } from '../systems/Equipment';
 import { PlayerAnimator } from './PlayerAnimator';
 import { PlayerWardrobe } from './equipment/PlayerWardrobe';
 
@@ -285,6 +287,23 @@ export class Player implements Updatable {
   private legs: THREE.Group[] = [];
   private moveVec = new THREE.Vector2();
   private moving = false;
+  private mount: EquipKind | null = null;
+  private skateboard: THREE.Group | null = null;
+  private mountPoseAuthority = true;
+  private mountPoseTime = 0;
+  mountPose = 0;
+
+  syncMountPose(pose: number): void {
+    this.mountPoseAuthority = false;
+    this.mountPose = Number.isInteger(pose) && pose >= 0 && pose < 3 ? pose : 0;
+  }
+
+  private get riding(): boolean {
+    return this.mount === 'skateboard' && !this.swimming && !this.wading && !this.dead
+      && !this.sleepPose && !this.carryingFacility && !this.holdsFacility
+      && (!this.action || (this.moving && this.action !== 'slash'));
+  }
+
   private stepDistance = 0;
   private stepLeft = false;
   private swimming = false;
@@ -483,6 +502,19 @@ export class Player implements Updatable {
 
   /** 本地穿戴与联机快照共用的装备外观入口。 */
   setEquip(slot: EquipSlot, kind: EquipKind | null): void {
+    if (slot === 'mount') {
+      if (kind !== null && kind !== 'skateboard') return;
+      if (this.mount === kind) return;
+      this.mount = kind;
+      if (this.skateboard) disposeSkateboard(this.skateboard);
+      this.skateboard = kind ? createSkateboard() : null;
+      if (this.skateboard) {
+        (this.ownerVisual ?? this.group).add(this.skateboard);
+        this.skateboard.visible = false;
+      }
+      this.mountPoseTime = 0;
+      return;
+    }
     this.wardrobe.setEquip(slot, kind);
   }
 
@@ -634,6 +666,7 @@ export class Player implements Updatable {
     }
     // 持续受伤表现先于一切姿态更新,倒地/睡眠时伤口血滴仍在
     this.injuryFx.update(delta, this.health);
+    if (this.skateboard) this.skateboard.visible = false;
     if (this.dead) {
       this.updateDead(delta);
       return;
@@ -678,6 +711,7 @@ export class Player implements Updatable {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
       let speed = base * this.weatherSpeedMultiplier;
+      if (this.riding) speed *= EQUIPMENT[this.mount!].landSpeedMultiplier ?? 1;
       if (this.carryingFacility) speed *= 0.6;
       if (!this.swimming && this.roadKind) speed *= 1.1;
       // 冰面滑行:结冰水洼上移动速度翻倍
@@ -692,7 +726,7 @@ export class Player implements Updatable {
       if (!this.swimming) for (const o of this.obstacles) o.resolveCollision(p, PLAYER_RADIUS);
       this.group.rotation.y = Math.atan2(this.moveVec.x, this.moveVec.y);
       // 陆地上行走按步距交替留脚印,水中不留
-      if (!this.swimming && !this.wading) {
+      if (!this.swimming && !this.wading && !this.riding) {
         this.stepDistance += step;
         if (this.stepDistance >= STEP_DISTANCE) {
           this.stepDistance = 0;
@@ -728,8 +762,17 @@ export class Player implements Updatable {
       if (action) this.actionTime += delta;
       this.group.rotation.x += (0 - this.group.rotation.x) * (1 - Math.exp(-14 * delta));
       this.group.rotation.z += (0 - this.group.rotation.z) * (1 - Math.exp(-14 * delta));
+      const riding = this.riding;
+      if (this.skateboard) this.skateboard.visible = riding;
+      if (riding && this.moving && this.mountPoseAuthority) {
+        this.mountPoseTime -= delta;
+        if (this.mountPoseTime <= 0) {
+          this.mountPose = (this.mountPose + 1 + Math.floor(Math.random() * 2)) % 3;
+          this.mountPoseTime = 5 + Math.random() * 4;
+        }
+      }
       this.animator.update(delta, elapsed, action, this.actionTime,
-        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool);
+        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool, riding ? this.mountPose : null);
       const swords = this.toolModels.sword!;
       const sword = swords[Math.min(this.toolTiers.sword ?? 1, swords.length) - 1];
       this.swordTrail.update(delta, action === 'slash' && this.handTool === 'sword' ? sword : null, this.actionTime);
@@ -772,6 +815,7 @@ export class Player implements Updatable {
   }
 
   dispose(): void {
+    if (this.skateboard) disposeSkateboard(this.skateboard);
     this.appearance.dispose();
     this.swordTrail.dispose();
     this.wardrobe.dispose();

@@ -135,6 +135,7 @@ export type ResourceKind =
   | 'grassShirt'
   | 'grassPants'
   | 'strawHat'
+  | 'skateboard'
   | 'strawBackpack'
   | 'furShirt'
   | 'furPants'

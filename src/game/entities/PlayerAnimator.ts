@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { skateboardPose } from './SkateboardPose';
 import { boyGait } from './BoyGait';
 import { ArmReach } from './ArmReach';
 import type { ActionType, HandTool } from './Player';
@@ -59,7 +60,7 @@ export class PlayerAnimator {
   }
 
   update(delta: number, elapsed: number, action: ActionType | null, time: number,
-    speed: number, swimming: boolean, tool: HandTool): void {
+    speed: number, swimming: boolean, tool: HandTool, mountPose: number | null = null): void {
     const [body, head, left, right, elbowL, elbowR, legL, legR, kneeL, kneeR] = this.targets;
     for (const target of this.targets) target.set(0, 0, 0);
     this.weight += (Math.min(speed / 5, 1.5) - this.weight) * (1 - Math.exp(-12 * delta));
@@ -201,6 +202,7 @@ export class PlayerAnimator {
         case 'sleep': break;
       }
     }
+    if (mountPose !== null && !swimming && !action) this.height = skateboardPose(this.targets, mountPose, elapsed, speed > 0.1);
     this.apply(delta);
     if (swimming) {
       // 镜像椭圆:胸前合手 → 前伸 → 向两侧划开 → 收回。

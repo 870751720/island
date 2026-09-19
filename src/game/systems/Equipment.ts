@@ -1,10 +1,11 @@
 import type { Inventory, ResourceKind } from './Inventory';
 
 /** 装备栏位:衣服/裤子/帽子/背包 */
-export type EquipSlot = 'clothing' | 'pants' | 'hat' | 'backpack';
+export type EquipSlot = 'clothing' | 'pants' | 'hat' | 'backpack' | 'mount';
 
 /** 可装备道具的种类 */
 export type EquipKind =
+  | 'skateboard'
   | 'grassShirt'
   | 'grassPants'
   | 'strawHat'
@@ -33,10 +34,12 @@ export type EquipmentDef = {
   bodyColor?: string;
   /** 背包:装备后背包扩容到的格数 */
   capacity?: number;
+  landSpeedMultiplier?: number;
 };
 
 /** 四类装备各三件的静态定义:一级草制、二级皮制、三级铁制(容量为基础 10 格 + 增量) */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
+  skateboard: { kind: 'skateboard', slot: 'mount', score: 1, landSpeedMultiplier: 2 },
   grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, reduce: 0.16, bodyColor: '#81976b' },
   grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, reduce: 0.14, bodyColor: '#596e59' },
   strawHat: { kind: 'strawHat', slot: 'hat', score: 2, reduce: 0.1, thirstMod: 0.95 },
@@ -52,12 +55,13 @@ export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
 };
 
 /** 栏位展示顺序与中文名(角色面板用) */
-export const SLOT_ORDER: EquipSlot[] = ['clothing', 'pants', 'hat', 'backpack'];
+export const SLOT_ORDER: EquipSlot[] = ['clothing', 'pants', 'hat', 'backpack', 'mount'];
 export const SLOT_NAMES: Record<EquipSlot, string> = {
   clothing: '衣服',
   pants: '裤子',
   hat: '帽子',
   backpack: '背包',
+  mount: '坐骑',
 };
 
 export function isEquipKind(kind: ResourceKind): kind is EquipKind {
@@ -111,6 +115,7 @@ export class Equipment {
       pants: this.getEquipped('pants'),
       hat: this.getEquipped('hat'),
       backpack: this.getEquipped('backpack'),
+      mount: this.getEquipped('mount'),
     };
   }
 
@@ -159,7 +164,7 @@ export class Equipment {
     this.equipped = {};
     for (const slot of SLOT_ORDER) {
       const kind = data[slot];
-      if (typeof kind === 'string' && isEquipKind(kind as ResourceKind)) {
+      if (typeof kind === 'string' && isEquipKind(kind as ResourceKind) && EQUIPMENT[kind as EquipKind].slot === slot) {
         this.equipped[slot] = kind as EquipKind;
       }
     }

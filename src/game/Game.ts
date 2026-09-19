@@ -1733,6 +1733,7 @@ export class Game {
       if (!s) s = this.addRemoteSession(true, p.id, p.name);
       s.setName(s === this.local ? '我' : p.name);
       s.player.setGender(p.gender ?? 'boy');
+      s.player.syncMountPose(p.mountPose ?? 0);
       if (s !== this.local && SLOT_ORDER.some((slot) => s.equipment.getEquipped(slot) !== p.equipped[slot])) {
         s.equipment.restore(p.equipped, s.inventory);
       }

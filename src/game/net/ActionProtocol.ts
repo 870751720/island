@@ -152,7 +152,7 @@ const NET_ACTION_ARG_COUNTS = {
 const HAND_TOOLS: ReadonlySet<string> = new Set([
   'hand', 'axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'lasso', 'shears', 'fence', 'fenceGate', 'place',
 ]);
-const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack']);
+const EQUIP_SLOTS: ReadonlySet<string> = new Set(['clothing', 'pants', 'hat', 'backpack', 'mount']);
 const ANIMAL_SPECIES: ReadonlySet<string> = new Set(['rabbit', 'sheep', 'bison', 'wolf', 'bear', 'crocodile']);
 const TOOL_IDS: ReadonlySet<string> = new Set(['axe', 'pickaxe', 'shovel', 'hoe', 'fishingrod', 'bow', 'sword', 'shears']);
 

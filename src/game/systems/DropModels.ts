@@ -1,3 +1,4 @@
+import { createSkateboard } from '../entities/Skateboard';
 import { makeResearchTableModel } from '../entities/ResearchTable';
 import { makeHiddenFoodModel } from '../entities/HiddenFoodModel';
 import { hiddenRecipeRecord } from './HiddenRecipeCatalog';
@@ -13,6 +14,7 @@ import type { ResourceKind } from './Inventory';
 
 /** 各道具掉落物的主题色(粒子特效与造型细节共用) */
 export const DROP_COLORS: Record<ResourceKind, string> = {
+  skateboard: '#427d78',
   branch: '#8b5a2b',
   wood: '#7a5230',
   stone: '#9a9a9a',
@@ -1291,6 +1293,7 @@ function makeCookingStationDrop(): THREE.Object3D {
 }
 
 const BUILDERS: Record<ResourceKind, () => THREE.Object3D> = {
+  skateboard: createSkateboard,
   branch: makeWood,
   wood: makeLog,
   stone: makeStone,

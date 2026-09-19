@@ -62,6 +62,7 @@ function player(tool = 'hand'): any {
     applyOwnerPose(x: number, y: number, z: number, rot: number, moving: boolean) {
       this.group.position.set(x, y, z); this.group.rotation.y = rot; this.isMoving = moving;
     },
+    syncMountPose(pose: number) { this.mountPose = pose; },
     getRodTip: () => false,
   };
 }
@@ -89,6 +90,11 @@ for (let i = 0; i < 20; i++) snapshotGame.netApplyPlayers({ players: { full: [ol
 assert.equal(owner.player.group.position.x, 9, 'ordinary snapshots cannot rewind local movement');
 assert.equal(owner.player.currentAction, 'chop', 'ordinary snapshots cannot cancel local action');
 assert.equal(owner.player.currentTool, 'axe');
+assert.equal(owner.player.mountPose, 0, 'missing mount pose defaults safely');
+snapshotGame.netApplyPlayers({ players: { full: [{ ...oldSnapshot, mountPose: 2 }] } });
+assert.equal(owner.player.mountPose, 2, 'host mount pose reaches the local owner');
+assert.equal(hasValidNetActionArgs('unequipItem', ['mount']), true);
+assert.equal(hasValidNetActionArgs('equipItem', ['skateboard']), true);
 snapshotGame.netApplyPlayers({ players: { full: [{ ...oldSnapshot, epoch: 1, x: 20 }] } });
 assert.equal(owner.player.group.position.x, 20, 'a forced new epoch does reposition the owner');
 

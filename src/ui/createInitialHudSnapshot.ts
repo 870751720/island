@@ -47,7 +47,7 @@ export function createInitialHudSnapshot(): HudSnapshot {
     cookingStationInfo: null,
     loomInfo: null,
     millInfo: null,
-    equipped: { clothing: null, pants: null, hat: null, backpack: null },
+    equipped: { clothing: null, pants: null, hat: null, backpack: null, mount: null },
     gender: 'boy',
     tool: 'hand',
     craftId: null,

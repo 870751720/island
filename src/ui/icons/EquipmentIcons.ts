@@ -67,6 +67,7 @@ function pack(material: Material) {
 
 /** 三套装备共享裁片结构；草编、皮毛和海沫色金属各有独立纹理与配件。 */
 export const EQUIPMENT_SVG = {
+  skateboard: claySvg(e(19, 45, 5, 6, '#353d48') + e(46, 35, 5, 6, '#353d48') + p('M8 35L45 19Q57 16 57 24L20 43Q9 47 8 35Z', '#c18d51') + p('M13 33L45 21Q52 19 53 23L20 39Q13 41 13 33Z', '#427d78') + l('M24 29L38 23', '#9dc3a5', 2)),
   grassShirt: shirt('grass'), grassPants: pants('grass'), strawHat: hat('grass'), strawBackpack: pack('grass'),
   furShirt: shirt('fur'), furPants: pants('fur'), furHat: hat('fur'), furBackpack: pack('fur'),
   ironShirt: shirt('iron'), ironPants: pants('iron'), ironHat: hat('iron'), ironBackpack: pack('iron'),

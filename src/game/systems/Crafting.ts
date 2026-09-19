@@ -559,6 +559,13 @@ export const RECIPES: Recipe[] = [
     output: 'strawHat',
   },
   {
+    id: 'skateboard',
+    name: '滑板',
+    cost: { wood: 6, stone: 4, rope: 2 },
+    station: 'workbench',
+    output: 'skateboard',
+  },
+  {
     id: 'strawBackpack',
     name: '草包',
     cost: { fiber: 4 },
