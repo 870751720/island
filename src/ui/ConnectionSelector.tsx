@@ -16,11 +16,10 @@ export function ConnectionSelector({ value, onChange, disabled, availability, jo
       {([
         { id: 'direct', title: '好友直连', detail: '当前连接方式', badge: '默认', icon: '↔' },
         { id: 'relay', title: '服务器中转', detail: '直连困难时可尝试', badge: '限量', icon: '⇄' },
-        { id: 'lan', title: '局域网', detail: '同一 Wi-Fi 下联机', badge: '暂未开放', icon: '⌁' },
       ] as const).map(choice => <button key={choice.id} type="button"
         className={`${styles.choice} ${value === choice.id ? styles.selected : ''}`}
-        disabled={disabled || choice.id === 'lan'} aria-pressed={value === choice.id}
-        onClick={() => { if (choice.id !== 'lan') onChange(choice.id); }}>
+        disabled={disabled} aria-pressed={value === choice.id}
+        onClick={() => onChange(choice.id)}>
         <span className={styles.icon} aria-hidden="true">{choice.icon}</span>
         <span className={styles.copy}><strong>{choice.title}</strong><small>{choice.detail}</small></span>
         <span className={styles.badge}>{value === choice.id ? '已选' : choice.badge}</span>
