@@ -12,7 +12,7 @@ const STATE_HIGH_WATER = 128 * 1024;
 const STATE_LOW_WATER = 32 * 1024;
 const CONTROL_HIGH_WATER = 512 * 1024;
 const CONTROL_LOW_WATER = 128 * 1024;
-const STATE_TYPES = new Set(['input']);
+const STATE_TYPES = new Set(['ownerPose']);
 // 单条 DataChannel 消息超过浏览器安全上限(约 256KB)会发送失败,大存档等消息按 UTF-16 单元分片;
 // 每单元最多 3 字节 UTF-8,20000 单元 ≤ 60KB,远离上限。
 const FRAG_UNITS = 20_000;

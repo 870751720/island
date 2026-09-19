@@ -57,7 +57,7 @@
 ### 制作改为产出道具拿在手上(2026-09-09 迭代)
 
 - 工作台不再「原地搭建直接放置」:改为普通手搓配方(2 石头 + 1 树枝 → `workbench1` 道具),制作完成后自动拿在手上,走与其他设施一致的站定自动放置流程放下;`WorkbenchSystem` 删除搭建模式,只保留升级/挖掘/放回(`placeItem`),首次放置工作台时设置本局已制作标记(原 `workbenchCrafted` 存档字段语义不变)。
-- 配方可见性:工作台全局唯一——已放置或背包里已有任意等级工作台道具时,场景手搓卡片不再弹出(2026-09-18 起背包制作页改为置灰「已拥有」展示,不再隐藏,见 `inventory-grid.md`);HUD 用 `workbenchCrafted` 替代原 `canCraftWorkbench/workbenchCrafting` 特殊卡片字段,手搓卡片与背包制作页都按普通配方渲染。联机删 `craftWorkbench` 动作(制作走 `craftTool`)。
+- 配方可见性:工作台全局唯一——已放置或背包里已有任意等级工作台道具时,场景手搓卡片不再弹出(2026-09-18 起背包制作页改为置灰「已拥有」展示,不再隐藏,见 `inventory-grid.md`);HUD 用 `workbenchCrafted` 替代原 `canCraftWorkbench/workbenchCrafting` 特殊卡片字段,手搓卡片与背包制作页都按普通配方渲染。联机制作在本机计时后发送 `craftFinish`。
 - 同批:火堆同样道具化(新道具「火堆」放下即引燃),详见 `docs/autoplace.md` 迭代记录。
 
 ### 制作完成手持范围收窄(2026-09-11 迭代)
@@ -69,4 +69,8 @@
 - 工作台面板除工作台专属配方外,同时列出全部手搓配方(木斧、木镐、火把、火堆、工作台、草衣等),靠近工作台一个入口完成所有制作;材料不足仍置灰展示,已拥有的永久工具维持隐藏规则。
 - 装备类配方(草衣、草裤、皮衣等)在身上或背包已有同栏位不低于其评分的装备时显示「已拥有」并禁用,排序为最低:当前任务 → 未拥有 → 可制作 → 分类,已拥有垫底。判定复用从 `recipeVisible` 抽出的 `Crafting.ts` 的 `equipRecipeOwned`。
 - 火堆/工作台道具化后可重复制作:背包制作页与工作台面板均不再因已放置/已持有而抑制,材料够即可继续做(多个工作台/火堆可共存,`WorkbenchSystem.placeItem` 直接追加实体)。该唯一抑制判定仅保留给场景手搓快捷卡防重复弹卡,抽为 `Crafting.ts` 的 `recipeUniqueSuppressed`,`recipeVisible` 内部调用。
-- `PlayerCommandController.craftAtWorkbench` 放宽站点校验:靠近工作台时可结算任意配方(仍要求靠近、未在升级/挖掘、`minBenchLevel` 满足;手搓配方无等级门槛);`craftTool` 手搓路径不变。联机协议不变,客人沿用 `craftAtWorkbench` 上行,详见 `docs/multiplayer.md` 对应迭代记录。
+- `PlayerCommandController.craftAtWorkbench` 放宽站点校验:靠近工作台时可结算任意配方(仍要求靠近、未在升级/挖掘、`minBenchLevel` 满足;手搓配方无等级门槛);`craftTool` 手搓路径不变。联机本机完成后发送 `craftFinish`，房主复核工作台条件，详见 `multiplayer.md`。
+
+## 联机操作职责
+
+制作和升级进度由本人本机运行，完成发送 `craftFinish` / `workFinish`；房主复核配方、工作台等级、距离和材料后结算，不再替客人跑制作计时。详见 [玩家本机驱动与共享世界结算](owner-driven-multiplayer.md)。

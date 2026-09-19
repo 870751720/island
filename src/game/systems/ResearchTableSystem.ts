@@ -13,16 +13,21 @@ export class ResearchTableSystem extends FacilitySystem<'researchTable'> {
     super(dependencies, { create: (scene, at) => new ResearchTable(scene, at), color: () => '#e9d5a9' }, 'research');
   }
   nearby(actor: PlayerSession): boolean {
-    const p = actor.player.group.position;
-    return this.facilities.some(f => Math.hypot(f.group.position.x - p.x, f.group.position.z - p.z) < 2.2);
+    return this.nearbyId(actor) !== null;
   }
-  start(actor: PlayerSession, kinds: ResourceKind[]): boolean {
+  nearbyId(actor: PlayerSession): string | null {
+    const p = actor.player.group.position;
+    const target = this.facilities.find(f => (actor.interactionTarget === undefined || this.ids.get(f) === actor.interactionTarget)
+      && Math.hypot(f.group.position.x - p.x, f.group.position.z - p.z) < 2.2);
+    return target ? this.ids.get(target) : null;
+  }
+  start(actor: PlayerSession, kinds: ResourceKind[], preview = false): boolean {
     const s = actor.research;
     if (!this.nearby(actor) || actor.survival.state.dead || s.remaining > 0 || s.cooldown > 0 || !validResearch(kinds)) return false;
     if (kinds.some(k => actor.inventory.count(k) < 1)) { this.notify('食材不足，请重新选择', actor); return false; }
     const recipe = matchResearch(kinds);
     if (recipe && actor.discoveredRecipes.has(recipe.kind)) { this.notify('已发现此配方，可在烹饪台制作', actor); return false; }
-    for (const kind of kinds) actor.inventory.remove(kind, 1);
+    if (!preview) for (const kind of kinds) actor.inventory.remove(kind, 1);
     s.ingredients = [...kinds]; s.remaining = 2; s.result = null; s.serial++;
     return true;
   }

@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { cookingCost, hiddenRecipe } from './HiddenRecipes';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
@@ -135,10 +136,16 @@ export class CookingStationSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的烹饪台(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): CookingStation | null {
     let best: CookingStation | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const station of this.stations) {
+      if (actor.interactionTarget !== undefined && this.ids.get(station) !== actor.interactionTarget) continue;
       this.scratch.copy(station.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -221,7 +228,7 @@ export class CookingStationSystem implements FacilityInteractionSource {
     const owned = actor.inventory.count(kind);
     if (!station || !station.isLit || !cooked || owned < 1) return false;
     const n = Math.min(count, owned);
-    actor.inventory.remove(kind, n);
+    if (!actor.ownerWork) actor.inventory.remove(kind, n);
     st.roastKind = kind;
     st.roastStation = station;
     st.roastQueue = n;
@@ -333,6 +340,36 @@ export class CookingStationSystem implements FacilityInteractionSource {
   }
 
   /** 每帧推进该玩家的烤制/挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.stations.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('cookingStations', id);
+    this.stations.splice(this.stations.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    target.dispose();
+    this.give('cookingStation', 1, actor);
+    if (target.boilKind && target.boilQueue > 0) this.returnCookingMaterials(target.boilKind, target.boilQueue, actor);
+    if (target.outKind && target.outCount > 0) this.give(target.outKind, target.outCount, actor);
+    this.audio.play('pickup');
+    this.fx.burst(target.group.position, '#5c5f66', 14);
+    return true;
+  }
+
+  settlePortion(actor: PlayerSession, token: string): boolean {
+    const [id, raw] = token.split('|');
+    if (!Object.prototype.hasOwnProperty.call(COOKABLE, raw)) return false;
+    const kind = raw as ResourceKind;
+    const target = this.stations.find(item => this.ids.get(item) === id);
+    if (!target || !target.isLit || this.nearby(actor) !== target || actor.player.isMoving || actor.player.isSwimming
+      || actor.inventory.count(kind) < 1 || !actor.inventory.canFit(COOKABLE[kind]!)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('roast', token);
+    actor.inventory.remove(kind, 1);
+    this.give(COOKABLE[kind]!, 1, actor);
+    if (kind === 'gameMeat') actor.quests.campAction('cook');
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -350,7 +387,7 @@ export class CookingStationSystem implements FacilityInteractionSource {
     const fireGone = !station.isLit || this.nearby(actor) !== station;
     if (actor.player.isMoving || actor.player.isSwimming || fireGone) {
       // 中断:剩余食材原样退回
-      actor.inventory.add(kind, st.roastQueue);
+      if (!actor.ownerWork) actor.inventory.add(kind, st.roastQueue);
       st.roastKind = null;
       st.roastStation = null;
       return;
@@ -366,7 +403,11 @@ export class CookingStationSystem implements FacilityInteractionSource {
       this.fx.burst(p, '#ffb84d', 3);
     }
     if (st.roastTimer >= ROAST_TIME) {
-      this.give(COOKABLE[kind]!, 1, actor);
+      if (actor.ownerWork) {
+        if (!this.settlePortion(actor, `${this.ids.get(station)}|${kind}`)) {
+          st.roastKind = null; st.roastStation = null; return;
+        }
+      } else this.give(COOKABLE[kind]!, 1, actor);
       st.roastTimer = 0;
       st.roastTickTimer = 0;
       st.roastQueue -= 1;
@@ -454,15 +495,8 @@ export class CookingStationSystem implements FacilityInteractionSource {
     if (st.hits < shovelHits(actor.tools.shovel)) return;
     st.hits = 0;
     st.digTarget = null;
-    this.stations.splice(this.stations.indexOf(target), 1);
-    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-    this.scene.remove(target.group);
-    target.dispose();
-    this.give('cookingStation', 1, actor);
-    if (target.boilKind && target.boilQueue > 0) this.returnCookingMaterials(target.boilKind, target.boilQueue, actor);
-    if (target.outKind && target.outCount > 0) this.give(target.outKind, target.outCount, actor);
-    this.audio.play('pickup');
-    this.fx.burst(target.group.position, '#5c5f66', 14);
+    this.settleDig(actor, this.ids.get(target));
+
   }
 
   /** 当前挖烹饪台进度 0-1,未在挖掘时为 null */

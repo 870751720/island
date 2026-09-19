@@ -1,3 +1,5 @@
+import { INTERACTION_TARGETS } from './net/InteractionTargets';
+import { OwnerWork, OwnerWorkRegistry } from './net/OwnerWork';
 import { FrameDiagnostics } from './core/FrameDiagnostics';
 import { ResearchTableSystem } from './systems/ResearchTableSystem';
 import { HIDDEN_RECIPES } from './systems/HiddenRecipes';
@@ -9,7 +11,7 @@ import { settleDeathLoot, resetRespawnBelongings } from './systems/DeathLoot';
 import { findRespawnPoint } from './systems/RespawnPoint';
 import { isFishCatch } from './systems/FishTable';
 import { DigHighlight } from './fx/DigHighlight';
-import { DigTargetPresentation, type DigTargetSnapshot } from './presentation/DigTargetPresentation';
+import { DigTargetPresentation } from './presentation/DigTargetPresentation';
 import { ITEMS } from './systems/Items';
 import { DOG_GM_COMMANDS, type DogGmCommand } from './systems/DogGrowth';
 import type { DogStageNotice } from './entities/Companion';
@@ -37,7 +39,7 @@ import { DayNightSystem } from './systems/DayNightSystem';
 import { advanceSeasonForDay, getSeason, rollInitialSeason, setSeason } from './systems/SeasonSystem';
 import { DayEventSystem } from './systems/DayEventSystem';
 import { WeatherSystem, type WeatherType } from './systems/WeatherSystem';
-import { TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
+import { RECIPES, TOOL_IDS, type CraftId, type ToolId, type Tools } from './systems/Crafting';
 import { CraftingSystem } from './systems/CraftingSystem';
 import { DropSystem, type DropInfo } from './systems/DropSystem';
 import { WorkbenchSystem } from './systems/WorkbenchSystem';
@@ -216,8 +218,6 @@ export class Game {
   private thirstGuidance!: ThirstGuidance;
   private digHighlight: DigHighlight;
   private digTargets: DigTargetPresentation;
-  private guestDigTarget: DigTargetSnapshot | null = null;
-  private guestDigTargetAt = 0;
   private hudSnapshotBuilder: HudSnapshotBuilder;
   private interactionIndicatorBuilder: InteractionIndicatorBuilder;
   private worldSaveSystems: WorldSaveSystems;
@@ -355,13 +355,10 @@ export class Game {
   private hudTimer = 0;
   private noticeId = 0;
   private notice: { id: number; text: string } | null = null;
-  /** 客人本地预测位置与房主快照的残留偏差(x,z),静止期间按指数衰减抹平 */
-  private netDrift = new THREE.Vector2();
   private readonly indicatorAnchor = new THREE.Vector3();
   private readonly questAnchor = new THREE.Vector3();
-  /** 每个已发送输入对应的本地预测位置，用于按房主 ack 重放尚未确认的位移。 */
-  private netInputHistory: { seq: number; x: number; z: number }[] = [];
-  private netAckInputSeq = 0;
+  private lastOwnerEpoch = -1;
+  private ownerWorks = new OwnerWorkRegistry<PlayerSession>();
   private lastHurtSfxAt = -10;
   /** 游戏循环累计时间(音效节流用) */
   private loopElapsed = 0;
@@ -668,11 +665,14 @@ export class Game {
     // 砍树/采石/敲打/放箭的声响会惊动附近的动物:熊循声警戒,食草动物逃离
     this.audio.onSfx = (name) => {
       if (name === 'chop' || name === 'mine' || name === 'knock' || name === 'shoot') {
-        const pos = this.player.group.position;
-        this.wildlife.startle(pos.x, pos.z);
+        const pos = (this.activeNetActor ?? this.local).player.group.position;
+        if (!this.guestMode) this.wildlife.startle(pos.x, pos.z);
       }
       if (this.hostRef) {
         const actor = this.activeNetActor ?? this.local;
+        if (actor !== this.local && ((actor.fishing.isWorking && ['whoosh', 'splash', 'bite'].includes(name))
+          || name === 'snore')) return;
+        if (actor !== this.local && (name === 'place' || name === 'plant')) return;
         const p = actor.player.group.position;
         this.hostRef.broadcastEvent({ kind: 'feedback', sfx: name, actor: actor.id, x: p.x, y: p.y + 1, z: p.z });
       }
@@ -1007,16 +1007,26 @@ export class Game {
       this.workbench,
       (actor) => this.asleepFor(actor)
     );
+    for (const [key, system] of Object.entries({
+      crates: this.crates, baitBarrels: this.baitBarrels, brewBarrels: this.brewBarrels,
+      doghouses: this.doghouses, waterPurifiers: this.waterPurifiers, burrows: this.burrows,
+      smelters: this.smelters, cookingStations: this.cookingStations, loom: this.looms, mill: this.mills,
+      fences: this.fences, beds: this.beds, soils: this.soils, gravelPath: this.gravelPaths,
+      plankPath: this.plankPaths, workbenches: this.workbench, campfires: this.campfire,
+      shrine: this.ambientFacilities, research: this.researchTables,
+    })) this.ownerWorks.register(key, (actor, id) => system.settleDig(actor, id));
+    this.ownerWorks.register('crops', (actor, id) => this.crops.settleHarvest(actor, id));
+    this.ownerWorks.register('upgrade', (actor, id) => this.workbench.settleUpgrade(actor, id));
+    this.ownerWorks.register('campfireCook', (actor, id) => this.campfire.settlePortion(actor, id));
+    this.ownerWorks.register('roast', (actor, id) => this.cookingStations.settlePortion(actor, id));
     this.attachSessionSystems(this.local);
     this.guestHud = new GuestHudSynchronizer(
       this.local,
       this.pickupPresentation,
-      this.audio,
-      this.fx,
       () => this.syncToolTiers(this.local),
       (snapshot) => {
         if (!this.recipesUploaded) { this.recipesUploaded = true; this.syncRecipeDiscoveries(loadRecipeDiscoveries()); }
-        this.presentHud(snapshot);
+        this.presentHud(this.ownerHud(snapshot));
       },
       () => ({
         autoEquipProgress: this.autoEquipTimer / AUTO_EQUIP_DELAY,
@@ -1166,6 +1176,7 @@ export class Game {
         const simDelta = singlePlayer && this.cameraController.photoActive ? 0 : delta;
         this.questAutoMove?.update(simDelta, this.local, this.questMoveTarget(), this.cameraController.photoActive || this.asleepFor(this.local) || !loadQuestGuide());
         for (const session of this.sessions) {
+          session.player.weatherSpeedMultiplier = this.weather.speedMultiplier;
           session.player.carryingFacility = this.autoPlace.isCarryingFacility(session);
           session.player.roadKind = this.gravelPaths.contains(session.player.group.position) ? 'gravelPath'
             : this.plankPaths.contains(session.player.group.position) ? 'plankPath' : null;
@@ -1231,7 +1242,7 @@ export class Game {
         this.footprints.update(simDelta);
         this.frameDiagnostics.mark('粒子与水面表现');
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
-        // 客人端不跑权威模拟,全部由房主快照驱动
+        // 房主维护各玩家生存数值；个人交互计时仅由本人推进。
         for (const s of this.guestMode ? [] : this.sessions) {
           s.combatSeconds = s.survival.state.dead ? 0 : Math.max(0, s.combatSeconds - simDelta);
           this.activeNetActor = s;
@@ -1299,9 +1310,9 @@ export class Game {
             }
             continue;
           }
-          s.collect.update(simDelta);
-          s.livestock.update(simDelta);
-          s.crafting.update(simDelta);
+          if (s === this.local) s.collect.update(simDelta);
+          if (s === this.local) s.livestock.update(simDelta);
+          if (s === this.local) s.crafting.update(simDelta);
           // 工作台配方离台即中断(小幅挪动可能未触发移动中断)
           if (
             s.crafting.isWorking &&
@@ -1310,7 +1321,7 @@ export class Game {
           ) {
             s.crafting.cancel();
           }
-          s.eating.update(simDelta);
+          if (s === this.local) s.eating.update(simDelta);
           s.fishing.update(simDelta, this.isSessionBusy(s, 'fishing'));
           // 弓由玩家移动瞄准操控:只有本地玩家自己跑(客人的弓在客人端判定,结果上行结算);套索同理
           if (s === this.local) {
@@ -1324,37 +1335,11 @@ export class Game {
             s.sword.updateVisuals(simDelta);
             s.lasso.updateVisuals(simDelta);
           }
-          s.water.update(simDelta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
+          if (s === this.local) s.water.update(simDelta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
           this.frameDiagnostics.mark('玩家生存与工具');
-          this.crates.updateActor(s, simDelta);
-          this.baitBarrels.updateActor(s, simDelta);
-          this.brewBarrels.updateActor(s, simDelta);
-          this.doghouses.updateActor(s, simDelta);
-          this.waterPurifiers.updateActor(s, simDelta);
-          this.burrows.updateActor(s, simDelta);
-          this.smelters.updateActor(s, simDelta);
-          this.cookingStations.updateActor(s, simDelta);
-          this.looms.updateActor(s, simDelta);
-          this.mills.updateActor(s, simDelta);
-          this.researchTables.updateActor(s, simDelta);
-          this.fences.updateActor(s, simDelta);
-          this.autoPlace.updateActor(s, simDelta);
-          this.refreshHandModels();
-          this.beds.updateActor(s, simDelta);
-          this.ambientFacilities.updateActor(s, simDelta);
-          this.soils.updateActor(s, simDelta);
-          this.gravelPaths.updateActor(s, simDelta);
-          this.plankPaths.updateActor(s, simDelta);
-          this.crops.updateActor(s, simDelta);
-          this.workbench.updateActor(s, simDelta);
-          this.campfire.updateActor(s, simDelta);
-          // 手里的种子/围栏/可放置道具用光后自动收起,回到空手
-          const heldTool = s.player.currentTool;
-          if (heldTool === 'place' || heldTool === 'fence' || heldTool === 'fenceGate') {
-            if (!this.heldPlaceItem(s)) s.player.setTool('hand');
-          } else if (heldTool !== 'hand' && !this.hasToolFor(s, heldTool)) {
-            s.player.setTool('hand');
-          }
+          if (s === this.local) this.updateOwnerFacilities(s, simDelta);
+          else if (this.beds.isSleeping(s)) this.beds.updateActor(s, simDelta);
+          this.stowEmptyTool(s);
           this.frameDiagnostics.mark('设施交互与自动放置');
         }
         this.frameDiagnostics.mark('设施交互与自动放置');
@@ -1363,7 +1348,7 @@ export class Game {
         // 局外养成的每日一次标记跨天重置
         this.metaDaily.ensure(this.dayNight.day);
         // 睡觉过渡中:天空随进度日夜流转(多人同时睡取最先入睡者的进度)
-        for (const s of this.sessions) {
+        for (const s of this.guestMode ? [] : this.sessions) {
           const sleepProgress = this.beds.getSleepProgress(s);
           if (sleepProgress !== null) {
             this.dayNight.setSleepProgress(sleepProgress);
@@ -1383,6 +1368,10 @@ export class Game {
         this.looms.update(simDelta, elapsed, !this.guestMode);
         this.mills.update(simDelta, elapsed, !this.guestMode);
         if (!this.guestMode) for (const s of this.sessions) this.researchTables.advance(s, simDelta);
+        else {
+          this.local.research.remaining = Math.max(0, this.local.research.remaining - simDelta);
+          this.local.research.cooldown = Math.max(0, this.local.research.cooldown - simDelta);
+        }
         if (this.local.research.remaining > 0) {
           this.researchSoundLeft -= simDelta;
           if (this.researchSoundLeft <= 0) { this.audio.play('sizzle'); this.researchSoundLeft = 0.8; }
@@ -1457,10 +1446,7 @@ export class Game {
         this.soils.flushInstances();
         this.gravelPaths.flushInstances();
         this.plankPaths.flushInstances();
-        if (this.guestMode && (this.player.isMoving || this.player.currentTool !== 'shovel')) this.guestDigTarget = null;
-        const digTarget = this.guestMode
-          ? (performance.now() - this.guestDigTargetAt < 1000 ? this.guestDigTarget : null)
-          : this.digTargets.snapshot(this.local);
+        const digTarget = this.digTargets.snapshot(this.local);
         const showDig = this.player.currentTool === 'shovel' && !this.player.isMoving && !this.player.isSwimming
           && !this.survival.state.dead && !this.cameraController.photoActive;
         this.digHighlight.update(showDig ? this.digTargets.resolve(digTarget) : null, elapsed);
@@ -1471,6 +1457,7 @@ export class Game {
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
+            s.fishing.netStop(); s.crafting.cancel(); s.eating.cancel();
             if (!this.hostRef && !this.guestMode && s === this.local) {
               this.wildlife.onSoloPlayerDeath(s.player.group.position);
             }
@@ -1522,9 +1509,24 @@ export class Game {
         this.frameDiagnostics.mark('自动存档');
         if (!this.guestMode) this.pushHud(delta);
         this.pickupPresentation.flush();
-        // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
+        // 本人的动作即时推进；客人只发送命中/完成请求，不修改共享世界。
         if (this.guestMode) {
-          this.collect.scanNearby();
+          if (!this.survival.state.dead) {
+            this.local.fishing.update(delta, this.isSessionBusy(this.local, 'fishing'));
+            this.local.crafting.update(delta);
+            this.local.eating.update(delta);
+            this.local.livestock.update(delta);
+            this.collect.update(delta);
+            this.local.water.update(delta, this.isSessionBusy(this.local, 'water'), !!this.waterPurifiers.nearby(this.local));
+            this.updateOwnerFacilities(this.local, delta);
+          } else {
+            this.local.crafting.cancel();
+            this.local.collect.cancel();
+            this.local.eating.cancel();
+          }
+          this.local.hudIdleTime = this.isSessionActive(this.local) ? 0 : this.local.hudIdleTime + delta;
+          this.stowEmptyTool(this.local);
+          this.refreshHandModels();
           // 客人的弓在本地完整跑瞄准/飞行/命中判定,命中结果上行房主权威结算;
           // 远程玩家的弓不在此端模拟(其放箭声效由房主 feedback 事件补播)
           this.local.archery.update(
@@ -1547,21 +1549,20 @@ export class Game {
               s.archery.updateVisuals(delta);
               s.lasso.updateVisuals(delta);
             }
-            // 纯表现:钓鱼线/围栏落点预览的结算在房主,客人端本地复现画面;
-            // 复现期间静音——本人的音效已由房主 feedback 事件补播,这里再播会重一声,
-            // 远程玩家的交互音效按设计只给发起者本人听
+            // 其他玩家只复现钓线与预览，不播放操作者的本机音效。
             this.audio.silent = true;
-            s.fishing.update(delta, false);
+            if (s !== this.local) s.fishing.update(delta, false);
             this.autoPlace.updatePreviewFor(s);
           }
           this.audio.silent = false;
         }
-        // 客人静止期间把本地预测位置的残留偏差向房主快照柔和抹平(移动中不干预,避免和输入打架)
-        if (this.guestMode && !this.player.isMoving && this.netDrift.lengthSq() > 1e-8) {
-          const k = 1 - Math.exp(-3 * delta);
-          this.player.group.position.x += this.netDrift.x * k;
-          this.player.group.position.z += this.netDrift.y * k;
-          this.netDrift.multiplyScalar(1 - k);
+        if (this.guestMode && this.lastGuestHud) {
+          this.hudTimer += delta;
+          if (this.hudTimer >= 0.1 || this.lastMoving !== this.player.isMoving) {
+            this.hudTimer = 0;
+            this.lastMoving = this.player.isMoving;
+            this.presentHud(this.ownerHud(this.lastGuestHud));
+          }
         }
         this.frameDiagnostics.mark('HUD与客人交互');
         this.updateAutoEquip(delta);
@@ -1578,7 +1579,6 @@ export class Game {
     this.thirstGuidance = new ThirstGuidance(this.scene, this.terrain);
     this.questAutoMove = new QuestAutoMove(this.terrain, (x, z) => this.fences.isBlocked(x, z) || this.props.isBlocked(x, z, 0.4), (x, z) => {
       this.player.input.setAutomatic(x, z);
-      this.guestNet?.sendInput(x, z);
     }, text => this.notify(text));
     this.questSheepSupport = new QuestSheepSupport(this.terrain, this.wildlife);
     this.questGuidance = new QuestGuidance(this.scene, this.terrain, this.props, this.wildlife, this.workbench, this.drops, this.campfire, (actor, x, z) => this.bushCellOk(actor, x, z) === null);
@@ -1592,10 +1592,21 @@ export class Game {
     }
     if (this.guestNet) {
       this.guestNet.onPlayers = (m) => this.netApplyPlayers(m);
-      this.guestNet.onInputSent = (seq) => {
-        const pos = this.player.group.position;
-        this.netInputHistory.push({ seq, x: pos.x, z: pos.z });
-        if (this.netInputHistory.length > 256) this.netInputHistory.shift();
+      this.guestNet.readTarget = name => {
+        const key = INTERACTION_TARGETS[name];
+        if (!key) return undefined;
+        if (key === 'drops') return this.drops.getNearby(this.local)?.id ?? null;
+        const sources: Record<string, { nearbyId(actor: PlayerSession): string | null }> = {
+          crates: this.crates, baitBarrels: this.baitBarrels, brewBarrels: this.brewBarrels,
+          smelters: this.smelters, cookingStations: this.cookingStations, looms: this.looms,
+          mills: this.mills, campfire: this.campfire, beds: this.beds, researchTables: this.researchTables,
+        };
+        return sources[key]?.nearbyId(this.local) ?? null;
+      };
+      this.guestNet.readPose = () => {
+        const p = this.player.group.position;
+        return { epoch: this.player.poseEpoch, x: p.x, y: p.y, z: p.z,
+          rotY: this.player.group.rotation.y, moving: this.player.isMoving, action: this.player.currentAction };
       };
       this.guestNet.onAnimals = (list) => this.netApplyAnimals(list);
       this.guestNet.onAmbient = (state) => this.netApplyAmbient(state);
@@ -1700,7 +1711,7 @@ export class Game {
     this.worldReplication.bindHostChangeSinks();
   }
 
-  /** 客人侧:应用房主的玩家快照(自己只在大偏差时校正,其余遥控插值) */
+  /** 客人侧:本人仅接受新复活代次的强制位置，其他玩家按快照插值 */
   netApplyPlayers(msg: Extract<NetMsg, { t: 'players' }>): void {
     const { time, day } = msg;
     if (msg.raidSkipped !== undefined) this.guestRaidSkipped = msg.raidSkipped;
@@ -1726,32 +1737,14 @@ export class Game {
         s.equipment.restore(p.equipped, s.inventory);
       }
       if (s === this.local) {
-        const pos = s.player.group.position;
-        let targetX = p.x;
-        let targetZ = p.z;
-        if (msg.ackInputSeq >= this.netAckInputSeq) {
-          this.netInputHistory = this.netInputHistory.filter((sample) => sample.seq > msg.ackInputSeq);
-          this.netAckInputSeq = msg.ackInputSeq;
-          // 房主位置只包含 ack 以前的输入；保留首个未确认输入发出以后客户端实际预测出的位移。
-          // 该位移已经经过本地碰撞约束，比脱离 Player 系统按速度重新积分更贴近真实运动。
-          const firstPending = this.netInputHistory[0];
-          if (firstPending) {
-            targetX += pos.x - firstPending.x;
-            targetZ += pos.z - firstPending.z;
+        if (p.epoch > this.lastOwnerEpoch) {
+          if (this.lastOwnerEpoch >= 0) {
+            this.clearOwnerWork();
+            s.player.respawn(new THREE.Vector3(p.x, p.y, p.z));
+            this.setJoystick(0, 0);
           }
-        } else {
-          // 姿态通道允许丢包/乱序时，旧 ack 不得把本地玩家拉回更早的权威位置。
-          targetX = pos.x;
-          targetZ = pos.z;
-        }
-        const dx = targetX - pos.x;
-        const dz = targetZ - pos.z;
-        if (Math.hypot(dx, dz) > 3) {
-          pos.set(targetX, p.y, targetZ);
-          this.netDrift.set(0, 0);
-        } else {
-          // 小偏差保留为渲染误差，静止后柔和收敛，避免移动手感被快照拖拽。
-          this.netDrift.set(dx, dz);
+          s.player.poseEpoch = p.epoch;
+          this.lastOwnerEpoch = p.epoch;
         }
       } else {
         s.player.setNetPose(p.x, p.y, p.z, p.rotY);
@@ -1772,7 +1765,7 @@ export class Game {
           this.audio.silent = false;
       }
       s.combatSeconds = p.combat ? 6 : 0;
-      s.player.setAction(p.action);
+      if (s !== this.local) s.player.setAction(p.action);
       // 客人本地按权威快照对齐酒意计时(舒爽/晕晕的加速减速要在本地预测移动里生效)
       if (s === this.local) s.player.netSyncWine(p.refresh ?? 0, p.tipsy ?? 0);
       s.survival.state.hunger = p.hunger;
@@ -1792,6 +1785,7 @@ export class Game {
       s.lastHealth = p.health;
       s.player.setHealth(p.health);
       if (p.dead && !s.lastDead) {
+        if (s === this.local) this.clearOwnerWork();
         s.player.setDead();
         // 客人的死亡过渡由快照驱动,这里先于主循环消费 lastDead,须就地清摇杆
         if (s === this.local) {
@@ -1801,6 +1795,7 @@ export class Game {
       }
       if (!p.dead && s.lastDead) {
         s.player.respawn(new THREE.Vector3(p.x, p.y, p.z));
+        s.player.poseEpoch = p.epoch;
         if (s === this.local) this.setJoystick(0, 0);
       }
       s.survival.state.dead = p.dead;
@@ -1810,6 +1805,10 @@ export class Game {
 
   /** 房主权威事件：在客人端补播动作声效、轻量粒子与定向 UI。 */
   netApplyEvent(event: NetEvent): void {
+    if (event.kind === 'fishingPlan') {
+      if (event.actor === this.local.id) this.fishing.applyPlan(event.plan);
+      return;
+    }
     if (event.kind === 'companionFind') {
       if (event.serial <= this.receivedCompanionFind) return;
       this.receivedCompanionFind = event.serial;
@@ -1999,8 +1998,6 @@ export class Game {
     this.local.quests.view = snap.quests ?? null;
     if (snap.quests && snap.quests.enabled !== loadQuestGuide()) this.guestNet?.action('questGuide', [loadQuestGuide()]);
     this.guestHud.apply(snap);
-    this.guestDigTarget = snap.digTarget ?? null;
-    this.guestDigTargetAt = performance.now();
   }
 
   /** 房主收到客人放箭动作:权威扣一支箭(射没射中都消耗;客人背包有无限箭袋则免扣)、补放箭动画窗口、复现视觉箭矢并转发给其他客人 */
@@ -2499,7 +2496,6 @@ export class Game {
   setJoystick(x: number, z: number): void {
     this.questAutoMove?.stop();
     this.player.input.setJoystick(x, z);
-    this.guestNet?.sendInput(x, z);
   }
 
   /** 切换手持工具:客人本地先切(预测表现)并上行给房主;切走套索时松开手里的绳(套索回包,羊受惊) */
@@ -2688,10 +2684,8 @@ export class Game {
     }
   }
 
-  /** 吃食物(定时进食动作):指定种类则吃该种,否则吃背包里最前面的,返回是否成功开始 */
+  /** 本人立即开始吃食物(定时进食动作):指定种类则吃该种,否则吃背包里最前面的,返回是否成功开始 */
   eatFood(kind?: ResourceKind, actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('eatFood', [kind]);
     if (this.eatBlocked(actor)) return false;
     const food = this.foodToEat(kind, actor);
     return food ? actor.eating.start(food) : false;
@@ -2699,7 +2693,6 @@ export class Game {
 
   /** 连续吃到满饥饿或吃完(进食卡的「吃饱」按钮) */
   eatUntilFull(kind?: ResourceKind, actor: PlayerSession = this.local): boolean {
-    if (this.guestNet) return this.guestNet.action('eatUntilFull', [kind]);
     if (this.eatBlocked(actor)) return false;
     const food = this.foodToEat(kind, actor);
     return food ? actor.eating.startFull(food) : false;
@@ -2723,8 +2716,16 @@ export class Game {
 
   /** 发起钓鱼(屏幕中心按钮),返回是否成功开始 */
   startFishing(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('startFishing', []);
+    if (this.guestNet) {
+      if (this.isSessionBusy(actor, 'fishing')) return false;
+      const cast = actor.fishing.beginOwnedCast();
+      if (cast === null) return false;
+      const sent = this.guestNet.action('startFishing', [cast], accepted => {
+        if (!accepted) actor.fishing.cancelOwnedCast(cast);
+      });
+      if (!sent) actor.fishing.cancelOwnedCast(cast);
+      return sent;
+    }
 
     const a = actor;
     if (
@@ -2742,15 +2743,12 @@ export class Game {
 
   /** 咬钩窗口内点击屏幕任意处收竿 */
   hookFish(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('hookFish', []);
 
     return actor.fishing.hook();
   }
 
   /** 四档珍宝转盘转完后结算入包(客人端动作上行,房主权威结算) */
   claimTreasure(actor: PlayerSession = this.local): boolean {
-    if (this.guestNet) return this.guestNet.action('claimTreasure', []);
 
     return actor.fishing.claimTreasure();
   }
@@ -2766,7 +2764,6 @@ export class Game {
 
   /** GM 发放道具(直接进背包);工具类改为直接点亮拥有状态 */
   gmGiveItem(kind: ResourceKind, count: number, actor: Actor = this.local): void {
-    // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) {
       this.guestNet.action('gmGiveItem', [kind, count]);
       return;
@@ -2782,7 +2779,6 @@ export class Game {
 
   /** GM 直接把工具点亮到指定等级(1 基础 / 2 高级) */
   gmGiveTool(tool: ToolId, tier: 1 | 2 | 3, actor: PlayerSession = this.local): void {
-    // 客人端:动作上行车主权威结算,状态由快照回流
     if (this.guestNet) {
       this.guestNet.action('gmGiveTool', [tool, tier]);
       return;
@@ -2997,10 +2993,88 @@ export class Game {
     return actor.player.isSleeping;
   }
 
+  private updateOwnerFacilities(s: PlayerSession, simDelta: number): void {
+    this.crates.updateActor(s, simDelta);
+    this.baitBarrels.updateActor(s, simDelta);
+    this.brewBarrels.updateActor(s, simDelta);
+    this.doghouses.updateActor(s, simDelta);
+    this.waterPurifiers.updateActor(s, simDelta);
+    this.burrows.updateActor(s, simDelta);
+    this.smelters.updateActor(s, simDelta);
+    this.cookingStations.updateActor(s, simDelta);
+    this.looms.updateActor(s, simDelta);
+    this.mills.updateActor(s, simDelta);
+    this.researchTables.updateActor(s, simDelta);
+    this.fences.updateActor(s, simDelta);
+    this.autoPlace.updateActor(s, simDelta);
+    this.refreshHandModels();
+    this.beds.updateActor(s, simDelta);
+    this.ambientFacilities.updateActor(s, simDelta);
+    this.soils.updateActor(s, simDelta);
+    this.gravelPaths.updateActor(s, simDelta);
+    this.plankPaths.updateActor(s, simDelta);
+    this.crops.updateActor(s, simDelta);
+    this.workbench.updateActor(s, simDelta);
+    this.campfire.updateActor(s, simDelta);
+  }
+
+  netWorkFinish(actor: PlayerSession, system: string, target: string): boolean {
+    return !actor.survival.state.dead && !this.asleepFor(actor) && this.ownerWorks.settle(actor, system, target);
+  }
+
   private lastPlantSound = new WeakMap<PlayerSession, number>();
+
+  netDrinkRound(actor: PlayerSession): boolean {
+    return !this.asleepFor(actor) && actor.water.settleRound(!!this.waterPurifiers.nearby(actor));
+  }
+
+  netCollectHit(actor: PlayerSession, id: string, phase: string): boolean {
+    if (this.asleepFor(actor) || !actor.collect.settleHit(id, phase)) return false;
+    if (['axe', 'pickaxe', 'shovel'].includes(actor.player.currentTool)) {
+      const p = actor.player.group.position;
+      this.wildlife.startle(p.x, p.z);
+    }
+    return true;
+  }
+
+  netStartFishing(actor: PlayerSession, cast: number): boolean {
+    if (this.asleepFor(actor)) return false;
+    const plan = actor.fishing.prepareOwnedCast(cast, this.weather.rainIntensity > 0.5, this.weather.snowIntensity > 0.5);
+    if (!plan) return false;
+    this.hostRef?.broadcastEvent({ kind: 'fishingPlan', actor: actor.id, plan });
+    return true;
+  }
+
+  netCraftFinish(actor: PlayerSession, id: CraftId): boolean {
+    const recipe = RECIPES.find(candidate => candidate.id === id);
+    if (!recipe || this.asleepFor(actor) || actor.player.isMoving || actor.player.isSwimming) return false;
+    if (recipe.station === 'workbench' && (!this.workbench.isNear(actor)
+      || this.workbench.level(actor) < (recipe.minBenchLevel ?? 1))) return false;
+    return actor.crafting.settleRecipe(recipe);
+  }
+
+  netEatPortion(actor: PlayerSession, kind: ResourceKind): boolean {
+    const food = this.foodToEat(kind, actor);
+    return !!food && !this.asleepFor(actor) && !actor.player.isMoving && !actor.player.isSwimming
+      && actor.eating.settlePortion(food);
+  }
+
+  netPlace(actor: PlayerSession, kind: ResourceKind | 'soil', x: number, z: number): boolean {
+    if ((kind !== 'soil' && !this.autoPlace.supports(kind)) || actor.player.isMoving || actor.player.isSwimming
+      || Math.hypot(x - actor.player.group.position.x, z - actor.player.group.position.z) > 3
+      || this.heldPlaceItem(actor) !== kind) return false;
+    return this.settleFacility(kind as FacilityKind, actor, { x, z });
+  }
 
   /** 设施的权威结算:cell 由站定自动放置选好,客人上行房主结算;失败给出具体提示 */
   private settleFacility(kind: FacilityKind, actor: PlayerSession, cell: { x: number; z: number }): boolean {
+    if (this.guestNet) {
+      if (!this.autoPlace.reserveCell(cell.x, cell.z)) return false;
+      const sent = this.guestNet.action('place', [kind, cell.x, cell.z], () => this.autoPlace.releaseCell(cell.x, cell.z));
+      if (!sent) this.autoPlace.releaseCell(cell.x, cell.z);
+      if (sent && !this.autoPlace.defOf(kind)?.free) this.audio.play(this.autoPlace.defOf(kind)?.placementSound ?? 'place');
+      return sent;
+    }
     const def = this.autoPlace.defOf(kind);
     if (!def || this.asleepFor(actor)) return false;
     const at = new THREE.Vector3(cell.x, this.terrain.getHeight(cell.x, cell.z), cell.z);
@@ -3029,9 +3103,6 @@ export class Game {
 
   /** 靠近床发起睡觉:玩家躺上床,天空在过渡中日夜流转,醒来后统一结算 */
   sleep(actor: PlayerSession = this.local): boolean {
-    // 客人端:动作上行车主权威结算,状态由快照回流
-    if (this.guestNet) return this.guestNet.action('sleep', []);
-
     const a = actor;
     const bed = this.beds.nearby(a);
     if (this.beds.isBusy(a) || !bed || a.survival.state.dead) return false;
@@ -3041,6 +3112,11 @@ export class Game {
       this.notify('又饿又渴睡不着,先吃点喝点再睡吧', a);
       return false;
     }
+    if (this.guestNet) {
+      if (!this.guestNet.action('sleep', [], accepted => { if (!accepted) this.beds.cancelSleep(actor); })) return false;
+      return this.beds.startSleep(actor, () => {});
+    }
+
     const skipped = this.dayNight.beginSleep();
     return this.beds.startSleep(
       a,
@@ -3276,7 +3352,14 @@ export class Game {
   }
 
   researchStart(kinds: ResourceKind[], actor: PlayerSession = this.local): boolean {
-    if (this.guestNet) return this.guestNet.action('researchStart', [kinds]);
+    if (this.guestNet) {
+      if (this.isSessionBusy(actor)) return false;
+      const previous = { ...actor.research, ingredients: [...actor.research.ingredients] };
+      if (!this.researchTables.start(actor, kinds, true)) return false;
+      const sent = this.guestNet.action('researchStart', [kinds], accepted => { if (!accepted) actor.research = previous; });
+      if (!sent) actor.research = previous;
+      return sent;
+    }
     if (this.isSessionBusy(actor) || this.beds.isSleeping(actor)) return false;
     return this.researchTables.start(actor, kinds);
   }
@@ -3535,7 +3618,7 @@ export class Game {
           z: position.z,
           color,
           count,
-        });
+        }, s.id);
       },
       // 记录采集产出的飞行起点(本地玩家供自己的入包飞行,房主侧供远程玩家的飞行与广播)
       (position) => {
@@ -3722,6 +3805,26 @@ export class Game {
       }
     );
     s.water = new WaterSystem(s.player, this.terrain, s.survival, this.audio, () => this.onDrinkRound(s), () => s.quests.drank());
+    if (this.guestNet && s === this.local) {
+      s.ownerWork = new OwnerWork((system, target, done) => this.guestNet!.action('workFinish', [system, target], done));
+      s.collect.submitHit = (id, phase, done) => this.guestNet!.action('collectHit', [id, phase], done);
+      s.fishing.submitCatch = cast => this.guestNet!.action('fishCaught', [cast]);
+      s.fishing.submitCancel = cast => { this.guestNet!.action('fishCancel', [cast]); };
+      s.crafting.submitCraft = recipe => {
+        const tool = s.player.currentTool;
+        return this.guestNet!.action('craftFinish', [recipe.id], accepted => {
+          if (!accepted) s.crafting.cancel();
+          else if (s.player.currentTool === tool) {
+            if (recipe.tool && recipe.tool !== 'shovel' && recipe.tool !== 'hoe') this.selectTool(recipe.tool);
+            else if (recipe.output && ['torch', 'campfire', 'workbench1'].includes(recipe.output)) this.pickPlaceItem(recipe.output);
+          }
+        });
+      };
+      s.water.submitRound = () => this.guestNet!.action('drinkRound', []);
+      s.eating.submitPortion = food => this.guestNet!.action('eatPortion', [food.kind], accepted => {
+        if (!accepted) s.eating.cancel();
+      });
+    }
   }
 
   /** 某玩家喝完一轮水:0.5% 概率在所站水洼触发鳄鱼袭击(房主权威结算,客人端只看表现);防鳄熏香 30 米光环内不触发 */
@@ -3806,6 +3909,38 @@ export class Game {
     this.renderer.domElement.remove();
   }
 
+  private lastGuestHud: HudSnapshot | null = null;
+
+  private stowEmptyTool(s: PlayerSession): void {
+    // 手里的种子/围栏/可放置道具用光后自动收起,回到空手
+    const heldTool = s.player.currentTool;
+    if (heldTool === 'place' || heldTool === 'fence' || heldTool === 'fenceGate') {
+      if (!this.heldPlaceItem(s)) s.player.setTool('hand');
+    } else if (heldTool !== 'hand' && !this.hasToolFor(s, heldTool)) {
+      s.player.setTool('hand');
+    }
+  }
+
+  private clearOwnerWork(): void {
+    const s = this.local;
+    s.collect.cancel(); s.crafting.cancel(); s.eating.cancel(); s.fishing.netStop();
+    s.ownerWork?.reset();
+    s.water.update(0, true);
+    for (const system of [this.crates, this.baitBarrels, this.brewBarrels, this.doghouses,
+      this.waterPurifiers, this.burrows, this.smelters, this.cookingStations, this.looms,
+      this.mills, this.researchTables, this.fences, this.beds, this.ambientFacilities,
+      this.soils, this.gravelPaths, this.plankPaths, this.crops, this.workbench, this.campfire, this.autoPlace]) system.detach(s);
+    this.autoPlace.clearPending();
+  }
+
+  private ownerHud(snapshot: HudSnapshot): HudSnapshot {
+    this.lastGuestHud = snapshot;
+    const local = this.snapshotHud(this.local, !this.isSessionActive(this.local) && this.local.hudIdleTime >= IDLE_HIDE_DELAY);
+    return { ...snapshot, ...local,
+      respawnLeft: snapshot.respawnLeft, deathLoot: snapshot.deathLoot,
+      notice: this.notice };
+  }
+
   private presentHud(snapshot: HudSnapshot): void {
     const quests = snapshot.quests;
     this.onHud({ ...snapshot, quests: quests ? { ...quests, enabled: loadQuestGuide(), navigationHint: this.questGuidance?.hint, navigationActive: this.questAutoMove?.active ?? false } : null });
@@ -3863,7 +3998,7 @@ export class Game {
 
   /** 玩家头顶的作业提示文字(投影到屏幕坐标,由 React UI 渲染)与进度圆环 */
   private updateIndicator(delta: number): void {
-    let indicator = this.guestMode ? this.guestHud.indicator(delta) : this.indicatorFor(this.local);
+    let indicator = this.indicatorFor(this.local);
     // 客人端自动切工具的等待提示无法来自房主快照(计时在客人本地),这里本地补上
     if (this.guestMode && this.autoEquipTimer > 0) {
       const nearby = this.collect.getNearby();

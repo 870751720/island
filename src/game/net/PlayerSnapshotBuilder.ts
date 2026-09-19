@@ -38,6 +38,7 @@ export function buildPlayersState(
         y: position.y,
         z: position.z,
         rotY: session.player.group.rotation.y,
+        epoch: session.player.poseEpoch,
         tool: session.player.currentTool as string,
         placeKind: heldPlaceItem(session),
         toolTier: (session.tools as Record<string, number>)[session.player.currentTool],

@@ -17,6 +17,8 @@ import type { PlayerGender } from '../entities/PlayerModel';
 import type { AmbientPose, AnimalPose, PlayerState } from './Protocol';
 import type { HudSnapshot } from '../GameContracts';
 import { hasValidNetActionArgs } from './ActionProtocol';
+import { OwnerActionWindow, validOwnerPose, type OwnerPose } from './OwnerState';
+import { INTERACTION_TARGETS } from './InteractionTargets';
 
 const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可按离场快照恢复角色
@@ -36,7 +38,8 @@ type Guest = {
   gender: PlayerGender | null;
   lastSeen: number;
   resumeToken: string;
-  lastInputSeq: number;
+  lastPoseSeq: number;
+  actions: OwnerActionWindow;
   players: Map<string | number, PlayerState>;
   combatAnimals: Map<string | number, AnimalPose>;
   passiveAnimals: Map<string | number, AnimalPose>;
@@ -160,7 +163,8 @@ export class NetHost {
       gender: null,
       lastSeen: performance.now(),
       resumeToken: createUuid(),
-      lastInputSeq: 0,
+      lastPoseSeq: 0,
+      actions: new OwnerActionWindow(),
       players: new Map(), combatAnimals: new Map(), passiveAnimals: new Map(), crabs: new Map(), birds: new Map(), butterflies: new Map(),
       dog: null, hud: null, climate: '',
     };
@@ -227,16 +231,12 @@ export class NetHost {
       this.onGuestJoined(guest.name);
     } else if (msg.t === 'heartbeat') {
       return;
-    } else if (msg.t === 'input' && guest.session) {
-      if (!Number.isSafeInteger(msg.seq) || msg.seq <= guest.lastInputSeq) return;
-      const x = Number.isFinite(msg.x) ? Math.max(-1, Math.min(1, msg.x)) : 0;
-      const z = Number.isFinite(msg.z) ? Math.max(-1, Math.min(1, msg.z)) : 0;
-      guest.session.player.input.setJoystick(x, z);
+    } else if (msg.t === 'ownerPose' && guest.session) {
+      this.applyOwnerPose(guest, msg.pose);
       if (Number.isFinite(msg.viewWidth) && Number.isFinite(msg.viewHeight)
         && msg.viewWidth! >= 1 && msg.viewWidth! <= 150 && msg.viewHeight! >= 1 && msg.viewHeight! <= 150) {
         guest.session.dogView = { width: msg.viewWidth!, height: msg.viewHeight! };
       }
-      guest.lastInputSeq = msg.seq;
     } else if (msg.t === 'action' && guest.session && this.game) {
       if (
         typeof msg.name !== 'string' ||
@@ -244,14 +244,53 @@ export class NetHost {
         !Array.isArray(msg.args) ||
         !hasValidNetActionArgs(msg.name, msg.args)
       ) return;
+      if (!guest.actions.accept(msg.seq)) return;
       const game = this.game;
       const session = guest.session;
       const actionName = msg.name;
       const actionArgs = msg.args;
-      game.runNetAction(session, () => dispatchNetAction(game, session, actionName, actionArgs));
+      let accepted = false;
+      if (validOwnerPose(msg.pose) && msg.pose.epoch === session.player.poseEpoch && !session.survival.state.dead
+        && (!INTERACTION_TARGETS[actionName] || (typeof msg.target === 'string' && msg.target.length <= 100))) {
+        const player = session.player;
+        const old = { position: player.group.position.clone(), rotation: player.group.rotation.y, moving: player.isMoving, action: player.currentAction };
+        const historical = msg.pose.seq < guest.lastPoseSeq;
+        // 姿态走无序通道，可靠动作可能比更新的姿态晚到；按动作携带的历史位置结算，再恢复新姿态。
+        if (!player.isSleeping) player.applyOwnerPose(msg.pose.x, msg.pose.y, msg.pose.z, msg.pose.rotY, msg.pose.moving);
+        guest.lastPoseSeq = Math.max(guest.lastPoseSeq, msg.pose.seq);
+        session.interactionTarget = INTERACTION_TARGETS[actionName] ? msg.target : undefined;
+        try {
+          game.runNetAction(session, () => { accepted = dispatchNetAction(game, session, actionName, actionArgs); });
+        } finally {
+          session.interactionTarget = undefined;
+          if (historical && !player.isSleeping && player.poseEpoch === msg.pose.epoch) {
+            player.applyOwnerPose(old.position.x, old.position.y, old.position.z, old.rotation, old.moving);
+            player.setAction(old.action);
+          }
+        }
+      }
+      // 结算后立即回填库存，随后确认；不会等到下一次 5Hz HUD。
+      const hud = game.hudFor(session);
+      const snap = diffObject(hud, guest.hud);
+      const full = !guest.hud;
+      guest.hud = hud;
+      if (snap) guest.net.send({ t: 'hud', snap, full });
+      guest.net.send({ t: 'actionResult', seq: msg.seq, accepted });
     } else if (msg.t === 'worldResync' && guest.session && this.game) {
       guest.net.send({ t: 'worldFull', revision: this.worldRevision, state: this.game.netWorldState() });
     }
+  }
+
+  private applyOwnerPose(guest: Guest, pose: OwnerPose): boolean {
+    const actor = guest.session;
+    if (!actor || !this.game || !validOwnerPose(pose) || pose.seq <= guest.lastPoseSeq
+      || pose.epoch !== actor.player.poseEpoch || actor.survival.state.dead) return false;
+    guest.lastPoseSeq = pose.seq;
+    if (!actor.player.isSleeping) {
+      actor.player.applyOwnerPose(pose.x, pose.y, pose.z, pose.rotY, pose.moving);
+      actor.player.setAction(pose.action);
+    }
+    return true;
   }
 
   private welcome(guest: Guest): void {
@@ -280,9 +319,9 @@ export class NetHost {
     guest.net.send({ t: 'start' });
   }
 
-  broadcastEvent(event: NetEvent): void {
+  broadcastEvent(event: NetEvent, exceptActor?: string): void {
     for (const guest of this.guests) {
-      if (guest.net.connected && guest.session) guest.net.send({ t: 'event', event });
+      if (guest.net.connected && guest.session && guest.session.id !== exceptActor) guest.net.send({ t: 'event', event });
     }
   }
 
@@ -358,14 +397,14 @@ export class NetHost {
       crabs: qAmbient(ambient.crabs), birds: qAmbient(ambient.birds),
       butterflies: qAmbient(ambient.butterflies), dog: qAmbient([ambient.dog])[0],
     } : null;
-    // 同一拍只采集/量化一次；每个客人的差分基线和输入确认仍独立维护。
+    // 同一拍只采集/量化一次；每个客人的差分基线仍独立维护。
     for (const guest of recipients) {
       if (!guest.session) continue;
       const players = diffEntities(qPlayers, guest.players, recoveryFrame);
       if (players || climateKey !== guest.climate) {
         const climateChanged = climateKey !== guest.climate;
         guest.climate = climateKey;
-        guest.net.send({ t: 'players', ...(climateChanged ? climate : {}), ackInputSeq: guest.lastInputSeq, players: players ?? {} });
+        guest.net.send({ t: 'players', ...(climateChanged ? climate : {}), players: players ?? {} });
       }
 
       const fullAnimals = recoveryFrame || guest.hud === null;

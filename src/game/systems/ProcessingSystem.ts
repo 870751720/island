@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -72,10 +73,16 @@ export class ProcessingSystem<S extends ProcessingPlacement> implements Facility
     this.digStates.delete(actor);
   }
 
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): ProcessingEntity | null {
     let best: ProcessingEntity | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const machine of this.machines) {
+      if (actor.interactionTarget !== undefined && this.ids.get(machine) !== actor.interactionTarget) continue;
       this.scratch.copy(machine.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -186,6 +193,22 @@ export class ProcessingSystem<S extends ProcessingPlacement> implements Facility
     return !!this.digStates.get(actor)?.digTarget;
   }
 
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.machines.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit(this.config.kind, id);
+    this.machines.splice(this.machines.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    disposeOwnedMeshes(target.group);
+    this.give(this.config.kind, 1, actor);
+    if (target.input > 0) this.give(this.config.input, target.input, actor);
+    if (target.output > 0) this.give(this.config.output, target.output, actor);
+    this.fx.burst(target.group.position, '#8a6239', 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -217,14 +240,7 @@ export class ProcessingSystem<S extends ProcessingPlacement> implements Facility
       if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
-      this.machines.splice(this.machines.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.scene.remove(target.group);
-      disposeOwnedMeshes(target.group);
-      this.give(this.config.kind, 1, actor);
-      if (target.input > 0) this.give(this.config.input, target.input, actor);
-      if (target.output > 0) this.give(this.config.output, target.output, actor);
-      this.fx.burst(target.group.position, '#8a6239', 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }

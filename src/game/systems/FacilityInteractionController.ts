@@ -147,7 +147,6 @@ export class FacilityInteractionController {
   }
 
   cookingRoast(kind: ResourceKind, count: number, actor: PlayerSession): boolean {
-    if (this.guest) return this.guest.action('cookingRoast', [kind, count]);
     return !this.asleep(actor) && this.systems.cookingStations.startRoast(actor, kind, count);
   }
 
@@ -174,7 +173,6 @@ export class FacilityInteractionController {
   }
 
   campfireCook(kind: ResourceKind, count: number, actor: PlayerSession): boolean {
-    if (this.guest) return this.guest.action('campfireCook', [kind, count]);
     return !this.asleep(actor) && this.systems.campfire.startCooking(actor, kind, count);
   }
 

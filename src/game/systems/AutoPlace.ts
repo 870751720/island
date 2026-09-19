@@ -55,6 +55,17 @@ type SessionState = {
  * 放置结算统一经 settle 回调走 Game 的权威入口(联机时自动上行房主),预览与进度两端各自本地驱动。
  */
 export class AutoPlaceSystem {
+  private pendingCells = new Set<string>();
+
+  reserveCell(x: number, z: number): boolean {
+    const key = `${x}:${z}`;
+    if (this.pendingCells.has(key)) return false;
+    this.pendingCells.add(key);
+    return true;
+  }
+
+  releaseCell(x: number, z: number): void { this.pendingCells.delete(`${x}:${z}`); }
+  clearPending(): void { this.pendingCells.clear(); }
   readonly interactions = new FacilityInteractions();
   private defs = new Map<FacilityKind, FacilityDef>();
   private states = new Map<PlayerSession, SessionState>();
@@ -142,6 +153,7 @@ export class AutoPlaceSystem {
       for (let dz = -1; dz <= 1; dz++) {
         const x = ahead.x + dx;
         const z = ahead.z + dz;
+        if (this.pendingCells.has(`${x}:${z}`)) continue;
         if (def.valid(actor, x, z) !== null) continue;
         const dist = Math.hypot(x - tx, z - tz);
         if (dist < bestDist) {
@@ -157,7 +169,8 @@ export class AutoPlaceSystem {
   /** 该设施的落点:自定义打分(围栏/门接线优先)优先,否则用默认就近搜索 */
   resolveTarget(actor: PlayerSession, kind: FacilityKind): { x: number; z: number; reason: string | null } {
     const def = this.defs.get(kind);
-    return def?.target ? def.target(actor) : this.target(actor, kind);
+    const target = def?.target ? def.target(actor) : this.target(actor, kind);
+    return this.pendingCells.has(`${target.x}:${target.z}`) ? { ...target, reason: '安放中…' } : target;
   }
 
   /** 某设施对该玩家的站定放置时长(动态值按发起者取,缺省 2 秒) */
@@ -216,7 +229,7 @@ export class AutoPlaceSystem {
     return this.resolveTarget(actor, kind).reason;
   }
 
-  /** 权威端每帧推进该玩家:落点预览 + 站定自动放置;帧末统一提交持有的动作 */
+  /** 操作者本机每帧推进:落点预览 + 站定自动放置;完成后交给结算入口 */
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -227,7 +240,7 @@ export class AutoPlaceSystem {
     }
   }
 
-  /** 客人端表现驱动:只刷新该玩家的落点预览,放置仍由房主权威结算 */
+  /** 旁观表现:只刷新落点预览，不推进他人的放置计时 */
   updatePreviewFor(actor: PlayerSession): void {
     this.updatePreview(actor, this.st(actor));
   }

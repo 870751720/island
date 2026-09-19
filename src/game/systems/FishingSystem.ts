@@ -40,6 +40,7 @@ const CAST_MIN_RANGE = 2;
 const WATER_TRACE_STEP = 0.1;
 
 export type FishingState = 'casting' | 'waiting' | 'bite' | 'treasure' | 'reeling';
+export type FishingPlan = { cast: number; tier: FishTier; wait: number; loot: LootEntry };
 
 
 /** 浮漂:红白两节的小浮头 */
@@ -58,6 +59,53 @@ function makeBobber(): THREE.Group {
  * 白/紫/金色预告;咬钩后需在窗口内点击(高档位需连点多次)才能收竿。
  */
 export class FishingSystem {
+  private castSerial = 0;
+  private remoteCatch = false;
+  private remoteTicket: { cast: number; loot: LootEntry; target: THREE.Vector3 } | null = null;
+  submitCatch?: (cast: number) => boolean;
+  submitCancel?: (cast: number) => void;
+
+  beginOwnedCast(): number | null {
+    if (!this.canStart()) return null;
+    this.netEnter();
+    if (!this.state) return null;
+    this.loot = null;
+    this.pendingWait = Infinity;
+    return ++this.castSerial;
+  }
+
+  prepareOwnedCast(cast: number, rain: boolean, snow: boolean): FishingPlan | null {
+    if (cast <= this.castSerial) return null;
+    this.stop();
+    if (!this.start(rain, snow)) return null;
+    this.castSerial = cast;
+    this.remoteCatch = true;
+    this.remoteTicket = { cast, loot: this.loot!, target: this.bobberTarget.clone() };
+    this.pendingWait = rollWait(this.tier) * this.waitScale;
+    return { cast, tier: this.tier, wait: this.pendingWait, loot: this.loot! };
+  }
+
+  applyPlan(plan: FishingPlan): void {
+    if (plan.cast !== this.castSerial || !this.state) return;
+    this.tier = plan.tier;
+    this.loot = plan.loot;
+    if (this.state === 'casting') this.pendingWait = plan.wait;
+    else if (this.state === 'waiting') this.waitTotal = this.timer + plan.wait;
+  }
+
+  settleOwnedCatch(cast: number): boolean {
+    const ticket = this.remoteTicket;
+    if (!ticket || ticket.cast !== cast) return false;
+    this.remoteTicket = null;
+    this.loot = ticket.loot;
+    this.bobberTarget.copy(ticket.target);
+    this.settleCatch();
+    return true;
+  }
+
+  cancelOwnedCast(cast: number): void {
+    if (cast === this.castSerial) { this.remoteTicket = null; this.stop(); }
+  }
   private state: FishingState | null = null;
   private timer = 0;
   private waitTotal = 0;
@@ -259,12 +307,13 @@ export class FishingSystem {
 
   /** 中鱼结算:入包飞行(浮漂点起飞)由外层 onCatch 驱动,这里只交代起点 */
   private settleCatch(): void {
-    this.state = 'reeling';
+    this.state = this.bobber ? 'reeling' : null;
     this.timer = 0;
     this.onCatch(this.bobberTarget);
     // 翻倍与背包容量无关；普通鱼获、杂物和珍宝统一入包或落地。
     const count = this.meta.levels.fullLoad >= 1 && Math.random() < 0.1 ? 2 : 1;
-    this.give(this.loot!.kind, count);
+    if (this.submitCatch) this.submitCatch(this.castSerial);
+    else this.give(this.loot!.kind, count);
   }
 
   /** 移动或其他占用双手的行为会中断钓鱼 */
@@ -338,7 +387,7 @@ export class FishingSystem {
       case 'bite': {
         this.bobber!.position.y =
           this.bobberTarget.y - 0.15 + Math.sin(this.timer * 25) * 0.05;
-        if (this.timer >= this.biteWindow) {
+        if (this.timer >= this.biteWindow && !this.remoteCatch) {
           // 超时鱼跑:涟漪散开,收竿结束
           this.waterFx.ripple(this.bobberTarget.x, this.bobberTarget.y, this.bobberTarget.z);
           this.stop();
@@ -374,6 +423,7 @@ export class FishingSystem {
 
   /** 中断钓鱼,清掉场上物件(收竿不给鱼) */
   private stop(): void {
+    if (this.state && this.state !== 'reeling') this.submitCancel?.(this.castSerial);
     this.state = null;
     this.tease = null;
     this.removeBobber();
@@ -391,7 +441,7 @@ export class FishingSystem {
     this.timer = 0;
     this.tease = null;
     this.teaseStageDone = null;
-    this.pendingWait = null;
+    this.pendingWait = Infinity;
     this.clicks = 0;
     this.bobber = makeBobber();
     this.bobber.visible = false;
@@ -406,63 +456,7 @@ export class FishingSystem {
 
   /** 客人端:房主快照宣告钓鱼结束(收竿/中断)时清掉本地表现 */
   netStop(): void {
-    this.stop();
-  }
-
-  /** 客人端:按房主快照对齐钓鱼阶段与等待时长(咬钩时刻以房主剩余时间为锚,阶段纠正仅作兜底) */
-  netSyncState(state: FishingState | null, clicks = 0, tier: FishTier = 1, waitLeft: number | null = null): void {
-    if (state === null) {
-      this.stop();
-      return;
-    }
-    if (state === 'waiting') {
-      // 档位跟随房主(预告文字与咬钩窗口都依赖它);等待剩余时间以房主为锚重设总额
-      this.tier = tier;
-      if (waitLeft !== null) {
-        if (this.state === 'waiting') this.waitTotal = this.timer + waitLeft;
-        else if (this.state === 'casting') this.pendingWait = waitLeft;
-      }
-      return;
-    }
-    // 房主仍在钓鱼而本地表现已断(中断误伤/窗口时长出入导致本地先超时):重新起播再对齐
-    if (this.state === null) this.netEnter();
-    if (state === 'bite') {
-      this.tier = tier;
-      if (this.state === 'bite') {
-        this.clicks = clicks;
-      } else if (this.state !== 'reeling') {
-        this.state = 'bite';
-        this.timer = 0;
-        this.clicks = clicks;
-        this.tease = null;
-        this.audio.play('bite');
-        this.bobber!.position.y = this.bobberTarget.y - 0.15;
-        this.waterFx.splash(this.bobberTarget);
-      }
-      return;
-    }
-    if (state === 'treasure') {
-      // 房主已连点完成、珍宝待转盘:本地同步进入暂缓态,转盘结果由 HUD 快照回流对齐
-      this.tier = tier;
-      if (this.state === 'bite' || this.state === null) {
-        if (this.state === null) this.netEnter();
-        this.state = 'treasure';
-        this.timer = 0;
-        this.tease = null;
-        this.audio.play('splash');
-        this.bobber!.position.y = this.bobberTarget.y - 0.15;
-        this.waterFx.splash(this.bobberTarget);
-      }
-      return;
-    }
-    if (state === 'reeling' && this.state !== 'reeling') {
-      // 房主已结算中鱼:本地转入收线表现,入包飞行起点交代在浮漂处(入包由 HUD 快照回流驱动)
-      this.state = 'reeling';
-      this.timer = 0;
-      this.audio.play('splash');
-      this.waterFx.splash(this.bobberTarget);
-      this.onCatch(this.bobberTarget);
-    }
+    this.cancelOwnedCast(this.castSerial);
   }
 
   private removeBobber(): void {

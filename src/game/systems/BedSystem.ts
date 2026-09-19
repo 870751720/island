@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -97,10 +98,16 @@ export class BedSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的床(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): Bed | null {
     let best: Bed | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const bed of this.beds) {
+      if (actor.interactionTarget !== undefined && this.ids.get(bed) !== actor.interactionTarget) continue;
       this.scratch.copy(bed.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -184,7 +191,26 @@ export class BedSystem implements FacilityInteractionSource {
     return true;
   }
 
+  cancelSleep(actor: PlayerSession): void {
+    const st = this.st(actor);
+    st.sleepTimer = 0;
+    st.onWake = null;
+    actor.player.wakeUp();
+  }
+
   /** 每帧推进该玩家的挖掘与睡觉;帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.beds.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('beds', id);
+    this.beds.splice(this.beds.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give(BED_ITEM[target.level], 1, actor);
+    this.fx.burst(target.group.position, '#c9a15c', 14);
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -243,11 +269,8 @@ export class BedSystem implements FacilityInteractionSource {
     if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
-    this.beds.splice(this.beds.indexOf(target), 1);
-    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-    this.scene.remove(target.group);
-    this.give(BED_ITEM[target.level], 1, actor);
-    this.fx.burst(target.group.position, '#c9a15c', 14);
+    this.settleDig(actor, this.ids.get(target));
+
   }
 
   /** 当前挖床进度 0-1,未在挖掘时为 null */

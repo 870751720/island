@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { Doghouse } from '../entities/Doghouse';
@@ -68,6 +69,18 @@ export class DoghouseSystem implements FacilityInteractionSource {
     const state = this.digging.get(actor);
     return state?.target ? Math.min(1, (state.hits + state.timer / SWING_TIME) / shovelHits(actor.tools.shovel)) : null;
   }
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.houses.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('doghouses', id);
+    this.houses.splice(this.houses.indexOf(target), 1);
+    this.sink?.({ op: 'remove', id: this.ids.get(target) });
+    target.dispose();
+    this.give('doghouse', 1, actor);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     let state = this.digging.get(actor);
     if (!state) { state = { target: null, timer: 0, hits: 0, hold: new ActionHold() }; this.digging.set(actor, state); }
@@ -83,12 +96,9 @@ export class DoghouseSystem implements FacilityInteractionSource {
       state.timer = 0;
       this.fx.burst(target.group.position, '#b99c67', 6);
       if (++state.hits < shovelHits(actor.tools.shovel)) return;
-      this.houses.splice(this.houses.indexOf(target), 1);
-      this.sink?.({ op: 'remove', id: this.ids.get(target) });
-      target.dispose();
+      this.settleDig(actor, this.ids.get(target));
       state.target = null;
       state.hits = 0;
-      this.give('doghouse', 1, actor);
     } finally { state.hold.commit(actor.player); }
   }
   private save(house: Doghouse): DoghouseSave {

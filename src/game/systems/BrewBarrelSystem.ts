@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -91,10 +92,16 @@ export class BrewBarrelSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的酿酒桶(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): BrewBarrel | null {
     let best: BrewBarrel | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const barrel of this.barrels) {
+      if (actor.interactionTarget !== undefined && this.ids.get(barrel) !== actor.interactionTarget) continue;
       this.scratch.copy(barrel.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -217,6 +224,21 @@ export class BrewBarrelSystem implements FacilityInteractionSource {
   }
 
   /** 手持铲子站定在酿酒桶旁自动挖掘,命中数次后整桶挖走(桶内原料与酒一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.barrels.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('brewBarrels', id);
+    this.barrels.splice(this.barrels.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give('brewBarrel', 1, actor);
+    if (target.kind && target.rawLeft > 0) this.give(target.kind, target.rawLeft, actor);
+    if (target.kind && target.bottles > 0) this.give(BREWABLE[target.kind] ?? target.kind, target.bottles, actor);
+    this.fx.burst(target.group.position, '#6b4a2e', 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -248,13 +270,7 @@ export class BrewBarrelSystem implements FacilityInteractionSource {
       if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
-      this.barrels.splice(this.barrels.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.scene.remove(target.group);
-      this.give('brewBarrel', 1, actor);
-      if (target.kind && target.rawLeft > 0) this.give(target.kind, target.rawLeft, actor);
-      if (target.kind && target.bottles > 0) this.give(BREWABLE[target.kind] ?? target.kind, target.bottles, actor);
-      this.fx.burst(target.group.position, '#6b4a2e', 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }

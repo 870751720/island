@@ -40,6 +40,9 @@ function isFruitedTree(prop: Prop): boolean {
 }
 
 export type HarvestInfo = { progress: number };
+export function harvestPhase(prop: Prop): string {
+  return `${prop.kind}:${prop.stage ?? ''}:${prop.growth ?? ''}:${prop.ready}:${prop.fruited ?? ''}`;
+}
 
 /** 站定在资源点范围内自动作业:播放动画、逐次命中推进进度,树/石需多次命中;移动即中断 */
 export class CollectSystem {
@@ -51,6 +54,10 @@ export class CollectSystem {
   private workAction: ActionType | null = null;
   /** 已命中次数记在资源点上,走开后回来可继续 */
   private hitCounts = new Map<Prop, number>();
+  private hitPhases = new WeakMap<Prop, string>();
+  private pending = new Map<string, string>();
+  /** 客人只推进自身动作与命中；世界变化和产出由房主处理。 */
+  submitHit?: (id: string, phase: string, done: (accepted: boolean) => void) => boolean;
 
   constructor(
     private player: Player,
@@ -113,6 +120,9 @@ export class CollectSystem {
     let fallback: Prop | null = null;
     const p = this.player.group.position;
     for (const prop of this.props.list) {
+      const pending = this.pending.get(prop.id);
+      if (pending === harvestPhase(prop)) continue;
+      if (pending !== undefined) this.pending.delete(prop.id);
       // 未恢复的资源点不可交互,除非手持铲子(丛任何状态都能整棵挖走)
       if (!prop.ready && !this.isDigging(prop)) continue;
       if (prop.position.distanceTo(p) >= COLLECT_RANGE) continue;
@@ -196,7 +206,7 @@ export class CollectSystem {
   getHarvestInfo(): HarvestInfo | null {
     const prop = this.nearby;
     if (!prop || !this.workingNow) return null;
-    const done = this.hitCounts.get(prop) ?? 0;
+    const done = this.hitPhases.get(prop) === harvestPhase(prop) ? this.hitCounts.get(prop) ?? 0 : 0;
     const swing = Math.min(this.swingTimer / SWING_TIME, 1);
     return { progress: Math.min((done + swing) / this.hitsFor(prop), 1) };
   }
@@ -207,6 +217,30 @@ export class CollectSystem {
   }
 
   private hit(prop: Prop): void {
+    const currentPhase = harvestPhase(prop);
+    if (this.hitPhases.get(prop) !== currentPhase) {
+      this.hitCounts.delete(prop);
+      this.hitPhases.set(prop, currentPhase);
+    }
+    if (this.submitHit) {
+      const phase = harvestPhase(prop);
+      const config = HARVEST_CONFIG[this.kindOf(prop)];
+      const hits = (this.hitCounts.get(prop) ?? 0) + 1;
+      if (!this.submitHit(prop.id, phase, accepted => {
+        if (!accepted) {
+          this.hitCounts.delete(prop);
+          if (this.pending.get(prop.id) === phase) this.pending.delete(prop.id);
+        }
+      })) return;
+      this.fx.burst(prop.position, config.fxColor, 6);
+      this.props.shake(prop);
+      if (hits >= this.hitsFor(prop)) {
+        this.hitCounts.delete(prop);
+        this.pending.set(prop.id, phase);
+        this.nearby = null;
+      } else this.hitCounts.set(prop, hits);
+      return;
+    }
     const config = HARVEST_CONFIG[this.kindOf(prop)];
     this.fx.burst(prop.position, config.fxColor, 6);
     this.onFx(prop.position, config.fxColor, 6);
@@ -263,6 +297,24 @@ export class CollectSystem {
     this.fx.burst(prop.position, config.fxColor, 14);
     this.onFx(prop.position, config.fxColor, 14);
     this.nearby = null;
+  }
+
+  settleHit(id: string, phase: string): boolean {
+    const prop = this.props.list.find(candidate => candidate.id === id);
+    if (!prop || harvestPhase(prop) !== phase || (!prop.ready && !this.isDigging(prop))
+      || !this.canCollect(prop) || this.player.isMoving || this.player.isSwimming
+      || prop.position.distanceTo(this.player.group.position) > COLLECT_RANGE + 0.2) return false;
+    this.hit(prop);
+    return true;
+  }
+
+  cancel(): void {
+    if (this.workAction) this.player.releaseAction(this.workAction);
+    this.workAction = null;
+    this.swingTimer = 0;
+    this.workingNow = false;
+    this.pending.clear();
+    this.hitCounts.clear();
   }
 
   /** 局外养成「采集·巧匠」的额外产出:在基础产出结算后追加(铲子整棵挖走不吃加成) */

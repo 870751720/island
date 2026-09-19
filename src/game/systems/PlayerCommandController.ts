@@ -48,14 +48,12 @@ export class PlayerCommandController {
   }
 
   craftTool(id: CraftId, actor: PlayerSession): boolean {
-    if (this.guest) return this.guest.action('craftTool', [id]);
     if (this.asleep(actor) || this.workbench.isUpgrading(actor) || this.workbench.isDigging(actor)) return false;
     const recipe = RECIPES.find((candidate) => candidate.id === id);
     return !!recipe && recipe.station === 'hand' && actor.crafting.start(recipe);
   }
 
   craftAtWorkbench(id: CraftId, count: number, actor: PlayerSession): boolean {
-    if (this.guest) return this.guest.action('craftAtWorkbench', [id, count]);
     if (this.asleep(actor) || this.workbench.isUpgrading(actor) || this.workbench.isDigging(actor) || !this.workbench.isNear(actor)) return false;
     const recipe = RECIPES.find((candidate) => candidate.id === id);
     // 靠近工作台即可制作面板里的全部配方:工作台专属配方受等级门槛,手搓配方无等级要求
@@ -65,7 +63,6 @@ export class PlayerCommandController {
   }
 
   upgradeWorkbench(actor: PlayerSession): boolean {
-    if (this.guest) return this.guest.action('upgradeWorkbench', []);
     if (this.asleep(actor) || actor.crafting.isWorking || actor.eating.isWorking) return false;
     return this.workbench.upgrade(actor);
   }

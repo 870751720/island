@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -140,6 +141,19 @@ export class WaterPurifierSystem implements FacilityInteractionSource {
   }
 
   /** 手持铲子站定在净化器旁自动挖掘,命中数次后挖走(变回净化器道具);帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.purifiers.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('waterPurifiers', id);
+    this.purifiers.splice(this.purifiers.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give('waterPurifier', 1, actor);
+    this.fx.burst(target.group.position, '#9aa3ab', 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -171,11 +185,7 @@ export class WaterPurifierSystem implements FacilityInteractionSource {
       if (st.hits < shovelHits(actor.tools.shovel)) return;
       st.hits = 0;
       st.digTarget = null;
-      this.purifiers.splice(this.purifiers.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.scene.remove(target.group);
-      this.give('waterPurifier', 1, actor);
-      this.fx.burst(target.group.position, '#9aa3ab', 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }

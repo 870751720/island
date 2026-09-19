@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { shovelHits } from './ToolTiers';
@@ -180,6 +181,25 @@ export class RabbitBurrowSystem implements FacilityInteractionSource {
   }
 
   /** 手持铲子站定在完好洞旁自动挖掘,命中数次后挖开:藏在内的兔子压死,洞变废弃;帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.records.find(item => this.ids.get(item.burrow) === id)?.burrow;
+    if (!target || !canFinishWork(actor, target.group.position) || target.state !== 'intact') return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('burrows', id);
+    const pp = target.group.position;
+    this.onDig(pp.x, pp.z);
+    target.abandon();
+    const record = this.records.find((r) => r.burrow === target)!;
+    record.respawnLeft = RESPAWN_TIME[0] + Math.random() * (RESPAWN_TIME[1] - RESPAWN_TIME[0]);
+    this.onChanged?.({
+      op: 'set',
+      id: this.ids.get(target),
+      fields: { state: 'abandoned' },
+    });
+    this.fx.burst(pp, '#8a6f4d', 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -213,17 +233,8 @@ export class RabbitBurrowSystem implements FacilityInteractionSource {
       st.hits = 0;
       st.digTarget = null;
       // 挖开:藏在内的兔子被塌方压死,洞口塌成废弃状态
-      const pp = target.group.position;
-      this.onDig(pp.x, pp.z);
-      target.abandon();
-      const record = this.records.find((r) => r.burrow === target)!;
-      record.respawnLeft = RESPAWN_TIME[0] + Math.random() * (RESPAWN_TIME[1] - RESPAWN_TIME[0]);
-      this.onChanged?.({
-        op: 'set',
-        id: this.ids.get(target),
-        fields: { state: 'abandoned' },
-      });
-      this.fx.burst(pp, '#8a6f4d', 14);
+      this.settleDig(actor, this.ids.get(target));
+
     } finally {
       st.hold.commit(actor.player);
     }

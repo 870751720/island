@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -94,10 +95,16 @@ export class BaitBarrelSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的饵料桶(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): BaitBarrel | null {
     let best: BaitBarrel | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const barrel of this.barrels) {
+      if (actor.interactionTarget !== undefined && this.ids.get(barrel) !== actor.interactionTarget) continue;
       this.scratch.copy(barrel.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -223,6 +230,22 @@ export class BaitBarrelSystem implements FacilityInteractionSource {
   }
 
   /** 手持铲子站定在饵料桶旁自动挖掘,命中数次后整桶挖走(桶内食物与鱼饵一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.barrels.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('baitBarrels', id);
+    this.barrels.splice(this.barrels.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give('baitBarrel', 1, actor);
+    for (const food of target.foods) this.give(food.kind, food.count, actor);
+    if (target.bait > 0) this.give('bait', target.bait, actor);
+    if (target.seeds > 0) this.give('pumpkinSeed', target.seeds, actor);
+    this.fx.burst(target.group.position, '#9a6b3f', 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -254,14 +277,7 @@ export class BaitBarrelSystem implements FacilityInteractionSource {
       if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
-      this.barrels.splice(this.barrels.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.scene.remove(target.group);
-      this.give('baitBarrel', 1, actor);
-      for (const food of target.foods) this.give(food.kind, food.count, actor);
-      if (target.bait > 0) this.give('bait', target.bait, actor);
-      if (target.seeds > 0) this.give('pumpkinSeed', target.seeds, actor);
-      this.fx.burst(target.group.position, '#9a6b3f', 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }

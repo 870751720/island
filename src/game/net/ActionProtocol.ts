@@ -13,14 +13,18 @@ import { EMOJI_GLYPHS } from '../social/Emojis';
 
 /** 客人上行的动作名与参数元组；保持现有线格式，仅为发送端和注册表提供静态约束。 */
 export interface NetActionArgs {
+  workFinish: [system: string, target: string];
+  collectHit: [id: string, phase: string];
+  drinkRound: [];
+  craftFinish: [id: CraftId];
+  eatPortion: [kind: ResourceKind];
+  place: [kind: ResourceKind | 'soil', x: number, z: number];
   questScreen: [matrix: number[] | null];
   questGuide: [enabled: boolean];
   tool: [tool: HandTool, placeKind: ResourceKind | null];
-  eatFood: [kind?: ResourceKind | null];
-  eatUntilFull: [kind?: ResourceKind | null];
-  startFishing: [];
-  hookFish: [];
-  claimTreasure: [];
+  startFishing: [cast: number];
+  fishCaught: [cast: number];
+  fishCancel: [cast: number];
   sleep: [];
   baitBarrelFeed: [kind: ResourceKind, count: number];
   baitBarrelCollect: [];
@@ -33,7 +37,6 @@ export interface NetActionArgs {
   smelterCollect: [];
   smelterTakeOre: [];
   cookingAddFuel: [kind: ResourceKind];
-  cookingRoast: [kind: ResourceKind, count: number];
   cookingBoil: [kind: ResourceKind, count: number];
   cookingCollect: [];
   cookingTakeBoil: [];
@@ -50,15 +53,11 @@ export interface NetActionArgs {
   crateStore: [kind: ResourceKind, count: number | null];
   crateTake: [kind: ResourceKind, count: number | null];
   campfireAddFuel: [kind: ResourceKind];
-  campfireCook: [kind: ResourceKind, count: number];
   dropItem: [kind: ResourceKind, count: number];
   moveItem: [from: number, to: number];
   sortInventory: [];
   equipItem: [kind: ResourceKind];
   unequipItem: [slot: EquipSlot];
-  craftTool: [id: CraftId];
-  craftAtWorkbench: [id: CraftId, count: number];
-  upgradeWorkbench: [];
   arrowHit: [kind: 'wildlife' | 'crab' | 'bird', animalId: number, x: number, z: number];
   arrowShot: [dx: number, dz: number];
   swordHit: [animalId: number];
@@ -84,14 +83,18 @@ export type NetActionName = keyof NetActionArgs;
 
 /** 线上动作允许的参数数量；与类型契约并列维护，供不可信消息进入房主前校验。 */
 const NET_ACTION_ARG_COUNTS = {
+  workFinish: [2],
+  collectHit: [2],
+  drinkRound: [0],
+  craftFinish: [1],
+  eatPortion: [1],
+  place: [3],
   questScreen: [1],
   questGuide: [1],
   tool: [2],
-  eatFood: [0, 1],
-  eatUntilFull: [0, 1],
-  startFishing: [0],
-  hookFish: [0],
-  claimTreasure: [0],
+  startFishing: [1],
+  fishCaught: [1],
+  fishCancel: [1],
   sleep: [0],
   baitBarrelFeed: [2],
   baitBarrelCollect: [0],
@@ -104,7 +107,6 @@ const NET_ACTION_ARG_COUNTS = {
   smelterCollect: [0],
   smelterTakeOre: [0],
   cookingAddFuel: [1],
-  cookingRoast: [2],
   cookingBoil: [2],
   cookingCollect: [0],
   cookingTakeBoil: [0],
@@ -121,15 +123,11 @@ const NET_ACTION_ARG_COUNTS = {
   crateStore: [2],
   crateTake: [2],
   campfireAddFuel: [1],
-  campfireCook: [2],
   dropItem: [2],
   moveItem: [2],
   sortInventory: [0],
   equipItem: [1],
   unequipItem: [1],
-  craftTool: [1],
-  craftAtWorkbench: [2],
-  upgradeWorkbench: [0],
   arrowHit: [4],
   arrowShot: [2],
   swordHit: [1],
@@ -178,9 +176,6 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
   switch (name) {
     case 'researchStart': return validResearch(first);
     case 'syncRecipeDiscoveries': return Array.isArray(first) && first.length <= HIDDEN_RECIPES.length && first.every(k => typeof k === 'string' && hiddenRecipe(k));
-    case 'startFishing':
-    case 'hookFish':
-    case 'claimTreasure':
     case 'sleep':
     case 'baitBarrelCollect':
     case 'baitBarrelTakeFoods':
@@ -197,19 +192,24 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'useBottle':
     case 'pickupDrop':
     case 'sortInventory':
-    case 'upgradeWorkbench':
     case 'lassoStake':
     case 'lassoUntie':
     case 'gmTriggerCrocodile':
     case 'gmUnlockDiscoveries':
       return true;
+    case 'collectHit':
+    case 'workFinish':
+      return typeof first === 'string' && first.length <= 100 && typeof second === 'string' && second.length <= 100;
+    case 'drinkRound':
+      return true;
+    case 'eatPortion':
+      return isResourceKind(first);
+    case 'place':
+      return (first === 'soil' || isResourceKind(first)) && isFiniteNumber(second) && isFiniteNumber(third);
     case 'questScreen':
       return first === null || (Array.isArray(first) && first.length === 16 && first.every(n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 10000));
     case 'questGuide':
       return typeof first === 'boolean';
-    case 'eatFood':
-    case 'eatUntilFull':
-      return first == null || isResourceKind(first);
     case 'tool':
       return isString(first) && HAND_TOOLS.has(first) && (second === null || isResourceKind(second));
     case 'cookingAddFuel':
@@ -217,20 +217,20 @@ export function hasValidNetActionArgs(name: NetActionName, args: unknown[]): boo
     case 'campfireAddFuel':
     case 'equipItem':
       return isResourceKind(first);
-    case 'craftTool':
+    case 'craftFinish':
       return isCraftId(first);
+    case 'startFishing':
+    case 'fishCaught':
+    case 'fishCancel':
+      return isSafeInteger(first) && first > 0;
     case 'unequipItem':
       return isString(first) && EQUIP_SLOTS.has(first);
     case 'baitBarrelFeed':
     case 'brewBarrelFeed':
-    case 'cookingRoast':
     case 'cookingBoil':
-    case 'campfireCook':
     case 'dropItem':
     case 'gmGiveItem':
       return isResourceKind(first) && isSafeInteger(second);
-    case 'craftAtWorkbench':
-      return isCraftId(first) && isSafeInteger(second);
     case 'smelterFeed':
     case 'loomFeed':
     case 'millFeed':

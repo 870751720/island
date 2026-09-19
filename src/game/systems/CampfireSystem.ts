@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -142,10 +143,16 @@ export class CampfireSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的火堆(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): Campfire | null {
     let best: Campfire | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const fire of this.fires) {
+      if (actor.interactionTarget !== undefined && this.ids.get(fire) !== actor.interactionTarget) continue;
       this.scratch.copy(fire.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -204,6 +211,34 @@ export class CampfireSystem implements FacilityInteractionSource {
   }
 
   /** 每帧推进该玩家的挖掘/烹饪;帧末统一提交持有的动作,交互结束时自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.fires.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position) || target.isLit) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('campfires', id);
+    this.fires.splice(this.fires.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    target.dispose();
+    this.give('deadCampfire', 1, actor);
+    this.audio.play('pickup');
+    this.fx.burst(target.group.position, FX_COLOR, 14);
+    return true;
+  }
+
+  settlePortion(actor: PlayerSession, token: string): boolean {
+    const [id, raw] = token.split('|');
+    if (!Object.prototype.hasOwnProperty.call(COOKABLE, raw)) return false;
+    const kind = raw as ResourceKind;
+    const target = this.fires.find(item => this.ids.get(item) === id);
+    if (!target || !target.isLit || this.nearby(actor) !== target || actor.player.isMoving || actor.player.isSwimming
+      || actor.inventory.count(kind) < 1 || !actor.inventory.canFit(COOKABLE[kind]!)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('campfireCook', token);
+    actor.inventory.remove(kind, 1);
+    this.give(COOKABLE[kind]!, 1, actor);
+    if (kind === 'gameMeat') actor.quests.campAction('cook');
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -252,7 +287,7 @@ export class CampfireSystem implements FacilityInteractionSource {
       return false;
     }
     const n = Math.min(count, owned);
-    actor.inventory.remove(kind, n);
+    if (!actor.ownerWork) actor.inventory.remove(kind, n);
     st.cookKind = kind;
     st.cookFire = fire;
     st.cookQueue = n;
@@ -270,7 +305,7 @@ export class CampfireSystem implements FacilityInteractionSource {
     const fireGone = !fire.isLit || this.nearby(actor) !== fire;
     if (actor.player.isMoving || actor.player.isSwimming || fireGone) {
       // 中断:剩余食材原样退回
-      actor.inventory.add(kind, st.cookQueue);
+      if (!actor.ownerWork) actor.inventory.add(kind, st.cookQueue);
       st.cookKind = null;
       st.cookFire = null;
       return;
@@ -295,8 +330,12 @@ export class CampfireSystem implements FacilityInteractionSource {
       this.fx.burst(p, '#ffb84d', 3);
     }
     if (st.cookTimer >= COOK_TIME) {
-      this.give(COOKABLE[kind]!, 1, actor);
-      if (kind === 'gameMeat') actor.quests.campAction('cook');
+      if (actor.ownerWork) {
+        if (!this.settlePortion(actor, `${this.ids.get(fire)}|${kind}`)) {
+          st.cookKind = null; st.cookFire = null; return;
+        }
+      } else this.give(COOKABLE[kind]!, 1, actor);
+      if (!actor.ownerWork && kind === 'gameMeat') actor.quests.campAction('cook');
       st.cookTimer = 0;
       st.cookTickTimer = 0;
       st.cookQueue -= 1;
@@ -370,13 +409,8 @@ export class CampfireSystem implements FacilityInteractionSource {
     if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
-    this.fires.splice(this.fires.indexOf(target), 1);
-    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-    this.scene.remove(target.group);
-    target.dispose();
-    this.give('deadCampfire', 1, actor);
-    this.audio.play('pickup');
-    this.fx.burst(target.group.position, FX_COLOR, 14);
+    this.settleDig(actor, this.ids.get(target));
+
   }
 
   /** 当前挖火堆进度 0-1,未在挖掘时为 null */

@@ -22,11 +22,14 @@ import type { WaterSystem } from '../systems/WaterSystem';
 import type { RunStats } from '../systems/RunStats';
 import type { Actor } from './Actor';
 import { PlayerNameTag } from './PlayerNameTag';
+import type { OwnerWork } from '../net/OwnerWork';
 
 /** 一名玩家(本地或远程)在权威端拥有的全部个人状态。
  * 世界状态(地形/资源点/掉落物/放置物/动物)由 Game 层共享,不在此列。
  * 玩家侧交互系统(采集/制作/进食/钓鱼/弓/喝水)每会话独立一份,由 Game 在世界就绪后装配。 */
 export class PlayerSession implements Actor {
+  ownerWork?: OwnerWork;
+  interactionTarget?: string | null;
   /** 联机生命周期内稳定的玩家标识；不随其他玩家加入或离开而变化。 */
   readonly id: string;
   name: string;

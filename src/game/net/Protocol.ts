@@ -10,8 +10,9 @@ import type { AnimalSpecies, LeashPose } from '../entities/Wildlife';
 import type { GmConfig } from '../systems/GmSystem';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { EntityDelta } from './SnapshotDelta';
+import type { OwnerPose } from './OwnerState';
 
-export const NET_PROTOCOL_VERSION = 50;
+export const NET_PROTOCOL_VERSION = 51;
 
 /** 一名玩家的实时姿态与个人状态(快照用) */
 export type PlayerState = {
@@ -23,6 +24,7 @@ export type PlayerState = {
   y: number;
   z: number;
   rotY: number;
+  epoch: number;
   tool: string;
   /** 手持的可放置道具种类(安放/围栏/门时决定他人看到的手持模型,缺省 null) */
   placeKind?: string | null;
@@ -115,6 +117,7 @@ export type WorldPatch = Partial<
 >;
 
 export type NetEvent =
+  | { kind: 'fishingPlan'; actor: string; plan: import('../systems/FishingSystem').FishingPlan }
   | { kind: 'companionFind'; serial: number; actor: string; item: ResourceKind; packed: boolean; x: number; y: number; z: number }
   | { kind: 'fishKeepFly'; item: ResourceKind; count: number; x: number; y: number; z: number; tx: number; ty: number; tz: number }
   | { kind: 'dogBattleEmoji'; glyph: DogBattleEmoji; serial: number }
@@ -165,8 +168,9 @@ export type NetMsg =
   | { t: 'reject'; reason: string }
   | { t: 'start' }
   | { t: 'heartbeat' }
-  | { t: 'input'; seq: number; x: number; z: number; viewWidth?: number; viewHeight?: number }
-  | { t: 'action'; name: string; args: unknown[] }
+  | { t: 'ownerPose'; pose: OwnerPose; viewWidth: number; viewHeight: number }
+  | { t: 'action'; seq: number; pose: OwnerPose; target?: string | null; name: string; args: unknown[] }
+  | { t: 'actionResult'; seq: number; accepted: boolean }
   | {
       t: 'players';
       time?: number;
@@ -181,8 +185,6 @@ export type NetMsg =
       windAmount?: number;
       windDirX?: number;
       windDirZ?: number;
-      /** 此快照接收者的输入已由房主处理到该序号。 */
-      ackInputSeq: number;
       players: EntityDelta<PlayerState>;
     }
   | { t: 'animals'; animals: EntityDelta<AnimalPose> }

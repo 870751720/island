@@ -1,15 +1,9 @@
 import { rememberRecipes } from '../meta/RecipeDiscoveries';
-import * as THREE from 'three';
 import type { HudSnapshot } from '../GameContracts';
 import type { PlayerSession } from '../mp/PlayerSession';
-import type { GameAudio } from '../audio/GameAudio';
-import type { Particles } from '../fx/Particles';
 import type { PickupPresentation } from '../presentation/PickupPresentation';
-import { FOODS, foodSound } from '../systems/Food';
-import type { FishTier } from '../systems/FishTable';
 import type { InventorySlot, ResourceKind } from '../systems/Inventory';
 import { SLOT_ORDER } from '../systems/Equipment';
-import { EAT_TIME, EAT_TICK } from '../systems/EatingTiming';
 
 const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> => {
   const counts = new Map<ResourceKind, number>();
@@ -19,21 +13,10 @@ const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> 
 
 /** Applies host HUD snapshots to guest-owned state and replays local-only feedback. */
 export class GuestHudSynchronizer {
-  private indicatorState: HudSnapshot['indicator'] = { label: null, progress: null };
-  private indicatorProgress: number | null = null;
-  private indicatorVelocity = 0;
-  private indicatorAt = 0;
-  private eatTick = 0;
-  private eatingSound: ReturnType<typeof foodSound> | null = null;
-  private eatingName: string | null = null;
-  private eatingProgress = 0;
-  private consumptionScheduled = false;
 
   constructor(
     private readonly local: PlayerSession,
     private readonly pickup: PickupPresentation,
-    private readonly audio: GameAudio,
-    private readonly fx: Particles,
     private readonly syncToolTiers: () => void,
     private readonly pushHud: (snapshot: HudSnapshot) => void,
     private readonly localOverlay: () => Pick<HudSnapshot, 'autoEquipProgress' | 'notice'>
@@ -42,7 +25,11 @@ export class GuestHudSynchronizer {
   apply(snapshot: HudSnapshot): void {
     for (const kind of snapshot.discoveredRecipes) this.local.discoverRecipe(kind);
     rememberRecipes(snapshot.discoveredRecipes);
-    this.local.research = { ...snapshot.research, ingredients: [...snapshot.research.ingredients] };
+    if (snapshot.research.serial >= this.local.research.serial) {
+      const remaining = snapshot.research.serial === this.local.research.serial
+        ? Math.min(this.local.research.remaining, snapshot.research.remaining) : snapshot.research.remaining;
+      this.local.research = { ...snapshot.research, remaining, ingredients: [...snapshot.research.ingredients] };
+    }
     const before = countSlots(this.local.inventory.snapshot());
     this.local.inventory.load(snapshot.slots, snapshot.capacity);
     for (const [kind, count] of countSlots(snapshot.slots)) {
@@ -58,73 +45,10 @@ export class GuestHudSynchronizer {
     this.local.craftedIds.clear();
     for (const id of snapshot.craftedIds) this.local.craftedIds.add(id);
     this.syncToolTiers();
-    this.local.player.setTool(snapshot.tool);
     if (SLOT_ORDER.some((slot) => this.local.equipment.getEquipped(slot) !== snapshot.equipped[slot])) {
       this.local.equipment.restore(snapshot.equipped, this.local.inventory);
     }
-    this.updateIndicatorState(snapshot.indicator);
-    this.audio.silent = true;
-    this.local.fishing.netSyncState(snapshot.fishingState, snapshot.biteClicks, snapshot.fishingTier as FishTier, snapshot.fishingWaitLeft);
-    this.audio.silent = false;
-    this.replayEating(snapshot);
     this.pushHud({ ...snapshot, ...this.localOverlay() });
   }
 
-  indicator(delta: number): HudSnapshot['indicator'] {
-    if (this.indicatorState.progress === null) return this.indicatorState;
-    const age = Math.min(0.25, performance.now() / 1000 - this.indicatorAt);
-    const estimated = THREE.MathUtils.clamp(this.indicatorState.progress + this.indicatorVelocity * age, 0, 1);
-    this.indicatorProgress = THREE.MathUtils.lerp(
-      this.indicatorProgress ?? estimated,
-      estimated,
-      1 - Math.exp(-18 * delta)
-    );
-    return { ...this.indicatorState, progress: this.indicatorProgress };
-  }
-
-  private updateIndicatorState(next: HudSnapshot['indicator']): void {
-    const now = performance.now() / 1000;
-    if (this.indicatorState.label === next.label && this.indicatorState.progress !== null && next.progress !== null && this.indicatorAt > 0) {
-      const elapsed = Math.max(0.05, now - this.indicatorAt);
-      this.indicatorVelocity = THREE.MathUtils.clamp((next.progress - this.indicatorState.progress) / elapsed, -2, 2);
-    } else {
-      this.indicatorVelocity = 0;
-      this.indicatorProgress = next.progress;
-    }
-    this.indicatorState = next;
-    this.indicatorAt = now;
-  }
-
-  private replayEating(snapshot: HudSnapshot): void {
-    const food = snapshot.eatName ? FOODS.find((candidate) => candidate.name === snapshot.eatName) : null;
-    const tick = Math.floor(snapshot.eatProgress * EAT_TIME / EAT_TICK);
-    const finished = !food || snapshot.dead || snapshot.eatProgress >= 1;
-    if (finished || this.eatingName !== food?.name || snapshot.eatProgress < this.eatingProgress) {
-      if (this.eatingSound) this.audio.stop(this.eatingSound);
-      this.audio.stop('eatFinish');
-      this.consumptionScheduled = false;
-      this.eatingSound = null;
-      this.eatingName = null;
-      this.eatTick = 0;
-    }
-    this.eatingProgress = snapshot.eatProgress;
-    if (!food || finished) return;
-    this.eatingName = food.name;
-    this.eatingSound = foodSound(food);
-    const remaining = (1 - snapshot.eatProgress) * EAT_TIME;
-    if (!this.consumptionScheduled) {
-      this.consumptionScheduled = food.consumeType === 'eat'
-        ? this.audio.scheduleEatFinish(remaining)
-        : this.audio.scheduleDrink(remaining, EAT_TIME);
-    }
-    const swallowing = food.consumeType === 'eat' && remaining <= this.audio.eatFinishDuration;
-    if (swallowing) this.audio.stop('munch');
-    if (tick === this.eatTick) return;
-    this.eatTick = tick;
-    if (tick < 1) return;
-    if (food.consumeType === 'eat' && !swallowing) this.audio.play(this.eatingSound);
-    const position = this.local.player.group.position.clone();
-    position.y += 2;
-    if (food.consumeType === 'eat') this.fx.burst(position, food.fxColor, 3);
-  }
 }

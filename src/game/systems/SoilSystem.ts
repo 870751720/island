@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import { StaticMeshBatch } from '../core/StaticMeshBatch';
 import { groundSurfaceMaterial, type GroundNeighbors } from '../world/GroundSurface';
@@ -153,6 +154,31 @@ export class SoilSystem implements FacilityInteractionSource {
   }
 
   /** 每帧推进该玩家的挖掘;帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, token: string): boolean {
+    const [id, phase] = token.split('|');
+    const target = this.soils.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    const p = target.group.position;
+    if ((this.hasCropAt(p.x, p.z) ? 'crop' : 'soil') !== phase) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('soils', token);
+    const tp = target.group.position;
+    if (this.removeCropAt(tp.x, tp.z)) {
+      this.fx.burst(new THREE.Vector3(tp.x, tp.y + 0.25, tp.z), '#7fae55', 8);
+      this.audio.play('drop');
+      return true;
+    }
+    this.soils.splice(this.soils.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.removeVisual(target);
+    this.audio.play('drop');
+    // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
+    if (Math.random() < 0.005) {
+      this.give('sweetPotatoSeed', 1, actor);
+      this.fx.burst(target.group.position.clone().setY(target.group.position.y + 0.3), '#c96a3a', 6);
+    }
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -192,22 +218,7 @@ export class SoilSystem implements FacilityInteractionSource {
       st.hits = 0;
       st.digTarget = null;
       // 土壤上种着作物时先铲掉作物(无掉落),下一次挖完这格才移除土壤本身
-      const tp = target.group.position;
-      if (this.removeCropAt(tp.x, tp.z)) {
-        st.digTargetCrop = false;
-        this.fx.burst(new THREE.Vector3(tp.x, tp.y + 0.25, tp.z), '#7fae55', 8);
-        this.audio.play('drop');
-        return;
-      }
-      this.soils.splice(this.soils.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.removeVisual(target);
-      this.audio.play('drop');
-      // 铲开土壤偶尔翻出一颗漏收的红薯(极低概率彩蛋)
-      if (Math.random() < 0.005) {
-        this.give('sweetPotatoSeed', 1, actor);
-        this.fx.burst(target.group.position.clone().setY(target.group.position.y + 0.3), '#c96a3a', 6);
-      }
+      this.settleDig(actor, `${this.ids.get(target)}|${st.digTargetCrop ? 'crop' : 'soil'}`);
     } finally {
       st.hold.commit(actor.player);
     }

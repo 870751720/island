@@ -74,7 +74,7 @@ for (const key of Object.keys(context).filter(key => context[key]?.recoveryInter
 function actor() {
   const player = { group: new THREE.Group(), currentTool: 'shovel', isSwimming: false, isMoving: false,
     setAction: () => {}, releaseAction: () => {} };
-  return { player, tools: { shovel: 1 }, inventory: new Inventory() };
+  return { player, tools: { shovel: 1 }, inventory: new Inventory(), survival: { state: { dead: false } } };
 }
 let claims = 0, releases = 0;
 const lights = { claim: () => { claims++; return { intensity: 1.2 }; }, release: () => { releases++; } };

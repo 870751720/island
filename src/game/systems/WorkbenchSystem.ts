@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -114,10 +115,16 @@ export class WorkbenchSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的工作台(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): Workbench | null {
     let best: Workbench | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const bench of this.benches) {
+      if (actor.interactionTarget !== undefined && this.ids.get(bench) !== actor.interactionTarget) continue;
       this.scratch.copy(bench.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -207,6 +214,32 @@ export class WorkbenchSystem implements FacilityInteractionSource {
   }
 
   /** 每帧推进该玩家的升级/挖掘;帧末统一提交持有的动作,交互结束时自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.benches.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('workbenches', id);
+    this.benches.splice(this.benches.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give(BENCH_ITEM[target.level], 1, actor);
+    this.fx.burst(target.group.position, '#8a6239', 14);
+    return true;
+  }
+
+  settleUpgrade(actor: PlayerSession, token: string): boolean {
+    const [id, level] = token.split('|');
+    const target = this.benches.find(item => this.ids.get(item) === id);
+    if (!target || target.level !== Number(level) || target.level >= WORKBENCH_MAX_LEVEL
+      || this.nearby(actor) !== target || actor.player.isMoving || actor.player.isSwimming
+      || !hasCost(workbenchUpgradeCost(target.level), this.countsOf(actor, target.level))) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('upgrade', token);
+    for (const [kind, n] of Object.entries(workbenchUpgradeCost(target.level))) actor.inventory.remove(kind as ResourceKind, n ?? 0);
+    target.upgrade();
+    actor.quests.benchAction(target.level);
+    this.onChanged?.({ op: 'set', id, fields: { level: target.level } });
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -235,12 +268,7 @@ export class WorkbenchSystem implements FacilityInteractionSource {
     }
     if (st.timer >= CRAFT_TIME) {
       st.timer = 0;
-      for (const [kind, n] of Object.entries(workbenchUpgradeCost(st.upgradeTarget!.level))) {
-        actor.inventory.remove(kind as ResourceKind, n ?? 0);
-      }
-      st.upgradeTarget!.upgrade();
-      actor.quests.benchAction(st.upgradeTarget!.level);
-      this.onChanged?.({ op: 'set', id: this.ids.get(st.upgradeTarget!), fields: { level: st.upgradeTarget!.level } });
+      this.settleUpgrade(actor, `${this.ids.get(st.upgradeTarget!)}|${st.upgradeTarget!.level}`);
       st.upgradeTarget = null;
       this.audio.play('success');
       const p = actor.player.group.position.clone();
@@ -284,11 +312,8 @@ export class WorkbenchSystem implements FacilityInteractionSource {
     if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
-    this.benches.splice(this.benches.indexOf(target), 1);
-    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-    this.scene.remove(target.group);
-    this.give(BENCH_ITEM[target.level], 1, actor);
-    this.fx.burst(target.group.position, '#8a6239', 14);
+    this.settleDig(actor, this.ids.get(target));
+
   }
 
   /** 当前挖掘进度 0-1,未在挖掘时为 null */

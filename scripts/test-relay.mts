@@ -141,7 +141,7 @@ function clientModules(url: string) {
       setInterval: (fn: () => void, ms: number) => setInterval(ms === 40 ? () => {} : fn, ms),
       localStorage: storage, window: { localStorage: storage, location: { href: 'https://example.test/island/' } },
       require(id: string) {
-        if (id === './Actions') return { isNetActionName: () => true, dispatchNetAction: (...args: unknown[]) => actions.push(args) };
+        if (id === './Actions') return { isNetActionName: () => true, dispatchNetAction: (...args: unknown[]) => { actions.push(args); return true; } };
         if (id === './ActionProtocol') return { hasValidNetActionArgs: () => true };
         if (id === '@/platform/compat') return { createUuid: () => crypto.randomUUID() };
         if (id === 'mqtt') return { default: { connect() { throw new Error('Relay must never open MQTT'); } } };
@@ -168,10 +168,18 @@ try {
   await until(() => host.guestNames.length === 1, 'hello registers relay guest');
   assert.equal(host.guestNames[0], '测试玩家');
   const save = { terrainSeed: 77, marker: '初始快照'.repeat(90_000) };
-  const session = { id: 'guest-session', player: { setGender() {}, input: { setJoystick() {} } } };
+  const position = { x: 0, y: 0, z: 0, clone() { return { x: this.x, y: this.y, z: this.z }; } };
+  const session = { id: 'guest-session', survival: { state: { dead: false } }, player: {
+    poseEpoch: 0, isSleeping: false, isMoving: false, currentAction: null,
+    group: { position, rotation: { y: 0 } },
+    applyOwnerPose(x: number, y: number, z: number) { Object.assign(position, { x, y, z }); },
+    setAction() {}, setGender() {}, input: { setJoystick() {} },
+  } };
+  guest.readPose = () => ({ epoch: 0, x: 0, y: 0, z: 0, rotY: 0, moving: false, action: null });
   let resumed = 0;
   const game = {
     claimSavedRemoteSession: () => null, addRemoteSession: () => session,
+    hudFor: () => ({ slots: [], health: 100 }),
     collectSave: () => save, sessionIds: () => ['host', session.id],
     runNetAction: (_session: unknown, action: () => void) => action(),
     suspendRemoteSession: () => ({ id: session.id }),
@@ -208,11 +216,12 @@ try {
   host.dispose();
   assert.match((await pendingHost).message, /取消/);
   const room = await host.createRoom('relay');
+  host.attach(game);
   const pendingGuest = guest.join(room, '取消', undefined, 'relay');
   guest.dispose();
   await pendingGuest;
   await guest.join(room, '重试', undefined, 'relay');
-  await until(() => host.guestNames.includes('重试'), 'retry independent from cancelled connection');
+  await until(() => host.guestNames.includes('重试') && guest.ready, 'retry independent from cancelled connection');
   // 浏览器 socket 的缓冲达到上限时必须断开，不能丢弃增量后继续游戏。
   closed = '';
   Object.defineProperty(guest.relay.socket, 'bufferedAmount', { value: 16 * 1024 * 1024 });
@@ -220,7 +229,7 @@ try {
   assert.match(closed, /积压过多/);
   await until(() => host.guestNames.length === 0, 'slow connection frees its player slot');
   await guest.join(room, '大包', undefined, 'relay');
-  await until(() => host.guestNames.length === 1, 'guest can retry after buffer overflow');
+  await until(() => host.guestNames.length === 1 && guest.ready, 'guest can retry after buffer overflow');
   closed = '';
   guest.action('test', ['x'.repeat(8 * 1024 * 1024)]);
   assert.match(closed, /超过中转限制/);

@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { GravelPath } from '../entities/GravelPath';
@@ -84,6 +85,22 @@ export class RoadSystem implements FacilityInteractionSource {
     const { x, y, z } = path.group.position;
     return { id: this.ids.get(path), x, y, z };
   }
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = [...this.paths.values()].find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit(this.kind, id);
+    const at = target.group.position;
+    this.paths.delete(this.key(at.x, at.z));
+    this.markAround(at.x, at.z);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.fx.burst(at, this.kind === 'gravelPath' ? '#aca99b' : '#a77c51', 6);
+    target.remove(this.scene);
+    this.recover(actor);
+    this.audio.play('drop');
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     let state = this.states.get(actor);
     if (!state) {
@@ -108,14 +125,7 @@ export class RoadSystem implements FacilityInteractionSource {
       state.hold.hold(actor.player, 'mine');
       state.elapsed += delta;
       if (state.elapsed < shovelHits(actor.tools.shovel) * 0.6) return;
-      const at = target.group.position;
-      this.paths.delete(this.key(at.x, at.z));
-      this.markAround(at.x, at.z);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.fx.burst(at, this.kind === 'gravelPath' ? '#aca99b' : '#a77c51', 6);
-      target.remove(this.scene);
-      this.recover(actor);
-      this.audio.play('drop');
+      this.settleDig(actor, this.ids.get(target));
       state.target = null;
       state.elapsed = 0;
     } finally { state.hold.commit(actor.player); }

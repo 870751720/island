@@ -13,6 +13,7 @@ import type { Particles } from '../fx/Particles';
 import type { PlayerSession } from '../mp/PlayerSession';
 import { ActionHold } from './ActionHold';
 import { WorldEntityIds, type EntityChangeSink } from './WorldEntityId';
+import { canFinishWork } from '../net/OwnerWork';
 
 /** 围栏网格边长:围栏柱吸附在整数格点上,相邻柱间距 1 */
 const FENCE_GRID = 1;
@@ -653,12 +654,26 @@ export class FenceSystem implements ObstacleSolver, FacilityInteractionSource {
       if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
-      const center = this.digCenter(target);
-      this.removeByKey(actor, target.kind, target.key);
-      this.fx.burst(center, '#a97b48', 14);
+      const entity = target.kind === 'fence' ? this.fences.get(target.key) : this.gates.get(target.key);
+      if (entity) {
+        const id = target.kind === 'fence' ? this.fenceIds.get(entity as Fence) : this.gateIds.get(entity as FenceGate);
+        this.settleDig(actor, id);
+      }
     } finally {
       st.hold.commit(actor.player);
     }
+  }
+
+  settleDig(actor: PlayerSession, id: string): boolean {
+    let target: { kind: 'fence' | 'gate'; key: string } | null = null;
+    for (const [key, fence] of this.fences) if (this.fenceIds.get(fence) === id) target = { kind: 'fence', key };
+    for (const [key, gate] of this.gates) if (this.gateIds.get(gate) === id) target = { kind: 'gate', key };
+    if (!target || !canFinishWork(actor, this.digCenter(target))) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('fences', id);
+    const center = this.digCenter(target);
+    this.removeByKey(actor, target.kind, target.key);
+    this.fx.burst(center, '#a97b48', 14);
+    return true;
   }
 
   /** 挖掘目标的世界中心点 */

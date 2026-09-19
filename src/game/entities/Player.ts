@@ -321,6 +321,30 @@ export class Player implements Updatable {
   /** 遥控目标姿态:位置向它插值,移动感由距离推出(用于走路动画) */
   private netPos = new THREE.Vector3();
   private netRotY = 0;
+  /** 房主上的客人实体使用本人上报的位置，不再积分摇杆。 */
+  ownerDriven = false;
+  poseEpoch = 0;
+  private ownerSpeed = 0;
+  private ownerVisual: THREE.Group | null = null;
+
+  applyOwnerPose(x: number, y: number, z: number, rotY: number, moving: boolean): void {
+    if (!this.ownerVisual) {
+      this.ownerVisual = new THREE.Group();
+      this.ownerVisual.add(...this.group.children);
+      this.group.add(this.ownerVisual);
+    } else {
+      this.ownerVisual.position.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.group.rotation.y);
+      this.ownerVisual.position.x += this.group.position.x - x;
+      this.ownerVisual.position.z += this.group.position.z - z;
+      this.ownerVisual.position.applyAxisAngle(THREE.Object3D.DEFAULT_UP, -rotY);
+      if (this.ownerVisual.position.lengthSq() > 9) this.ownerVisual.position.set(0, 0, 0);
+    }
+    this.ownerDriven = true;
+    this.group.position.set(x, y, z);
+    this.group.rotation.y = rotY;
+    this.moving = moving;
+    this.ownerSpeed = moving ? MOVE_SPEED : 0;
+  }
   /** 持续受伤外观(伤口贴片/血滴),由 setHealth 喂入的血量驱动 */
   private injuryFx!: InjuryFx;
   /** 当前血量(仅作受伤表现驱动,权威值在 SurvivalSystem/快照) */
@@ -535,6 +559,8 @@ export class Player implements Updatable {
 
   /** 从死亡姿态恢复站立，并传送到出生点。 */
   respawn(spawn: THREE.Vector3): void {
+    this.poseEpoch += 1;
+    this.ownerVisual?.position.set(0, 0, 0);
     this.dead = false;
     this.action = null;
     this.sleepPose = null;
@@ -596,6 +622,7 @@ export class Player implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    this.ownerVisual?.position.multiplyScalar(Math.exp(-18 * delta));
     // 受击泛红:每帧按剩余时间衰减,结束后归零还原
     if (this.hurtFlash > 0) {
       this.hurtFlash = Math.max(0, this.hurtFlash - delta);
@@ -615,7 +642,7 @@ export class Player implements Updatable {
       this.updateSleep(delta, elapsed);
       return;
     }
-    if (!this.remote) {
+    if (!this.remote && !this.ownerDriven) {
       this.input.getVector(this.moveVec);
       this.moving = this.moveVec.lengthSq() > 0.001;
     }
@@ -647,7 +674,7 @@ export class Player implements Updatable {
         Math.cos(this.netRotY - this.group.rotation.y)
       );
       this.group.rotation.y += diff * k;
-    } else if (this.moving) {
+    } else if (this.moving && !this.ownerDriven) {
       const len = this.moveVec.length();
       const base = (this.swimming ? SWIM_SPEED : MOVE_SPEED) * GmSystem.speedMultiplier;
       let speed = base * this.weatherSpeedMultiplier;
@@ -684,7 +711,7 @@ export class Player implements Updatable {
       this.group.rotation.x += (0.55 - this.group.rotation.x) * (1 - Math.exp(-10 * delta));
 
       this.animator.update(delta, elapsed, null, 0,
-        Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), true, this.handTool);
+        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), true, this.handTool);
       this.appearance.head.getWorldPosition(this.swimHead);
       // 头部对齐水线后再整体上抬，让肩膀露出水面
       p.y += waterY - this.swimHead.y + 0.3 + Math.sin(elapsed * 2) * 0.012;
@@ -702,7 +729,7 @@ export class Player implements Updatable {
       this.group.rotation.x += (0 - this.group.rotation.x) * (1 - Math.exp(-14 * delta));
       this.group.rotation.z += (0 - this.group.rotation.z) * (1 - Math.exp(-14 * delta));
       this.animator.update(delta, elapsed, action, this.actionTime,
-        Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool);
+        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool);
       const swords = this.toolModels.sword!;
       const sword = swords[Math.min(this.toolTiers.sword ?? 1, swords.length) - 1];
       this.swordTrail.update(delta, action === 'slash' && this.handTool === 'sword' ? sword : null, this.actionTime);

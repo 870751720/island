@@ -7,7 +7,10 @@ import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 const storageMap = new Map<string, string>();
-const storage = { getItem: (key: string) => storageMap.get(key) ?? null, setItem: (key: string, value: string) => storageMap.set(key, value) };
+const storage = { getItem: (key: string) => storageMap.get(key) ?? null, setItem: (key: string, value: string) => {
+  storageMap.set(key, value);
+  Object.defineProperty(storage, key, { value, enumerable: true, configurable: true, writable: true });
+} };
 const cache = new Map<string, { exports: any }>();
 function load(file: string): any {
   let resolved = path.resolve(file);
@@ -192,11 +195,11 @@ assert.equal(JSON.parse(storage.getItem('island.recipe-discoveries.v1')!).length
 cache.delete(path.resolve('src/game/meta/RecipeDiscoveries.ts'));
 assert.equal(load('src/game/meta/RecipeDiscoveries').hasRecipeDiscovery('applePie'), true);
 storage.setItem('island.profile.v1', JSON.stringify({ name: '测试', gender: 'boy' }));
-const { captureBundle, decodeBundle } = load('src/game/platform/taptap/SaveBundle');
+const { captureBundle, decodeBundle } = load('src/game/cloud/SaveBundle');
 const backup = captureBundle();
 assert.equal(backup.entries['island.recipe-discoveries.v1'], storage.getItem('island.recipe-discoveries.v1'));
 delete backup.entries['island.recipe-discoveries.v1'];
-assert.equal(decodeBundle(JSON.stringify(backup)).entries['island.recipe-discoveries.v1'], null, '旧云备份缺省兼容');
+assert.equal(decodeBundle(JSON.stringify(backup)).entries['island.recipe-discoveries.v1'], undefined, '旧云备份缺省兼容');
 
 // 执行实际 GM 方法，隔离渲染器构造；动作分发仍使用正式注册表。
 const gameSource = ts.createSourceFile('Game.ts', fs.readFileSync('src/game/Game.ts', 'utf8'), ts.ScriptTarget.Latest, true);

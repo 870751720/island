@@ -13,6 +13,12 @@ type NetAction<Name extends NetActionName> = (
 type NetActionRegistry = { [Name in NetActionName]: NetAction<Name> };
 
 const ACTIONS: NetActionRegistry = {
+  workFinish: (g, a, [system, target]) => g.netWorkFinish(a, system, target),
+  collectHit: (g, a, [id, phase]) => g.netCollectHit(a, id, phase),
+  drinkRound: (g, a) => g.netDrinkRound(a),
+  craftFinish: (g, a, [id]) => g.netCraftFinish(a, id),
+  eatPortion: (g, a, [kind]) => g.netEatPortion(a, kind),
+  place: (g, a, [kind, x, z]) => g.netPlace(a, kind, x, z),
   researchStart: (g, a, [kinds]) => g.researchStart(kinds, a),
   syncRecipeDiscoveries: (g, a, [kinds]) => g.syncRecipeDiscoveries(kinds, a),
   gmUnlockDiscoveries: (g, a) => g.gmUnlockDiscoveries(a),
@@ -23,11 +29,9 @@ const ACTIONS: NetActionRegistry = {
     g.setToolFor(a, tool, placeKind ?? undefined);
     return true;
   },
-  eatFood: (g, a, [kind]) => g.eatFood(kind ?? undefined, a),
-  eatUntilFull: (g, a, [kind]) => g.eatUntilFull(kind ?? undefined, a),
-  startFishing: (g, a) => g.startFishing(a),
-  hookFish: (g, a) => g.hookFish(a),
-  claimTreasure: (g, a) => g.claimTreasure(a),
+  startFishing: (g, a, [cast]) => g.netStartFishing(a, cast),
+  fishCaught: (g, a, [cast]) => a.fishing.settleOwnedCatch(cast),
+  fishCancel: (g, a, [cast]) => { a.fishing.cancelOwnedCast(cast); return true; },
   sleep: (g, a) => g.sleep(a),
   baitBarrelFeed: (g, a, [kind, count]) => g.baitBarrelFeed(kind, count, a),
   baitBarrelCollect: (g, a) => g.baitBarrelCollect(a),
@@ -40,7 +44,6 @@ const ACTIONS: NetActionRegistry = {
   smelterCollect: (g, a) => g.smelterCollect(a),
   smelterTakeOre: (g, a) => g.smelterTakeOre(a),
   cookingAddFuel: (g, a, [kind]) => g.cookingAddFuel(kind, a),
-  cookingRoast: (g, a, [kind, count]) => g.cookingRoast(kind, count, a),
   cookingBoil: (g, a, [kind, count]) => g.cookingBoil(kind, count, a),
   cookingCollect: (g, a) => g.cookingCollect(a),
   cookingTakeBoil: (g, a) => g.cookingTakeBoil(a),
@@ -55,15 +58,11 @@ const ACTIONS: NetActionRegistry = {
   crateStore: (g, a, [kind, count]) => g.crateStore(kind, count ?? Infinity, a),
   crateTake: (g, a, [kind, count]) => g.crateTake(kind, count ?? Infinity, a),
   campfireAddFuel: (g, a, [kind]) => g.campfireAddFuel(kind, a),
-  campfireCook: (g, a, [kind, count]) => g.campfireCook(kind, count, a),
   dropItem: (g, a, [kind, count]) => g.dropItem(kind, count, a),
   moveItem: (g, a, [from, to]) => g.moveItem(from, to, a),
   sortInventory: (g, a) => g.sortInventory(a),
   equipItem: (g, a, [kind]) => g.equipItem(kind, a),
   unequipItem: (g, a, [slot]) => g.unequipItem(slot, a),
-  craftTool: (g, a, [id]) => g.craftTool(id, a),
-  craftAtWorkbench: (g, a, [id, count]) => g.craftAtWorkbench(id, count, a),
-  upgradeWorkbench: (g, a) => g.upgradeWorkbench(a),
   // 客人本地判定命中后的权威结算(联机约定的例外:弓箭命中由射手客户端判定)
   arrowHit: (g, a, [kind, animalId, x, z]) => {
     const hit: ArrowHit =

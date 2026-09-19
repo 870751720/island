@@ -17,6 +17,7 @@ export class CraftingSystem {
   private timer = 0;
   private tickTimer = 0;
   private working = false;
+  submitCraft?: (recipe: Recipe) => boolean;
 
   constructor(
     private player: Player,
@@ -92,16 +93,8 @@ export class CraftingSystem {
         this.endWork();
         return;
       }
-      craft(recipe, this.inventory, this.tools, this.give, this.equipment);
-      this.craftedIds.add(recipe.id);
-      this.onCrafted?.(recipe.id);
-      // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
-      // 铲子/锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖产物或误开出土壤
-      if (recipe.tool) {
-        this.player.setToolTier(recipe.tool, this.tools[recipe.tool]);
-        if (recipe.tool !== 'shovel' && recipe.tool !== 'hoe') this.player.setTool(recipe.tool);
-      } else if (recipe.output) {
-        this.onOutput?.(recipe.output);
+      if (this.submitCraft ? !this.submitCraft(recipe) : !this.settleRecipe(recipe)) {
+        this.cancel(); this.endWork(); return;
       }
       this.audio.play('success');
       const p = this.player.group.position.clone();
@@ -118,8 +111,25 @@ export class CraftingSystem {
     }
   }
 
+  settleRecipe(recipe: Recipe): boolean {
+    if (!this.canAfford(recipe, 1) || !this.canMake(recipe)) return false;
+    craft(recipe, this.inventory, this.tools, this.give, this.equipment);
+    this.craftedIds.add(recipe.id);
+    this.onCrafted?.(recipe.id);
+    // 工具制作完成永久拥有并直接拿在手上(升级后即时换高一级模型),材料产物进背包
+    // 铲子/锄头特殊处理:不自动切换,仅刷新等级模型,避免原地误挖产物或误开出土壤
+    if (recipe.tool) {
+      this.player.setToolTier(recipe.tool, this.tools[recipe.tool]);
+      if (recipe.tool !== 'shovel' && recipe.tool !== 'hoe') this.player.setTool(recipe.tool);
+    } else if (recipe.output) {
+      this.onOutput?.(recipe.output);
+    }
+    return true;
+  }
+
   cancel(): void {
     this.recipe = null;
+    this.endWork();
   }
 
   /** 结束合成作业时释放一次自己持有的动作(每帧调用,只在边沿生效) */

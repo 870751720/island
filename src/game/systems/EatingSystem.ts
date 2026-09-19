@@ -15,6 +15,7 @@ export class EatingSystem {
   private consumptionScheduled = false;
   /** 「吃饱」模式:吃完一份后饥饿未满且还有存货则自动继续 */
   private untilFull = false;
+  submitPortion?: (food: Food) => boolean;
 
   constructor(
     private player: Player,
@@ -77,10 +78,8 @@ export class EatingSystem {
     if (this.timer >= EAT_TIME) {
       if (!this.audio.silent) this.audio.stop(foodSound(food));
       this.player.releaseAction(foodAction(food));
-      if (this.inventory.remove(food.kind)) {
-        this.survival.eat(food);
-        this.onEaten?.(food);
-      }
+      if (this.submitPortion) this.submitPortion(food);
+      else this.settlePortion(food);
       if (this.untilFull && this.survival.state.hunger < 100 && this.inventory.count(food.kind) > 0) {
         this.timer = 0;
         this.tickTimer = 0;
@@ -103,5 +102,21 @@ export class EatingSystem {
 
   get currentFood(): Food | null {
     return this.food;
+  }
+
+  settlePortion(food: Food): boolean {
+    if (!this.inventory.remove(food.kind)) return false;
+    this.survival.eat(food);
+    this.onEaten?.(food);
+    return true;
+  }
+
+  cancel(): void {
+    if (this.food) {
+      this.player.releaseAction(foodAction(this.food));
+      if (!this.audio.silent) { this.audio.stop(foodSound(this.food)); this.audio.stop('eatFinish'); }
+    }
+    this.food = null;
+    this.untilFull = false;
   }
 }

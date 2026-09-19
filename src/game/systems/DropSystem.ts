@@ -37,6 +37,7 @@ export type DropEntry = {
 };
 
 export type DropInfo = {
+  id: string;
   kind: ResourceKind;
   count: number;
   source: DropSource;
@@ -180,13 +181,15 @@ export class DropSystem {
     const p = actor.player.group.position;
     let nearest: Drop | null = null;
     for (const drop of this.drops) {
+      if (actor.interactionTarget !== undefined && drop.id !== actor.interactionTarget) continue;
       if (drop.age < PICKUP_DELAY) continue;
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;
       if (!nearest || drop.age > nearest.age) nearest = drop;
     }
     return nearest
-      ? {
+        ? {
+            id: nearest.id,
           kind: nearest.kind,
           count: nearest.count,
           source: nearest.source,
@@ -205,6 +208,7 @@ export class DropSystem {
     const p = actor.player.group.position;
     for (let i = 0; i < this.drops.length; i++) {
       const drop = this.drops[i];
+      if (actor.interactionTarget !== undefined && drop.id !== actor.interactionTarget) continue;
       if (drop.age < PICKUP_DELAY) continue;
       this.scratch.copy(drop.mesh.position);
       if (this.scratch.distanceTo(p) >= PICKUP_RANGE) continue;

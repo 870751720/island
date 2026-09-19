@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { disposeOwnedMeshes } from '../core/disposeOwnedMeshes';
 import * as THREE from 'three';
 import type { Particles } from '../fx/Particles';
@@ -151,7 +152,7 @@ export class CropSystem {
       st.swingTimer += delta;
       if (st.swingTimer < HARVEST_TIME) return;
       st.swingTimer = 0;
-      this.harvest(actor, target);
+      this.settleHarvest(actor, this.ids.get(target));
       st.harvestTarget = null;
     } finally {
       st.hold.commit(actor.player);
@@ -159,6 +160,14 @@ export class CropSystem {
   }
 
   /** 采收一株成熟作物:作物消失,产出直接进发起者背包(联机时经房主权威结算,背包随快照回流) */
+  settleHarvest(actor: PlayerSession, id: string): boolean {
+    const target = this.crops.find(item => this.ids.get(item) === id);
+    if (!target || !target.mature || !canFinishWork(actor, target.group.position, 'hand')) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('crops', id);
+    this.harvest(actor, target);
+    return true;
+  }
+
   private harvest(actor: PlayerSession, crop: Crop): void {
     const spec = crop.spec;
     const p = crop.group.position;

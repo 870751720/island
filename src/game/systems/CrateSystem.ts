@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { animalFood, animalFoodHeart, isAnimalFood, type FoodTarget } from './AnimalFood';
@@ -82,10 +83,16 @@ export class CrateSystem implements FacilityInteractionSource {
   }
 
   /** 玩家身旁最近的木箱(范围内的),无则 null */
+  nearbyId(actor: PlayerSession): string | null {
+    const target = this.nearby(actor);
+    return target ? this.ids.get(target) : null;
+  }
+
   nearby(actor: PlayerSession): Crate | null {
     let best: Crate | null = null;
     let bestDist = NEAR_RANGE * NEAR_RANGE;
     for (const crate of this.crates) {
+      if (actor.interactionTarget !== undefined && this.ids.get(crate) !== actor.interactionTarget) continue;
       this.scratch.copy(crate.group.position);
       this.scratch.y = actor.player.group.position.y;
       const d = this.scratch.distanceToSquared(actor.player.group.position);
@@ -179,6 +186,22 @@ export class CrateSystem implements FacilityInteractionSource {
   }
 
   /** 手持铲子站定在木箱旁自动挖掘,命中数次后整箱挖走(箱内物品一并回到背包/掉落);帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.crates.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit('crates', id);
+    this.crates.splice(this.crates.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.scene.remove(target.group);
+    this.give(target.kind, 1, actor);
+    for (const slot of target.storage.snapshot()) {
+      if (slot) this.give(slot.kind, slot.count, actor);
+    }
+    this.fx.burst(target.group.position, target.color, 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -211,14 +234,7 @@ export class CrateSystem implements FacilityInteractionSource {
     if (st.hits < (shovelHits(actor.tools.shovel))) return;
     st.hits = 0;
     st.digTarget = null;
-    this.crates.splice(this.crates.indexOf(target), 1);
-    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-    this.scene.remove(target.group);
-    this.give(target.kind, 1, actor);
-    for (const slot of target.storage.snapshot()) {
-      if (slot) this.give(slot.kind, slot.count, actor);
-    }
-    this.fx.burst(target.group.position, target.color, 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }

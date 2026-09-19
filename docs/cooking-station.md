@@ -56,7 +56,7 @@
 
 ### 联机与存档
 
-- 客人动作 `useCookingStation/cookingAddFuel/cookingRoast/cookingBoil/cookingCollect` 上行,房主 `Actions.ts` 权威结算;世界段 `cookingStations` 增量回流(煮制每份产出、添柴、燃尽时上报,燃料/计时不在每帧下发)。
+- 客人动作 `useCookingStation/cookingAddFuel/workFinish/cookingBoil/cookingCollect` 上行,房主 `Actions.ts` 权威结算;世界段 `cookingStations` 增量回流(煮制每份产出、添柴、燃尽时上报,燃料/计时不在每帧下发)。
 - 客人端本地倒数 `tickLeft`、本地递减 `fuel` 做表现,快照对账(同冶炼炉)。
 - 存档 `SaveData.cookingStations?` 为可选字段,旧档缺省视为无,`SAVE_VERSION` 不变。
 
@@ -87,3 +87,7 @@
 ## 隐藏料理烹饪
 
 面板使用「烹饪」名称覆盖汤品与面点。研究或获得成品解锁后，草莓奶糕、苹果派、鲜肉馅饼出现在烹饪列表，材料不足时仍显示需求。每份扣除完整配方用量，沿用添柴、五秒一份和成品收取。取回或挖走时退回尚未完成份数的实际材料；已有不同成品须先收取。详见 [料理研究台](./recipe-research.md)。
+
+## 联机操作职责
+
+玩家亲自烤制的动作与每份进度在本人本机运行，完成经 `workFinish` 交给房主扣一份材料并发一份成品。客人选择批量烤制时不预扣整批，取消未完成部分无需退款。设备独立煮制、燃料和共享队列继续由房主推进。火堆的亲自烹饪采用相同规则。详见 [玩家本机驱动与共享世界结算](owner-driven-multiplayer.md)。

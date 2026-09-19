@@ -11,8 +11,9 @@ import type { NetActionArgs, NetActionName } from './ActionProtocol';
 import type { PlayerGender } from '../entities/PlayerModel';
 import { applyEntityDelta } from './SnapshotDelta';
 import type { AmbientPose, PlayerState } from './Protocol';
+import type { OwnerPose } from './OwnerState';
 
-const INPUT_HZ = 20; // 摇杆上行频率
+const INPUT_HZ = 20; // 本人姿态上行频率
 const RESUME_KEY = 'island.multiplayer.resume';
 const LAST_ROOM_KEY = 'island.multiplayer.lastRoom';
 
@@ -42,14 +43,13 @@ export class NetGuest {
   connectionMode: ConnectionMode = 'direct';
   private signal: GuestSignal | null = null;
   dogView = { width: 0, height: 0 };
-  private sentDogView = "";
-  private inputX = 0;
-  private inputZ = 0;
   private inputTimer: ReturnType<typeof setInterval> | null = null;
   private lastInputSent = 0;
   private inputSeq = 0;
-  private sentInputX = Number.NaN;
-  private sentInputZ = Number.NaN;
+  private actionSeq = 0;
+  private receipts = new Map<number, (accepted: boolean) => void>();
+  readPose: (() => Omit<OwnerPose, 'seq'>) | null = null;
+  readTarget: (name: NetActionName) => string | null | undefined = () => undefined;
   private lastHeartbeatSent = 0;
   private disposed = false;
   private ready = false;
@@ -77,8 +77,6 @@ export class NetGuest {
   onWorldFull: (revision: number, state: WorldPatch) => void = () => {};
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
-  /** 输入包实际入队时通知 Game，供权威快照对账保留本地预测轨迹。 */
-  onInputSent: (seq: number) => void = () => {};
 
   /** 输入五位数字房间码，按房主选择的连接方式加入。 */
   async join(code: string, name: string, gender?: PlayerGender, mode: ConnectionMode = 'direct'): Promise<void> {
@@ -173,7 +171,7 @@ export class NetGuest {
     }
   }
 
-  /** 收到 start 后由 Game 调用:开始按频率上行摇杆并应用下行数据 */
+  /** 收到 start 后由 Game 调用:开始按频率上行本人姿态并应用下行数据 */
   begin(): void {
     this.ready = true;
     for (const msg of this.pending.splice(0)) this.onMessage(msg);
@@ -189,6 +187,8 @@ export class NetGuest {
     this.signal = null;
     this.relay?.close();
     this.relay = null;
+    for (const done of this.receipts.values()) done(false);
+    this.receipts.clear();
   }
 
   private onMessage(msg: NetMsg): void {
@@ -197,6 +197,12 @@ export class NetGuest {
       return;
     }
     switch (msg.t) {
+      case 'actionResult': {
+        const done = this.receipts.get(msg.seq);
+        this.receipts.delete(msg.seq);
+        done?.(msg.accepted);
+        break;
+      }
       case 'welcome':
         if (msg.protocol !== NET_PROTOCOL_VERSION) {
           this.onRejected('双方游戏版本不一致，请刷新页面后重试');
@@ -246,10 +252,8 @@ export class NetGuest {
     }
   }
 
-  /** 本地摇杆写入(由 Game.setJoystick 转发),按固定频率上行 */
-  sendInput(x: number, z: number): void {
-    this.inputX = x;
-    this.inputZ = z;
+  private pose(): OwnerPose | null {
+    return this.readPose ? { ...this.readPose(), seq: ++this.inputSeq } : null;
   }
 
   private startInput(): void {
@@ -262,13 +266,9 @@ export class NetGuest {
         this.lastHeartbeatSent = now;
         this.net?.send({ t: 'heartbeat' });
       }
-      if (this.ready && (this.inputX !== this.sentInputX || this.inputZ !== this.sentInputZ || this.sentDogView !== JSON.stringify(this.dogView))) {
-        this.sentInputX = this.inputX;
-        this.sentInputZ = this.inputZ;
-        this.sentDogView = JSON.stringify(this.dogView);
-        const seq = ++this.inputSeq;
-        this.net?.send({ t: 'input', seq, x: this.inputX, z: this.inputZ, viewWidth: this.dogView.width, viewHeight: this.dogView.height });
-        this.onInputSent(seq);
+      if (this.ready) {
+        const pose = this.pose();
+        if (pose) this.net?.send({ t: 'ownerPose', pose, viewWidth: this.dogView.width, viewHeight: this.dogView.height });
       }
     }, 1000 / INPUT_HZ / 2);
   }
@@ -279,8 +279,14 @@ export class NetGuest {
   }
 
   /** 把一次按钮动作发给房主权威结算(返回值仅表示已发出) */
-  action<Name extends NetActionName>(name: Name, args: NetActionArgs[Name]): boolean {
-    this.net?.send({ t: 'action', name, args });
+  action<Name extends NetActionName>(name: Name, args: NetActionArgs[Name], done?: (accepted: boolean) => void): boolean {
+    const pose = this.pose();
+    if (!this.ready || !this.net?.connected || !pose || this.receipts.size >= 256) return false;
+    const seq = ++this.actionSeq;
+    if (done) this.receipts.set(seq, accepted => {
+      if (this.readPose?.().epoch === pose.epoch) done(accepted);
+    });
+    this.net.send({ t: 'action', seq, pose, target: this.readTarget(name), name, args });
     return true;
   }
 

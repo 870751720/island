@@ -11,6 +11,7 @@ export class WaterSystem {
   private timer = 0;
   private active = false;
   private sipTimer = 0;
+  submitRound?: () => boolean;
 
   constructor(
     private player: Player,
@@ -51,10 +52,18 @@ export class WaterSystem {
     this.audio.stop('drink');
     this.sipTimer = 0;
     this.timer = 0;
+    if (this.submitRound) this.submitRound();
+    else this.settleRound(nearPurifier);
+  }
+
+  settleRound(nearPurifier = false): boolean {
+    const p = this.player.group.position;
+    const pond = isDrinkablePond(this.terrain, p.x, p.z);
+    if ((!pond && !nearPurifier) || this.player.isMoving || this.player.isSwimming) return false;
     this.survival.drink();
     this.onDrinkComplete();
-    // 水洼喝水才可能惊动鳄鱼,净化器喝的是清水
-    if (standingInPond) this.onDrinkRound();
+    if (pond) this.onDrinkRound();
+    return true;
   }
 
   get isActive(): boolean {

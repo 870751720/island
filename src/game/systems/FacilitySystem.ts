@@ -1,3 +1,4 @@
+import { canFinishWork } from '../net/OwnerWork';
 import { recoveryInteraction, type FacilityInteractionSource } from './FacilityInteraction';
 import * as THREE from 'three';
 import { PlaceOccupancy } from './PlaceOccupancy';
@@ -38,15 +39,15 @@ export class FacilitySystem<K extends ResourceKind> implements FacilityInteracti
   protected facilities: Facility<K>[] = [];
   private scratch = new THREE.Vector3();
   private states = new Map<PlayerSession, PlayerSessionState<K>>();
-  private ids: WorldEntityIds<Facility<K>>;
+  protected ids: WorldEntityIds<Facility<K>>;
   private onChanged?: EntityChangeSink;
   setChangeSink(sink?: EntityChangeSink): void { this.onChanged = sink; }
 
   constructor(
     protected readonly dependencies: FacilityDependencies,
     private readonly factory: FacilityFactory<K>,
-    idPrefix: string
-  ) { this.ids = new WorldEntityIds<Facility<K>>(idPrefix); }
+    readonly workKey: string
+  ) { this.ids = new WorldEntityIds<Facility<K>>(workKey); }
 
   private st(actor: PlayerSession): PlayerSessionState<K> {
     let st = this.states.get(actor);
@@ -97,6 +98,20 @@ export class FacilitySystem<K extends ResourceKind> implements FacilityInteracti
   }
 
   /** 每帧推进该玩家的挖掘;帧末统一提交持有的动作,挖掘结束自动释放 */
+  settleDig(actor: PlayerSession, id: string): boolean {
+    const target = this.facilities.find(item => this.ids.get(item) === id);
+    if (!target || !canFinishWork(actor, target.group.position)) return false;
+    if (actor.ownerWork) return actor.ownerWork.submit(this.workKey, id);
+    this.facilities.splice(this.facilities.indexOf(target), 1);
+    this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
+    this.dependencies.scene.remove(target.group);
+    target.dispose();
+    this.dependencies.give(target.kind, 1, actor);
+    this.dependencies.fx.burst(target.group.position, this.factory.color(target.kind), 14);
+
+    return true;
+  }
+
   updateActor(actor: PlayerSession, delta: number): void {
     const st = this.st(actor);
     try {
@@ -133,12 +148,7 @@ export class FacilitySystem<K extends ResourceKind> implements FacilityInteracti
       if (st.hits < (shovelHits(actor.tools.shovel))) return;
       st.hits = 0;
       st.digTarget = null;
-      this.facilities.splice(this.facilities.indexOf(target), 1);
-      this.onChanged?.({ op: 'remove', id: this.ids.get(target) });
-      this.dependencies.scene.remove(target.group);
-      target.dispose();
-      this.dependencies.give(target.kind, 1, actor);
-      this.dependencies.fx.burst(target.group.position, this.factory.color(target.kind), 14);
+    this.settleDig(actor, this.ids.get(target));
     } finally {
       st.hold.commit(actor.player);
     }
