@@ -40,8 +40,7 @@ export function ConnectionSelector({ value, onChange, disabled, availability }: 
         <span>{DIRECT_UNAVAILABLE}</span>
         <WebMultiplayerGuide />
       </> : <>
-        <span>和星露谷的直连联机类似：双方网络需要可以直接互通，如果和朋友不在同一局域网内，很可能连不上；连不上时请改用服务器中转。</span>
-        {createFull && <span className={styles.fullNote}>中转免费名额已满，建议本局使用好友直连，稍后可重试中转。</span>}
+        <span>好友直连由你的设备与朋友直接连接，需要双方网络可以互通。连接失败时，请确认房主在线，并检查双方网络后重试。</span>
       </> : <>
         <span>服主目前略微有点寒酸，中转只提供 {status?.maxRooms ?? 150} 个免费房间，满了需要排队等其他玩家下线。</span>
         {status ? <>

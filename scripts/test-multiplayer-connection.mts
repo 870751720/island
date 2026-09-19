@@ -109,7 +109,7 @@ function harness() {
     const exports = {};
     cache.set(name, exports);
     const context = vm.createContext({
-      exports, crypto, TextEncoder, TextDecoder, AbortController,
+      exports, crypto, TextEncoder, TextDecoder, AbortController, process: { env: {} },
       setTimeout: later, clearTimeout: clear,
       setInterval: every, clearInterval: clear,
       window: { setTimeout: later, clearTimeout: clear, localStorage: storage }, localStorage: storage,

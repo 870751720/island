@@ -85,7 +85,7 @@ export function RoomLobby({
     guest.onConnectionStatus = setStatus;
     guest.onClosed = (reason) => {
       setBusy(false);
-      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，或请房主创建中转房间后使用新房间码加入。');
+      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，并检查双方网络后重试。');
     };
     guest.onRejected = (reason) => {
       setBusy(false);

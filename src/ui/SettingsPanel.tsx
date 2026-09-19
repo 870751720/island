@@ -14,8 +14,7 @@ import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSet
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
 import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
-import { ConnectionSelector } from './ConnectionSelector';
-import { useRelayAvailability } from './useRelayAvailability';
+import { MultiplayerSetup } from './MultiplayerSetup';
 
 /** 滑杆行:名称 + range input + 百分比 */
 function SliderRow({
@@ -97,8 +96,9 @@ export function SettingsPanel({
   mode: GameMode;
 }) {
   const [tab, setTab] = useState<'audio' | 'interface' | 'game'>('game');
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(multiplayer?.mode ?? 'direct');
-  const availability = useRelayAvailability(connectionMode, !!multiplayer && !multiplayer.roomCode && !multiplayer.busy && tab === 'game');
+  const multiplayerEnabled = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1' && !!multiplayer;
+  const [showMultiplayerSetup, setShowMultiplayerSetup] = useState(false);
+  useEffect(() => { if (multiplayer?.roomCode) setShowMultiplayerSetup(false); }, [multiplayer?.roomCode]);
   const [guide, setGuide] = useState(loadQuestGuide);
   const [settings, setSettings] = useState(loadAudioSettings() ?? DEFAULT_AUDIO_SETTINGS);
   const apply = (next: { music: number; sfx: number }) => {
@@ -132,6 +132,9 @@ export function SettingsPanel({
     if (!multiplayer?.roomCode) return;
     setShareTip((await shareRoomInvite(multiplayer.roomCode, inviteUrl)) ?? '');
   };
+  if (multiplayerEnabled && multiplayer && showMultiplayerSetup && !multiplayer.roomCode) {
+    return <MultiplayerSetup multiplayer={multiplayer} onBack={() => setShowMultiplayerSetup(false)} />;
+  }
   return (
     <div
       onPointerDown={(event) => {
@@ -212,7 +215,7 @@ export function SettingsPanel({
           <MenuIcon name="book" /> 游戏图鉴
         </button>
         {modeSettings && <GameModeSettings {...modeSettings} />}
-        {multiplayer &&
+        {multiplayerEnabled && multiplayer &&
           (multiplayer.roomCode ? (
             <div
               style={{
@@ -253,17 +256,9 @@ export function SettingsPanel({
               </button>
               {shareTip && <span style={{ fontSize: 12, color: '#9a6018' }}>{shareTip}</span>}
             </div>
-          ) : (<>
-              <ConnectionSelector value={connectionMode} onChange={setConnectionMode} disabled={multiplayer.busy} availability={availability} />
-              <button
-                disabled={multiplayer.busy || (connectionMode === 'relay' && availability.full)}
-                onClick={() => multiplayer.onEnable(connectionMode)}
-                style={{ ...gameRowButtonStyle, background: multiplayer.busy ? gameTheme.disabled : gameTheme.action }}
-              >
-                {multiplayer.busy ? '正在创建房间…' : connectionMode === 'relay' && availability.full ? '中转房间已满' : '开启多人模式'}
-              </button>
-              {multiplayer.error && <span style={{ fontSize: 12, color: gameTheme.danger }}>{multiplayer.error}</span>}
-          </>))}
+          ) : (
+            <button style={gameRowButtonStyle} onClick={() => setShowMultiplayerSetup(true)}>开启多人模式</button>
+          ))}
         <button
           onClick={onExit}
           style={{ ...gameRowButtonStyle, color: gameTheme.danger, background: gameTheme.dangerSurface }}

@@ -1,0 +1,4 @@
+.guide{box-sizing:border-box;width:100%;padding:14px;border:1px solid #cfdee2;border-radius:14px;background:linear-gradient(135deg,#eaf2f5,#f5f8f1);text-align:left;color:#395b70}
+.title{display:block;font-size:14px;font-weight:600}.description{margin:7px 0 12px;font-size:12px;line-height:1.7;color:#647a85}
+.guide .copy{width:100%;min-height:44px;padding:10px 14px;border:1px solid #496e87;border-radius:10px;background:#496e87;color:#fffaf0;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.copy:focus-visible{outline:2px solid #739bb1;outline-offset:3px}.copy:disabled{opacity:.65}
+.message{margin:10px 0 0;font-size:12px;line-height:1.6;color:#496e87}.fallback{box-sizing:border-box;width:100%;min-height:64px;margin-top:10px;padding:10px;border:1px solid #cfdee2;border-radius:8px;background:#fffaf0;color:#395b70;font:inherit;font-size:12px;resize:none;user-select:text;-webkit-user-select:text}
