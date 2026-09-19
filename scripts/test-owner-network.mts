@@ -323,3 +323,32 @@ assert.equal(takeover.guests.length, 1);
 assert.equal(replacement.session, oldSession);
 assert.equal(replacement.resumeToken, 'token');
 assert.equal(takeover.resumable.size, 0);
+
+// A delayed pre-shot snapshot is reconciliation, not a newly acquired arrow.
+const { GuestHudSynchronizer } = load('src/game/net/GuestHudSynchronizer');
+const ammoOwner = {
+  ammo: { arrow: 10, bait: 5, count(kind: 'arrow' | 'bait') { return this[kind]; } },
+  inventory: { snapshot: () => [], load() {} }, tools: {}, craftedIds: new Set(),
+  equipment: { getEquipped: () => null }, research: { serial: 0, remaining: 0 }, discoverRecipe() {},
+};
+const gains: [string, number][] = [];
+const sync = new GuestHudSynchronizer(ammoOwner, { emit: (kind: string, count: number) => gains.push([kind, count]) }, () => {}, () => {}, () => ({}));
+const equipped = Object.fromEntries(load('src/game/systems/Equipment').SLOT_ORDER.map((slot: string) => [slot, null]));
+const hud = { discoveredRecipes: [], research: { serial: 0, remaining: 0, ingredients: [] }, slots: [], capacity: 10, toolTiers: {}, craftedIds: [], equipped, arrow: 10, bait: 5 };
+sync.apply(hud);
+assert.equal(gains.length, 0, 'initial synchronization is not income');
+ammoOwner.ammo.arrow = 9;
+sync.apply(hud);
+assert.equal(gains.length, 0);
+sync.apply({ ...hud, arrow: 9 });
+assert.equal(ammoOwner.ammo.arrow, 9);
+ammoOwner.ammo.arrow = 8;
+sync.apply({ ...hud, arrow: 9 });
+assert.equal(gains.length, 0, 'repeated old snapshot during the next shot is not income');
+sync.apply({ ...hud, arrow: 8 });
+sync.apply({ ...hud, arrow: 11 });
+assert.deepEqual(gains, [['arrow', 3]], 'real authoritative ammo increase still shows feedback');
+ammoOwner.ammo.bait = 4;
+sync.apply({ ...hud, arrow: 11 });
+assert.equal(gains.length, 1, 'bait prediction uses the same authoritative baseline');
+console.log('Ammo reconciliation does not replay pickup feedback; real gains remain visible.');

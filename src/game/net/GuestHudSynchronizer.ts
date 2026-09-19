@@ -13,6 +13,7 @@ const countSlots = (slots: readonly InventorySlot[]): Map<ResourceKind, number> 
 
 /** Applies host HUD snapshots to guest-owned state and replays local-only feedback. */
 export class GuestHudSynchronizer {
+  private confirmedAmmo: { arrow: number; bait: number } | null = null;
 
   constructor(
     private readonly local: PlayerSession,
@@ -38,10 +39,12 @@ export class GuestHudSynchronizer {
     }
     Object.assign(this.local.tools, snapshot.toolTiers);
     for (const kind of ['arrow', 'bait'] as const) {
-      const gained = snapshot[kind] - this.local.ammo.count(kind);
+      // 本地射箭/挂饵可能已预扣；旧快照回填不能当成新获得物品。
+      const gained = this.confirmedAmmo ? snapshot[kind] - this.confirmedAmmo[kind] : 0;
       this.local.ammo[kind] = snapshot[kind];
       if (gained > 0) this.pickup.emit(kind, gained);
     }
+    this.confirmedAmmo = { arrow: snapshot.arrow, bait: snapshot.bait };
     this.local.craftedIds.clear();
     for (const id of snapshot.craftedIds) this.local.craftedIds.add(id);
     this.syncToolTiers();
