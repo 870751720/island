@@ -9,7 +9,7 @@ export function useRelayAvailability(mode: ConnectionMode, active = true) {
   useEffect(() => {
     setStatus(null);
     setError('');
-    if (mode !== 'relay' || !active) { setLoading(false); return; }
+    if (!active) { setLoading(false); return; }
     let disposed = false;
     let request: AbortController | null = null;
     const refresh = async () => {
@@ -28,7 +28,9 @@ export function useRelayAvailability(mode: ConnectionMode, active = true) {
         if (!disposed) setLoading(false);
       }
     };
+    // 激活即取一次名额,未选中中转也能提前知道是否满员;仅选中中转时持续轮询
     void refresh();
+    if (mode !== 'relay') return () => { disposed = true; request?.abort(); };
     const interval = setInterval(() => { void refresh(); }, 15_000);
     return () => { disposed = true; request?.abort(); clearInterval(interval); };
   }, [mode, active, revision]);
