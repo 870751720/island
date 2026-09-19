@@ -40,9 +40,9 @@ export function ConnectionSelector({ value, onChange, disabled, availability }: 
         <span>{DIRECT_UNAVAILABLE}</span>
         <WebMultiplayerGuide />
       </> : <>
-        <span>好友直连由你的设备与朋友直接连接，需要双方网络可以互通。连接失败时，请确认房主在线，并检查双方网络后重试。</span>
+        <span>好友直连由你的设备与朋友直接连接，需要双方网络可以互通。如果连接失败，说明双方当前的网络暂不支持好友直连。</span>
       </> : <>
-        <span>服主目前略微有点寒酸，中转只提供 {status?.maxRooms ?? 150} 个免费房间，满了需要排队等其他玩家下线。</span>
+        <span>服主目前略微有点寒酸，中转只提供 {status?.maxRooms ?? 150} 个免费房间，满了需要排队等其他玩家下线。服务器中转可能会比较卡，可以尝试好友直连。</span>
         {status ? <>
           <span>中转房间 {status.rooms} / {status.maxRooms} · 每房最多 {status.maxPlayers} 人，含房主</span>
           {full && <span>开房名额已满，可稍后重试或选择好友直连</span>}

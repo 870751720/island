@@ -85,7 +85,7 @@ export function RoomLobby({
     guest.onConnectionStatus = setStatus;
     guest.onClosed = (reason) => {
       setBusy(false);
-      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，并检查双方网络后重试。');
+      setStatus(reason || '当前网络无法进行连接，很抱歉，我们尝试了 UU 云联机的方案也暂时无法处理这种问题，后面会做成 APP 包的形式，请期待，不好意思。');
     };
     guest.onRejected = (reason) => {
       setBusy(false);
@@ -206,7 +206,6 @@ export function RoomLobby({
               disabled={busy}
               onChange={(event) => { setRoomCode(normalizeRoomCode(event.target.value)); setStatus(''); }}
             />
-            <p className="room-subtitle">6 位为好友直连，5 位为服务器中转{detectedMode ? ` · 已识别：${CONNECTION_LABELS[detectedMode]}` : ''}</p>
             <label className="room-label" htmlFor="player-name">你的昵称</label>
             <button
               id="player-name"
