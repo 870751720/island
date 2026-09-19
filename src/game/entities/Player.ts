@@ -1,3 +1,4 @@
+import { skateboardJumpHeight, SKATEBOARD_JUMP_DURATION } from './SkateboardPose';
 import { makeShearsModel } from './HusbandryModels';
 import type { RoadKind } from './RoadModel';
 import * as THREE from 'three';
@@ -292,8 +293,11 @@ export class Player implements Updatable {
   private mountPoseAuthority = true;
   private mountPoseTime = 0;
   mountPose = 0;
+  mountJump = -1;
+  private mountJumpWait = 4 + Math.random() * 5;
 
-  syncMountPose(pose: number): void {
+  syncMountPose(pose: number, jump = -1): void {
+    this.mountJump = Number.isFinite(jump) && jump >= 0 && jump < SKATEBOARD_JUMP_DURATION ? jump : -1;
     this.mountPoseAuthority = false;
     this.mountPose = Number.isInteger(pose) && pose >= 0 && pose < 3 ? pose : 0;
   }
@@ -513,6 +517,8 @@ export class Player implements Updatable {
         this.skateboard.visible = false;
       }
       this.mountPoseTime = 0;
+      this.mountJump = -1;
+      this.mountJumpWait = 4 + Math.random() * 5;
       return;
     }
     this.wardrobe.setEquip(slot, kind);
@@ -654,6 +660,11 @@ export class Player implements Updatable {
   }
 
   update(delta: number, elapsed: number): void {
+    if (!this.riding) this.mountJump = -1;
+    else if (this.mountJump >= 0) {
+      this.mountJump += delta;
+      if (this.mountJump >= SKATEBOARD_JUMP_DURATION) this.mountJump = -1;
+    }
     this.ownerVisual?.position.multiplyScalar(Math.exp(-18 * delta));
     // 受击泛红:每帧按剩余时间衰减,结束后归零还原
     if (this.hurtFlash > 0) {
@@ -763,6 +774,17 @@ export class Player implements Updatable {
       this.group.rotation.x += (0 - this.group.rotation.x) * (1 - Math.exp(-14 * delta));
       this.group.rotation.z += (0 - this.group.rotation.z) * (1 - Math.exp(-14 * delta));
       const riding = this.riding;
+      if (!riding) {
+        this.mountJump = -1;
+        this.mountJumpWait = 4 + Math.random() * 5;
+      } else if (this.moving && this.mountPoseAuthority && this.mountJump < 0) {
+        this.mountJumpWait -= delta;
+        if (this.mountJumpWait <= 0) {
+          this.mountJump = 0;
+          this.mountJumpWait = 6 + Math.random() * 6;
+        }
+      }
+      if (this.skateboard) this.skateboard.position.y = skateboardJumpHeight(this.mountJump);
       if (this.skateboard) this.skateboard.visible = riding;
       if (riding && this.moving && this.mountPoseAuthority) {
         this.mountPoseTime -= delta;
@@ -772,7 +794,7 @@ export class Player implements Updatable {
         }
       }
       this.animator.update(delta, elapsed, action, this.actionTime,
-        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool, riding ? this.mountPose : null);
+        this.ownerDriven ? this.ownerSpeed : Math.hypot(p.x - previousX, p.z - previousZ) / Math.max(delta, 0.001), false, this.handTool, riding ? this.mountPose : null, riding ? this.mountJump : -1);
       const swords = this.toolModels.sword!;
       const sword = swords[Math.min(this.toolTiers.sword ?? 1, swords.length) - 1];
       this.swordTrail.update(delta, action === 'slash' && this.handTool === 'sword' ? sword : null, this.actionTime);

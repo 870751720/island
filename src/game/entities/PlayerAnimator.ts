@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { skateboardPose } from './SkateboardPose';
+import { skateboardPose, skateboardJumpHeight } from './SkateboardPose';
 import { boyGait } from './BoyGait';
 import { ArmReach } from './ArmReach';
 import type { ActionType, HandTool } from './Player';
@@ -30,6 +30,7 @@ export class PlayerAnimator {
   private gait = 0;
   private weight = 0;
   private height = 0;
+  private appliedHeight = 0;
 
   constructor(private model: Model) {
     this.nodes = [model.upperBody, model.head, ...model.arms, ...model.elbows, ...model.legs, ...model.knees, ...model.ankles];
@@ -42,6 +43,7 @@ export class PlayerAnimator {
     this.swimPhase = 0;
     this.gait = this.weight = this.height = this.gripWeight = 0;
     for (const hand of this.model.hands) hand.scale.setScalar(1);
+    this.appliedHeight = 0;
     this.model.root.position.set(0, 0, 0);
     for (const node of this.nodes) node.rotation.set(0, 0, 0);
   }
@@ -60,7 +62,7 @@ export class PlayerAnimator {
   }
 
   update(delta: number, elapsed: number, action: ActionType | null, time: number,
-    speed: number, swimming: boolean, tool: HandTool, mountPose: number | null = null): void {
+    speed: number, swimming: boolean, tool: HandTool, mountPose: number | null = null, mountJump = -1): void {
     const [body, head, left, right, elbowL, elbowR, legL, legR, kneeL, kneeR] = this.targets;
     for (const target of this.targets) target.set(0, 0, 0);
     this.weight += (Math.min(speed / 5, 1.5) - this.weight) * (1 - Math.exp(-12 * delta));
@@ -202,8 +204,9 @@ export class PlayerAnimator {
         case 'sleep': break;
       }
     }
-    if (mountPose !== null && !swimming && !action) this.height = skateboardPose(this.targets, mountPose, elapsed, speed > 0.1);
+    if (mountPose !== null && !swimming && !action) this.height = skateboardPose(this.targets, mountPose, elapsed, speed > 0.1, mountJump);
     this.apply(delta);
+    if (mountPose !== null && !swimming && !action) this.model.root.position.y += skateboardJumpHeight(mountJump);
     if (swimming) {
       // 镜像椭圆:胸前合手 → 前伸 → 向两侧划开 → 收回。
       // y 补偿玩家整体前倾 0.55,让手掌主要沿水面运动。
@@ -267,6 +270,7 @@ export class PlayerAnimator {
       rotation.y += (-target.y - rotation.y) * k;
       rotation.z += (-target.z - rotation.z) * k;
     }
-    this.model.root.position.y += (this.height - this.model.root.position.y) * k;
+    this.appliedHeight += (this.height - this.appliedHeight) * k;
+    this.model.root.position.y = this.appliedHeight;
   }
 }

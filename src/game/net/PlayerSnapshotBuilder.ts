@@ -47,6 +47,7 @@ export function buildPlayersState(
         health: survival.health,
         stamina: survival.stamina,
         mountPose: session.player.mountPose,
+        mountJump: session.player.mountJump,
         equipped: session.equipment.snapshot(),
         gender: session.player.currentGender,
         dead: survival.dead,

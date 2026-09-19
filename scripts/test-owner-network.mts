@@ -62,7 +62,7 @@ function player(tool = 'hand'): any {
     applyOwnerPose(x: number, y: number, z: number, rot: number, moving: boolean) {
       this.group.position.set(x, y, z); this.group.rotation.y = rot; this.isMoving = moving;
     },
-    syncMountPose(pose: number) { this.mountPose = pose; },
+    syncMountPose(pose: number, jump: number) { this.mountPose = pose; this.mountJump = jump; },
     getRodTip: () => false,
   };
 }
@@ -91,8 +91,10 @@ assert.equal(owner.player.group.position.x, 9, 'ordinary snapshots cannot rewind
 assert.equal(owner.player.currentAction, 'chop', 'ordinary snapshots cannot cancel local action');
 assert.equal(owner.player.currentTool, 'axe');
 assert.equal(owner.player.mountPose, 0, 'missing mount pose defaults safely');
-snapshotGame.netApplyPlayers({ players: { full: [{ ...oldSnapshot, mountPose: 2 }] } });
+assert.equal(owner.player.mountJump, -1, 'missing jump defaults to grounded');
+snapshotGame.netApplyPlayers({ players: { full: [{ ...oldSnapshot, mountPose: 2, mountJump: 0.5 }] } });
 assert.equal(owner.player.mountPose, 2, 'host mount pose reaches the local owner');
+assert.equal(owner.player.mountJump, 0.5, 'host jump phase reaches the local owner');
 assert.equal(hasValidNetActionArgs('unequipItem', ['mount']), true);
 assert.equal(hasValidNetActionArgs('equipItem', ['skateboard']), true);
 snapshotGame.netApplyPlayers({ players: { full: [{ ...oldSnapshot, epoch: 1, x: 20 }] } });

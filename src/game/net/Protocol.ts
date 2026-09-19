@@ -35,6 +35,7 @@ export type PlayerState = {
   health: number;
   stamina: number;
   mountPose?: number;
+  mountJump?: number;
   equipped: HudSnapshot['equipped'];
   dead: boolean;
   action: ActionType | null;

@@ -1,7 +1,7 @@
 import type { Euler } from 'three';
 
 /** 与步行动画共用关节缓冲；脚下站位不随随机姿态切换，避免滑出板面。 */
-export function skateboardPose(targets: Euler[], pose: number, elapsed: number, moving: boolean): number {
+export function skateboardPose(targets: Euler[], pose: number, elapsed: number, moving: boolean, jump = -1): number {
   for (const target of targets) target.set(0, 0, 0);
   const [body, head, left, right, elbowL, elbowR, legL, legR, kneeL, kneeR] = targets;
   const sway = Math.sin(elapsed * 2.8) * (moving ? 0.035 : 0.012);
@@ -22,7 +22,27 @@ export function skateboardPose(targets: Euler[], pose: number, elapsed: number, 
   legR.set(crouch ? -0.26 : 0.16, 0, 0);
   kneeL.x = crouch ? 0.8 : 0.3;
   kneeR.x = crouch ? 0.65 : 0.2;
+  if (jump >= 0 && jump < SKATEBOARD_JUMP_DURATION) {
+    const compression = jump < 0.2 ? Math.sin(jump / 0.2 * Math.PI / 2)
+      : jump < 0.8 ? 0.35 : Math.sin((jump - 0.8) / 0.3 * Math.PI);
+    body.x = 0.12 + compression * 0.2;
+    left.set(-0.35, 0.1, 0.85 + (1 - compression) * 0.3);
+    right.set(0.1, -0.1, -0.85 - (1 - compression) * 0.3);
+    elbowL.x = elbowR.x = -0.4;
+    legL.x = -0.28 - compression * 0.2;
+    legR.x = 0.16 - compression * 0.2;
+    kneeL.x = 0.3 + compression * 0.3;
+    kneeR.x = 0.2 + compression * 0.3;
+  }
   targets[10].x = -legL.x - kneeL.x;
   targets[11].x = -legR.x - kneeR.x;
   return crouch ? 0.19 : 0.215;
+}
+
+/** 0.2秒蓄力、0.6秒腾空、0.3秒落地缓冲；仅改变模型高度。 */
+export const SKATEBOARD_JUMP_DURATION = 1.1;
+export function skateboardJumpHeight(time: number): number {
+  if (time <= 0.2 || time >= 0.8) return 0;
+  const t = (time - 0.2) / 0.6;
+  return 0.38 * 4 * t * (1 - t);
 }

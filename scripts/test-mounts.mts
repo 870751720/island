@@ -38,3 +38,11 @@ equipment.restore({ hat: 'skateboard', mount: 'grassShirt' }, inventory);
 assert.equal(equipment.getEquipped('hat'), null);
 assert.equal(equipment.getEquipped('mount'), null);
 console.log('Mount inventory and save compatibility checks passed.');
+
+// @ts-ignore Node直接运行TypeScript入口。
+import { skateboardJumpHeight } from '../src/game/entities/SkateboardPose.ts';
+assert.equal(skateboardJumpHeight(-1), 0);
+assert.equal(skateboardJumpHeight(0.2), 0);
+assert.equal(skateboardJumpHeight(0.5), 0.38);
+assert.equal(skateboardJumpHeight(0.8), 0);
+assert.equal(skateboardJumpHeight(1.1), 0);
