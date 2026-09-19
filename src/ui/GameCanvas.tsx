@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { StartScreen, type StartMode, type MultiplayerRole } from './StartScreen';
 import { type GameMode } from '@/game/GameMode';
 import { RoomLobby } from './RoomLobby';
+import { GuestRecovery } from './GuestRecovery';
 import { GameplayUI } from './GameplayUI';
 import { MetaProgress, legacyPointsForDay } from '@/game/meta/MetaProgress';
 import { SaveSystem } from '@/game/systems/SaveSystem';
@@ -18,7 +19,7 @@ import dynamic from 'next/dynamic';
 const CloudStartGate = process.env.NEXT_PUBLIC_XHS_EXPORT !== '1'
   ? dynamic(() => import('./cloud/CloudStartGate'), { ssr: false }) : null;
 
-type Phase = 'start' | 'host' | 'guest' | 'playing';
+type Phase = 'start' | 'host' | 'guest' | 'playing' | 'recovering';
 type Entry = { kind: 'single'; mode: StartMode; gameMode: GameMode; pet: CompanionKind }
   | { kind: 'host' | 'guest'; gameMode: GameMode };
 
@@ -94,19 +95,28 @@ function GamePhases() {
   };
 
   const guestDisconnected = (reason?: string) => {
-    // 保留房主端角色恢复记录，回到加入页带出房间码和方式；在线人数名额已释放。
+    // 先自动恢复原房间，失败或主动取消后回到加入页。
     guest?.dispose();
     setGuest(null);
     setInitialBackupCode(undefined);
     const message = `${reason || '连接已断开'}。房主仍在线且房间有空位时，可在 5 分钟内重新加入恢复角色。`;
     setNotice(message);
     setDisconnectNotice(message);
-    setPhase('guest');
+    setPhase('recovering');
   };
 
   if (pendingEntry && CloudStartGate) return <CloudStartGate
     onContinue={(code, useLocal) => enter(pendingEntry, code, useLocal)}
     onCancel={() => { setPendingEntry(null); setInitialBackupCode(undefined); setPhase('start'); }}
+  />;
+  if (phase === 'recovering') return <GuestRecovery
+    onRecovered={nextGuest => {
+      nextGuest.onClosed = guestDisconnected;
+      setGuest(nextGuest);
+      setDisconnectNotice('');
+      setPhase('playing');
+    }}
+    onCancel={() => setPhase('guest')}
   />;
   if (phase === 'playing') {
     return (

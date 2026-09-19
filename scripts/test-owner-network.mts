@@ -273,3 +273,53 @@ assert.equal(hasValidNetActionArgs('place', ['soil', 1, 2]), true);
 assert.equal(hasValidNetActionArgs('place', ['soil', Infinity, 2]), false);
 assert.equal(hasValidNetActionArgs('workFinish', ['x'.repeat(101), 'id']), false);
 console.log('Owner networking: delay, duplicate, reordering, respawn, conflicts, local clocks and fishing passed.');
+
+// Claiming a saved teammate consumes the authoritative record exactly once.
+const recoveryMethods = ['claimSavedRemoteSession', 'resumeRemoteSession'].map(name =>
+  gameClass.members.find(m => m.name?.getText(gameSource) === name)!.getText(gameSource)).join('\n');
+const recoveryModule = { exports: {} as any };
+vm.runInNewContext(ts.transpileModule(`module.exports = class { ${recoveryMethods} }`, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText, { module: recoveryModule });
+const savedGame = new recoveryModule.exports();
+savedGame.savedRemoteSessions = [{ id: 'a', name: 'Alice', equipped: { body: 'armor' } }, { id: 'b', name: 'Bob' }];
+savedGame.addRemoteSession = (_remote: boolean, id: string) => ({ id, name: '', setName(name: string) { this.name = name; } });
+savedGame.applyPlayerSave = (session: any, data: any) => Object.assign(session, data);
+assert.equal(savedGame.claimSavedRemoteSession('Alice', ['a']), null);
+assert.equal(savedGame.claimSavedRemoteSession('Stranger'), null);
+assert.equal(savedGame.claimSavedRemoteSession('Alice').equipped.body, 'armor');
+assert.equal(savedGame.savedRemoteSessions.length, 1);
+assert.equal(savedGame.claimSavedRemoteSession('Alice'), null, 'cannot duplicate the old equipment');
+assert.equal(savedGame.claimSavedRemoteSession('Bob').id, 'b');
+assert.equal(savedGame.savedRemoteSessions.length, 0);
+
+// A quiet guest stays for 45 seconds; an actual timeout preserves the resume record.
+const timeoutHost = new NetHost();
+const quiet = { net: { connected: true, close() {} }, session: null, lastSeen: 0, joined: true, name: 'Alice' };
+timeoutHost.guests = [quiet]; timeoutHost.game = {};
+now = 44_999;
+timeoutHost.tick();
+assert.equal(timeoutHost.guests.length, 1);
+now = 45_001;
+timeoutHost.tick();
+assert.equal(timeoutHost.guests.length, 0);
+console.log('Saved character claims and 45-second host timeout passed.');
+
+// A replacement socket may arrive before the host observes the old socket closing.
+const takeover = new NetHost();
+const oldSession = { id: 'held', player: { input: { setJoystick() {} } } };
+const oldPeer = { joined: true, name: 'Alice', resumeToken: 'token', session: oldSession, net: { close() {} } };
+const replacement = { joined: false, name: '', resumeToken: 'new', session: null, net: { send() {}, close() {} } };
+let restored = 0;
+takeover.guests = [oldPeer, replacement];
+takeover.game = {
+  suspendRemoteSession: () => ({ id: 'held', equipped: { body: 'armor' } }),
+  resumeRemoteSession: (save: any) => { restored++; assert.equal(save.equipped.body, 'armor'); return oldSession; },
+  collectSave: () => ({}), sessionIds: () => ['held'],
+};
+takeover.onMessage(replacement, { t: 'hello', name: 'Alice', resumeToken: 'token', protocol: load('src/game/net/Protocol').NET_PROTOCOL_VERSION });
+assert.equal(restored, 1);
+assert.equal(takeover.guests.length, 1);
+assert.equal(replacement.session, oldSession);
+assert.equal(replacement.resumeToken, 'token');
+assert.equal(takeover.resumable.size, 0);

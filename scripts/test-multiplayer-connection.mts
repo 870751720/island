@@ -244,7 +244,7 @@ for (const failure of ['connect', 'subscribe']) {
   assert.equal(h.timers.size, 0);
 }
 
-// 房主主动握手也独立超时；重复启动不延期，既有 disconnected 行为保持不变。
+// 握手独立超时；临时断开容忍45秒，恢复取消计时，重复通知不延期。
 {
   const h = harness();
   const PeerNet = h.load('PeerNet').PeerNet;
@@ -260,6 +260,18 @@ for (const failure of ['connect', 'subscribe']) {
   guest.onClose = () => { closed++; guest.close(); };
   guest.pc.connectionState = 'disconnected';
   guest.pc.onconnectionstatechange();
+  await h.advance(44_000);
+  assert.equal(closed, 1);
+  guest.pc.connectionState = 'connected';
+  guest.pc.onconnectionstatechange();
+  await h.advance(2000);
+  assert.equal(closed, 1);
+  guest.pc.connectionState = 'disconnected';
+  guest.pc.onconnectionstatechange();
+  await h.advance(44_000);
+  guest.pc.onconnectionstatechange();
+  assert.equal(closed, 1);
+  await h.advance(1000);
   assert.equal(closed, 2);
   const connected = new PeerNet('host', () => {});
   connected.onClose = () => { throw new Error('Opened connection must not time out'); };

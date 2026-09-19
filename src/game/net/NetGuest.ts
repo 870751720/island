@@ -36,7 +36,7 @@ export function loadLastRoom(): { code: string; name: string; mode: ConnectionMo
   }
 }
 
-/** 客人侧联机会话：上行摇杆/动作，下行世界与快照交给 Game 的 guest 模式应用。 */
+/** 客人侧联机会话：上行本人姿态/动作，下行世界与快照交给 Game 的 guest 模式应用。 */
 export class NetGuest {
   private net: GameConnection | null = null;
   private relay: RelayRoom | null = null;
@@ -85,6 +85,13 @@ export class NetGuest {
     this.pending = [];
     this.welcome = null;
     this.ready = false;
+    this.players.clear();
+    this.animals.clear();
+    this.crabs.clear();
+    this.birds.clear();
+    this.butterflies.clear();
+    this.dog = null;
+    this.hud = null;
     this.connectionMode = mode;
     if (mode === 'relay') return this.joinRelay(code, name, gender);
     const signal = new GuestSignal();

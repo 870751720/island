@@ -20,7 +20,7 @@ import { hasValidNetActionArgs } from './ActionProtocol';
 import { OwnerActionWindow, validOwnerPose, type OwnerPose } from './OwnerState';
 import { INTERACTION_TARGETS } from './InteractionTargets';
 
-const INPUT_TIMEOUT = 10_000; // 客人这么久没有任何消息视为断线
+const INPUT_TIMEOUT = 45_000; // 容忍手机短暂切后台，持续无消息才移除
 const RESUME_GRACE = 300_000; // 断线席位保留时长:期间用原房间码重新加入可按离场快照恢复角色
 const FAST_TICK_MS = 40; // 玩家与战斗动物 25Hz
 const NORMAL_TICK_MS = 100; // 普通动物与环境生物 10Hz
@@ -213,6 +213,9 @@ export class NetHost {
         setTimeout(() => this.dropGuest(guest), 100);
         return;
       }
+      // 手机换网时新连接可能先于旧连接的关闭通知到达，凭令牌接替原席位。
+      const previous = msg.resumeToken ? this.guests.find(item => item !== guest && item.joined && item.resumeToken === msg.resumeToken) : undefined;
+      if (previous) this.dropGuest(previous);
       const resume = msg.resumeToken ? this.resumable.get(msg.resumeToken) : undefined;
       if (this.game && resume && resume.expires > performance.now()) {
         this.resumable.delete(msg.resumeToken!);

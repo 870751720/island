@@ -56,7 +56,7 @@ export class RelayRoom {
         if (this.closed) return;
         this.send(this.side === 'host' ? { type: 'create', version: 1 } : { type: 'join', version: 1, code });
         this.timer = setInterval(() => {
-          if (Date.now() - this.lastSeen > 20_000) this.fail('中转连接超时，请重新加入房间');
+          if (Date.now() - this.lastSeen > 45_000) this.fail('中转连接超时，请重新加入房间');
           else this.send({ type: 'ping' });
         }, 5000);
       };

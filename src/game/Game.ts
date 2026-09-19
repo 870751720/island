@@ -1649,13 +1649,9 @@ export class Game {
   /** 房主恢复旧联机岛后，按昵称优先认领此前保存的队友角色；excludeIds 为仍在断线保留期内的角色。 */
   claimSavedRemoteSession(name: string, excludeIds: string[] = []): PlayerSession | null {
     const pool = this.savedRemoteSessions.filter((session) => !excludeIds.includes(session.id));
-    const index = pool.findIndex((session) => session.name === name) || (pool.length ? 0 : -1);
+    const index = pool.findIndex((session) => session.name === name);
     if (index < 0) return null;
-    const [saved] = pool.splice(index, 1);
-    const session = this.addRemoteSession(false, saved.id, name);
-    this.applyPlayerSave(session, saved);
-    session.setName(name);
-    return session;
+    return this.resumeRemoteSession(pool[index], name);
   }
 
   /** 房主侧:客人断线即把角色移出世界,离场快照保留在待恢复列表(仍计入存档) */

@@ -40,6 +40,7 @@ export class PeerNet implements GameConnection {
   private readonly channelId = allocChannelId();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -54,7 +55,13 @@ export class PeerNet implements GameConnection {
     };
     this.pc.onconnectionstatechange = () => {
       const state = this.pc.connectionState;
-      if (state === 'failed' || state === 'disconnected' || state === 'closed') this.notifyClosed();
+      if (state === 'disconnected') {
+        if (!this.disconnectTimer) this.disconnectTimer = setTimeout(() => this.notifyClosed(), 45_000);
+      } else {
+        if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+        this.disconnectTimer = null;
+        if (state === 'failed' || state === 'closed') this.notifyClosed();
+      }
     };
     if (side === 'host') {
       this.bindControlChannel(this.pc.createDataChannel(CONTROL_LABEL));
@@ -258,6 +265,8 @@ export class PeerNet implements GameConnection {
   }
 
   close(): void {
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = null;
     this.closeNotified = true;
     if (this.connectTimer) clearTimeout(this.connectTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
@@ -268,6 +277,8 @@ export class PeerNet implements GameConnection {
   }
 
   private notifyClosed(): void {
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = null;
     if (this.closeNotified) return;
     this.closeNotified = true;
     if (this.connectTimer) clearTimeout(this.connectTimer);
