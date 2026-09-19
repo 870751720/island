@@ -36,8 +36,6 @@ export const menuFormsCss = `
 .room-brand{display:flex;gap:8px;align-items:center;font-size:13px;letter-spacing:.12em;margin-bottom:24px}
 .room-intro>.form-eyebrow,.room-intro>h1,.room-intro>p:not(.form-eyebrow),.room-intro-foot{display:none}
 .room-panel{margin:0}
-.room-resume{display:flex;align-items:center;gap:12px;min-height:66px;padding:12px;background:var(--menu-surface);box-shadow:var(--menu-control-shadow);border:1px solid var(--line);border-radius:12px;text-align:left;font-size:13px;line-height:1.7}
-.room-resume input{flex-shrink:0;width:22px;height:22px;accent-color:#668ca3}
 .room-code-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;border:1px solid #a4c2d0;border-radius:18px;background:linear-gradient(145deg,#fffdf0,#e2eef0);box-shadow:inset 0 2px 0 #fffdf2}
 .room-code-card .form-eyebrow{margin:0}
 .room-code-card strong{font:700 36px monospace;letter-spacing:.2em;padding-left:.2em;color:#496e87}

@@ -51,7 +51,8 @@ export function RoomLobby({
   const [players, setPlayers] = useState<string[]>([]);
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
-  const [resume, setResume] = useState(() => mode === 'host' && !!SaveSystem.load());
+  /** 房主固定继续本机存档的岛;没有存档时才配置伙伴与模式开新岛 */
+  const [savedGame] = useState(() => (mode === 'host' ? SaveSystem.load() : null));
   const [qr, setQr] = useState('');
   const [connectionMode, setConnectionMode] = useState<ConnectionMode>(() => initialConnectionMode ?? (mode === 'guest' ? loadLastRoom()?.mode : undefined) ?? 'direct');
   const availability = useRelayAvailability(connectionMode, mode === 'guest' ? !busy : !roomCode);
@@ -104,7 +105,7 @@ export function RoomLobby({
     try {
       host.gameMode = gameMode;
       host.companionKind = pet;
-      host.useSavedWorld(resume ? SaveSystem.load() : null);
+      host.useSavedWorld(savedGame);
       setRoomCode(await host.createRoom(connectionMode));
       setStatus('房间已创建，朋友扫码或输入房间码即可加入');
     } catch (error) {
@@ -149,7 +150,7 @@ export function RoomLobby({
         <p className="form-eyebrow">{mode === 'host' ? 'SEND AN INVITATION / 发出邀请' : 'MEET ON THE ISLAND / 海岛相聚'}</p>
         <h2>{mode === 'host' ? '创建房间' : '加入房间'}</h2>
         <p className="room-subtitle">
-          {mode === 'host' ? '生起营火，等朋友一起靠岸' : '输入房主分享的五位数字房间码'}
+          {mode === 'host' ? (savedGame ? '岛还在，邀朋友继续上次的进度' : '生起营火，等朋友一起靠岸') : '输入房主分享的五位数字房间码'}
         </p>
 
         {(mode === 'guest' || !roomCode) && <ConnectionSelector value={connectionMode} disabled={busy} joining={mode === 'guest'}
@@ -158,16 +159,10 @@ export function RoomLobby({
         {mode === 'host' ? (
           !roomCode ? (
             <>
-              {SaveSystem.load() && (
-                <label className="room-resume">
-                  <input type="checkbox" disabled={busy} checked={resume} onChange={(event) => setResume(event.target.checked)} />
-                  <span>继续上次保存的岛和队友进度</span>
-                </label>
-              )}
-              {!resume && <CompanionSelector value={pet} onChange={setPet} disabled={busy} />}
-              {!resume && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">开局后无法切换。</p></>}
+              {!savedGame && <CompanionSelector value={pet} onChange={setPet} disabled={busy} />}
+              {!savedGame && <><ModeSelector value={gameMode} disabled={busy} onChange={mode => { setGameMode(mode); rememberGameMode(mode); }} /><p className="room-subtitle">开局后无法切换。</p></>}
               <button className="room-button" data-ui-sound="manual" disabled={busy || (connectionMode === 'relay' && availability.full)} onClick={createRoom}>
-                {busy ? '正在创建…' : connectionMode === 'relay' ? (availability.full ? '中转房间已满' : '创建中转房间') : '创建免费房间'}
+                {busy ? '正在创建…' : connectionMode === 'relay' && availability.full ? '中转房间已满' : savedGame ? '继续' : '创建房间'}
               </button>
             </>
           ) : (
