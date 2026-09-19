@@ -561,8 +561,9 @@ export const RECIPES: Recipe[] = [
   {
     id: 'skateboard',
     name: '滑板',
-    cost: { wood: 6, stone: 4, rope: 2 },
+    cost: { wood: 1, adventureBook: 1 },
     station: 'workbench',
+    minBenchLevel: 4,
     output: 'skateboard',
   },
   {

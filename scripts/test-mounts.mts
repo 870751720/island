@@ -17,7 +17,7 @@ count = 1;
 assert.equal(equipment.equip('skateboard', inventory), true);
 assert.equal(count, 0);
 assert.equal(equipment.snapshot().mount, 'skateboard');
-assert.equal(EQUIPMENT.skateboard.landSpeedMultiplier, 2);
+assert.equal(EQUIPMENT.skateboard.landSpeedMultiplier, 2.2);
 room = false;
 assert.equal(equipment.unequip('mount', inventory), false);
 assert.equal(equipment.getEquipped('mount'), 'skateboard');

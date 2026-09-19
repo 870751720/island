@@ -88,7 +88,7 @@ function buildStats(kind: ResourceKind): ItemWikiStat[] {
   if (tiers) stats.push({ label: '等级', value: tiers.length > 1 ? tiers.join(' → ') : '无' });
   if (isEquipKind(kind)) {
     const equip = EQUIPMENT[kind];
-    if (equip.landSpeedMultiplier) stats.push({ label: '陆地移速', value: `+${(equip.landSpeedMultiplier - 1) * 100}%（乘骑时）` });
+    if (equip.landSpeedMultiplier) stats.push({ label: '陆地移速', value: `+${Math.round((equip.landSpeedMultiplier - 1) * 100)}%（乘骑时）` });
     if (equip.capacity) stats.push({ label: '背包', value: `${equip.capacity} 格` });
     if (equip.defense) stats.push({ label: '防御', value: `+${equip.defense}` });
     if (equip.reduce) stats.push({ label: '减伤', value: `${Math.round(equip.reduce * 100)}%` });

@@ -39,7 +39,7 @@ export type EquipmentDef = {
 
 /** 四类装备各三件的静态定义:一级草制、二级皮制、三级铁制(容量为基础 10 格 + 增量) */
 export const EQUIPMENT: Record<EquipKind, EquipmentDef> = {
-  skateboard: { kind: 'skateboard', slot: 'mount', score: 1, landSpeedMultiplier: 2 },
+  skateboard: { kind: 'skateboard', slot: 'mount', score: 1, landSpeedMultiplier: 2.2 },
   grassShirt: { kind: 'grassShirt', slot: 'clothing', score: 1, defense: 1, reduce: 0.16, bodyColor: '#81976b' },
   grassPants: { kind: 'grassPants', slot: 'pants', score: 1, defense: 1, reduce: 0.14, bodyColor: '#596e59' },
   strawHat: { kind: 'strawHat', slot: 'hat', score: 2, reduce: 0.1, thirstMod: 0.95 },
