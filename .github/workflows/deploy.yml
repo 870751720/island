@@ -88,6 +88,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: node scripts/test-cloud-save.mts
+      - run: node scripts/test-multiplayer-connection.mts
       - run: npm run build
         env:
           SERVER_EXPORT: '1'
@@ -95,7 +96,7 @@ jobs:
       - name: Prepare release
         run: |
           test -f out/index.html
-          tar -czf release.tar.gz out server shared
+          tar -czf release.tar.gz out server shared signaling
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -118,6 +119,7 @@ jobs:
         run: |
           test "$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "$SITE_URL/")" = 200
           curl --fail --silent --show-error --max-time 30 "$SITE_URL/api/health" | jq -e --arg sha "$GITHUB_SHA" '.ok == true and .revision == $sha'
+          node scripts/test-signaling-service.mts
       - name: Remove runner key
         if: always()
         run: rm -f ~/.ssh/island

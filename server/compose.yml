@@ -1,4 +1,17 @@
 services:
+  signaling:
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.5
+    volumes:
+      - ../signaling/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../signaling/acl:/mosquitto/config/acl:ro
+    healthcheck:
+      test: [CMD, mosquitto_pub, -h, '127.0.0.1', -t, island-game/v1/health/up, -m, health, -q, '1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
   api:
     build:
       context: ..
@@ -19,6 +32,8 @@ services:
     image: nginx:stable-alpine
     restart: unless-stopped
     depends_on:
+      signaling:
+        condition: service_healthy
       api:
         condition: service_healthy
     ports:

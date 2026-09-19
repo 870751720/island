@@ -1,6 +1,6 @@
 import mqtt, { type MqttClient } from 'mqtt';
 
-const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+const BROKER_URL = 'wss://43.110.116.98/signaling';
 export const SIGNAL_TIMEOUT = 10_000;
 
 export function randomSignalId(length: number): string {

@@ -15,9 +15,9 @@
 - 工作流 `deploy.yml` 的 `production` 环境串行部署，禁止中途取消；使用 Node 22、`npm ci`、类型检查和 `SERVER_EXPORT=1` 的正式静态构建，产物网站在根路径。
 - Pages 构建作业独立使用 `SERVER_EXPORT=0`，输出 `/island` 资源路径，通过官方 configure/upload/deploy Pages actions 发布（参见 [GitHub 文档](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)）。Pages 发布等待服务器部署和自身构建都成功，使用 `github-pages` 环境，权限限于该发布作业的 `pages:write` 与 `id-token:write`。两份构建都显式使用 `SITE_URL` 作为云存档 API 来源，Pages 不承载数据库或 API。
 - Pages 发布包携带本次 SHA 的 `revision.txt`，发布后短暂重试检查 HTTP 200 和版本文件，防止把旧缓存页面误认为发布成功。任一站点验收失败都使整体部署失败；双站不是跨平台原子切换，失败时如实报告各站状态。
-- 发布包仅包含 `out/`、`server/`、`shared/`，通过 SSH 上传到 `/opt/island/releases/<SHA>/`。不上传仓库 token、开发依赖或本地 SSH 文件。
+- 发布包仅包含 `out/`、`server/`、`shared/`、`signaling/`，通过 SSH 上传到 `/opt/island/releases/<SHA>/`。不上传仓库 token、开发依赖或本地 SSH 文件。
 - 临时管理容器执行 `server/deploy.ts`，初始化服务端密钥、数据库目录和 HTTPS IP 证书，然后构建 API 镜像并启动 Compose 服务。首次发证需 80 端口空闲，公网安全组允许 80/443。
-- 公网页面和 API 检查成功后记录 active revision 并更新 `current`；失败时尽可能恢复上次成功版本，工作流仍以失败结束。首次部署没有可回滚的旧版本，失败需排查后重试。
+- 公网页面、API 和信令 WSS 的 MQTT CONNACK 检查成功后记录 active revision 并更新 `current`；失败时尽可能恢复上次成功版本，工作流仍以失败结束。首次部署没有可回滚的旧版本，失败需排查后重试。
 - SQLite、服务端密钥和证书独立放在 `shared/`，不随发布删除。不能删除该目录，也不能在正常升级中重新生成服务端密钥。
 - `npm run deploy` 只允许干净的 main 工作区，从 `githubtoken.txt` 读取凭证并推送本次 SHA，按 SHA 等待 Actions（最多 25 分钟），再验收两个站点的 HTTPS 200、API revision 和 Pages revision.txt。凭证不写入 Git 配置，不输出日志。
 - `npm run check` 依次检查服务器根路径构建和 GitHub Pages `/island` 构建，并检查导出 HTML 的脚本路径；普通 `npm run build` 默认构建 Pages，H5、小红书发行流程保持各自规则。
@@ -35,3 +35,7 @@
 ## 跨站存档
 
 服务器站点与 GitHub Pages 的本地存储相互隔离。使用同一个存档码可以访问同一份云档，但本地进度不会跨站自动同步；需在来源站点上传，再在目标站点选择云端版本。
+
+## 自有信令服务
+
+`signaling/` 与 `server/` 同级，由同一个 Compose 项目启动独立 Mosquitto 容器。Nginx 复用 443 和证书代理 `/signaling`，不发布 MQTT 宿主机端口。Actions 运行联机连接专项测试并上传信令配置；服务端发布验收检查公网 WSS，不通过则回滚。详见 [自有联机信令](signaling.md)。首次后端联调仅增加信令容器和代理路由，不发布新游戏前端；正式发布仍须用户明确确认本地验证通过。

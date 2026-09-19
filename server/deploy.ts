@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, chownSync, renameSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { verifySignaling } from '../signaling/verify.ts';
 
 const root = process.env.ISLAND_ROOT ?? '';
 const revision = process.env.REVISION ?? '';
@@ -54,11 +55,15 @@ try {
       const page = await fetch(site, { signal: AbortSignal.timeout(10_000) });
       const response = await fetch(`${site}/api/health`, { signal: AbortSignal.timeout(10_000) });
       const health = await response.json() as { ok?: boolean; revision?: string };
-      if (page.status === 200 && response.ok && health.ok && health.revision === revision) { healthy = true; break; }
+      if (page.status === 200 && response.ok && health.ok && health.revision === revision) {
+        await verifySignaling();
+        healthy = true;
+        break;
+      }
     } catch { /* Allow the proxy a short startup window. */ }
     await new Promise(done => setTimeout(done, 5000));
   }
-  if (!healthy) throw new Error('Public HTTPS health check failed');
+  if (!healthy) throw new Error('Public HTTPS or signaling health check failed');
   activate(revision);
   console.log(`Deployment verified: ${revision}`);
 } catch (error) {

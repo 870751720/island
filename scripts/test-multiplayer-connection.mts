@@ -117,7 +117,7 @@ function harness() {
     vm.runInContext(code, context);
     return exports;
   }
-  const url = 'wss://broker.hivemq.com:8884/mqtt';
+  const url = 'wss://43.110.116.98/signaling';
   return { load, clients, url, policies, publications, drain, advance, timers };
 }
 
