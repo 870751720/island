@@ -1,6 +1,5 @@
 export type ConnectionMode = 'direct' | 'relay';
 export const CONNECTION_LABELS: Record<ConnectionMode, string> = { direct: '好友直连', relay: '服务器中转' };
-export function parseConnectionMode(value: unknown): ConnectionMode { return value === 'relay' ? 'relay' : 'direct'; }
 
 export function relayUrl(): string {
   return process.env.NEXT_PUBLIC_RELAY_URL || 'wss://43.110.116.98/relay';

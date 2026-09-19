@@ -1,3 +1,4 @@
+import { requireDirectSupport } from './DirectSupport';
 import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
 import type { GameConnection } from './GameConnection';
 
@@ -25,7 +26,7 @@ export type PeerSignal =
 
 /** 关键消息走可靠有序通道；可淘汰的实时状态走无序、不重传通道。 */
 export class PeerNet implements GameConnection {
-  private readonly pc = new RTCPeerConnection(RTC_CONFIG);
+  private readonly pc: RTCPeerConnection;
   private controlChannel?: RTCDataChannel;
   private stateChannel?: RTCDataChannel;
   private readonly pendingCandidates: RTCIceCandidateInit[] = [];
@@ -50,6 +51,8 @@ export class PeerNet implements GameConnection {
     private readonly side: 'host' | 'guest',
     private readonly signal: (signal: PeerSignal) => void,
   ) {
+    requireDirectSupport();
+    this.pc = new RTCPeerConnection(RTC_CONFIG);
     this.pc.onicecandidate = (event) => {
       if (event.candidate) this.signal({ candidate: event.candidate.toJSON() });
     };

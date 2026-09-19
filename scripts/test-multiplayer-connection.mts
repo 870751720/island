@@ -132,6 +132,7 @@ function harness() {
   const h = harness();
   const { HostSignal, GuestSignal } = h.load('Signaling');
   const { signal: host, roomCode } = await HostSignal.create();
+  assert.match(roomCode, /^\d{6}$/);
   host.onPeerJoined = (id: string) => host.send(id, { description: { type: 'offer' } });
   const guest = new GuestSignal();
   let ready = 0;

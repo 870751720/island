@@ -3,6 +3,7 @@ import type { GameMode } from '../GameMode';
 import type { Game } from '../Game';
 import type { PlayerSession } from '../mp/PlayerSession';
 import type { SaveData, SessionSave } from '../systems/SaveSystem';
+import { requireDirectSupport } from './DirectSupport';
 import { PeerNet } from './PeerNet';
 import type { GameConnection } from './GameConnection';
 import type { ConnectionMode } from './ConnectionMode';
@@ -96,9 +97,10 @@ export class NetHost {
     return this.guests.filter((g) => g.joined).map((g) => g.name);
   }
 
-  /** 创建五位数字码房间；之后加入者由信令服务自动接入。 */
+  /** 创建直连六位或中转五位数字码房间；之后加入者由信令服务自动接入。 */
   async createRoom(mode: ConnectionMode = 'direct'): Promise<string> {
     if (this.roomCode) return this.roomCode;
+    if (mode === 'direct') requireDirectSupport();
     const attempt = ++this.roomAttempt;
     this.connectionMode = mode;
     this.purgeResumable();

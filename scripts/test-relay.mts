@@ -139,7 +139,7 @@ function clientModules(url: string) {
       setTimeout, clearTimeout, clearInterval,
       // 仅测试欢迎、动作与手动增量，隔离不相关的世界采样依赖。
       setInterval: (fn: () => void, ms: number) => setInterval(ms === 40 ? () => {} : fn, ms),
-      localStorage: storage, window: { localStorage: storage, location: { href: 'https://example.test/island/' } },
+      localStorage: storage, window: { localStorage: storage, location: { href: 'https://example.test/island/', protocol: 'https:' } },
       require(id: string) {
         if (id === './Actions') return { isNetActionName: () => true, dispatchNetAction: (...args: unknown[]) => { actions.push(args); return true; } };
         if (id === './ActionProtocol') return { hasValidNetActionArgs: () => true };
@@ -160,11 +160,14 @@ const modules = clientModules(integrationUrl);
 const host = new (modules.load('NetHost').NetHost)();
 const guest = new (modules.load('NetGuest').NetGuest)();
 try {
+  await assert.rejects(host.createRoom('direct'), /当前运行环境不支持好友直连/);
+  await assert.rejects(guest.join('123456', '测试玩家'), /当前运行环境不支持好友直连/);
   const code = await host.createRoom('relay');
+  assert.match(code, /^\d{5}$/);
   assert.equal(host.maxPlayers, 4);
   let started = 0;
   guest.onStarted = () => { started++; guest.begin(); };
-  await guest.join(code, '测试玩家', 'girl', 'relay');
+  await guest.join(code, '测试玩家', 'girl');
   await until(() => host.guestNames.length === 1, 'hello registers relay guest');
   assert.equal(host.guestNames[0], '测试玩家');
   const save = { terrainSeed: 77, marker: '初始快照'.repeat(90_000) };
@@ -197,13 +200,15 @@ try {
   assert.deepEqual(revisions, Array.from({ length: 40 }, (_, i) => i + 1));
   guest.dispose();
   await until(() => host.guestNames.length === 0, 'guest removed from host');
-  await guest.join(code, '测试玩家', 'girl', 'relay');
+  await guest.join(code, '测试玩家', 'girl');
   await until(() => started === 2 && resumed === 1, 'resume token restores character');
   const last = modules.load('NetGuest').loadLastRoom();
   assert.equal(last.mode, 'relay');
   modules.values.set('island.multiplayer.lastRoom', JSON.stringify({ code: '12345', name: '旧档' }));
-  assert.equal(modules.load('NetGuest').loadLastRoom().mode, 'direct', 'old records default to direct');
+  assert.equal(modules.load('NetGuest').loadLastRoom(), null, 'obsolete five-digit direct rooms must not reconnect as relay');
   const invite = modules.loadFile('src/ui/roomInvite.ts');
+  assert.equal(invite.buildWebInviteUrl('012345'), 'https://870751720.github.io/island/?room=012345');
+  assert.equal(invite.buildWebInviteUrl(), 'https://870751720.github.io/island/');
   assert.equal(new URL(invite.buildInviteUrl(code, 'relay')).searchParams.get('connection'), 'relay');
   assert.equal(new URL(invite.buildInviteUrl(code)).searchParams.get('connection'), null);
   let closed = '';
@@ -217,10 +222,10 @@ try {
   assert.match((await pendingHost).message, /取消/);
   const room = await host.createRoom('relay');
   host.attach(game);
-  const pendingGuest = guest.join(room, '取消', undefined, 'relay');
+  const pendingGuest = guest.join(room, '取消', undefined);
   guest.dispose();
   await pendingGuest;
-  await guest.join(room, '重试', undefined, 'relay');
+  await guest.join(room, '重试', undefined);
   await until(() => host.guestNames.includes('重试') && guest.ready, 'retry independent from cancelled connection');
   // 浏览器 socket 的缓冲达到上限时必须断开，不能丢弃增量后继续游戏。
   closed = '';
@@ -228,7 +233,7 @@ try {
   guest.action('test', []);
   assert.match(closed, /积压过多/);
   await until(() => host.guestNames.length === 0, 'slow connection frees its player slot');
-  await guest.join(room, '大包', undefined, 'relay');
+  await guest.join(room, '大包', undefined);
   await until(() => host.guestNames.length === 1 && guest.ready, 'guest can retry after buffer overflow');
   closed = '';
   guest.action('test', ['x'.repeat(8 * 1024 * 1024)]);

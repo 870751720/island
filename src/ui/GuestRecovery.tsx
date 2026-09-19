@@ -41,7 +41,7 @@ export function GuestRecovery({ onRecovered, onCancel }: {
         onRecovered(guest);
       };
       timeout = setTimeout(failed, 35_000);
-      void guest.join(room.code, room.name, loadProfile()?.gender, room.mode).catch(failed);
+      void guest.join(room.code, room.name, loadProfile()?.gender).catch(failed);
     };
     const visible = () => { if (!document.hidden) { clearTimeout(retry); attempt(); } };
     document.addEventListener('visibilitychange', visible);

@@ -12,7 +12,6 @@ import { SaveSystem } from '@/game/systems/SaveSystem';
 import type { SaveData } from '@/game/systems/SaveSystem';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest } from '@/game/net/NetGuest';
-import { parseConnectionMode, type ConnectionMode } from '@/game/net/ConnectionMode';
 import { MobileDisplay } from './display/MobileDisplay';
 import dynamic from 'next/dynamic';
 
@@ -38,7 +37,6 @@ function GamePhases() {
   const [notice, setNotice] = useState('');
   const [disconnectNotice, setDisconnectNotice] = useState('');
   const [invitedRoom, setInvitedRoom] = useState('');
-  const [invitedConnection, setInvitedConnection] = useState<ConnectionMode>();
   /** 单机启动时锁定的存档选择:null=明确新档,SaveData=明确继续,避免 Game 构造时二次读取产生竞态 */
   const [singlePlayerSave, setSinglePlayerSave] = useState<SaveData | null>(null);
   const [pendingEntry, setPendingEntry] = useState<Entry | null>(null);
@@ -49,7 +47,6 @@ function GamePhases() {
     const room = new URLSearchParams(window.location.search).get('room');
     if (!room) return;
     setInvitedRoom(room);
-    setInvitedConnection(parseConnectionMode(new URLSearchParams(window.location.search).get('connection')));
     requestEntry({ kind: 'guest', gameMode });
   }, []);
 
@@ -150,20 +147,17 @@ function GamePhases() {
       <RoomLobby
         mode="guest"
         initialRoomCode={invitedRoom}
-        initialConnectionMode={invitedConnection}
         initialStatus={disconnectNotice}
         onBegin={(net) => {
           const nextGuest = net as NetGuest;
           nextGuest.onClosed = guestDisconnected;
           setGuest(nextGuest);
           setInvitedRoom('');
-          setInvitedConnection(undefined);
           setDisconnectNotice('');
           setPhase('playing');
         }}
         onBack={() => {
           setInvitedRoom('');
-          setInvitedConnection(undefined);
           setDisconnectNotice('');
           setInitialBackupCode(undefined);
           setPhase('start');

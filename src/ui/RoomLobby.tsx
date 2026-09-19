@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { NetHost } from '@/game/net/NetHost';
 import { NetGuest, loadLastRoom } from '@/game/net/NetGuest';
-import { normalizeRoomCode } from '@/game/net/Signaling';
+import { normalizeRoomCode, roomConnectionMode } from '@/game/net/RoomCode';
+import { DIRECT_UNAVAILABLE } from '@/game/net/DirectSupport';
+import { WebMultiplayerGuide } from './WebMultiplayerGuide';
 import { loadProfile, saveProfile, legacyNickname, type PlayerProfile } from '@/game/playerProfile';
 import { menuFormsCss } from './start/formStyles';
 import { MenuIcon } from './start/MenuIcon';
@@ -26,7 +28,6 @@ export function RoomLobby({
   initialGameMode,
   initialRoomCode = '',
   initialStatus = '',
-  initialConnectionMode,
   onBegin,
   onBack,
 }: {
@@ -34,7 +35,6 @@ export function RoomLobby({
   initialRoomCode?: string;
   initialGameMode?: GameMode;
   initialStatus?: string;
-  initialConnectionMode?: ConnectionMode;
   onBegin: (net: NetHost | NetGuest) => void;
   onBack: () => void;
 }) {
@@ -54,8 +54,10 @@ export function RoomLobby({
   /** 房主固定继续本机存档的岛;没有存档时才配置伙伴与模式开新岛 */
   const [savedGame] = useState(() => (mode === 'host' ? SaveSystem.load() : null));
   const [qr, setQr] = useState('');
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(() => initialConnectionMode ?? (mode === 'guest' ? loadLastRoom()?.mode : undefined) ?? 'direct');
-  const availability = useRelayAvailability(connectionMode, mode === 'guest' ? !busy : !roomCode);
+  const [hostConnectionMode, setConnectionMode] = useState<ConnectionMode>('direct');
+  const detectedMode = roomConnectionMode(roomCode);
+  const connectionMode = mode === 'host' ? hostConnectionMode : detectedMode ?? 'direct';
+  const availability = useRelayAvailability(connectionMode, mode === 'host' && !roomCode);
 
   // 昵称与性别统一来自个人档案(开始界面设置);水合后读取,未设置时先引导设置
   useEffect(() => setProfile(loadProfile()), []);
@@ -83,7 +85,7 @@ export function RoomLobby({
     guest.onConnectionStatus = setStatus;
     guest.onClosed = (reason) => {
       setBusy(false);
-      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，或切换服务器中转后重试。');
+      setStatus(reason || '当前网络暂时无法连接房主，请确认房主在线，或请房主创建中转房间后使用新房间码加入。');
     };
     guest.onRejected = (reason) => {
       setBusy(false);
@@ -117,12 +119,12 @@ export function RoomLobby({
   };
 
   const joinRoom = async () => {
-    if (!guest || busy || roomCode.length !== 5 || !profile?.name) return;
+    if (!guest || busy || !detectedMode || !profile?.name) return;
     playUiSound('confirm');
     setBusy(true);
     setStatus('正在连接房间…');
     try {
-      await guest.join(roomCode, (profile?.name ?? '').trim(), profile?.gender, connectionMode);
+      await guest.join(roomCode, (profile?.name ?? '').trim(), profile?.gender);
     } catch (error) {
       setBusy(false);
       setStatus(error instanceof Error ? error.message : '房间不存在或连接失败');
@@ -150,10 +152,10 @@ export function RoomLobby({
         <p className="form-eyebrow">{mode === 'host' ? 'SEND AN INVITATION / 发出邀请' : 'MEET ON THE ISLAND / 海岛相聚'}</p>
         <h2>{mode === 'host' ? '创建房间' : '加入房间'}</h2>
         <p className="room-subtitle">
-          {mode === 'host' ? (savedGame ? '岛还在，邀朋友继续上次的进度' : '生起营火，等朋友一起靠岸') : '输入房主分享的五位数字房间码'}
+          {mode === 'host' ? (savedGame ? '岛还在，邀朋友继续上次的进度' : '生起营火，等朋友一起靠岸') : '输入房间码，自动识别连接方式'}
         </p>
 
-        {(mode === 'guest' || !roomCode) && <ConnectionSelector value={connectionMode} disabled={busy} joining={mode === 'guest'}
+        {(mode === 'host' && !roomCode) && <ConnectionSelector value={connectionMode} disabled={busy}
           availability={availability} onChange={value => { setConnectionMode(value); setStatus(''); }} />}
 
         {mode === 'host' ? (
@@ -171,7 +173,7 @@ export function RoomLobby({
                 <span className="form-eyebrow">{CONNECTION_LABELS[connectionMode]} · {GAME_MODE_LABELS[host?.gameMode ?? gameMode]} · 房间码</span>
                 <strong>{roomCode}</strong>
                 {qr && <img className="room-qr" src={qr} alt={`房间 ${roomCode} 的邀请二维码`} />}
-                <small>扫码自动选择连接方式，手输房间码请选择{CONNECTION_LABELS[connectionMode]}</small>
+                <small>扫码或输入房间码，自动识别连接方式</small>
               </div>
               <button className="room-button" onClick={shareRoom}>分享邀请</button>
               <div className="room-players">
@@ -199,11 +201,12 @@ export function RoomLobby({
               inputMode="numeric"
               autoCorrect="off"
               placeholder="例如 73821"
-              maxLength={5}
+              maxLength={6}
               value={roomCode}
               disabled={busy}
-              onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
+              onChange={(event) => { setRoomCode(normalizeRoomCode(event.target.value)); setStatus(''); }}
             />
+            <p className="room-subtitle">6 位为好友直连，5 位为服务器中转{detectedMode ? ` · 已识别：${CONNECTION_LABELS[detectedMode]}` : ''}</p>
             <label className="room-label" htmlFor="player-name">你的昵称</label>
             <button
               id="player-name"
@@ -215,16 +218,17 @@ export function RoomLobby({
             </button>
             <button
               className="room-button"
-              disabled={busy || roomCode.length !== 5 || !profile?.name}
+              disabled={busy || !detectedMode || !profile?.name}
               data-ui-sound="manual"
               onClick={joinRoom}
             >
               {busy ? '正在加入…' : '加入房间'}
             </button>
-            {busy && <button className="room-back" onClick={() => { guest?.dispose(); setBusy(false); setStatus('已取消连接，可重新选择连接方式'); }}>取消连接</button>}
+            {busy && <button className="room-back" onClick={() => { guest?.dispose(); setBusy(false); setStatus('已取消连接，可重新输入房间码'); }}>取消连接</button>}
           </>
         )}
 
+        {status === DIRECT_UNAVAILABLE && <WebMultiplayerGuide roomCode={mode === 'guest' ? roomCode : ''} />}
         {status && <p className="room-status" role="status">{status}</p>}
         <button className="room-back" onClick={back}>← 返回海岛首页</button>
       </main>

@@ -43,7 +43,7 @@ export class HostSignal {
 
   static async create(): Promise<{ roomCode: string; signal: HostSignal }> {
     const signal = new HostSignal();
-    signal.code = randomSignalId(5);
+    signal.code = randomSignalId(6);
     try {
       try {
         await signal.listen(0);
@@ -230,8 +230,4 @@ export class GuestSignal {
     this.client?.end(true);
     this.client = null;
   }
-}
-
-export function normalizeRoomCode(value: string): string {
-  return value.replace(/[^0-9]/g, '').slice(0, 5);
 }

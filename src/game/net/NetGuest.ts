@@ -1,8 +1,10 @@
 import { PeerNet } from './PeerNet';
 import type { GameConnection } from './GameConnection';
-import { parseConnectionMode, type ConnectionMode } from './ConnectionMode';
+import type { ConnectionMode } from './ConnectionMode';
 import { RelayRoom } from './RelayRoom';
-import { GuestSignal, normalizeRoomCode } from './Signaling';
+import { GuestSignal } from './Signaling';
+import { normalizeRoomCode, roomConnectionMode } from './RoomCode';
+import { requireDirectSupport } from './DirectSupport';
 import { NET_PROTOCOL_VERSION, type NetMsg, type AnimalPose, type AmbientState, type NetEvent, type WorldPatch } from './Protocol';
 import type { WorldDeltaOp } from './WorldDelta';
 import type { SaveData } from '../systems/SaveSystem';
@@ -29,8 +31,9 @@ export function loadLastRoom(): { code: string; name: string; mode: ConnectionMo
     const raw = window.localStorage.getItem(LAST_ROOM_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw) as { code?: string; name?: string; mode?: string };
-    if (!saved.code) return null;
-    return { code: saved.code, name: saved.name ?? '', mode: parseConnectionMode(saved.mode) };
+    if (!saved.code || !roomConnectionMode(saved.code)) return null;
+    if (saved.code.length === 5 && saved.mode !== 'relay') return null;
+    return { code: saved.code, name: saved.name ?? '', mode: roomConnectionMode(saved.code)! };
   } catch {
     return null;
   }
@@ -78,9 +81,13 @@ export class NetGuest {
   onHud: (snap: HudSnapshot) => void = () => {};
   onEvent: (event: NetEvent) => void = () => {};
 
-  /** 输入五位数字房间码，按房主选择的连接方式加入。 */
-  async join(code: string, name: string, gender?: PlayerGender, mode: ConnectionMode = 'direct'): Promise<void> {
+  /** 输入数字房间码，按位数自动识别连接方式。 */
+  async join(code: string, name: string, gender?: PlayerGender): Promise<void> {
     this.dispose();
+    code = normalizeRoomCode(code);
+    const mode = roomConnectionMode(code);
+    if (!mode) throw new Error('请输入 6 位好友直连码或 5 位服务器中转码');
+    if (mode === 'direct') requireDirectSupport();
     this.disposed = false;
     this.pending = [];
     this.welcome = null;

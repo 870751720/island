@@ -14,6 +14,8 @@ import { DEFAULT_AUDIO_SETTINGS, loadAudioSettings } from '@/game/audio/AudioSet
 import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
 import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
+import { DIRECT_UNAVAILABLE } from '@/game/net/DirectSupport';
+import { WebMultiplayerGuide } from './WebMultiplayerGuide';
 import { ConnectionSelector } from './ConnectionSelector';
 import { useRelayAvailability } from './useRelayAvailability';
 
@@ -262,6 +264,7 @@ export function SettingsPanel({
               >
                 {multiplayer.busy ? '正在创建房间…' : connectionMode === 'relay' && availability.full ? '中转房间已满' : '开启多人模式'}
               </button>
+              {multiplayer.error === DIRECT_UNAVAILABLE && <WebMultiplayerGuide />}
               {multiplayer.error && <span style={{ fontSize: 12, color: gameTheme.danger }}>{multiplayer.error}</span>}
           </>))}
         <button
