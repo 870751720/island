@@ -1,0 +1,38 @@
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: relay/Dockerfile
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      REVISION: ${REVISION:?Set the deployed source revision}
+      RELAY_MAX_ROOMS: ${RELAY_MAX_ROOMS:-150}
+      RELAY_MAX_PLAYERS: ${RELAY_MAX_PLAYERS:-4}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/relay/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  web:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on:
+      relay:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /opt/island-relay/shared/letsencrypt:/etc/letsencrypt:ro
+      - /opt/island-relay/shared/acme:/var/www/acme:ro
+    command: [/bin/sh, -c, 'nginx; while sleep 3600; do nginx -s reload; done']
+  certbot:
+    image: certbot/certbot:v5.4.0
+    restart: unless-stopped
+    volumes:
+      - /opt/island-relay/shared/letsencrypt:/etc/letsencrypt
+      - /opt/island-relay/shared/acme:/var/www/acme
+    entrypoint: [/bin/sh, -c, 'while sleep 43200; do certbot renew --webroot -w /var/www/acme --quiet; done']

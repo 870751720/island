@@ -45,6 +45,8 @@
 
 ## 自有游戏数据中转
 
+新客户端中转入口为 `wss://193.112.25.170/relay`，独立部署使用 `relay/deployment/compose.yml`，SSH 用户为 `ubuntu`。证书续期、发布与验收见 [独立中转运维](../relay/deployment/README.md)。现有主站 Actions 不发布该服务器；以下主站中转部署与后端 revision 规则继续用于兼容旧客户端的旧入口。
+
 `relay/` 为独立 Node WebSocket 服务，Nginx 代理 `/relay` 与 `/relay/status`。默认最多 150 房、每房 4 人（含房主），与直连 MQTT 信令分离；中转不承担权威游戏计算。后端发布（或后端目录变化）触发 Compose 容器重建，会解散现有中转房间，玩家可由房主重新开房；纯前端发布零重启，不影响房间与云存档服务。可在部署环境配置 `RELAY_MAX_ROOMS` 与 `RELAY_MAX_PLAYERS`，详见 [中转设计与验证](relay.md)。首次发布前本地 H5 的中转服务不可用提示属于服务尚未上线，不能将本地构建通过等同于公网互联验证通过。
 
 ## 迭代记录

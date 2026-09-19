@@ -7,7 +7,7 @@
 - `main.ts` / `Dockerfile`：Node 22.18+、独立 `ws` 依赖、3002 私网端口。
 - `verify.ts`：HTTP revision 与 WebSocket ping/pong 验收，不占开房名额。
 
-由 `server/compose.yml` 启动独立容器，经 Nginx `wss://43.110.116.98/relay` 转发；`GET /relay/status` 提供当前占用与配置，不暴露房间码、昵称或游戏内容。无需新增公网端口。状态接口允许跨站 GET，兼容 Pages 和本地 H5 的 `null` 来源。
+生产中转独立部署在 `193.112.25.170`，由 `relay/deployment/compose.yml` 启动，经 Nginx `wss://193.112.25.170/relay` 转发；`GET /relay/status` 提供当前占用与配置，不暴露房间码、昵称或游戏内容。状态接口允许跨站 GET，兼容 Pages 和本地 H5 的 `null` 来源。部署与证书续期见 [独立中转运维](deployment/README.md)。旧站点的 `server/compose.yml` 中转保留用于旧客户端，其版本验收仍属于旧站点。
 
 客户端构建可用 `NEXT_PUBLIC_RELAY_URL` 覆盖服务地址。房间码为邀请入口，不是账户凭证；连接在服务端绑定房间、角色与 peer ID，客人不能伪造发送身份或向其他客人/房间发包。服务不记录消息正文。
 

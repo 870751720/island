@@ -2,7 +2,7 @@ export type ConnectionMode = 'direct' | 'relay';
 export const CONNECTION_LABELS: Record<ConnectionMode, string> = { direct: '好友直连', relay: '服务器中转' };
 
 export function relayUrl(): string {
-  return process.env.NEXT_PUBLIC_RELAY_URL || 'wss://43.110.116.98/relay';
+  return process.env.NEXT_PUBLIC_RELAY_URL || 'wss://193.112.25.170/relay';
 }
 
 export type RelayStatus = { rooms: number; maxRooms: number; maxPlayers: number };
