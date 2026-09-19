@@ -16,7 +16,7 @@ function limit(env: Record<string, string | undefined>, key: string, fallback: n
 
 export function relayConfig(env: Record<string, string | undefined> = process.env): RelayConfig {
   return {
-    maxRooms: limit(env, 'RELAY_MAX_ROOMS', 2, 1, 100),
+    maxRooms: limit(env, 'RELAY_MAX_ROOMS', 150, 1, 150),
     maxPlayers: limit(env, 'RELAY_MAX_PLAYERS', 4, 2, 32),
     maxPayload: 8 * 1024 * 1024,
     maxBuffered: 16 * 1024 * 1024,

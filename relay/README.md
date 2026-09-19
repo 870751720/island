@@ -3,7 +3,7 @@
 与 `server/`、`signaling/` 同级的独立 WebSocket 服务。只管理房间、人数与路由，不读取游戏消息内容、不运行玩法、不持久化世界。房主客户端仍承担权威计算与分发。
 
 - `service.ts`：原子占位、房间内定向转发、心跳回收、载荷与缓冲限制。
-- `config.ts`：`RELAY_MAX_ROOMS` 默认 2，`RELAY_MAX_PLAYERS` 默认 4（含房主）。
+- `config.ts`：`RELAY_MAX_ROOMS` 默认 150，`RELAY_MAX_PLAYERS` 默认 4（含房主）。
 - `main.ts` / `Dockerfile`：Node 22.18+、独立 `ws` 依赖、3002 私网端口。
 - `verify.ts`：HTTP revision 与 WebSocket ping/pong 验收，不占开房名额。
 

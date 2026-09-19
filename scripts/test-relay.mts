@@ -41,12 +41,12 @@ async function listen(service: ReturnType<typeof createRelayService>) {
   return `ws://127.0.0.1:${address.port}/relay`;
 }
 
-assert.equal(relayConfig({}).maxRooms, 2);
+assert.equal(relayConfig({}).maxRooms, 150);
 assert.equal(relayConfig({}).maxPlayers, 4);
 assert.equal(relayConfig({ RELAY_MAX_ROOMS: '3', RELAY_MAX_PLAYERS: '6' }).maxPlayers, 6);
 assert.throws(() => relayConfig({ RELAY_MAX_PLAYERS: '1' }));
 
-const service = createRelayService(relayConfig({}), 'test-revision');
+const service = createRelayService(relayConfig({ RELAY_MAX_ROOMS: '2' }), 'test-revision');
 const url = await listen(service);
 try {
   await verifyRelay(url.replace('ws:', 'http:').replace('/relay', ''), 'test-revision');
