@@ -1,11 +1,6 @@
 import mqtt, { type MqttClient } from 'mqtt';
 
-export const BROKER_URLS = [
-  'wss://broker.hivemq.com:8884/mqtt',
-  'wss://broker-cn.emqx.io:8084/mqtt',
-  'wss://broker.emqx.io:8084/mqtt',
-  'wss://test.mosquitto.org:8081/mqtt',
-];
+const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
 export const SIGNAL_TIMEOUT = 10_000;
 
 export function randomSignalId(length: number): string {
@@ -13,7 +8,7 @@ export function randomSignalId(length: number): string {
   return Array.from(bytes, (byte) => String(byte % 10)).join('');
 }
 
-/** 连接与订阅分别限时；取消时同步结束等待，避免旧尝试进入后续节点。 */
+/** 连接与订阅分别限时；取消时同步结束等待，避免旧尝试影响重试。 */
 function waitForBroker(
   client: MqttClient,
   abort: AbortSignal,
@@ -51,10 +46,10 @@ function waitForBroker(
 }
 
 export async function connectSignalBroker(
-  url: string, role: 'host' | 'guest', abort: AbortSignal,
+  role: 'host' | 'guest', abort: AbortSignal,
 ): Promise<MqttClient> {
   if (abort.aborted) throw new Error('已取消连接');
-  const client = mqtt.connect(url, {
+  const client = mqtt.connect(BROKER_URL, {
     clean: true,
     clientId: `island_${role}_${randomSignalId(12)}`,
     connectTimeout: SIGNAL_TIMEOUT,

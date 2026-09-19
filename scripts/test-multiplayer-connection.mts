@@ -117,19 +117,16 @@ function harness() {
     vm.runInContext(code, context);
     return exports;
   }
-  const urls: string[] = load('SignalBroker').BROKER_URLS;
-  return { load, clients, urls, policies, publications, drain, advance, timers };
+  const url = 'wss://broker.hivemq.com:8884/mqtt';
+  return { load, clients, url, policies, publications, drain, advance, timers };
 }
 
-// 房主首选 A，客人只能访问 B：通过共同节点找到同一房间，回复也必须来自 B。
+// 房主与客人各建一条连接，固定同一节点，握手双向传递。
 {
   const h = harness();
   const { HostSignal, GuestSignal } = h.load('Signaling');
-  h.policies.set(`guest:${h.urls[0]}`, { connect: 'fail' });
   const { signal: host, roomCode } = await HostSignal.create();
-  await h.drain();
-  let peer = '';
-  host.onPeerJoined = (id: string) => { peer = id; host.send(id, { description: { type: 'offer' } }); };
+  host.onPeerJoined = (id: string) => host.send(id, { description: { type: 'offer' } });
   const guest = new GuestSignal();
   let ready = 0;
   let offers = 0;
@@ -139,14 +136,11 @@ function harness() {
   await h.drain();
   assert.equal(ready, 1);
   assert.equal(offers, 1);
-  assert.ok(h.publications.filter(item => item.topic.includes('/down/')).every(item => item.url === h.urls[1]));
-  guest.send({ candidate: { candidate: 'candidate' } });
+  assert.equal(h.clients.length, 2);
+  assert.ok(h.clients.every(client => client.url === h.url));
   let received = 0;
   host.onSignal = () => received++;
-  await h.drain();
-  assert.equal(received, 1);
-  host.forget(peer);
-  guest.send({ candidate: { candidate: 'late' } });
+  guest.send({ candidate: { candidate: 'candidate' } });
   await h.drain();
   assert.equal(received, 1);
   guest.close(); host.close();
@@ -154,36 +148,10 @@ function harness() {
   assert.equal(h.timers.size, 0);
 }
 
-// 首个可达节点没有房间时继续查找；同一客人不同尝试身份独立。
+// 信令等待不消耗握手时间：查找后仍完整保留 30 秒。
 {
   const h = harness();
-  const { HostSignal, GuestSignal } = h.load('Signaling');
-  h.policies.set(`host:${h.urls[0]}`, { connect: 'fail' });
-  const { signal: host, roomCode } = await HostSignal.create();
-  const guest = new GuestSignal();
-  let ready = 0;
-  guest.onReady = () => ready++;
-  const connecting = guest.connect(roomCode);
-  await h.advance(10_000);
-  await connecting;
-  assert.equal(ready, 1);
-  const joins = h.publications.filter(item => item.message.type === 'join');
-  assert.equal(joins.length, 2);
-  assert.notEqual(joins[0].message.peer, joins[1].message.peer);
-  const previous = h.clients.find(client => client.role === 'guest')!;
-  previous.emit('message', '', new TextEncoder().encode('{"type":"ready"}'));
-  assert.equal(ready, 1);
-  assert.ok(previous.ended);
-  guest.close(); host.close();
-}
-
-// 信令搜索超过 30 秒仍可找到房主，之后完整保留 30 秒握手时间。
-{
-  const h = harness();
-  for (const url of h.urls.slice(0, 3)) h.policies.set(`host:${url}`, { connect: 'fail' });
-  h.policies.set(`guest:${h.urls[0]}`, { connect: 'stall' });
-  h.policies.set(`guest:${h.urls[1]}`, { subscribe: 'stall' });
-  h.policies.set(`guest:${h.urls[3]}`, { delay: 5000 });
+  h.policies.set(`guest:${h.url}`, { delay: 9000 });
   const { signal: host, roomCode } = await h.load('Signaling').HostSignal.create();
   const guest = new (h.load('NetGuest').NetGuest)();
   let closed = 0;
@@ -191,7 +159,7 @@ function harness() {
   guest.onClosed = () => closed++;
   guest.onConnectionStatus = (status: string) => statuses.push(status);
   const connecting = guest.join(roomCode, 'test');
-  await h.advance(35_000);
+  await h.advance(9000);
   await connecting;
   assert.equal(closed, 0);
   assert.match(statuses.at(-1)!, /已找到房间/);
@@ -203,11 +171,11 @@ function harness() {
   assert.equal(h.timers.size, 0);
 }
 
-// 取消覆盖连接、订阅与找房等待，停止后续查找；迟到消息不再回调。
+// 取消覆盖连接、订阅与找房等待，释放连接与计时器；迟到消息不再回调。
 for (const stage of ['connect', 'subscribe', 'ready']) {
   const h = harness();
-  if (stage === 'connect') h.policies.set(`guest:${h.urls[0]}`, { connect: 'stall' });
-  if (stage === 'subscribe') h.policies.set(`guest:${h.urls[0]}`, { subscribe: 'stall' });
+  if (stage === 'connect') h.policies.set(`guest:${h.url}`, { connect: 'stall' });
+  if (stage === 'subscribe') h.policies.set(`guest:${h.url}`, { subscribe: 'stall' });
   const guest = new (h.load('Signaling').GuestSignal)();
   let ready = 0;
   guest.onReady = () => ready++;
@@ -223,44 +191,41 @@ for (const stage of ['connect', 'subscribe', 'ready']) {
   assert.equal(h.timers.size, 0);
 }
 
-// 所有节点无房间、全部连接失败、订阅被拒绝均有限退出且清理连接。
+// 房间不存在、节点不可达、订阅拒绝时直接报错，不尝试其他节点。
 for (const failure of ['missing', 'connect', 'subscribe']) {
   const h = harness();
-  for (const url of h.urls) {
-    if (failure === 'connect') h.policies.set(`guest:${url}`, { connect: 'fail' });
-    if (failure === 'subscribe') h.policies.set(`guest:${url}`, { subscribe: 'fail' });
-  }
+  if (failure === 'connect') h.policies.set(`guest:${h.url}`, { connect: 'fail' });
+  if (failure === 'subscribe') h.policies.set(`guest:${h.url}`, { subscribe: 'fail' });
   const guest = new (h.load('Signaling').GuestSignal)();
   const result = guest.connect('12345').catch((error: Error) => error);
   await h.advance(40_000);
-  assert.match((await result).message, failure === 'connect' ? /无法连接联机服务/ : /未找到房间/);
-  assert.equal(h.clients.length, 4);
+  assert.match((await result).message, failure === 'connect' ? /无法连接联机服务/ : failure === 'subscribe' ? /订阅房间失败/ : /未找到房间/);
+  assert.equal(h.clients.length, 1);
   assert.ok(h.clients.every(client => client.ended));
   assert.equal(h.timers.size, 0);
 }
 
-// 房主首个节点就绪后退出，仍在后台连接的节点必须取消。
-{
+// 房主节点不可达或订阅失败时回收连接，不创建备用连接。
+for (const failure of ['connect', 'subscribe']) {
   const h = harness();
-  for (const url of h.urls.slice(1)) h.policies.set(`host:${url}`, { connect: 'stall' });
-  const { signal: host } = await h.load('Signaling').HostSignal.create();
-  host.close();
-  await h.drain();
-  assert.ok(h.clients.every(client => client.ended));
+  h.policies.set(`host:${h.url}`, failure === 'connect' ? { connect: 'fail' } : { subscribe: 'fail' });
+  await assert.rejects(h.load('Signaling').HostSignal.create());
+  assert.equal(h.clients.length, 1);
+  assert.ok(h.clients[0].ended);
   assert.equal(h.timers.size, 0);
 }
 
 // 旧加入尝试取消后立刻重试，旧异常不得关闭新连接。
 {
   const h = harness();
-  h.policies.set(`guest:${h.urls[0]}`, { connect: 'stall' });
+  h.policies.set(`guest:${h.url}`, { connect: 'stall' });
   const { signal: host, roomCode } = await h.load('Signaling').HostSignal.create();
   const guest = new (h.load('NetGuest').NetGuest)();
   let closed = 0;
   guest.onClosed = () => closed++;
   const old = guest.join(roomCode, 'old');
   await h.drain();
-  h.policies.delete(`guest:${h.urls[0]}`);
+  h.policies.delete(`guest:${h.url}`);
   await guest.join(roomCode, 'new');
   await old;
   assert.equal(closed, 0);
@@ -298,4 +263,4 @@ for (const failure of ['missing', 'connect', 'subscribe']) {
   connected.close();
 }
 
-console.log('Multiplayer discovery, cancellation, routing and independent handshake deadlines passed');
+console.log('Single-node signaling, cancellation and independent handshake deadlines passed');

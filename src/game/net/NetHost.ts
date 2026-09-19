@@ -268,7 +268,6 @@ export class NetHost {
     const index = this.guests.indexOf(guest);
     if (index < 0) return;
     this.guests.splice(index, 1);
-    this.signal?.forget(guest.peer);
     if (guest.session && this.game) {
       guest.session.player.input.setJoystick(0, 0);
       // 角色立即移出世界,离场快照保留 5 分钟供原玩家重连恢复
