@@ -1,6 +1,6 @@
 import { requireDirectSupport } from './DirectSupport';
 import { directDiagnostic, getVirtualLanAddress, virtualLanCandidate } from './VirtualLan';
-import { recordSelectedPair } from './DirectDiagnostics';
+import { recordCandidateChecks, recordSelectedPair } from './DirectDiagnostics';
 import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
 import type { GameConnection } from './GameConnection';
 
@@ -71,12 +71,16 @@ export class PeerNet implements GameConnection {
         log(`已补充虚拟 IP ${this.virtualAddress} 的 UDP 候选（尚未验证可达）`);
       }
     };
-    this.pc.oniceconnectionstatechange = () => log(`ICE 状态：${this.pc.iceConnectionState}`);
-    this.pc.onicecandidateerror = event => log(`地址收集错误 ${event.errorCode}；其他路径仍可能可用`);
+    this.pc.oniceconnectionstatechange = () => {
+      log(`ICE 状态：${this.pc.iceConnectionState}`);
+      if (this.pc.iceConnectionState === 'disconnected') void recordCandidateChecks(this.pc, this.channelId, 'ICE 中断');
+    };
+    this.pc.onicecandidateerror = event => log(`地址收集错误 ${event.errorCode}，服务 ${event.url || '未知'}，${event.errorText || '无详细信息'}；其他路径仍可能可用`);
     this.pc.onconnectionstatechange = () => {
       const state = this.pc.connectionState;
       log(`连接状态：${state}`);
       if (state === 'connected') void recordSelectedPair(this.pc, this.channelId);
+      if (state === 'failed') void recordCandidateChecks(this.pc, this.channelId, '连接失败');
       if (state === 'disconnected') {
         if (!this.disconnectTimer) this.disconnectTimer = setTimeout(() => this.notifyClosed(), 45_000);
       } else {
@@ -107,6 +111,7 @@ export class PeerNet implements GameConnection {
     directDiagnostic(this.channelId, '已找到对方，开始握手（30 秒）');
     this.connectTimer = setTimeout(() => {
       directDiagnostic(this.channelId, '握手超时；尚未建立两个游戏数据通道');
+      void recordCandidateChecks(this.pc, this.channelId, '握手超时');
       this.notifyClosed();
     }, 30_000);
   }
@@ -142,7 +147,9 @@ export class PeerNet implements GameConnection {
   private async addCandidate(signal: { candidate: RTCIceCandidateInit; virtualLan?: true }): Promise<void> {
     try {
       await this.pc.addIceCandidate(signal.candidate);
-      directDiagnostic(this.channelId, signal.virtualLan ? '已接受对方辅助候选，等待可达性检查' : '已接受对方原始候选');
+      const fields = signal.candidate.candidate?.trim().split(/\s+/);
+      const address = fields && fields.length >= 8 ? `${fields[4]}:${fields[5]} (${fields[7]})` : '地址未知';
+      directDiagnostic(this.channelId, `已接受对方${signal.virtualLan ? '辅助' : '原始'}候选 ${address}，等待可达性检查`);
     } catch (error) {
       directDiagnostic(this.channelId, signal.virtualLan ? '浏览器拒绝辅助候选，继续原始路径' : '浏览器拒绝原始候选');
       if (!signal.virtualLan) throw error;

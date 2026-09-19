@@ -363,6 +363,10 @@ for (const scenario of ['both', 'host', 'guest', 'stall', 'subscribe', 'subscrib
   const extra = lan.virtualLanCandidate(original, '10.20.0.2');
   assert.match(extra.candidate, /10\.20\.0\.2 45678 typ host/);
   assert.equal(extra.usernameFragment, 'xyz');
+  assert.match(extra.candidate.split(' ')[0], /^candidate:[a-zA-Z0-9+/]{1,32}$/);
+  const longFoundation = { ...original, candidate: original.candidate.replace('abc', 'a'.repeat(32)) };
+  assert.match(lan.virtualLanCandidate(longFoundation, '10.20.0.2').candidate.split(' ')[0], /^candidate:[a-zA-Z0-9+/]{1,32}$/);
+  for (const ipv6 of ['2001:db8::1', '[2001:db8::1]']) assert.equal(lan.virtualLanCandidate({ ...original, candidate: original.candidate.replace('hidden.local', ipv6) }, '10.20.0.2'), null);
   assert.match(original.candidate, /hidden.local/);
   for (const candidate of [original.candidate.replace('udp', 'tcp'), original.candidate.replace('typ host', 'typ srflx')]) assert.equal(lan.virtualLanCandidate({ ...original, candidate }, '10.20.0.2'), null);
   const signals: any[] = [];
@@ -385,4 +389,22 @@ for (const scenario of ['both', 'host', 'guest', 'stall', 'subscribe', 'subscrib
   assert.equal(plain.length, 1);
   ordinary.close();
 }
-console.log('Signaling, handshake deadlines and virtual LAN candidate checks passed');
+{
+  const h = harness();
+  const diagnostics = h.load('DirectDiagnostics');
+  const report = new Map<string, any>([
+    ['local', { type: 'local-candidate', candidateType: 'host', port: 12345 }],
+    ['remote', { type: 'remote-candidate', address: '172.19.163.3', port: 45678, candidateType: 'host' }],
+    ['pair', { type: 'candidate-pair', localCandidateId: 'local', remoteCandidateId: 'remote', state: 'failed', requestsSent: 5, responsesReceived: 0 }],
+  ]);
+  const lines = diagnostics.describeCandidateChecks(report).join('\n');
+  assert.match(lines, /172\.19\.163\.3:45678/);
+  assert.match(lines, /检查发出 5 \/ 响应收到 0 \/ 检查收到 \?/);
+  assert.match(lines, /地址隐藏/);
+  assert.match(diagnostics.describeCandidateChecks(new Map()).join(''), /无法判断/);
+  await diagnostics.recordCandidateChecks({ getStats: async () => report }, 9, '测试失败');
+  assert.match(h.load('VirtualLan').getDirectDiagnostics().join('\n'), /测试失败时的路径检查快照/);
+  await diagnostics.recordCandidateChecks({ getStats: async () => { throw new Error('closed'); } }, 10, '测试释放');
+  assert.match(h.load('VirtualLan').getDirectDiagnostics().join('\n'), /无法读取路径检查统计/);
+}
+console.log('Signaling, handshake deadlines, virtual LAN candidates and failure diagnostics passed');

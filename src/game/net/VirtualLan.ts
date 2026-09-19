@@ -16,8 +16,9 @@ export function virtualLanCandidate(candidate: RTCIceCandidateInit, ip: string):
   if (!validVirtualLanAddress(ip) || !candidate.candidate) return null;
   const fields = candidate.candidate.trim().split(/\s+/);
   if (fields.length < 8 || fields[2].toLowerCase() !== 'udp' || fields[6] !== 'typ' || fields[7] !== 'host'
-    || fields[4] === ip || !/^\d+$/.test(fields[5]) || Number(fields[5]) < 1 || Number(fields[5]) > 65535) return null;
-  fields[0] += '-vlan';
+    || fields[4].includes(':') || fields[4] === ip || !/^\d+$/.test(fields[5]) || Number(fields[5]) < 1 || Number(fields[5]) > 65535) return null;
+  // RFC 8839: foundation is 1–32 letters, digits, '+' or '/'.
+  fields[0] = `candidate:VL${fields[0].slice('candidate:'.length).replace(/[^a-zA-Z0-9+/]/g, '').slice(0, 30)}`;
   fields[3] = '1'; // Original candidates retain preference.
   fields[4] = ip;
   return { ...candidate, candidate: fields.join(' ') };
@@ -31,6 +32,6 @@ export const subscribeDirectDiagnostics = (listener: () => void) => {
   return () => { listeners.delete(listener); };
 };
 export function directDiagnostic(peer: number, message: string): void {
-  entries = [...entries.slice(-39), `连接 ${peer} · ${message}`];
+  entries = [...entries.slice(-79), `连接 ${peer} · ${message}`];
   listeners.forEach(listener => listener());
 }
