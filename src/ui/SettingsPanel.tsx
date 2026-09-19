@@ -15,7 +15,6 @@ import { buildInviteQr, buildInviteUrl, shareRoomInvite } from './roomInvite';
 import { GAME_MODE_LABELS, type GameMode } from '@/game/GameMode';
 import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
 import { MultiplayerSetup } from './MultiplayerSetup';
-import { VirtualLanOptions } from './VirtualLanOptions';
 
 /** 滑杆行:名称 + range input + 百分比 */
 function SliderRow({
@@ -256,7 +255,6 @@ export function SettingsPanel({
                 分享邀请
               </button>
               {shareTip && <span style={{ fontSize: 12, color: '#9a6018' }}>{shareTip}</span>}
-              {multiplayer.mode === 'direct' && <VirtualLanOptions disabled />}
             </div>
           ) : (
             <button style={gameRowButtonStyle} onClick={() => setShowMultiplayerSetup(true)}>开启多人模式</button>

@@ -20,7 +20,6 @@ import { ModeSelector } from './start/ModeSelector';
 import { SaveSystem } from '@/game/systems/SaveSystem';
 import { CONNECTION_LABELS, type ConnectionMode } from '@/game/net/ConnectionMode';
 import { ConnectionSelector } from './ConnectionSelector';
-import { VirtualLanOptions } from './VirtualLanOptions';
 import { useRelayAvailability } from './useRelayAvailability';
 
 /** 联机大厅：选择连接方式，房主分享房间码或二维码，客人用个人档案加入。 */
@@ -158,8 +157,6 @@ export function RoomLobby({
 
         {(mode === 'host' && !roomCode) && <ConnectionSelector value={connectionMode} disabled={busy}
           availability={availability} onChange={value => { setConnectionMode(value); setStatus(''); }} />}
-
-        {connectionMode === 'direct' && <VirtualLanOptions disabled={busy || (mode === 'host' && !!roomCode)} />}
 
         {mode === 'host' ? (
           !roomCode ? (

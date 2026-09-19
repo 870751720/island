@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { ConnectionMode } from '@/game/net/ConnectionMode';
 import { ConnectionSelector } from './ConnectionSelector';
-import { VirtualLanOptions } from './VirtualLanOptions';
 import { useRelayAvailability } from './useRelayAvailability';
 import type { MultiplayerSection } from './SettingsPanel';
 import styles from './MultiplayerSetup.module.css';
@@ -27,7 +26,6 @@ export function MultiplayerSetup({ multiplayer, onBack }: {
         <p className={styles.description}>继续当前岛屿，选择连接方式后邀请朋友加入。</p>
         <ConnectionSelector value={mode} disabled={multiplayer.busy} availability={availability}
           onChange={value => { setMode(value); setSubmitted(false); }} />
-        {mode === 'direct' && <VirtualLanOptions disabled={multiplayer.busy} />}
         {submitted && multiplayer.error && <p className={styles.error} role="status">{multiplayer.error}</p>}
       </div>
       <footer className={styles.actions}>
