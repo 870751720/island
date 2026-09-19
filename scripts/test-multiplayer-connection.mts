@@ -9,13 +9,18 @@ type Policy = { connect?: 'fail' | 'stall'; subscribe?: 'fail' | 'stall'; delay?
 function harness() {
   let now = 0;
   let nextTimer = 0;
-  const timers = new Map<number, { at: number; fn: () => void }>();
+  const timers = new Map<number, { at: number; fn: () => void; interval?: number }>();
   const later = (fn: () => void, delay = 0) => {
     const id = ++nextTimer;
     timers.set(id, { at: now + delay, fn });
     return id;
   };
   const clear = (id: number) => timers.delete(id);
+  const every = (fn: () => void, interval: number) => {
+    const id = later(fn, interval);
+    timers.get(id)!.interval = interval;
+    return id;
+  };
   const drain = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
   const advance = async (ms: number) => {
     await drain();
@@ -25,6 +30,7 @@ function harness() {
       if (!next) break;
       now = next[1].at;
       timers.delete(next[0]);
+      if (next[1].interval) timers.set(next[0], { ...next[1], at: now + next[1].interval });
       next[1].fn();
       await drain();
     }
@@ -105,7 +111,7 @@ function harness() {
     const context = vm.createContext({
       exports, crypto, TextEncoder, TextDecoder, AbortController,
       setTimeout: later, clearTimeout: clear,
-      setInterval: later, clearInterval: clear,
+      setInterval: every, clearInterval: clear,
       window: { setTimeout: later, clearTimeout: clear, localStorage: storage }, localStorage: storage,
       performance: { now: () => now }, RTCPeerConnection: FakePeerConnection,
       require(id: string) {
@@ -118,10 +124,10 @@ function harness() {
     return exports;
   }
   const url = 'wss://43.110.116.98/signaling';
-  return { load, clients, url, policies, publications, drain, advance, timers };
+  return { load, clients, url, backup: 'wss://broker.emqx.io:8084/mqtt', policies, publications, drain, advance, timers };
 }
 
-// 房主与客人各建一条连接，固定同一节点，握手双向传递。
+// 房主双节点监听，客人正常情况下只连接自有节点。
 {
   const h = harness();
   const { HostSignal, GuestSignal } = h.load('Signaling');
@@ -136,8 +142,8 @@ function harness() {
   await h.drain();
   assert.equal(ready, 1);
   assert.equal(offers, 1);
-  assert.equal(h.clients.length, 2);
-  assert.ok(h.clients.every(client => client.url === h.url));
+  assert.equal(h.clients.length, 3);
+  assert.ok(h.clients.filter(client => client.role === 'guest').every(client => client.url === h.url));
   let received = 0;
   host.onSignal = () => received++;
   guest.send({ candidate: { candidate: 'candidate' } });
@@ -191,27 +197,29 @@ for (const stage of ['connect', 'subscribe', 'ready']) {
   assert.equal(h.timers.size, 0);
 }
 
-// 房间不存在、节点不可达、订阅拒绝时直接报错，不尝试其他节点。
+// 两个节点均不可用或房间均不存在时，最后报错并释放两个尝试。
 for (const failure of ['missing', 'connect', 'subscribe']) {
   const h = harness();
-  if (failure === 'connect') h.policies.set(`guest:${h.url}`, { connect: 'fail' });
-  if (failure === 'subscribe') h.policies.set(`guest:${h.url}`, { subscribe: 'fail' });
+  for (const url of [h.url, h.backup]) {
+    if (failure === 'connect') h.policies.set(`guest:${url}`, { connect: 'fail' });
+    if (failure === 'subscribe') h.policies.set(`guest:${url}`, { subscribe: 'fail' });
+  }
   const guest = new (h.load('Signaling').GuestSignal)();
   const result = guest.connect('12345').catch((error: Error) => error);
   await h.advance(40_000);
   assert.match((await result).message, failure === 'connect' ? /无法连接联机服务/ : failure === 'subscribe' ? /订阅房间失败/ : /未找到房间/);
-  assert.equal(h.clients.length, 1);
+  assert.equal(h.clients.length, 2);
   assert.ok(h.clients.every(client => client.ended));
   assert.equal(h.timers.size, 0);
 }
 
-// 房主节点不可达或订阅失败时回收连接，不创建备用连接。
+// 房主两个节点都不可达或订阅失败，不能错误地创建房间。
 for (const failure of ['connect', 'subscribe']) {
   const h = harness();
-  h.policies.set(`host:${h.url}`, failure === 'connect' ? { connect: 'fail' } : { subscribe: 'fail' });
+  for (const url of [h.url, h.backup]) h.policies.set(`host:${url}`, failure === 'connect' ? { connect: 'fail' } : { subscribe: 'fail' });
   await assert.rejects(h.load('Signaling').HostSignal.create());
-  assert.equal(h.clients.length, 1);
-  assert.ok(h.clients[0].ended);
+  assert.equal(h.clients.length, 2);
+  assert.ok(h.clients.every(client => client.ended));
   assert.equal(h.timers.size, 0);
 }
 
@@ -263,4 +271,73 @@ for (const failure of ['connect', 'subscribe']) {
   connected.close();
 }
 
-console.log('Single-node signaling, cancellation and independent handshake deadlines passed');
+// 自有节点对双方、仅房主、仅客人不可达，以及连接/订阅超时，都能在备用节点相遇。
+for (const scenario of ['both', 'host', 'guest', 'stall', 'subscribe', 'subscribe-stall', 'slow-backup']) {
+  const h = harness();
+  if (scenario === 'both' || scenario === 'host') h.policies.set(`host:${h.url}`, { connect: 'fail' });
+  if (scenario !== 'host') h.policies.set(`guest:${h.url}`,
+    scenario === 'stall' ? { connect: 'stall' } : scenario === 'subscribe' ? { subscribe: 'fail' }
+      : scenario === 'subscribe-stall' ? { subscribe: 'stall' } : { connect: 'fail' });
+  if (scenario === 'slow-backup') h.policies.set(`host:${h.backup}`, { delay: 9000 });
+  const { HostSignal, GuestSignal } = h.load('Signaling');
+  const { signal: host, roomCode } = await HostSignal.create();
+  let joins = 0;
+  host.onPeerJoined = (id: string) => { joins++; host.send(id, { description: { type: 'offer' } }); };
+  const guest = new GuestSignal();
+  let ready = 0;
+  let offers = 0;
+  guest.onReady = () => ready++;
+  guest.onSignal = () => offers++;
+  const connecting = guest.connect(roomCode);
+  await h.advance(20_000);
+  await connecting;
+  assert.equal(ready, 1, scenario);
+  assert.equal(offers, 1, scenario);
+  assert.equal(joins, 1, scenario);
+  let answers = 0;
+  host.onSignal = () => answers++;
+  guest.send({ description: { type: 'answer' } });
+  await h.drain();
+  assert.equal(answers, 1, scenario);
+  assert.ok(h.publications.filter(p => p.message.type === 'signal').every(p => p.url === h.backup));
+  // 旧节点的迟到 ready/offer 不得触发二次入场或跨节点回复。
+  const old = h.clients.find(client => client.role === 'guest' && client.url === h.url)!;
+  old.emit('message', '', new TextEncoder().encode('{"type":"ready"}'));
+  old.emit('message', '', new TextEncoder().encode('{"type":"signal","data":{"description":{"type":"offer"}}}'));
+  assert.equal(ready, 1);
+  assert.equal(offers, 1);
+  guest.close(); host.close();
+  await h.drain();
+  assert.ok(h.clients.every(client => client.ended));
+  assert.equal(h.timers.size, 0);
+}
+
+// 备用节点不可用不能拖慢自有节点开房；后台等待在关闭时一并取消。
+{
+  const h = harness();
+  h.policies.set(`host:${h.backup}`, { connect: 'stall' });
+  const { signal: host } = await h.load('Signaling').HostSignal.create();
+  await h.advance(10_000);
+  host.close();
+  await h.advance(20_000);
+  assert.ok(h.clients.every(client => client.ended));
+  assert.equal(h.timers.size, 0);
+}
+
+// 已进入备用节点连接等待时取消，不能继续查房或遗留重试。
+{
+  const h = harness();
+  h.policies.set(`guest:${h.url}`, { connect: 'fail' });
+  h.policies.set(`guest:${h.backup}`, { connect: 'stall' });
+  const guest = new (h.load('Signaling').GuestSignal)();
+  const result = guest.connect('12345').catch((error: Error) => error);
+  await h.drain();
+  guest.close();
+  assert.match((await result).message, /取消/);
+  await h.advance(30_000);
+  assert.equal(h.clients.length, 2);
+  assert.ok(h.clients.every(client => client.ended));
+  assert.equal(h.timers.size, 0);
+}
+
+console.log('Primary/backup signaling, asymmetric discovery, cancellation and handshake deadlines passed');

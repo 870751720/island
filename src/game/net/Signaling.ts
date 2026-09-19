@@ -1,7 +1,7 @@
 import { createUuid } from '@/platform/compat';
 import type { MqttClient } from 'mqtt';
 import type { PeerSignal } from './PeerNet';
-import { SIGNAL_TIMEOUT, connectSignalBroker, randomSignalId, subscribeSignalBroker } from './SignalBroker';
+import { SIGNAL_BROKERS, SIGNAL_TIMEOUT, connectSignalBroker, randomSignalId, subscribeSignalBroker } from './SignalBroker';
 
 const TOPIC_PREFIX = 'island-game/v1';
 
@@ -31,9 +31,10 @@ function publish(client: MqttClient | null, topic: string, message: unknown): vo
   client.publish(topic, JSON.stringify(message), { qos: 0, retain: false });
 }
 
-/** 房主与客人固定使用同一信令服务交换握手信息。 */
+/** 房主在两端挂同一房间，客人优先自有节点，握手回复沿进入的节点返回。 */
 export class HostSignal {
-  private client: MqttClient | null = null;
+  private readonly clients = new Map<number, MqttClient>();
+  private readonly retryTimers = new Set<ReturnType<typeof setTimeout>>();
   private readonly abort = new AbortController();
   private code = '';
   onPeerJoined: (peer: string) => void = () => {};
@@ -44,7 +45,13 @@ export class HostSignal {
     const signal = new HostSignal();
     signal.code = randomSignalId(5);
     try {
-      await signal.listen();
+      try {
+        await signal.listen(0);
+        signal.listenInBackground(1);
+      } catch {
+        await signal.listen(1);
+        signal.listenInBackground(0);
+      }
       return { roomCode: signal.code, signal };
     } catch (error) {
       signal.close();
@@ -52,13 +59,24 @@ export class HostSignal {
     }
   }
 
-  private async listen(): Promise<void> {
-    const client = await connectSignalBroker('host', this.abort.signal);
+  private listenInBackground(index: number): void {
+    void this.listen(index).catch(() => {
+      if (this.abort.signal.aborted) return;
+      const timer = setTimeout(() => {
+        this.retryTimers.delete(timer);
+        this.listenInBackground(index);
+      }, 5000);
+      this.retryTimers.add(timer);
+    });
+  }
+
+  private async listen(index: number): Promise<void> {
+    const client = await connectSignalBroker('host', this.abort.signal, SIGNAL_BROKERS[index]);
     if (this.abort.signal.aborted) { client.end(true); throw new Error('已取消连接'); }
-    this.client = client;
+    this.clients.set(index, client);
     const topic = uplinkTopic(this.code);
     client.on('message', (_topic, payload) => {
-      if (!this.abort.signal.aborted) this.receive(parseMessage(payload));
+      if (!this.abort.signal.aborted) this.receive(index, client, parseMessage(payload));
     });
     try {
       await subscribeSignalBroker(client, topic, this.abort.signal);
@@ -70,31 +88,35 @@ export class HostSignal {
         void subscribeSignalBroker(client, topic, this.abort.signal).catch(() => {});
       });
     } catch (error) {
-      this.client = null;
+      this.clients.delete(index);
       client.end(true);
       throw error;
     }
   }
 
-  private receive(raw: unknown): void {
+  private receive(index: number, client: MqttClient, raw: unknown): void {
     if (!raw || typeof raw !== 'object') return;
     const message = raw as Partial<UplinkMessage>;
     if (message.type === 'join' && typeof message.peer === 'string') {
-      publish(this.client, downlinkTopic(this.code, message.peer), { type: 'ready' } satisfies DownlinkMessage);
-      this.onPeerJoined(message.peer);
+      publish(client, downlinkTopic(this.code, message.peer), { type: 'ready' } satisfies DownlinkMessage);
+      this.onPeerJoined(`${index}:${message.peer}`);
     } else if (message.type === 'signal' && typeof message.peer === 'string' && message.data) {
-      this.onSignal(message.peer, message.data);
+      this.onSignal(`${index}:${message.peer}`, message.data);
     }
   }
 
   send(peer: string, data: PeerSignal): void {
-    publish(this.client, downlinkTopic(this.code, peer), { type: 'signal', data } satisfies DownlinkMessage);
+    const separator = peer.indexOf(':');
+    const client = this.clients.get(Number(peer.slice(0, separator)));
+    publish(client ?? null, downlinkTopic(this.code, peer.slice(separator + 1)), { type: 'signal', data } satisfies DownlinkMessage);
   }
 
   close(): void {
     this.abort.abort();
-    this.client?.end(true);
-    this.client = null;
+    for (const timer of this.retryTimers) clearTimeout(timer);
+    this.retryTimers.clear();
+    for (const client of this.clients.values()) client.end(true);
+    this.clients.clear();
   }
 }
 
@@ -112,10 +134,26 @@ export class GuestSignal {
   async connect(code: string): Promise<void> {
     this.code = code;
     if (this.abort.signal.aborted) throw new Error('已取消连接');
-    this.onStatus('正在连接联机服务…');
+    let lastError: unknown;
+    for (const [index, url] of SIGNAL_BROKERS.entries()) {
+      if (this.abort.signal.aborted) throw new Error('已取消连接');
+      this.onStatus(index === 0 ? '正在连接联机服务…' : '正在尝试备用联机服务…');
+      try {
+        await this.connectVia(code, url);
+        return;
+      } catch (error) {
+        if (this.abort.signal.aborted) throw new Error('已取消连接');
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  private async connectVia(code: string, url: string): Promise<void> {
+    this.selected = false;
     let client: MqttClient | null = null;
     try {
-      client = await connectSignalBroker('guest', this.abort.signal);
+      client = await connectSignalBroker('guest', this.abort.signal, url);
       if (this.abort.signal.aborted) throw new Error('已取消连接');
       this.client = client;
       this.peerId = `${createUuid()}-${randomSignalId(6)}`;
@@ -134,10 +172,12 @@ export class GuestSignal {
   private findHost(client: MqttClient): Promise<void> {
     return new Promise((resolve, reject) => {
       let settled = false;
+      let retry: ReturnType<typeof setInterval> | undefined;
       const finish = (error?: Error) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (retry !== undefined) clearInterval(retry);
         this.abort.signal.removeEventListener('abort', cancelled);
         client.removeListener('close', disconnected);
         client.removeListener('error', failed);
@@ -172,7 +212,11 @@ export class GuestSignal {
       client.on('message', messageReceived);
       if (this.abort.signal.aborted) cancelled();
       else if (!client.connected) disconnected();
-      else publish(client, uplinkTopic(this.code), { type: 'join', peer: this.peerId } satisfies UplinkMessage);
+      else {
+        const join = () => publish(client, uplinkTopic(this.code), { type: 'join', peer: this.peerId } satisfies UplinkMessage);
+        retry = setInterval(join, 1000);
+        join();
+      }
     });
   }
 

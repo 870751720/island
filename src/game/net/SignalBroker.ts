@@ -1,6 +1,6 @@
 import mqtt, { type MqttClient } from 'mqtt';
 
-const BROKER_URL = 'wss://43.110.116.98/signaling';
+export const SIGNAL_BROKERS = ['wss://43.110.116.98/signaling', 'wss://broker.emqx.io:8084/mqtt'] as const;
 export const SIGNAL_TIMEOUT = 10_000;
 
 export function randomSignalId(length: number): string {
@@ -46,10 +46,10 @@ function waitForBroker(
 }
 
 export async function connectSignalBroker(
-  role: 'host' | 'guest', abort: AbortSignal,
+  role: 'host' | 'guest', abort: AbortSignal, url: string = SIGNAL_BROKERS[0],
 ): Promise<MqttClient> {
   if (abort.aborted) throw new Error('已取消连接');
-  const client = mqtt.connect(BROKER_URL, {
+  const client = mqtt.connect(url, {
     clean: true,
     clientId: `island_${role}_${randomSignalId(12)}`,
     connectTimeout: SIGNAL_TIMEOUT,
