@@ -1,3 +1,4 @@
+import { FrameDiagnostics } from './core/FrameDiagnostics';
 import { ResearchTableSystem } from './systems/ResearchTableSystem';
 import { HIDDEN_RECIPES } from './systems/HiddenRecipes';
 import { loadRecipeDiscoveries, rememberRecipes } from './meta/RecipeDiscoveries';
@@ -162,9 +163,35 @@ export class Game {
   gmPerformance(enabled: boolean): void {
     this.performanceMonitor.enabled = enabled;
     this.performanceMonitor.reset();
-    this.loop.onFrame = enabled
-      ? (interval, cpu) => this.performanceMonitor.record(interval, cpu, this.renderer, this.guestMode ? "客人" : this.hostRef ? "房主" : "单机")
-      : null;
+    this.refreshPerformanceHook();
+  }
+
+  readonly frameDiagnostics = new FrameDiagnostics();
+
+  capturePerformance(enabled: boolean): void {
+    if (enabled) this.frameDiagnostics.start({
+      userAgent: navigator.userAgent, viewport: [innerWidth, innerHeight],
+      screenDpr: devicePixelRatio, role: this.guestMode ? '客人' : this.hostRef ? '房主' : '单机',
+      day: this.dayNight.day, tool: this.player.currentTool,
+    });
+    else this.frameDiagnostics.stop();
+    this.refreshPerformanceHook();
+  }
+
+  private refreshPerformanceHook(): void {
+    this.loop.onFrame = this.performanceMonitor.enabled || this.frameDiagnostics.active ? (interval, cpu) => {
+      if (this.performanceMonitor.enabled) this.performanceMonitor.record(interval, cpu, this.renderer,
+        this.guestMode ? '客人' : this.hostRef ? '房主' : '单机');
+      if (this.frameDiagnostics.active) {
+        this.frameDiagnostics.record(interval, cpu, document.hidden, {
+          calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
+          geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures,
+          canvas: [this.renderer.domElement.width, this.renderer.domElement.height],
+          tool: this.player.currentTool, moving: this.player.isMoving,
+        });
+        if (!this.frameDiagnostics.active) this.refreshPerformanceHook();
+      }
+    } : null;
   }
   /** 全部玩家会话(下标 0 为本地玩家;联机时由房主持有远程会话) */
   private sessions: PlayerSession[] = [];
@@ -1129,6 +1156,7 @@ export class Game {
 
     this.loop.add({
       update: (delta, elapsed) => {
+        this.frameDiagnostics.begin();
         this.loopElapsed = elapsed;
         const singlePlayer = !this.guestMode && !this.hostRef;
         const resting = this.idleRest.shouldPause(this.local, singlePlayer,
@@ -1143,6 +1171,7 @@ export class Game {
             : this.plankPaths.contains(session.player.group.position) ? 'plankPath' : null;
           session.player.update(simDelta, elapsed);
         }
+        this.frameDiagnostics.mark('玩家与导航');
         this.dayNight.update(resting ? 0 : simDelta);
         // 季节推进为房主/单机权威:每帧按天数对账换季,入冬当日强制降雪
         if (!this.guestMode) {
@@ -1154,11 +1183,13 @@ export class Game {
         this.meteor.update(simDelta);
         this.weather.update(simDelta);
         updateSeasonVisuals(simDelta);
+        this.frameDiagnostics.mark('昼夜天气与掉落');
         this.audio.setNight(this.dayNight.isNight);
         this.audio.setMusicContext(GmSystem.season === 'auto' ? getSeason() : GmSystem.season, this.fishing.isWorking,
           { rain: this.weather.rainIntensity, snow: this.weather.snowIntensity, wind: this.weather.windStrength }, this.local.inCombat);
         this.audio.setRainIntensity(this.weather.rainIntensity);
         this.audio.setWindIntensity(this.weather.windIntensity);
+        this.frameDiagnostics.mark('音频');
         this.rain.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.rainImpact.update(delta, this.player.group.position, this.weather.rainIntensity);
         this.snow.update(delta, this.loopElapsed, this.player.group.position, this.weather.snowIntensity);
@@ -1168,13 +1199,16 @@ export class Game {
           this.guestNet.dogView.width = (this.camera.right - this.camera.left) / this.camera.zoom;
           this.guestNet.dogView.height = (this.camera.top - this.camera.bottom) / this.camera.zoom;
         }
+        this.frameDiagnostics.mark('天气表现');
         if (!this.guestMode) {
           this.crabs.update(simDelta, elapsed);
           this.butterflies.update(simDelta, elapsed);
           this.birds.update(simDelta, elapsed);
           this.dayEvents.update();
+          this.frameDiagnostics.mark('其他生物与日事件');
           this.wildlife.setSoloDeathProtection(!this.hostRef);
           this.wildlife.update(simDelta, elapsed, this.dayNight.calendar);
+          this.frameDiagnostics.mark('动物AI含觅食寻路');
           this.dog.update(simDelta, elapsed, this.drops, this.dayNight.isNight,
             this.sessions.map(s => ({ player: s.player, health: s.survival.state.health, dead: s.survival.state.dead, fighting: s.inCombat })));
         } else {
@@ -1183,7 +1217,9 @@ export class Game {
           this.wildlife.netUpdate(delta, elapsed);
           this.dog.netUpdate(delta, elapsed);
         }
+        this.frameDiagnostics.mark('伙伴或客人插值');
         this.props.update(simDelta, elapsed, this.weather.wind, !this.guestMode, this.sessions);
+        this.frameDiagnostics.mark('资源与植被');
         this.windFx.update(delta, this.player.group.position, this.weather.wind);
         this.fx.update(delta);
         this.animalDamageNumbers.update(delta);
@@ -1192,6 +1228,7 @@ export class Game {
         this.pondLife.update(delta, elapsed);
         this.seaThreat.update(delta, elapsed);
         this.footprints.update(simDelta);
+        this.frameDiagnostics.mark('粒子与水面表现');
         // 各会话:生存结算与个人交互系统(采集/制作/进食/钓鱼/弓/喝水/挖掘/搭建);
         // 客人端不跑权威模拟,全部由房主快照驱动
         for (const s of this.guestMode ? [] : this.sessions) {
@@ -1287,6 +1324,7 @@ export class Game {
             s.lasso.updateVisuals(simDelta);
           }
           s.water.update(simDelta, this.isSessionBusy(s, 'water'), !!this.waterPurifiers.nearby(s));
+          this.frameDiagnostics.mark('玩家生存与工具');
           this.crates.updateActor(s, simDelta);
           this.baitBarrels.updateActor(s, simDelta);
           this.brewBarrels.updateActor(s, simDelta);
@@ -1316,7 +1354,9 @@ export class Game {
           } else if (heldTool !== 'hand' && !this.hasToolFor(s, heldTool)) {
             s.player.setTool('hand');
           }
+          this.frameDiagnostics.mark('设施交互与自动放置');
         }
+        this.frameDiagnostics.mark('设施交互与自动放置');
         this.activeNetActor = null;
         this.audio.silent = false;
         // 局外养成的每日一次标记跨天重置
@@ -1346,6 +1386,7 @@ export class Game {
           this.researchSoundLeft -= simDelta;
           if (this.researchSoundLeft <= 0) { this.audio.play('sizzle'); this.researchSoundLeft = 0.8; }
         } else this.researchSoundLeft = 0;
+        this.frameDiagnostics.mark('设施生产与围栏');
         this.thirstGuidance.update(delta, this.local, this.cameraController.photoActive);
         this.mumbles.update(delta, {
           nearDrinkPoint: this.thirstGuidance.nearDrinkPoint,
@@ -1374,6 +1415,7 @@ export class Game {
           bottle: this.inventory.count('bottle'),
           meteorActive: this.meteor.active,
         });
+        this.frameDiagnostics.mark('提示计算');
         this.updateIndicator(simDelta);
         this.updateLeashLines();
         this.leashLines.update(simDelta);
@@ -1382,6 +1424,7 @@ export class Game {
         this.emojiBubbles.update(simDelta);
         this.husbandryIndicators.update(simDelta);
         this.ocean.update(this.camera, elapsed);
+        this.frameDiagnostics.mark('相机与头顶UI');
         this.questTimer += simDelta;
         if (!this.guestMode && this.questTimer >= 0.25) {
           const furDropped = this.drops.hasKind('fur');
@@ -1405,6 +1448,7 @@ export class Game {
         this.guidanceLabel.update(
           this.thirstGuidance.active ? this.thirstGuidance.navigationTarget : this.questGuidance.navigationTarget,
           this.thirstGuidance.active ? '喝水' : this.questGuidance.label, this.camera, this.terrain);
+        this.frameDiagnostics.mark('任务指引');
         const renderStart = this.performanceMonitor.enabled ? performance.now() : 0;
         this.clouds.faceCamera(this.camera);
         this.props.flushInstances();
@@ -1420,7 +1464,9 @@ export class Game {
           && !this.survival.state.dead && !this.cameraController.photoActive;
         this.digHighlight.update(showDig ? this.digTargets.resolve(digTarget) : null, elapsed);
         this.flameLights.update(this.camera, this.player.group.position, delta);
+        this.frameDiagnostics.mark('渲染准备与光源');
         this.renderer.render(this.scene, this.camera);
+        this.frameDiagnostics.mark('WebGL提交');
         if (this.performanceMonitor.enabled) this.performanceMonitor.renderMs = performance.now() - renderStart;
         for (const s of this.sessions) {
           if (s.survival.state.dead && !s.lastDead) {
@@ -1464,6 +1510,7 @@ export class Game {
           }
           s.lastDead = s.survival.state.dead;
         }
+        this.frameDiagnostics.mark('死亡结算');
         if (!this.guestMode && this.sessions.some((s) => !s.survival.state.dead)) {
           this.autosaveTimer += delta;
           if (this.autosaveTimer >= AUTOSAVE_INTERVAL) {
@@ -1471,6 +1518,7 @@ export class Game {
             SaveSystem.save(this.collectSave());
           }
         }
+        this.frameDiagnostics.mark('自动存档');
         if (!this.guestMode) this.pushHud(delta);
         this.pickupPresentation.flush();
         // 客人端不跑权威采集模拟,但自动切工具需要近旁资源点判定,本地只做扫描
@@ -1514,8 +1562,10 @@ export class Game {
           this.player.group.position.z += this.netDrift.y * k;
           this.netDrift.multiplyScalar(1 - k);
         }
+        this.frameDiagnostics.mark('HUD与客人交互');
         this.updateAutoEquip(delta);
         this.updateSwordAutoEquip(delta);
+        this.frameDiagnostics.mark('自动装备');
       },
     });
 

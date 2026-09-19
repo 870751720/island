@@ -21,6 +21,7 @@ import { hudStyles } from './hud/styles';
 import { gameThemeCss, gameTheme } from './gameTheme';
 import { Backpack } from './Backpack';
 import { VirtualJoystick } from './VirtualJoystick';
+import { DiagnosticCapture } from './DiagnosticCapture';
 import { PerformanceOverlay } from './gm/PerformanceOverlay';
 import { FpsOverlay } from './FpsOverlay';
 import { TrafficOverlay } from './TrafficOverlay';
@@ -231,6 +232,7 @@ export function GameplayUI({
     >
       <style>{hudStyles + gameThemeCss}</style>
       <IslandArrival ready={worldReady} multiplayer={!!(net?.host || net?.guest)} />
+      {worldReady && <DiagnosticCapture gameRef={gameRef} />}
       {InitialCloudBackup && initialBackupCode && <InitialCloudBackup code={initialBackupCode} ready={worldReady} gameRef={gameRef} guest={!!net?.guest} />}
       {!hud.dead && !photoMode && (
         <VirtualJoystick
