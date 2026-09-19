@@ -62,6 +62,7 @@ export class NetHost {
   private worldRevision = 0;
   private resumable = new Map<string, Resumable>();
   private signal: HostSignal | null = null;
+  private roomAttempt = 0;
   roomCode = '';
 
   onGuestJoined: (name: string) => void = () => {};
@@ -87,8 +88,13 @@ export class NetHost {
 
   /** 创建五位数字码房间；之后加入者由信令服务自动接入。 */
   async createRoom(): Promise<string> {
+    const attempt = ++this.roomAttempt;
     this.purgeResumable();
     const room = await HostSignal.create();
+    if (attempt !== this.roomAttempt) {
+      room.signal.close();
+      throw new Error('已取消创建房间');
+    }
     this.signal = room.signal;
     this.roomCode = room.roomCode;
     room.signal.onPeerJoined = (peer) => void this.addPeer(peer);
@@ -145,6 +151,7 @@ export class NetHost {
   }
 
   dispose(): void {
+    this.roomAttempt++;
     this.detach();
     for (const guest of this.guests) guest.net.close();
     this.guests = [];
@@ -261,6 +268,7 @@ export class NetHost {
     const index = this.guests.indexOf(guest);
     if (index < 0) return;
     this.guests.splice(index, 1);
+    this.signal?.forget(guest.peer);
     if (guest.session && this.game) {
       guest.session.player.input.setJoystick(0, 0);
       // 角色立即移出世界,离场快照保留 5 分钟供原玩家重连恢复

@@ -104,6 +104,14 @@ export class NetGuest {
     signal.onSignal = (data) => {
       if (this.net === net && !this.disposed) void net.receiveSignal(data).catch(() => net.onClose());
     };
+    signal.onStatus = (status) => {
+      if (this.net === net && !this.disposed) this.onConnectionStatus(status);
+    };
+    signal.onReady = () => {
+      if (this.net !== net || this.disposed) return;
+      net.beginHandshake();
+      this.onConnectionStatus('已找到房间，正在连接房主（最多等待 30 秒）…');
+    };
     signal.onClose = () => {
       if (!net.connected) net.onClose();
     };
@@ -115,9 +123,6 @@ export class NetGuest {
     saveLastRoom(code, name);
     try {
       await signal.connect(normalizeRoomCode(code));
-      if (this.net === net && !this.disposed && !net.connected) {
-        this.onConnectionStatus('已找到房间，正在连接房主（最多等待 30 秒）…');
-      }
     } catch (error) {
       if (this.net !== net || this.disposed) return;
       this.dispose();

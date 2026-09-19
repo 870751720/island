@@ -48,8 +48,6 @@ export class PeerNet {
     private readonly side: 'host' | 'guest',
     private readonly signal: (signal: PeerSignal) => void,
   ) {
-    // 房主和客人都回收无法完成握手的连接，包括仍停留在 checking 的情况。
-    this.connectTimer = setTimeout(() => this.notifyClosed(), 30_000);
     this.pc.onicecandidate = (event) => {
       if (event.candidate) this.signal({ candidate: event.candidate.toJSON() });
     };
@@ -73,8 +71,15 @@ export class PeerNet {
     return this.controlChannel?.readyState === 'open' && this.stateChannel?.readyState === 'open';
   }
 
+  /** 房主发起 offer / 客人找到房主后计时，信令查找不占用握手时间。 */
+  beginHandshake(): void {
+    if (this.connectTimer || this.closeNotified || this.openNotified) return;
+    this.connectTimer = setTimeout(() => this.notifyClosed(), 30_000);
+  }
+
   async start(): Promise<void> {
     if (this.side !== 'host') return;
+    this.beginHandshake();
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
     this.signal({ description: offer });
