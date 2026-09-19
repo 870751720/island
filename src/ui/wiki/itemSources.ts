@@ -135,6 +135,8 @@ for (const config of Object.values(HARVEST_CONFIG)) {
 for (const kind of Object.values(DIG_YIELD)) {
   addSource(kind, { group: '采集', label: '铲子挖走整丛' });
 }
+// 铲土彩蛋:红薯种子唯一的种子源头(SoilSystem 挖开土壤极低概率翻出),途径硬编码不在产出声明表内,手工登记
+addSource('sweetPotatoSeed', { group: '采集', label: '铲子挖开土壤', note: '0.5% 概率' });
 
 // —— 击杀:物种战利品表 + RARE_LOOT 稀有掉落 + 弓箭射鸟 ——
 for (const config of Object.values(SPECIES)) {
