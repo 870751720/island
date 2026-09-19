@@ -353,4 +353,36 @@ for (const scenario of ['both', 'host', 'guest', 'stall', 'subscribe', 'subscrib
   assert.equal(h.timers.size, 0);
 }
 
-console.log('Primary/backup signaling, asymmetric discovery, cancellation and handshake deadlines passed');
+// 辅助候选拒绝后仍处理原始候选，普通连接保持不变。
+{
+  const h = harness();
+  const lan = h.load('VirtualLan');
+  for (const ip of ['127.0.0.1', '224.1.1.1', '1.2.3.999', '10.01.0.1', '169.254.1.1', '']) assert.equal(lan.validVirtualLanAddress(ip), false);
+  lan.setVirtualLanAddress('10.20.0.2');
+  const original = { candidate: 'candidate:abc 1 udp 2122260223 hidden.local 45678 typ host generation 0 ufrag xyz', sdpMid: '0', usernameFragment: 'xyz' };
+  const extra = lan.virtualLanCandidate(original, '10.20.0.2');
+  assert.match(extra.candidate, /10\.20\.0\.2 45678 typ host/);
+  assert.equal(extra.usernameFragment, 'xyz');
+  assert.match(original.candidate, /hidden.local/);
+  for (const candidate of [original.candidate.replace('udp', 'tcp'), original.candidate.replace('typ host', 'typ srflx')]) assert.equal(lan.virtualLanCandidate({ ...original, candidate }, '10.20.0.2'), null);
+  const signals: any[] = [];
+  const peer = new (h.load('PeerNet').PeerNet)('host', (signal: any) => signals.push(signal));
+  peer.pc.onicecandidate({ candidate: { toJSON: () => original } });
+  peer.pc.onicecandidate({ candidate: { toJSON: () => original } });
+  assert.equal(signals.filter(signal => signal.virtualLan).length, 1);
+  assert.equal(signals.filter(signal => !signal.virtualLan).length, 2);
+  const received: string[] = [];
+  peer.pc.addIceCandidate = async (candidate: any) => { received.push(candidate.candidate); if (candidate.candidate.includes('10.20.0.2')) throw new Error('unsupported'); };
+  await peer.receiveSignal({ candidate: extra, virtualLan: true });
+  await peer.receiveSignal({ candidate: original });
+  await peer.receiveSignal({ description: { type: 'answer', sdp: 'test' } });
+  assert.equal(received.length, 2);
+  peer.close();
+  lan.setVirtualLanAddress('');
+  const plain: any[] = [];
+  const ordinary = new (h.load('PeerNet').PeerNet)('host', (signal: any) => plain.push(signal));
+  ordinary.pc.onicecandidate({ candidate: { toJSON: () => original } });
+  assert.equal(plain.length, 1);
+  ordinary.close();
+}
+console.log('Signaling, handshake deadlines and virtual LAN candidate checks passed');

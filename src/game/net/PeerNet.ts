@@ -1,4 +1,6 @@
 import { requireDirectSupport } from './DirectSupport';
+import { directDiagnostic, getVirtualLanAddress, virtualLanCandidate } from './VirtualLan';
+import { recordSelectedPair } from './DirectDiagnostics';
 import { NetTraffic, allocChannelId, dropRtt, updateRtt } from './NetTraffic';
 import type { GameConnection } from './GameConnection';
 
@@ -22,14 +24,16 @@ type FragFrame = { t: typeof FRAG_TYPE; f: number; i: number; n: number; d: stri
 
 export type PeerSignal =
   | { description: RTCSessionDescriptionInit }
-  | { candidate: RTCIceCandidateInit };
+  | { candidate: RTCIceCandidateInit; virtualLan?: true };
 
 /** 关键消息走可靠有序通道；可淘汰的实时状态走无序、不重传通道。 */
 export class PeerNet implements GameConnection {
   private readonly pc: RTCPeerConnection;
   private controlChannel?: RTCDataChannel;
   private stateChannel?: RTCDataChannel;
-  private readonly pendingCandidates: RTCIceCandidateInit[] = [];
+  private readonly pendingCandidates: { candidate: RTCIceCandidateInit; virtualLan?: true }[] = [];
+  private readonly virtualAddress = getVirtualLanAddress();
+  private readonly virtualCandidates = new Set<string>();
   private readonly controlQueue: string[] = [];
   private readonly latestState = new Map<string, string>();
   private nextFragId = 1;
@@ -53,11 +57,26 @@ export class PeerNet implements GameConnection {
   ) {
     requireDirectSupport();
     this.pc = new RTCPeerConnection(RTC_CONFIG);
+    const log = (message: string) => directDiagnostic(this.channelId, message);
+    log(`${side === 'host' ? '房主' : '客人'}准备连接${this.virtualAddress ? `，本机辅助 IP ${this.virtualAddress}` : '，普通直连'}`);
     this.pc.onicecandidate = (event) => {
-      if (event.candidate) this.signal({ candidate: event.candidate.toJSON() });
+      if (!event.candidate) { log('地址收集完成'); return; }
+      const candidate = event.candidate.toJSON();
+      this.signal({ candidate });
+      log(`本机候选 ${event.candidate.type ?? '?'} ${event.candidate.address ?? '地址隐藏'}:${event.candidate.port ?? '?'}`);
+      const extra = virtualLanCandidate(candidate, this.virtualAddress);
+      if (extra && !this.virtualCandidates.has(extra.candidate!)) {
+        this.virtualCandidates.add(extra.candidate!);
+        this.signal({ candidate: extra, virtualLan: true });
+        log(`已补充虚拟 IP ${this.virtualAddress} 的 UDP 候选（尚未验证可达）`);
+      }
     };
+    this.pc.oniceconnectionstatechange = () => log(`ICE 状态：${this.pc.iceConnectionState}`);
+    this.pc.onicecandidateerror = event => log(`地址收集错误 ${event.errorCode}；其他路径仍可能可用`);
     this.pc.onconnectionstatechange = () => {
       const state = this.pc.connectionState;
+      log(`连接状态：${state}`);
+      if (state === 'connected') void recordSelectedPair(this.pc, this.channelId);
       if (state === 'disconnected') {
         if (!this.disconnectTimer) this.disconnectTimer = setTimeout(() => this.notifyClosed(), 45_000);
       } else {
@@ -85,7 +104,11 @@ export class PeerNet implements GameConnection {
   /** 房主发起 offer / 客人找到房主后计时，信令查找不占用握手时间。 */
   beginHandshake(): void {
     if (this.connectTimer || this.closeNotified || this.openNotified) return;
-    this.connectTimer = setTimeout(() => this.notifyClosed(), 30_000);
+    directDiagnostic(this.channelId, '已找到对方，开始握手（30 秒）');
+    this.connectTimer = setTimeout(() => {
+      directDiagnostic(this.channelId, '握手超时；尚未建立两个游戏数据通道');
+      this.notifyClosed();
+    }, 30_000);
   }
 
   async start(): Promise<void> {
@@ -98,6 +121,7 @@ export class PeerNet implements GameConnection {
 
   async receiveSignal(signal: PeerSignal): Promise<void> {
     if ('description' in signal) {
+      directDiagnostic(this.channelId, `收到握手 ${signal.description.type}`);
       await this.pc.setRemoteDescription(signal.description);
       await this.flushCandidates();
       if (signal.description.type === 'offer') {
@@ -107,12 +131,22 @@ export class PeerNet implements GameConnection {
       }
       return;
     }
-    if (!this.pc.remoteDescription) this.pendingCandidates.push(signal.candidate);
-    else await this.pc.addIceCandidate(signal.candidate);
+    if (!this.pc.remoteDescription) this.pendingCandidates.push(signal);
+    else await this.addCandidate(signal);
   }
 
   private async flushCandidates(): Promise<void> {
-    for (const candidate of this.pendingCandidates.splice(0)) await this.pc.addIceCandidate(candidate);
+    for (const signal of this.pendingCandidates.splice(0)) await this.addCandidate(signal);
+  }
+
+  private async addCandidate(signal: { candidate: RTCIceCandidateInit; virtualLan?: true }): Promise<void> {
+    try {
+      await this.pc.addIceCandidate(signal.candidate);
+      directDiagnostic(this.channelId, signal.virtualLan ? '已接受对方辅助候选，等待可达性检查' : '已接受对方原始候选');
+    } catch (error) {
+      directDiagnostic(this.channelId, signal.virtualLan ? '浏览器拒绝辅助候选，继续原始路径' : '浏览器拒绝原始候选');
+      if (!signal.virtualLan) throw error;
+    }
   }
 
   private bindControlChannel(channel: RTCDataChannel): void {
@@ -136,6 +170,7 @@ export class PeerNet implements GameConnection {
   private notifyOpenIfReady(): void {
     if (!this.connected || this.openNotified) return;
     this.openNotified = true;
+    directDiagnostic(this.channelId, '两个游戏数据通道均已打开');
     if (this.connectTimer) clearTimeout(this.connectTimer);
     this.flushControl();
     this.flushLatestState();

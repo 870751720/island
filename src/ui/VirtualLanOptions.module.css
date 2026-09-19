@@ -1,0 +1,6 @@
+.panel { margin: 12px 0; padding: 10px; border: 1px solid #c5c9bd; border-radius: 12px; font-size: 13px; text-align: left; color: #394b43; }
+.panel summary { min-height: 44px; align-content: center; cursor: pointer; }
+.panel p { line-height: 1.6; margin: 8px 0; }
+.panel label { display: block; margin-bottom: 6px; }
+.panel input { width: 100%; box-sizing: border-box; min-height: 44px; font-size: 16px; padding: 8px; border: 1px solid #909e92; border-radius: 8px; background: #fffef8; color: #243e32; }
+.panel pre { max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font-size: 12px; }
